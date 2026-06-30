@@ -366,7 +366,14 @@ export default function App() {
   return (
     <div>
       <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css" />
-      <h1 style={{ fontSize: 20, fontWeight: 600, margin: "0 0 4px" }}>Binerly</h1>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+        <svg width="32" height="32" viewBox="0 0 100 100" aria-hidden="true">
+          <path d="M18 50 L38 36 L54 41 L66 51" fill="none" stroke="#185FA5" stroke-width="7" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M82 50 L62 36 L46 41 L34 51" fill="none" stroke="#378ADD" stroke-width="7" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="50" cy="43" r="8" fill="#0C447C" />
+        </svg>
+        <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: "var(--text-accent)" }}>Binerly</h1>
+      </div>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 1.5rem" }}>KOBİ satış takip sistemi</p>
       <h2 className="sr-only">KOBİ satış takip uygulaması: pano, müşteriler ve fırsatlar sekmeleri</h2>
 
@@ -381,8 +388,9 @@ export default function App() {
             onClick={() => setTab(t.id)}
             style={{
               flex: 1,
-              border: tab === t.id ? "0.5px solid var(--border-strong)" : "0.5px solid var(--border)",
-              background: tab === t.id ? "var(--surface-1)" : "transparent",
+              border: tab === t.id ? "1px solid var(--border-strong)" : "0.5px solid var(--border)",
+              background: tab === t.id ? "var(--bg-accent)" : "transparent",
+              color: tab === t.id ? "var(--text-accent)" : "var(--text-primary)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
