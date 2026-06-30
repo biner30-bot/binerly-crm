@@ -253,7 +253,6 @@ function LoginForm() {
 
   return (
     <div style={{ maxWidth: 380, margin: "4rem auto", padding: "0 1rem" }}>
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css" />
       <h1 style={{ fontSize: 20, fontWeight: 600, margin: "0 0 4px" }}>Binerly</h1>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 1.5rem" }}>KOBİ satış takip sistemi</p>
       <div style={{ background: "var(--surface-1)", borderRadius: 12, padding: "1.5rem" }}>
@@ -410,7 +409,6 @@ export default function App() {
 
   return (
     <div>
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css" />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 600, margin: "0 0 4px" }}>Binerly</h1>
