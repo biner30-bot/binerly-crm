@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Binerly — KOBİ Satış Takip</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css" />
+    <style>
+      :root {
+        --bg: #f7f8fa;
+        --surface-1: #ffffff;
+        --surface-2: #ffffff;
+        --border: #e4e6eb;
+        --border-strong: #1a1a1a;
+        --text-primary: #1a1a1a;
+        --text-secondary: #6b7280;
+        --text-muted: #9ca3af;
+        --text-success: #15803d;
+        --text-warning: #b45309;
+        --text-accent: #1d4ed8;
+        --bg-success: #dcfce7;
+        --bg-warning: #fef3c7;
+        --bg-accent: #dbeafe;
+        --fill-accent: #1a1a1a;
+        --fill-warning: #f59e0b;
+        --on-accent: #ffffff;
+        --radius: 10px;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text-primary);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+      button {
+        font-family: inherit;
+        font-size: 14px;
+        padding: 8px 14px;
+        border-radius: var(--radius);
+        border: 0.5px solid var(--border);
+        background: var(--surface-1);
+        cursor: pointer;
+      }
+      button:disabled { opacity: 0.5; cursor: not-allowed; }
+      input, select, textarea {
+        font-family: inherit;
+        font-size: 14px;
+        padding: 8px 10px;
+        border-radius: var(--radius);
+        border: 0.5px solid var(--border);
+        background: var(--surface-1);
+        color: var(--text-primary);
+      }
+      #root { max-width: 980px; margin: 0 auto; padding: 24px 16px 64px; }
+      .sr-only {
+        position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+        overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
