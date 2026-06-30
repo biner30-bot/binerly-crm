@@ -52,7 +52,7 @@ function Modal({ title, onClose, children }) {
       <div style={{ background: "var(--surface-2)", border: "0.5px solid var(--border)", borderRadius: 12, padding: "1.5rem", width: "100%", maxWidth: 420 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h3 style={{ margin: 0 }}>{title}</h3>
-          <button onClick={onClose} aria-label="Kapat" style={{ width: 32, height: 32, padding: 0 }}><i className="ti ti-x" aria-hidden="true"></i></button>
+          <button onClick={onClose} style={{ width: 32, height: 32, padding: 0 }}><i className="ti ti-x"></i></button>
         </div>
         {children}
       </div>
@@ -85,23 +85,103 @@ function DealForm({ customers, initial, onSave, onCancel }) {
   return (
     <form onSubmit={(e) => { e.preventDefault(); if (!customerId || !title.trim()) return; onSave({ id: initial?.id || uid(), customerId, title: title.trim(), value: Number(value) || 0, stage, reminder: reminder.trim(), createdAt: initial?.createdAt || new Date().toISOString() }); }}>
       <div style={{ marginBottom: 12 }}><label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Müşteri</label>{customers.length === 0 ? <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Önce bir müşteri ekleyin.</p> : <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} style={{ width: "100%" }}>{customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>}</div>
-      <div style={{ marginBottom: 12 }}><label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Fırsat / teklif başlığı</label><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Yıllık tedarik anlaşması" style={{ width: "100%" }} /></div>
+      <div style={{ marginBottom: 12 }}><label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Fırsat başlığı</label><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Yıllık tedarik anlaşması" style={{ width: "100%" }} /></div>
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
         <div style={{ flex: 1 }}><label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tutar (TL)</label><input type="number" min="0" value={value} onChange={(e) => setValue(e.target.value)} placeholder="50000" style={{ width: "100%" }} /></div>
         <div style={{ flex: 1 }}><label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Aşama</label><select value={stage} onChange={(e) => setStage(e.target.value)} style={{ width: "100%" }}>{STAGES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></div>
       </div>
-      <div style={{ marginBottom: 16 }}><label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Hatırlatma notu</label><input value={reminder} onChange={(e) => setReminder(e.target.value)} placeholder="Yarın takip araması yap" style={{ width: "100%" }} /></div>
+      <div style={{ marginBottom: 16 }}><label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Hatırlatma</label><input value={reminder} onChange={(e) => setReminder(e.target.value)} placeholder="Yarın takip araması yap" style={{ width: "100%" }} /></div>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}><button type="button" onClick={onCancel}>Vazgeç</button><button type="submit" disabled={customers.length === 0} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button></div>
     </form>
   );
 }
 
-function LoginForm() {
+function LandingPage({ onLogin, onRegister }) {
+  return (
+    <div style={{ minHeight: "100vh", background: "var(--bg-page, #f8fafc)" }}>
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css" />
+
+      {/* Navbar */}
+      <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem 2rem", borderBottom: "0.5px solid var(--border, #e2e8f0)", background: "white" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <svg width="28" height="28" viewBox="0 0 100 100">
+            <path d="M18 50 L38 36 L54 41 L66 51" fill="none" stroke="#185FA5" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M82 50 L62 36 L46 41 L34 51" fill="none" stroke="#378ADD" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="50" cy="43" r="8" fill="#0C447C" />
+          </svg>
+          <span style={{ fontSize: 18, fontWeight: 700, color: "#185FA5" }}>Binerly</span>
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onLogin} style={{ background: "none", border: "1px solid #185FA5", color: "#185FA5", padding: "8px 20px", borderRadius: 8, cursor: "pointer", fontWeight: 500 }}>Giriş yap</button>
+          <button onClick={onRegister} style={{ background: "#185FA5", border: "none", color: "white", padding: "8px 20px", borderRadius: 8, cursor: "pointer", fontWeight: 500 }}>Ücretsiz Dene</button>
+        </div>
+      </nav>
+
+      {/* Hero */}
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "5rem 2rem 3rem", textAlign: "center" }}>
+        <div style={{ display: "inline-block", background: "#EFF6FF", color: "#185FA5", fontSize: 13, fontWeight: 600, padding: "6px 16px", borderRadius: 20, marginBottom: "1.5rem" }}>
+          KOBİ'lere özel satış takip sistemi
+        </div>
+        <h1 style={{ fontSize: "clamp(2rem, 5vw, 3rem)", fontWeight: 800, color: "#0f172a", margin: "0 0 1.5rem", lineHeight: 1.2 }}>
+          Müşterilerinizi ve fırsatlarınızı<br />
+          <span style={{ color: "#185FA5" }}>tek yerden yönetin</span>
+        </h1>
+        <p style={{ fontSize: 18, color: "#64748b", maxWidth: 560, margin: "0 auto 2.5rem", lineHeight: 1.7 }}>
+          Excel ve WhatsApp karmaşasına son verin. Binerly ile müşteri takibi, teklif yönetimi ve satış süreçlerinizi kolayca takip edin.
+        </p>
+        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+          <button onClick={onRegister} style={{ background: "#185FA5", border: "none", color: "white", padding: "14px 32px", borderRadius: 10, cursor: "pointer", fontWeight: 600, fontSize: 16 }}>
+            Ücretsiz Başla →
+          </button>
+          <button onClick={onLogin} style={{ background: "white", border: "1px solid #e2e8f0", color: "#0f172a", padding: "14px 32px", borderRadius: 10, cursor: "pointer", fontWeight: 600, fontSize: 16 }}>
+            Giriş yap
+          </button>
+        </div>
+      </div>
+
+      {/* Özellikler */}
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "3rem 2rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 24 }}>
+          {[
+            { icon: "ti-building", title: "Müşteri Takibi", desc: "Tüm müşterilerinizi, iletişim geçmişinizi ve notlarınızı tek panelden görün." },
+            { icon: "ti-target-arrow", title: "Fırsat Yönetimi", desc: "Tekliflerinizi aşama aşama takip edin, hangisinin ne durumda olduğunu anında görün." },
+            { icon: "ti-layout-dashboard", title: "Satış Panosu", desc: "Açık fırsatlar, kazanılan anlaşmalar ve teklif değerlerinizi tek bakışta görün." },
+            { icon: "ti-bell", title: "Hatırlatmalar", desc: "Takip araması yapmanız gereken müşterileri asla unutmayın." },
+          ].map((f) => (
+            <div key={f.title} style={{ background: "white", borderRadius: 12, padding: "1.5rem", border: "1px solid #e2e8f0" }}>
+              <div style={{ width: 44, height: 44, background: "#EFF6FF", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+                <i className={`ti ${f.icon}`} style={{ fontSize: 22, color: "#185FA5" }}></i>
+              </div>
+              <h3 style={{ margin: "0 0 8px", fontSize: 16, color: "#0f172a" }}>{f.title}</h3>
+              <p style={{ margin: 0, fontSize: 14, color: "#64748b", lineHeight: 1.6 }}>{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* CTA */}
+      <div style={{ background: "#185FA5", margin: "2rem", borderRadius: 16, padding: "3rem 2rem", textAlign: "center" }}>
+        <h2 style={{ color: "white", fontSize: "1.8rem", fontWeight: 700, margin: "0 0 1rem" }}>Hemen başlayın, ücretsiz</h2>
+        <p style={{ color: "#bfdbfe", margin: "0 0 2rem", fontSize: 16 }}>Kredi kartı gerekmez. Dakikalar içinde kurulum.</p>
+        <button onClick={onRegister} style={{ background: "white", border: "none", color: "#185FA5", padding: "14px 36px", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 16 }}>
+          Ücretsiz Hesap Oluştur →
+        </button>
+      </div>
+
+      <div style={{ textAlign: "center", padding: "2rem", color: "#94a3b8", fontSize: 13 }}>
+        © 2025 Binerly · KOBİ satış takip sistemi
+      </div>
+    </div>
+  );
+}
+
+function AuthModal({ initialMode, onClose }) {
+  const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState("login");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
   const submit = async (e) => {
     e.preventDefault(); setMessage(""); setLoading(true);
     if (mode === "login") {
@@ -114,29 +194,33 @@ function LoginForm() {
     }
     setLoading(false);
   };
+
   return (
-    <div style={{ maxWidth: 380, margin: "4rem auto", padding: "0 1rem" }}>
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css" />
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-        <svg width="32" height="32" viewBox="0 0 100 100" aria-hidden="true">
-          <path d="M18 50 L38 36 L54 41 L66 51" fill="none" stroke="#185FA5" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M82 50 L62 36 L46 41 L34 51" fill="none" stroke="#378ADD" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
-          <circle cx="50" cy="43" r="8" fill="#0C447C" />
-        </svg>
-        <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: "var(--text-accent)" }}>Binerly</h1>
-      </div>
-      <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 1.5rem" }}>KOBİ satış takip sistemi</p>
-      <div style={{ background: "var(--surface-1)", borderRadius: 12, padding: "1.5rem" }}>
-        <h2 style={{ fontSize: 16, margin: "0 0 1rem" }}>{mode === "login" ? "Giriş yap" : "Kayıt ol"}</h2>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "1rem" }}>
+      <div style={{ background: "white", borderRadius: 16, padding: "2rem", width: "100%", maxWidth: 400, position: "relative" }}>
+        <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "#64748b" }}>✕</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "1.5rem" }}>
+          <svg width="24" height="24" viewBox="0 0 100 100">
+            <path d="M18 50 L38 36 L54 41 L66 51" fill="none" stroke="#185FA5" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M82 50 L62 36 L46 41 L34 51" fill="none" stroke="#378ADD" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="50" cy="43" r="8" fill="#0C447C" />
+          </svg>
+          <span style={{ fontWeight: 700, color: "#185FA5" }}>Binerly</span>
+        </div>
+        <h2 style={{ margin: "0 0 1.5rem", fontSize: 20, color: "#0f172a" }}>{mode === "login" ? "Giriş yap" : "Hesap oluştur"}</h2>
         <form onSubmit={submit}>
-          <div style={{ marginBottom: 12 }}><label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>E-posta</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: "100%" }} /></div>
-          <div style={{ marginBottom: 16 }}><label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Şifre</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ width: "100%" }} /></div>
-          {message && <p style={{ fontSize: 13, color: "var(--text-warning)", marginBottom: 12 }}>{message}</p>}
-          <button type="submit" disabled={loading} style={{ width: "100%", background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>{loading ? "Yükleniyor…" : mode === "login" ? "Giriş yap" : "Kayıt ol"}</button>
+          <div style={{ marginBottom: 12 }}><label style={{ fontSize: 13, color: "#64748b", display: "block", marginBottom: 4 }}>E-posta</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: "100%", padding: "10px 12px", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 14, boxSizing: "border-box" }} /></div>
+          <div style={{ marginBottom: 20 }}><label style={{ fontSize: 13, color: "#64748b", display: "block", marginBottom: 4 }}>Şifre</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ width: "100%", padding: "10px 12px", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 14, boxSizing: "border-box" }} /></div>
+          {message && <p style={{ fontSize: 13, color: message.includes("başarılı") ? "#16a34a" : "#dc2626", marginBottom: 12 }}>{message}</p>}
+          <button type="submit" disabled={loading} style={{ width: "100%", background: "#185FA5", border: "none", color: "white", padding: "12px", borderRadius: 8, fontWeight: 600, fontSize: 15, cursor: "pointer" }}>
+            {loading ? "Yükleniyor…" : mode === "login" ? "Giriş yap" : "Hesap oluştur"}
+          </button>
         </form>
-        <p style={{ fontSize: 13, textAlign: "center", marginTop: 12, color: "var(--text-secondary)" }}>
-          {mode === "login" ? "Hesabın yok mu? " : "Hesabın var mı? "}
-          <button onClick={() => { setMode(mode === "login" ? "register" : "login"); setMessage(""); }} style={{ background: "none", border: "none", color: "var(--text-accent)", padding: 0, cursor: "pointer", fontSize: 13 }}>{mode === "login" ? "Kayıt ol" : "Giriş yap"}</button>
+        <p style={{ fontSize: 13, textAlign: "center", marginTop: 16, color: "#64748b" }}>
+          {mode === "login" ? "Hesabın yok mu? " : "Zaten hesabın var mı? "}
+          <button onClick={() => { setMode(mode === "login" ? "register" : "login"); setMessage(""); }} style={{ background: "none", border: "none", color: "#185FA5", cursor: "pointer", fontWeight: 600, fontSize: 13 }}>
+            {mode === "login" ? "Kayıt ol" : "Giriş yap"}
+          </button>
         </p>
       </div>
     </div>
@@ -145,6 +229,7 @@ function LoginForm() {
 
 export default function App() {
   const [session, setSession] = useState(undefined);
+  const [authModal, setAuthModal] = useState(null);
   const [tab, setTab] = useState("pano");
   const [customers, setCustomers] = useState([]);
   const [deals, setDeals] = useState([]);
@@ -156,7 +241,10 @@ export default function App() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, s) => setSession(s));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, s) => {
+      setSession(s);
+      if (s) setAuthModal(null);
+    });
     return () => subscription.unsubscribe();
   }, []);
 
@@ -204,9 +292,16 @@ export default function App() {
     setCustomers((prev) => prev.map((c) => c.id === id ? { ...c, lastContact: now } : c));
   };
 
-  if (session === undefined) return <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
-  if (!session) return <LoginForm />;
-  if (loading) return <div style={{ padding: "2rem 0", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
+  if (session === undefined) return <div style={{ padding: "2rem", textAlign: "center" }}>Yükleniyor…</div>;
+
+  if (!session) return (
+    <>
+      <LandingPage onLogin={() => setAuthModal("login")} onRegister={() => setAuthModal("register")} />
+      {authModal && <AuthModal initialMode={authModal} onClose={() => setAuthModal(null)} />}
+    </>
+  );
+
+  if (loading) return <div style={{ padding: "2rem", textAlign: "center" }}>Yükleniyor…</div>;
 
   const openDeals = deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi");
   const wonDeals = deals.filter((d) => d.stage === "kazanildi");
@@ -217,27 +312,27 @@ export default function App() {
   return (
     <div>
       <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css" />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-            <svg width="32" height="32" viewBox="0 0 100 100" aria-hidden="true">
-              <path d="M18 50 L38 36 L54 41 L66 51" fill="none" stroke="#185FA5" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M82 50 L62 36 L46 41 L34 51" fill="none" stroke="#378ADD" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx="50" cy="43" r="8" fill="#0C447C" />
-            </svg>
-            <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: "var(--text-accent)" }}>Binerly</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <svg width="28" height="28" viewBox="0 0 100 100">
+            <path d="M18 50 L38 36 L54 41 L66 51" fill="none" stroke="#185FA5" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M82 50 L62 36 L46 41 L34 51" fill="none" stroke="#378ADD" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="50" cy="43" r="8" fill="#0C447C" />
+          </svg>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#185FA5" }}>Binerly</div>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>KOBİ satış takip sistemi</div>
           </div>
-          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>KOBİ satış takip sistemi</p>
         </div>
-        <button onClick={() => supabase.auth.signOut()} style={{ fontSize: 12, color: "var(--text-secondary)", background: "none", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 4 }} title="Çıkış yap">
-          <i className="ti ti-logout" style={{ fontSize: 14 }} aria-hidden="true"></i>Çıkış
+        <button onClick={() => supabase.auth.signOut()} style={{ fontSize: 13, color: "var(--text-secondary)", background: "none", border: "0.5px solid var(--border)", borderRadius: 8, padding: "6px 14px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+          <i className="ti ti-logout" style={{ fontSize: 14 }}></i> Çıkış
         </button>
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: "1.5rem" }}>
         {[{ id: "pano", label: "Pano", icon: "ti-layout-dashboard" }, { id: "musteri", label: "Müşteriler", icon: "ti-building" }, { id: "firsat", label: "Fırsatlar", icon: "ti-target-arrow" }].map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, border: tab === t.id ? "1px solid var(--border-strong)" : "0.5px solid var(--border)", background: tab === t.id ? "var(--bg-accent)" : "transparent", color: tab === t.id ? "var(--text-accent)" : "var(--text-primary)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-            <i className={`ti ${t.icon}`} style={{ fontSize: 16 }} aria-hidden="true"></i>{t.label}
+            <i className={`ti ${t.icon}`} style={{ fontSize: 16 }}></i>{t.label}
           </button>
         ))}
       </div>
@@ -253,7 +348,7 @@ export default function App() {
           {customers.length === 0 && deals.length === 0 ? (
             <div style={{ background: "var(--surface-1)", borderRadius: 12, padding: "2rem 1.5rem", textAlign: "center" }}>
               <p style={{ fontWeight: 500, margin: "0 0 4px" }}>Henüz veri yok</p>
-              <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px" }}>Başlamak için önce bir müşteri ekleyin, sonra ona bir fırsat tanımlayın.</p>
+              <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px" }}>Başlamak için önce bir müşteri ekleyin.</p>
               <button onClick={() => { setTab("musteri"); setShowCustomerForm(true); }} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Müşteri ekle</button>
             </div>
           ) : (
@@ -269,7 +364,7 @@ export default function App() {
                       {stageDeals.map((d) => {
                         const c = customerById(d.customerId);
                         const tone = stage.id === "kazanildi" ? "success" : stage.id === "muzakere" ? "warning" : "default";
-                        return <div key={d.id} style={{ background: tone === "default" ? "var(--surface-1)" : `var(--bg-${tone})`, border: tone === "default" ? "0.5px solid var(--border)" : "none", borderRadius: "var(--radius)", padding: 8, marginBottom: 6, fontSize: 13, color: tone === "default" ? "var(--text-primary)" : `var(--text-${tone})` }}>{c?.name || "Bilinmeyen müşteri"}<br /><span style={{ fontSize: 12, opacity: 0.85 }}>{formatTL(d.value)}</span></div>;
+                        return <div key={d.id} style={{ background: tone === "default" ? "var(--surface-1)" : `var(--bg-${tone})`, border: tone === "default" ? "0.5px solid var(--border)" : "none", borderRadius: "var(--radius)", padding: 8, marginBottom: 6, fontSize: 13 }}>{c?.name || "?"}<br /><span style={{ fontSize: 12, opacity: 0.85 }}>{formatTL(d.value)}</span></div>;
                       })}
                     </div>
                   );
@@ -284,7 +379,7 @@ export default function App() {
         <div>
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
             <button onClick={() => { setEditingCustomer(null); setShowCustomerForm(true); }} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}>
-              <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>Müşteri ekle
+              <i className="ti ti-plus" style={{ fontSize: 16 }}></i>Müşteri ekle
             </button>
           </div>
           {customers.length === 0 ? <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Henüz müşteri eklenmedi.</p> : (
@@ -296,9 +391,9 @@ export default function App() {
                     <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{c.sector} {c.phone ? `· ${c.phone}` : ""}</p>
                   </div>
                   <Badge tone={daysAgo(c.lastContact) === "Bugün" ? "success" : "default"}>{daysAgo(c.lastContact) || "Temas yok"}</Badge>
-                  <button onClick={() => touchCustomer(c.id)} title="Bugün arandı olarak işaretle" style={{ width: 32, height: 32, padding: 0 }}><i className="ti ti-phone-check" style={{ fontSize: 16 }} aria-hidden="true"></i></button>
-                  <button onClick={() => { setEditingCustomer(c); setShowCustomerForm(true); }} style={{ width: 32, height: 32, padding: 0 }}><i className="ti ti-edit" style={{ fontSize: 16 }} aria-hidden="true"></i></button>
-                  <button onClick={() => deleteCustomer(c.id)} style={{ width: 32, height: 32, padding: 0 }}><i className="ti ti-trash" style={{ fontSize: 16 }} aria-hidden="true"></i></button>
+                  <button onClick={() => touchCustomer(c.id)} style={{ width: 32, height: 32, padding: 0 }}><i className="ti ti-phone-check" style={{ fontSize: 16 }}></i></button>
+                  <button onClick={() => { setEditingCustomer(c); setShowCustomerForm(true); }} style={{ width: 32, height: 32, padding: 0 }}><i className="ti ti-edit" style={{ fontSize: 16 }}></i></button>
+                  <button onClick={() => deleteCustomer(c.id)} style={{ width: 32, height: 32, padding: 0 }}><i className="ti ti-trash" style={{ fontSize: 16 }}></i></button>
                 </div>
               ))}
             </div>
@@ -310,10 +405,10 @@ export default function App() {
         <div>
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
             <button onClick={() => { setEditingDeal(null); setShowDealForm(true); }} disabled={customers.length === 0} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}>
-              <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>Fırsat ekle
+              <i className="ti ti-plus" style={{ fontSize: 16 }}></i>Fırsat ekle
             </button>
           </div>
-          {customers.length === 0 && <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>Fırsat eklemeden önce bir müşteri oluşturun.</p>}
+          {customers.length === 0 && <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>Önce müşteri ekleyin.</p>}
           {deals.length === 0 ? <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Henüz fırsat eklenmedi.</p> : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {deals.map((d) => {
@@ -323,13 +418,13 @@ export default function App() {
                 return (
                   <div key={d.id} style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                     <div style={{ flex: 1, minWidth: 180 }}>
-                      <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{c?.name || "Bilinmeyen müşteri"} — {d.title}</p>
+                      <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{c?.name || "?"} — {d.title}</p>
                       <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{d.reminder ? `Hatırlatma: ${d.reminder}` : "Hatırlatma yok"}</p>
                     </div>
                     <Badge tone={tone}>{stageInfo?.label}</Badge>
                     <span style={{ fontSize: 13, fontWeight: 500, minWidth: 90, textAlign: "right" }}>{formatTL(d.value)}</span>
-                    <button onClick={() => { setEditingDeal(d); setShowDealForm(true); }} style={{ width: 32, height: 32, padding: 0 }}><i className="ti ti-edit" style={{ fontSize: 16 }} aria-hidden="true"></i></button>
-                    <button onClick={() => deleteDeal(d.id)} style={{ width: 32, height: 32, padding: 0 }}><i className="ti ti-trash" style={{ fontSize: 16 }} aria-hidden="true"></i></button>
+                    <button onClick={() => { setEditingDeal(d); setShowDealForm(true); }} style={{ width: 32, height: 32, padding: 0 }}><i className="ti ti-edit" style={{ fontSize: 16 }}></i></button>
+                    <button onClick={() => deleteDeal(d.id)} style={{ width: 32, height: 32, padding: 0 }}><i className="ti ti-trash" style={{ fontSize: 16 }}></i></button>
                   </div>
                 );
               })}
