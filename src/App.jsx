@@ -581,6 +581,8 @@ export default function App() {
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [editingDeal, setEditingDeal] = useState(null);
   const [viewingCustomer, setViewingCustomer] = useState(null);
+  const [dealView, setDealView] = useState("kanban");
+  const [dragDealId, setDragDealId] = useState(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -673,6 +675,11 @@ export default function App() {
   const deleteDeal = async (id) => {
     await supabase.from("deals").delete().eq("id", id);
     setDeals((prev) => prev.filter((d) => d.id !== id));
+  };
+
+  const moveDealStage = async (id, stage) => {
+    setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, stage } : d)));
+    await supabase.from("deals").update({ stage }).eq("id", id);
   };
 
   const touchCustomer = async (id) => {
@@ -845,7 +852,23 @@ export default function App() {
 
       {tab === "firsat" && (
         <div>
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3 }}>
+              <button
+                onClick={() => setDealView("kanban")}
+                style={{ border: "none", background: dealView === "kanban" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+              >
+                <i className="ti ti-layout-kanban" style={{ fontSize: 15 }} aria-hidden="true"></i>
+                Kanban
+              </button>
+              <button
+                onClick={() => setDealView("list")}
+                style={{ border: "none", background: dealView === "list" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+              >
+                <i className="ti ti-list" style={{ fontSize: 15 }} aria-hidden="true"></i>
+                Liste
+              </button>
+            </div>
             <button
               onClick={() => { setEditingDeal(null); setShowDealForm(true); }}
               disabled={customers.length === 0}
@@ -862,6 +885,50 @@ export default function App() {
 
           {deals.length === 0 ? (
             <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Henüz fırsat eklenmedi.</p>
+          ) : dealView === "kanban" ? (
+            <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
+              {STAGES.map((stage) => {
+                const stageDeals = deals.filter((d) => d.stage === stage.id);
+                const stageValue = stageDeals.reduce((sum, d) => sum + (d.value || 0), 0);
+                return (
+                  <div
+                    key={stage.id}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => { if (dragDealId) { moveDealStage(dragDealId, stage.id); setDragDealId(null); } }}
+                    style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 10, minWidth: 220, flex: "0 0 220px" }}
+                  >
+                    <div style={{ marginBottom: 8 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 2px" }}>{stage.label} · {stageDeals.length}</p>
+                      <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0 }}>{formatTL(stageValue)}</p>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 40 }}>
+                      {stageDeals.map((d) => {
+                        const c = customerById(d.customerId);
+                        return (
+                          <div
+                            key={d.id}
+                            draggable
+                            onDragStart={() => setDragDealId(d.id)}
+                            onClick={() => { setEditingDeal(d); setShowDealForm(true); }}
+                            style={{ background: "var(--surface-2)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 10, cursor: "grab" }}
+                          >
+                            <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 500 }}>{c?.name || "Bilinmeyen müşteri"}</p>
+                            <p style={{ margin: "0 0 4px", fontSize: 12, color: "var(--text-secondary)" }}>{d.title}</p>
+                            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--text-accent)" }}>{formatTL(d.value)}</p>
+                            {d.reminder && (
+                              <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--text-warning)", display: "flex", alignItems: "center", gap: 4 }}>
+                                <i className="ti ti-bell" style={{ fontSize: 12 }} aria-hidden="true"></i>
+                                {d.reminder}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {deals.map((d) => {
