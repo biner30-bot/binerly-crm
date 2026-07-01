@@ -229,10 +229,10 @@ function DealForm({ customers, initial, onSave, onCancel }) {
   );
 }
 
-function LoginForm() {
+function AuthModal({ initialMode = "login", onClose }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState("login");
+  const [mode, setMode] = useState(initialMode);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -252,36 +252,36 @@ function LoginForm() {
   };
 
   return (
-    <div style={{ maxWidth: 380, margin: "4rem auto", padding: "0 1rem" }}>
-      <h1 style={{ fontSize: 20, fontWeight: 600, margin: "0 0 4px" }}>Binerly</h1>
-      <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 1.5rem" }}>KOBİ satış takip sistemi</p>
-      <div style={{ background: "var(--surface-1)", borderRadius: 12, padding: "1.5rem" }}>
-        <h2 style={{ fontSize: 16, margin: "0 0 1rem" }}>{mode === "login" ? "Giriş yap" : "Kayıt ol"}</h2>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "1rem" }}>
+      <div style={{ background: "#fff", borderRadius: 16, padding: "2rem", width: "100%", maxWidth: 420, position: "relative" }}>
+        <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#666" }}>✕</button>
+        <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 4px", color: "#0c2540" }}>
+          {mode === "login" ? "Giriş yap" : "Ücretsiz başla"}
+        </h2>
+        <p style={{ fontSize: 13, color: "#5b7088", margin: "0 0 1.5rem" }}>Binerly CRM'e hoş geldiniz</p>
         <form onSubmit={submit}>
           <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>E-posta</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: "100%" }} />
+            <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>E-posta</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: "100%", padding: "10px 12px", border: "1px solid #e1e8f0", borderRadius: 8, fontSize: 14, boxSizing: "border-box" }} />
           </div>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Şifre</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ width: "100%" }} />
+            <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>Şifre</label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ width: "100%", padding: "10px 12px", border: "1px solid #e1e8f0", borderRadius: 8, fontSize: 14, boxSizing: "border-box" }} />
           </div>
-          {message && (
-            <p style={{ fontSize: 13, color: "var(--text-warning)", marginBottom: 12 }}>{message}</p>
-          )}
-          <button type="submit" disabled={loading} style={{ width: "100%", background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+          {message && <p style={{ fontSize: 13, color: "#b45309", marginBottom: 12 }}>{message}</p>}
+          <button type="submit" disabled={loading} style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
             {loading ? "Yükleniyor…" : mode === "login" ? "Giriş yap" : "Kayıt ol"}
           </button>
         </form>
         <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "12px 0" }}>
-          <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>veya</span>
-          <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+          <div style={{ flex: 1, height: 1, background: "#e1e8f0" }} />
+          <span style={{ fontSize: 12, color: "#94a7bb" }}>veya</span>
+          <div style={{ flex: 1, height: 1, background: "#e1e8f0" }} />
         </div>
         <button
           type="button"
           onClick={() => supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: "https://binerly.com" } })}
-          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "var(--surface-2)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "10px 16px", cursor: "pointer", fontSize: 14, color: "var(--text-primary)" }}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "#fff", border: "1px solid #e1e8f0", borderRadius: 8, padding: "10px 16px", cursor: "pointer", fontSize: 14, color: "#0c2540", fontWeight: 500 }}
         >
           <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
             <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
@@ -291,15 +291,132 @@ function LoginForm() {
           </svg>
           Google ile devam et
         </button>
-        <p style={{ fontSize: 13, textAlign: "center", marginTop: 12, color: "var(--text-secondary)" }}>
+        <p style={{ fontSize: 13, textAlign: "center", marginTop: 12, color: "#5b7088" }}>
           {mode === "login" ? "Hesabın yok mu? " : "Hesabın var mı? "}
-          <button
-            onClick={() => { setMode(mode === "login" ? "register" : "login"); setMessage(""); }}
-            style={{ background: "none", border: "none", color: "var(--text-accent)", padding: 0, cursor: "pointer", fontSize: 13 }}
-          >
+          <button onClick={() => { setMode(mode === "login" ? "register" : "login"); setMessage(""); }} style={{ background: "none", border: "none", color: "#185fa5", padding: 0, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
             {mode === "login" ? "Kayıt ol" : "Giriş yap"}
           </button>
         </p>
+      </div>
+    </div>
+  );
+}
+
+function LandingPage() {
+  const [authModal, setAuthModal] = useState(null);
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#f5f8fc", fontFamily: "system-ui, -apple-system, sans-serif" }}>
+      {authModal && <AuthModal initialMode={authModal} onClose={() => setAuthModal(null)} />}
+
+      {/* Navbar */}
+      <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 2rem", height: 64, background: "#fff", borderBottom: "1px solid #e1e8f0", position: "sticky", top: 0, zIndex: 100 }}>
+        <div onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+          <img src="/favicon.svg" alt="Binerly" style={{ width: 28, height: 28 }} />
+          <span style={{ fontWeight: 700, fontSize: 18, color: "#0c2540" }}>Binerly</span>
+        </div>
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <button onClick={() => setAuthModal("login")} style={{ background: "none", border: "none", color: "#185fa5", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "8px 12px" }}>
+            Giriş Yap
+          </button>
+          <button onClick={() => setAuthModal("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
+            Ücretsiz Dene
+          </button>
+        </div>
+      </nav>
+
+      {/* Hero */}
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "5rem 2rem 3rem", display: "flex", alignItems: "center", gap: "4rem", flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 300 }}>
+          <div style={{ display: "inline-block", background: "#e6f1fb", color: "#185fa5", fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 20, marginBottom: 20 }}>
+            KOBİ'ler için CRM
+          </div>
+          <h1 style={{ fontSize: "clamp(2rem, 4vw, 3rem)", fontWeight: 800, color: "#0c2540", lineHeight: 1.2, margin: "0 0 1.25rem" }}>
+            Müşteri ve satışlarını{" "}
+            <span style={{ color: "#185fa5" }}>tek ekrandan</span>{" "}
+            yönet
+          </h1>
+          <p style={{ fontSize: 17, color: "#5b7088", lineHeight: 1.7, margin: "0 0 2rem", maxWidth: 480 }}>
+            Müşteri takibi, fırsat yönetimi ve satış süreçlerini kolaylaştıran, KOBİ'lere özel CRM sistemi.
+          </p>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <button onClick={() => setAuthModal("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "13px 28px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
+              14 Gün Ücretsiz Dene →
+            </button>
+            <button onClick={() => setAuthModal("login")} style={{ background: "#fff", color: "#185fa5", border: "1.5px solid #185fa5", borderRadius: 8, padding: "13px 28px", fontWeight: 600, fontSize: 15, cursor: "pointer" }}>
+              Giriş Yap
+            </button>
+          </div>
+        </div>
+
+        {/* Mockup */}
+        <div style={{ flex: 1, minWidth: 280 }}>
+          <div style={{ background: "#0c2540", borderRadius: 16, padding: "1.5rem", boxShadow: "0 20px 60px rgba(12,37,64,0.2)" }}>
+            <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+              <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#ff5f57" }} />
+              <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#ffbd2e" }} />
+              <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#28c840" }} />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
+              {[["Açık Fırsatlar", "12"], ["Kazanılan", "8"], ["Toplam Değer", "₺284K"]].map(([label, val]) => (
+                <div key={label} style={{ background: "#1a3a5c", borderRadius: 8, padding: "10px 12px" }}>
+                  <div style={{ fontSize: 10, color: "#94a7bb", marginBottom: 4 }}>{label}</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>{val}</div>
+                </div>
+              ))}
+            </div>
+            {[
+              ["Akın İnşaat", "Müzakere", "₺85.000"],
+              ["Yıldız Medikal", "Teklif verildi", "₺42.500"],
+              ["Ege Tekstil", "Kazanıldı", "₺120.000"],
+            ].map(([name, stage, value]) => (
+              <div key={name} style={{ background: "#1a3a5c", borderRadius: 8, padding: "10px 12px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{name}</div>
+                  <div style={{ fontSize: 11, color: "#94a7bb" }}>{stage}</div>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#378add" }}>{value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Özellikler */}
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "3rem 2rem" }}>
+        <h2 style={{ textAlign: "center", fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: "0 0 2.5rem" }}>
+          İşinizi büyütmek için ihtiyacınız olan her şey
+        </h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20 }}>
+          {[
+            { icon: "ti-building", title: "Müşteri Yönetimi", desc: "Tüm müşterilerinizi, iletişim bilgilerini ve notlarını tek yerde tutun." },
+            { icon: "ti-target-arrow", title: "Fırsat Takibi", desc: "Satış fırsatlarını aşama aşama takip edin, hiçbir anlaşmayı kaçırmayın." },
+            { icon: "ti-layout-dashboard", title: "Satış Panosu", desc: "Anlık satış performansınızı ve açık fırsatlarınızı tek bakışta görün." },
+            { icon: "ti-bell", title: "Hatırlatmalar", desc: "Takip aramaları ve önemli tarihler için hatırlatma notları ekleyin." },
+          ].map((f) => (
+            <div key={f.title} style={{ background: "#fff", borderRadius: 12, padding: "1.5rem", border: "1px solid #e1e8f0" }}>
+              <i className={`ti ${f.icon}`} style={{ fontSize: 28, color: "#185fa5", display: "block", marginBottom: 12 }} />
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>{f.title}</h3>
+              <p style={{ fontSize: 14, color: "#5b7088", margin: 0, lineHeight: 1.6 }}>{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* CTA */}
+      <div style={{ background: "#185fa5", padding: "4rem 2rem", textAlign: "center" }}>
+        <h2 style={{ fontSize: "1.75rem", fontWeight: 800, color: "#fff", margin: "0 0 1rem" }}>
+          Hemen başlayın, ücretsiz deneyin
+        </h2>
+        <p style={{ fontSize: 16, color: "#b8d4f0", margin: "0 0 2rem" }}>Kredi kartı gerekmez. 14 gün boyunca tüm özellikleri kullanın.</p>
+        <button onClick={() => setAuthModal("register")} style={{ background: "#fff", color: "#185fa5", border: "none", borderRadius: 8, padding: "14px 32px", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
+          Ücretsiz Hesap Oluştur
+        </button>
+      </div>
+
+      {/* Footer */}
+      <div style={{ textAlign: "center", padding: "1.5rem", fontSize: 13, color: "#94a7bb", background: "#f5f8fc" }}>
+        © 2026 Binerly · KOBİ Satış Takip Sistemi
       </div>
     </div>
   );
@@ -397,7 +514,7 @@ export default function App() {
   };
 
   if (session === undefined) return <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
-  if (!session) return <LoginForm />;
+  if (!session) return <LandingPage />;
 
   if (loading) return <div style={{ padding: "2rem 0", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
 
