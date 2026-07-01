@@ -27,6 +27,14 @@ function daysAgo(dateStr) {
   return `${diff} gün önce`;
 }
 
+function leadScore(lastContact) {
+  if (!lastContact) return { label: "Soğuk", tone: "default" };
+  const diff = Math.floor((Date.now() - new Date(lastContact).getTime()) / 86400000);
+  if (diff <= 7) return { label: "Sıcak", tone: "success" };
+  if (diff <= 30) return { label: "Ilık", tone: "warning" };
+  return { label: "Soğuk", tone: "default" };
+}
+
 function rowToCustomer(r) {
   return {
     id: r.id,
@@ -352,6 +360,79 @@ function CustomerDetail({ customer, deals, activities, onAddActivity, onClose })
   );
 }
 
+function CampaignModal({ customers, onClose }) {
+  const emailCustomers = customers.filter((c) => c.email);
+  const [selected, setSelected] = useState(() => new Set(emailCustomers.map((c) => c.id)));
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState("");
+
+  const toggle = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const send = async (e) => {
+    e.preventDefault();
+    const recipients = emailCustomers.filter((c) => selected.has(c.id)).map((c) => c.email);
+    if (recipients.length === 0 || !subject.trim() || !message.trim()) return;
+    setSending(true);
+    setResult("");
+    try {
+      const res = await fetch("/api/send-campaign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipients, subject, message }),
+      });
+      const data = await res.json();
+      if (res.ok) setResult(`${recipients.length} kişiye gönderildi.`);
+      else setResult(data.error || "Gönderim başarısız oldu.");
+    } catch {
+      setResult("Gönderim başarısız oldu.");
+    }
+    setSending(false);
+  };
+
+  return (
+    <Modal title="E-posta kampanyası" onClose={onClose}>
+      <form onSubmit={send}>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
+            Alıcılar ({selected.size}/{emailCustomers.length})
+          </label>
+          <div style={{ maxHeight: 140, overflowY: "auto", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 8 }}>
+            {emailCustomers.map((c) => (
+              <label key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "4px 0", cursor: "pointer" }}>
+                <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
+                {c.name} <span style={{ color: "var(--text-muted)" }}>({c.email})</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Konu</label>
+          <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Yeni ürünlerimizi keşfedin" style={{ width: "100%" }} />
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Mesaj</label>
+          <textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Merhaba, size özel..." style={{ width: "100%", minHeight: 100, resize: "vertical" }} />
+        </div>
+        {result && <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 12 }}>{result}</p>}
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button type="button" onClick={onClose}>Kapat</button>
+          <button type="submit" disabled={sending || selected.size === 0} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+            {sending ? "Gönderiliyor…" : "Gönder"}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function AuthModal({ initialMode = "login", onClose }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -596,6 +677,7 @@ export default function App() {
   const [viewingCustomer, setViewingCustomer] = useState(null);
   const [dealView, setDealView] = useState("kanban");
   const [dragDealId, setDragDealId] = useState(null);
+  const [showCampaignModal, setShowCampaignModal] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -894,7 +976,15 @@ export default function App() {
 
       {tab === "musteri" && (
         <div>
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12, gap: 8 }}>
+            <button
+              onClick={() => setShowCampaignModal(true)}
+              disabled={customers.filter((c) => c.email).length === 0}
+              style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+            >
+              <i className="ti ti-mail-forward" style={{ fontSize: 16 }} aria-hidden="true"></i>
+              Kampanya gönder
+            </button>
             <button
               onClick={() => { setEditingCustomer(null); setShowCustomerForm(true); }}
               style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
@@ -919,6 +1009,7 @@ export default function App() {
                       {c.sector} {c.phone ? `· ${c.phone}` : ""}
                     </p>
                   </div>
+                  <Badge tone={leadScore(c.lastContact).tone}>{leadScore(c.lastContact).label}</Badge>
                   <Badge tone={daysAgo(c.lastContact) === "Bugün" ? "success" : "default"}>
                     {daysAgo(c.lastContact) || "Temas yok"}
                   </Badge>
@@ -1062,6 +1153,10 @@ export default function App() {
         <Modal title={editingDeal ? "Fırsatı düzenle" : "Yeni fırsat"} onClose={() => { setShowDealForm(false); setEditingDeal(null); }}>
           <DealForm customers={customers} initial={editingDeal} onSave={upsertDeal} onCancel={() => { setShowDealForm(false); setEditingDeal(null); }} />
         </Modal>
+      )}
+
+      {showCampaignModal && (
+        <CampaignModal customers={customers} onClose={() => setShowCampaignModal(false)} />
       )}
 
       {viewingCustomer && (
