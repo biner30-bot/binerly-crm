@@ -33,6 +33,7 @@ function rowToCustomer(r) {
     name: r.name,
     sector: r.sector,
     phone: r.phone || "",
+    email: r.email || "",
     notes: r.notes || "",
     lastContact: r.last_contact,
     createdAt: r.created_at,
@@ -47,6 +48,23 @@ function rowToDeal(r) {
     value: r.value,
     stage: r.stage,
     reminder: r.reminder || "",
+    createdAt: r.created_at,
+  };
+}
+
+const ACTIVITY_TYPES = [
+  { id: "note", label: "Not", icon: "ti-note" },
+  { id: "call", label: "Telefon görüşmesi", icon: "ti-phone" },
+  { id: "meeting", label: "Toplantı", icon: "ti-users" },
+  { id: "email", label: "E-posta", icon: "ti-mail" },
+];
+
+function rowToActivity(r) {
+  return {
+    id: r.id,
+    customerId: r.customer_id,
+    type: r.type,
+    content: r.content,
     createdAt: r.created_at,
   };
 }
@@ -124,6 +142,7 @@ function CustomerForm({ initial, onSave, onCancel }) {
   const [name, setName] = useState(initial?.name || "");
   const [sector, setSector] = useState(initial?.sector || SECTORS[0]);
   const [phone, setPhone] = useState(initial?.phone || "");
+  const [email, setEmail] = useState(initial?.email || "");
   const [notes, setNotes] = useState(initial?.notes || "");
 
   return (
@@ -136,6 +155,7 @@ function CustomerForm({ initial, onSave, onCancel }) {
           name: name.trim(),
           sector,
           phone: phone.trim(),
+          email: email.trim(),
           notes: notes.trim(),
           lastContact: initial?.lastContact || new Date().toISOString(),
           createdAt: initial?.createdAt || new Date().toISOString(),
@@ -152,9 +172,15 @@ function CustomerForm({ initial, onSave, onCancel }) {
           {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
-      <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Telefon</label>
-        <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0532 000 00 00" style={{ width: "100%" }} />
+      <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Telefon</label>
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0532 000 00 00" style={{ width: "100%" }} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>E-posta</label>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="info@firma.com" style={{ width: "100%" }} />
+        </div>
       </div>
       <div style={{ marginBottom: 16 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Not</label>
@@ -226,6 +252,90 @@ function DealForm({ customers, initial, onSave, onCancel }) {
         <button type="submit" disabled={customers.length === 0} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
       </div>
     </form>
+  );
+}
+
+function activityDateLabel(dateStr) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" }) +
+    " · " + d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function CustomerDetail({ customer, deals, activities, onAddActivity, onClose }) {
+  const [type, setType] = useState("note");
+  const [content, setContent] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const customerDeals = deals.filter((d) => d.customerId === customer.id);
+  const customerActivities = activities
+    .filter((a) => a.customerId === customer.id)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!content.trim()) return;
+    setSaving(true);
+    await onAddActivity({ customerId: customer.id, type, content: content.trim() });
+    setContent("");
+    setSaving(false);
+  };
+
+  return (
+    <Modal title={customer.name} onClose={onClose}>
+      <div style={{ marginBottom: 16 }}>
+        <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
+          {customer.sector} {customer.phone ? `· ${customer.phone}` : ""} {customer.email ? `· ${customer.email}` : ""}
+        </p>
+        {customer.notes && <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--text-secondary)" }}>{customer.notes}</p>}
+      </div>
+
+      {customerDeals.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>Fırsatlar</p>
+          {customerDeals.map((d) => {
+            const stageInfo = STAGES.find((s) => s.id === d.stage);
+            return (
+              <div key={d.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0" }}>
+                <span>{d.title}</span>
+                <span style={{ color: "var(--text-secondary)" }}>{stageInfo?.label} · {formatTL(d.value)}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>İletişim geçmişi</p>
+      <form onSubmit={submit} style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+          <select value={type} onChange={(e) => setType(e.target.value)} style={{ width: 160 }}>
+            {ACTIVITY_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+          </select>
+          <input value={content} onChange={(e) => setContent(e.target.value)} placeholder="Örn. fiyat teklifi görüşüldü" style={{ flex: 1 }} />
+        </div>
+        <button type="submit" disabled={saving || !content.trim()} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
+          Ekle
+        </button>
+      </form>
+
+      {customerActivities.length === 0 ? (
+        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz kayıt yok.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 260, overflowY: "auto" }}>
+          {customerActivities.map((a) => {
+            const typeInfo = ACTIVITY_TYPES.find((t) => t.id === a.type) || ACTIVITY_TYPES[0];
+            return (
+              <div key={a.id} style={{ display: "flex", gap: 10 }}>
+                <i className={`ti ${typeInfo.icon}`} style={{ fontSize: 16, color: "var(--text-accent)", marginTop: 2 }} aria-hidden="true"></i>
+                <div>
+                  <p style={{ margin: 0, fontSize: 13 }}>{a.content}</p>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>{typeInfo.label} · {activityDateLabel(a.createdAt)}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Modal>
   );
 }
 
@@ -464,11 +574,13 @@ export default function App() {
   const [tab, setTab] = useState("pano");
   const [customers, setCustomers] = useState([]);
   const [deals, setDeals] = useState([]);
+  const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [showDealForm, setShowDealForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [editingDeal, setEditingDeal] = useState(null);
+  const [viewingCustomer, setViewingCustomer] = useState(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -477,17 +589,35 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!session) { setCustomers([]); setDeals([]); setLoading(false); return; }
+    if (!session) { setCustomers([]); setDeals([]); setActivities([]); setLoading(false); return; }
     setLoading(true);
     Promise.all([
       supabase.from("customers").select("*").order("created_at"),
       supabase.from("deals").select("*").order("created_at"),
-    ]).then(([{ data: c }, { data: d }]) => {
+      supabase.from("activities").select("*").order("created_at"),
+    ]).then(([{ data: c }, { data: d }, { data: a }]) => {
       setCustomers((c || []).map(rowToCustomer));
       setDeals((d || []).map(rowToDeal));
+      setActivities((a || []).map(rowToActivity));
       setLoading(false);
     });
   }, [session]);
+
+  const addActivity = async ({ customerId, type, content }) => {
+    const row = {
+      id: uid(),
+      user_id: session.user.id,
+      customer_id: customerId,
+      type,
+      content,
+    };
+    const { data, error } = await supabase.from("activities").insert(row).select().single();
+    if (!error) {
+      const activity = rowToActivity(data);
+      setActivities((prev) => [...prev, activity]);
+      await touchCustomer(customerId);
+    }
+  };
 
   const upsertCustomer = async (c) => {
     const row = {
@@ -496,6 +626,7 @@ export default function App() {
       name: c.name,
       sector: c.sector,
       phone: c.phone,
+      email: c.email,
       notes: c.notes,
       last_contact: c.lastContact,
       created_at: c.createdAt,
@@ -687,7 +818,7 @@ export default function App() {
                   key={c.id}
                   style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}
                 >
-                  <div style={{ flex: 1, minWidth: 160 }}>
+                  <div onClick={() => setViewingCustomer(c)} style={{ flex: 1, minWidth: 160, cursor: "pointer" }}>
                     <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{c.name}</p>
                     <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
                       {c.sector} {c.phone ? `· ${c.phone}` : ""}
@@ -696,8 +827,8 @@ export default function App() {
                   <Badge tone={daysAgo(c.lastContact) === "Bugün" ? "success" : "default"}>
                     {daysAgo(c.lastContact) || "Temas yok"}
                   </Badge>
-                  <button onClick={() => touchCustomer(c.id)} title="Bugün arandı olarak işaretle" style={{ width: 32, height: 32, padding: 0 }}>
-                    <i className="ti ti-phone-check" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                  <button onClick={() => setViewingCustomer(c)} title="Detay ve iletişim geçmişi" style={{ width: 32, height: 32, padding: 0 }}>
+                    <i className="ti ti-history" style={{ fontSize: 16 }} aria-hidden="true"></i>
                   </button>
                   <button onClick={() => { setEditingCustomer(c); setShowCustomerForm(true); }} style={{ width: 32, height: 32, padding: 0 }}>
                     <i className="ti ti-edit" style={{ fontSize: 16 }} aria-hidden="true"></i>
@@ -776,6 +907,16 @@ export default function App() {
         <Modal title={editingDeal ? "Fırsatı düzenle" : "Yeni fırsat"} onClose={() => { setShowDealForm(false); setEditingDeal(null); }}>
           <DealForm customers={customers} initial={editingDeal} onSave={upsertDeal} onCancel={() => { setShowDealForm(false); setEditingDeal(null); }} />
         </Modal>
+      )}
+
+      {viewingCustomer && (
+        <CustomerDetail
+          customer={customerById(viewingCustomer.id) || viewingCustomer}
+          deals={deals}
+          activities={activities}
+          onAddActivity={addActivity}
+          onClose={() => setViewingCustomer(null)}
+        />
       )}
     </div>
   );
