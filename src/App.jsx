@@ -387,17 +387,54 @@ function LandingPage() {
         <h2 style={{ textAlign: "center", fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: "0 0 2.5rem" }}>
           İşinizi büyütmek için ihtiyacınız olan her şey
         </h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
           {[
-            { icon: "ti-building", title: "Müşteri Yönetimi", desc: "Tüm müşterilerinizi, iletişim bilgilerini ve notlarını tek yerde tutun." },
-            { icon: "ti-target-arrow", title: "Fırsat Takibi", desc: "Satış fırsatlarını aşama aşama takip edin, hiçbir anlaşmayı kaçırmayın." },
-            { icon: "ti-layout-dashboard", title: "Satış Panosu", desc: "Anlık satış performansınızı ve açık fırsatlarınızı tek bakışta görün." },
-            { icon: "ti-bell", title: "Hatırlatmalar", desc: "Takip aramaları ve önemli tarihler için hatırlatma notları ekleyin." },
+            {
+              icon: "ti-address-book",
+              title: "Müşteri & İletişim Yönetimi",
+              desc: "Müşterilerin iletişim bilgileri, e-posta yazışmaları, telefon notları ve geçmiş satın alma kayıtlarını tek veritabanında tutun. Sektör, bölge ve potansiyele göre segmentasyon yapın.",
+              tags: ["İletişim Geçmişi", "Segmentasyon"],
+            },
+            {
+              icon: "ti-target-arrow",
+              title: "Satış & Fırsat Yönetimi",
+              desc: "İlk temastan kapanışa kadar tüm satış sürecini Kanban tahtasında takip edin. Şablon kullanarak PDF teklif hazırlayın, ürün ve fiyat kataloğunuzu yönetin.",
+              tags: ["Kanban Pipeline", "PDF Teklif"],
+            },
+            {
+              icon: "ti-mail-forward",
+              title: "Pazarlama Otomasyonu",
+              desc: "E-posta ve SMS kampanyaları gönderin. Web sitenizdeki formlardan gelen müşteri adayları otomatik olarak CRM'e düşsün. Lead scoring ile en sıcak adayları öncelikli görün.",
+              tags: ["E-posta Kampanyası", "Lead Scoring"],
+            },
+            {
+              icon: "ti-headset",
+              title: "Satış Sonrası Destek",
+              desc: "Müşteri şikayet ve destek taleplerini bilet sistemiyle takip edin. SLA sürelerini izleyin, sıkça sorulan sorular için bilgi bankası oluşturun.",
+              tags: ["Ticketing", "SLA Takibi"],
+            },
+            {
+              icon: "ti-chart-bar",
+              title: "Raporlama & Analitik",
+              desc: "Satış tahminleme ile gelecek dönem gelirinizi öngörün. Temsilci bazlı performans dashboard'ları ve kaybedilen müşteri analizleriyle stratejik kararlar alın.",
+              tags: ["Forecasting", "Dashboard"],
+            },
+            {
+              icon: "ti-plug-connected",
+              title: "Entegrasyonlar & Mobil",
+              desc: "Gmail, Outlook ve takvim uygulamalarıyla tam senkronizasyon. Muhasebe sistemleriyle ERP entegrasyonu. iOS ve Android uyumlu mobil uygulama ile her yerden erişin.",
+              tags: ["Gmail/Outlook", "Mobil Uygulama"],
+            },
           ].map((f) => (
             <div key={f.title} style={{ background: "#fff", borderRadius: 12, padding: "1.5rem", border: "1px solid #e1e8f0" }}>
               <i className={`ti ${f.icon}`} style={{ fontSize: 28, color: "#185fa5", display: "block", marginBottom: 12 }} />
               <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>{f.title}</h3>
-              <p style={{ fontSize: 14, color: "#5b7088", margin: 0, lineHeight: 1.6 }}>{f.desc}</p>
+              <p style={{ fontSize: 14, color: "#5b7088", margin: "0 0 12px", lineHeight: 1.6 }}>{f.desc}</p>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {f.tags.map((tag) => (
+                  <span key={tag} style={{ fontSize: 11, fontWeight: 600, background: "#e6f1fb", color: "#185fa5", padding: "3px 10px", borderRadius: 20 }}>{tag}</span>
+                ))}
+              </div>
             </div>
           ))}
         </div>
