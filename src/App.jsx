@@ -48,9 +48,12 @@ function rowToDeal(r) {
     value: r.value,
     stage: r.stage,
     reminder: r.reminder || "",
+    lostReason: r.lost_reason || "",
     createdAt: r.created_at,
   };
 }
+
+const LOST_REASONS = ["Yüksek fiyat", "Rakip tercih edildi", "Bütçe yok", "Zamanlama uymadı", "Diğer"];
 
 const ACTIVITY_TYPES = [
   { id: "note", label: "Not", icon: "ti-note" },
@@ -200,6 +203,7 @@ function DealForm({ customers, initial, onSave, onCancel }) {
   const [value, setValue] = useState(initial?.value ?? "");
   const [stage, setStage] = useState(initial?.stage || "ilk_gorusme");
   const [reminder, setReminder] = useState(initial?.reminder || "");
+  const [lostReason, setLostReason] = useState(initial?.lostReason || LOST_REASONS[0]);
 
   return (
     <form
@@ -213,6 +217,7 @@ function DealForm({ customers, initial, onSave, onCancel }) {
           value: Number(value) || 0,
           stage,
           reminder: reminder.trim(),
+          lostReason: stage === "kaybedildi" ? lostReason : "",
           createdAt: initial?.createdAt || new Date().toISOString(),
         });
       }}
@@ -247,6 +252,14 @@ function DealForm({ customers, initial, onSave, onCancel }) {
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Hatırlatma notu</label>
         <input value={reminder} onChange={(e) => setReminder(e.target.value)} placeholder="Yarın takip araması yap" style={{ width: "100%" }} />
       </div>
+      {stage === "kaybedildi" && (
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kayıp nedeni</label>
+          <select value={lostReason} onChange={(e) => setLostReason(e.target.value)} style={{ width: "100%" }}>
+            {LOST_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </div>
+      )}
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button type="button" onClick={onCancel}>Vazgeç</button>
         <button type="submit" disabled={customers.length === 0} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
@@ -659,6 +672,7 @@ export default function App() {
       value: d.value,
       stage: d.stage,
       reminder: d.reminder,
+      lost_reason: d.lostReason,
       created_at: d.createdAt,
     };
     const { data, error } = await supabase.from("deals").upsert(row).select().single();
@@ -695,9 +709,34 @@ export default function App() {
 
   const openDeals = deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi");
   const wonDeals = deals.filter((d) => d.stage === "kazanildi");
+  const lostDeals = deals.filter((d) => d.stage === "kaybedildi");
   const totalOpenValue = openDeals.reduce((sum, d) => sum + (d.value || 0), 0);
   const dealsWithReminder = deals.filter((d) => d.reminder && d.stage !== "kazanildi" && d.stage !== "kaybedildi");
   const customerById = (id) => customers.find((c) => c.id === id);
+
+  const closedCount = wonDeals.length + lostDeals.length;
+  const winRate = closedCount > 0 ? Math.round((wonDeals.length / closedCount) * 100) : null;
+
+  const monthLabels = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - (5 - i));
+    return { key: `${d.getFullYear()}-${d.getMonth()}`, label: d.toLocaleDateString("tr-TR", { month: "short" }) };
+  });
+  const monthlyRevenue = monthLabels.map(({ key, label }) => {
+    const total = wonDeals
+      .filter((d) => {
+        const dd = new Date(d.createdAt);
+        return `${dd.getFullYear()}-${dd.getMonth()}` === key;
+      })
+      .reduce((sum, d) => sum + (d.value || 0), 0);
+    return { label, total };
+  });
+  const maxMonthly = Math.max(1, ...monthlyRevenue.map((m) => m.total));
+
+  const lostReasonCounts = LOST_REASONS.map((reason) => ({
+    reason,
+    count: lostDeals.filter((d) => d.lostReason === reason).length,
+  })).filter((r) => r.count > 0);
 
   return (
     <div>
@@ -798,6 +837,55 @@ export default function App() {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {deals.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px,1fr))", gap: 12, marginTop: "1.5rem" }}>
+              <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem" }}>
+                <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 12px" }}>Aylık kazanılan gelir</p>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 100 }}>
+                  {monthlyRevenue.map((m) => (
+                    <div key={m.label} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                      <div
+                        title={formatTL(m.total)}
+                        style={{
+                          width: "100%",
+                          height: Math.max(4, (m.total / maxMonthly) * 80),
+                          background: "var(--fill-accent)",
+                          borderRadius: 4,
+                        }}
+                      />
+                      <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{m.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem" }}>
+                <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 12px" }}>Kazanma oranı</p>
+                {winRate === null ? (
+                  <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz kapanmış fırsat yok.</p>
+                ) : (
+                  <div>
+                    <p style={{ fontSize: 28, fontWeight: 600, margin: "0 0 4px", color: "var(--text-success)" }}>%{winRate}</p>
+                    <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0 }}>
+                      {wonDeals.length} kazanıldı · {lostDeals.length} kaybedildi
+                    </p>
+                  </div>
+                )}
+                {lostReasonCounts.length > 0 && (
+                  <div style={{ marginTop: 14 }}>
+                    <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 6px" }}>Kayıp nedenleri</p>
+                    {lostReasonCounts.map((r) => (
+                      <div key={r.reason} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "2px 0" }}>
+                        <span>{r.reason}</span>
+                        <span style={{ color: "var(--text-secondary)" }}>{r.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
