@@ -7,7 +7,13 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.js",
       includeAssets: ["favicon.svg", "favicon.ico", "apple-touch-icon-180x180.png"],
+      injectManifest: {
+        globPatterns: ["**/*.{js,css,html,svg,png,ico}"],
+      },
       manifest: {
         name: "Binerly — KOBİ Satış Takip Sistemi",
         short_name: "Binerly",
@@ -24,12 +30,6 @@ export default defineConfig({
           { src: "pwa-512x512.png", sizes: "512x512", type: "image/png" },
           { src: "maskable-icon-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
-      },
-      workbox: {
-        // Vite kaynak asset'lerini önbelleğe alır; Supabase/API çağrılarına dokunmaz
-        // (uygulama zaten oturum/veri işlemleri için ağ bağlantısı gerektiriyor).
-        globPatterns: ["**/*.{js,css,html,svg,png,ico}"],
-        navigateFallbackDenylist: [/^\/api\//],
       },
     }),
   ],

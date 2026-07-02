@@ -27,6 +27,13 @@ function leadScore(lastContact) {
   return { label: "Soğuk", tone: "default" };
 }
 
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
+
 function rowToCustomer(r) {
   return {
     id: r.id,
@@ -1141,6 +1148,7 @@ export default function App() {
   const [quickList, setQuickList] = useState(null);
   const [initialViewTicketId, setInitialViewTicketId] = useState(null);
   const [toast, setToast] = useState(null);
+  const [pushSubscribed, setPushSubscribed] = useState(false);
 
   const notify = (message, tone = "danger") => setToast({ message, tone });
 
@@ -1198,6 +1206,73 @@ export default function App() {
       setLoading(false);
     });
   }, [session]);
+
+  useEffect(() => {
+    if (!session || !("serviceWorker" in navigator)) { setPushSubscribed(false); return; }
+    navigator.serviceWorker.ready
+      .then((registration) => registration.pushManager.getSubscription())
+      .then((sub) => setPushSubscribed(!!sub))
+      .catch(() => {});
+  }, [session]);
+
+  // Push bildirimi tıklanınca gelen ?ticket= derin bağlantısı — talepler yüklendikten
+  // sonra bir kere işlenir, sonra URL'den temizlenir.
+  useEffect(() => {
+    if (tickets.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const ticketId = params.get("ticket");
+    if (!ticketId) return;
+    if (tickets.some((t) => t.id === ticketId)) {
+      setTab("destek");
+      setInitialViewTicketId(ticketId);
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.delete("ticket");
+    window.history.replaceState({}, "", url);
+  }, [tickets]);
+
+  const subscribeToPush = async () => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      notify("Bu tarayıcı bildirim özelliğini desteklemiyor.");
+      return;
+    }
+    if (!import.meta.env.VITE_VAPID_PUBLIC_KEY) {
+      notify("Bildirim sistemi henüz yapılandırılmadı.");
+      return;
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") return;
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(import.meta.env.VITE_VAPID_PUBLIC_KEY),
+      });
+      const json = subscription.toJSON();
+      const { error } = await supabase.from("push_subscriptions").upsert(
+        { user_id: session.user.id, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth_key: json.keys.auth },
+        { onConflict: "endpoint" }
+      );
+      if (error) { notify(`Bildirim aboneliği kaydedilemedi: ${error.message}`); return; }
+      setPushSubscribed(true);
+    } catch {
+      notify("Bildirim izni alınamadı.");
+    }
+  };
+
+  const unsubscribeFromPush = async () => {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        await supabase.from("push_subscriptions").delete().eq("endpoint", subscription.endpoint);
+        await subscription.unsubscribe();
+      }
+    } catch {
+      // yoksay — yerel abonelik zaten yoksa temizlenecek bir şey yok
+    }
+    setPushSubscribed(false);
+  };
 
   const addActivity = async ({ customerId, type, content }) => {
     const row = {
@@ -1569,10 +1644,33 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
             <img src="/favicon.svg" alt="Binerly" style={{ width: 22, height: 22 }} />
             <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Binerly</h1>
+            {companySettings?.companyName && (
+              <>
+                <span style={{ width: 1, height: 18, background: "var(--border)" }} aria-hidden="true" />
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  {companySettings.logoUrl && (
+                    <img
+                      src={companySettings.logoUrl}
+                      alt=""
+                      style={{ width: 18, height: 18, borderRadius: 4, objectFit: "contain" }}
+                      onError={(e) => { e.currentTarget.style.display = "none"; }}
+                    />
+                  )}
+                  <span style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 500 }}>{companySettings.companyName}</span>
+                </span>
+              </>
+            )}
           </div>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>KOBİ satış takip sistemi</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() => (pushSubscribed ? unsubscribeFromPush() : subscribeToPush())}
+            style={{ width: 32, height: 32, padding: 0 }}
+            title={pushSubscribed ? "Bildirimler açık (kapatmak için tıkla)" : "Yeni mesaj bildirimlerini aç"}
+          >
+            <i className={`ti ${pushSubscribed ? "ti-bell-ringing" : "ti-bell"}`} style={{ fontSize: 16, color: pushSubscribed ? "var(--text-accent)" : undefined }} aria-hidden="true"></i>
+          </button>
           <button
             onClick={() => setShowTeamModal(true)}
             style={{ width: 32, height: 32, padding: 0 }}
@@ -1597,6 +1695,12 @@ export default function App() {
           </button>
         </div>
       </div>
+
+      {!pushSubscribed && (
+        <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "-12px 0 12px" }}>
+          🔔 simgesine basarak yeni müşteri mesajlarında anında bildirim alabilirsiniz. iPhone'da bildirim almak için önce uygulamayı Ana Ekrana eklemeniz gerekir.
+        </p>
+      )}
 
       {pendingInvites
         .filter((inv) => !dismissedInviteIds.includes(inv.id))
