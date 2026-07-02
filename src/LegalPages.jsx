@@ -84,7 +84,7 @@ export function PrivacyPolicyPage() {
       <Section title="6. Haklarınız">
         <p>
           Verilerinize erişim, düzeltme veya silme talebiniz için{" "}
-          <a href="mailto:destek@binerly.com" style={{ color: "#185fa5" }}>destek@binerly.com</a> adresinden
+          <a href="mailto:info@binerly.com" style={{ color: "#185fa5" }}>info@binerly.com</a> adresinden
           bizimle iletişime geçebilirsiniz.
         </p>
       </Section>
@@ -136,7 +136,7 @@ export function KvkkPage() {
       <Section title="6. Başvuru Yöntemi">
         <p>
           Yukarıdaki haklarınızı kullanmak için{" "}
-          <a href="mailto:destek@binerly.com" style={{ color: "#185fa5" }}>destek@binerly.com</a> adresine
+          <a href="mailto:info@binerly.com" style={{ color: "#185fa5" }}>info@binerly.com</a> adresine
           yazılı olarak başvurabilirsiniz.
         </p>
       </Section>
@@ -186,7 +186,7 @@ export function TermsPage() {
       </Section>
       <Section title="7. İletişim">
         <p>
-          Sorularınız için: <a href="mailto:destek@binerly.com" style={{ color: "#185fa5" }}>destek@binerly.com</a>
+          Sorularınız için: <a href="mailto:info@binerly.com" style={{ color: "#185fa5" }}>info@binerly.com</a>
         </p>
       </Section>
     </LegalLayout>

@@ -776,7 +776,7 @@ function LandingPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <a href="/" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Ana Sayfa</a>
               <a href="/portal" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Müşteri Bilgi Sistemi</a>
-              <a href="mailto:destek@binerly.com" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>İletişim</a>
+              <a href="mailto:info@binerly.com" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>İletişim</a>
             </div>
           </div>
           <div>
