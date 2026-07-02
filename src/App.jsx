@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
+import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, uid, formatTL, daysAgo } from "./shared";
+import Support, {
+  rowToTicket,
+  rowToTicketMessage,
+  rowToKbArticle,
+  getSlaStatus,
+  TERMINAL_STATUSES,
+} from "./Support";
 
 const STAGES = [
   { id: "ilk_gorusme", label: "İlk görüşme" },
@@ -10,22 +18,6 @@ const STAGES = [
 ];
 
 const SECTORS = ["İnşaat", "Medikal", "Gıda", "Tekstil", "Elektrik", "Diğer"];
-
-function uid() {
-  return crypto.randomUUID();
-}
-
-function formatTL(n) {
-  return new Intl.NumberFormat("tr-TR").format(Math.round(n || 0)) + " TL";
-}
-
-function daysAgo(dateStr) {
-  if (!dateStr) return null;
-  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
-  if (diff <= 0) return "Bugün";
-  if (diff === 1) return "Dün";
-  return `${diff} gün önce`;
-}
 
 function leadScore(lastContact) {
   if (!lastContact) return { label: "Soğuk", tone: "default" };
@@ -78,75 +70,6 @@ function rowToActivity(r) {
     content: r.content,
     createdAt: r.created_at,
   };
-}
-
-function Badge({ children, tone = "default" }) {
-  const tones = {
-    default: { background: "var(--surface-1)", color: "var(--text-secondary)" },
-    warning: { background: "var(--bg-warning)", color: "var(--text-warning)" },
-    success: { background: "var(--bg-success)", color: "var(--text-success)" },
-    accent: { background: "var(--bg-accent)", color: "var(--text-accent)" },
-  };
-  return (
-    <span
-      style={{
-        ...tones[tone],
-        fontSize: 12,
-        fontWeight: 500,
-        padding: "3px 10px",
-        borderRadius: "var(--radius)",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
-function MetricCard({ label, value, tone }) {
-  return (
-    <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem" }}>
-      <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 4px" }}>{label}</p>
-      <p style={{ fontSize: 24, fontWeight: 500, margin: 0, color: tone ? `var(--text-${tone})` : "var(--text-primary)" }}>
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function Modal({ title, onClose, children }) {
-  return (
-    <div
-      style={{
-        minHeight: 400,
-        background: "rgba(0,0,0,0.45)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        position: "relative",
-        padding: "1rem",
-      }}
-    >
-      <div
-        style={{
-          background: "var(--surface-2)",
-          border: "0.5px solid var(--border)",
-          borderRadius: 12,
-          padding: "1.5rem",
-          width: "100%",
-          maxWidth: 420,
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <h3 style={{ margin: 0 }}>{title}</h3>
-          <button onClick={onClose} aria-label="Kapat" style={{ width: 32, height: 32, padding: 0 }}>
-            <i className="ti ti-x" aria-hidden="true"></i>
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
 }
 
 function CustomerForm({ initial, onSave, onCancel }) {
@@ -669,6 +592,9 @@ export default function App() {
   const [customers, setCustomers] = useState([]);
   const [deals, setDeals] = useState([]);
   const [activities, setActivities] = useState([]);
+  const [tickets, setTickets] = useState([]);
+  const [ticketMessages, setTicketMessages] = useState([]);
+  const [kbArticles, setKbArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [showDealForm, setShowDealForm] = useState(false);
@@ -678,6 +604,17 @@ export default function App() {
   const [dealView, setDealView] = useState("kanban");
   const [dragDealId, setDragDealId] = useState(null);
   const [showCampaignModal, setShowCampaignModal] = useState(false);
+  const [confirmDeleteCustomer, setConfirmDeleteCustomer] = useState(null);
+  const [confirmDeleteDeal, setConfirmDeleteDeal] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const notify = (message, tone = "danger") => setToast({ message, tone });
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 5000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -686,16 +623,27 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!session) { setCustomers([]); setDeals([]); setActivities([]); setLoading(false); return; }
+    if (!session) {
+      setCustomers([]); setDeals([]); setActivities([]);
+      setTickets([]); setTicketMessages([]); setKbArticles([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     Promise.all([
       supabase.from("customers").select("*").order("created_at"),
       supabase.from("deals").select("*").order("created_at"),
       supabase.from("activities").select("*").order("created_at"),
-    ]).then(([{ data: c }, { data: d }, { data: a }]) => {
+      supabase.from("tickets").select("*").order("created_at"),
+      supabase.from("ticket_messages").select("*").order("created_at"),
+      supabase.from("kb_articles").select("*").order("created_at"),
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: t }, { data: tm }, { data: kb }]) => {
       setCustomers((c || []).map(rowToCustomer));
       setDeals((d || []).map(rowToDeal));
       setActivities((a || []).map(rowToActivity));
+      setTickets((t || []).map(rowToTicket));
+      setTicketMessages((tm || []).map(rowToTicketMessage));
+      setKbArticles((kb || []).map(rowToKbArticle));
       setLoading(false);
     });
   }, [session]);
@@ -709,11 +657,10 @@ export default function App() {
       content,
     };
     const { data, error } = await supabase.from("activities").insert(row).select().single();
-    if (!error) {
-      const activity = rowToActivity(data);
-      setActivities((prev) => [...prev, activity]);
-      await touchCustomer(customerId);
-    }
+    if (error) { notify(`Kayıt eklenemedi: ${error.message}`); return; }
+    const activity = rowToActivity(data);
+    setActivities((prev) => [...prev, activity]);
+    await touchCustomer(customerId);
   };
 
   const upsertCustomer = async (c) => {
@@ -729,20 +676,21 @@ export default function App() {
       created_at: c.createdAt,
     };
     const { data, error } = await supabase.from("customers").upsert(row).select().single();
-    if (!error) {
-      const customer = rowToCustomer(data);
-      setCustomers((prev) =>
-        prev.some((x) => x.id === customer.id) ? prev.map((x) => (x.id === customer.id ? customer : x)) : [...prev, customer]
-      );
-    }
+    if (error) { notify(`Müşteri kaydedilemedi: ${error.message}`); return; }
+    const customer = rowToCustomer(data);
+    setCustomers((prev) =>
+      prev.some((x) => x.id === customer.id) ? prev.map((x) => (x.id === customer.id ? customer : x)) : [...prev, customer]
+    );
     setShowCustomerForm(false);
     setEditingCustomer(null);
   };
 
   const deleteCustomer = async (id) => {
-    await supabase.from("customers").delete().eq("id", id);
+    const { error } = await supabase.from("customers").delete().eq("id", id);
+    if (error) { notify(`Müşteri silinemedi: ${error.message}`); return; }
     setCustomers((prev) => prev.filter((c) => c.id !== id));
     setDeals((prev) => prev.filter((d) => d.customerId !== id));
+    setTickets((prev) => prev.filter((t) => t.customerId !== id));
   };
 
   const upsertDeal = async (d) => {
@@ -758,30 +706,112 @@ export default function App() {
       created_at: d.createdAt,
     };
     const { data, error } = await supabase.from("deals").upsert(row).select().single();
-    if (!error) {
-      const deal = rowToDeal(data);
-      setDeals((prev) =>
-        prev.some((x) => x.id === deal.id) ? prev.map((x) => (x.id === deal.id ? deal : x)) : [...prev, deal]
-      );
-    }
+    if (error) { notify(`Fırsat kaydedilemedi: ${error.message}`); return; }
+    const deal = rowToDeal(data);
+    setDeals((prev) =>
+      prev.some((x) => x.id === deal.id) ? prev.map((x) => (x.id === deal.id ? deal : x)) : [...prev, deal]
+    );
     setShowDealForm(false);
     setEditingDeal(null);
   };
 
   const deleteDeal = async (id) => {
-    await supabase.from("deals").delete().eq("id", id);
+    const { error } = await supabase.from("deals").delete().eq("id", id);
+    if (error) { notify(`Fırsat silinemedi: ${error.message}`); return; }
     setDeals((prev) => prev.filter((d) => d.id !== id));
   };
 
   const moveDealStage = async (id, stage) => {
+    const previousStage = deals.find((d) => d.id === id)?.stage;
     setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, stage } : d)));
-    await supabase.from("deals").update({ stage }).eq("id", id);
+    const { error } = await supabase.from("deals").update({ stage }).eq("id", id);
+    if (error) {
+      notify(`Aşama güncellenemedi: ${error.message}`);
+      setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, stage: previousStage } : d)));
+    }
   };
 
   const touchCustomer = async (id) => {
     const now = new Date().toISOString();
-    await supabase.from("customers").update({ last_contact: now }).eq("id", id);
+    const { error } = await supabase.from("customers").update({ last_contact: now }).eq("id", id);
+    if (error) return;
     setCustomers((prev) => prev.map((c) => (c.id === id ? { ...c, lastContact: now } : c)));
+  };
+
+  const upsertTicket = async (t) => {
+    const row = {
+      id: t.id,
+      user_id: session.user.id,
+      customer_id: t.customerId,
+      subject: t.subject,
+      description: t.description,
+      priority: t.priority,
+      status: t.status,
+      resolved_at: t.resolvedAt,
+      created_at: t.createdAt,
+    };
+    const { data, error } = await supabase.from("tickets").upsert(row).select().single();
+    if (error) { notify(`Talep kaydedilemedi: ${error.message}`); return; }
+    const ticket = rowToTicket(data);
+    setTickets((prev) =>
+      prev.some((x) => x.id === ticket.id) ? prev.map((x) => (x.id === ticket.id ? ticket : x)) : [...prev, ticket]
+    );
+  };
+
+  const deleteTicket = async (id) => {
+    const { error } = await supabase.from("tickets").delete().eq("id", id);
+    if (error) { notify(`Talep silinemedi: ${error.message}`); return; }
+    setTickets((prev) => prev.filter((t) => t.id !== id));
+    setTicketMessages((prev) => prev.filter((m) => m.ticketId !== id));
+  };
+
+  const changeTicketStatus = async (id, status) => {
+    const previous = tickets.find((t) => t.id === id);
+    const resolvedAt = TERMINAL_STATUSES.includes(status) ? new Date().toISOString() : null;
+    setTickets((prev) => prev.map((t) => (t.id === id ? { ...t, status, resolvedAt } : t)));
+    const { error } = await supabase.from("tickets").update({ status, resolved_at: resolvedAt }).eq("id", id);
+    if (error) {
+      notify(`Durum güncellenemedi: ${error.message}`);
+      setTickets((prev) => prev.map((t) => (t.id === id ? previous : t)));
+    }
+  };
+
+  const addTicketMessage = async ({ ticketId, direction, content }) => {
+    const row = {
+      id: uid(),
+      user_id: session.user.id,
+      ticket_id: ticketId,
+      direction,
+      content,
+    };
+    const { data, error } = await supabase.from("ticket_messages").insert(row).select().single();
+    if (error) { notify(`Mesaj eklenemedi: ${error.message}`); return; }
+    const message = rowToTicketMessage(data);
+    setTicketMessages((prev) => [...prev, message]);
+  };
+
+  const upsertKbArticle = async (a) => {
+    const row = {
+      id: a.id,
+      user_id: session.user.id,
+      title: a.title,
+      category: a.category,
+      content: a.content,
+      created_at: a.createdAt,
+      updated_at: new Date().toISOString(),
+    };
+    const { data, error } = await supabase.from("kb_articles").upsert(row).select().single();
+    if (error) { notify(`Makale kaydedilemedi: ${error.message}`); return; }
+    const article = rowToKbArticle(data);
+    setKbArticles((prev) =>
+      prev.some((x) => x.id === article.id) ? prev.map((x) => (x.id === article.id ? article : x)) : [...prev, article]
+    );
+  };
+
+  const deleteKbArticle = async (id) => {
+    const { error } = await supabase.from("kb_articles").delete().eq("id", id);
+    if (error) { notify(`Makale silinemedi: ${error.message}`); return; }
+    setKbArticles((prev) => prev.filter((a) => a.id !== id));
   };
 
   if (session === undefined) return <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
@@ -795,6 +825,11 @@ export default function App() {
   const totalOpenValue = openDeals.reduce((sum, d) => sum + (d.value || 0), 0);
   const dealsWithReminder = deals.filter((d) => d.reminder && d.stage !== "kazanildi" && d.stage !== "kaybedildi");
   const customerById = (id) => customers.find((c) => c.id === id);
+
+  const openTicketsCount = tickets.filter((t) => !TERMINAL_STATUSES.includes(t.status)).length;
+  const breachedTicketsCount = tickets.filter(
+    (t) => !TERMINAL_STATUSES.includes(t.status) && getSlaStatus(t).isBreached
+  ).length;
 
   const closedCount = wonDeals.length + lostDeals.length;
   const winRate = closedCount > 0 ? Math.round((wonDeals.length / closedCount) * 100) : null;
@@ -843,6 +878,7 @@ export default function App() {
           { id: "pano", label: "Pano", icon: "ti-layout-dashboard" },
           { id: "musteri", label: "Müşteriler", icon: "ti-building" },
           { id: "firsat", label: "Fırsatlar", icon: "ti-target-arrow" },
+          { id: "destek", label: "Destek", icon: "ti-headset" },
         ].map((t) => (
           <button
             key={t.id}
@@ -870,6 +906,15 @@ export default function App() {
             <MetricCard label="Kazanılan" value={wonDeals.length} tone="success" />
             <MetricCard label="Açık teklif değeri" value={formatTL(totalOpenValue)} />
             <MetricCard label="Hatırlatması olan" value={dealsWithReminder.length} tone="warning" />
+            <MetricCard
+              label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Açık destek talepleri <InfoTip text="Durumu Çözüldü veya Kapatıldı olmayan destek talepleri." /></span>}
+              value={openTicketsCount}
+            />
+            <MetricCard
+              label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>SLA aşılan talepler <InfoTip text="Hedef çözüm süresi geçmiş ama hâlâ açık olan destek talepleri." /></span>}
+              value={breachedTicketsCount}
+              tone="danger"
+            />
           </div>
 
           {customers.length === 0 && deals.length === 0 ? (
@@ -1019,7 +1064,7 @@ export default function App() {
                   <button onClick={() => { setEditingCustomer(c); setShowCustomerForm(true); }} style={{ width: 32, height: 32, padding: 0 }}>
                     <i className="ti ti-edit" style={{ fontSize: 16 }} aria-hidden="true"></i>
                   </button>
-                  <button onClick={() => deleteCustomer(c.id)} style={{ width: 32, height: 32, padding: 0 }}>
+                  <button onClick={() => setConfirmDeleteCustomer(c)} style={{ width: 32, height: 32, padding: 0 }}>
                     <i className="ti ti-trash" style={{ fontSize: 16 }} aria-hidden="true"></i>
                   </button>
                 </div>
@@ -1132,7 +1177,7 @@ export default function App() {
                     <button onClick={() => { setEditingDeal(d); setShowDealForm(true); }} style={{ width: 32, height: 32, padding: 0 }}>
                       <i className="ti ti-edit" style={{ fontSize: 16 }} aria-hidden="true"></i>
                     </button>
-                    <button onClick={() => deleteDeal(d.id)} style={{ width: 32, height: 32, padding: 0 }}>
+                    <button onClick={() => setConfirmDeleteDeal(d)} style={{ width: 32, height: 32, padding: 0 }}>
                       <i className="ti ti-trash" style={{ fontSize: 16 }} aria-hidden="true"></i>
                     </button>
                   </div>
@@ -1141,6 +1186,21 @@ export default function App() {
             </div>
           )}
         </div>
+      )}
+
+      {tab === "destek" && (
+        <Support
+          customers={customers}
+          tickets={tickets}
+          ticketMessages={ticketMessages}
+          kbArticles={kbArticles}
+          onSaveTicket={upsertTicket}
+          onDeleteTicket={deleteTicket}
+          onChangeTicketStatus={changeTicketStatus}
+          onAddTicketMessage={addTicketMessage}
+          onSaveKbArticle={upsertKbArticle}
+          onDeleteKbArticle={deleteKbArticle}
+        />
       )}
 
       {showCustomerForm && (
@@ -1168,6 +1228,26 @@ export default function App() {
           onClose={() => setViewingCustomer(null)}
         />
       )}
+
+      {confirmDeleteCustomer && (
+        <ConfirmDialog
+          title="Müşteriyi sil"
+          message={`"${confirmDeleteCustomer.name}" silinsin mi? Bu müşteriye ait fırsatlar ve destek talepleri de silinir, bu işlem geri alınamaz.`}
+          onConfirm={() => { deleteCustomer(confirmDeleteCustomer.id); setConfirmDeleteCustomer(null); }}
+          onClose={() => setConfirmDeleteCustomer(null)}
+        />
+      )}
+
+      {confirmDeleteDeal && (
+        <ConfirmDialog
+          title="Fırsatı sil"
+          message="Bu fırsatı silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
+          onConfirm={() => { deleteDeal(confirmDeleteDeal.id); setConfirmDeleteDeal(null); }}
+          onClose={() => setConfirmDeleteDeal(null)}
+        />
+      )}
+
+      {toast && <Toast message={toast.message} tone={toast.tone} onClose={() => setToast(null)} />}
     </div>
   );
 }
