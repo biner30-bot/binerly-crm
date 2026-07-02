@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, uid, formatTL, daysAgo } from "./shared";
+import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, uid, formatTL, daysAgo, downloadCsv } from "./shared";
 import Support, {
   rowToTicket,
   rowToTicketMessage,
@@ -48,6 +48,7 @@ function rowToDeal(r) {
     value: r.value,
     stage: r.stage,
     reminder: r.reminder || "",
+    reminderDate: r.reminder_date || "",
     lostReason: r.lost_reason || "",
     createdAt: r.created_at,
   };
@@ -69,6 +70,17 @@ function rowToActivity(r) {
     type: r.type,
     content: r.content,
     createdAt: r.created_at,
+  };
+}
+
+function rowToCompanySettings(r) {
+  return {
+    companyName: r.company_name || "",
+    address: r.address || "",
+    phone: r.phone || "",
+    email: r.email || "",
+    taxNumber: r.tax_number || "",
+    logoUrl: r.logo_url || "",
   };
 }
 
@@ -128,12 +140,70 @@ function CustomerForm({ initial, onSave, onCancel }) {
   );
 }
 
+function CompanySettingsForm({ initial, onSave, onCancel }) {
+  const [companyName, setCompanyName] = useState(initial?.companyName || "");
+  const [address, setAddress] = useState(initial?.address || "");
+  const [phone, setPhone] = useState(initial?.phone || "");
+  const [email, setEmail] = useState(initial?.email || "");
+  const [taxNumber, setTaxNumber] = useState(initial?.taxNumber || "");
+  const [logoUrl, setLogoUrl] = useState(initial?.logoUrl || "");
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave({
+          companyName: companyName.trim(),
+          address: address.trim(),
+          phone: phone.trim(),
+          email: email.trim(),
+          taxNumber: taxNumber.trim(),
+          logoUrl: logoUrl.trim(),
+        });
+      }}
+    >
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Şirket adı</label>
+        <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Akın İnşaat Ltd. Şti." style={{ width: "100%" }} />
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Adres</label>
+        <textarea value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Firma adresi" style={{ width: "100%", minHeight: 60, resize: "vertical" }} />
+      </div>
+      <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Telefon</label>
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0532 000 00 00" style={{ width: "100%" }} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>E-posta</label>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="info@firma.com" style={{ width: "100%" }} />
+        </div>
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Vergi no</label>
+        <input value={taxNumber} onChange={(e) => setTaxNumber(e.target.value)} placeholder="1234567890" style={{ width: "100%" }} />
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Logo URL</label>
+        <input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://.../logo.png" style={{ width: "100%" }} />
+        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Dosya yükleme yok — bir yerde barındırılan logonuzun bağlantısını yapıştırın.</p>
+      </div>
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <button type="button" onClick={onCancel}>Vazgeç</button>
+        <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
+      </div>
+    </form>
+  );
+}
+
 function DealForm({ customers, initial, onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(initial?.customerId || customers[0]?.id || "");
   const [title, setTitle] = useState(initial?.title || "");
   const [value, setValue] = useState(initial?.value ?? "");
   const [stage, setStage] = useState(initial?.stage || "ilk_gorusme");
   const [reminder, setReminder] = useState(initial?.reminder || "");
+  const [reminderDate, setReminderDate] = useState(initial?.reminderDate || "");
   const [lostReason, setLostReason] = useState(initial?.lostReason || LOST_REASONS[0]);
 
   return (
@@ -148,6 +218,7 @@ function DealForm({ customers, initial, onSave, onCancel }) {
           value: Number(value) || 0,
           stage,
           reminder: reminder.trim(),
+          reminderDate: reminderDate || null,
           lostReason: stage === "kaybedildi" ? lostReason : "",
           createdAt: initial?.createdAt || new Date().toISOString(),
         });
@@ -179,9 +250,15 @@ function DealForm({ customers, initial, onSave, onCancel }) {
           </select>
         </div>
       </div>
-      <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Hatırlatma notu</label>
-        <input value={reminder} onChange={(e) => setReminder(e.target.value)} placeholder="Yarın takip araması yap" style={{ width: "100%" }} />
+      <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+        <div style={{ flex: 2 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Hatırlatma notu</label>
+          <input value={reminder} onChange={(e) => setReminder(e.target.value)} placeholder="Yarın takip araması yap" style={{ width: "100%" }} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Hatırlatma tarihi</label>
+          <input type="date" value={reminderDate} onChange={(e) => setReminderDate(e.target.value)} style={{ width: "100%" }} />
+        </div>
       </div>
       {stage === "kaybedildi" && (
         <div style={{ marginBottom: 16 }}>
@@ -280,6 +357,79 @@ function CustomerDetail({ customer, deals, activities, onAddActivity, onClose })
         </div>
       )}
     </Modal>
+  );
+}
+
+function TeklifPrint({ deal, customer, companySettings, onClose }) {
+  useEffect(() => {
+    const t = setTimeout(() => window.print(), 50);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("afterprint", onClose);
+    return () => window.removeEventListener("afterprint", onClose);
+  }, [onClose]);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "#fff", zIndex: 1500, overflowY: "auto" }}>
+      <div className="no-print" style={{ position: "fixed", top: 16, right: 16, display: "flex", gap: 8 }}>
+        <button onClick={() => window.print()} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+          Yazdır
+        </button>
+        <button onClick={onClose}>Kapat</button>
+      </div>
+      <div id="teklif-print" style={{ maxWidth: 700, margin: "0 auto", padding: "3rem 2rem", color: "#0c2540" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 40 }}>
+          <div>
+            {companySettings?.logoUrl && (
+              <img src={companySettings.logoUrl} alt="Logo" style={{ maxHeight: 60, marginBottom: 10 }} />
+            )}
+            <p style={{ fontWeight: 700, fontSize: 18, margin: 0 }}>
+              {companySettings?.companyName || "Firma bilgisi eksik"}
+            </p>
+            {companySettings?.address && <p style={{ fontSize: 13, margin: "4px 0 0", color: "#5b7088" }}>{companySettings.address}</p>}
+            {companySettings?.phone && <p style={{ fontSize: 13, margin: "2px 0 0", color: "#5b7088" }}>{companySettings.phone}</p>}
+            {companySettings?.email && <p style={{ fontSize: 13, margin: "2px 0 0", color: "#5b7088" }}>{companySettings.email}</p>}
+            {companySettings?.taxNumber && <p style={{ fontSize: 13, margin: "2px 0 0", color: "#5b7088" }}>Vergi no: {companySettings.taxNumber}</p>}
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <h1 style={{ fontSize: 22, margin: 0 }}>TEKLİF</h1>
+            <p style={{ fontSize: 13, color: "#5b7088", margin: "4px 0 0" }}>{new Date().toLocaleDateString("tr-TR")}</p>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 30 }}>
+          <p style={{ fontSize: 12, color: "#5b7088", margin: "0 0 4px", textTransform: "uppercase" }}>Müşteri</p>
+          <p style={{ fontWeight: 600, fontSize: 15, margin: 0 }}>{customer?.name || "Bilinmeyen müşteri"}</p>
+          {customer?.phone && <p style={{ fontSize: 13, margin: "2px 0 0", color: "#5b7088" }}>{customer.phone}</p>}
+          {customer?.email && <p style={{ fontSize: 13, margin: "2px 0 0", color: "#5b7088" }}>{customer.email}</p>}
+        </div>
+
+        <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 30 }}>
+          <thead>
+            <tr style={{ borderBottom: "2px solid #0c2540" }}>
+              <th style={{ textAlign: "left", padding: "8px 0", fontSize: 12, textTransform: "uppercase" }}>Açıklama</th>
+              <th style={{ textAlign: "right", padding: "8px 0", fontSize: 12, textTransform: "uppercase" }}>Tutar</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style={{ borderBottom: "1px solid #e1e8f0" }}>
+              <td style={{ padding: "12px 0", fontSize: 14 }}>{deal.title}</td>
+              <td style={{ padding: "12px 0", fontSize: 14, textAlign: "right" }}>{formatTL(deal.value)}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td style={{ padding: "12px 0", fontWeight: 700, fontSize: 15 }}>Toplam</td>
+              <td style={{ padding: "12px 0", fontWeight: 700, fontSize: 15, textAlign: "right" }}>{formatTL(deal.value)}</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <p style={{ fontSize: 12, color: "#5b7088" }}>Bu teklif 15 gün geçerlidir.</p>
+      </div>
+    </div>
   );
 }
 
@@ -595,6 +745,8 @@ export default function App() {
   const [tickets, setTickets] = useState([]);
   const [ticketMessages, setTicketMessages] = useState([]);
   const [kbArticles, setKbArticles] = useState([]);
+  const [companySettings, setCompanySettings] = useState(null);
+  const [showSettingsForm, setShowSettingsForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [showDealForm, setShowDealForm] = useState(false);
@@ -606,6 +758,9 @@ export default function App() {
   const [showCampaignModal, setShowCampaignModal] = useState(false);
   const [confirmDeleteCustomer, setConfirmDeleteCustomer] = useState(null);
   const [confirmDeleteDeal, setConfirmDeleteDeal] = useState(null);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [dealSearch, setDealSearch] = useState("");
+  const [teklifDeal, setTeklifDeal] = useState(null);
   const [toast, setToast] = useState(null);
 
   const notify = (message, tone = "danger") => setToast({ message, tone });
@@ -626,6 +781,7 @@ export default function App() {
     if (!session) {
       setCustomers([]); setDeals([]); setActivities([]);
       setTickets([]); setTicketMessages([]); setKbArticles([]);
+      setCompanySettings(null);
       setLoading(false);
       return;
     }
@@ -637,13 +793,15 @@ export default function App() {
       supabase.from("tickets").select("*").order("created_at"),
       supabase.from("ticket_messages").select("*").order("created_at"),
       supabase.from("kb_articles").select("*").order("created_at"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: t }, { data: tm }, { data: kb }]) => {
+      supabase.from("company_settings").select("*").maybeSingle(),
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: t }, { data: tm }, { data: kb }, { data: cs }]) => {
       setCustomers((c || []).map(rowToCustomer));
       setDeals((d || []).map(rowToDeal));
       setActivities((a || []).map(rowToActivity));
       setTickets((t || []).map(rowToTicket));
       setTicketMessages((tm || []).map(rowToTicketMessage));
       setKbArticles((kb || []).map(rowToKbArticle));
+      setCompanySettings(cs ? rowToCompanySettings(cs) : null);
       setLoading(false);
     });
   }, [session]);
@@ -702,6 +860,7 @@ export default function App() {
       value: d.value,
       stage: d.stage,
       reminder: d.reminder,
+      reminder_date: d.reminderDate || null,
       lost_reason: d.lostReason,
       created_at: d.createdAt,
     };
@@ -814,6 +973,23 @@ export default function App() {
     setKbArticles((prev) => prev.filter((a) => a.id !== id));
   };
 
+  const upsertCompanySettings = async (s) => {
+    const row = {
+      user_id: session.user.id,
+      company_name: s.companyName,
+      address: s.address,
+      phone: s.phone,
+      email: s.email,
+      tax_number: s.taxNumber,
+      logo_url: s.logoUrl,
+      updated_at: new Date().toISOString(),
+    };
+    const { data, error } = await supabase.from("company_settings").upsert(row).select().single();
+    if (error) { notify(`Şirket ayarları kaydedilemedi: ${error.message}`); return; }
+    setCompanySettings(rowToCompanySettings(data));
+    setShowSettingsForm(false);
+  };
+
   if (session === undefined) return <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
   if (!session) return <LandingPage />;
 
@@ -825,6 +1001,22 @@ export default function App() {
   const totalOpenValue = openDeals.reduce((sum, d) => sum + (d.value || 0), 0);
   const dealsWithReminder = deals.filter((d) => d.reminder && d.stage !== "kazanildi" && d.stage !== "kaybedildi");
   const customerById = (id) => customers.find((c) => c.id === id);
+
+  const customerQuery = customerSearch.trim().toLowerCase();
+  const filteredCustomers = !customerQuery
+    ? customers
+    : customers.filter((c) =>
+        [c.name, c.sector, c.phone, c.email].some((f) => (f || "").toLowerCase().includes(customerQuery))
+      );
+
+  const dealQuery = dealSearch.trim().toLowerCase();
+  const filteredDeals = !dealQuery
+    ? deals
+    : deals.filter(
+        (d) =>
+          d.title.toLowerCase().includes(dealQuery) ||
+          (customerById(d.customerId)?.name || "").toLowerCase().includes(dealQuery)
+      );
 
   const openTicketsCount = tickets.filter((t) => !TERMINAL_STATUSES.includes(t.status)).length;
   const breachedTicketsCount = tickets.filter(
@@ -862,14 +1054,23 @@ export default function App() {
           <h1 style={{ fontSize: 20, fontWeight: 600, margin: "0 0 4px" }}>Binerly</h1>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>KOBİ satış takip sistemi</p>
         </div>
-        <button
-          onClick={() => supabase.auth.signOut()}
-          style={{ fontSize: 12, color: "var(--text-secondary)", background: "none", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 4 }}
-          title="Çıkış yap"
-        >
-          <i className="ti ti-logout" style={{ fontSize: 14 }} aria-hidden="true"></i>
-          Çıkış
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() => setShowSettingsForm(true)}
+            style={{ width: 32, height: 32, padding: 0 }}
+            title="Şirket ayarları"
+          >
+            <i className="ti ti-settings" style={{ fontSize: 16 }} aria-hidden="true"></i>
+          </button>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            style={{ fontSize: 12, color: "var(--text-secondary)", background: "none", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 4 }}
+            title="Çıkış yap"
+          >
+            <i className="ti ti-logout" style={{ fontSize: 14 }} aria-hidden="true"></i>
+            Çıkış
+          </button>
+        </div>
       </div>
       <h2 className="sr-only">KOBİ satış takip uygulaması: pano, müşteriler ve fırsatlar sekmeleri</h2>
 
@@ -1021,29 +1222,60 @@ export default function App() {
 
       {tab === "musteri" && (
         <div>
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12, gap: 8 }}>
-            <button
-              onClick={() => setShowCampaignModal(true)}
-              disabled={customers.filter((c) => c.email).length === 0}
-              style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
-            >
-              <i className="ti ti-mail-forward" style={{ fontSize: 16 }} aria-hidden="true"></i>
-              Kampanya gönder
-            </button>
-            <button
-              onClick={() => { setEditingCustomer(null); setShowCustomerForm(true); }}
-              style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
-            >
-              <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
-              Müşteri ekle
-            </button>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
+            <input
+              value={customerSearch}
+              onChange={(e) => setCustomerSearch(e.target.value)}
+              placeholder="Müşteri ara (ad, sektör, telefon, e-posta)..."
+              style={{ flex: 1, minWidth: 200 }}
+            />
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() =>
+                  downloadCsv(
+                    "musteriler.csv",
+                    ["Firma adı", "Sektör", "Telefon", "E-posta", "Not", "Son temas"],
+                    filteredCustomers.map((c) => [
+                      c.name,
+                      c.sector,
+                      c.phone,
+                      c.email,
+                      c.notes,
+                      c.lastContact ? new Date(c.lastContact).toLocaleDateString("tr-TR") : "",
+                    ])
+                  )
+                }
+                disabled={filteredCustomers.length === 0}
+                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                Dışa aktar
+              </button>
+              <button
+                onClick={() => setShowCampaignModal(true)}
+                disabled={customers.filter((c) => c.email).length === 0}
+                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                <i className="ti ti-mail-forward" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                Kampanya gönder
+              </button>
+              <button
+                onClick={() => { setEditingCustomer(null); setShowCustomerForm(true); }}
+                style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                Müşteri ekle
+              </button>
+            </div>
           </div>
 
-          {customers.length === 0 ? (
-            <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Henüz müşteri eklenmedi.</p>
+          {filteredCustomers.length === 0 ? (
+            <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
+              {customers.length === 0 ? "Henüz müşteri eklenmedi." : "Aramayla eşleşen müşteri yok."}
+            </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {customers.map((c) => (
+              {filteredCustomers.map((c) => (
                 <div
                   key={c.id}
                   style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}
@@ -1093,6 +1325,32 @@ export default function App() {
                 Liste
               </button>
             </div>
+            <input
+              value={dealSearch}
+              onChange={(e) => setDealSearch(e.target.value)}
+              placeholder="Fırsat ara (başlık, müşteri)..."
+              style={{ flex: 1, minWidth: 160 }}
+            />
+            <button
+              onClick={() =>
+                downloadCsv(
+                  "firsatlar.csv",
+                  ["Müşteri", "Başlık", "Tutar", "Aşama", "Hatırlatma notu"],
+                  filteredDeals.map((d) => [
+                    customerById(d.customerId)?.name || "",
+                    d.title,
+                    d.value,
+                    STAGES.find((s) => s.id === d.stage)?.label || d.stage,
+                    d.reminder,
+                  ])
+                )
+              }
+              disabled={filteredDeals.length === 0}
+              style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+            >
+              <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
+              Dışa aktar
+            </button>
             <button
               onClick={() => { setEditingDeal(null); setShowDealForm(true); }}
               disabled={customers.length === 0}
@@ -1107,12 +1365,14 @@ export default function App() {
             <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>Fırsat eklemeden önce bir müşteri oluşturun.</p>
           )}
 
-          {deals.length === 0 ? (
-            <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Henüz fırsat eklenmedi.</p>
+          {filteredDeals.length === 0 ? (
+            <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
+              {deals.length === 0 ? "Henüz fırsat eklenmedi." : "Aramayla eşleşen fırsat yok."}
+            </p>
           ) : dealView === "kanban" ? (
             <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
               {STAGES.map((stage) => {
-                const stageDeals = deals.filter((d) => d.stage === stage.id);
+                const stageDeals = filteredDeals.filter((d) => d.stage === stage.id);
                 const stageValue = stageDeals.reduce((sum, d) => sum + (d.value || 0), 0);
                 return (
                   <div
@@ -1138,7 +1398,16 @@ export default function App() {
                           >
                             <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 500 }}>{c?.name || "Bilinmeyen müşteri"}</p>
                             <p style={{ margin: "0 0 4px", fontSize: 12, color: "var(--text-secondary)" }}>{d.title}</p>
-                            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--text-accent)" }}>{formatTL(d.value)}</p>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--text-accent)" }}>{formatTL(d.value)}</p>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setTeklifDeal(d); }}
+                                title="Teklif PDF"
+                                style={{ width: 24, height: 24, padding: 0 }}
+                              >
+                                <i className="ti ti-file-text" style={{ fontSize: 13 }} aria-hidden="true"></i>
+                              </button>
+                            </div>
                             {d.reminder && (
                               <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--text-warning)", display: "flex", alignItems: "center", gap: 4 }}>
                                 <i className="ti ti-bell" style={{ fontSize: 12 }} aria-hidden="true"></i>
@@ -1155,7 +1424,7 @@ export default function App() {
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {deals.map((d) => {
+              {filteredDeals.map((d) => {
                 const c = customerById(d.customerId);
                 const stageInfo = STAGES.find((s) => s.id === d.stage);
                 const tone = d.stage === "kazanildi" ? "success" : d.stage === "kaybedildi" ? "default" : d.stage === "muzakere" ? "warning" : "accent";
@@ -1174,6 +1443,9 @@ export default function App() {
                     </div>
                     <Badge tone={tone}>{stageInfo?.label}</Badge>
                     <span style={{ fontSize: 13, fontWeight: 500, minWidth: 90, textAlign: "right" }}>{formatTL(d.value)}</span>
+                    <button onClick={() => setTeklifDeal(d)} title="Teklif PDF" style={{ width: 32, height: 32, padding: 0 }}>
+                      <i className="ti ti-file-text" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                    </button>
                     <button onClick={() => { setEditingDeal(d); setShowDealForm(true); }} style={{ width: 32, height: 32, padding: 0 }}>
                       <i className="ti ti-edit" style={{ fontSize: 16 }} aria-hidden="true"></i>
                     </button>
@@ -1207,6 +1479,21 @@ export default function App() {
         <Modal title={editingCustomer ? "Müşteriyi düzenle" : "Yeni müşteri"} onClose={() => { setShowCustomerForm(false); setEditingCustomer(null); }}>
           <CustomerForm initial={editingCustomer} onSave={upsertCustomer} onCancel={() => { setShowCustomerForm(false); setEditingCustomer(null); }} />
         </Modal>
+      )}
+
+      {showSettingsForm && (
+        <Modal title="Şirket ayarları" onClose={() => setShowSettingsForm(false)}>
+          <CompanySettingsForm initial={companySettings} onSave={upsertCompanySettings} onCancel={() => setShowSettingsForm(false)} />
+        </Modal>
+      )}
+
+      {teklifDeal && (
+        <TeklifPrint
+          deal={teklifDeal}
+          customer={customerById(teklifDeal.customerId)}
+          companySettings={companySettings}
+          onClose={() => setTeklifDeal(null)}
+        />
       )}
 
       {showDealForm && (

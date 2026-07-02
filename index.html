@@ -91,6 +91,13 @@
         visibility: visible;
         opacity: 1;
       }
+      @media print {
+        body * { visibility: hidden; }
+        #teklif-print, #teklif-print * { visibility: visible; }
+        #teklif-print { position: absolute; top: 0; left: 0; width: 100%; }
+        .no-print { display: none !important; }
+        @page { size: A4; margin: 16mm; }
+      }
     </style>
   </head>
   <body>

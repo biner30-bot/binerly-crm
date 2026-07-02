@@ -2,6 +2,27 @@ export function uid() {
   return crypto.randomUUID();
 }
 
+function csvEscape(value) {
+  const s = String(value ?? "");
+  if (/[";\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+export function downloadCsv(filename, headers, rows) {
+  // Türkçe Excel için liste ayracı ";" — virgül ondalık ayracı olduğundan Excel "," ile sütunlara ayırmıyor.
+  const lines = [headers, ...rows].map((row) => row.map(csvEscape).join(";"));
+  const csv = lines.join("\r\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 export function formatTL(n) {
   return new Intl.NumberFormat("tr-TR").format(Math.round(n || 0)) + " TL";
 }
