@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, uid, formatTL, daysAgo, downloadCsv } from "./shared";
+import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, uid, formatTL, daysAgo, downloadCsv, toWhatsAppNumber, WhatsAppIcon } from "./shared";
 import Support, {
   rowToTicket,
   rowToTicketMessage,
@@ -383,8 +383,21 @@ function CustomerDetail({ customer, deals, activities, onAddActivity, onClose })
   return (
     <Modal title={customer.name} onClose={onClose}>
       <div style={{ marginBottom: 16 }}>
-        <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
-          {customer.sector} {customer.phone ? `· ${customer.phone}` : ""} {customer.email ? `· ${customer.email}` : ""}
+        <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <span>
+            {customer.sector} {customer.phone ? `· ${customer.phone}` : ""} {customer.email ? `· ${customer.email}` : ""}
+          </span>
+          {customer.phone && (
+            <a
+              href={`https://wa.me/${toWhatsAppNumber(customer.phone)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="WhatsApp'tan yaz"
+              style={{ display: "inline-flex", alignItems: "center" }}
+            >
+              <WhatsAppIcon />
+            </a>
+          )}
         </p>
         {customer.notes && <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--text-secondary)" }}>{customer.notes}</p>}
       </div>
@@ -1184,6 +1197,26 @@ export default function App() {
     setDeals((prev) => prev.filter((d) => d.id !== id));
   };
 
+  const seedDemoData = async () => {
+    const now = new Date().toISOString();
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const demoNote = "Bu örnek bir kayıttır, istediğiniz zaman silebilirsiniz.";
+    const demoCustomers = [
+      { id: uid(), name: "Örnek Müşteri — Akın İnşaat", sector: "İnşaat", phone: "0532 000 00 01", email: "", notes: demoNote, lastContact: now, createdAt: now },
+      { id: uid(), name: "Örnek Müşteri — Medipark Klinik", sector: "Medikal", phone: "0532 000 00 02", email: "", notes: demoNote, lastContact: now, createdAt: now },
+      { id: uid(), name: "Örnek Müşteri — Tazegül Gıda", sector: "Gıda", phone: "0532 000 00 03", email: "", notes: demoNote, lastContact: now, createdAt: now },
+    ];
+    for (const c of demoCustomers) await upsertCustomer(c);
+
+    const demoDeals = [
+      { id: uid(), customerId: demoCustomers[0].id, title: "Yıllık bakım anlaşması", value: 45000, cost: 0, stage: "ilk_gorusme", reminder: "", reminderDate: null, lostReason: "", createdAt: now, closedAt: null },
+      { id: uid(), customerId: demoCustomers[1].id, title: "Ekipman teklifi", value: 60000, cost: 0, stage: "muzakere", reminder: "Fiyat için tekrar ara", reminderDate: todayStr, lostReason: "", createdAt: now, closedAt: null },
+      { id: uid(), customerId: demoCustomers[2].id, title: "Tedarik sözleşmesi", value: 32000, cost: 12000, stage: "kazanildi", reminder: "", reminderDate: null, lostReason: "", createdAt: now, closedAt: now },
+    ];
+    for (const d of demoDeals) await upsertDeal(d);
+    notify("Örnek veriler eklendi.", "success");
+  };
+
   const moveDealStage = async (id, stage) => {
     const current = deals.find((d) => d.id === id);
     const previousStage = current?.stage;
@@ -1344,6 +1377,17 @@ export default function App() {
   );
   const breachedTicketsCount = breachedTickets.length;
 
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+  const dueReminderDeals = deals.filter(
+    (d) => d.reminder && d.reminderDate && d.stage !== "kazanildi" && d.stage !== "kaybedildi" && new Date(d.reminderDate) <= todayEnd
+  );
+  const urgentTickets = tickets.filter((t) => {
+    if (TERMINAL_STATUSES.includes(t.status)) return false;
+    const s = getSlaStatus(t);
+    return s.isBreached || s.isApproaching;
+  });
+
   const openDealOrList = (items, title) => {
     if (items.length === 0) return;
     if (items.length === 1) {
@@ -1477,6 +1521,48 @@ export default function App() {
 
       {tab === "pano" && (
         <div>
+          <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", marginBottom: "1.5rem" }}>
+            <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 10px" }}>Bugün ne yapmalıyım</p>
+            {dueReminderDeals.length === 0 && urgentTickets.length === 0 ? (
+              <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>Bugün için acil bir şey yok.</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
+                {urgentTickets
+                  .slice()
+                  .sort((a, b) => (getSlaStatus(a).isBreached === getSlaStatus(b).isBreached ? 0 : getSlaStatus(a).isBreached ? -1 : 1))
+                  .map((t) => {
+                    const sla = getSlaStatus(t);
+                    return (
+                      <div
+                        key={`ticket-${t.id}`}
+                        onClick={() => { setTab("destek"); setInitialViewTicketId(t.id); }}
+                        style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", padding: "4px 0" }}
+                      >
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: sla.isBreached ? "var(--text-danger)" : "var(--fill-warning)", flexShrink: 0 }} />
+                        <span style={{ flex: 1 }}>{t.subject}</span>
+                        <Badge tone={sla.isBreached ? "danger" : "warning"}>{sla.label}</Badge>
+                      </div>
+                    );
+                  })}
+                {dueReminderDeals.map((d) => {
+                  const c = customerById(d.customerId);
+                  const overdue = new Date(d.reminderDate) < new Date(new Date().setHours(0, 0, 0, 0));
+                  return (
+                    <div
+                      key={`deal-${d.id}`}
+                      onClick={() => { setTab("firsat"); setEditingDeal(d); setShowDealForm(true); }}
+                      style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", padding: "4px 0" }}
+                    >
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: overdue ? "var(--text-danger)" : "var(--fill-warning)", flexShrink: 0 }} />
+                      <span style={{ flex: 1 }}>{c?.name || "Bilinmeyen müşteri"} — {d.reminder}</span>
+                      <Badge tone={overdue ? "danger" : "warning"}>{overdue ? "Gecikti" : "Bugün"}</Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: "1.5rem", flexWrap: "wrap" }}>
             {PANO_RANGES.map((r) => (
               <button
@@ -1552,9 +1638,14 @@ export default function App() {
               <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px" }}>
                 Başlamak için önce bir müşteri ekleyin, sonra ona bir fırsat tanımlayın.
               </p>
-              <button onClick={() => { setTab("musteri"); setShowCustomerForm(true); }} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
-                Müşteri ekle
-              </button>
+              <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                <button onClick={() => { setTab("musteri"); setShowCustomerForm(true); }} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+                  Müşteri ekle
+                </button>
+                <button onClick={seedDemoData} style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)" }}>
+                  Örnek verilerle başla
+                </button>
+              </div>
             </div>
           ) : (
             <div>
@@ -1738,6 +1829,17 @@ export default function App() {
                     {daysAgo(c.lastContact) || "Temas yok"}
                   </Badge>
                   {c.portalUserId && <Badge tone="accent">Portal erişimi var</Badge>}
+                  {c.phone && (
+                    <a
+                      href={`https://wa.me/${toWhatsAppNumber(c.phone)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="WhatsApp'tan yaz"
+                      style={{ width: 32, height: 32, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", background: "var(--surface-1)", textDecoration: "none" }}
+                    >
+                      <WhatsAppIcon />
+                    </a>
+                  )}
                   <button onClick={() => setViewingCustomer(c)} title="Detay ve iletişim geçmişi" style={{ width: 32, height: 32, padding: 0 }}>
                     <i className="ti ti-history" style={{ fontSize: 16 }} aria-hidden="true"></i>
                   </button>
