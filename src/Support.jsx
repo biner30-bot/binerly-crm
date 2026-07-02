@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Badge, Modal, InfoTip, ConfirmDialog, uid } from "./shared";
 
 const PRIORITIES = [
@@ -99,6 +99,7 @@ export function rowToTicketMessage(r) {
     ticketId: r.ticket_id,
     direction: r.direction,
     content: r.content,
+    isInternal: r.is_internal || false,
     createdAt: r.created_at,
   };
 }
@@ -287,6 +288,7 @@ function TicketList({ tickets, customers, statusFilter, onFilterChange, onOpenTi
 function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange, onClose }) {
   const [direction, setDirection] = useState("giden");
   const [content, setContent] = useState("");
+  const [isInternal, setIsInternal] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const sla = getSlaStatus(ticket);
@@ -297,8 +299,9 @@ function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange
     e.preventDefault();
     if (!content.trim()) return;
     setSaving(true);
-    await onAddMessage({ ticketId: ticket.id, direction, content: content.trim() });
+    await onAddMessage({ ticketId: ticket.id, direction, content: content.trim(), isInternal });
     setContent("");
+    setIsInternal(false);
     setSaving(false);
   };
 
@@ -332,6 +335,10 @@ function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange
           </select>
           <input value={content} onChange={(e) => setContent(e.target.value)} placeholder="Örn. müşteriye kargo takip numarası iletildi" style={{ flex: 1 }} />
         </div>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-secondary)", marginBottom: 8, cursor: "pointer" }}>
+          <input type="checkbox" checked={isInternal} onChange={(e) => setIsInternal(e.target.checked)} />
+          Dahili not (müşteri portalında görünmez)
+        </label>
         <button type="submit" disabled={saving || !content.trim()} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
           Ekle
         </button>
@@ -345,10 +352,12 @@ function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange
             const dirInfo = MESSAGE_DIRECTIONS.find((d) => d.id === m.direction) || MESSAGE_DIRECTIONS[0];
             return (
               <div key={m.id} style={{ display: "flex", gap: 10 }}>
-                <i className={`ti ${dirInfo.icon}`} style={{ fontSize: 16, color: "var(--text-accent)", marginTop: 2 }} aria-hidden="true"></i>
+                <i className={`ti ${m.isInternal ? "ti-lock" : dirInfo.icon}`} style={{ fontSize: 16, color: m.isInternal ? "var(--text-muted)" : "var(--text-accent)", marginTop: 2 }} aria-hidden="true"></i>
                 <div>
                   <p style={{ margin: 0, fontSize: 13 }}>{m.content}</p>
-                  <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>{dirInfo.label} · {formatDateTime(m.createdAt)}</p>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>
+                    {m.isInternal ? "Dahili not" : dirInfo.label} · {formatDateTime(m.createdAt)}
+                  </p>
                 </div>
               </div>
             );
@@ -464,6 +473,8 @@ export default function Support({
   onAddTicketMessage,
   onSaveKbArticle,
   onDeleteKbArticle,
+  initialViewTicketId,
+  onConsumeInitialViewTicket,
 }) {
   const [supportView, setSupportView] = useState("talepler");
   const [showTicketForm, setShowTicketForm] = useState(false);
@@ -475,6 +486,16 @@ export default function Support({
   const [kbSearch, setKbSearch] = useState("");
 
   const customerById = (id) => customers.find((c) => c.id === id);
+
+  useEffect(() => {
+    if (!initialViewTicketId) return;
+    const t = tickets.find((x) => x.id === initialViewTicketId);
+    if (t) {
+      setSupportView("talepler");
+      setViewingTicket(t);
+    }
+    onConsumeInitialViewTicket?.();
+  }, [initialViewTicketId]);
 
   const saveTicket = async (t) => {
     await onSaveTicket(t);

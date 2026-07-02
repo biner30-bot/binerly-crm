@@ -37,6 +37,7 @@ function rowToCustomer(r) {
     notes: r.notes || "",
     lastContact: r.last_contact,
     createdAt: r.created_at,
+    portalUserId: r.portal_user_id || null,
   };
 }
 
@@ -593,6 +594,10 @@ function LandingPage() {
           <span style={{ fontWeight: 700, fontSize: 18, color: "#0c2540" }}>Binerly</span>
         </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <a href="/portal" style={{ color: "#5b7088", fontWeight: 500, fontSize: 13, textDecoration: "none", padding: "8px 12px", display: "flex", alignItems: "center", gap: 5 }}>
+            <i className="ti ti-users-group" style={{ fontSize: 15 }} aria-hidden="true"></i>
+            Müşteri Bilgi Sistemi
+          </a>
           <button onClick={() => setAuthModal("login")} style={{ background: "none", border: "none", color: "#185fa5", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "8px 12px" }}>
             Giriş Yap
           </button>
@@ -660,50 +665,63 @@ function LandingPage() {
       </div>
 
       {/* Özellikler */}
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "3rem 2rem" }}>
+      <div id="ozellikler" style={{ maxWidth: 1100, margin: "0 auto", padding: "3rem 2rem" }}>
         <h2 style={{ textAlign: "center", fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: "0 0 2.5rem" }}>
           İşinizi büyütmek için ihtiyacınız olan her şey
         </h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
           {[
             {
+              id: "musteri-yonetimi",
               icon: "ti-address-book",
               title: "Müşteri & İletişim Yönetimi",
               desc: "Müşterilerin iletişim bilgileri, e-posta yazışmaları, telefon notları ve geçmiş satın alma kayıtlarını tek veritabanında tutun. Sektör, bölge ve potansiyele göre segmentasyon yapın.",
-              tags: ["İletişim Geçmişi", "Segmentasyon"],
+              tags: ["İletişim Geçmişi", "Segmentasyon", "Arama & Dışa Aktarma"],
             },
             {
+              id: "satis-firsat",
               icon: "ti-target-arrow",
               title: "Satış & Fırsat Yönetimi",
-              desc: "İlk temastan kapanışa kadar tüm satış sürecini Kanban tahtasında takip edin. Şablon kullanarak PDF teklif hazırlayın, ürün ve fiyat kataloğunuzu yönetin.",
-              tags: ["Kanban Pipeline", "PDF Teklif"],
+              desc: "İlk temastan kapanışa kadar tüm satış sürecini Kanban tahtasında takip edin. Tek tıkla markalı PDF teklif oluşturun, hatırlatma tarihiyle takip randevularınızı kaçırmayın.",
+              tags: ["Kanban Pipeline", "PDF Teklif", "Hatırlatma E-postaları"],
             },
             {
+              id: "pazarlama",
               icon: "ti-mail-forward",
               title: "Pazarlama Otomasyonu",
-              desc: "E-posta ve SMS kampanyaları gönderin. Web sitenizdeki formlardan gelen müşteri adayları otomatik olarak CRM'e düşsün. Lead scoring ile en sıcak adayları öncelikli görün.",
+              desc: "E-posta kampanyaları gönderin. Lead scoring ile en sıcak adayları öncelikli görün.",
               tags: ["E-posta Kampanyası", "Lead Scoring"],
             },
             {
+              id: "destek",
               icon: "ti-headset",
               title: "Satış Sonrası Destek",
               desc: "Müşteri şikayet ve destek taleplerini bilet sistemiyle takip edin. SLA sürelerini izleyin, sıkça sorulan sorular için bilgi bankası oluşturun.",
-              tags: ["Ticketing", "SLA Takibi"],
+              tags: ["Ticketing", "SLA Takibi", "Bilgi Bankası"],
             },
             {
+              id: "musteri-portali",
+              icon: "ti-users-group",
+              title: "Müşteri Bilgi Sistemi",
+              desc: "Müşterileriniz kendi hesaplarıyla giriş yapıp destek taleplerini açabilir, sizinle mesajlaşabilir ve tekliflerinin durumunu görebilir — telefon trafiğinizi azaltır.",
+              tags: ["Müşteri Portalı", "Kendi Talebini Takip"],
+            },
+            {
+              id: "raporlama",
               icon: "ti-chart-bar",
               title: "Raporlama & Analitik",
-              desc: "Satış tahminleme ile gelecek dönem gelirinizi öngörün. Temsilci bazlı performans dashboard'ları ve kaybedilen müşteri analizleriyle stratejik kararlar alın.",
-              tags: ["Forecasting", "Dashboard"],
+              desc: "Kazanma oranı, aylık kazanılan gelir grafiği ve kayıp nedeni analizleriyle stratejik kararlar alın.",
+              tags: ["Dashboard", "Kayıp Analizi"],
             },
             {
+              id: "entegrasyonlar",
               icon: "ti-plug-connected",
               title: "Entegrasyonlar & Mobil",
-              desc: "Gmail, Outlook ve takvim uygulamalarıyla tam senkronizasyon. Muhasebe sistemleriyle ERP entegrasyonu. iOS ve Android uyumlu mobil uygulama ile her yerden erişin.",
-              tags: ["Gmail/Outlook", "Mobil Uygulama"],
+              desc: "Gmail, Outlook ve takvim uygulamalarıyla senkronizasyon, muhasebe/ERP entegrasyonu ve mobil uygulama yol haritamızda.",
+              tags: ["Yakında"],
             },
           ].map((f) => (
-            <div key={f.title} style={{ background: "#fff", borderRadius: 12, padding: "1.5rem", border: "1px solid #e1e8f0" }}>
+            <div key={f.title} id={f.id} style={{ background: "#fff", borderRadius: 12, padding: "1.5rem", border: "1px solid #e1e8f0", scrollMarginTop: 80 }}>
               <i className={`ti ${f.icon}`} style={{ fontSize: 28, color: "#185fa5", display: "block", marginBottom: 12 }} />
               <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>{f.title}</h3>
               <p style={{ fontSize: 14, color: "#5b7088", margin: "0 0 12px", lineHeight: 1.6 }}>{f.desc}</p>
@@ -729,8 +747,50 @@ function LandingPage() {
       </div>
 
       {/* Footer */}
-      <div style={{ textAlign: "center", padding: "1.5rem", fontSize: 13, color: "#94a7bb", background: "#f5f8fc" }}>
-        © 2026 Binerly · KOBİ Satış Takip Sistemi
+      <div style={{ background: "#fff", borderTop: "1px solid #e1e8f0", padding: "3rem 2rem 1.5rem" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 32 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <img src="/favicon.svg" alt="Binerly" style={{ width: 22, height: 22 }} />
+              <span style={{ fontWeight: 700, fontSize: 15, color: "#185fa5" }}>BINERLY</span>
+            </div>
+            <p style={{ fontSize: 14, fontWeight: 700, color: "#0c2540", margin: "0 0 8px", lineHeight: 1.4 }}>
+              KOBİ müşteri ilişkileri, satış ve destek yönetimi için tek platform
+            </p>
+            <p style={{ fontSize: 13, color: "#5b7088", lineHeight: 1.6, margin: 0 }}>
+              Müşteri takibi, satış fırsatları, satış sonrası destek ve müşteri bilgi sistemini tek yapıda bir araya getirir.
+            </p>
+          </div>
+          <div>
+            <p style={{ fontSize: 12, fontWeight: 700, color: "#0c2540", letterSpacing: 0.5, margin: "0 0 14px" }}>ÇÖZÜMLER</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <a href="#musteri-yonetimi" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Müşteri Yönetimi</a>
+              <a href="#satis-firsat" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Satış & Fırsat Yönetimi</a>
+              <a href="#destek" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Satış Sonrası Destek</a>
+              <a href="#musteri-portali" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Müşteri Bilgi Sistemi</a>
+              <a href="#raporlama" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Raporlama & Analitik</a>
+            </div>
+          </div>
+          <div>
+            <p style={{ fontSize: 12, fontWeight: 700, color: "#0c2540", letterSpacing: 0.5, margin: "0 0 14px" }}>HIZLI ERİŞİM</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <a href="/" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Ana Sayfa</a>
+              <a href="/portal" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Müşteri Bilgi Sistemi</a>
+              <a href="mailto:destek@binerly.com" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>İletişim</a>
+            </div>
+          </div>
+          <div>
+            <p style={{ fontSize: 12, fontWeight: 700, color: "#0c2540", letterSpacing: 0.5, margin: "0 0 14px" }}>YASAL</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <a href="/gizlilik" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Gizlilik Politikası</a>
+              <a href="/kullanim-kosullari" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Kullanım Koşulları</a>
+              <a href="/kvkk" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>KVKK Aydınlatma Metni</a>
+            </div>
+          </div>
+        </div>
+        <div style={{ maxWidth: 1100, margin: "2rem auto 0", paddingTop: "1.5rem", borderTop: "1px solid #e1e8f0", fontSize: 13, color: "#94a7bb" }}>
+          © 2026 Binerly · KOBİ Satış Takip Sistemi · Tüm hakları saklıdır.
+        </div>
       </div>
     </div>
   );
@@ -761,6 +821,8 @@ export default function App() {
   const [customerSearch, setCustomerSearch] = useState("");
   const [dealSearch, setDealSearch] = useState("");
   const [teklifDeal, setTeklifDeal] = useState(null);
+  const [quickList, setQuickList] = useState(null);
+  const [initialViewTicketId, setInitialViewTicketId] = useState(null);
   const [toast, setToast] = useState(null);
 
   const notify = (message, tone = "danger") => setToast({ message, tone });
@@ -935,13 +997,14 @@ export default function App() {
     }
   };
 
-  const addTicketMessage = async ({ ticketId, direction, content }) => {
+  const addTicketMessage = async ({ ticketId, direction, content, isInternal }) => {
     const row = {
       id: uid(),
       user_id: session.user.id,
       ticket_id: ticketId,
       direction,
       content,
+      is_internal: !!isInternal,
     };
     const { data, error } = await supabase.from("ticket_messages").insert(row).select().single();
     if (error) { notify(`Mesaj eklenemedi: ${error.message}`); return; }
@@ -1019,9 +1082,31 @@ export default function App() {
       );
 
   const openTicketsCount = tickets.filter((t) => !TERMINAL_STATUSES.includes(t.status)).length;
-  const breachedTicketsCount = tickets.filter(
+  const breachedTickets = tickets.filter(
     (t) => !TERMINAL_STATUSES.includes(t.status) && getSlaStatus(t).isBreached
-  ).length;
+  );
+  const breachedTicketsCount = breachedTickets.length;
+
+  const openDealOrList = (items, title) => {
+    if (items.length === 0) return;
+    if (items.length === 1) {
+      setTab("firsat");
+      setEditingDeal(items[0]);
+      setShowDealForm(true);
+      return;
+    }
+    setQuickList({ kind: "deal", title, items });
+  };
+
+  const openTicketOrList = (items, title) => {
+    if (items.length === 0) return;
+    if (items.length === 1) {
+      setTab("destek");
+      setInitialViewTicketId(items[0].id);
+      return;
+    }
+    setQuickList({ kind: "ticket", title, items });
+  };
 
   const closedCount = wonDeals.length + lostDeals.length;
   const winRate = closedCount > 0 ? Math.round((wonDeals.length / closedCount) * 100) : null;
@@ -1103,18 +1188,38 @@ export default function App() {
       {tab === "pano" && (
         <div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 12, marginBottom: "1.5rem" }}>
-            <MetricCard label="Açık fırsatlar" value={openDeals.length} />
-            <MetricCard label="Kazanılan" value={wonDeals.length} tone="success" />
-            <MetricCard label="Açık teklif değeri" value={formatTL(totalOpenValue)} />
-            <MetricCard label="Hatırlatması olan" value={dealsWithReminder.length} tone="warning" />
+            <MetricCard
+              label="Açık fırsatlar"
+              value={openDeals.length}
+              onClick={openDeals.length > 0 ? () => openDealOrList(openDeals, "Açık fırsatlar") : undefined}
+            />
+            <MetricCard
+              label="Kazanılan"
+              value={wonDeals.length}
+              tone="success"
+              onClick={wonDeals.length > 0 ? () => openDealOrList(wonDeals, "Kazanılan fırsatlar") : undefined}
+            />
+            <MetricCard
+              label="Açık teklif değeri"
+              value={formatTL(totalOpenValue)}
+              onClick={openDeals.length > 0 ? () => openDealOrList(openDeals, "Açık fırsatlar") : undefined}
+            />
+            <MetricCard
+              label="Hatırlatması olan"
+              value={dealsWithReminder.length}
+              tone="warning"
+              onClick={dealsWithReminder.length > 0 ? () => openDealOrList(dealsWithReminder, "Hatırlatması olan fırsatlar") : undefined}
+            />
             <MetricCard
               label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Açık destek talepleri <InfoTip text="Durumu Çözüldü veya Kapatıldı olmayan destek talepleri." /></span>}
               value={openTicketsCount}
+              onClick={openTicketsCount > 0 ? () => openTicketOrList(tickets.filter((t) => !TERMINAL_STATUSES.includes(t.status)), "Açık destek talepleri") : undefined}
             />
             <MetricCard
               label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>SLA aşılan talepler <InfoTip text="Hedef çözüm süresi geçmiş ama hâlâ açık olan destek talepleri." /></span>}
               value={breachedTicketsCount}
               tone="danger"
+              onClick={breachedTicketsCount > 0 ? () => openTicketOrList(breachedTickets, "SLA aşılan talepler") : undefined}
             />
           </div>
 
@@ -1290,6 +1395,7 @@ export default function App() {
                   <Badge tone={daysAgo(c.lastContact) === "Bugün" ? "success" : "default"}>
                     {daysAgo(c.lastContact) || "Temas yok"}
                   </Badge>
+                  {c.portalUserId && <Badge tone="accent">Portal erişimi var</Badge>}
                   <button onClick={() => setViewingCustomer(c)} title="Detay ve iletişim geçmişi" style={{ width: 32, height: 32, padding: 0 }}>
                     <i className="ti ti-history" style={{ fontSize: 16 }} aria-hidden="true"></i>
                   </button>
@@ -1472,6 +1578,8 @@ export default function App() {
           onAddTicketMessage={addTicketMessage}
           onSaveKbArticle={upsertKbArticle}
           onDeleteKbArticle={deleteKbArticle}
+          initialViewTicketId={initialViewTicketId}
+          onConsumeInitialViewTicket={() => setInitialViewTicketId(null)}
         />
       )}
 
@@ -1494,6 +1602,33 @@ export default function App() {
           companySettings={companySettings}
           onClose={() => setTeklifDeal(null)}
         />
+      )}
+
+      {quickList && (
+        <Modal title={quickList.title} onClose={() => setQuickList(null)}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 320, overflowY: "auto" }}>
+            {quickList.items.map((item) =>
+              quickList.kind === "deal" ? (
+                <div
+                  key={item.id}
+                  onClick={() => { setQuickList(null); setTab("firsat"); setEditingDeal(item); setShowDealForm(true); }}
+                  style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.6rem 0.9rem", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}
+                >
+                  <span style={{ fontSize: 14 }}>{customerById(item.customerId)?.name || "Bilinmeyen müşteri"} — {item.title}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-accent)", whiteSpace: "nowrap" }}>{formatTL(item.value)}</span>
+                </div>
+              ) : (
+                <div
+                  key={item.id}
+                  onClick={() => { setQuickList(null); setTab("destek"); setInitialViewTicketId(item.id); }}
+                  style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.6rem 0.9rem", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}
+                >
+                  <span style={{ fontSize: 14 }}>{customerById(item.customerId)?.name || "Bilinmeyen müşteri"} — {item.subject}</span>
+                </div>
+              )
+            )}
+          </div>
+        </Modal>
       )}
 
       {showDealForm && (

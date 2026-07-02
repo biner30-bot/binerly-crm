@@ -1,5 +1,8 @@
 {
   "crons": [
     { "path": "/api/send-reminders", "schedule": "0 8 * * *" }
+  ],
+  "rewrites": [
+    { "source": "/((?!api/|assets/|favicon.svg).*)", "destination": "/index.html" }
   ]
 }
