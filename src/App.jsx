@@ -507,6 +507,149 @@ function CampaignModal({ customers, replyTo, onClose }) {
   );
 }
 
+function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) {
+  const isOwner = activeTeamId === session.user.id;
+  const [members, setMembers] = useState([]);
+  const [invites, setInvites] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    if (isOwner) {
+      const [{ data: m }, { data: inv }] = await Promise.all([
+        supabase.from("team_members").select("*").eq("team_id", activeTeamId).order("joined_at"),
+        supabase.from("team_invites").select("*").eq("owner_id", activeTeamId).eq("status", "pending").order("created_at"),
+      ]);
+      setMembers(m || []);
+      setInvites(inv || []);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const sendInvite = async (e) => {
+    e.preventDefault();
+    const email = inviteEmail.trim().toLowerCase();
+    if (!email) return;
+    setSending(true);
+    const { error } = await supabase.from("team_invites").insert({ owner_id: activeTeamId, email });
+    if (error) {
+      notify(`Davet gönderilemedi: ${error.message}`);
+      setSending(false);
+      return;
+    }
+    try {
+      await fetch("/api/send-campaign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipients: [email],
+          subject: `${companySettings?.companyName || "Binerly"} sizi takımına davet etti`,
+          message: `Merhaba,\n\n${companySettings?.companyName || "Bir şirket"} sizi Binerly hesabına takım üyesi olarak davet etti. binerly.com adresine bu e-posta ile giriş yaparak (veya kayıt olarak) daveti kabul edebilirsiniz.\n\nBinerly`,
+          replyTo: session.user.email,
+        }),
+      });
+    } catch {
+      // E-posta gönderimi başarısız olsa bile davet kaydı geçerli — kullanıcı giriş yaptığında bekleyen daveti görecek.
+    }
+    setInviteEmail("");
+    setSending(false);
+    load();
+  };
+
+  const cancelInvite = async (id) => {
+    const { error } = await supabase.from("team_invites").update({ status: "revoked" }).eq("id", id);
+    if (error) { notify(`Davet iptal edilemedi: ${error.message}`); return; }
+    load();
+  };
+
+  const removeMember = async (memberId) => {
+    const { error } = await supabase.from("team_members").delete().eq("member_id", memberId);
+    if (error) { notify(`Üye kaldırılamadı: ${error.message}`); return; }
+    load();
+  };
+
+  const leaveTeam = async () => {
+    const { error } = await supabase.from("team_members").delete().eq("member_id", session.user.id);
+    if (error) { notify(`Takımdan ayrılınamadı: ${error.message}`); return; }
+    window.location.reload();
+  };
+
+  if (!isOwner) {
+    return (
+      <Modal title="Takım" onClose={onClose}>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+          Bu hesap <strong>{companySettings?.companyName || "bir şirket"}</strong> takımının bir üyesi. Tüm müşteri, fırsat ve destek verisi bu takımla paylaşılıyor.
+        </p>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
+          <button onClick={onClose}>Kapat</button>
+          <button onClick={leaveTeam} style={{ color: "var(--text-danger)" }}>Takımdan ayrıl</button>
+        </div>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal title="Takım" onClose={onClose}>
+      {loading ? (
+        <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>Yükleniyor…</p>
+      ) : (
+        <>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>Üyeler</label>
+            {members.length === 0 ? (
+              <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz takım üyesi yok.</p>
+            ) : (
+              members.map((m) => (
+                <div key={m.member_id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "0.5px solid var(--border)" }}>
+                  <span style={{ fontSize: 13 }}>{m.email}</span>
+                  <button onClick={() => removeMember(m.member_id)} style={{ fontSize: 12, color: "var(--text-danger)" }}>Kaldır</button>
+                </div>
+              ))
+            )}
+          </div>
+          {invites.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>Bekleyen davetler</label>
+              {invites.map((inv) => (
+                <div key={inv.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "0.5px solid var(--border)" }}>
+                  <span style={{ fontSize: 13 }}>{inv.email} <Badge tone="warning">Bekliyor</Badge></span>
+                  <button onClick={() => cancelInvite(inv.id)} style={{ fontSize: 12 }}>İptal et</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <form onSubmit={sendInvite}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>E-posta ile davet et</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="ornek@sirket.com"
+                required
+                style={{ flex: 1 }}
+              />
+              <button type="submit" disabled={sending} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+                {sending ? "Gönderiliyor…" : "Davet et"}
+              </button>
+            </div>
+          </form>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+            <button onClick={onClose}>Kapat</button>
+          </div>
+        </>
+      )}
+    </Modal>
+  );
+}
+
 function AuthModal({ initialMode = "login", onClose }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -806,7 +949,13 @@ export default function App() {
   const [ticketMessages, setTicketMessages] = useState([]);
   const [kbArticles, setKbArticles] = useState([]);
   const [companySettings, setCompanySettings] = useState(null);
+  // v1: üye sayısı sınırsız, henüz billing yok. Billing eklendiğinde davet
+  // oluşturma burada plan bazlı sınırlanabilir.
+  const [activeTeamId, setActiveTeamId] = useState(undefined);
+  const [pendingInvites, setPendingInvites] = useState([]);
+  const [dismissedInviteIds, setDismissedInviteIds] = useState([]);
   const [showSettingsForm, setShowSettingsForm] = useState(false);
+  const [showTeamModal, setShowTeamModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [showDealForm, setShowDealForm] = useState(false);
@@ -844,6 +993,8 @@ export default function App() {
       setCustomers([]); setDeals([]); setActivities([]);
       setTickets([]); setTicketMessages([]); setKbArticles([]);
       setCompanySettings(null);
+      setActiveTeamId(undefined);
+      setPendingInvites([]);
       setLoading(false);
       return;
     }
@@ -856,7 +1007,9 @@ export default function App() {
       supabase.from("ticket_messages").select("*").order("created_at"),
       supabase.from("kb_articles").select("*").order("created_at"),
       supabase.from("company_settings").select("*").maybeSingle(),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: t }, { data: tm }, { data: kb }, { data: cs }]) => {
+      supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
+      supabase.from("team_invites").select("*").eq("status", "pending"),
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: myMembership }, { data: invites }]) => {
       setCustomers((c || []).map(rowToCustomer));
       setDeals((d || []).map(rowToDeal));
       setActivities((a || []).map(rowToActivity));
@@ -864,6 +1017,14 @@ export default function App() {
       setTicketMessages((tm || []).map(rowToTicketMessage));
       setKbArticles((kb || []).map(rowToKbArticle));
       setCompanySettings(cs ? rowToCompanySettings(cs) : null);
+      setActiveTeamId(myMembership ? myMembership.team_id : session.user.id);
+      // Sadece BANA gelen davetler (kendi gönderdiklerim değil) — RLS iki SELECT
+      // politikasını OR ile birleştirdiği için burada e-postaya göre ek filtre şart.
+      setPendingInvites(
+        (invites || []).filter(
+          (inv) => inv.owner_id !== session.user.id && inv.email?.toLowerCase() === session.user.email?.toLowerCase()
+        )
+      );
       setLoading(false);
     });
   }, [session]);
@@ -871,7 +1032,7 @@ export default function App() {
   const addActivity = async ({ customerId, type, content }) => {
     const row = {
       id: uid(),
-      user_id: session.user.id,
+      user_id: activeTeamId,
       customer_id: customerId,
       type,
       content,
@@ -886,7 +1047,7 @@ export default function App() {
   const upsertCustomer = async (c) => {
     const row = {
       id: c.id,
-      user_id: session.user.id,
+      user_id: activeTeamId,
       name: c.name,
       sector: c.sector,
       phone: c.phone,
@@ -916,7 +1077,7 @@ export default function App() {
   const upsertDeal = async (d) => {
     const row = {
       id: d.id,
-      user_id: session.user.id,
+      user_id: activeTeamId,
       customer_id: d.customerId,
       title: d.title,
       value: d.value,
@@ -962,7 +1123,7 @@ export default function App() {
   const upsertTicket = async (t) => {
     const row = {
       id: t.id,
-      user_id: session.user.id,
+      user_id: activeTeamId,
       customer_id: t.customerId,
       subject: t.subject,
       description: t.description,
@@ -1000,7 +1161,7 @@ export default function App() {
   const addTicketMessage = async ({ ticketId, direction, content, isInternal }) => {
     const row = {
       id: uid(),
-      user_id: session.user.id,
+      user_id: activeTeamId,
       ticket_id: ticketId,
       direction,
       content,
@@ -1015,7 +1176,7 @@ export default function App() {
   const upsertKbArticle = async (a) => {
     const row = {
       id: a.id,
-      user_id: session.user.id,
+      user_id: activeTeamId,
       title: a.title,
       category: a.category,
       content: a.content,
@@ -1038,7 +1199,7 @@ export default function App() {
 
   const upsertCompanySettings = async (s) => {
     const row = {
-      user_id: session.user.id,
+      user_id: activeTeamId,
       company_name: s.companyName,
       address: s.address,
       phone: s.phone,
@@ -1051,6 +1212,12 @@ export default function App() {
     if (error) { notify(`Şirket ayarları kaydedilemedi: ${error.message}`); return; }
     setCompanySettings(rowToCompanySettings(data));
     setShowSettingsForm(false);
+  };
+
+  const acceptTeamInvite = async (invite) => {
+    const { error } = await supabase.rpc("accept_team_invite", { p_owner_id: invite.owner_id });
+    if (error) { notify(`Davet kabul edilemedi: ${error.message}`); return; }
+    window.location.reload();
   };
 
   if (session === undefined) return <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
@@ -1141,6 +1308,13 @@ export default function App() {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button
+            onClick={() => setShowTeamModal(true)}
+            style={{ width: 32, height: 32, padding: 0 }}
+            title="Takım"
+          >
+            <i className="ti ti-users-group" style={{ fontSize: 16 }} aria-hidden="true"></i>
+          </button>
+          <button
             onClick={() => setShowSettingsForm(true)}
             style={{ width: 32, height: 32, padding: 0 }}
             title="Şirket ayarları"
@@ -1157,6 +1331,29 @@ export default function App() {
           </button>
         </div>
       </div>
+
+      {pendingInvites
+        .filter((inv) => !dismissedInviteIds.includes(inv.id))
+        .map((inv) => (
+          <div
+            key={inv.id}
+            style={{
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              background: "var(--bg-accent)", border: "0.5px solid var(--border-strong)",
+              borderRadius: "var(--radius)", padding: "10px 14px", marginBottom: 12, fontSize: 13,
+            }}
+          >
+            <span>
+              Bir şirket sizi takımına davet etti ({inv.email}) — takıma katılırsanız o şirketin tüm müşteri/fırsat/destek verisini görüp düzenleyebilirsiniz.
+              {(customers.length > 0 || deals.length > 0) && " Mevcut verileriniz size özel kalacak, takıma taşınmayacak."}
+            </span>
+            <span style={{ display: "flex", gap: 8, flexShrink: 0, marginLeft: 12 }}>
+              <button onClick={() => setDismissedInviteIds((prev) => [...prev, inv.id])}>Şimdi değil</button>
+              <button onClick={() => acceptTeamInvite(inv)} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kabul et</button>
+            </span>
+          </div>
+        ))}
+
       <h2 className="sr-only">KOBİ satış takip uygulaması: pano, müşteriler ve fırsatlar sekmeleri</h2>
 
       <div style={{ display: "flex", gap: 8, marginBottom: "1.5rem" }}>
@@ -1593,6 +1790,16 @@ export default function App() {
         <Modal title="Şirket ayarları" onClose={() => setShowSettingsForm(false)}>
           <CompanySettingsForm initial={companySettings} onSave={upsertCompanySettings} onCancel={() => setShowSettingsForm(false)} />
         </Modal>
+      )}
+
+      {showTeamModal && (
+        <TeamModal
+          session={session}
+          activeTeamId={activeTeamId}
+          companySettings={companySettings}
+          notify={notify}
+          onClose={() => setShowTeamModal(false)}
+        />
       )}
 
       {teklifDeal && (

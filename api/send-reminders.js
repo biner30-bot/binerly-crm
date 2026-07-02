@@ -40,6 +40,9 @@ export default async function handler(req, res) {
       .in("id", customerIds);
     const customerNameById = Object.fromEntries((customers || []).map((c) => [c.id, c.name]));
 
+    // deal.user_id takım desteğiyle birlikte artık "hesap/takım kimliği" anlamına
+    // geliyor (bkz. team_members) — bu yüzden gruplama zaten doğal olarak takım
+    // başına tek e-posta, sahibe gönderiliyor; ekstra bir değişiklik gerekmiyor.
     const dealsByUser = {};
     for (const deal of dueDeals) {
       (dealsByUser[deal.user_id] ||= []).push(deal);

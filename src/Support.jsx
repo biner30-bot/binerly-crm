@@ -28,6 +28,46 @@ const STATUS_TONE = {
 
 export const TERMINAL_STATUSES = ["cozuldu", "kapatildi"];
 
+const KB_TEMPLATES = [
+  {
+    title: "Siparişim ne zaman kargoya verilir?",
+    category: "Kargo & Teslimat",
+    content:
+      "Siparişleriniz onaylandıktan sonra ortalama [1-3 iş günü] içinde kargoya verilir. " +
+      "Kargoya verildiğinde takip numaranız [e-posta/SMS ile] tarafınıza iletilir. " +
+      "Yoğun dönemlerde (kampanya, tatil öncesi vb.) bu süre uzayabilir.",
+  },
+  {
+    title: "Kargom hasarlı veya eksik geldi, ne yapmalıyım?",
+    category: "Kargo & Teslimat",
+    content:
+      "Paketinizi teslim alırken hasar fark ederseniz kargo görevlisine tutanak tutturmanızı rica ederiz. " +
+      "Hasarlı/eksik ürün fotoğraflarını ve sipariş numaranızı bizimle paylaşırsanız en kısa sürede " +
+      "yeni ürün gönderimi veya iade süreci başlatılır.",
+  },
+  {
+    title: "Fatura bilgilerimi nasıl güncellerim?",
+    category: "Fatura & Ödeme",
+    content:
+      "Fatura bilgilerinizi (ad-soyad/unvan, adres, vergi no) güncellemek için bizimle iletişime geçmeniz yeterli. " +
+      "Zaten kesilmiş bir faturada değişiklik için [muhasebe/mali müşavir süreciniz burada belirtilebilir].",
+  },
+  {
+    title: "Ürün iadesi nasıl yapılır?",
+    category: "İade & Değişim",
+    content:
+      "Ürünü teslim aldığınız tarihten itibaren [14 gün] içinde, kullanılmamış ve orijinal ambalajında olması " +
+      "koşuluyla iade edebilirsiniz. İade talebiniz onaylandıktan sonra ücret [X iş günü] içinde iade edilir.",
+  },
+  {
+    title: "Destek talebimin durumunu nasıl takip ederim?",
+    category: "Destek",
+    content:
+      "Bize e-posta adresinizle kayıtlıysanız, Müşteri Bilgi Sistemi üzerinden (binerly.com/portal) " +
+      "kendi hesabınızla giriş yaparak tüm destek taleplerinizin güncel durumunu ve mesaj geçmişini görebilirsiniz.",
+  },
+];
+
 const PRIORITY_INFO_TEXT =
   "Öncelik, talebin hedef çözüm süresini (talep oluşturulduğu andan itibaren) belirler:\n" +
   "Acil → 4 saat\n" +
@@ -368,8 +408,9 @@ function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange
   );
 }
 
-function KbList({ articles, searchQuery, onSearchChange, onAdd, onEdit, onDelete }) {
+function KbList({ articles, searchQuery, onSearchChange, onAdd, onEdit, onDelete, onUseTemplate }) {
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [showTemplates, setShowTemplates] = useState(articles.length === 0);
   const filtered = articles.filter((a) => a.title.toLowerCase().includes(searchQuery.trim().toLowerCase()));
 
   return (
@@ -381,11 +422,40 @@ function KbList({ articles, searchQuery, onSearchChange, onAdd, onEdit, onDelete
           placeholder="Başlıkta ara..."
           style={{ flex: 1, minWidth: 200 }}
         />
-        <button onClick={onAdd} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}>
-          <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
-          Makale ekle
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() => setShowTemplates((v) => !v)}
+            style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+          >
+            <i className="ti ti-sparkles" style={{ fontSize: 16 }} aria-hidden="true"></i>
+            Örnek şablonlar
+          </button>
+          <button onClick={onAdd} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}>
+            <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
+            Makale ekle
+          </button>
+        </div>
       </div>
+
+      {showTemplates && (
+        <div style={{ background: "var(--bg-accent)", borderRadius: "var(--radius)", padding: "0.9rem 1rem", marginBottom: 16 }}>
+          <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 500, color: "var(--text-accent)" }}>
+            Hızlı başlangıç için örnek makaleler — "Kullan" ile taslağı açar, düzenleyip kaydedebilirsin.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {KB_TEMPLATES.map((t) => (
+              <div key={t.title} style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.6rem 0.8rem", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <p style={{ margin: 0, fontWeight: 500, fontSize: 13 }}>{t.title}</p>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--text-secondary)" }}>{t.category}</p>
+                </div>
+                <button onClick={() => onUseTemplate(t)} style={{ fontSize: 12 }}>Kullan</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {filtered.length === 0 ? (
         <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
           {articles.length === 0 ? "Henüz makale eklenmedi." : "Aramayla eşleşen makale yok."}
@@ -569,6 +639,7 @@ export default function Support({
           onAdd={() => { setEditingKbArticle(null); setShowKbForm(true); }}
           onEdit={(a) => { setEditingKbArticle(a); setShowKbForm(true); }}
           onDelete={onDeleteKbArticle}
+          onUseTemplate={(t) => { setEditingKbArticle(t); setShowKbForm(true); }}
         />
       )}
 
@@ -579,7 +650,7 @@ export default function Support({
       )}
 
       {showKbForm && (
-        <Modal title={editingKbArticle ? "Makaleyi düzenle" : "Yeni makale"} onClose={() => { setShowKbForm(false); setEditingKbArticle(null); }}>
+        <Modal title={editingKbArticle?.id ? "Makaleyi düzenle" : "Yeni makale"} onClose={() => { setShowKbForm(false); setEditingKbArticle(null); }}>
           <KbArticleForm initial={editingKbArticle} onSave={saveKbArticle} onCancel={() => { setShowKbForm(false); setEditingKbArticle(null); }} />
         </Modal>
       )}
