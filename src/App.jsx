@@ -141,6 +141,17 @@ function rowToActivity(r) {
   };
 }
 
+function rowToPayment(r) {
+  return {
+    id: r.id,
+    dealId: r.deal_id,
+    amount: r.amount,
+    paidAt: r.paid_at,
+    note: r.note || "",
+    createdAt: r.created_at,
+  };
+}
+
 function rowToCompanySettings(r) {
   return {
     companyName: r.company_name || "",
@@ -310,7 +321,7 @@ function DealForm({ customers, initial, onSave, onCancel }) {
         )}
       </div>
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Fırsat / teklif başlığı</label>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Teklif başlığı</label>
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Yıllık tedarik anlaşması" style={{ width: "100%" }} />
       </div>
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
@@ -352,6 +363,70 @@ function DealForm({ customers, initial, onSave, onCancel }) {
         <button type="submit" disabled={customers.length === 0} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
       </div>
     </form>
+  );
+}
+
+function paymentDateLabel(dateStr) {
+  return new Date(dateStr).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function DealPayments({ deal, payments, onAddPayment, onDeletePayment }) {
+  const [amount, setAmount] = useState("");
+  const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10));
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const sorted = payments.slice().sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt));
+  const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const remaining = deal.value - totalPaid;
+
+  const submit = async (e) => {
+    e.preventDefault();
+    const n = Number(amount);
+    if (!n || n <= 0) return;
+    setSaving(true);
+    await onAddPayment({ dealId: deal.id, amount: n, paidAt, note: note.trim() });
+    setAmount("");
+    setNote("");
+    setSaving(false);
+  };
+
+  return (
+    <div style={{ marginTop: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
+      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Tahsilat</p>
+      <p style={{ fontSize: 13, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span>Toplam: {formatTL(deal.value)} · Tahsil edilen: {formatTL(totalPaid)} · Kalan: {formatTL(Math.max(remaining, 0))}</span>
+        {totalPaid > 0 && (
+          <Badge tone={remaining <= 0 ? "success" : "warning"}>{remaining <= 0 ? "Ödendi" : "Kısmi ödeme"}</Badge>
+        )}
+      </p>
+
+      <form onSubmit={submit} style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+          <input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Tutar" style={{ flex: 1 }} />
+          <input type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} style={{ width: 140 }} />
+        </div>
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Not (opsiyonel)" style={{ width: "100%", marginBottom: 8 }} />
+        <button type="submit" disabled={saving || !amount} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
+          Ekle
+        </button>
+      </form>
+
+      {sorted.length === 0 ? (
+        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz tahsilat kaydı yok.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 200, overflowY: "auto" }}>
+          {sorted.map((p) => (
+            <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13 }}>
+              <span>{formatTL(p.amount)} <span style={{ color: "var(--text-muted)" }}>· {paymentDateLabel(p.paidAt)}{p.note ? ` · ${p.note}` : ""}</span></span>
+              <button onClick={() => onDeletePayment(p.id)} style={{ width: 28, height: 28, padding: 0 }} title="Sil">
+                <i className="ti ti-trash" style={{ fontSize: 14 }} aria-hidden="true"></i>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -404,7 +479,7 @@ function CustomerDetail({ customer, deals, activities, onAddActivity, onClose })
 
       {customerDeals.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>Fırsatlar</p>
+          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>Teklifler</p>
           {customerDeals.map((d) => {
             const stageInfo = STAGES.find((s) => s.id === d.stage);
             return (
@@ -676,7 +751,7 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
     return (
       <Modal title="Takım" onClose={onClose}>
         <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-          Bu hesap <strong>{companySettings?.companyName || "bir şirket"}</strong> takımının bir üyesi. Tüm müşteri, fırsat ve destek verisi bu takımla paylaşılıyor.
+          Bu hesap <strong>{companySettings?.companyName || "bir şirket"}</strong> takımının bir üyesi. Tüm müşteri, teklif ve destek verisi bu takımla paylaşılıyor.
         </p>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
           <button onClick={onClose}>Kapat</button>
@@ -853,7 +928,7 @@ function LandingPage() {
             yönet
           </h1>
           <p style={{ fontSize: 17, color: "#5b7088", lineHeight: 1.7, margin: "0 0 2rem", maxWidth: 480 }}>
-            Müşteri takibi, fırsat yönetimi ve satış süreçlerini kolaylaştıran, KOBİ'lere özel CRM sistemi.
+            Müşteri takibi, teklif ve anlaşma yönetimi ve satış süreçlerini kolaylaştıran, KOBİ'lere özel CRM sistemi.
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <button onClick={() => setAuthModal("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "13px 28px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
@@ -874,7 +949,7 @@ function LandingPage() {
               <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#28c840" }} />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
-              {[["Açık Fırsatlar", "12"], ["Kazanılan", "8"], ["Toplam Değer", "₺284K"]].map(([label, val]) => (
+              {[["Açık Teklifler", "12"], ["Kazanılan", "8"], ["Toplam Değer", "₺284K"]].map(([label, val]) => (
                 <div key={label} style={{ background: "#1a3a5c", borderRadius: 8, padding: "10px 12px" }}>
                   <div style={{ fontSize: 10, color: "#94a7bb", marginBottom: 4 }}>{label}</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>{val}</div>
@@ -915,7 +990,7 @@ function LandingPage() {
             {
               id: "satis-firsat",
               icon: "ti-target-arrow",
-              title: "Satış & Fırsat Yönetimi",
+              title: "Satış & Teklif Yönetimi",
               desc: "İlk temastan kapanışa kadar tüm satış sürecini Kanban tahtasında takip edin. Tek tıkla markalı PDF teklif oluşturun, hatırlatma tarihiyle takip randevularınızı kaçırmayın.",
               tags: ["Kanban Pipeline", "PDF Teklif", "Hatırlatma E-postaları"],
             },
@@ -992,14 +1067,14 @@ function LandingPage() {
               KOBİ müşteri ilişkileri, satış ve destek yönetimi için tek platform
             </p>
             <p style={{ fontSize: 13, color: "#5b7088", lineHeight: 1.6, margin: 0 }}>
-              Müşteri takibi, satış fırsatları, satış sonrası destek ve müşteri bilgi sistemini tek yapıda bir araya getirir.
+              Müşteri takibi, teklif ve anlaşmalar, satış sonrası destek ve müşteri bilgi sistemini tek yapıda bir araya getirir.
             </p>
           </div>
           <div>
             <p style={{ fontSize: 12, fontWeight: 700, color: "#0c2540", letterSpacing: 0.5, margin: "0 0 14px" }}>ÇÖZÜMLER</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <a href="#musteri-yonetimi" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Müşteri Yönetimi</a>
-              <a href="#satis-firsat" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Satış & Fırsat Yönetimi</a>
+              <a href="#satis-firsat" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Satış & Teklif Yönetimi</a>
               <a href="#destek" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Satış Sonrası Destek</a>
               <a href="#musteri-portali" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Müşteri Bilgi Sistemi</a>
               <a href="#raporlama" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Raporlama & Analitik</a>
@@ -1036,6 +1111,7 @@ export default function App() {
   const [customers, setCustomers] = useState([]);
   const [deals, setDeals] = useState([]);
   const [activities, setActivities] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [ticketMessages, setTicketMessages] = useState([]);
   const [kbArticles, setKbArticles] = useState([]);
@@ -1082,7 +1158,7 @@ export default function App() {
 
   useEffect(() => {
     if (!session) {
-      setCustomers([]); setDeals([]); setActivities([]);
+      setCustomers([]); setDeals([]); setActivities([]); setPayments([]);
       setTickets([]); setTicketMessages([]); setKbArticles([]);
       setCompanySettings(null);
       setActiveTeamId(undefined);
@@ -1095,16 +1171,18 @@ export default function App() {
       supabase.from("customers").select("*").order("created_at"),
       supabase.from("deals").select("*").order("created_at"),
       supabase.from("activities").select("*").order("created_at"),
+      supabase.from("payments").select("*").order("paid_at"),
       supabase.from("tickets").select("*").order("created_at"),
       supabase.from("ticket_messages").select("*").order("created_at"),
       supabase.from("kb_articles").select("*").order("created_at"),
       supabase.from("company_settings").select("*").maybeSingle(),
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: myMembership }, { data: invites }]) => {
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: myMembership }, { data: invites }]) => {
       setCustomers((c || []).map(rowToCustomer));
       setDeals((d || []).map(rowToDeal));
       setActivities((a || []).map(rowToActivity));
+      setPayments((pay || []).map(rowToPayment));
       setTickets((t || []).map(rowToTicket));
       setTicketMessages((tm || []).map(rowToTicketMessage));
       setKbArticles((kb || []).map(rowToKbArticle));
@@ -1182,7 +1260,7 @@ export default function App() {
       closed_at: d.closedAt || null,
     };
     const { data, error } = await supabase.from("deals").upsert(row).select().single();
-    if (error) { notify(`Fırsat kaydedilemedi: ${error.message}`); return; }
+    if (error) { notify(`Teklif kaydedilemedi: ${error.message}`); return; }
     const deal = rowToDeal(data);
     setDeals((prev) =>
       prev.some((x) => x.id === deal.id) ? prev.map((x) => (x.id === deal.id ? deal : x)) : [...prev, deal]
@@ -1193,8 +1271,22 @@ export default function App() {
 
   const deleteDeal = async (id) => {
     const { error } = await supabase.from("deals").delete().eq("id", id);
-    if (error) { notify(`Fırsat silinemedi: ${error.message}`); return; }
+    if (error) { notify(`Teklif silinemedi: ${error.message}`); return; }
     setDeals((prev) => prev.filter((d) => d.id !== id));
+    setPayments((prev) => prev.filter((p) => p.dealId !== id));
+  };
+
+  const addPayment = async ({ dealId, amount, paidAt, note }) => {
+    const row = { id: uid(), user_id: activeTeamId, deal_id: dealId, amount, paid_at: paidAt, note: note || null };
+    const { data, error } = await supabase.from("payments").insert(row).select().single();
+    if (error) { notify(`Tahsilat eklenemedi: ${error.message}`); return; }
+    setPayments((prev) => [...prev, rowToPayment(data)]);
+  };
+
+  const deletePayment = async (id) => {
+    const { error } = await supabase.from("payments").delete().eq("id", id);
+    if (error) { notify(`Tahsilat silinemedi: ${error.message}`); return; }
+    setPayments((prev) => prev.filter((p) => p.id !== id));
   };
 
   const seedDemoData = async () => {
@@ -1291,6 +1383,27 @@ export default function App() {
     if (error) { notify(`Mesaj eklenemedi: ${error.message}`); return; }
     const message = rowToTicketMessage(data);
     setTicketMessages((prev) => [...prev, message]);
+    // Cevap vermek, karşı taraftan gelen bekleyen mesajları "okundu/yanıtlandı" sayar —
+    // sadece talebi açıp bakmak değil, gerçekten yanıt vermek bildirimi temizler.
+    if (!isInternal) {
+      await markMessagesRead(ticketId, direction === "giden" ? "gelen" : "giden");
+    }
+  };
+
+  const markMessagesRead = async (ticketId, direction) => {
+    const hasUnread = ticketMessages.some((m) => m.ticketId === ticketId && m.direction === direction && !m.readAt);
+    if (!hasUnread) return;
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from("ticket_messages")
+      .update({ read_at: now })
+      .eq("ticket_id", ticketId)
+      .eq("direction", direction)
+      .is("read_at", null);
+    if (error) return;
+    setTicketMessages((prev) =>
+      prev.map((m) => (m.ticketId === ticketId && m.direction === direction && !m.readAt ? { ...m, readAt: now } : m))
+    );
   };
 
   const upsertKbArticle = async (a) => {
@@ -1345,9 +1458,14 @@ export default function App() {
 
   if (loading) return <div style={{ padding: "2rem 0", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
 
+  const paymentsByDeal = payments.reduce((acc, p) => { (acc[p.dealId] ||= []).push(p); return acc; }, {});
+  const totalPaidForDeal = (dealId) => (paymentsByDeal[dealId] || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+
   const openDeals = deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi");
   const wonDealsAll = deals.filter((d) => d.stage === "kazanildi");
   const lostDealsAll = deals.filter((d) => d.stage === "kaybedildi");
+  const dealsWithOutstanding = wonDealsAll.filter((d) => d.value - totalPaidForDeal(d.id) > 0);
+  const totalOutstanding = dealsWithOutstanding.reduce((sum, d) => sum + (d.value - totalPaidForDeal(d.id)), 0);
   const rangeBounds = getRangeBounds(panoRange);
   const wonDeals = wonDealsAll.filter((d) => inRange(d.closedAt || d.createdAt, rangeBounds));
   const lostDeals = lostDealsAll.filter((d) => inRange(d.closedAt || d.createdAt, rangeBounds));
@@ -1376,6 +1494,12 @@ export default function App() {
     (t) => !TERMINAL_STATUSES.includes(t.status) && getSlaStatus(t).isBreached
   );
   const breachedTicketsCount = breachedTickets.length;
+
+  const unreadMessageTicketIds = [
+    ...new Set(ticketMessages.filter((m) => m.direction === "gelen" && !m.readAt).map((m) => m.ticketId)),
+  ];
+  const ticketsWithUnread = tickets.filter((t) => unreadMessageTicketIds.includes(t.id));
+  const unreadMessagesCount = unreadMessageTicketIds.length;
 
   const todayEnd = new Date();
   todayEnd.setHours(23, 59, 59, 999);
@@ -1430,6 +1554,8 @@ export default function App() {
   const rangeProfit = rangeRevenue - rangeCost;
   const rangeProfitMargin = rangeRevenue > 0 ? Math.round((rangeProfit / rangeRevenue) * 100) : null;
   const rangeAvgDealSize = wonDeals.length > 0 ? rangeRevenue / wonDeals.length : null;
+  const rangePayments = payments.filter((p) => inRange(p.paidAt, rangeBounds));
+  const totalCollected = rangePayments.reduce((sum, p) => sum + (p.amount || 0), 0);
 
   const lostReasonCounts = LOST_REASONS.map((reason) => ({
     reason,
@@ -1440,7 +1566,10 @@ export default function App() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 600, margin: "0 0 4px" }}>Binerly</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <img src="/favicon.svg" alt="Binerly" style={{ width: 22, height: 22 }} />
+            <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Binerly</h1>
+          </div>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>KOBİ satış takip sistemi</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -1481,7 +1610,7 @@ export default function App() {
             }}
           >
             <span>
-              Bir şirket sizi takımına davet etti ({inv.email}) — takıma katılırsanız o şirketin tüm müşteri/fırsat/destek verisini görüp düzenleyebilirsiniz.
+              Bir şirket sizi takımına davet etti ({inv.email}) — takıma katılırsanız o şirketin tüm müşteri/teklif/destek verisini görüp düzenleyebilirsiniz.
               {(customers.length > 0 || deals.length > 0) && " Mevcut verileriniz size özel kalacak, takıma taşınmayacak."}
             </span>
             <span style={{ display: "flex", gap: 8, flexShrink: 0, marginLeft: 12 }}>
@@ -1491,13 +1620,13 @@ export default function App() {
           </div>
         ))}
 
-      <h2 className="sr-only">KOBİ satış takip uygulaması: pano, müşteriler ve fırsatlar sekmeleri</h2>
+      <h2 className="sr-only">KOBİ satış takip uygulaması: pano, müşteriler ve teklif ve anlaşmalar sekmeleri</h2>
 
       <div style={{ display: "flex", gap: 8, marginBottom: "1.5rem" }}>
         {[
           { id: "pano", label: "Pano", icon: "ti-layout-dashboard" },
           { id: "musteri", label: "Müşteriler", icon: "ti-building" },
-          { id: "firsat", label: "Fırsatlar", icon: "ti-target-arrow" },
+          { id: "firsat", label: "Teklif ve Anlaşmalar", icon: "ti-target-arrow" },
           { id: "destek", label: "Destek", icon: "ti-headset" },
         ].map((t) => (
           <button
@@ -1511,10 +1640,22 @@ export default function App() {
               alignItems: "center",
               justifyContent: "center",
               gap: 6,
+              position: "relative",
             }}
           >
             <i className={`ti ${t.icon}`} style={{ fontSize: 16 }} aria-hidden="true"></i>
             {t.label}
+            {t.id === "destek" && unreadMessagesCount > 0 && (
+              <span
+                style={{
+                  position: "absolute", top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 9,
+                  background: "var(--text-danger)", color: "#fff", fontSize: 11, fontWeight: 700,
+                  display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px",
+                }}
+              >
+                {unreadMessagesCount}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -1578,20 +1719,25 @@ export default function App() {
           <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", margin: "0 0 8px" }}>Şu an</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 12, marginBottom: "1.5rem" }}>
             <MetricCard
-              label="Açık fırsatlar"
+              label="Açık teklifler"
               value={openDeals.length}
-              onClick={openDeals.length > 0 ? () => openDealOrList(openDeals, "Açık fırsatlar") : undefined}
+              onClick={openDeals.length > 0 ? () => openDealOrList(openDeals, "Açık teklifler") : undefined}
             />
             <MetricCard
               label="Açık teklif değeri"
               value={formatTL(totalOpenValue)}
-              onClick={openDeals.length > 0 ? () => openDealOrList(openDeals, "Açık fırsatlar") : undefined}
+              onClick={openDeals.length > 0 ? () => openDealOrList(openDeals, "Açık teklifler") : undefined}
+            />
+            <MetricCard
+              label="Bekleyen alacak"
+              value={formatTL(totalOutstanding)}
+              onClick={dealsWithOutstanding.length > 0 ? () => openDealOrList(dealsWithOutstanding, "Bekleyen alacağı olan teklifler") : undefined}
             />
             <MetricCard
               label="Hatırlatması olan"
               value={dealsWithReminder.length}
               tone="warning"
-              onClick={dealsWithReminder.length > 0 ? () => openDealOrList(dealsWithReminder, "Hatırlatması olan fırsatlar") : undefined}
+              onClick={dealsWithReminder.length > 0 ? () => openDealOrList(dealsWithReminder, "Hatırlatması olan teklifler") : undefined}
             />
             <MetricCard
               label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Açık destek talepleri <InfoTip text="Durumu Çözüldü veya Kapatıldı olmayan destek talepleri." /></span>}
@@ -1604,6 +1750,12 @@ export default function App() {
               tone="danger"
               onClick={breachedTicketsCount > 0 ? () => openTicketOrList(breachedTickets, "SLA aşılan talepler") : undefined}
             />
+            <MetricCard
+              label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Okunmamış mesaj <InfoTip text="Müşterinin (portal veya destek talebi üzerinden) yeni mesaj gönderdiği, henüz açıp görüntülemediğiniz talepler." /></span>}
+              value={unreadMessagesCount}
+              tone={unreadMessagesCount > 0 ? "danger" : undefined}
+              onClick={unreadMessagesCount > 0 ? () => openTicketOrList(ticketsWithUnread, "Okunmamış mesajı olan talepler") : undefined}
+            />
           </div>
 
           <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", margin: "0 0 8px" }}>{rangeLabel}</p>
@@ -1612,12 +1764,12 @@ export default function App() {
               label="Kazanılan"
               value={wonDeals.length}
               tone="success"
-              onClick={wonDeals.length > 0 ? () => openDealOrList(wonDeals, "Kazanılan fırsatlar") : undefined}
+              onClick={wonDeals.length > 0 ? () => openDealOrList(wonDeals, "Kazanılan teklifler") : undefined}
             />
             <MetricCard
               label="Toplam gelir"
               value={formatTL(rangeRevenue)}
-              onClick={wonDeals.length > 0 ? () => openDealOrList(wonDeals, "Kazanılan fırsatlar") : undefined}
+              onClick={wonDeals.length > 0 ? () => openDealOrList(wonDeals, "Kazanılan teklifler") : undefined}
             />
             <MetricCard label="Toplam gider" value={formatTL(rangeCost)} />
             <MetricCard
@@ -1626,8 +1778,9 @@ export default function App() {
               sub={rangeProfitMargin !== null ? `%${rangeProfitMargin} kâr marjı` : undefined}
               tone={rangeProfit >= 0 ? "success" : "danger"}
             />
+            <MetricCard label="Toplam tahsilat" value={formatTL(totalCollected)} />
             <MetricCard
-              label="Ortalama fırsat büyüklüğü"
+              label="Ortalama teklif büyüklüğü"
               value={rangeAvgDealSize !== null ? formatTL(rangeAvgDealSize) : "—"}
             />
           </div>
@@ -1636,7 +1789,7 @@ export default function App() {
             <div style={{ background: "var(--surface-1)", borderRadius: 12, padding: "2rem 1.5rem", textAlign: "center" }}>
               <p style={{ fontWeight: 500, margin: "0 0 4px" }}>Henüz veri yok</p>
               <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px" }}>
-                Başlamak için önce bir müşteri ekleyin, sonra ona bir fırsat tanımlayın.
+                Başlamak için önce bir müşteri ekleyin, sonra ona bir teklif tanımlayın.
               </p>
               <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
                 <button onClick={() => { setTab("musteri"); setShowCustomerForm(true); }} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
@@ -1649,7 +1802,7 @@ export default function App() {
             </div>
           ) : (
             <div>
-              <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 8px" }}>Fırsat aşamaları</p>
+              <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 8px" }}>Teklif aşamaları</p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 8 }}>
                 {STAGES.filter((s) => s.id !== "kaybedildi").map((stage) => {
                   const stageDeals = deals.filter((d) => d.stage === stage.id);
@@ -1732,7 +1885,7 @@ export default function App() {
               <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem" }}>
                 <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 12px" }}>Kazanma oranı</p>
                 {winRate === null ? (
-                  <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz kapanmış fırsat yok.</p>
+                  <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz kapanmış teklif yok.</p>
                 ) : (
                   <div>
                     <p style={{ fontSize: 28, fontWeight: 600, margin: "0 0 4px", color: "var(--text-success)" }}>%{winRate}</p>
@@ -1878,13 +2031,13 @@ export default function App() {
             <input
               value={dealSearch}
               onChange={(e) => setDealSearch(e.target.value)}
-              placeholder="Fırsat ara (başlık, müşteri)..."
+              placeholder="Teklif ara (başlık, müşteri)..."
               style={{ flex: 1, minWidth: 160 }}
             />
             <button
               onClick={() =>
                 downloadCsv(
-                  "firsatlar.csv",
+                  "teklifler.csv",
                   ["Müşteri", "Başlık", "Tutar", "Aşama", "Hatırlatma notu"],
                   filteredDeals.map((d) => [
                     customerById(d.customerId)?.name || "",
@@ -1907,17 +2060,17 @@ export default function App() {
               style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
             >
               <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
-              Fırsat ekle
+              Teklif ekle
             </button>
           </div>
 
           {customers.length === 0 && (
-            <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>Fırsat eklemeden önce bir müşteri oluşturun.</p>
+            <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>Teklif eklemeden önce bir müşteri oluşturun.</p>
           )}
 
           {filteredDeals.length === 0 ? (
             <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
-              {deals.length === 0 ? "Henüz fırsat eklenmedi." : "Aramayla eşleşen fırsat yok."}
+              {deals.length === 0 ? "Henüz teklif eklenmedi." : "Aramayla eşleşen teklif yok."}
             </p>
           ) : dealView === "kanban" ? (
             <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
@@ -1958,6 +2111,16 @@ export default function App() {
                                 <i className="ti ti-file-text" style={{ fontSize: 13 }} aria-hidden="true"></i>
                               </button>
                             </div>
+                            {(() => {
+                              const paid = totalPaidForDeal(d.id);
+                              if (paid <= 0) return null;
+                              const remaining = d.value - paid;
+                              return (
+                                <div style={{ marginTop: 4 }}>
+                                  <Badge tone={remaining <= 0 ? "success" : "warning"}>{remaining <= 0 ? "Ödendi" : "Kısmi ödeme"}</Badge>
+                                </div>
+                              );
+                            })()}
                             {d.reminder && (
                               <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--text-warning)", display: "flex", alignItems: "center", gap: 4 }}>
                                 <i className="ti ti-bell" style={{ fontSize: 12 }} aria-hidden="true"></i>
@@ -1992,6 +2155,12 @@ export default function App() {
                       </p>
                     </div>
                     <Badge tone={tone}>{stageInfo?.label}</Badge>
+                    {(() => {
+                      const paid = totalPaidForDeal(d.id);
+                      if (paid <= 0) return null;
+                      const remaining = d.value - paid;
+                      return <Badge tone={remaining <= 0 ? "success" : "warning"}>{remaining <= 0 ? "Ödendi" : "Kısmi ödeme"}</Badge>;
+                    })()}
                     <span style={{ fontSize: 13, fontWeight: 500, minWidth: 90, textAlign: "right" }}>{formatTL(d.value)}</span>
                     <button onClick={() => setTeklifDeal(d)} title="Teklif PDF" style={{ width: 32, height: 32, padding: 0 }}>
                       <i className="ti ti-file-text" style={{ fontSize: 16 }} aria-hidden="true"></i>
@@ -2086,8 +2255,16 @@ export default function App() {
       )}
 
       {showDealForm && (
-        <Modal title={editingDeal ? "Fırsatı düzenle" : "Yeni fırsat"} onClose={() => { setShowDealForm(false); setEditingDeal(null); }}>
+        <Modal title={editingDeal ? "Teklifi düzenle" : "Yeni teklif"} onClose={() => { setShowDealForm(false); setEditingDeal(null); }}>
           <DealForm customers={customers} initial={editingDeal} onSave={upsertDeal} onCancel={() => { setShowDealForm(false); setEditingDeal(null); }} />
+          {editingDeal && (
+            <DealPayments
+              deal={editingDeal}
+              payments={paymentsByDeal[editingDeal.id] || []}
+              onAddPayment={addPayment}
+              onDeletePayment={deletePayment}
+            />
+          )}
         </Modal>
       )}
 
@@ -2108,7 +2285,7 @@ export default function App() {
       {confirmDeleteCustomer && (
         <ConfirmDialog
           title="Müşteriyi sil"
-          message={`"${confirmDeleteCustomer.name}" silinsin mi? Bu müşteriye ait fırsatlar ve destek talepleri de silinir, bu işlem geri alınamaz.`}
+          message={`"${confirmDeleteCustomer.name}" silinsin mi? Bu müşteriye ait teklifler ve destek talepleri de silinir, bu işlem geri alınamaz.`}
           onConfirm={() => { deleteCustomer(confirmDeleteCustomer.id); setConfirmDeleteCustomer(null); }}
           onClose={() => setConfirmDeleteCustomer(null)}
         />
@@ -2116,8 +2293,8 @@ export default function App() {
 
       {confirmDeleteDeal && (
         <ConfirmDialog
-          title="Fırsatı sil"
-          message="Bu fırsatı silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
+          title="Teklifi sil"
+          message="Bu teklifi silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
           onConfirm={() => { deleteDeal(confirmDeleteDeal.id); setConfirmDeleteDeal(null); }}
           onClose={() => setConfirmDeleteDeal(null)}
         />

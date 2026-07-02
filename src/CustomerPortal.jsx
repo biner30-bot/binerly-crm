@@ -45,6 +45,7 @@ function rowToTicketMessage(r) {
     direction: r.direction,
     content: r.content,
     createdAt: r.created_at,
+    readAt: r.read_at || null,
   };
 }
 
@@ -165,7 +166,7 @@ function PortalNewTicketForm({ customerRows, onSave, onCancel }) {
   );
 }
 
-function PortalTicketList({ tickets, onOpenTicket }) {
+function PortalTicketList({ tickets, unreadCountByTicket, onOpenTicket }) {
   if (tickets.length === 0) {
     return <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Henüz bir talebiniz yok.</p>;
   }
@@ -181,7 +182,10 @@ function PortalTicketList({ tickets, onOpenTicket }) {
             style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", cursor: "pointer" }}
           >
             <div>
-              <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{t.subject}</p>
+              <p style={{ margin: 0, fontWeight: 500, fontSize: 14, display: "flex", alignItems: "center", gap: 6 }}>
+                {t.subject}
+                {unreadCountByTicket[t.id] > 0 && <Badge tone="accent">{unreadCountByTicket[t.id]} yeni mesaj</Badge>}
+              </p>
               <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{formatDateTime(t.createdAt)}</p>
             </div>
             <Badge tone={STATUS_TONE[t.status] || "default"}>{statusInfo?.label}</Badge>
@@ -359,7 +363,33 @@ export default function CustomerPortal() {
       .single();
     if (error) { notify(`Mesaj gönderilemedi: ${error.message}`); return; }
     setTicketMessages((prev) => [...prev, rowToTicketMessage(data)]);
+    // Yanıt vermek, firmadan gelen bekleyen mesajı "okundu/yanıtlandı" sayar.
+    await markMessagesRead(ticketId, "giden");
   };
+
+  const markMessagesRead = async (ticketId, direction) => {
+    const hasUnread = ticketMessages.some((m) => m.ticketId === ticketId && m.direction === direction && !m.readAt);
+    if (!hasUnread) return;
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from("ticket_messages")
+      .update({ read_at: now })
+      .eq("ticket_id", ticketId)
+      .eq("direction", direction)
+      .is("read_at", null);
+    if (error) return;
+    setTicketMessages((prev) =>
+      prev.map((m) => (m.ticketId === ticketId && m.direction === direction && !m.readAt ? { ...m, readAt: now } : m))
+    );
+  };
+
+  // Müşteri için firmanın yanıtını görmesi yeterli — yanıt vermek zorunda değil,
+  // talebi açtığında bildirim temizlenir. (KOBİ tarafında ise tam tersi: sadece
+  // yanıt vermek temizler, bkz. App.jsx addTicketMessage.)
+  useEffect(() => {
+    if (viewingTicket) markMessagesRead(viewingTicket.id, "giden");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewingTicket?.id]);
 
   if (session === undefined) return <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
   if (!session) return <CustomerAuthForm />;
@@ -368,11 +398,20 @@ export default function CustomerPortal() {
   const currentTicket = viewingTicket ? tickets.find((t) => t.id === viewingTicket.id) || viewingTicket : null;
   const currentMessages = currentTicket ? ticketMessages.filter((m) => m.ticketId === currentTicket.id) : [];
 
+  const unreadCountByTicket = ticketMessages.reduce((acc, m) => {
+    if (m.direction === "giden" && !m.readAt) acc[m.ticketId] = (acc[m.ticketId] || 0) + 1;
+    return acc;
+  }, {});
+  const totalUnreadTickets = Object.keys(unreadCountByTicket).length;
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 600, margin: "0 0 4px" }}>Müşteri Bilgi Sistemi</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <img src="/favicon.svg" alt="Binerly" style={{ width: 22, height: 22 }} />
+            <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Binerly — Müşteri Bilgi Sistemi</h1>
+          </div>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>Taleplerinizi ve tekliflerinizi buradan takip edin</p>
         </div>
         <button
@@ -407,10 +446,22 @@ export default function CustomerPortal() {
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 6,
+                  position: "relative",
                 }}
               >
                 <i className={`ti ${t.icon}`} style={{ fontSize: 16 }} aria-hidden="true"></i>
                 {t.label}
+                {t.id === "talepler" && totalUnreadTickets > 0 && (
+                  <span
+                    style={{
+                      position: "absolute", top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 9,
+                      background: "var(--text-danger)", color: "#fff", fontSize: 11, fontWeight: 700,
+                      display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px",
+                    }}
+                  >
+                    {totalUnreadTickets}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -426,7 +477,7 @@ export default function CustomerPortal() {
                   Yeni talep
                 </button>
               </div>
-              <PortalTicketList tickets={tickets} onOpenTicket={setViewingTicket} />
+              <PortalTicketList tickets={tickets} unreadCountByTicket={unreadCountByTicket} onOpenTicket={setViewingTicket} />
             </div>
           )}
 

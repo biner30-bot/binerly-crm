@@ -141,6 +141,7 @@ export function rowToTicketMessage(r) {
     content: r.content,
     isInternal: r.is_internal || false,
     createdAt: r.created_at,
+    readAt: r.read_at || null,
   };
 }
 
@@ -226,7 +227,7 @@ function TicketForm({ customers, initial, onSave, onCancel }) {
   );
 }
 
-function TicketList({ tickets, customers, statusFilter, onFilterChange, onOpenTicket, onEditTicket, onDeleteTicket }) {
+function TicketList({ tickets, customers, unreadCountByTicket, statusFilter, onFilterChange, onOpenTicket, onEditTicket, onDeleteTicket }) {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const customerById = (id) => customers.find((c) => c.id === id);
   const filtered = statusFilter === "all" ? tickets : tickets.filter((t) => t.status === statusFilter);
@@ -277,7 +278,12 @@ function TicketList({ tickets, customers, statusFilter, onFilterChange, onOpenTi
                 return (
                   <tr key={t.id} style={{ background: "var(--surface-1)" }}>
                     <td onClick={() => onOpenTicket(t)} style={{ padding: "10px 12px", borderRadius: "var(--radius) 0 0 var(--radius)", cursor: "pointer" }}>
-                      <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{t.subject}</p>
+                      <p style={{ margin: 0, fontWeight: 500, fontSize: 14, display: "flex", alignItems: "center", gap: 6 }}>
+                        {t.subject}
+                        {unreadCountByTicket[t.id] > 0 && (
+                          <Badge tone="accent">{unreadCountByTicket[t.id]} yeni mesaj</Badge>
+                        )}
+                      </p>
                       <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{c?.name || "Bilinmeyen müşteri"}</p>
                     </td>
                     <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
@@ -582,6 +588,11 @@ export default function Support({
   const currentTicket = viewingTicket ? tickets.find((t) => t.id === viewingTicket.id) || viewingTicket : null;
   const currentTicketMessages = currentTicket ? ticketMessages.filter((m) => m.ticketId === currentTicket.id) : [];
 
+  const unreadCountByTicket = ticketMessages.reduce((acc, m) => {
+    if (m.direction === "gelen" && !m.readAt) acc[m.ticketId] = (acc[m.ticketId] || 0) + 1;
+    return acc;
+  }, {});
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
@@ -624,6 +635,7 @@ export default function Support({
           <TicketList
             tickets={tickets}
             customers={customers}
+            unreadCountByTicket={unreadCountByTicket}
             statusFilter={ticketStatusFilter}
             onFilterChange={setTicketStatusFilter}
             onOpenTicket={setViewingTicket}

@@ -55,7 +55,7 @@ export function PrivacyPolicyPage() {
       <Section title="2. Topladığımız Veriler">
         <p>
           Hesap sahibi (KOBİ) olarak: ad-soyad, e-posta adresi ve şirket bilgileri. Hesap sahibinin sisteme
-          kendi girdiği müşteri verileri: müşteri adı, iletişim bilgileri, satış/fırsat kayıtları, destek
+          kendi girdiği müşteri verileri: müşteri adı, iletişim bilgileri, satış/teklif kayıtları, destek
           talepleri ve mesajları. Müşteri Bilgi Sistemi (portal) kullanıcıları için: e-posta adresi ve
           portal üzerinden oluşturdukları destek talepleri/mesajlar.
         </p>
@@ -105,7 +105,7 @@ export function KvkkPage() {
       <Section title="2. İşlenen Kişisel Veri Kategorileri">
         <p>
           Kimlik bilgileri (ad-soyad), iletişim bilgileri (e-posta, telefon), müşteri ilişkisi kapsamında
-          hesap sahibi tarafından sisteme girilen veriler (satış/fırsat/destek kayıtları), işlem güvenliği
+          hesap sahibi tarafından sisteme girilen veriler (satış/teklif/destek kayıtları), işlem güvenliği
           bilgileri (giriş kayıtları).
         </p>
       </Section>
