@@ -68,7 +68,7 @@ export function InfoTip({ text }) {
   );
 }
 
-export function MetricCard({ label, value, tone, onClick }) {
+export function MetricCard({ label, value, sub, tone, onClick }) {
   return (
     <div
       onClick={onClick}
@@ -77,9 +77,10 @@ export function MetricCard({ label, value, tone, onClick }) {
       style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", cursor: onClick ? "pointer" : "default" }}
     >
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 4px" }}>{label}</p>
-      <p style={{ fontSize: 24, fontWeight: 500, margin: 0, color: tone ? `var(--text-${tone})` : "var(--text-primary)" }}>
+      <p style={{ fontSize: 24, fontWeight: 500, margin: sub ? "0 0 2px" : 0, color: tone ? `var(--text-${tone})` : "var(--text-primary)" }}>
         {value}
       </p>
+      {sub && <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0 }}>{sub}</p>}
     </div>
   );
 }

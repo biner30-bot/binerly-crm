@@ -47,15 +47,82 @@ function rowToDeal(r) {
     customerId: r.customer_id,
     title: r.title,
     value: r.value,
+    cost: r.cost || 0,
     stage: r.stage,
     reminder: r.reminder || "",
     reminderDate: r.reminder_date || "",
     lostReason: r.lost_reason || "",
     createdAt: r.created_at,
+    closedAt: r.closed_at || null,
   };
 }
 
 const LOST_REASONS = ["Yüksek fiyat", "Rakip tercih edildi", "Bütçe yok", "Zamanlama uymadı", "Diğer"];
+
+const PANO_RANGES = [
+  { id: "bu_ay", label: "Bu ay" },
+  { id: "bu_ceyrek", label: "Bu çeyrek" },
+  { id: "bu_yil", label: "Bu yıl" },
+  { id: "son_6_ay", label: "Son 6 ay" },
+  { id: "tum_zamanlar", label: "Tüm zamanlar" },
+];
+
+function getRangeBounds(range) {
+  const now = new Date();
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  if (range === "bu_ay") return { start: new Date(now.getFullYear(), now.getMonth(), 1), end };
+  if (range === "bu_ceyrek") return { start: new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1), end };
+  if (range === "bu_yil") return { start: new Date(now.getFullYear(), 0, 1), end };
+  if (range === "son_6_ay") return { start: new Date(now.getFullYear(), now.getMonth() - 5, 1), end };
+  return { start: null, end };
+}
+
+function inRange(dateStr, { start, end }) {
+  const t = new Date(dateStr).getTime();
+  if (Number.isNaN(t)) return false;
+  if (start && t < start.getTime()) return false;
+  return t <= end.getTime();
+}
+
+// "Tüm zamanlar" seçiliyken en eski kazanılan fırsattan bugüne kadar aylık bucket
+// üretir; çok eski hesaplarda grafiğin şişmemesi için en fazla 24 ay gösterilir.
+function getMonthlyBuckets(range, wonDealsAll) {
+  const now = new Date();
+  let startYear, startMonth;
+  const endYear = now.getFullYear(), endMonth = now.getMonth();
+
+  if (range === "bu_ay") { startYear = endYear; startMonth = endMonth; }
+  else if (range === "bu_ceyrek") { startYear = endYear; startMonth = Math.floor(endMonth / 3) * 3; }
+  else if (range === "bu_yil") { startYear = endYear; startMonth = 0; }
+  else if (range === "son_6_ay") {
+    const d = new Date(endYear, endMonth - 5, 1);
+    startYear = d.getFullYear(); startMonth = d.getMonth();
+  } else {
+    if (wonDealsAll.length === 0) { startYear = endYear; startMonth = endMonth; }
+    else {
+      const earliest = wonDealsAll.reduce((min, d) => {
+        const t = new Date(d.closedAt || d.createdAt);
+        return t < min ? t : min;
+      }, new Date(wonDealsAll[0].closedAt || wonDealsAll[0].createdAt));
+      startYear = earliest.getFullYear(); startMonth = earliest.getMonth();
+    }
+  }
+
+  let totalMonths = (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
+  if (totalMonths > 24) {
+    const d = new Date(endYear, endMonth - 23, 1);
+    startYear = d.getFullYear(); startMonth = d.getMonth();
+    totalMonths = 24;
+  }
+
+  return Array.from({ length: totalMonths }, (_, i) => {
+    const d = new Date(startYear, startMonth + i, 1);
+    return {
+      key: `${d.getFullYear()}-${d.getMonth()}`,
+      label: d.toLocaleDateString("tr-TR", { month: "short", year: totalMonths > 12 ? "2-digit" : undefined }),
+    };
+  });
+}
 
 const ACTIVITY_TYPES = [
   { id: "note", label: "Not", icon: "ti-note" },
@@ -202,6 +269,7 @@ function DealForm({ customers, initial, onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(initial?.customerId || customers[0]?.id || "");
   const [title, setTitle] = useState(initial?.title || "");
   const [value, setValue] = useState(initial?.value ?? "");
+  const [cost, setCost] = useState(initial?.cost ?? "");
   const [stage, setStage] = useState(initial?.stage || "ilk_gorusme");
   const [reminder, setReminder] = useState(initial?.reminder || "");
   const [reminderDate, setReminderDate] = useState(initial?.reminderDate || "");
@@ -212,16 +280,22 @@ function DealForm({ customers, initial, onSave, onCancel }) {
       onSubmit={(e) => {
         e.preventDefault();
         if (!customerId || !title.trim()) return;
+        const isClosingStage = stage === "kazanildi" || stage === "kaybedildi";
+        const wasAlreadyClosed = initial?.stage === "kazanildi" || initial?.stage === "kaybedildi";
         onSave({
           id: initial?.id || uid(),
           customerId,
           title: title.trim(),
           value: Number(value) || 0,
+          cost: Number(cost) || 0,
           stage,
           reminder: reminder.trim(),
           reminderDate: reminderDate || null,
           lostReason: stage === "kaybedildi" ? lostReason : "",
           createdAt: initial?.createdAt || new Date().toISOString(),
+          closedAt: isClosingStage
+            ? (wasAlreadyClosed && initial?.closedAt ? initial.closedAt : new Date().toISOString())
+            : null,
         });
       }}
     >
@@ -245,11 +319,15 @@ function DealForm({ customers, initial, onSave, onCancel }) {
           <input type="number" min="0" value={value} onChange={(e) => setValue(e.target.value)} placeholder="50000" style={{ width: "100%" }} />
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Aşama</label>
-          <select value={stage} onChange={(e) => setStage(e.target.value)} style={{ width: "100%" }}>
-            {STAGES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-          </select>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Gider (TL)</label>
+          <input type="number" min="0" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="0" style={{ width: "100%" }} />
         </div>
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Aşama</label>
+        <select value={stage} onChange={(e) => setStage(e.target.value)} style={{ width: "100%" }}>
+          {STAGES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+        </select>
       </div>
       <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
         <div style={{ flex: 2 }}>
@@ -963,6 +1041,7 @@ export default function App() {
   const [editingDeal, setEditingDeal] = useState(null);
   const [viewingCustomer, setViewingCustomer] = useState(null);
   const [dealView, setDealView] = useState("kanban");
+  const [panoRange, setPanoRange] = useState("tum_zamanlar");
   const [dragDealId, setDragDealId] = useState(null);
   const [showCampaignModal, setShowCampaignModal] = useState(false);
   const [confirmDeleteCustomer, setConfirmDeleteCustomer] = useState(null);
@@ -1081,11 +1160,13 @@ export default function App() {
       customer_id: d.customerId,
       title: d.title,
       value: d.value,
+      cost: d.cost,
       stage: d.stage,
       reminder: d.reminder,
       reminder_date: d.reminderDate || null,
       lost_reason: d.lostReason,
       created_at: d.createdAt,
+      closed_at: d.closedAt || null,
     };
     const { data, error } = await supabase.from("deals").upsert(row).select().single();
     if (error) { notify(`Fırsat kaydedilemedi: ${error.message}`); return; }
@@ -1104,12 +1185,18 @@ export default function App() {
   };
 
   const moveDealStage = async (id, stage) => {
-    const previousStage = deals.find((d) => d.id === id)?.stage;
-    setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, stage } : d)));
-    const { error } = await supabase.from("deals").update({ stage }).eq("id", id);
+    const current = deals.find((d) => d.id === id);
+    const previousStage = current?.stage;
+    const isClosingStage = stage === "kazanildi" || stage === "kaybedildi";
+    const wasAlreadyClosed = previousStage === "kazanildi" || previousStage === "kaybedildi";
+    const closedAt = isClosingStage
+      ? (wasAlreadyClosed && current?.closedAt ? current.closedAt : new Date().toISOString())
+      : null;
+    setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, stage, closedAt } : d)));
+    const { error } = await supabase.from("deals").update({ stage, closed_at: closedAt }).eq("id", id);
     if (error) {
       notify(`Aşama güncellenemedi: ${error.message}`);
-      setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, stage: previousStage } : d)));
+      setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, stage: previousStage, closedAt: current?.closedAt ?? null } : d)));
     }
   };
 
@@ -1226,8 +1313,11 @@ export default function App() {
   if (loading) return <div style={{ padding: "2rem 0", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
 
   const openDeals = deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi");
-  const wonDeals = deals.filter((d) => d.stage === "kazanildi");
-  const lostDeals = deals.filter((d) => d.stage === "kaybedildi");
+  const wonDealsAll = deals.filter((d) => d.stage === "kazanildi");
+  const lostDealsAll = deals.filter((d) => d.stage === "kaybedildi");
+  const rangeBounds = getRangeBounds(panoRange);
+  const wonDeals = wonDealsAll.filter((d) => inRange(d.closedAt || d.createdAt, rangeBounds));
+  const lostDeals = lostDealsAll.filter((d) => inRange(d.closedAt || d.createdAt, rangeBounds));
   const totalOpenValue = openDeals.reduce((sum, d) => sum + (d.value || 0), 0);
   const dealsWithReminder = deals.filter((d) => d.reminder && d.stage !== "kazanildi" && d.stage !== "kaybedildi");
   const customerById = (id) => customers.find((c) => c.id === id);
@@ -1278,21 +1368,24 @@ export default function App() {
   const closedCount = wonDeals.length + lostDeals.length;
   const winRate = closedCount > 0 ? Math.round((wonDeals.length / closedCount) * 100) : null;
 
-  const monthLabels = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date();
-    d.setMonth(d.getMonth() - (5 - i));
-    return { key: `${d.getFullYear()}-${d.getMonth()}`, label: d.toLocaleDateString("tr-TR", { month: "short" }) };
+  const monthBuckets = getMonthlyBuckets(panoRange, wonDealsAll);
+  const revenueProfitByBucket = monthBuckets.map(({ key, label }) => {
+    const bucketDeals = wonDeals.filter((d) => {
+      const dd = new Date(d.closedAt || d.createdAt);
+      return `${dd.getFullYear()}-${dd.getMonth()}` === key;
+    });
+    const revenue = bucketDeals.reduce((sum, d) => sum + (d.value || 0), 0);
+    const cost = bucketDeals.reduce((sum, d) => sum + (d.cost || 0), 0);
+    return { label, revenue, profit: revenue - cost };
   });
-  const monthlyRevenue = monthLabels.map(({ key, label }) => {
-    const total = wonDeals
-      .filter((d) => {
-        const dd = new Date(d.createdAt);
-        return `${dd.getFullYear()}-${dd.getMonth()}` === key;
-      })
-      .reduce((sum, d) => sum + (d.value || 0), 0);
-    return { label, total };
-  });
-  const maxMonthly = Math.max(1, ...monthlyRevenue.map((m) => m.total));
+  const maxBucketValue = Math.max(1, ...revenueProfitByBucket.map((m) => Math.max(m.revenue, m.profit, 0)));
+
+  const rangeLabel = PANO_RANGES.find((r) => r.id === panoRange)?.label || "";
+  const rangeRevenue = wonDeals.reduce((sum, d) => sum + (d.value || 0), 0);
+  const rangeCost = wonDeals.reduce((sum, d) => sum + (d.cost || 0), 0);
+  const rangeProfit = rangeRevenue - rangeCost;
+  const rangeProfitMargin = rangeRevenue > 0 ? Math.round((rangeProfit / rangeRevenue) * 100) : null;
+  const rangeAvgDealSize = wonDeals.length > 0 ? rangeRevenue / wonDeals.length : null;
 
   const lostReasonCounts = LOST_REASONS.map((reason) => ({
     reason,
@@ -1384,17 +1477,24 @@ export default function App() {
 
       {tab === "pano" && (
         <div>
+          <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: "1.5rem", flexWrap: "wrap" }}>
+            {PANO_RANGES.map((r) => (
+              <button
+                key={r.id}
+                onClick={() => setPanoRange(r.id)}
+                style={{ border: "none", background: panoRange === r.id ? "var(--surface-2)" : "transparent", fontSize: 13 }}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+
+          <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", margin: "0 0 8px" }}>Şu an</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 12, marginBottom: "1.5rem" }}>
             <MetricCard
               label="Açık fırsatlar"
               value={openDeals.length}
               onClick={openDeals.length > 0 ? () => openDealOrList(openDeals, "Açık fırsatlar") : undefined}
-            />
-            <MetricCard
-              label="Kazanılan"
-              value={wonDeals.length}
-              tone="success"
-              onClick={wonDeals.length > 0 ? () => openDealOrList(wonDeals, "Kazanılan fırsatlar") : undefined}
             />
             <MetricCard
               label="Açık teklif değeri"
@@ -1417,6 +1517,32 @@ export default function App() {
               value={breachedTicketsCount}
               tone="danger"
               onClick={breachedTicketsCount > 0 ? () => openTicketOrList(breachedTickets, "SLA aşılan talepler") : undefined}
+            />
+          </div>
+
+          <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", margin: "0 0 8px" }}>{rangeLabel}</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 12, marginBottom: "1.5rem" }}>
+            <MetricCard
+              label="Kazanılan"
+              value={wonDeals.length}
+              tone="success"
+              onClick={wonDeals.length > 0 ? () => openDealOrList(wonDeals, "Kazanılan fırsatlar") : undefined}
+            />
+            <MetricCard
+              label="Toplam gelir"
+              value={formatTL(rangeRevenue)}
+              onClick={wonDeals.length > 0 ? () => openDealOrList(wonDeals, "Kazanılan fırsatlar") : undefined}
+            />
+            <MetricCard label="Toplam gider" value={formatTL(rangeCost)} />
+            <MetricCard
+              label="Toplam kâr"
+              value={formatTL(rangeProfit)}
+              sub={rangeProfitMargin !== null ? `%${rangeProfitMargin} kâr marjı` : undefined}
+              tone={rangeProfit >= 0 ? "success" : "danger"}
+            />
+            <MetricCard
+              label="Ortalama fırsat büyüklüğü"
+              value={rangeAvgDealSize !== null ? formatTL(rangeAvgDealSize) : "—"}
             />
           </div>
 
@@ -1474,19 +1600,38 @@ export default function App() {
           {deals.length > 0 && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px,1fr))", gap: 12, marginTop: "1.5rem" }}>
               <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem" }}>
-                <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 12px" }}>Aylık kazanılan gelir</p>
-                <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 100 }}>
-                  {monthlyRevenue.map((m) => (
-                    <div key={m.label} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                      <div
-                        title={formatTL(m.total)}
-                        style={{
-                          width: "100%",
-                          height: Math.max(4, (m.total / maxMonthly) * 80),
-                          background: "var(--fill-accent)",
-                          borderRadius: 4,
-                        }}
-                      />
+                <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 8px" }}>Gelir ve kâr</p>
+                <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-secondary)" }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--fill-accent)", display: "inline-block" }} />
+                    Gelir
+                  </span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-secondary)" }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--fill-success)", display: "inline-block" }} />
+                    Kâr
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 130, overflowX: "auto" }}>
+                  {revenueProfitByBucket.map((m) => (
+                    <div key={m.label} style={{ flex: "1 0 28px", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                      <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 90 }}>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                          <span style={{ fontSize: 9, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>{formatTL(m.revenue)}</span>
+                          <div
+                            title={formatTL(m.revenue)}
+                            style={{ width: 10, height: Math.max(4, (m.revenue / maxBucketValue) * 80), background: "var(--fill-accent)", borderRadius: 3 }}
+                          />
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                          <span style={{ fontSize: 9, color: m.profit < 0 ? "var(--text-danger)" : "var(--text-secondary)", whiteSpace: "nowrap" }}>
+                            {m.profit < 0 ? `-${formatTL(Math.abs(m.profit))}` : formatTL(m.profit)}
+                          </span>
+                          <div
+                            title={formatTL(m.profit)}
+                            style={{ width: 10, height: Math.max(4, (Math.abs(m.profit) / maxBucketValue) * 80), background: "var(--fill-success)", borderRadius: 3 }}
+                          />
+                        </div>
+                      </div>
                       <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{m.label}</span>
                     </div>
                   ))}
