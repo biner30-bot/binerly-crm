@@ -19,6 +19,13 @@ if (path.startsWith("/portal")) {
     link.href = "/manifest-portal.webmanifest";
     document.head.appendChild(link);
   }
+
+  // Sekme başlığı/açıklaması varsayılan olarak "KOBİ Satış Takip" diyor — bu, kendi
+  // hesabı olmayan, sadece portale bakan bir müşteriye "bu benim için değil" hissi
+  // verir. Portalde kendi kimliğiyle (Müşteri Bilgi Sistemi) görünsün.
+  document.title = "Binerly — Müşteri Bilgi Sistemi";
+  const metaDescription = document.querySelector('meta[name="description"]');
+  if (metaDescription) metaDescription.setAttribute("content", "Taleplerinizi ve tekliflerinizi buradan takip edin.");
 }
 
 function resolvePage() {
