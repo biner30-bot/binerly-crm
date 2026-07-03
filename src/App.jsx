@@ -1064,6 +1064,34 @@ function AuthModal({ initialMode = "login", onClose }) {
   );
 }
 
+function EntryChoiceScreen({ onChoose }) {
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: "1rem" }}>
+      <div style={{ background: "var(--surface-1)", borderRadius: 16, padding: "2.5rem 2rem", width: "100%", maxWidth: 420, textAlign: "center" }}>
+        <img src="/favicon.svg" alt="Binerly" style={{ width: 36, height: 36, marginBottom: 16 }} />
+        <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 8px" }}>Bu hesapla nasıl giriş yapmak istiyorsunuz?</h2>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 24px" }}>
+          Bu seçimi bu cihaz için hatırlayacağız, bir daha sormayacağız.
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <button
+            onClick={() => onChoose("company")}
+            style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", padding: "13px", fontSize: 15, fontWeight: 600 }}
+          >
+            Şirket olarak
+          </button>
+          <button
+            onClick={() => onChoose("customer")}
+            style={{ padding: "13px", fontSize: 15, fontWeight: 600 }}
+          >
+            Müşteri olarak
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LandingPage() {
   const [authModal, setAuthModal] = useState(null);
 
@@ -1078,10 +1106,6 @@ function LandingPage() {
           <span style={{ fontWeight: 700, fontSize: 18, color: "#0c2540" }}>Binerly</span>
         </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <a href="/portal" style={{ color: "#5b7088", fontWeight: 500, fontSize: 13, textDecoration: "none", padding: "8px 12px", display: "flex", alignItems: "center", gap: 5 }}>
-            <i className="ti ti-users-group" style={{ fontSize: 15 }} aria-hidden="true"></i>
-            Müşteri Girişi
-          </a>
           <button onClick={() => setAuthModal("login")} style={{ background: "none", border: "none", color: "#185fa5", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "8px 12px" }}>
             Giriş Yap
           </button>
@@ -1259,7 +1283,6 @@ function LandingPage() {
             <p style={{ fontSize: 12, fontWeight: 700, color: "#0c2540", letterSpacing: 0.5, margin: "0 0 14px" }}>HIZLI ERİŞİM</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <a href="/" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Ana Sayfa</a>
-              <a href="/portal" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Müşteri Girişi</a>
               <a href="mailto:info@binerly.com" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>İletişim</a>
             </div>
           </div>
@@ -1282,6 +1305,7 @@ function LandingPage() {
 
 export default function App() {
   const [session, setSession] = useState(undefined);
+  const [entryChoice, setEntryChoice] = useState(undefined); // undefined: henüz kontrol edilmedi
   const [tab, setTab] = useState("pano");
   const [customers, setCustomers] = useState([]);
   const [deals, setDeals] = useState([]);
@@ -1334,6 +1358,27 @@ export default function App() {
     supabase.auth.signOut();
     alert("Oturumunuz uzun süre hareketsiz kaldığı için sona erdi. Lütfen tekrar giriş yapın.");
   });
+
+  // Bu cihazda bu HESABA özel daha önce bir seçim yapıldıysa onu kullan — paylaşımlı
+  // bir cihazda farklı hesapların seçimleri birbirine karışmasın diye kullanıcı id'siyle eşleştiriyoruz.
+  useEffect(() => {
+    if (!session) { setEntryChoice(undefined); return; }
+    let stored = null;
+    try {
+      stored = JSON.parse(localStorage.getItem("binerly_entry_type") || "null");
+    } catch {
+      stored = null;
+    }
+    setEntryChoice(stored && stored.userId === session.user.id ? stored.type : null);
+  }, [session?.user?.id]);
+
+  // Bu cihazda daha önce "müşteriyim" seçildiyse, giriş yapan kişiyi burada
+  // bekletmeden doğrudan portale yönlendir.
+  useEffect(() => {
+    if (session && entryChoice === "customer") {
+      window.location.href = "/portal";
+    }
+  }, [session, entryChoice]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -1711,6 +1756,21 @@ export default function App() {
 
   if (session === undefined) return <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
   if (!session) return <LandingPage />;
+
+  if (entryChoice === undefined || entryChoice === "customer") {
+    return <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
+  }
+  if (entryChoice === null) {
+    return (
+      <EntryChoiceScreen
+        onChoose={(type) => {
+          localStorage.setItem("binerly_entry_type", JSON.stringify({ userId: session.user.id, type }));
+          if (type === "customer") { window.location.href = "/portal"; return; }
+          setEntryChoice(type);
+        }}
+      />
+    );
+  }
 
   if (loading) return <div style={{ padding: "2rem 0", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
 
