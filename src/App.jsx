@@ -17,7 +17,15 @@ const STAGES = [
   { id: "kaybedildi", label: "Kaybedildi" },
 ];
 
-const SECTORS = ["İnşaat", "Medikal", "Gıda", "Tekstil", "Elektrik", "Diğer"];
+const SECTORS = [
+  "İnşaat", "Medikal / Sağlık", "Gıda", "Tekstil", "Elektrik / Elektronik",
+  "Otomotiv", "Mobilya", "Perakende / Mağazacılık", "Toptan Ticaret",
+  "Lojistik / Nakliye", "Turizm / Otelcilik", "Eğitim", "Danışmanlık",
+  "Hukuk", "Muhasebe / Mali Müşavirlik", "Bilişim / Yazılım",
+  "Reklam / Pazarlama", "Emlak", "Güzellik / Kuaförlük", "Temizlik",
+  "Güvenlik", "Ambalaj", "Kimya", "Metal / Makine", "Enerji", "Tarım",
+  "Sigorta", "Finans / Bankacılık", "Spor", "Sanat / Kültür", "Diğer",
+];
 
 function leadScore(lastContact) {
   if (!lastContact) return { label: "Soğuk", tone: "default" };
@@ -172,8 +180,10 @@ function rowToCompanySettings(r) {
 }
 
 function CustomerForm({ initial, onSave, onCancel }) {
+  const initialIsCustomSector = initial?.sector && !SECTORS.includes(initial.sector);
   const [name, setName] = useState(initial?.name || "");
-  const [sector, setSector] = useState(initial?.sector || SECTORS[0]);
+  const [sector, setSector] = useState(initialIsCustomSector ? "Diğer" : (initial?.sector || SECTORS[0]));
+  const [customSector, setCustomSector] = useState(initialIsCustomSector ? initial.sector : "");
   const [region, setRegion] = useState(initial?.region || "");
   const [phone, setPhone] = useState(initial?.phone || "");
   const [email, setEmail] = useState(initial?.email || "");
@@ -184,10 +194,11 @@ function CustomerForm({ initial, onSave, onCancel }) {
       onSubmit={(e) => {
         e.preventDefault();
         if (!name.trim()) return;
+        if (sector === "Diğer" && !customSector.trim()) return;
         onSave({
           id: initial?.id || uid(),
           name: name.trim(),
-          sector,
+          sector: sector === "Diğer" ? customSector.trim() : sector,
           region: region.trim(),
           phone: phone.trim(),
           email: email.trim(),
@@ -213,6 +224,12 @@ function CustomerForm({ initial, onSave, onCancel }) {
           <input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="İstanbul" style={{ width: "100%" }} />
         </div>
       </div>
+      {sector === "Diğer" && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Sektör adı</label>
+          <input value={customSector} onChange={(e) => setCustomSector(e.target.value)} placeholder="Sektörünüzü yazın" style={{ width: "100%" }} />
+        </div>
+      )}
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Telefon</label>
