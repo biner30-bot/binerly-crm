@@ -29,12 +29,13 @@ export default async function handler(req, res) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const { data: ticket } = await supabaseAdmin
+    const { data: ticket, error: ticketError } = await supabaseAdmin
       .from("tickets")
       .select("id, user_id, customer_id, subject")
       .eq("id", record.ticket_id)
       .maybeSingle();
-    if (!ticket) return res.status(200).json({ skipped: true, reason: "ticket not found" });
+    if (ticketError) return res.status(200).json({ skipped: true, reason: "ticket query error", detail: ticketError.message, ticketId: record.ticket_id });
+    if (!ticket) return res.status(200).json({ skipped: true, reason: "ticket not found", ticketId: record.ticket_id });
 
     const { data: customer } = await supabaseAdmin
       .from("customers")
@@ -85,7 +86,7 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({ sent: results.filter((r) => r.status === "fulfilled").length });
-  } catch {
-    return res.status(200).json({ error: "Gönderim sırasında hata oluştu." });
+  } catch (err) {
+    return res.status(200).json({ error: "Gönderim sırasında hata oluştu.", detail: err?.message });
   }
 }
