@@ -832,19 +832,27 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
   );
 }
 
-function AppSettingsModal({ theme, onThemeChange, pushSubscribed, onSubscribe, onUnsubscribe, notify, onClose }) {
+function AppSettingsModal({ session, theme, onThemeChange, pushSubscribed, onSubscribe, onUnsubscribe, notify, onClose }) {
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [saving, setSaving] = useState(false);
 
   const changePassword = async (e) => {
     e.preventDefault();
-    if (newPassword.length < 6) { notify("Şifre en az 6 karakter olmalı."); return; }
-    if (newPassword !== confirmPassword) { notify("Şifreler eşleşmiyor."); return; }
+    if (newPassword.length < 6) { notify("Yeni şifre en az 6 karakter olmalı."); return; }
+    if (newPassword !== confirmPassword) { notify("Yeni şifreler eşleşmiyor."); return; }
     setSaving(true);
+    const { error: verifyError } = await supabase.auth.signInWithPassword({ email: session.user.email, password: currentPassword });
+    if (verifyError) {
+      setSaving(false);
+      notify("Mevcut şifreniz yanlış.");
+      return;
+    }
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     setSaving(false);
     if (error) { notify(`Şifre değiştirilemedi: ${error.message}`); return; }
+    setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
     notify("Şifreniz güncellendi.", "success");
@@ -893,6 +901,10 @@ function AppSettingsModal({ theme, onThemeChange, pushSubscribed, onSubscribe, o
         <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Hesap</p>
         <form onSubmit={changePassword} style={{ marginBottom: 16 }}>
           <div style={{ marginBottom: 8 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Mevcut şifre</label>
+            <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} style={{ width: "100%" }} />
+          </div>
+          <div style={{ marginBottom: 8 }}>
             <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Yeni şifre</label>
             <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={{ width: "100%" }} />
           </div>
@@ -900,7 +912,7 @@ function AppSettingsModal({ theme, onThemeChange, pushSubscribed, onSubscribe, o
             <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Yeni şifre (tekrar)</label>
             <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} style={{ width: "100%" }} />
           </div>
-          <button type="submit" disabled={saving || !newPassword} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
+          <button type="submit" disabled={saving || !currentPassword || !newPassword} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
             {saving ? "Kaydediliyor…" : "Şifreyi değiştir"}
           </button>
         </form>
@@ -916,6 +928,47 @@ function AppSettingsModal({ theme, onThemeChange, pushSubscribed, onSubscribe, o
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
         <button onClick={onClose}>Kapat</button>
       </div>
+    </Modal>
+  );
+}
+
+function PasswordRecoveryModal({ notify, onClose }) {
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (newPassword.length < 6) { notify("Şifre en az 6 karakter olmalı."); return; }
+    if (newPassword !== confirmPassword) { notify("Şifreler eşleşmiyor."); return; }
+    setSaving(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setSaving(false);
+    if (error) { notify(`Şifre güncellenemedi: ${error.message}`); return; }
+    notify("Şifreniz güncellendi.", "success");
+    onClose();
+  };
+
+  return (
+    <Modal title="Yeni şifre belirleyin" onClose={onClose}>
+      <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px" }}>
+        Sıfırlama bağlantısına tıkladınız — hesabınız için yeni bir şifre belirleyin.
+      </p>
+      <form onSubmit={submit}>
+        <div style={{ marginBottom: 8 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Yeni şifre</label>
+          <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={{ width: "100%" }} autoFocus />
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Yeni şifre (tekrar)</label>
+          <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} style={{ width: "100%" }} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <button type="submit" disabled={saving || !newPassword} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+            {saving ? "Kaydediliyor…" : "Şifreyi kaydet"}
+          </button>
+        </div>
+      </form>
     </Modal>
   );
 }
@@ -942,6 +995,16 @@ function AuthModal({ initialMode = "login", onClose }) {
     setLoading(false);
   };
 
+  const sendResetEmail = async () => {
+    if (!email) { setMessage("Önce e-posta adresinizi yazın."); return; }
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/`,
+    });
+    setLoading(false);
+    setMessage(error ? error.message : "E-postanıza bir şifre sıfırlama bağlantısı gönderdik.");
+  };
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "1rem" }}>
       <div style={{ background: "#fff", borderRadius: 16, padding: "2rem", width: "100%", maxWidth: 420, position: "relative" }}>
@@ -955,10 +1018,17 @@ function AuthModal({ initialMode = "login", onClose }) {
             <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>E-posta</label>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: "100%", padding: "10px 12px", border: "1px solid #e1e8f0", borderRadius: 8, fontSize: 14, boxSizing: "border-box" }} />
           </div>
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 8 }}>
             <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>Şifre</label>
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ width: "100%", padding: "10px 12px", border: "1px solid #e1e8f0", borderRadius: 8, fontSize: 14, boxSizing: "border-box" }} />
           </div>
+          {mode === "login" && (
+            <p style={{ margin: "0 0 16px" }}>
+              <button type="button" onClick={sendResetEmail} disabled={loading} style={{ background: "none", border: "none", color: "#185fa5", padding: 0, cursor: "pointer", fontSize: 12 }}>
+                Şifremi unuttum
+              </button>
+            </p>
+          )}
           {message && <p style={{ fontSize: 13, color: "#b45309", marginBottom: 12 }}>{message}</p>}
           <button type="submit" disabled={loading} style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
             {loading ? "Yükleniyor…" : mode === "login" ? "Giriş yap" : "Kayıt ol"}
@@ -1228,6 +1298,7 @@ export default function App() {
   const [showSettingsForm, setShowSettingsForm] = useState(false);
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [showAppSettings, setShowAppSettings] = useState(false);
+  const [showPasswordRecovery, setShowPasswordRecovery] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [showDealForm, setShowDealForm] = useState(false);
@@ -1265,7 +1336,10 @@ export default function App() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, s) => setSession(s));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
+      setSession(s);
+      if (event === "PASSWORD_RECOVERY") setShowPasswordRecovery(true);
+    });
     return () => subscription.unsubscribe();
   }, []);
 
@@ -2438,6 +2512,7 @@ export default function App() {
 
       {showAppSettings && (
         <AppSettingsModal
+          session={session}
           theme={theme}
           onThemeChange={setTheme}
           pushSubscribed={pushSubscribed}
@@ -2446,6 +2521,10 @@ export default function App() {
           notify={notify}
           onClose={() => setShowAppSettings(false)}
         />
+      )}
+
+      {showPasswordRecovery && (
+        <PasswordRecoveryModal notify={notify} onClose={() => setShowPasswordRecovery(false)} />
       )}
 
       {teklifDeal && (
