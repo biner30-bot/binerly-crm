@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   // burada takılırsak bildirim sessizce kaybolur ama uygulama içi rozet zaten yedek.
   try {
     const record = req.body?.record;
-    if (!record || record.direction !== "gelen" || record.is_internal) {
+    if (!record || record.is_internal || (record.direction !== "gelen" && record.direction !== "giden")) {
       return res.status(200).json({ skipped: true });
     }
 
@@ -39,15 +39,27 @@ export default async function handler(req, res) {
 
     const { data: customer } = await supabaseAdmin
       .from("customers")
-      .select("name")
+      .select("name, portal_user_id")
       .eq("id", ticket.customer_id)
       .maybeSingle();
 
-    const { data: members } = await supabaseAdmin
-      .from("team_members")
-      .select("member_id")
-      .eq("team_id", ticket.user_id);
-    const recipientIds = [ticket.user_id, ...(members || []).map((m) => m.member_id)];
+    let recipientIds, title, url;
+    if (record.direction === "gelen") {
+      // Müşteriden şirkete: sahip + tüm takım üyeleri kendi cihazlarında bildirim alır.
+      const { data: members } = await supabaseAdmin
+        .from("team_members")
+        .select("member_id")
+        .eq("team_id", ticket.user_id);
+      recipientIds = [ticket.user_id, ...(members || []).map((m) => m.member_id)];
+      title = customer?.name || "Yeni mesaj";
+      url = `/?ticket=${ticket.id}`;
+    } else {
+      // Şirketten müşteriye: sadece müşterinin portal hesabı varsa (customers.portal_user_id) bildirim gider.
+      if (!customer?.portal_user_id) return res.status(200).json({ skipped: true, reason: "customer has no portal account" });
+      recipientIds = [customer.portal_user_id];
+      title = "Yanıt aldınız";
+      url = `/portal?ticket=${ticket.id}`;
+    }
 
     const { data: subscriptions } = await supabaseAdmin
       .from("push_subscriptions")
@@ -58,9 +70,9 @@ export default async function handler(req, res) {
     }
 
     const payload = JSON.stringify({
-      title: customer?.name || "Yeni mesaj",
+      title,
       body: (record.content || "").slice(0, 140),
-      url: `/?ticket=${ticket.id}`,
+      url,
     });
 
     const results = await Promise.allSettled(

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, uid, formatTL, daysAgo, downloadCsv, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout } from "./shared";
+import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, uid, formatTL, daysAgo, downloadCsv, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme } from "./shared";
 import Support, {
   rowToTicket,
   rowToTicketMessage,
@@ -832,6 +832,94 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
   );
 }
 
+function AppSettingsModal({ theme, onThemeChange, pushSubscribed, onSubscribe, onUnsubscribe, notify, onClose }) {
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const changePassword = async (e) => {
+    e.preventDefault();
+    if (newPassword.length < 6) { notify("Şifre en az 6 karakter olmalı."); return; }
+    if (newPassword !== confirmPassword) { notify("Şifreler eşleşmiyor."); return; }
+    setSaving(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setSaving(false);
+    if (error) { notify(`Şifre değiştirilemedi: ${error.message}`); return; }
+    setNewPassword("");
+    setConfirmPassword("");
+    notify("Şifreniz güncellendi.", "success");
+  };
+
+  return (
+    <Modal title="Ayarlar" onClose={onClose}>
+      <div style={{ marginBottom: 20 }}>
+        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Görünüm</p>
+        <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, width: "fit-content" }}>
+          <button
+            type="button"
+            onClick={() => onThemeChange("light")}
+            style={{ border: "none", background: theme === "light" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+          >
+            <i className="ti ti-sun" style={{ fontSize: 15 }} aria-hidden="true"></i>
+            Açık
+          </button>
+          <button
+            type="button"
+            onClick={() => onThemeChange("dark")}
+            style={{ border: "none", background: theme === "dark" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+          >
+            <i className="ti ti-moon" style={{ fontSize: 15 }} aria-hidden="true"></i>
+            Koyu
+          </button>
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
+        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Bildirimler</p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+            Yeni müşteri mesajı geldiğinde anında bildirim
+          </span>
+          <button type="button" onClick={() => (pushSubscribed ? onUnsubscribe() : onSubscribe())} style={{ fontSize: 13 }}>
+            {pushSubscribed ? "Kapat" : "Aç"}
+          </button>
+        </div>
+        <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "8px 0 0" }}>
+          iPhone'da bildirim almak için önce uygulamayı Ana Ekrana eklemeniz gerekir.
+        </p>
+      </div>
+
+      <div style={{ paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
+        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Hesap</p>
+        <form onSubmit={changePassword} style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Yeni şifre</label>
+            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={{ width: "100%" }} />
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Yeni şifre (tekrar)</label>
+            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} style={{ width: "100%" }} />
+          </div>
+          <button type="submit" disabled={saving || !newPassword} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
+            {saving ? "Kaydediliyor…" : "Şifreyi değiştir"}
+          </button>
+        </form>
+
+        <a
+          href="mailto:info@binerly.com?subject=Hesap%20silme%20talebi"
+          style={{ fontSize: 13, color: "var(--text-danger)", textDecoration: "none" }}
+        >
+          Hesabımı silmek istiyorum (destek ekibine e-posta gönder)
+        </a>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
+        <button onClick={onClose}>Kapat</button>
+      </div>
+    </Modal>
+  );
+}
+
 function AuthModal({ initialMode = "login", onClose }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -1139,6 +1227,7 @@ export default function App() {
   const [dismissedInviteIds, setDismissedInviteIds] = useState([]);
   const [showSettingsForm, setShowSettingsForm] = useState(false);
   const [showTeamModal, setShowTeamModal] = useState(false);
+  const [showAppSettings, setShowAppSettings] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [showDealForm, setShowDealForm] = useState(false);
@@ -1166,6 +1255,8 @@ export default function App() {
     const timer = setTimeout(() => setToast(null), 5000);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  const [theme, setTheme] = useTheme();
 
   useSessionTimeout(session, () => {
     supabase.auth.signOut();
@@ -1701,6 +1792,13 @@ export default function App() {
             <i className="ti ti-settings" style={{ fontSize: 16 }} aria-hidden="true"></i>
           </button>
           <button
+            onClick={() => setShowAppSettings(true)}
+            style={{ width: 32, height: 32, padding: 0 }}
+            title="Ayarlar"
+          >
+            <i className="ti ti-adjustments" style={{ fontSize: 16 }} aria-hidden="true"></i>
+          </button>
+          <button
             onClick={() => supabase.auth.signOut()}
             style={{ fontSize: 12, color: "var(--text-secondary)", background: "none", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 4 }}
             title="Çıkış yap"
@@ -1768,7 +1866,7 @@ export default function App() {
               <span
                 style={{
                   position: "absolute", top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 9,
-                  background: "var(--text-danger)", color: "#fff", fontSize: 11, fontWeight: 700,
+                  background: "var(--text-danger)", color: "var(--on-accent)", fontSize: 11, fontWeight: 700,
                   display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px",
                 }}
               >
@@ -2335,6 +2433,18 @@ export default function App() {
           companySettings={companySettings}
           notify={notify}
           onClose={() => setShowTeamModal(false)}
+        />
+      )}
+
+      {showAppSettings && (
+        <AppSettingsModal
+          theme={theme}
+          onThemeChange={setTheme}
+          pushSubscribed={pushSubscribed}
+          onSubscribe={subscribeToPush}
+          onUnsubscribe={unsubscribeFromPush}
+          notify={notify}
+          onClose={() => setShowAppSettings(false)}
         />
       )}
 

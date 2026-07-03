@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export function uid() {
   return crypto.randomUUID();
@@ -45,6 +45,15 @@ export function useSessionTimeout(session, onTimeout) {
       clearInterval(interval);
     };
   }, [session?.user?.id]);
+}
+
+export function useTheme() {
+  const [theme, setTheme] = useState(() => localStorage.getItem("binerly_theme") || "light");
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("binerly_theme", theme);
+  }, [theme]);
+  return [theme, setTheme];
 }
 
 function csvEscape(value) {

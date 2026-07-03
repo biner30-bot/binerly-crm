@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, Toast, formatTL, useSessionTimeout } from "./shared";
+import { Badge, Modal, Toast, formatTL, useSessionTimeout, useTheme } from "./shared";
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
 
 const STAGES = [
   { id: "ilk_gorusme", label: "İlk görüşme" },
@@ -273,6 +280,83 @@ function PortalDealList({ deals }) {
   );
 }
 
+function PortalSettings({ theme, onThemeChange, pushSubscribed, onSubscribe, onUnsubscribe, notify }) {
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const changePassword = async (e) => {
+    e.preventDefault();
+    if (newPassword.length < 6) { notify("Şifre en az 6 karakter olmalı."); return; }
+    if (newPassword !== confirmPassword) { notify("Şifreler eşleşmiyor."); return; }
+    setSaving(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setSaving(false);
+    if (error) { notify(`Şifre değiştirilemedi: ${error.message}`); return; }
+    setNewPassword("");
+    setConfirmPassword("");
+    notify("Şifreniz güncellendi.", "success");
+  };
+
+  return (
+    <div>
+      <div style={{ marginBottom: 20 }}>
+        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Görünüm</p>
+        <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, width: "fit-content" }}>
+          <button
+            type="button"
+            onClick={() => onThemeChange("light")}
+            style={{ border: "none", background: theme === "light" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+          >
+            <i className="ti ti-sun" style={{ fontSize: 15 }} aria-hidden="true"></i>
+            Açık
+          </button>
+          <button
+            type="button"
+            onClick={() => onThemeChange("dark")}
+            style={{ border: "none", background: theme === "dark" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+          >
+            <i className="ti ti-moon" style={{ fontSize: 15 }} aria-hidden="true"></i>
+            Koyu
+          </button>
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
+        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Bildirimler</p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+            Firma size yanıt verdiğinde anında bildirim
+          </span>
+          <button type="button" onClick={() => (pushSubscribed ? onUnsubscribe() : onSubscribe())} style={{ fontSize: 13 }}>
+            {pushSubscribed ? "Kapat" : "Aç"}
+          </button>
+        </div>
+        <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "8px 0 0" }}>
+          iPhone'da bildirim almak için önce uygulamayı Ana Ekrana eklemeniz gerekir.
+        </p>
+      </div>
+
+      <div style={{ paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
+        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Hesap</p>
+        <form onSubmit={changePassword}>
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Yeni şifre</label>
+            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={{ width: "100%" }} />
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Yeni şifre (tekrar)</label>
+            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} style={{ width: "100%" }} />
+          </div>
+          <button type="submit" disabled={saving || !newPassword} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
+            {saving ? "Kaydediliyor…" : "Şifreyi değiştir"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function CustomerPortal() {
   const [session, setSession] = useState(undefined);
   const [portalTab, setPortalTab] = useState("talepler");
@@ -284,6 +368,8 @@ export default function CustomerPortal() {
   const [showNewTicketForm, setShowNewTicketForm] = useState(false);
   const [viewingTicket, setViewingTicket] = useState(null);
   const [toast, setToast] = useState(null);
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [theme, setTheme] = useTheme();
 
   const notify = (message, tone = "danger") => setToast({ message, tone });
 
@@ -303,6 +389,28 @@ export default function CustomerPortal() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, s) => setSession(s));
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!session || !("serviceWorker" in navigator)) { setPushSubscribed(false); return; }
+    navigator.serviceWorker.ready
+      .then((registration) => registration.pushManager.getSubscription())
+      .then((sub) => setPushSubscribed(!!sub))
+      .catch(() => {});
+  }, [session]);
+
+  // Bildirime tıklanınca gelen ?ticket= derin bağlantısı — talepler yüklendikten
+  // sonra bir kere işlenir, sonra URL'den temizlenir.
+  useEffect(() => {
+    if (tickets.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const ticketId = params.get("ticket");
+    if (!ticketId) return;
+    const t = tickets.find((x) => x.id === ticketId);
+    if (t) setViewingTicket(t);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("ticket");
+    window.history.replaceState({}, "", url);
+  }, [tickets]);
 
   useEffect(() => {
     if (!session) {
@@ -401,6 +509,49 @@ export default function CustomerPortal() {
     );
   };
 
+  const subscribeToPush = async () => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      notify("Bu tarayıcı bildirim özelliğini desteklemiyor.");
+      return;
+    }
+    if (!import.meta.env.VITE_VAPID_PUBLIC_KEY) {
+      notify("Bildirim sistemi henüz yapılandırılmadı.");
+      return;
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") return;
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(import.meta.env.VITE_VAPID_PUBLIC_KEY),
+      });
+      const json = subscription.toJSON();
+      const { error } = await supabase.from("push_subscriptions").upsert(
+        { user_id: session.user.id, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth_key: json.keys.auth },
+        { onConflict: "endpoint" }
+      );
+      if (error) { notify(`Bildirim aboneliği kaydedilemedi: ${error.message}`); return; }
+      setPushSubscribed(true);
+    } catch {
+      notify("Bildirim izni alınamadı.");
+    }
+  };
+
+  const unsubscribeFromPush = async () => {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        await supabase.from("push_subscriptions").delete().eq("endpoint", subscription.endpoint);
+        await subscription.unsubscribe();
+      }
+    } catch {
+      // yoksay
+    }
+    setPushSubscribed(false);
+  };
+
   // Müşteri için firmanın yanıtını görmesi yeterli — yanıt vermek zorunda değil,
   // talebi açtığında bildirim temizlenir. (KOBİ tarafında ise tam tersi: sadece
   // yanıt vermek temizler, bkz. App.jsx addTicketMessage.)
@@ -452,6 +603,7 @@ export default function CustomerPortal() {
             {[
               { id: "talepler", label: "Taleplerim", icon: "ti-ticket" },
               { id: "teklifler", label: "Tekliflerim", icon: "ti-file-text" },
+              { id: "ayarlar", label: "Ayarlar", icon: "ti-adjustments" },
             ].map((t) => (
               <button
                 key={t.id}
@@ -473,7 +625,7 @@ export default function CustomerPortal() {
                   <span
                     style={{
                       position: "absolute", top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 9,
-                      background: "var(--text-danger)", color: "#fff", fontSize: 11, fontWeight: 700,
+                      background: "var(--text-danger)", color: "var(--on-accent)", fontSize: 11, fontWeight: 700,
                       display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px",
                     }}
                   >
@@ -500,6 +652,17 @@ export default function CustomerPortal() {
           )}
 
           {portalTab === "teklifler" && <PortalDealList deals={deals} />}
+
+          {portalTab === "ayarlar" && (
+            <PortalSettings
+              theme={theme}
+              onThemeChange={setTheme}
+              pushSubscribed={pushSubscribed}
+              onSubscribe={subscribeToPush}
+              onUnsubscribe={unsubscribeFromPush}
+              notify={notify}
+            />
+          )}
         </>
       )}
 
