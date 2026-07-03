@@ -1080,7 +1080,7 @@ function LandingPage() {
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <a href="/portal" style={{ color: "#5b7088", fontWeight: 500, fontSize: 13, textDecoration: "none", padding: "8px 12px", display: "flex", alignItems: "center", gap: 5 }}>
             <i className="ti ti-users-group" style={{ fontSize: 15 }} aria-hidden="true"></i>
-            Müşteri Bilgi Sistemi
+            Müşteri misiniz? Giriş yapın
           </a>
           <button onClick={() => setAuthModal("login")} style={{ background: "none", border: "none", color: "#185fa5", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "8px 12px" }}>
             Giriş Yap
@@ -1259,7 +1259,7 @@ function LandingPage() {
             <p style={{ fontSize: 12, fontWeight: 700, color: "#0c2540", letterSpacing: 0.5, margin: "0 0 14px" }}>HIZLI ERİŞİM</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <a href="/" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Ana Sayfa</a>
-              <a href="/portal" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Müşteri Bilgi Sistemi</a>
+              <a href="/portal" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Müşteri misiniz? Giriş yapın</a>
               <a href="mailto:info@binerly.com" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>İletişim</a>
             </div>
           </div>
