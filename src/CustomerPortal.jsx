@@ -201,6 +201,7 @@ function PortalTicketDetail({ ticket, messages, onAddMessage, onClose }) {
   const [saving, setSaving] = useState(false);
   const statusInfo = TICKET_STATUSES.find((s) => s.id === ticket.status);
   const sorted = [...messages].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  const descriptionIsFirstMessage = sorted.length > 0 && sorted[0].content === ticket.description;
 
   const submit = async (e) => {
     e.preventDefault();
@@ -214,7 +215,9 @@ function PortalTicketDetail({ ticket, messages, onAddMessage, onClose }) {
   return (
     <Modal title={ticket.subject} onClose={onClose}>
       <div style={{ marginBottom: 16 }}>
-        {ticket.description && <p style={{ margin: "0 0 8px", fontSize: 13, color: "var(--text-secondary)" }}>{ticket.description}</p>}
+        {ticket.description && !descriptionIsFirstMessage && (
+          <p style={{ margin: "0 0 8px", fontSize: 13, color: "var(--text-secondary)" }}>{ticket.description}</p>
+        )}
         <Badge tone={STATUS_TONE[ticket.status] || "default"}>{statusInfo?.label}</Badge>
       </div>
 
@@ -351,6 +354,16 @@ export default function CustomerPortal() {
     if (error) { notify(`Talep gönderilemedi: ${error.message}`); return; }
     setTickets((prev) => [...prev, rowToTicket(data)]);
     setShowNewTicketForm(false);
+
+    // Talebin açıklamasını ilk "gelen" mesaj olarak da kaydediyoruz — böylece
+    // yeni bir talep açmak da (var olan bir talebe yazmak gibi) okunmamış-mesaj
+    // rozetini ve anlık bildirimi tetikliyor; yoksa müşterinin ilk teması sessiz kalırdı.
+    const { data: msgData, error: msgError } = await supabase
+      .from("ticket_messages")
+      .insert({ user_id: row.userId, ticket_id: data.id, direction: "gelen", is_internal: false, content: description || subject })
+      .select()
+      .single();
+    if (!msgError) setTicketMessages((prev) => [...prev, rowToTicketMessage(msgData)]);
   };
 
   const addMessage = async ({ ticketId, content }) => {

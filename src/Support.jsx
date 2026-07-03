@@ -340,6 +340,9 @@ function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange
   const sla = getSlaStatus(ticket);
   const priorityInfo = PRIORITIES.find((p) => p.id === ticket.priority);
   const sortedMessages = [...messages].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  // Yeni talep açılırken açıklama otomatik olarak ilk "gelen" mesaj da oluyor —
+  // aynı metni iki kez göstermeyelim.
+  const descriptionIsFirstMessage = sortedMessages.length > 0 && sortedMessages[0].content === ticket.description;
 
   const submit = async (e) => {
     e.preventDefault();
@@ -357,7 +360,9 @@ function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange
         <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
           {customer?.name || "Bilinmeyen müşteri"} {customer?.phone ? `· ${customer.phone}` : ""} {customer?.email ? `· ${customer.email}` : ""}
         </p>
-        {ticket.description && <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--text-secondary)" }}>{ticket.description}</p>}
+        {ticket.description && !descriptionIsFirstMessage && (
+          <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--text-secondary)" }}>{ticket.description}</p>
+        )}
         <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
           <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>Öncelik: {priorityInfo?.label}</span>
           <Badge tone={sla.tone}>{sla.label}</Badge>
