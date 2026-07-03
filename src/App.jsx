@@ -1064,25 +1064,26 @@ function AuthModal({ initialMode = "login", onClose }) {
   );
 }
 
-function EntryChoiceScreen({ onChoose }) {
+function EntryChoiceModal({ onChooseCompany, onChooseCustomer, onClose }) {
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: "1rem" }}>
-      <div style={{ background: "var(--surface-1)", borderRadius: 16, padding: "2.5rem 2rem", width: "100%", maxWidth: 420, textAlign: "center" }}>
-        <img src="/favicon.svg" alt="Binerly" style={{ width: 36, height: 36, marginBottom: 16 }} />
-        <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 8px" }}>Bu hesapla nasıl giriş yapmak istiyorsunuz?</h2>
-        <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 24px" }}>
-          Bu seçimi bu cihaz için hatırlayacağız, bir daha sormayacağız.
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "1rem" }}>
+      <div style={{ background: "#fff", borderRadius: 16, padding: "2rem", width: "100%", maxWidth: 380, textAlign: "center", position: "relative" }}>
+        <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#666" }}>✕</button>
+        <img src="/favicon.svg" alt="Binerly" style={{ width: 32, height: 32, marginBottom: 14 }} />
+        <h2 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 6px", color: "#0c2540" }}>Nasıl giriş yapmak istersiniz?</h2>
+        <p style={{ fontSize: 13, color: "#5b7088", margin: "0 0 20px" }}>
+          Bir KOBİ hesabı mı işletiyorsunuz, yoksa bir firmanın müşterisi misiniz?
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <button
-            onClick={() => onChoose("company")}
-            style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", padding: "13px", fontSize: 15, fontWeight: 600 }}
+            onClick={onChooseCompany}
+            style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "13px", fontSize: 15, fontWeight: 600, cursor: "pointer" }}
           >
             Şirket olarak
           </button>
           <button
-            onClick={() => onChoose("customer")}
-            style={{ padding: "13px", fontSize: 15, fontWeight: 600 }}
+            onClick={onChooseCustomer}
+            style={{ background: "#fff", color: "#185fa5", border: "1.5px solid #185fa5", borderRadius: 8, padding: "13px", fontSize: 15, fontWeight: 600, cursor: "pointer" }}
           >
             Müşteri olarak
           </button>
@@ -1094,10 +1095,18 @@ function EntryChoiceScreen({ onChoose }) {
 
 function LandingPage() {
   const [authModal, setAuthModal] = useState(null);
+  const [showEntryChoice, setShowEntryChoice] = useState(false);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f5f8fc", fontFamily: "system-ui, -apple-system, sans-serif" }}>
       {authModal && <AuthModal initialMode={authModal} onClose={() => setAuthModal(null)} />}
+      {showEntryChoice && (
+        <EntryChoiceModal
+          onChooseCompany={() => { setShowEntryChoice(false); setAuthModal("login"); }}
+          onChooseCustomer={() => { window.location.href = "/portal"; }}
+          onClose={() => setShowEntryChoice(false)}
+        />
+      )}
 
       {/* Navbar */}
       <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 2rem", height: 64, background: "#fff", borderBottom: "1px solid #e1e8f0", position: "sticky", top: 0, zIndex: 100 }}>
@@ -1106,7 +1115,7 @@ function LandingPage() {
           <span style={{ fontWeight: 700, fontSize: 18, color: "#0c2540" }}>Binerly</span>
         </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <button onClick={() => setAuthModal("login")} style={{ background: "none", border: "none", color: "#185fa5", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "8px 12px" }}>
+          <button onClick={() => setShowEntryChoice(true)} style={{ background: "none", border: "none", color: "#185fa5", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "8px 12px" }}>
             Giriş Yap
           </button>
           <button onClick={() => setAuthModal("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
@@ -1133,7 +1142,7 @@ function LandingPage() {
             <button onClick={() => setAuthModal("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "13px 28px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
               14 Gün Ücretsiz Dene →
             </button>
-            <button onClick={() => setAuthModal("login")} style={{ background: "#fff", color: "#185fa5", border: "1.5px solid #185fa5", borderRadius: 8, padding: "13px 28px", fontWeight: 600, fontSize: 15, cursor: "pointer" }}>
+            <button onClick={() => setShowEntryChoice(true)} style={{ background: "#fff", color: "#185fa5", border: "1.5px solid #185fa5", borderRadius: 8, padding: "13px 28px", fontWeight: 600, fontSize: 15, cursor: "pointer" }}>
               Giriş Yap
             </button>
           </div>
@@ -1305,7 +1314,6 @@ function LandingPage() {
 
 export default function App() {
   const [session, setSession] = useState(undefined);
-  const [entryChoice, setEntryChoice] = useState(undefined); // undefined: henüz kontrol edilmedi
   const [tab, setTab] = useState("pano");
   const [customers, setCustomers] = useState([]);
   const [deals, setDeals] = useState([]);
@@ -1358,27 +1366,6 @@ export default function App() {
     supabase.auth.signOut();
     alert("Oturumunuz uzun süre hareketsiz kaldığı için sona erdi. Lütfen tekrar giriş yapın.");
   });
-
-  // Bu cihazda bu HESABA özel daha önce bir seçim yapıldıysa onu kullan — paylaşımlı
-  // bir cihazda farklı hesapların seçimleri birbirine karışmasın diye kullanıcı id'siyle eşleştiriyoruz.
-  useEffect(() => {
-    if (!session) { setEntryChoice(undefined); return; }
-    let stored = null;
-    try {
-      stored = JSON.parse(localStorage.getItem("binerly_entry_type") || "null");
-    } catch {
-      stored = null;
-    }
-    setEntryChoice(stored && stored.userId === session.user.id ? stored.type : null);
-  }, [session?.user?.id]);
-
-  // Bu cihazda daha önce "müşteriyim" seçildiyse, giriş yapan kişiyi burada
-  // bekletmeden doğrudan portale yönlendir.
-  useEffect(() => {
-    if (session && entryChoice === "customer") {
-      window.location.href = "/portal";
-    }
-  }, [session, entryChoice]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -1756,21 +1743,6 @@ export default function App() {
 
   if (session === undefined) return <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
   if (!session) return <LandingPage />;
-
-  if (entryChoice === undefined || entryChoice === "customer") {
-    return <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
-  }
-  if (entryChoice === null) {
-    return (
-      <EntryChoiceScreen
-        onChoose={(type) => {
-          localStorage.setItem("binerly_entry_type", JSON.stringify({ userId: session.user.id, type }));
-          if (type === "customer") { window.location.href = "/portal"; return; }
-          setEntryChoice(type);
-        }}
-      />
-    );
-  }
 
   if (loading) return <div style={{ padding: "2rem 0", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
 
