@@ -1,5 +1,50 @@
+import { useEffect } from "react";
+
 export function uid() {
   return crypto.randomUUID();
+}
+
+const SESSION_IDLE_LIMIT_MS = 30 * 60 * 1000; // 30 dakika hareketsizlik
+const SESSION_ABSOLUTE_LIMIT_MS = 24 * 60 * 60 * 1000; // 24 saat, hareket olsa bile
+const SESSION_START_KEY = "binerly_session_started_at";
+
+// Supabase'in Pro plan gerektiren sunucu taraflı oturum zaman aşımı ayarlarına
+// (Time-box/Inactivity timeout) alternatif, ücretsiz bir client-side denetim.
+// Sayfa yenilense bile mutlak süre sıfırlanmasın diye başlangıç zamanı localStorage'da tutulur.
+export function useSessionTimeout(session, onTimeout) {
+  useEffect(() => {
+    if (!session) return;
+
+    let stored = null;
+    try {
+      stored = JSON.parse(localStorage.getItem(SESSION_START_KEY) || "null");
+    } catch {
+      stored = null;
+    }
+    const startedAt =
+      stored && stored.userId === session.user.id ? stored.startedAt : Date.now();
+    if (!stored || stored.userId !== session.user.id) {
+      localStorage.setItem(SESSION_START_KEY, JSON.stringify({ userId: session.user.id, startedAt }));
+    }
+
+    let lastActivity = Date.now();
+    const markActivity = () => { lastActivity = Date.now(); };
+    const events = ["mousemove", "keydown", "click", "scroll", "touchstart"];
+    events.forEach((e) => window.addEventListener(e, markActivity));
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      if (now - lastActivity > SESSION_IDLE_LIMIT_MS || now - startedAt > SESSION_ABSOLUTE_LIMIT_MS) {
+        localStorage.removeItem(SESSION_START_KEY);
+        onTimeout();
+      }
+    }, 60000);
+
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, markActivity));
+      clearInterval(interval);
+    };
+  }, [session?.user?.id]);
 }
 
 function csvEscape(value) {

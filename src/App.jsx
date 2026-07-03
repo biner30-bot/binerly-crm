@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, uid, formatTL, daysAgo, downloadCsv, toWhatsAppNumber, WhatsAppIcon } from "./shared";
+import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, uid, formatTL, daysAgo, downloadCsv, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout } from "./shared";
 import Support, {
   rowToTicket,
   rowToTicketMessage,
@@ -1157,6 +1157,11 @@ export default function App() {
     const timer = setTimeout(() => setToast(null), 5000);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  useSessionTimeout(session, () => {
+    supabase.auth.signOut();
+    alert("Oturumunuz uzun süre hareketsiz kaldığı için sona erdi. Lütfen tekrar giriş yapın.");
+  });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));

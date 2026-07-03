@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, Toast, formatTL } from "./shared";
+import { Badge, Modal, Toast, formatTL, useSessionTimeout } from "./shared";
 
 const STAGES = [
   { id: "ilk_gorusme", label: "İlk görüşme" },
@@ -292,6 +292,11 @@ export default function CustomerPortal() {
     const timer = setTimeout(() => setToast(null), 5000);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  useSessionTimeout(session, () => {
+    supabase.auth.signOut();
+    alert("Oturumunuz uzun süre hareketsiz kaldığı için sona erdi. Lütfen tekrar giriş yapın.");
+  });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
