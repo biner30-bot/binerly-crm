@@ -39,6 +39,7 @@ function rowToCustomer(r) {
     id: r.id,
     name: r.name,
     sector: r.sector,
+    region: r.region || "",
     phone: r.phone || "",
     email: r.email || "",
     notes: r.notes || "",
@@ -173,6 +174,7 @@ function rowToCompanySettings(r) {
 function CustomerForm({ initial, onSave, onCancel }) {
   const [name, setName] = useState(initial?.name || "");
   const [sector, setSector] = useState(initial?.sector || SECTORS[0]);
+  const [region, setRegion] = useState(initial?.region || "");
   const [phone, setPhone] = useState(initial?.phone || "");
   const [email, setEmail] = useState(initial?.email || "");
   const [notes, setNotes] = useState(initial?.notes || "");
@@ -186,6 +188,7 @@ function CustomerForm({ initial, onSave, onCancel }) {
           id: initial?.id || uid(),
           name: name.trim(),
           sector,
+          region: region.trim(),
           phone: phone.trim(),
           email: email.trim(),
           notes: notes.trim(),
@@ -198,11 +201,17 @@ function CustomerForm({ initial, onSave, onCancel }) {
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Firma adı</label>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Akın İnşaat" style={{ width: "100%" }} />
       </div>
-      <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Sektör</label>
-        <select value={sector} onChange={(e) => setSector(e.target.value)} style={{ width: "100%" }}>
-          {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
+      <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Sektör</label>
+          <select value={sector} onChange={(e) => setSector(e.target.value)} style={{ width: "100%" }}>
+            {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Bölge / Şehir</label>
+          <input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="İstanbul" style={{ width: "100%" }} />
+        </div>
       </div>
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
         <div style={{ flex: 1 }}>
@@ -467,7 +476,7 @@ function CustomerDetail({ customer, deals, activities, onAddActivity, onClose })
       <div style={{ marginBottom: 16 }}>
         <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
           <span>
-            {customer.sector} {customer.phone ? `· ${customer.phone}` : ""} {customer.email ? `· ${customer.email}` : ""}
+            {customer.sector} {customer.region ? `· ${customer.region}` : ""} {customer.phone ? `· ${customer.phone}` : ""} {customer.email ? `· ${customer.email}` : ""}
           </span>
           {customer.phone && (
             <a
@@ -1033,8 +1042,8 @@ function LandingPage() {
               id: "entegrasyonlar",
               icon: "ti-plug-connected",
               title: "Entegrasyonlar & Mobil",
-              desc: "Gmail, Outlook ve takvim uygulamalarıyla senkronizasyon, muhasebe/ERP entegrasyonu ve mobil uygulama yol haritamızda.",
-              tags: ["Yakında"],
+              desc: "Uygulamayı telefonunuza kurup anında bildirim alın, müşterinize tek tıkla WhatsApp'tan ulaşın. Gmail/Outlook senkronizasyonu ve muhasebe/ERP entegrasyonu yol haritamızda.",
+              tags: ["Mobil Uygulama (PWA)", "Anlık Bildirim", "WhatsApp", "Yakında: ERP/Muhasebe"],
             },
           ].map((f) => (
             <div key={f.title} id={f.id} style={{ background: "#fff", borderRadius: 12, padding: "1.5rem", border: "1px solid #e1e8f0", scrollMarginTop: 80 }}>
@@ -1300,6 +1309,7 @@ export default function App() {
       user_id: activeTeamId,
       name: c.name,
       sector: c.sector,
+      region: c.region,
       phone: c.phone,
       email: c.email,
       notes: c.notes,
@@ -1557,7 +1567,7 @@ export default function App() {
   const filteredCustomers = !customerQuery
     ? customers
     : customers.filter((c) =>
-        [c.name, c.sector, c.phone, c.email].some((f) => (f || "").toLowerCase().includes(customerQuery))
+        [c.name, c.sector, c.region, c.phone, c.email].some((f) => (f || "").toLowerCase().includes(customerQuery))
       );
 
   const dealQuery = dealSearch.trim().toLowerCase();
@@ -2026,7 +2036,7 @@ export default function App() {
             <input
               value={customerSearch}
               onChange={(e) => setCustomerSearch(e.target.value)}
-              placeholder="Müşteri ara (ad, sektör, telefon, e-posta)..."
+              placeholder="Müşteri ara (ad, sektör, bölge, telefon, e-posta)..."
               style={{ flex: 1, minWidth: 200 }}
             />
             <div style={{ display: "flex", gap: 8 }}>
@@ -2034,10 +2044,11 @@ export default function App() {
                 onClick={() =>
                   downloadCsv(
                     "musteriler.csv",
-                    ["Firma adı", "Sektör", "Telefon", "E-posta", "Not", "Son temas"],
+                    ["Firma adı", "Sektör", "Bölge", "Telefon", "E-posta", "Not", "Son temas"],
                     filteredCustomers.map((c) => [
                       c.name,
                       c.sector,
+                      c.region,
                       c.phone,
                       c.email,
                       c.notes,
@@ -2083,7 +2094,7 @@ export default function App() {
                   <div onClick={() => setViewingCustomer(c)} style={{ flex: 1, minWidth: 160, cursor: "pointer" }}>
                     <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{c.name}</p>
                     <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
-                      {c.sector} {c.phone ? `· ${c.phone}` : ""}
+                      {c.sector} {c.region ? `· ${c.region}` : ""} {c.phone ? `· ${c.phone}` : ""}
                     </p>
                   </div>
                   <Badge tone={leadScore(c.lastContact).tone}>{leadScore(c.lastContact).label}</Badge>
