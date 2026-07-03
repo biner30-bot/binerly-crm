@@ -1,14 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
 
-function decodeJwtRole(token) {
-  try {
-    return JSON.parse(Buffer.from(token.split(".")[1], "base64").toString()).role;
-  } catch {
-    return null;
-  }
-}
-
 export default async function handler(req, res) {
   const providedSecret = (req.headers["x-push-secret"] || "").trim();
   const secret = (process.env.PUSH_WEBHOOK_SECRET || "").trim();
@@ -42,17 +34,8 @@ export default async function handler(req, res) {
       .select("id, user_id, customer_id, subject")
       .eq("id", record.ticket_id)
       .maybeSingle();
-    if (ticketError) {
-      return res.status(200).json({
-        skipped: true,
-        reason: "ticket query error",
-        detail: ticketError.message,
-        ticketId: record.ticket_id,
-        keyRole: decodeJwtRole(process.env.SUPABASE_SERVICE_ROLE_KEY || ""),
-        keyLen: (process.env.SUPABASE_SERVICE_ROLE_KEY || "").length,
-      });
-    }
-    if (!ticket) return res.status(200).json({ skipped: true, reason: "ticket not found", ticketId: record.ticket_id });
+    if (ticketError) return res.status(200).json({ skipped: true, reason: "ticket query error", detail: ticketError.message });
+    if (!ticket) return res.status(200).json({ skipped: true, reason: "ticket not found" });
 
     const { data: customer } = await supabaseAdmin
       .from("customers")
