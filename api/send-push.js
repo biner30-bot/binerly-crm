@@ -2,9 +2,10 @@ import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
 
 export default async function handler(req, res) {
-  const authHeader = req.headers.authorization;
-  if (!process.env.PUSH_WEBHOOK_SECRET || authHeader !== `Bearer ${process.env.PUSH_WEBHOOK_SECRET}`) {
-    return res.status(401).json({ error: "Unauthorized" });
+  const authHeader = (req.headers.authorization || "").trim();
+  const secret = (process.env.PUSH_WEBHOOK_SECRET || "").trim();
+  if (!secret || authHeader !== `Bearer ${secret}`) {
+    return res.status(401).json({ error: "Unauthorized", got: authHeader ? authHeader.length : 0, expected: secret ? secret.length : 0 });
   }
 
   // Webhook her zaman hızlı 200 dönmeli — Supabase tarafında tekrar deneme yok,
