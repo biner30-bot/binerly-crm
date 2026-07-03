@@ -3,7 +3,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { recipients, subject, message, replyTo } = req.body || {};
+  const { recipients, subject, message, replyTo, companyName } = req.body || {};
   if (!Array.isArray(recipients) || recipients.length === 0 || !subject || !message) {
     return res.status(400).json({ error: "Eksik bilgi." });
   }
@@ -12,6 +12,12 @@ export default async function handler(req, res) {
   if (!apiKey) {
     return res.status(500).json({ error: "Sunucu e-posta anahtarı ayarlanmamış." });
   }
+
+  // binerly.com dışında bir domainden gönderim yapamıyoruz (Resend'de sadece bu
+  // domain doğrulanmış) — bunun yerine gönderen adında şirket ismini öne çıkarıp
+  // "Binerly üzerinden" gönderildiğini açıkça belirtiyoruz, yanıtlar zaten
+  // replyTo ile doğrudan şirkete gidiyor.
+  const senderName = companyName ? `${companyName} (Binerly ile)` : "Binerly";
 
   try {
     const results = await Promise.all(
@@ -23,7 +29,7 @@ export default async function handler(req, res) {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "Binerly <noreply@binerly.com>",
+            from: `${senderName} <noreply@binerly.com>`,
             to,
             subject,
             text: message,

@@ -616,7 +616,7 @@ function TeklifPrint({ deal, customer, companySettings, onClose }) {
   );
 }
 
-function CampaignModal({ customers, replyTo, onClose }) {
+function CampaignModal({ customers, replyTo, companyName, onClose }) {
   const emailCustomers = customers.filter((c) => c.email);
   const [selected, setSelected] = useState(() => new Set(emailCustomers.map((c) => c.id)));
   const [subject, setSubject] = useState("");
@@ -642,7 +642,7 @@ function CampaignModal({ customers, replyTo, onClose }) {
       const res = await fetch("/api/send-campaign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipients, subject, message, replyTo }),
+        body: JSON.stringify({ recipients, subject, message, replyTo, companyName }),
       });
       const data = await res.json();
       if (res.ok) setResult(`${recipients.length} kişiye gönderildi.`);
@@ -735,6 +735,7 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
           subject: `${companySettings?.companyName || "Binerly"} sizi takımına davet etti`,
           message: `Merhaba,\n\n${companySettings?.companyName || "Bir şirket"} sizi Binerly hesabına takım üyesi olarak davet etti. binerly.com adresine bu e-posta ile giriş yaparak (veya kayıt olarak) daveti kabul edebilirsiniz.\n\nBinerly`,
           replyTo: session.user.email,
+          companyName: companySettings?.companyName,
         }),
       });
     } catch {
@@ -2578,7 +2579,7 @@ export default function App() {
       )}
 
       {showCampaignModal && (
-        <CampaignModal customers={customers} replyTo={session.user.email} onClose={() => setShowCampaignModal(false)} />
+        <CampaignModal customers={customers} replyTo={session.user.email} companyName={companySettings?.companyName} onClose={() => setShowCampaignModal(false)} />
       )}
 
       {viewingCustomer && (
