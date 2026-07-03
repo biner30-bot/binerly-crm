@@ -1080,7 +1080,7 @@ function LandingPage() {
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <a href="/portal" style={{ color: "#5b7088", fontWeight: 500, fontSize: 13, textDecoration: "none", padding: "8px 12px", display: "flex", alignItems: "center", gap: 5 }}>
             <i className="ti ti-users-group" style={{ fontSize: 15 }} aria-hidden="true"></i>
-            Müşteri misiniz? Giriş yapın
+            Müşteri Girişi
           </a>
           <button onClick={() => setAuthModal("login")} style={{ background: "none", border: "none", color: "#185fa5", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "8px 12px" }}>
             Giriş Yap
@@ -1098,12 +1098,12 @@ function LandingPage() {
             KOBİ'ler için CRM
           </div>
           <h1 style={{ fontSize: "clamp(2rem, 4vw, 3rem)", fontWeight: 800, color: "#0c2540", lineHeight: 1.2, margin: "0 0 1.25rem" }}>
-            Müşteri ve satışlarını{" "}
-            <span style={{ color: "#185fa5" }}>tek ekrandan</span>{" "}
-            yönet
+            Müşterinizle ilişkinizi{" "}
+            <span style={{ color: "#185fa5" }}>baştan sona</span>{" "}
+            tek yerde yönetin
           </h1>
           <p style={{ fontSize: 17, color: "#5b7088", lineHeight: 1.7, margin: "0 0 2rem", maxWidth: 480 }}>
-            Müşteri takibi, teklif ve anlaşma yönetimi ve satış süreçlerini kolaylaştıran, KOBİ'lere özel CRM sistemi.
+            Satış, destek ve müşterinizin kendi portalı — hepsi bir arada, KOBİ'ler için.
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <button onClick={() => setAuthModal("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "13px 28px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
@@ -1259,7 +1259,7 @@ function LandingPage() {
             <p style={{ fontSize: 12, fontWeight: 700, color: "#0c2540", letterSpacing: 0.5, margin: "0 0 14px" }}>HIZLI ERİŞİM</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <a href="/" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Ana Sayfa</a>
-              <a href="/portal" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Müşteri misiniz? Giriş yapın</a>
+              <a href="/portal" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Müşteri Girişi</a>
               <a href="mailto:info@binerly.com" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>İletişim</a>
             </div>
           </div>
