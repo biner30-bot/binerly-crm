@@ -125,6 +125,11 @@
         .no-print { display: none !important; }
         @page { size: A4; margin: 16mm; }
       }
+      /* Dar ekranlarda navbar'daki ikincil linkler (Hizmetlerimiz/Hakkımızda) taşıp
+         kayboluyordu — dar ekranda gizlenir, ilgili bölümlere sayfa kaydırarak zaten ulaşılabilir. */
+      @media (max-width: 640px) {
+        .landing-nav-links { display: none; }
+      }
     </style>
   </head>
   <body>

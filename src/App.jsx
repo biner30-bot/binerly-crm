@@ -1310,7 +1310,7 @@ function LandingPage() {
           <span style={{ fontWeight: 700, fontSize: 18, color: "#0c2540" }}>Binerly</span>
         </div>
         <div style={{ display: "flex", gap: 28, alignItems: "center" }}>
-          <div style={{ display: "flex", gap: 24 }}>
+          <div className="landing-nav-links" style={{ display: "flex", gap: 24 }}>
             <a href="#ozellikler" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Hizmetlerimiz</a>
             <a href="#hakkimizda" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Hakkımızda</a>
           </div>
