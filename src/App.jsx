@@ -1396,12 +1396,15 @@ function LandingPage() {
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <button onClick={() => setAuthModal("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "13px 28px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
-              14 Gün Ücretsiz Dene →
+              Ücretsiz Kullanmaya Başla →
             </button>
             <button onClick={() => setShowEntryChoice(true)} style={{ background: "#fff", color: "#185fa5", border: "1.5px solid #185fa5", borderRadius: 8, padding: "13px 28px", fontWeight: 600, fontSize: 15, cursor: "pointer" }}>
               Giriş Yap
             </button>
           </div>
+          <p style={{ fontSize: 13, color: "#185fa5", fontWeight: 600, margin: "12px 0 0" }}>
+            Erken erişim aşamasındayız, şu an için tamamen ücretsiz.
+          </p>
         </div>
 
         {/* Mockup */}
@@ -1546,9 +1549,9 @@ function LandingPage() {
       {/* CTA */}
       <div style={{ background: "#185fa5", padding: "4rem 2rem", textAlign: "center" }}>
         <h2 style={{ fontSize: "1.75rem", fontWeight: 800, color: "#fff", margin: "0 0 1rem" }}>
-          Hemen başlayın, ücretsiz deneyin
+          Hemen başlayın, ücretsiz kullanın
         </h2>
-        <p style={{ fontSize: 16, color: "#b8d4f0", margin: "0 0 2rem" }}>Kredi kartı gerekmez. 14 gün boyunca tüm özellikleri kullanın.</p>
+        <p style={{ fontSize: 16, color: "#b8d4f0", margin: "0 0 2rem" }}>Kredi kartı gerekmez. Erken erişim aşamasındayız, şu an için tamamen ücretsiz.</p>
         <button onClick={() => setAuthModal("register")} style={{ background: "#fff", color: "#185fa5", border: "none", borderRadius: 8, padding: "14px 32px", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
           Ücretsiz Hesap Oluştur
         </button>
@@ -2532,6 +2535,10 @@ export default function App() {
           </button>
         </div>
       </div>
+
+      <p style={{ fontSize: 11, color: "var(--text-accent)", fontWeight: 500, margin: "-12px 0 12px" }}>
+        🎉 Erken erişim aşamasındayız, şu an için tamamen ücretsiz.
+      </p>
 
       {!pushSubscribed && (
         <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "-12px 0 12px" }}>
