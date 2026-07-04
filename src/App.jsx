@@ -1329,7 +1329,7 @@ function EntryChoiceModal({ onChooseCompany, onChooseCustomer, onClose }) {
             onClick={onChooseCompany}
             style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "13px", fontSize: 15, fontWeight: 600, cursor: "pointer" }}
           >
-            Şirket olarak
+            İşletme olarak
           </button>
           <button
             onClick={onChooseCustomer}
