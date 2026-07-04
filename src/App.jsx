@@ -2071,7 +2071,6 @@ export default function App() {
       const customer = customers.find((c) => c.id === ticket.customerId);
       const company = companySettings?.companyName || "Binerly";
       const statusLabel = STATUSES.find((s) => s.id === ticket.status)?.label || ticket.status;
-      notify(`[TEŞHİS] müşteri=${customer?.name || "yok"} e-posta=${customer?.email || "yok"} ayar=${String(companySettings?.customerNotificationsEnabled)}`, "success");
       notifyCustomerByEmail(
         customer,
         `Destek talebiniz güncellendi — ${company}`,
