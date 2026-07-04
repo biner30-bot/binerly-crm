@@ -7,6 +7,7 @@ import Support, {
   rowToKbArticle,
   getSlaStatus,
   TERMINAL_STATUSES,
+  STATUSES,
 } from "./Support";
 import { ImportModal } from "./ImportExport";
 
@@ -203,6 +204,7 @@ function rowToCompanySettings(r) {
     email: r.email || "",
     taxNumber: r.tax_number || "",
     logoUrl: r.logo_url || "",
+    customerNotificationsEnabled: r.customer_notifications_enabled !== false,
   };
 }
 
@@ -286,6 +288,7 @@ function CompanySettingsForm({ initial, onSave, onCancel }) {
   const [email, setEmail] = useState(initial?.email || "");
   const [taxNumber, setTaxNumber] = useState(initial?.taxNumber || "");
   const [logoUrl, setLogoUrl] = useState(initial?.logoUrl || "");
+  const [customerNotificationsEnabled, setCustomerNotificationsEnabled] = useState(initial?.customerNotificationsEnabled !== false);
 
   return (
     <form
@@ -298,6 +301,7 @@ function CompanySettingsForm({ initial, onSave, onCancel }) {
           email: email.trim(),
           taxNumber: taxNumber.trim(),
           logoUrl: logoUrl.trim(),
+          customerNotificationsEnabled,
         });
       }}
     >
@@ -327,6 +331,19 @@ function CompanySettingsForm({ initial, onSave, onCancel }) {
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Logo URL</label>
         <input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://.../logo.png" style={{ width: "100%" }} />
         <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Dosya yükleme yok — bir yerde barındırılan logonuzun bağlantısını yapıştırın.</p>
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={customerNotificationsEnabled}
+            onChange={(e) => setCustomerNotificationsEnabled(e.target.checked)}
+          />
+          Müşterilere önemli gelişmelerde otomatik e-posta gönder
+        </label>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0 26px" }}>
+          Teklif hazır olduğunda, destek talebi durumu değiştiğinde, yeni bir yanıt yazıldığında ve ödeme alındığında müşteriye otomatik bilgilendirme e-postası gider.
+        </p>
       </div>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button type="button" onClick={onCancel}>Vazgeç</button>
@@ -1774,6 +1791,29 @@ export default function App() {
     if (error) console.error("audit log yazılamadı:", error.message);
   };
 
+  // Müşteriye önemli gelişmelerde otomatik bilgilendirme e-postası — asıl işlemi
+  // asla engellemez, şirket ayarlarından kapatılabilir, e-postası olmayan
+  // müşteriler için sessizce atlanır.
+  const notifyCustomerByEmail = async (customer, subject, message) => {
+    if (companySettings?.customerNotificationsEnabled === false) return;
+    if (!customer?.email) return;
+    try {
+      await fetch("/api/send-campaign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipients: [customer.email],
+          subject,
+          message,
+          replyTo: session.user.email,
+          companyName: companySettings?.companyName,
+        }),
+      });
+    } catch {
+      // yoksay — bildirim maili başarısız olsa da asıl işlemi bozmaz
+    }
+  };
+
   const addActivity = async ({ customerId, type, content }) => {
     const row = {
       id: uid(),
@@ -1862,6 +1902,7 @@ export default function App() {
 
   const upsertDeal = async (d) => {
     const isNew = !deals.some((x) => x.id === d.id);
+    const previousStage = deals.find((x) => x.id === d.id)?.stage;
     const row = {
       id: d.id,
       user_id: activeTeamId,
@@ -1885,6 +1926,15 @@ export default function App() {
     setShowDealForm(false);
     setEditingDeal(null);
     logAction("deals", deal.id, isNew ? "created" : "updated", `${deal.title} ${isNew ? "oluşturuldu" : "güncellendi"}`);
+    if (deal.stage === "teklif" && previousStage !== "teklif") {
+      const customer = customers.find((c) => c.id === deal.customerId);
+      const company = companySettings?.companyName || "Binerly";
+      notifyCustomerByEmail(
+        customer,
+        `Teklifiniz hazır — ${company}`,
+        `Merhaba,\n\n${company} sizin için bir teklif hazırladı: "${deal.title}" — ${formatTL(deal.value)}\n\nDetaylar için bizimle iletişime geçebilir veya müşteri portalımızdan tekliflerinizi görüntüleyebilirsiniz: https://binerly.com/portal\n\n${company}`
+      );
+    }
   };
 
   const deleteDeal = async (id) => {
@@ -1915,6 +1965,14 @@ export default function App() {
     const payment = rowToPayment(data);
     setPayments((prev) => [...prev, payment]);
     logAction("payments", payment.id, "created", `${formatTL(payment.amount)} tahsilat eklendi`);
+    const deal = deals.find((d) => d.id === payment.dealId);
+    const customer = customers.find((c) => c.id === deal?.customerId);
+    const company = companySettings?.companyName || "Binerly";
+    notifyCustomerByEmail(
+      customer,
+      `Ödemeniz alındı — ${company}`,
+      `Merhaba,\n\n"${deal?.title || "Teklifiniz"}" için ${formatTL(payment.amount)} tutarındaki ödemeniz alınmıştır. Teşekkür ederiz.\n\n${company}`
+    );
   };
 
   const deletePayment = async (id) => {
@@ -1965,6 +2023,15 @@ export default function App() {
     } else {
       const stageLabel = STAGES.find((s) => s.id === stage)?.label || stage;
       logAction("deals", id, "updated", `${current?.title || "Teklif"} aşaması "${stageLabel}" olarak güncellendi`);
+      if (stage === "teklif" && previousStage !== "teklif") {
+        const customer = customers.find((c) => c.id === current?.customerId);
+        const company = companySettings?.companyName || "Binerly";
+        notifyCustomerByEmail(
+          customer,
+          `Teklifiniz hazır — ${company}`,
+          `Merhaba,\n\n${company} sizin için bir teklif hazırladı: "${current?.title || ""}" — ${formatTL(current?.value || 0)}\n\nDetaylar için bizimle iletişime geçebilir veya müşteri portalımızdan tekliflerinizi görüntüleyebilirsiniz: https://binerly.com/portal\n\n${company}`
+        );
+      }
     }
   };
 
@@ -2020,6 +2087,19 @@ export default function App() {
       setTickets((prev) => prev.map((t) => (t.id === id ? previous : t)));
     } else {
       logAction("tickets", id, "updated", `${previous?.subject || "Talep"} durumu güncellendi`);
+      // Sadece nihai durumlarda (Çözüldü/Kapatıldı) mail gider — her ara durum
+      // geçişinde e-posta atmak hem müşteriyi gereksiz meşgul eder hem de
+      // Resend'in günlük gönderim limitini gereksiz yere tüketir.
+      if (TERMINAL_STATUSES.includes(status)) {
+        const customer = customers.find((c) => c.id === previous?.customerId);
+        const company = companySettings?.companyName || "Binerly";
+        const statusLabel = STATUSES.find((s) => s.id === status)?.label || status;
+        notifyCustomerByEmail(
+          customer,
+          `Destek talebiniz güncellendi — ${company}`,
+          `Merhaba,\n\n"${previous?.subject || "Destek talebiniz"}" konulu talebinizin durumu "${statusLabel}" olarak güncellendi.\n\nDetaylar için müşteri portalımızdan giriş yapabilirsiniz: https://binerly.com/portal\n\n${company}`
+        );
+      }
     }
   };
 
@@ -2040,6 +2120,17 @@ export default function App() {
     // sadece talebi açıp bakmak değil, gerçekten yanıt vermek bildirimi temizler.
     if (!isInternal) {
       await markMessagesRead(ticketId, direction === "giden" ? "gelen" : "giden");
+    }
+    // Dahili notlar müşteriye asla gitmez — sadece şirketten müşteriye giden gerçek yanıtlar.
+    if (direction === "giden" && !isInternal) {
+      const ticket = tickets.find((t) => t.id === ticketId);
+      const customer = customers.find((c) => c.id === ticket?.customerId);
+      const company = companySettings?.companyName || "Binerly";
+      notifyCustomerByEmail(
+        customer,
+        `Yeni bir yanıtınız var — ${company}`,
+        `Merhaba,\n\n"${ticket?.subject || "Destek talebiniz"}" konulu talebinize yeni bir yanıt geldi:\n\n"${content.slice(0, 300)}"\n\nTam görüşme için müşteri portalımıza giriş yapabilirsiniz: https://binerly.com/portal\n\n${company}`
+      );
     }
   };
 
@@ -2200,6 +2291,7 @@ export default function App() {
       email: s.email,
       tax_number: s.taxNumber,
       logo_url: s.logoUrl,
+      customer_notifications_enabled: s.customerNotificationsEnabled !== false,
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase.from("company_settings").upsert(row).select().single();

@@ -11,7 +11,7 @@ const PRIORITIES = [
 
 const PRIORITY_TONE = { acil: "danger", yuksek: "warning", orta: "accent", dusuk: "default" };
 
-const STATUSES = [
+export const STATUSES = [
   { id: "acik", label: "Açık" },
   { id: "islemde", label: "İşlemde" },
   { id: "musteri_bekleniyor", label: "Müşteri yanıtı bekleniyor" },
