@@ -263,35 +263,10 @@ function TicketList({
   onOpenTicket,
   onEditTicket,
   onDeleteTicket,
-  onOpenImport,
 }) {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const customerById = (id) => customers.find((c) => c.id === id);
-  const query = searchQuery.trim().toLowerCase();
-  const filtered = tickets.filter((t) => {
-    if (statusFilter !== "all" && t.status !== statusFilter) return false;
-    if (priorityFilter !== "all" && t.priority !== priorityFilter) return false;
-    if (!matchesDateRange(t.createdAt, fromDate, toDate)) return false;
-    if (slaFilter !== "all") {
-      const sla = getSlaStatus(t);
-      if (slaFilter === "gecikti" && !sla.isBreached) return false;
-      if (slaFilter === "yaklasiyor" && !sla.isApproaching) return false;
-      if (slaFilter === "zamaninda" && (sla.isBreached || sla.isApproaching)) return false;
-    }
-    if (!query) return true;
-    return t.subject.toLowerCase().includes(query) || (customerById(t.customerId)?.name || "").toLowerCase().includes(query);
-  });
-
-  const slaRank = { danger: 0, warning: 1, success: 2 };
-  const sorted = [...filtered].sort((a, b) => {
-    const aOpen = !TERMINAL_STATUSES.includes(a.status);
-    const bOpen = !TERMINAL_STATUSES.includes(b.status);
-    if (aOpen !== bOpen) return aOpen ? -1 : 1;
-    const aSla = slaRank[getSlaStatus(a).tone] ?? 3;
-    const bSla = slaRank[getSlaStatus(b).tone] ?? 3;
-    if (aSla !== bSla) return aSla - bSla;
-    return new Date(a.createdAt) - new Date(b.createdAt);
-  });
+  const sorted = tickets;
 
   return (
     <div>
@@ -317,33 +292,6 @@ function TicketList({
           <option value="zamaninda">Zamanında</option>
         </select>
         <DateRangeFilter from={fromDate} to={toDate} onFromChange={onFromDateChange} onToChange={onToDateChange} />
-        <button
-          onClick={() =>
-            downloadCsv(
-              "destek-talepleri.csv",
-              ["Müşteri", "Konu", "Öncelik", "Durum", "Oluşturulma tarihi"],
-              sorted.map((t) => [
-                customerById(t.customerId)?.name || "",
-                t.subject,
-                PRIORITIES.find((p) => p.id === t.priority)?.label || t.priority,
-                STATUSES.find((s) => s.id === t.status)?.label || t.status,
-                t.createdAt ? new Date(t.createdAt).toLocaleDateString("tr-TR") : "",
-              ])
-            )
-          }
-          disabled={sorted.length === 0}
-          style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
-        >
-          <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
-          Dışa aktar
-        </button>
-        <button
-          onClick={onOpenImport}
-          style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
-        >
-          <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
-          İçe aktar
-        </button>
       </div>
       {sorted.length === 0 ? (
         <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Bu filtreye uyan talep yok.</p>
@@ -515,6 +463,8 @@ function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange
 
 function KbList({
   articles,
+  totalCount,
+  categories,
   searchQuery,
   onSearchChange,
   categoryFilter,
@@ -523,21 +473,13 @@ function KbList({
   toDate,
   onFromDateChange,
   onToDateChange,
-  onAdd,
   onEdit,
   onDelete,
   onUseTemplate,
-  onOpenImport,
 }) {
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [showTemplates, setShowTemplates] = useState(articles.length === 0);
-  const categories = [...new Set(articles.map((a) => a.category).filter(Boolean))];
-  const query = searchQuery.trim().toLowerCase();
-  const filtered = articles.filter((a) => {
-    if (categoryFilter !== "all" && a.category !== categoryFilter) return false;
-    if (!matchesDateRange(a.createdAt, fromDate, toDate)) return false;
-    return a.title.toLowerCase().includes(query);
-  });
+  const [showTemplates, setShowTemplates] = useState(totalCount === 0);
+  const filtered = articles;
 
   return (
     <div>
@@ -555,40 +497,13 @@ function KbList({
           </select>
         )}
         <DateRangeFilter from={fromDate} to={toDate} onFromChange={onFromDateChange} onToChange={onToDateChange} />
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            onClick={() =>
-              downloadCsv(
-                "bilgi-bankasi.csv",
-                ["Başlık", "Kategori", "İçerik"],
-                filtered.map((a) => [a.title, a.category, a.content])
-              )
-            }
-            disabled={filtered.length === 0}
-            style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
-          >
-            <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
-            Dışa aktar
-          </button>
-          <button
-            onClick={onOpenImport}
-            style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
-          >
-            <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
-            İçe aktar
-          </button>
-          <button
-            onClick={() => setShowTemplates((v) => !v)}
-            style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
-          >
-            <i className="ti ti-sparkles" style={{ fontSize: 16 }} aria-hidden="true"></i>
-            Örnek şablonlar
-          </button>
-          <button onClick={onAdd} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}>
-            <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
-            Makale ekle
-          </button>
-        </div>
+        <button
+          onClick={() => setShowTemplates((v) => !v)}
+          style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+        >
+          <i className="ti ti-sparkles" style={{ fontSize: 16 }} aria-hidden="true"></i>
+          Örnek şablonlar
+        </button>
       </div>
 
       {showTemplates && (
@@ -612,7 +527,7 @@ function KbList({
 
       {filtered.length === 0 ? (
         <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
-          {articles.length === 0 ? "Henüz makale eklenmedi." : "Filtreye uyan makale yok."}
+          {totalCount === 0 ? "Henüz makale eklenmedi." : "Filtreye uyan makale yok."}
         </p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -753,6 +668,39 @@ export default function Support({
     return acc;
   }, {});
 
+  const ticketQuery = ticketSearch.trim().toLowerCase();
+  const filteredTickets = tickets.filter((t) => {
+    if (ticketStatusFilter !== "all" && t.status !== ticketStatusFilter) return false;
+    if (ticketPriorityFilter !== "all" && t.priority !== ticketPriorityFilter) return false;
+    if (!matchesDateRange(t.createdAt, ticketFromDate, ticketToDate)) return false;
+    if (ticketSlaFilter !== "all") {
+      const sla = getSlaStatus(t);
+      if (ticketSlaFilter === "gecikti" && !sla.isBreached) return false;
+      if (ticketSlaFilter === "yaklasiyor" && !sla.isApproaching) return false;
+      if (ticketSlaFilter === "zamaninda" && (sla.isBreached || sla.isApproaching)) return false;
+    }
+    if (!ticketQuery) return true;
+    return t.subject.toLowerCase().includes(ticketQuery) || (customerById(t.customerId)?.name || "").toLowerCase().includes(ticketQuery);
+  });
+  const ticketSlaRank = { danger: 0, warning: 1, success: 2 };
+  const sortedTickets = [...filteredTickets].sort((a, b) => {
+    const aOpen = !TERMINAL_STATUSES.includes(a.status);
+    const bOpen = !TERMINAL_STATUSES.includes(b.status);
+    if (aOpen !== bOpen) return aOpen ? -1 : 1;
+    const aSla = ticketSlaRank[getSlaStatus(a).tone] ?? 3;
+    const bSla = ticketSlaRank[getSlaStatus(b).tone] ?? 3;
+    if (aSla !== bSla) return aSla - bSla;
+    return new Date(a.createdAt) - new Date(b.createdAt);
+  });
+
+  const kbCategories = [...new Set(kbArticles.map((a) => a.category).filter(Boolean))];
+  const kbQuery = kbSearch.trim().toLowerCase();
+  const filteredKbArticles = kbArticles.filter((a) => {
+    if (kbCategoryFilter !== "all" && a.category !== kbCategoryFilter) return false;
+    if (!matchesDateRange(a.createdAt, kbFromDate, kbToDate)) return false;
+    return a.title.toLowerCase().includes(kbQuery);
+  });
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
@@ -772,16 +720,78 @@ export default function Support({
             Bilgi Bankası
           </button>
         </div>
-        {supportView === "talepler" && (
-          <button
-            onClick={() => { setEditingTicket(null); setShowTicketForm(true); }}
-            disabled={customers.length === 0}
-            style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
-          >
-            <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
-            Yeni talep
-          </button>
-        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          {supportView === "talepler" ? (
+            <>
+              <button
+                onClick={() =>
+                  downloadCsv(
+                    "destek-talepleri.csv",
+                    ["Müşteri", "Konu", "Öncelik", "Durum", "Oluşturulma tarihi"],
+                    sortedTickets.map((t) => [
+                      customerById(t.customerId)?.name || "",
+                      t.subject,
+                      PRIORITIES.find((p) => p.id === t.priority)?.label || t.priority,
+                      STATUSES.find((s) => s.id === t.status)?.label || t.status,
+                      t.createdAt ? new Date(t.createdAt).toLocaleDateString("tr-TR") : "",
+                    ])
+                  )
+                }
+                disabled={sortedTickets.length === 0}
+                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                Dışa aktar
+              </button>
+              <button
+                onClick={() => setShowImportTickets(true)}
+                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                İçe aktar
+              </button>
+              <button
+                onClick={() => { setEditingTicket(null); setShowTicketForm(true); }}
+                disabled={customers.length === 0}
+                style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                Yeni talep
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() =>
+                  downloadCsv(
+                    "bilgi-bankasi.csv",
+                    ["Başlık", "Kategori", "İçerik"],
+                    filteredKbArticles.map((a) => [a.title, a.category, a.content])
+                  )
+                }
+                disabled={filteredKbArticles.length === 0}
+                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                Dışa aktar
+              </button>
+              <button
+                onClick={() => setShowImportKbArticles(true)}
+                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                İçe aktar
+              </button>
+              <button
+                onClick={() => { setEditingKbArticle(null); setShowKbForm(true); }}
+                style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                Makale ekle
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {supportView === "talepler" && customers.length === 0 && (
@@ -790,7 +800,7 @@ export default function Support({
 
       {supportView === "talepler" ? (
         <TicketList
-          tickets={tickets}
+          tickets={sortedTickets}
           customers={customers}
           unreadCountByTicket={unreadCountByTicket}
           statusFilter={ticketStatusFilter}
@@ -808,11 +818,12 @@ export default function Support({
           onOpenTicket={setViewingTicket}
           onEditTicket={(t) => { setEditingTicket(t); setShowTicketForm(true); }}
           onDeleteTicket={onDeleteTicket}
-          onOpenImport={() => setShowImportTickets(true)}
         />
       ) : (
         <KbList
-          articles={kbArticles}
+          articles={filteredKbArticles}
+          totalCount={kbArticles.length}
+          categories={kbCategories}
           searchQuery={kbSearch}
           onSearchChange={setKbSearch}
           categoryFilter={kbCategoryFilter}
@@ -821,11 +832,9 @@ export default function Support({
           toDate={kbToDate}
           onFromDateChange={setKbFromDate}
           onToDateChange={setKbToDate}
-          onAdd={() => { setEditingKbArticle(null); setShowKbForm(true); }}
           onEdit={(a) => { setEditingKbArticle(a); setShowKbForm(true); }}
           onDelete={onDeleteKbArticle}
           onUseTemplate={(t) => { setEditingKbArticle(t); setShowKbForm(true); }}
-          onOpenImport={() => setShowImportKbArticles(true)}
         />
       )}
 

@@ -684,6 +684,7 @@ function CampaignModal({ customers, replyTo, companyName, onClose }) {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState("");
+  const [consentConfirmed, setConsentConfirmed] = useState(false);
 
   const toggle = (id) => {
     setSelected((prev) => {
@@ -696,7 +697,7 @@ function CampaignModal({ customers, replyTo, companyName, onClose }) {
   const send = async (e) => {
     e.preventDefault();
     const recipients = emailCustomers.filter((c) => selected.has(c.id)).map((c) => c.email);
-    if (recipients.length === 0 || !subject.trim() || !message.trim()) return;
+    if (recipients.length === 0 || !subject.trim() || !message.trim() || !consentConfirmed) return;
     setSending(true);
     setResult("");
     try {
@@ -738,10 +739,23 @@ function CampaignModal({ customers, replyTo, companyName, onClose }) {
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Mesaj</label>
           <textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Merhaba, size özel..." style={{ width: "100%", minHeight: 100, resize: "vertical" }} />
         </div>
+        <div style={{ marginBottom: 16, background: "var(--bg-warning)", borderRadius: "var(--radius)", padding: "0.75rem 1rem" }}>
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12.5, color: "var(--text-warning)", cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={consentConfirmed}
+              onChange={(e) => setConsentConfirmed(e.target.checked)}
+              style={{ marginTop: 2 }}
+            />
+            <span>
+              Türkiye'de ticari elektronik ileti (reklam/pazarlama e-postası) göndermek için alıcıdan önceden açık onay alınması ve İYS (İleti Yönetim Sistemi) kurallarına uyulması yasal bir zorunluluktur. Seçtiğim müşterilerden bu izni aldığımı onaylıyorum.
+            </span>
+          </label>
+        </div>
         {result && <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 12 }}>{result}</p>}
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button type="button" onClick={onClose}>Kapat</button>
-          <button type="submit" disabled={sending || selected.size === 0} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+          <button type="submit" disabled={sending || selected.size === 0 || !consentConfirmed} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
             {sending ? "Gönderiliyor…" : "Gönder"}
           </button>
         </div>
@@ -2835,7 +2849,54 @@ export default function App() {
 
       {tab === "musteri" && (
         <div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
+            <button
+              onClick={() =>
+                downloadCsv(
+                  "musteriler.csv",
+                  ["Firma adı", "Sektör", "Bölge", "Telefon", "E-posta", "Not", "Son temas"],
+                  filteredCustomers.map((c) => [
+                    c.name,
+                    c.sector,
+                    c.region,
+                    c.phone,
+                    c.email,
+                    c.notes,
+                    c.lastContact ? new Date(c.lastContact).toLocaleDateString("tr-TR") : "",
+                  ])
+                )
+              }
+              disabled={filteredCustomers.length === 0}
+              style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+            >
+              <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
+              Dışa aktar
+            </button>
+            <button
+              onClick={() => setShowImportCustomers(true)}
+              style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+            >
+              <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
+              İçe aktar
+            </button>
+            <button
+              onClick={() => setShowCampaignModal(true)}
+              disabled={customers.filter((c) => c.email).length === 0}
+              style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+            >
+              <i className="ti ti-mail-forward" style={{ fontSize: 16 }} aria-hidden="true"></i>
+              Kampanya gönder
+            </button>
+            <button
+              onClick={() => { setEditingCustomer(null); setShowCustomerForm(true); }}
+              style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
+            >
+              <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
+              Müşteri ekle
+            </button>
+          </div>
+
+          <div style={{ display: "flex", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
             <input
               value={customerSearch}
               onChange={(e) => setCustomerSearch(e.target.value)}
@@ -2852,52 +2913,6 @@ export default function App() {
               onFromChange={setCustomerFromDate}
               onToChange={setCustomerToDate}
             />
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={() =>
-                  downloadCsv(
-                    "musteriler.csv",
-                    ["Firma adı", "Sektör", "Bölge", "Telefon", "E-posta", "Not", "Son temas"],
-                    filteredCustomers.map((c) => [
-                      c.name,
-                      c.sector,
-                      c.region,
-                      c.phone,
-                      c.email,
-                      c.notes,
-                      c.lastContact ? new Date(c.lastContact).toLocaleDateString("tr-TR") : "",
-                    ])
-                  )
-                }
-                disabled={filteredCustomers.length === 0}
-                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
-              >
-                <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                Dışa aktar
-              </button>
-              <button
-                onClick={() => setShowImportCustomers(true)}
-                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
-              >
-                <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                İçe aktar
-              </button>
-              <button
-                onClick={() => setShowCampaignModal(true)}
-                disabled={customers.filter((c) => c.email).length === 0}
-                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
-              >
-                <i className="ti ti-mail-forward" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                Kampanya gönder
-              </button>
-              <button
-                onClick={() => { setEditingCustomer(null); setShowCustomerForm(true); }}
-                style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
-              >
-                <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                Müşteri ekle
-              </button>
-            </div>
           </div>
 
           {filteredCustomers.length === 0 ? (
@@ -2988,24 +3003,6 @@ export default function App() {
                 Kanban
               </button>
             </div>
-            <input
-              value={dealSearch}
-              onChange={(e) => setDealSearch(e.target.value)}
-              placeholder="Teklif ara (başlık, müşteri)..."
-              style={{ flex: 1, minWidth: 160 }}
-            />
-            <select value={dealStageFilter} onChange={(e) => setDealStageFilter(e.target.value)} style={{ fontSize: 13 }}>
-              <option value="all">Tüm aşamalar</option>
-              <option value="acik">Açık teklifler</option>
-              {STAGES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-            </select>
-            <select value={dealPaymentFilter} onChange={(e) => setDealPaymentFilter(e.target.value)} style={{ fontSize: 13 }}>
-              <option value="all">Tüm ödeme durumları</option>
-              <option value="odendi">Ödendi</option>
-              <option value="kismi">Kısmi ödeme</option>
-              <option value="odenmedi">Ödenmedi</option>
-            </select>
-            <DateRangeFilter from={dealFromDate} to={dealToDate} onFromChange={setDealFromDate} onToChange={setDealToDate} />
             <div style={{ display: "flex", gap: 8 }}>
               <button
                 onClick={() =>
@@ -3045,6 +3042,27 @@ export default function App() {
                 Teklif ekle
               </button>
             </div>
+          </div>
+
+          <div style={{ display: "flex", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
+            <input
+              value={dealSearch}
+              onChange={(e) => setDealSearch(e.target.value)}
+              placeholder="Teklif ara (başlık, müşteri)..."
+              style={{ flex: 1, minWidth: 160 }}
+            />
+            <select value={dealStageFilter} onChange={(e) => setDealStageFilter(e.target.value)} style={{ fontSize: 13 }}>
+              <option value="all">Tüm aşamalar</option>
+              <option value="acik">Açık teklifler</option>
+              {STAGES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+            </select>
+            <select value={dealPaymentFilter} onChange={(e) => setDealPaymentFilter(e.target.value)} style={{ fontSize: 13 }}>
+              <option value="all">Tüm ödeme durumları</option>
+              <option value="odendi">Ödendi</option>
+              <option value="kismi">Kısmi ödeme</option>
+              <option value="odenmedi">Ödenmedi</option>
+            </select>
+            <DateRangeFilter from={dealFromDate} to={dealToDate} onFromChange={setDealFromDate} onToChange={setDealToDate} />
           </div>
 
           {customers.length === 0 && (
