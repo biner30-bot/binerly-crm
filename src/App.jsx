@@ -1903,9 +1903,11 @@ export default function App() {
       .eq("id", id);
     if (error) { notify(`Müşteri silinemedi: ${error.message}`); return; }
 
+    const ticketIds = customerTickets.map((t) => t.id);
     setCustomers((prev) => prev.filter((c) => c.id !== id));
     setDeals((prev) => prev.filter((d) => d.customerId !== id));
     setTickets((prev) => prev.filter((t) => t.customerId !== id));
+    setTicketMessages((prev) => prev.filter((m) => !ticketIds.includes(m.ticketId)));
     setPayments((prev) => prev.filter((p) => !dealIds.includes(p.dealId)));
 
     logAction("customers", id, "deleted", `${customer?.name || "Müşteri"} çöp kutusuna taşındı`);
@@ -2392,7 +2394,10 @@ export default function App() {
     ...new Set(ticketMessages.filter((m) => m.direction === "gelen" && !m.readAt).map((m) => m.ticketId)),
   ];
   const ticketsWithUnread = tickets.filter((t) => unreadMessageTicketIds.includes(t.id));
-  const unreadMessagesCount = unreadMessageTicketIds.length;
+  // unreadMessageTicketIds ham mesaj kayıtlarından geliyor — silinmiş/çöpe taşınmış
+  // bir talebin mesajları yerel state'te öylece kalabilir (ticket_messages'ın kendi
+  // deleted_at'i yok). Rozet sayısı bu yüzden hâlâ var olan taleplerle sınırlanmalı.
+  const unreadMessagesCount = ticketsWithUnread.length;
 
   const todayEnd = new Date();
   todayEnd.setHours(23, 59, 59, 999);
