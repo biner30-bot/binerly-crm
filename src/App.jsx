@@ -2044,6 +2044,7 @@ export default function App() {
 
   const upsertTicket = async (t) => {
     const isNew = !tickets.some((x) => x.id === t.id);
+    const previousStatus = tickets.find((x) => x.id === t.id)?.status;
     const row = {
       id: t.id,
       user_id: activeTeamId,
@@ -2062,6 +2063,21 @@ export default function App() {
       prev.some((x) => x.id === ticket.id) ? prev.map((x) => (x.id === ticket.id ? ticket : x)) : [...prev, ticket]
     );
     logAction("tickets", ticket.id, isNew ? "created" : "updated", `${ticket.subject} ${isNew ? "oluşturuldu" : "güncellendi"}`);
+    // Talep düzenleme formundan durumu Çözüldü/Kapatıldı'ya getirmek de aynı
+    // bildirim mailini tetiklemeli — changeTicketStatus (talep detayındaki
+    // dropdown) ile aynı davranış, çünkü kullanıcı durumu iki farklı yerden
+    // değiştirebiliyor.
+    if (TERMINAL_STATUSES.includes(ticket.status) && previousStatus !== ticket.status) {
+      const customer = customers.find((c) => c.id === ticket.customerId);
+      const company = companySettings?.companyName || "Binerly";
+      const statusLabel = STATUSES.find((s) => s.id === ticket.status)?.label || ticket.status;
+      notify(`[TEŞHİS] müşteri=${customer?.name || "yok"} e-posta=${customer?.email || "yok"} ayar=${String(companySettings?.customerNotificationsEnabled)}`, "success");
+      notifyCustomerByEmail(
+        customer,
+        `Destek talebiniz güncellendi — ${company}`,
+        `Merhaba,\n\n"${ticket.subject}" konulu talebinizin durumu "${statusLabel}" olarak güncellendi.\n\nDetaylar için müşteri portalımızdan giriş yapabilirsiniz: https://binerly.com/portal\n\n${company}`
+      );
+    }
   };
 
   const deleteTicket = async (id) => {
