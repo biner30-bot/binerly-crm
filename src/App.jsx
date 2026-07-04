@@ -8,6 +8,7 @@ import Support, {
   getSlaStatus,
   TERMINAL_STATUSES,
 } from "./Support";
+import { ImportModal } from "./ImportExport";
 
 const STAGES = [
   { id: "ilk_gorusme", label: "İlk görüşme" },
@@ -34,6 +35,12 @@ function leadScore(lastContact) {
   if (diff <= 30) return { label: "Ilık", tone: "warning" };
   return { label: "Soğuk", tone: "default" };
 }
+
+const LEAD_INFO_TEXT =
+  "Son temas tarihine göre müşterinin ne kadar güncel takip edildiğini gösterir:\n" +
+  "🟢 Sıcak — son 7 gün içinde temas edildi\n" +
+  "🟠 Ilık — son 8-30 gün içinde temas edildi\n" +
+  "⚪ Soğuk — 30 günden uzun süredir temas yok (veya hiç temas edilmedi)";
 
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -76,6 +83,23 @@ function rowToDeal(r) {
 }
 
 const LOST_REASONS = ["Yüksek fiyat", "Rakip tercih edildi", "Bütçe yok", "Zamanlama uymadı", "Diğer"];
+
+const CUSTOMER_IMPORT_FIELDS = [
+  { key: "name", label: "Ad / Firma adı", required: true },
+  { key: "sector", label: "Sektör" },
+  { key: "region", label: "Bölge / Şehir" },
+  { key: "phone", label: "Telefon" },
+  { key: "email", label: "E-posta" },
+  { key: "notes", label: "Not", hideInPreview: true },
+];
+
+const DEAL_IMPORT_FIELDS = [
+  { key: "customerName", label: "Müşteri adı", required: true, resolveCustomer: true },
+  { key: "title", label: "Başlık", required: true },
+  { key: "value", label: "Tutar", type: "number" },
+  { key: "cost", label: "Gider", type: "number" },
+  { key: "stage", label: "Aşama", type: "enum", enumOptions: STAGES, enumDefault: "ilk_gorusme" },
+];
 
 const PANO_RANGES = [
   { id: "bu_ay", label: "Bu ay" },
@@ -1569,6 +1593,10 @@ export default function App() {
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [showAppSettings, setShowAppSettings] = useState(false);
   const [showTrashHistory, setShowTrashHistory] = useState(false);
+  const [showImportCustomers, setShowImportCustomers] = useState(false);
+  const [showImportDeals, setShowImportDeals] = useState(false);
+  const [showImportTickets, setShowImportTickets] = useState(false);
+  const [showImportKbArticles, setShowImportKbArticles] = useState(false);
   const [showPasswordRecovery, setShowPasswordRecovery] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
@@ -1576,7 +1604,7 @@ export default function App() {
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [editingDeal, setEditingDeal] = useState(null);
   const [viewingCustomer, setViewingCustomer] = useState(null);
-  const [dealView, setDealView] = useState("kanban");
+  const [dealView, setDealView] = useState("list");
   const [panoRange, setPanoRange] = useState("tum_zamanlar");
   const [dragDealId, setDragDealId] = useState(null);
   const [showCampaignModal, setShowCampaignModal] = useState(false);
@@ -2087,6 +2115,80 @@ export default function App() {
     }
     if (anyError) notify(`Geri yükleme sırasında hata: ${anyError.message}`);
     else notify("Kayıtlar geri yüklendi.", "success");
+  };
+
+  const IMPORT_CHUNK_SIZE = 200;
+
+  const bulkInsertChunked = async (table, rows, mapFn, setter, onProgress) => {
+    let insertedCount = 0;
+    const errors = [];
+    for (let i = 0; i < rows.length; i += IMPORT_CHUNK_SIZE) {
+      const chunk = rows.slice(i, i + IMPORT_CHUNK_SIZE);
+      const { data, error } = await supabase.from(table).insert(chunk).select();
+      if (error) {
+        errors.push(error.message);
+      } else {
+        const inserted = (data || []).map(mapFn);
+        setter((prev) => [...prev, ...inserted]);
+        insertedCount += inserted.length;
+      }
+      onProgress?.(Math.min(i + IMPORT_CHUNK_SIZE, rows.length));
+    }
+    return { insertedCount, errors };
+  };
+
+  const bulkImportCustomers = async (records, onProgress) => {
+    const now = new Date().toISOString();
+    const rows = records.map((r) => ({
+      id: uid(), user_id: activeTeamId, name: r.name, sector: r.sector || "",
+      region: r.region || "", phone: r.phone || "", email: r.email || "",
+      notes: r.notes || "", last_contact: now, created_at: now,
+    }));
+    const outcome = await bulkInsertChunked("customers", rows, rowToCustomer, setCustomers, onProgress);
+    if (outcome.insertedCount > 0) logAction("customers", uid(), "created", `${outcome.insertedCount} müşteri içe aktarıldı`);
+    return outcome;
+  };
+
+  const bulkImportDeals = async (records, onProgress) => {
+    const now = new Date().toISOString();
+    const rows = records.map((r) => {
+      const isClosingStage = r.stage === "kazanildi" || r.stage === "kaybedildi";
+      return {
+        id: uid(), user_id: activeTeamId, customer_id: r.customerId, title: r.title,
+        value: r.value || 0, cost: r.cost || 0, stage: r.stage || "ilk_gorusme",
+        reminder: "", reminder_date: null, lost_reason: "",
+        created_at: now, closed_at: isClosingStage ? now : null,
+      };
+    });
+    const outcome = await bulkInsertChunked("deals", rows, rowToDeal, setDeals, onProgress);
+    if (outcome.insertedCount > 0) logAction("deals", uid(), "created", `${outcome.insertedCount} teklif içe aktarıldı`);
+    return outcome;
+  };
+
+  const bulkImportTickets = async (records, onProgress) => {
+    const now = new Date().toISOString();
+    const rows = records.map((r) => {
+      const isTerminal = TERMINAL_STATUSES.includes(r.status);
+      return {
+        id: uid(), user_id: activeTeamId, customer_id: r.customerId, subject: r.subject,
+        description: r.description || "", priority: r.priority || "orta", status: r.status || "acik",
+        resolved_at: isTerminal ? now : null, created_at: now,
+      };
+    });
+    const outcome = await bulkInsertChunked("tickets", rows, rowToTicket, setTickets, onProgress);
+    if (outcome.insertedCount > 0) logAction("tickets", uid(), "created", `${outcome.insertedCount} destek talebi içe aktarıldı`);
+    return outcome;
+  };
+
+  const bulkImportKbArticles = async (records, onProgress) => {
+    const now = new Date().toISOString();
+    const rows = records.map((r) => ({
+      id: uid(), user_id: activeTeamId, title: r.title, category: r.category || "",
+      content: r.content, created_at: now, updated_at: now,
+    }));
+    const outcome = await bulkInsertChunked("kb_articles", rows, rowToKbArticle, setKbArticles, onProgress);
+    if (outcome.insertedCount > 0) logAction("kb_articles", uid(), "created", `${outcome.insertedCount} makale içe aktarıldı`);
+    return outcome;
   };
 
   const upsertCompanySettings = async (s) => {
@@ -2666,6 +2768,13 @@ export default function App() {
                 Dışa aktar
               </button>
               <button
+                onClick={() => setShowImportCustomers(true)}
+                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                İçe aktar
+              </button>
+              <button
                 onClick={() => setShowCampaignModal(true)}
                 disabled={customers.filter((c) => c.email).length === 0}
                 style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
@@ -2688,46 +2797,66 @@ export default function App() {
               {customers.length === 0 ? "Henüz müşteri eklenmedi." : "Aramayla eşleşen müşteri yok."}
             </p>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {filteredCustomers.map((c) => (
-                <div
-                  key={c.id}
-                  style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}
-                >
-                  <div onClick={() => setViewingCustomer(c)} style={{ flex: 1, minWidth: 160, cursor: "pointer" }}>
-                    <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{c.name}</p>
-                    <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
-                      {c.sector} {c.region ? `· ${c.region}` : ""} {c.phone ? `· ${c.phone}` : ""}
-                    </p>
-                  </div>
-                  <Badge tone={leadScore(c.lastContact).tone}>{leadScore(c.lastContact).label}</Badge>
-                  <Badge tone={daysAgo(c.lastContact) === "Bugün" ? "success" : "default"}>
-                    {daysAgo(c.lastContact) || "Temas yok"}
-                  </Badge>
-                  {c.portalUserId && <Badge tone="accent">Portal erişimi var</Badge>}
-                  {c.phone && (
-                    <a
-                      href={`https://wa.me/${toWhatsAppNumber(c.phone)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title="WhatsApp'tan yaz"
-                      style={{ width: 32, height: 32, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", background: "var(--surface-1)", textDecoration: "none" }}
-                    >
-                      <WhatsAppIcon />
-                    </a>
-                  )}
-                  <button onClick={() => setViewingCustomer(c)} title="Detay ve iletişim geçmişi" style={{ width: 32, height: 32, padding: 0 }}>
-                    <i className="ti ti-history" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                  </button>
-                  <button onClick={() => { setEditingCustomer(c); setShowCustomerForm(true); }} style={{ width: 32, height: 32, padding: 0 }}>
-                    <i className="ti ti-edit" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                  </button>
-                  <button onClick={() => setConfirmDeleteCustomer(c)} style={{ width: 32, height: 32, padding: 0 }}>
-                    <i className="ti ti-trash" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                  </button>
-                </div>
-              ))}
-            </div>
+            <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 8px" }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>Müşteri</th>
+                  <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>İlgi durumu <InfoTip text={LEAD_INFO_TEXT} /></span>
+                  </th>
+                  <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Son temas</th>
+                  <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Portal</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredCustomers.map((c) => (
+                  <tr key={c.id} style={{ background: "var(--surface-1)" }}>
+                    <td onClick={() => setViewingCustomer(c)} style={{ padding: "10px 12px", borderRadius: "var(--radius) 0 0 var(--radius)", cursor: "pointer" }}>
+                      <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{c.name}</p>
+                      <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
+                        {c.sector} {c.region ? `· ${c.region}` : ""} {c.phone ? `· ${c.phone}` : ""}
+                      </p>
+                    </td>
+                    <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                      <Badge tone={leadScore(c.lastContact).tone}>{leadScore(c.lastContact).label}</Badge>
+                    </td>
+                    <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                      <Badge tone={daysAgo(c.lastContact) === "Bugün" ? "success" : "default"}>
+                        {daysAgo(c.lastContact) || "Temas yok"}
+                      </Badge>
+                    </td>
+                    <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                      {c.portalUserId ? <Badge tone="accent">Var</Badge> : <span style={{ fontSize: 12, color: "var(--text-muted)" }}>—</span>}
+                    </td>
+                    <td style={{ padding: "10px 12px", borderRadius: "0 var(--radius) var(--radius) 0" }}>
+                      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                        {c.phone && (
+                          <a
+                            href={`https://wa.me/${toWhatsAppNumber(c.phone)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="WhatsApp'tan yaz"
+                            style={{ width: 32, height: 32, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", background: "var(--surface-1)", textDecoration: "none" }}
+                          >
+                            <WhatsAppIcon />
+                          </a>
+                        )}
+                        <button onClick={() => setViewingCustomer(c)} title="Detay ve iletişim geçmişi" style={{ width: 32, height: 32, padding: 0 }}>
+                          <i className="ti ti-history" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                        </button>
+                        <button onClick={() => { setEditingCustomer(c); setShowCustomerForm(true); }} style={{ width: 32, height: 32, padding: 0 }}>
+                          <i className="ti ti-edit" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                        </button>
+                        <button onClick={() => setConfirmDeleteCustomer(c)} style={{ width: 32, height: 32, padding: 0 }}>
+                          <i className="ti ti-trash" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       )}
@@ -2737,18 +2866,18 @@ export default function App() {
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
             <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3 }}>
               <button
-                onClick={() => setDealView("kanban")}
-                style={{ border: "none", background: dealView === "kanban" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
-              >
-                <i className="ti ti-layout-kanban" style={{ fontSize: 15 }} aria-hidden="true"></i>
-                Kanban
-              </button>
-              <button
                 onClick={() => setDealView("list")}
                 style={{ border: "none", background: dealView === "list" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
               >
                 <i className="ti ti-list" style={{ fontSize: 15 }} aria-hidden="true"></i>
                 Liste
+              </button>
+              <button
+                onClick={() => setDealView("kanban")}
+                style={{ border: "none", background: dealView === "kanban" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+              >
+                <i className="ti ti-layout-kanban" style={{ fontSize: 15 }} aria-hidden="true"></i>
+                Kanban
               </button>
             </div>
             <input
@@ -2769,34 +2898,45 @@ export default function App() {
               <option value="odenmedi">Ödenmedi</option>
             </select>
             <DateRangeFilter from={dealFromDate} to={dealToDate} onFromChange={setDealFromDate} onToChange={setDealToDate} />
-            <button
-              onClick={() =>
-                downloadCsv(
-                  "teklifler.csv",
-                  ["Müşteri", "Başlık", "Tutar", "Aşama", "Hatırlatma notu"],
-                  filteredDeals.map((d) => [
-                    customerById(d.customerId)?.name || "",
-                    d.title,
-                    d.value,
-                    STAGES.find((s) => s.id === d.stage)?.label || d.stage,
-                    d.reminder,
-                  ])
-                )
-              }
-              disabled={filteredDeals.length === 0}
-              style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
-            >
-              <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
-              Dışa aktar
-            </button>
-            <button
-              onClick={() => { setEditingDeal(null); setShowDealForm(true); }}
-              disabled={customers.length === 0}
-              style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
-            >
-              <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
-              Teklif ekle
-            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() =>
+                  downloadCsv(
+                    "teklifler.csv",
+                    ["Müşteri", "Başlık", "Tutar", "Gider", "Aşama", "Hatırlatma notu", "Oluşturulma tarihi"],
+                    filteredDeals.map((d) => [
+                      customerById(d.customerId)?.name || "",
+                      d.title,
+                      d.value,
+                      d.cost,
+                      STAGES.find((s) => s.id === d.stage)?.label || d.stage,
+                      d.reminder,
+                      d.createdAt ? new Date(d.createdAt).toLocaleDateString("tr-TR") : "",
+                    ])
+                  )
+                }
+                disabled={filteredDeals.length === 0}
+                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                Dışa aktar
+              </button>
+              <button
+                onClick={() => setShowImportDeals(true)}
+                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                İçe aktar
+              </button>
+              <button
+                onClick={() => { setEditingDeal(null); setShowDealForm(true); }}
+                disabled={customers.length === 0}
+                style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                Teklif ekle
+              </button>
+            </div>
           </div>
 
           {customers.length === 0 && (
@@ -2871,45 +3011,58 @@ export default function App() {
               })}
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {filteredDeals.map((d) => {
-                const c = customerById(d.customerId);
-                const stageInfo = STAGES.find((s) => s.id === d.stage);
-                const tone = d.stage === "kazanildi" ? "success" : d.stage === "kaybedildi" ? "default" : d.stage === "muzakere" ? "warning" : "accent";
-                return (
-                  <div
-                    key={d.id}
-                    style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}
-                  >
-                    <div style={{ flex: 1, minWidth: 180 }}>
-                      <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>
-                        {c?.name || "Bilinmeyen müşteri"} — {d.title}
-                      </p>
-                      <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
-                        {d.reminder ? `Hatırlatma: ${d.reminder}` : "Hatırlatma yok"}
-                      </p>
-                    </div>
-                    <Badge tone={tone}>{stageInfo?.label}</Badge>
-                    {(() => {
-                      const paid = totalPaidForDeal(d.id);
-                      if (paid <= 0) return null;
-                      const remaining = d.value - paid;
-                      return <Badge tone={remaining <= 0 ? "success" : "warning"}>{remaining <= 0 ? "Ödendi" : "Kısmi ödeme"}</Badge>;
-                    })()}
-                    <span style={{ fontSize: 13, fontWeight: 500, minWidth: 90, textAlign: "right" }}>{formatTL(d.value)}</span>
-                    <button onClick={() => setTeklifDeal(d)} title="Teklif PDF" style={{ width: 32, height: 32, padding: 0 }}>
-                      <i className="ti ti-file-text" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                    </button>
-                    <button onClick={() => { setEditingDeal(d); setShowDealForm(true); }} style={{ width: 32, height: 32, padding: 0 }}>
-                      <i className="ti ti-edit" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                    </button>
-                    <button onClick={() => setConfirmDeleteDeal(d)} style={{ width: 32, height: 32, padding: 0 }}>
-                      <i className="ti ti-trash" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+            <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 8px" }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>Teklif</th>
+                  <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Aşama</th>
+                  <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Ödeme</th>
+                  <th style={{ textAlign: "right", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Tutar</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredDeals.map((d) => {
+                  const c = customerById(d.customerId);
+                  const stageInfo = STAGES.find((s) => s.id === d.stage);
+                  const tone = d.stage === "kazanildi" ? "success" : d.stage === "kaybedildi" ? "default" : d.stage === "muzakere" ? "warning" : "accent";
+                  const paid = totalPaidForDeal(d.id);
+                  const remaining = d.value - paid;
+                  return (
+                    <tr key={d.id} style={{ background: "var(--surface-1)" }}>
+                      <td onClick={() => { setEditingDeal(d); setShowDealForm(true); }} style={{ padding: "10px 12px", borderRadius: "var(--radius) 0 0 var(--radius)", cursor: "pointer" }}>
+                        <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>
+                          {c?.name || "Bilinmeyen müşteri"} — {d.title}
+                        </p>
+                        <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
+                          {d.reminder ? `Hatırlatma: ${d.reminder}` : "Hatırlatma yok"}
+                        </p>
+                      </td>
+                      <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                        <Badge tone={tone}>{stageInfo?.label}</Badge>
+                      </td>
+                      <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                        {paid > 0 ? <Badge tone={remaining <= 0 ? "success" : "warning"}>{remaining <= 0 ? "Ödendi" : "Kısmi ödeme"}</Badge> : <span style={{ fontSize: 12, color: "var(--text-muted)" }}>—</span>}
+                      </td>
+                      <td style={{ padding: "10px 12px", whiteSpace: "nowrap", textAlign: "right", fontSize: 13, fontWeight: 500 }}>{formatTL(d.value)}</td>
+                      <td style={{ padding: "10px 12px", borderRadius: "0 var(--radius) var(--radius) 0" }}>
+                        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                          <button onClick={() => setTeklifDeal(d)} title="Teklif PDF" style={{ width: 32, height: 32, padding: 0 }}>
+                            <i className="ti ti-file-text" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                          </button>
+                          <button onClick={() => { setEditingDeal(d); setShowDealForm(true); }} style={{ width: 32, height: 32, padding: 0 }}>
+                            <i className="ti ti-edit" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                          </button>
+                          <button onClick={() => setConfirmDeleteDeal(d)} style={{ width: 32, height: 32, padding: 0 }}>
+                            <i className="ti ti-trash" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
         </div>
       )}
@@ -2926,6 +3079,8 @@ export default function App() {
           onAddTicketMessage={addTicketMessage}
           onSaveKbArticle={upsertKbArticle}
           onDeleteKbArticle={deleteKbArticle}
+          onBulkImportTickets={bulkImportTickets}
+          onBulkImportKbArticles={bulkImportKbArticles}
           initialViewTicketId={initialViewTicketId}
           onConsumeInitialViewTicket={() => setInitialViewTicketId(null)}
         />
@@ -2972,6 +3127,29 @@ export default function App() {
 
       {showTrashHistory && (
         <TrashHistoryModal notify={notify} onRestore={restoreBatch} onClose={() => setShowTrashHistory(false)} />
+      )}
+
+      {showImportCustomers && (
+        <ImportModal
+          entityType="customers"
+          entityLabel="Müşteriler"
+          fieldDefs={CUSTOMER_IMPORT_FIELDS}
+          allowVcf
+          checkDuplicate={(r) => customers.some((c) => c.name.trim().toLowerCase() === (r.name || "").trim().toLowerCase())}
+          onImport={bulkImportCustomers}
+          onClose={() => setShowImportCustomers(false)}
+        />
+      )}
+
+      {showImportDeals && (
+        <ImportModal
+          entityType="deals"
+          entityLabel="Teklif ve Anlaşmalar"
+          fieldDefs={DEAL_IMPORT_FIELDS}
+          customers={customers}
+          onImport={bulkImportDeals}
+          onClose={() => setShowImportDeals(false)}
+        />
       )}
 
       {teklifDeal && (

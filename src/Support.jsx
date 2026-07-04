@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Badge, Modal, InfoTip, ConfirmDialog, uid, matchesDateRange, DateRangeFilter } from "./shared";
+import { Badge, Modal, InfoTip, ConfirmDialog, uid, matchesDateRange, DateRangeFilter, downloadCsv } from "./shared";
+import { ImportModal } from "./ImportExport";
 
 const PRIORITIES = [
   { id: "acil", label: "Acil", hours: 4 },
@@ -27,6 +28,20 @@ const STATUS_TONE = {
 };
 
 export const TERMINAL_STATUSES = ["cozuldu", "kapatildi"];
+
+const TICKET_IMPORT_FIELDS = [
+  { key: "customerName", label: "Müşteri adı", required: true, resolveCustomer: true },
+  { key: "subject", label: "Konu", required: true },
+  { key: "description", label: "Açıklama", hideInPreview: true },
+  { key: "priority", label: "Öncelik", type: "enum", enumOptions: PRIORITIES, enumDefault: "orta" },
+  { key: "status", label: "Durum", type: "enum", enumOptions: STATUSES, enumDefault: "acik" },
+];
+
+const KB_IMPORT_FIELDS = [
+  { key: "title", label: "Başlık", required: true },
+  { key: "category", label: "Kategori" },
+  { key: "content", label: "İçerik", required: true, hideInPreview: true },
+];
 
 const KB_TEMPLATES = [
   {
@@ -248,6 +263,7 @@ function TicketList({
   onOpenTicket,
   onEditTicket,
   onDeleteTicket,
+  onOpenImport,
 }) {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const customerById = (id) => customers.find((c) => c.id === id);
@@ -301,6 +317,33 @@ function TicketList({
           <option value="zamaninda">Zamanında</option>
         </select>
         <DateRangeFilter from={fromDate} to={toDate} onFromChange={onFromDateChange} onToChange={onToDateChange} />
+        <button
+          onClick={() =>
+            downloadCsv(
+              "destek-talepleri.csv",
+              ["Müşteri", "Konu", "Öncelik", "Durum", "Oluşturulma tarihi"],
+              sorted.map((t) => [
+                customerById(t.customerId)?.name || "",
+                t.subject,
+                PRIORITIES.find((p) => p.id === t.priority)?.label || t.priority,
+                STATUSES.find((s) => s.id === t.status)?.label || t.status,
+                t.createdAt ? new Date(t.createdAt).toLocaleDateString("tr-TR") : "",
+              ])
+            )
+          }
+          disabled={sorted.length === 0}
+          style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+        >
+          <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
+          Dışa aktar
+        </button>
+        <button
+          onClick={onOpenImport}
+          style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+        >
+          <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
+          İçe aktar
+        </button>
       </div>
       {sorted.length === 0 ? (
         <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Bu filtreye uyan talep yok.</p>
@@ -484,6 +527,7 @@ function KbList({
   onEdit,
   onDelete,
   onUseTemplate,
+  onOpenImport,
 }) {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showTemplates, setShowTemplates] = useState(articles.length === 0);
@@ -512,6 +556,27 @@ function KbList({
         )}
         <DateRangeFilter from={fromDate} to={toDate} onFromChange={onFromDateChange} onToChange={onToDateChange} />
         <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() =>
+              downloadCsv(
+                "bilgi-bankasi.csv",
+                ["Başlık", "Kategori", "İçerik"],
+                filtered.map((a) => [a.title, a.category, a.content])
+              )
+            }
+            disabled={filtered.length === 0}
+            style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+          >
+            <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
+            Dışa aktar
+          </button>
+          <button
+            onClick={onOpenImport}
+            style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+          >
+            <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
+            İçe aktar
+          </button>
           <button
             onClick={() => setShowTemplates((v) => !v)}
             style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
@@ -632,10 +697,14 @@ export default function Support({
   onAddTicketMessage,
   onSaveKbArticle,
   onDeleteKbArticle,
+  onBulkImportTickets,
+  onBulkImportKbArticles,
   initialViewTicketId,
   onConsumeInitialViewTicket,
 }) {
   const [supportView, setSupportView] = useState("talepler");
+  const [showImportTickets, setShowImportTickets] = useState(false);
+  const [showImportKbArticles, setShowImportKbArticles] = useState(false);
   const [showTicketForm, setShowTicketForm] = useState(false);
   const [editingTicket, setEditingTicket] = useState(null);
   const [viewingTicket, setViewingTicket] = useState(null);
@@ -720,30 +789,27 @@ export default function Support({
       )}
 
       {supportView === "talepler" ? (
-        tickets.length === 0 ? (
-          <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Henüz destek talebi eklenmedi.</p>
-        ) : (
-          <TicketList
-            tickets={tickets}
-            customers={customers}
-            unreadCountByTicket={unreadCountByTicket}
-            statusFilter={ticketStatusFilter}
-            onFilterChange={setTicketStatusFilter}
-            searchQuery={ticketSearch}
-            onSearchChange={setTicketSearch}
-            priorityFilter={ticketPriorityFilter}
-            onPriorityFilterChange={setTicketPriorityFilter}
-            slaFilter={ticketSlaFilter}
-            onSlaFilterChange={setTicketSlaFilter}
-            fromDate={ticketFromDate}
-            toDate={ticketToDate}
-            onFromDateChange={setTicketFromDate}
-            onToDateChange={setTicketToDate}
-            onOpenTicket={setViewingTicket}
-            onEditTicket={(t) => { setEditingTicket(t); setShowTicketForm(true); }}
-            onDeleteTicket={onDeleteTicket}
-          />
-        )
+        <TicketList
+          tickets={tickets}
+          customers={customers}
+          unreadCountByTicket={unreadCountByTicket}
+          statusFilter={ticketStatusFilter}
+          onFilterChange={setTicketStatusFilter}
+          searchQuery={ticketSearch}
+          onSearchChange={setTicketSearch}
+          priorityFilter={ticketPriorityFilter}
+          onPriorityFilterChange={setTicketPriorityFilter}
+          slaFilter={ticketSlaFilter}
+          onSlaFilterChange={setTicketSlaFilter}
+          fromDate={ticketFromDate}
+          toDate={ticketToDate}
+          onFromDateChange={setTicketFromDate}
+          onToDateChange={setTicketToDate}
+          onOpenTicket={setViewingTicket}
+          onEditTicket={(t) => { setEditingTicket(t); setShowTicketForm(true); }}
+          onDeleteTicket={onDeleteTicket}
+          onOpenImport={() => setShowImportTickets(true)}
+        />
       ) : (
         <KbList
           articles={kbArticles}
@@ -759,6 +825,7 @@ export default function Support({
           onEdit={(a) => { setEditingKbArticle(a); setShowKbForm(true); }}
           onDelete={onDeleteKbArticle}
           onUseTemplate={(t) => { setEditingKbArticle(t); setShowKbForm(true); }}
+          onOpenImport={() => setShowImportKbArticles(true)}
         />
       )}
 
@@ -772,6 +839,27 @@ export default function Support({
         <Modal title={editingKbArticle?.id ? "Makaleyi düzenle" : "Yeni makale"} onClose={() => { setShowKbForm(false); setEditingKbArticle(null); }}>
           <KbArticleForm initial={editingKbArticle} onSave={saveKbArticle} onCancel={() => { setShowKbForm(false); setEditingKbArticle(null); }} />
         </Modal>
+      )}
+
+      {showImportTickets && (
+        <ImportModal
+          entityType="tickets"
+          entityLabel="Destek Talepleri"
+          fieldDefs={TICKET_IMPORT_FIELDS}
+          customers={customers}
+          onImport={onBulkImportTickets}
+          onClose={() => setShowImportTickets(false)}
+        />
+      )}
+
+      {showImportKbArticles && (
+        <ImportModal
+          entityType="kb_articles"
+          entityLabel="Bilgi Bankası"
+          fieldDefs={KB_IMPORT_FIELDS}
+          onImport={onBulkImportKbArticles}
+          onClose={() => setShowImportKbArticles(false)}
+        />
       )}
 
       {currentTicket && (
