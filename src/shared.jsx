@@ -4,6 +4,49 @@ export function uid() {
   return crypto.randomUUID();
 }
 
+// Herhangi bir tarih alanını (ISO string) opsiyonel bir başlangıç/bitiş tarih
+// aralığıyla karşılaştırır — müşteri/teklif arama kutuları, çöp kutusu ve
+// geçmiş ekranı gibi birden fazla listede aynı mantıkla tekrar kullanılır.
+export function matchesDateRange(dateStr, fromDate, toDate) {
+  if (!fromDate && !toDate) return true;
+  if (!dateStr) return false;
+  const t = new Date(dateStr).getTime();
+  if (fromDate && t < new Date(`${fromDate}T00:00:00`).getTime()) return false;
+  if (toDate && t > new Date(`${toDate}T23:59:59.999`).getTime()) return false;
+  return true;
+}
+
+export function DateRangeFilter({ from, to, onFromChange, onToChange }) {
+  return (
+    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+      <input
+        type="date"
+        value={from}
+        onChange={(e) => onFromChange(e.target.value)}
+        title="Başlangıç tarihi"
+        style={{ fontSize: 12, padding: "6px 8px" }}
+      />
+      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>–</span>
+      <input
+        type="date"
+        value={to}
+        onChange={(e) => onToChange(e.target.value)}
+        title="Bitiş tarihi"
+        style={{ fontSize: 12, padding: "6px 8px" }}
+      />
+      {(from || to) && (
+        <button
+          onClick={() => { onFromChange(""); onToChange(""); }}
+          title="Tarih filtresini temizle"
+          style={{ width: 28, height: 28, padding: 0 }}
+        >
+          <i className="ti ti-x" style={{ fontSize: 13 }} aria-hidden="true"></i>
+        </button>
+      )}
+    </div>
+  );
+}
+
 const SESSION_IDLE_LIMIT_MS = 30 * 60 * 1000; // 30 dakika hareketsizlik
 const SESSION_ABSOLUTE_LIMIT_MS = 24 * 60 * 60 * 1000; // 24 saat, hareket olsa bile
 const SESSION_START_KEY = "binerly_session_started_at";

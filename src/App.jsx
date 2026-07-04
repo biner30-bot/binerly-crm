@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, uid, formatTL, daysAgo, downloadCsv, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme } from "./shared";
+import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, uid, formatTL, daysAgo, downloadCsv, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter } from "./shared";
 import Support, {
   rowToTicket,
   rowToTicketMessage,
@@ -54,6 +54,7 @@ function rowToCustomer(r) {
     lastContact: r.last_contact,
     createdAt: r.created_at,
     portalUserId: r.portal_user_id || null,
+    deletedAt: r.deleted_at || null,
   };
 }
 
@@ -70,6 +71,7 @@ function rowToDeal(r) {
     lostReason: r.lost_reason || "",
     createdAt: r.created_at,
     closedAt: r.closed_at || null,
+    deletedAt: r.deleted_at || null,
   };
 }
 
@@ -165,6 +167,7 @@ function rowToPayment(r) {
     paidAt: r.paid_at,
     note: r.note || "",
     createdAt: r.created_at,
+    deletedAt: r.deleted_at || null,
   };
 }
 
@@ -850,6 +853,181 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
   );
 }
 
+const TRASH_TABLE_LABELS = {
+  customers: "Müşteri",
+  deals: "Teklif",
+  payments: "Tahsilat",
+  tickets: "Talep",
+  kb_articles: "Makale",
+};
+
+function TrashHistoryModal({ notify, onRestore, onClose }) {
+  const [tab, setTab] = useState("trash");
+  const [loading, setLoading] = useState(true);
+  const [trashGroups, setTrashGroups] = useState([]);
+  const [historyRows, setHistoryRows] = useState([]);
+  const [restoringBatch, setRestoringBatch] = useState(null);
+  const [query, setQuery] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+
+  const load = async () => {
+    setLoading(true);
+    const [{ data: c }, { data: d }, { data: pay }, { data: t }, { data: kb }, { data: log }] = await Promise.all([
+      supabase.from("customers").select("id,name,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
+      supabase.from("deals").select("id,title,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
+      supabase.from("payments").select("id,amount,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
+      supabase.from("tickets").select("id,subject,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
+      supabase.from("kb_articles").select("id,title,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
+      supabase.from("audit_log").select("*").order("created_at", { ascending: false }).limit(200),
+    ]);
+
+    const rows = [
+      ...(c || []).map((r) => ({ table: "customers", label: r.name, ...r })),
+      ...(d || []).map((r) => ({ table: "deals", label: r.title, ...r })),
+      ...(pay || []).map((r) => ({ table: "payments", label: `${formatTL(r.amount)} tahsilat`, ...r })),
+      ...(t || []).map((r) => ({ table: "tickets", label: r.subject, ...r })),
+      ...(kb || []).map((r) => ({ table: "kb_articles", label: r.title, ...r })),
+    ];
+
+    const groups = {};
+    rows.forEach((r) => {
+      const key = r.deleted_batch_id || r.id;
+      if (!groups[key]) groups[key] = { batchId: r.deleted_batch_id, deletedAt: r.deleted_at, items: [] };
+      groups[key].items.push({ table: r.table, label: r.label });
+      if (new Date(r.deleted_at) > new Date(groups[key].deletedAt)) groups[key].deletedAt = r.deleted_at;
+    });
+    const groupList = Object.values(groups).sort((a, b) => new Date(b.deletedAt) - new Date(a.deletedAt));
+
+    setTrashGroups(groupList);
+    setHistoryRows(log || []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const restore = async (batchId) => {
+    setRestoringBatch(batchId);
+    await onRestore(batchId);
+    await load();
+    setRestoringBatch(null);
+  };
+
+  const queryLower = query.trim().toLowerCase();
+  const filteredTrashGroups = trashGroups.filter((g) => {
+    if (!matchesDateRange(g.deletedAt, fromDate, toDate)) return false;
+    if (typeFilter !== "all" && !g.items.some((it) => it.table === typeFilter)) return false;
+    if (!queryLower) return true;
+    return g.items.some((it) => (it.label || "").toLowerCase().includes(queryLower));
+  });
+  const filteredHistoryRows = historyRows.filter((r) => {
+    if (!matchesDateRange(r.created_at, fromDate, toDate)) return false;
+    if (typeFilter !== "all" && r.entity_type !== typeFilter) return false;
+    if (!queryLower) return true;
+    return (r.summary || "").toLowerCase().includes(queryLower) || (r.actor_email || "").toLowerCase().includes(queryLower);
+  });
+
+  return (
+    <Modal title="Çöp Kutusu ve Geçmiş" onClose={onClose}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <button
+          onClick={() => setTab("trash")}
+          style={{
+            flex: 1,
+            background: tab === "trash" ? "var(--fill-accent)" : "var(--surface-1)",
+            color: tab === "trash" ? "var(--on-accent)" : "var(--text-primary)",
+          }}
+        >
+          Çöp Kutusu
+        </button>
+        <button
+          onClick={() => setTab("history")}
+          style={{
+            flex: 1,
+            background: tab === "history" ? "var(--fill-accent)" : "var(--surface-1)",
+            color: tab === "history" ? "var(--on-accent)" : "var(--text-primary)",
+          }}
+        >
+          Geçmiş
+        </button>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Ara..."
+          style={{ flex: 1, minWidth: 140, fontSize: 13 }}
+        />
+        <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={{ fontSize: 13 }}>
+          <option value="all">Tüm türler</option>
+          {Object.entries(TRASH_TABLE_LABELS).map(([key, label]) => (
+            <option key={key} value={key}>{label}</option>
+          ))}
+        </select>
+        <DateRangeFilter from={fromDate} to={toDate} onFromChange={setFromDate} onToChange={setToDate} />
+      </div>
+
+      {loading ? (
+        <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>Yükleniyor…</p>
+      ) : tab === "trash" ? (
+        filteredTrashGroups.length === 0 ? (
+          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+            {trashGroups.length === 0 ? "Çöp kutusu boş." : "Filtreye uyan kayıt yok."}
+          </p>
+        ) : (
+          <div style={{ maxHeight: 420, overflowY: "auto" }}>
+            {filteredTrashGroups.map((g) => (
+              <div key={g.batchId} style={{ padding: "10px 0", borderBottom: "0.5px solid var(--border)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                  <div>
+                    {g.items.map((it, i) => (
+                      <div key={i} style={{ fontSize: 13 }}>
+                        <span style={{ color: "var(--text-muted)" }}>{TRASH_TABLE_LABELS[it.table]}:</span> {it.label}
+                      </div>
+                    ))}
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>{daysAgo(g.deletedAt)} silindi</div>
+                  </div>
+                  <button
+                    onClick={() => restore(g.batchId)}
+                    disabled={restoringBatch === g.batchId}
+                    style={{ fontSize: 12, whiteSpace: "nowrap" }}
+                  >
+                    {restoringBatch === g.batchId ? "Geri yükleniyor…" : "Geri Yükle"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      ) : filteredHistoryRows.length === 0 ? (
+        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+          {historyRows.length === 0 ? "Henüz bir kayıt yok." : "Filtreye uyan kayıt yok."}
+        </p>
+      ) : (
+        <div style={{ maxHeight: 420, overflowY: "auto" }}>
+          {filteredHistoryRows.map((r) => (
+            <div key={r.id} style={{ padding: "8px 0", borderBottom: "0.5px solid var(--border)" }}>
+              <div style={{ fontSize: 13 }}>{r.summary}</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                {r.actor_email} · {daysAgo(r.created_at)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+        <button onClick={onClose}>Kapat</button>
+      </div>
+    </Modal>
+  );
+}
+
 function AppSettingsModal({ session, theme, onThemeChange, pushSubscribed, onSubscribe, onUnsubscribe, notify, onClose }) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -1131,13 +1309,19 @@ function LandingPage() {
           <img src="/favicon.svg" alt="Binerly" style={{ width: 28, height: 28 }} />
           <span style={{ fontWeight: 700, fontSize: 18, color: "#0c2540" }}>Binerly</span>
         </div>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <button onClick={() => setShowEntryChoice(true)} style={{ background: "none", border: "none", color: "#185fa5", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "8px 12px" }}>
-            Giriş Yap
-          </button>
-          <button onClick={() => setAuthModal("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
-            Ücretsiz Dene
-          </button>
+        <div style={{ display: "flex", gap: 28, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 24 }}>
+            <a href="#ozellikler" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Hizmetlerimiz</a>
+            <a href="#hakkimizda" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Hakkımızda</a>
+          </div>
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <button onClick={() => setShowEntryChoice(true)} style={{ background: "none", border: "none", color: "#185fa5", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "8px 12px" }}>
+              Giriş Yap
+            </button>
+            <button onClick={() => setAuthModal("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
+              Ücretsiz Dene
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -1269,6 +1453,41 @@ function LandingPage() {
         </div>
       </div>
 
+      {/* Hakkımızda */}
+      <div id="hakkimizda" style={{ background: "#fff", borderTop: "1px solid #e1e8f0", borderBottom: "1px solid #e1e8f0", scrollMarginTop: 64 }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "4rem 2rem" }}>
+          <h2 style={{ textAlign: "center", fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: "0 0 1.25rem" }}>
+            Hakkımızda
+          </h2>
+          <p style={{ maxWidth: 720, margin: "0 auto 2.5rem", fontSize: 16, color: "#5b7088", lineHeight: 1.8, textAlign: "center" }}>
+            Binerly'yi, KOBİ'lerin gerçek gündelik dertlerinden yola çıkarak kurduk: dağınık Excel tabloları, kaybolan müşteri notları, takip edilemeyen teklifler. Küçük ve orta ölçekli işletmelerin, kurumsal şirketler kadar güçlü ama onlar kadar karmaşık olmayan bir sisteme ihtiyacı olduğunu gördük.
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
+            <div style={{ background: "#f5f8fc", borderRadius: 12, padding: "1.5rem", border: "1px solid #e1e8f0" }}>
+              <i className="ti ti-bulb" style={{ fontSize: 26, color: "#185fa5", display: "block", marginBottom: 12 }} />
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>Misyonumuz</h3>
+              <p style={{ fontSize: 13.5, color: "#5b7088", margin: 0, lineHeight: 1.7 }}>
+                KOBİ'lerin günlük operasyonel yükünü azaltıp dijitalleştirerek, zamanlarını ve zihinlerini işlerini büyütmeye, şirketlerini daha iyiye taşıyacak kararlar almaya ve müşterileriyle daha kaliteli ilişkiler kurmaya ayırabilmelerini sağlamak.
+              </p>
+            </div>
+            <div style={{ background: "#f5f8fc", borderRadius: 12, padding: "1.5rem", border: "1px solid #e1e8f0" }}>
+              <i className="ti ti-telescope" style={{ fontSize: 26, color: "#185fa5", display: "block", marginBottom: 12 }} />
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>Vizyonumuz</h3>
+              <p style={{ fontSize: 13.5, color: "#5b7088", margin: 0, lineHeight: 1.7 }}>
+                Türkiye'deki her KOBİ'nin, büyüklüğüne bakılmaksızın, büyük şirketlerin sahip olduğu güçlü araçlara kolay ve uygun maliyetle erişebildiği bir gelecek.
+              </p>
+            </div>
+            <div style={{ background: "#f5f8fc", borderRadius: 12, padding: "1.5rem", border: "1px solid #e1e8f0" }}>
+              <i className="ti ti-shield-check" style={{ fontSize: 26, color: "#185fa5", display: "block", marginBottom: 12 }} />
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>Güvenilirlik</h3>
+              <p style={{ fontSize: 13.5, color: "#5b7088", margin: 0, lineHeight: 1.7 }}>
+                Bizim için en önemli değer güven. Verileriniz güvenli şekilde saklanır, KVKK'ya uygun işlenir, asla üçüncü taraflarla paylaşılmaz. Kredi kartı istemeden ücretsiz deneyebilir, istediğiniz an ayrılabilirsiniz.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* CTA */}
       <div style={{ background: "#185fa5", padding: "4rem 2rem", textAlign: "center" }}>
         <h2 style={{ fontSize: "1.75rem", fontWeight: 800, color: "#fff", margin: "0 0 1rem" }}>
@@ -1309,6 +1528,7 @@ function LandingPage() {
             <p style={{ fontSize: 12, fontWeight: 700, color: "#0c2540", letterSpacing: 0.5, margin: "0 0 14px" }}>HIZLI ERİŞİM</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <a href="/" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Ana Sayfa</a>
+              <a href="#hakkimizda" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Hakkımızda</a>
               <a href="mailto:info@binerly.com" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>İletişim</a>
             </div>
           </div>
@@ -1348,6 +1568,7 @@ export default function App() {
   const [showSettingsForm, setShowSettingsForm] = useState(false);
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [showAppSettings, setShowAppSettings] = useState(false);
+  const [showTrashHistory, setShowTrashHistory] = useState(false);
   const [showPasswordRecovery, setShowPasswordRecovery] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
@@ -1362,7 +1583,14 @@ export default function App() {
   const [confirmDeleteCustomer, setConfirmDeleteCustomer] = useState(null);
   const [confirmDeleteDeal, setConfirmDeleteDeal] = useState(null);
   const [customerSearch, setCustomerSearch] = useState("");
+  const [customerFromDate, setCustomerFromDate] = useState("");
+  const [customerToDate, setCustomerToDate] = useState("");
+  const [customerSectorFilter, setCustomerSectorFilter] = useState("all");
   const [dealSearch, setDealSearch] = useState("");
+  const [dealFromDate, setDealFromDate] = useState("");
+  const [dealToDate, setDealToDate] = useState("");
+  const [dealStageFilter, setDealStageFilter] = useState("all");
+  const [dealPaymentFilter, setDealPaymentFilter] = useState("all");
   const [teklifDeal, setTeklifDeal] = useState(null);
   const [quickList, setQuickList] = useState(null);
   const [initialViewTicketId, setInitialViewTicketId] = useState(null);
@@ -1405,13 +1633,13 @@ export default function App() {
     }
     setLoading(true);
     Promise.all([
-      supabase.from("customers").select("*").order("created_at"),
-      supabase.from("deals").select("*").order("created_at"),
+      supabase.from("customers").select("*").is("deleted_at", null).order("created_at"),
+      supabase.from("deals").select("*").is("deleted_at", null).order("created_at"),
       supabase.from("activities").select("*").order("created_at"),
-      supabase.from("payments").select("*").order("paid_at"),
-      supabase.from("tickets").select("*").order("created_at"),
+      supabase.from("payments").select("*").is("deleted_at", null).order("paid_at"),
+      supabase.from("tickets").select("*").is("deleted_at", null).order("created_at"),
       supabase.from("ticket_messages").select("*").order("created_at"),
-      supabase.from("kb_articles").select("*").order("created_at"),
+      supabase.from("kb_articles").select("*").is("deleted_at", null).order("created_at"),
       supabase.from("company_settings").select("*").maybeSingle(),
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
@@ -1503,6 +1731,21 @@ export default function App() {
     setPushSubscribed(false);
   };
 
+  // Denetim kaydı — asıl CRUD işlemini asla engellemez, başarısız olursa sadece konsola yazar.
+  const logAction = async (entityType, entityId, action, summary) => {
+    const { error } = await supabase.from("audit_log").insert({
+      id: uid(),
+      user_id: activeTeamId,
+      actor_id: session.user.id,
+      actor_email: session.user.email,
+      entity_type: entityType,
+      entity_id: entityId,
+      action,
+      summary,
+    });
+    if (error) console.error("audit log yazılamadı:", error.message);
+  };
+
   const addActivity = async ({ customerId, type, content }) => {
     const row = {
       id: uid(),
@@ -1516,9 +1759,13 @@ export default function App() {
     const activity = rowToActivity(data);
     setActivities((prev) => [...prev, activity]);
     await touchCustomer(customerId);
+    const customer = customers.find((c) => c.id === customerId);
+    const typeLabel = ACTIVITY_TYPES.find((x) => x.id === type)?.label || type;
+    logAction("customers", customerId, "updated", `${customer?.name || "Müşteri"} için ${typeLabel} eklendi`);
   };
 
   const upsertCustomer = async (c) => {
+    const isNew = !customers.some((x) => x.id === c.id);
     const row = {
       id: c.id,
       user_id: activeTeamId,
@@ -1539,17 +1786,54 @@ export default function App() {
     );
     setShowCustomerForm(false);
     setEditingCustomer(null);
+    logAction("customers", customer.id, isNew ? "created" : "updated", `${customer.name} ${isNew ? "oluşturuldu" : "güncellendi"}`);
   };
 
   const deleteCustomer = async (id) => {
-    const { error } = await supabase.from("customers").delete().eq("id", id);
+    const customer = customers.find((c) => c.id === id);
+    const customerDeals = deals.filter((d) => d.customerId === id);
+    const customerTickets = tickets.filter((t) => t.customerId === id);
+    const dealIds = customerDeals.map((d) => d.id);
+    const cascadePayments = payments.filter((p) => dealIds.includes(p.dealId));
+    const batchId = uid();
+    const now = new Date().toISOString();
+
+    if (dealIds.length > 0) {
+      const { error: payErr } = await supabase
+        .from("payments")
+        .update({ deleted_at: now, deleted_batch_id: batchId })
+        .in("deal_id", dealIds);
+      if (payErr) { notify(`Müşteri silinemedi: ${payErr.message}`); return; }
+    }
+    const { error: dealErr } = await supabase
+      .from("deals")
+      .update({ deleted_at: now, deleted_batch_id: batchId })
+      .eq("customer_id", id);
+    if (dealErr) { notify(`Müşteri silinemedi: ${dealErr.message}`); return; }
+    const { error: ticketErr } = await supabase
+      .from("tickets")
+      .update({ deleted_at: now, deleted_batch_id: batchId })
+      .eq("customer_id", id);
+    if (ticketErr) { notify(`Müşteri silinemedi: ${ticketErr.message}`); return; }
+    const { error } = await supabase
+      .from("customers")
+      .update({ deleted_at: now, deleted_batch_id: batchId })
+      .eq("id", id);
     if (error) { notify(`Müşteri silinemedi: ${error.message}`); return; }
+
     setCustomers((prev) => prev.filter((c) => c.id !== id));
     setDeals((prev) => prev.filter((d) => d.customerId !== id));
     setTickets((prev) => prev.filter((t) => t.customerId !== id));
+    setPayments((prev) => prev.filter((p) => !dealIds.includes(p.dealId)));
+
+    logAction("customers", id, "deleted", `${customer?.name || "Müşteri"} çöp kutusuna taşındı`);
+    customerDeals.forEach((d) => logAction("deals", d.id, "deleted", `${d.title} (teklif) çöp kutusuna taşındı`));
+    customerTickets.forEach((t) => logAction("tickets", t.id, "deleted", `${t.subject} (talep) çöp kutusuna taşındı`));
+    cascadePayments.forEach((p) => logAction("payments", p.id, "deleted", `${formatTL(p.amount)} tahsilat çöp kutusuna taşındı`));
   };
 
   const upsertDeal = async (d) => {
+    const isNew = !deals.some((x) => x.id === d.id);
     const row = {
       id: d.id,
       user_id: activeTeamId,
@@ -1572,26 +1856,49 @@ export default function App() {
     );
     setShowDealForm(false);
     setEditingDeal(null);
+    logAction("deals", deal.id, isNew ? "created" : "updated", `${deal.title} ${isNew ? "oluşturuldu" : "güncellendi"}`);
   };
 
   const deleteDeal = async (id) => {
-    const { error } = await supabase.from("deals").delete().eq("id", id);
+    const deal = deals.find((d) => d.id === id);
+    const dealPayments = payments.filter((p) => p.dealId === id);
+    const batchId = uid();
+    const now = new Date().toISOString();
+    const { error: payErr } = await supabase
+      .from("payments")
+      .update({ deleted_at: now, deleted_batch_id: batchId })
+      .eq("deal_id", id);
+    if (payErr) { notify(`Teklif silinemedi: ${payErr.message}`); return; }
+    const { error } = await supabase
+      .from("deals")
+      .update({ deleted_at: now, deleted_batch_id: batchId })
+      .eq("id", id);
     if (error) { notify(`Teklif silinemedi: ${error.message}`); return; }
     setDeals((prev) => prev.filter((d) => d.id !== id));
     setPayments((prev) => prev.filter((p) => p.dealId !== id));
+    logAction("deals", id, "deleted", `${deal?.title || "Teklif"} çöp kutusuna taşındı`);
+    dealPayments.forEach((p) => logAction("payments", p.id, "deleted", `${formatTL(p.amount)} tahsilat çöp kutusuna taşındı`));
   };
 
   const addPayment = async ({ dealId, amount, paidAt, note }) => {
     const row = { id: uid(), user_id: activeTeamId, deal_id: dealId, amount, paid_at: paidAt, note: note || null };
     const { data, error } = await supabase.from("payments").insert(row).select().single();
     if (error) { notify(`Tahsilat eklenemedi: ${error.message}`); return; }
-    setPayments((prev) => [...prev, rowToPayment(data)]);
+    const payment = rowToPayment(data);
+    setPayments((prev) => [...prev, payment]);
+    logAction("payments", payment.id, "created", `${formatTL(payment.amount)} tahsilat eklendi`);
   };
 
   const deletePayment = async (id) => {
-    const { error } = await supabase.from("payments").delete().eq("id", id);
+    const payment = payments.find((p) => p.id === id);
+    const batchId = uid();
+    const { error } = await supabase
+      .from("payments")
+      .update({ deleted_at: new Date().toISOString(), deleted_batch_id: batchId })
+      .eq("id", id);
     if (error) { notify(`Tahsilat silinemedi: ${error.message}`); return; }
     setPayments((prev) => prev.filter((p) => p.id !== id));
+    logAction("payments", id, "deleted", `${formatTL(payment?.amount || 0)} tahsilat çöp kutusuna taşındı`);
   };
 
   const seedDemoData = async () => {
@@ -1627,6 +1934,9 @@ export default function App() {
     if (error) {
       notify(`Aşama güncellenemedi: ${error.message}`);
       setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, stage: previousStage, closedAt: current?.closedAt ?? null } : d)));
+    } else {
+      const stageLabel = STAGES.find((s) => s.id === stage)?.label || stage;
+      logAction("deals", id, "updated", `${current?.title || "Teklif"} aşaması "${stageLabel}" olarak güncellendi`);
     }
   };
 
@@ -1638,6 +1948,7 @@ export default function App() {
   };
 
   const upsertTicket = async (t) => {
+    const isNew = !tickets.some((x) => x.id === t.id);
     const row = {
       id: t.id,
       user_id: activeTeamId,
@@ -1655,13 +1966,20 @@ export default function App() {
     setTickets((prev) =>
       prev.some((x) => x.id === ticket.id) ? prev.map((x) => (x.id === ticket.id ? ticket : x)) : [...prev, ticket]
     );
+    logAction("tickets", ticket.id, isNew ? "created" : "updated", `${ticket.subject} ${isNew ? "oluşturuldu" : "güncellendi"}`);
   };
 
   const deleteTicket = async (id) => {
-    const { error } = await supabase.from("tickets").delete().eq("id", id);
+    const ticket = tickets.find((t) => t.id === id);
+    const batchId = uid();
+    const { error } = await supabase
+      .from("tickets")
+      .update({ deleted_at: new Date().toISOString(), deleted_batch_id: batchId })
+      .eq("id", id);
     if (error) { notify(`Talep silinemedi: ${error.message}`); return; }
     setTickets((prev) => prev.filter((t) => t.id !== id));
     setTicketMessages((prev) => prev.filter((m) => m.ticketId !== id));
+    logAction("tickets", id, "deleted", `${ticket?.subject || "Talep"} çöp kutusuna taşındı`);
   };
 
   const changeTicketStatus = async (id, status) => {
@@ -1672,6 +1990,8 @@ export default function App() {
     if (error) {
       notify(`Durum güncellenemedi: ${error.message}`);
       setTickets((prev) => prev.map((t) => (t.id === id ? previous : t)));
+    } else {
+      logAction("tickets", id, "updated", `${previous?.subject || "Talep"} durumu güncellendi`);
     }
   };
 
@@ -1712,6 +2032,7 @@ export default function App() {
   };
 
   const upsertKbArticle = async (a) => {
+    const isNew = !kbArticles.some((x) => x.id === a.id);
     const row = {
       id: a.id,
       user_id: activeTeamId,
@@ -1727,12 +2048,45 @@ export default function App() {
     setKbArticles((prev) =>
       prev.some((x) => x.id === article.id) ? prev.map((x) => (x.id === article.id ? article : x)) : [...prev, article]
     );
+    logAction("kb_articles", article.id, isNew ? "created" : "updated", `${article.title} ${isNew ? "oluşturuldu" : "güncellendi"}`);
   };
 
   const deleteKbArticle = async (id) => {
-    const { error } = await supabase.from("kb_articles").delete().eq("id", id);
+    const article = kbArticles.find((a) => a.id === id);
+    const batchId = uid();
+    const { error } = await supabase
+      .from("kb_articles")
+      .update({ deleted_at: new Date().toISOString(), deleted_batch_id: batchId })
+      .eq("id", id);
     if (error) { notify(`Makale silinemedi: ${error.message}`); return; }
     setKbArticles((prev) => prev.filter((a) => a.id !== id));
+    logAction("kb_articles", id, "deleted", `${article?.title || "Makale"} çöp kutusuna taşındı`);
+  };
+
+  const restoreBatch = async (batchId) => {
+    const tables = [
+      { name: "customers", setter: setCustomers, map: rowToCustomer, label: (r) => r.name },
+      { name: "deals", setter: setDeals, map: rowToDeal, label: (r) => r.title },
+      { name: "payments", setter: setPayments, map: rowToPayment, label: (r) => `${formatTL(r.amount)} tahsilat` },
+      { name: "tickets", setter: setTickets, map: rowToTicket, label: (r) => r.subject },
+      { name: "kb_articles", setter: setKbArticles, map: rowToKbArticle, label: (r) => r.title },
+    ];
+    let anyError = null;
+    for (const t of tables) {
+      const { data, error } = await supabase
+        .from(t.name)
+        .update({ deleted_at: null, deleted_batch_id: null })
+        .eq("deleted_batch_id", batchId)
+        .select();
+      if (error) { anyError = error; continue; }
+      if (data && data.length > 0) {
+        const rows = data.map(t.map);
+        t.setter((prev) => [...prev, ...rows]);
+        rows.forEach((r) => logAction(t.name, r.id, "restored", `${t.label(r)} geri yüklendi`));
+      }
+    }
+    if (anyError) notify(`Geri yükleme sırasında hata: ${anyError.message}`);
+    else notify("Kayıtlar geri yüklendi.", "success");
   };
 
   const upsertCompanySettings = async (s) => {
@@ -1779,20 +2133,30 @@ export default function App() {
   const customerById = (id) => customers.find((c) => c.id === id);
 
   const customerQuery = customerSearch.trim().toLowerCase();
-  const filteredCustomers = !customerQuery
-    ? customers
-    : customers.filter((c) =>
-        [c.name, c.sector, c.region, c.phone, c.email].some((f) => (f || "").toLowerCase().includes(customerQuery))
-      );
+  const filteredCustomers = customers.filter((c) => {
+    if (!matchesDateRange(c.lastContact, customerFromDate, customerToDate)) return false;
+    if (customerSectorFilter !== "all" && c.sector !== customerSectorFilter) return false;
+    if (!customerQuery) return true;
+    return [c.name, c.sector, c.region, c.phone, c.email].some((f) => (f || "").toLowerCase().includes(customerQuery));
+  });
 
   const dealQuery = dealSearch.trim().toLowerCase();
-  const filteredDeals = !dealQuery
-    ? deals
-    : deals.filter(
-        (d) =>
-          d.title.toLowerCase().includes(dealQuery) ||
-          (customerById(d.customerId)?.name || "").toLowerCase().includes(dealQuery)
-      );
+  const filteredDeals = deals.filter((d) => {
+    if (!matchesDateRange(d.createdAt, dealFromDate, dealToDate)) return false;
+    if (dealStageFilter === "acik" && (d.stage === "kazanildi" || d.stage === "kaybedildi")) return false;
+    if (dealStageFilter !== "all" && dealStageFilter !== "acik" && d.stage !== dealStageFilter) return false;
+    if (dealPaymentFilter !== "all") {
+      const paid = totalPaidForDeal(d.id);
+      if (dealPaymentFilter === "odendi" && paid < d.value) return false;
+      if (dealPaymentFilter === "kismi" && !(paid > 0 && paid < d.value)) return false;
+      if (dealPaymentFilter === "odenmedi" && paid > 0) return false;
+    }
+    if (!dealQuery) return true;
+    return (
+      d.title.toLowerCase().includes(dealQuery) ||
+      (customerById(d.customerId)?.name || "").toLowerCase().includes(dealQuery)
+    );
+  });
 
   const openTicketsCount = tickets.filter((t) => !TERMINAL_STATUSES.includes(t.status)).length;
   const breachedTickets = tickets.filter(
@@ -1921,6 +2285,13 @@ export default function App() {
             title="Ayarlar"
           >
             <i className="ti ti-adjustments" style={{ fontSize: 16 }} aria-hidden="true"></i>
+          </button>
+          <button
+            onClick={() => setShowTrashHistory(true)}
+            style={{ width: 32, height: 32, padding: 0 }}
+            title="Çöp Kutusu ve Geçmiş"
+          >
+            <i className="ti ti-history" style={{ fontSize: 16 }} aria-hidden="true"></i>
           </button>
           <button
             onClick={() => supabase.auth.signOut()}
@@ -2261,6 +2632,16 @@ export default function App() {
               placeholder="Müşteri ara (ad, sektör, bölge, telefon, e-posta)..."
               style={{ flex: 1, minWidth: 200 }}
             />
+            <select value={customerSectorFilter} onChange={(e) => setCustomerSectorFilter(e.target.value)} style={{ fontSize: 13 }}>
+              <option value="all">Tüm sektörler</option>
+              {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <DateRangeFilter
+              from={customerFromDate}
+              to={customerToDate}
+              onFromChange={setCustomerFromDate}
+              onToChange={setCustomerToDate}
+            />
             <div style={{ display: "flex", gap: 8 }}>
               <button
                 onClick={() =>
@@ -2376,6 +2757,18 @@ export default function App() {
               placeholder="Teklif ara (başlık, müşteri)..."
               style={{ flex: 1, minWidth: 160 }}
             />
+            <select value={dealStageFilter} onChange={(e) => setDealStageFilter(e.target.value)} style={{ fontSize: 13 }}>
+              <option value="all">Tüm aşamalar</option>
+              <option value="acik">Açık teklifler</option>
+              {STAGES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+            </select>
+            <select value={dealPaymentFilter} onChange={(e) => setDealPaymentFilter(e.target.value)} style={{ fontSize: 13 }}>
+              <option value="all">Tüm ödeme durumları</option>
+              <option value="odendi">Ödendi</option>
+              <option value="kismi">Kısmi ödeme</option>
+              <option value="odenmedi">Ödenmedi</option>
+            </select>
+            <DateRangeFilter from={dealFromDate} to={dealToDate} onFromChange={setDealFromDate} onToChange={setDealToDate} />
             <button
               onClick={() =>
                 downloadCsv(
@@ -2577,6 +2970,10 @@ export default function App() {
         <PasswordRecoveryModal notify={notify} onClose={() => setShowPasswordRecovery(false)} />
       )}
 
+      {showTrashHistory && (
+        <TrashHistoryModal notify={notify} onRestore={restoreBatch} onClose={() => setShowTrashHistory(false)} />
+      )}
+
       {teklifDeal && (
         <TeklifPrint
           deal={teklifDeal}
@@ -2644,7 +3041,7 @@ export default function App() {
       {confirmDeleteCustomer && (
         <ConfirmDialog
           title="Müşteriyi sil"
-          message={`"${confirmDeleteCustomer.name}" silinsin mi? Bu müşteriye ait teklifler ve destek talepleri de silinir, bu işlem geri alınamaz.`}
+          message={`"${confirmDeleteCustomer.name}" silinsin mi? Bu müşteriye ait teklifler ve destek talepleri de birlikte çöp kutusuna taşınır — dilediğiniz zaman Çöp Kutusu'ndan geri yükleyebilirsiniz.`}
           onConfirm={() => { deleteCustomer(confirmDeleteCustomer.id); setConfirmDeleteCustomer(null); }}
           onClose={() => setConfirmDeleteCustomer(null)}
         />
@@ -2653,7 +3050,7 @@ export default function App() {
       {confirmDeleteDeal && (
         <ConfirmDialog
           title="Teklifi sil"
-          message="Bu teklifi silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
+          message="Bu teklif çöp kutusuna taşınacak, dilediğiniz zaman geri yükleyebilirsiniz."
           onConfirm={() => { deleteDeal(confirmDeleteDeal.id); setConfirmDeleteDeal(null); }}
           onClose={() => setConfirmDeleteDeal(null)}
         />

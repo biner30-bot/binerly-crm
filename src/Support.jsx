@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Badge, Modal, InfoTip, ConfirmDialog, uid } from "./shared";
+import { Badge, Modal, InfoTip, ConfirmDialog, uid, matchesDateRange, DateRangeFilter } from "./shared";
 
 const PRIORITIES = [
   { id: "acil", label: "Acil", hours: 4 },
@@ -130,6 +130,7 @@ export function rowToTicket(r) {
     status: r.status,
     resolvedAt: r.resolved_at,
     createdAt: r.created_at,
+    deletedAt: r.deleted_at || null,
   };
 }
 
@@ -153,6 +154,7 @@ export function rowToKbArticle(r) {
     content: r.content,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+    deletedAt: r.deleted_at || null,
   };
 }
 
@@ -227,10 +229,42 @@ function TicketForm({ customers, initial, onSave, onCancel }) {
   );
 }
 
-function TicketList({ tickets, customers, unreadCountByTicket, statusFilter, onFilterChange, onOpenTicket, onEditTicket, onDeleteTicket }) {
+function TicketList({
+  tickets,
+  customers,
+  unreadCountByTicket,
+  statusFilter,
+  onFilterChange,
+  searchQuery,
+  onSearchChange,
+  priorityFilter,
+  onPriorityFilterChange,
+  slaFilter,
+  onSlaFilterChange,
+  fromDate,
+  toDate,
+  onFromDateChange,
+  onToDateChange,
+  onOpenTicket,
+  onEditTicket,
+  onDeleteTicket,
+}) {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const customerById = (id) => customers.find((c) => c.id === id);
-  const filtered = statusFilter === "all" ? tickets : tickets.filter((t) => t.status === statusFilter);
+  const query = searchQuery.trim().toLowerCase();
+  const filtered = tickets.filter((t) => {
+    if (statusFilter !== "all" && t.status !== statusFilter) return false;
+    if (priorityFilter !== "all" && t.priority !== priorityFilter) return false;
+    if (!matchesDateRange(t.createdAt, fromDate, toDate)) return false;
+    if (slaFilter !== "all") {
+      const sla = getSlaStatus(t);
+      if (slaFilter === "gecikti" && !sla.isBreached) return false;
+      if (slaFilter === "yaklasiyor" && !sla.isApproaching) return false;
+      if (slaFilter === "zamaninda" && (sla.isBreached || sla.isApproaching)) return false;
+    }
+    if (!query) return true;
+    return t.subject.toLowerCase().includes(query) || (customerById(t.customerId)?.name || "").toLowerCase().includes(query);
+  });
 
   const slaRank = { danger: 0, warning: 1, success: 2 };
   const sorted = [...filtered].sort((a, b) => {
@@ -245,11 +279,28 @@ function TicketList({ tickets, customers, unreadCountByTicket, statusFilter, onF
 
   return (
     <div>
-      <div style={{ marginBottom: 12 }}>
-        <select value={statusFilter} onChange={(e) => onFilterChange(e.target.value)} style={{ width: 240 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        <input
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder="Talep ara (konu, müşteri)..."
+          style={{ flex: 1, minWidth: 160 }}
+        />
+        <select value={statusFilter} onChange={(e) => onFilterChange(e.target.value)} style={{ fontSize: 13 }}>
           <option value="all">Tüm durumlar</option>
           {STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
         </select>
+        <select value={priorityFilter} onChange={(e) => onPriorityFilterChange(e.target.value)} style={{ fontSize: 13 }}>
+          <option value="all">Tüm öncelikler</option>
+          {PRIORITIES.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+        </select>
+        <select value={slaFilter} onChange={(e) => onSlaFilterChange(e.target.value)} style={{ fontSize: 13 }}>
+          <option value="all">Tüm SLA durumları</option>
+          <option value="gecikti">Gecikti</option>
+          <option value="yaklasiyor">Yaklaşıyor</option>
+          <option value="zamaninda">Zamanında</option>
+        </select>
+        <DateRangeFilter from={fromDate} to={toDate} onFromChange={onFromDateChange} onToChange={onToDateChange} />
       </div>
       {sorted.length === 0 ? (
         <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Bu filtreye uyan talep yok.</p>
@@ -322,7 +373,7 @@ function TicketList({ tickets, customers, unreadCountByTicket, statusFilter, onF
       {confirmDelete && (
         <ConfirmDialog
           title="Talebi sil"
-          message="Bu destek talebini silmek istediğinize emin misiniz? Mesaj geçmişi de silinecek, bu işlem geri alınamaz."
+          message="Bu destek talebi çöp kutusuna taşınacak (mesaj geçmişi korunur), dilediğiniz zaman geri yükleyebilirsiniz."
           onConfirm={() => { onDeleteTicket(confirmDelete.id); setConfirmDelete(null); }}
           onClose={() => setConfirmDelete(null)}
         />
@@ -419,10 +470,30 @@ function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange
   );
 }
 
-function KbList({ articles, searchQuery, onSearchChange, onAdd, onEdit, onDelete, onUseTemplate }) {
+function KbList({
+  articles,
+  searchQuery,
+  onSearchChange,
+  categoryFilter,
+  onCategoryFilterChange,
+  fromDate,
+  toDate,
+  onFromDateChange,
+  onToDateChange,
+  onAdd,
+  onEdit,
+  onDelete,
+  onUseTemplate,
+}) {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showTemplates, setShowTemplates] = useState(articles.length === 0);
-  const filtered = articles.filter((a) => a.title.toLowerCase().includes(searchQuery.trim().toLowerCase()));
+  const categories = [...new Set(articles.map((a) => a.category).filter(Boolean))];
+  const query = searchQuery.trim().toLowerCase();
+  const filtered = articles.filter((a) => {
+    if (categoryFilter !== "all" && a.category !== categoryFilter) return false;
+    if (!matchesDateRange(a.createdAt, fromDate, toDate)) return false;
+    return a.title.toLowerCase().includes(query);
+  });
 
   return (
     <div>
@@ -433,6 +504,13 @@ function KbList({ articles, searchQuery, onSearchChange, onAdd, onEdit, onDelete
           placeholder="Başlıkta ara..."
           style={{ flex: 1, minWidth: 200 }}
         />
+        {categories.length > 0 && (
+          <select value={categoryFilter} onChange={(e) => onCategoryFilterChange(e.target.value)} style={{ fontSize: 13 }}>
+            <option value="all">Tüm kategoriler</option>
+            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        )}
+        <DateRangeFilter from={fromDate} to={toDate} onFromChange={onFromDateChange} onToChange={onToDateChange} />
         <div style={{ display: "flex", gap: 8 }}>
           <button
             onClick={() => setShowTemplates((v) => !v)}
@@ -469,7 +547,7 @@ function KbList({ articles, searchQuery, onSearchChange, onAdd, onEdit, onDelete
 
       {filtered.length === 0 ? (
         <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
-          {articles.length === 0 ? "Henüz makale eklenmedi." : "Aramayla eşleşen makale yok."}
+          {articles.length === 0 ? "Henüz makale eklenmedi." : "Filtreye uyan makale yok."}
         </p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -495,7 +573,7 @@ function KbList({ articles, searchQuery, onSearchChange, onAdd, onEdit, onDelete
       {confirmDelete && (
         <ConfirmDialog
           title="Makaleyi sil"
-          message={`"${confirmDelete.title}" makalesini silmek istediğinize emin misiniz?`}
+          message={`"${confirmDelete.title}" makalesi çöp kutusuna taşınacak, dilediğiniz zaman geri yükleyebilirsiniz.`}
           onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
           onClose={() => setConfirmDelete(null)}
         />
@@ -562,9 +640,17 @@ export default function Support({
   const [editingTicket, setEditingTicket] = useState(null);
   const [viewingTicket, setViewingTicket] = useState(null);
   const [ticketStatusFilter, setTicketStatusFilter] = useState("all");
+  const [ticketSearch, setTicketSearch] = useState("");
+  const [ticketPriorityFilter, setTicketPriorityFilter] = useState("all");
+  const [ticketSlaFilter, setTicketSlaFilter] = useState("all");
+  const [ticketFromDate, setTicketFromDate] = useState("");
+  const [ticketToDate, setTicketToDate] = useState("");
   const [showKbForm, setShowKbForm] = useState(false);
   const [editingKbArticle, setEditingKbArticle] = useState(null);
   const [kbSearch, setKbSearch] = useState("");
+  const [kbCategoryFilter, setKbCategoryFilter] = useState("all");
+  const [kbFromDate, setKbFromDate] = useState("");
+  const [kbToDate, setKbToDate] = useState("");
 
   const customerById = (id) => customers.find((c) => c.id === id);
 
@@ -643,6 +729,16 @@ export default function Support({
             unreadCountByTicket={unreadCountByTicket}
             statusFilter={ticketStatusFilter}
             onFilterChange={setTicketStatusFilter}
+            searchQuery={ticketSearch}
+            onSearchChange={setTicketSearch}
+            priorityFilter={ticketPriorityFilter}
+            onPriorityFilterChange={setTicketPriorityFilter}
+            slaFilter={ticketSlaFilter}
+            onSlaFilterChange={setTicketSlaFilter}
+            fromDate={ticketFromDate}
+            toDate={ticketToDate}
+            onFromDateChange={setTicketFromDate}
+            onToDateChange={setTicketToDate}
             onOpenTicket={setViewingTicket}
             onEditTicket={(t) => { setEditingTicket(t); setShowTicketForm(true); }}
             onDeleteTicket={onDeleteTicket}
@@ -653,6 +749,12 @@ export default function Support({
           articles={kbArticles}
           searchQuery={kbSearch}
           onSearchChange={setKbSearch}
+          categoryFilter={kbCategoryFilter}
+          onCategoryFilterChange={setKbCategoryFilter}
+          fromDate={kbFromDate}
+          toDate={kbToDate}
+          onFromDateChange={setKbFromDate}
+          onToDateChange={setKbToDate}
           onAdd={() => { setEditingKbArticle(null); setShowKbForm(true); }}
           onEdit={(a) => { setEditingKbArticle(a); setShowKbForm(true); }}
           onDelete={onDeleteKbArticle}

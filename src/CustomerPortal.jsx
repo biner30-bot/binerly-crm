@@ -497,7 +497,12 @@ export default function CustomerPortal() {
       await supabase
         .from("customer_portal_users")
         .upsert({ id: session.user.id, email: session.user.email }, { onConflict: "id", ignoreDuplicates: true });
-      await supabase.from("customers").update({ portal_user_id: session.user.id }).is("portal_user_id", null).ilike("email", session.user.email);
+      await supabase
+        .from("customers")
+        .update({ portal_user_id: session.user.id })
+        .is("portal_user_id", null)
+        .is("deleted_at", null)
+        .ilike("email", session.user.email);
 
       // Önce sadece kendi bağlı müşteri kayıtlarımızı öğreniyoruz, sonra tickets/ticket_messages
       // sorgularını bilerek bu customer_id'lerle sınırlıyoruz — RLS'e tek başına güvenmiyoruz,
@@ -515,7 +520,7 @@ export default function CustomerPortal() {
       }
 
       const [{ data: t }, { data: d }] = await Promise.all([
-        supabase.from("tickets").select("*").in("customer_id", customerIds).order("created_at"),
+        supabase.from("tickets").select("*").is("deleted_at", null).in("customer_id", customerIds).order("created_at"),
         supabase.from("customer_deal_view").select("*").order("created_at"),
       ]);
       const ticketIds = (t || []).map((row) => row.id);

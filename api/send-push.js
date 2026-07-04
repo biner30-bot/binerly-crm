@@ -33,6 +33,7 @@ export default async function handler(req, res) {
       .from("tickets")
       .select("id, user_id, customer_id, subject")
       .eq("id", record.ticket_id)
+      .is("deleted_at", null)
       .maybeSingle();
     if (ticketError) return res.status(200).json({ skipped: true, reason: "ticket query error", detail: ticketError.message });
     if (!ticket) return res.status(200).json({ skipped: true, reason: "ticket not found" });

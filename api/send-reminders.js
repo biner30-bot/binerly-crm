@@ -22,6 +22,7 @@ export default async function handler(req, res) {
     const { data: dueDeals, error: dealsError } = await supabaseAdmin
       .from("deals")
       .select("id, user_id, customer_id, title, reminder, reminder_date")
+      .is("deleted_at", null)
       .not("stage", "in", "(kazanildi,kaybedildi)")
       .neq("reminder", "")
       .lte("reminder_date", today);
