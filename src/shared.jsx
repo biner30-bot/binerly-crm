@@ -240,7 +240,6 @@ export function Modal({ title, onClose, children }) {
         inset: 0,
         background: "rgba(0,0,0,0.45)",
         display: "flex",
-        alignItems: "center",
         justifyContent: "center",
         padding: "1rem",
         overflowY: "auto",
@@ -255,6 +254,7 @@ export function Modal({ title, onClose, children }) {
           padding: "1.5rem",
           width: "100%",
           maxWidth: 420,
+          margin: "auto",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>

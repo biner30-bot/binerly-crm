@@ -74,6 +74,7 @@ function rowToDeal(r) {
     value: r.value,
     cost: r.cost || 0,
     stage: r.stage,
+    kdvRate: r.kdv_rate ?? 20,
     reminder: r.reminder || "",
     reminderDate: r.reminder_date || "",
     lostReason: r.lost_reason || "",
@@ -204,6 +205,7 @@ function rowToCompanySettings(r) {
     email: r.email || "",
     taxNumber: r.tax_number || "",
     logoUrl: r.logo_url || "",
+    defaultKdvRate: r.default_kdv_rate ?? 20,
     customerNotificationsEnabled: r.customer_notifications_enabled !== false,
   };
 }
@@ -288,7 +290,8 @@ function CompanySettingsForm({ initial, onSave, onCancel }) {
   const [email, setEmail] = useState(initial?.email || "");
   const [taxNumber, setTaxNumber] = useState(initial?.taxNumber || "");
   const [logoUrl, setLogoUrl] = useState(initial?.logoUrl || "");
-  const [customerNotificationsEnabled, setCustomerNotificationsEnabled] = useState(initial?.customerNotificationsEnabled !== false);
+  const [defaultKdvRate, setDefaultKdvRate] = useState(initial?.defaultKdvRate ?? 20);
+  const [customerNotificationsEnabled, setCustomerNotificationsEnabled] = useState(initial?.customerNotificationsEnabled === true);
 
   return (
     <form
@@ -301,6 +304,7 @@ function CompanySettingsForm({ initial, onSave, onCancel }) {
           email: email.trim(),
           taxNumber: taxNumber.trim(),
           logoUrl: logoUrl.trim(),
+          defaultKdvRate,
           customerNotificationsEnabled,
         });
       }}
@@ -333,6 +337,16 @@ function CompanySettingsForm({ initial, onSave, onCancel }) {
         <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Dosya yükleme yok — bir yerde barındırılan logonuzun bağlantısını yapıştırın.</p>
       </div>
       <div style={{ marginBottom: 16 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Varsayılan KDV oranı</label>
+        <select value={defaultKdvRate} onChange={(e) => setDefaultKdvRate(Number(e.target.value))} style={{ width: "100%" }}>
+          <option value={20}>%20</option>
+          <option value={10}>%10</option>
+          <option value={1}>%1</option>
+          <option value={0}>%0</option>
+        </select>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Yeni tekliflerde bu oran varsayılan gelir, her teklifte isterseniz değiştirebilirsiniz.</p>
+      </div>
+      <div style={{ marginBottom: 16 }}>
         <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
           <input
             type="checkbox"
@@ -353,37 +367,41 @@ function CompanySettingsForm({ initial, onSave, onCancel }) {
   );
 }
 
-function DealForm({ customers, initial, onSave, onCancel }) {
+function DealForm({ customers, initial, defaultKdvRate, onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(initial?.customerId || customers[0]?.id || "");
   const [title, setTitle] = useState(initial?.title || "");
   const [value, setValue] = useState(initial?.value ?? "");
   const [cost, setCost] = useState(initial?.cost ?? "");
+  const [kdvRate, setKdvRate] = useState(initial?.kdvRate ?? defaultKdvRate ?? 20);
   const [stage, setStage] = useState(initial?.stage || "ilk_gorusme");
+  const [dealDate, setDealDate] = useState((initial?.createdAt || new Date().toISOString()).slice(0, 10));
   const [reminder, setReminder] = useState(initial?.reminder || "");
   const [reminderDate, setReminderDate] = useState(initial?.reminderDate || "");
   const [lostReason, setLostReason] = useState(initial?.lostReason || LOST_REASONS[0]);
+  const isClosingStage = stage === "kazanildi" || stage === "kaybedildi";
+  const wasAlreadyClosed = initial?.stage === "kazanildi" || initial?.stage === "kaybedildi";
+  const [closedDate, setClosedDate] = useState(
+    (wasAlreadyClosed && initial?.closedAt ? initial.closedAt : new Date().toISOString()).slice(0, 10)
+  );
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
         if (!customerId || !title.trim()) return;
-        const isClosingStage = stage === "kazanildi" || stage === "kaybedildi";
-        const wasAlreadyClosed = initial?.stage === "kazanildi" || initial?.stage === "kaybedildi";
         onSave({
           id: initial?.id || uid(),
           customerId,
           title: title.trim(),
           value: Number(value) || 0,
           cost: Number(cost) || 0,
+          kdvRate,
           stage,
           reminder: reminder.trim(),
           reminderDate: reminderDate || null,
           lostReason: stage === "kaybedildi" ? lostReason : "",
-          createdAt: initial?.createdAt || new Date().toISOString(),
-          closedAt: isClosingStage
-            ? (wasAlreadyClosed && initial?.closedAt ? initial.closedAt : new Date().toISOString())
-            : null,
+          createdAt: new Date(dealDate).toISOString(),
+          closedAt: isClosingStage ? new Date(closedDate).toISOString() : null,
         });
       }}
     >
@@ -402,21 +420,46 @@ function DealForm({ customers, initial, onSave, onCancel }) {
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Yıllık tedarik anlaşması" style={{ width: "100%" }} />
       </div>
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-        <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tutar (TL)</label>
+        <div style={{ flex: 2 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
+            Tutar (TL) <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>— KDV dahil</span>
+          </label>
           <input type="number" min="0" value={value} onChange={(e) => setValue(e.target.value)} placeholder="50000" style={{ width: "100%" }} />
         </div>
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Gider (TL)</label>
           <input type="number" min="0" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="0" style={{ width: "100%" }} />
         </div>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>KDV oranı</label>
+          <select value={kdvRate} onChange={(e) => setKdvRate(Number(e.target.value))} style={{ width: "100%" }}>
+            <option value={20}>%20</option>
+            <option value={10}>%10</option>
+            <option value={1}>%1</option>
+            <option value={0}>%0</option>
+          </select>
+        </div>
       </div>
-      <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Aşama</label>
-        <select value={stage} onChange={(e) => setStage(e.target.value)} style={{ width: "100%" }}>
-          {STAGES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-        </select>
+      <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Teklif tarihi</label>
+          <input type="date" value={dealDate} onChange={(e) => setDealDate(e.target.value)} style={{ width: "100%" }} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Aşama</label>
+          <select value={stage} onChange={(e) => setStage(e.target.value)} style={{ width: "100%" }}>
+            {STAGES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+          </select>
+        </div>
       </div>
+      {isClosingStage && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
+            {stage === "kazanildi" ? "Kapanma / fatura tarihi" : "Kapanma tarihi"}
+          </label>
+          <input type="date" value={closedDate} onChange={(e) => setClosedDate(e.target.value)} style={{ width: "100%" }} />
+        </div>
+      )}
       <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
         <div style={{ flex: 2 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Hatırlatma notu</label>
@@ -1083,6 +1126,180 @@ function TrashHistoryModal({ notify, onRestore, onClose }) {
   );
 }
 
+const PARASUT_INVOICE_HEADERS = [
+  "MÜŞTERİ ÜNVANI *",
+  "FATURA İSMİ",
+  "FATURA TARİHİ",
+  "DÖVİZ CİNSİ",
+  "DÖVİZ KURU",
+  "VADE TARİHİ",
+  "TAHSİLAT TL KARŞILIĞI",
+  "FATURA TÜRÜ",
+  "FATURA SERİ",
+  "FATURA SIRA NO",
+  "KATEGORİ",
+  "HİZMET/ÜRÜN *",
+  "HİZMET/ÜRÜN AÇIKLAMASI",
+  "ÇIKIŞ DEPOSU *",
+  "MİKTAR *",
+  "BİRİM FİYATI *",
+  "İNDİRİM TUTARI",
+  "KDV ORANI *",
+  "ÖİV ORANI",
+  "KONAKLAMA VERGİSİ ORANI",
+];
+
+// Paraşüt'ün kendi şablonundan birebir alındı — bu metin olmadan (veya başlık
+// satırı 3. satırda değilse) Paraşüt dosyayı "hiçbir veri okuyamadık" diyerek
+// reddediyor. Sadece kendi içe aktarma ekranlarına geri beslemek için kullanılıyor.
+const PARASUT_HELP_TEXT = `Satış Faturaları
+
+- Yıldız ile belirlenen alanları doldurmanız yeterlidir.
+- Faturalar ile beraber Paraşüt'te kayıtlı olmayan Müşteriler ve Hizmet/Ürünler de oluşturulur.
+- Paraşütte kayıtlı olan müşteriler içeri alınan faturalar ile ilişkilendirilir.
+- Fatura Türü, "Fatura", "Taslak" (ya da "Proforma") veya "Konaklama" olabilir. Boş bırakmanız halinde "Fatura" olarak kaydedilir.
+- Fatura döviz cinsi TRL, USD, EUR veya GBP olabilir. Döviz cinsi belirtilmediği takdirde TRL olarak kabul edilir.
+- Proforma faturalarda fatura döviz kuru boş bırakılmalıdır. Eğer bir kur belirtilmişse göz ardı edilir. Faturalarda ise döviz kuru zorunludur.
+- Vade tarihi olmayan veya ileri bir tarihe denk gelen faturalar açık fatura olarak içeri alınır. Geçmiş tarihli tahsilatlar gerçekleşti olarak varsayılır ve kasa hesabınıza eklenir.
+- Yabancı döviz cinsinden kesilen faturalar için yapılan tahsilatların Türk Lirası karşılıklarınin girilmesi zorunludur. TL faturalarda ve diğer açık faturalarda bu alan boş bırakılmalıdır.
+- Bir faturaya birden fazla hizmet/ürün eklemek için faturayı takip eden satırlarda sadece hizmet/ürün detaylarını doldurun.
+- KDV Oranı 10 Temmuz 2023 itibariyle 0, 1, 10 veya 20 olmalıdır.
+- Fatura Sıra Numarasının başına sıfır eklemenize gerek yoktur.
+- Deponun belirtilmemesi durumunda ürünler varsayılan deponuzan çıkmış olarak kabul edilir.
+- Konaklama Vergisi Oranı belirtilmemiş ise Konaklama Vergisi yok, oran 0 ise Konaklama Vergisi istisna kabul edilir.
+- Tablonun sütun yapısını bozmayın.
+- Bu yardım metnini silmeyin.
+
+- Destek için destek@parasut.com veya 0212 292 04 94`;
+
+function ParasutExportModal({ deals, customerById, totalPaidForDeal, onClose }) {
+  const wonDeals = deals.filter((d) => d.stage === "kazanildi");
+  const [selected, setSelected] = useState(() => new Set(wonDeals.map((d) => d.id)));
+  const selectedDeals = wonDeals.filter((d) => selected.has(d.id));
+
+  const toggle = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const download = async () => {
+    const dataRows = selectedDeals.map((d) => {
+      const invoiceDate = new Date(d.closedAt || d.createdAt);
+      const kdvRate = d.kdvRate ?? 20;
+      // Binerly'deki tutar KDV dahil — Paraşüt birim fiyatın üzerine KDV'yi kendisi
+      // ekliyor, o yüzden burada KDV'siz (net) birim fiyatı geri hesaplıyoruz.
+      const netUnitPrice = kdvRate > 0 ? d.value / (1 + kdvRate / 100) : d.value;
+      return [
+        customerById(d.customerId)?.name || "",
+        d.title,
+        invoiceDate,
+        "",
+        "",
+        invoiceDate,
+        "",
+        "Fatura",
+        "",
+        "",
+        "",
+        d.title,
+        "",
+        "",
+        1,
+        Math.round(netUnitPrice * 100) / 100,
+        0,
+        kdvRate,
+        "",
+        "",
+      ];
+    });
+    // Paraşüt'ün gerçek şablonu: 1. satır (birleştirilmiş A1:F1) yardım metni,
+    // 2. satır boş, 3. satır başlıklar, sonrası veri. Bu yapı birebir aynı
+    // olmazsa (örn. başlık 1. satırda olursa) Paraşüt dosyayı okuyamıyor.
+    const XLSX = await import("xlsx");
+    const sheet = XLSX.utils.aoa_to_sheet([[PARASUT_HELP_TEXT], [], PARASUT_INVOICE_HEADERS, ...dataRows]);
+    sheet["!merges"] = [
+      { s: { c: 0, r: 0 }, e: { c: 5, r: 0 } },
+      { s: { c: 9, r: 0 }, e: { c: 14, r: 0 } },
+    ];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, "Satış Faturaları");
+    XLSX.writeFile(workbook, "parasut-satis-faturalari.xlsx");
+    onClose();
+  };
+
+  return (
+    <Modal title="Paraşüt'e Aktar" onClose={onClose}>
+      <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 12 }}>
+        "Kazanıldı" aşamasındaki teklifler arasından aktarmak istediklerinizi seçin. Seçilenler, Paraşüt'ün satış faturası içe aktarma şablonuyla uyumlu bir Excel (.xlsx) dosyası olarak indirilecek — her teklifin kendi KDV oranı kullanılır. İndirdiğiniz dosyayı Paraşüt'te Satışlar → Faturalar → İçe/Dışa Aktar → İçeri Aktar ile yükleyebilirsiniz.
+      </p>
+
+      {wonDeals.length === 0 ? (
+        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Aktarılabilecek "Kazanıldı" teklif yok.</p>
+      ) : (
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
+            Aktarılacak teklifler ({selectedDeals.length}/{wonDeals.length})
+          </label>
+          <div style={{ maxHeight: 180, overflowY: "auto", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 8 }}>
+            {wonDeals.map((d) => (
+              <label key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "4px 0", cursor: "pointer" }}>
+                <input type="checkbox" checked={selected.has(d.id)} onChange={() => toggle(d.id)} />
+                {customerById(d.customerId)?.name || "Bilinmeyen müşteri"} — {d.title}{" "}
+                <span style={{ color: "var(--text-muted)" }}>({formatTL(d.value)}, KDV %{d.kdvRate ?? 20})</span>
+              </label>
+            ))}
+          </div>
+          <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "6px 0 0" }}>KDV oranı yanlış görünüyorsa Vazgeç'e basıp ilgili teklifi düzenleyerek değiştirebilirsiniz.</p>
+        </div>
+      )}
+
+      {(() => {
+        const dealsWithPayments = selectedDeals.filter((d) => totalPaidForDeal(d.id) > 0);
+        if (dealsWithPayments.length === 0) return null;
+        return (
+          <div style={{ marginBottom: 16, background: "var(--bg-warning)", borderRadius: "var(--radius)", padding: "0.75rem 1rem" }}>
+            <p style={{ fontSize: 12.5, color: "var(--text-warning)", margin: "0 0 8px", lineHeight: 1.6, fontWeight: 600 }}>
+              Dikkat: Excel dosyası tahsilat bilgisi taşımıyor, faturalar Paraşüt'e aktarılınca "ödenmemiş" görünecek. Aşağıdaki {dealsWithPayments.length} teklif için Binerly'de tahsilat kaydı var — Paraşüt'e aktardıktan sonra her biri için:
+            </p>
+            <ol style={{ margin: "0 0 10px", paddingLeft: 18, fontSize: 12.5, color: "var(--text-warning)", lineHeight: 1.6 }}>
+              <li>Paraşüt'te o faturayı açın.</li>
+              <li>"TAHSİLAT EKLE" butonuna tıklayın.</li>
+              <li>"Nakit"i seçip aşağıdaki tutarı girin ve kaydedin.</li>
+            </ol>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 140, overflowY: "auto" }}>
+              {dealsWithPayments.map((d) => {
+                const paid = totalPaidForDeal(d.id);
+                const remaining = d.value - paid;
+                return (
+                  <div key={d.id} style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                    <strong style={{ color: "var(--text-primary)" }}>{customerById(d.customerId)?.name || "Bilinmeyen müşteri"} — {d.title}:</strong>{" "}
+                    Girilecek tutar: <strong>{formatTL(paid)}</strong>
+                    {remaining > 0 ? ` (kalan ${formatTL(remaining)} henüz tahsil edilmedi)` : " (tamamı ödendi)"}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+        <button onClick={onClose}>Vazgeç</button>
+        <button
+          onClick={download}
+          disabled={selectedDeals.length === 0}
+          style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+        >
+          İndir
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 function AppSettingsModal({ session, theme, onThemeChange, pushSubscribed, onSubscribe, onUnsubscribe, notify, onClose }) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -1257,8 +1474,8 @@ function AuthModal({ initialMode = "login", onClose }) {
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "1rem" }}>
-      <div style={{ background: "#fff", borderRadius: 16, padding: "2rem", width: "100%", maxWidth: 420, position: "relative" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", zIndex: 1000, padding: "1rem", overflowY: "auto" }}>
+      <div style={{ background: "#fff", borderRadius: 16, padding: "2rem", width: "100%", maxWidth: 420, position: "relative", margin: "auto" }}>
         <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#666" }}>✕</button>
         <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 4px", color: "#0c2540" }}>
           {mode === "login" ? "Giriş yap" : "Ücretsiz başla"}
@@ -1316,8 +1533,8 @@ function AuthModal({ initialMode = "login", onClose }) {
 
 function EntryChoiceModal({ onChooseCompany, onChooseCustomer, onClose }) {
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "1rem" }}>
-      <div style={{ background: "#fff", borderRadius: 16, padding: "2rem", width: "100%", maxWidth: 380, textAlign: "center", position: "relative" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", zIndex: 1000, padding: "1rem", overflowY: "auto" }}>
+      <div style={{ background: "#fff", borderRadius: 16, padding: "2rem", width: "100%", maxWidth: 380, textAlign: "center", position: "relative", margin: "auto" }}>
         <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#666" }}>✕</button>
         <img src="/favicon.svg" alt="Binerly" style={{ width: 32, height: 32, marginBottom: 14 }} />
         <h2 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 6px", color: "#0c2540" }}>Nasıl giriş yapmak istersiniz?</h2>
@@ -1496,6 +1713,13 @@ function LandingPage() {
               desc: "Uygulamayı telefonunuza kurup anında bildirim alın, müşterinize tek tıkla WhatsApp'tan ulaşın. Gmail/Outlook senkronizasyonu ve muhasebe/ERP entegrasyonu yol haritamızda.",
               tags: ["Mobil Uygulama (PWA)", "Anlık Bildirim", "WhatsApp", "Yakında: ERP/Muhasebe"],
             },
+            {
+              id: "is-birligi-agi",
+              icon: "ti-handshake",
+              title: "KOBİ İş Birliği Ağı",
+              desc: "Binerly'ye kayıtlı KOBİ'ler birbirini keşfedip iş birliği yapabilecek, ücretli veya ücretsiz iş fırsatlarını paylaşabilecek — birbirinizin müşterisi, tedarikçisi veya iş ortağı olun.",
+              tags: ["Yakında"],
+            },
           ].map((f) => (
             <div key={f.title} id={f.id} style={{ background: "#fff", borderRadius: 12, padding: "1.5rem", border: "1px solid #e1e8f0", scrollMarginTop: 80 }}>
               <i className={`ti ${f.icon}`} style={{ fontSize: 28, color: "#185fa5", display: "block", marginBottom: 12 }} />
@@ -1629,6 +1853,7 @@ export default function App() {
   const [showTrashHistory, setShowTrashHistory] = useState(false);
   const [showImportCustomers, setShowImportCustomers] = useState(false);
   const [showImportDeals, setShowImportDeals] = useState(false);
+  const [showParasutExport, setShowParasutExport] = useState(false);
   const [showImportTickets, setShowImportTickets] = useState(false);
   const [showImportKbArticles, setShowImportKbArticles] = useState(false);
   const [showPasswordRecovery, setShowPasswordRecovery] = useState(false);
@@ -1812,7 +2037,7 @@ export default function App() {
   // asla engellemez, şirket ayarlarından kapatılabilir, e-postası olmayan
   // müşteriler için sessizce atlanır.
   const notifyCustomerByEmail = async (customer, subject, message) => {
-    if (companySettings?.customerNotificationsEnabled === false) return;
+    if (companySettings?.customerNotificationsEnabled !== true) return;
     if (!customer?.email) return;
     try {
       await fetch("/api/send-campaign", {
@@ -1930,6 +2155,7 @@ export default function App() {
       value: d.value,
       cost: d.cost,
       stage: d.stage,
+      kdv_rate: d.kdvRate ?? 20,
       reminder: d.reminder,
       reminder_date: d.reminderDate || null,
       lost_reason: d.lostReason,
@@ -2326,6 +2552,7 @@ export default function App() {
       email: s.email,
       tax_number: s.taxNumber,
       logo_url: s.logoUrl,
+      default_kdv_rate: s.defaultKdvRate ?? 20,
       customer_notifications_enabled: s.customerNotificationsEnabled !== false,
       updated_at: new Date().toISOString(),
     };
@@ -3039,6 +3266,13 @@ export default function App() {
                 Dışa aktar
               </button>
               <button
+                onClick={() => setShowParasutExport(true)}
+                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                <i className="ti ti-receipt" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                Paraşüt'e aktar
+              </button>
+              <button
                 onClick={() => setShowImportDeals(true)}
                 style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
               >
@@ -3173,7 +3407,7 @@ export default function App() {
                           {c?.name || "Bilinmeyen müşteri"} — {d.title}
                         </p>
                         <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
-                          {d.reminder ? `Hatırlatma: ${d.reminder}` : "Hatırlatma yok"}
+                          {d.createdAt ? new Date(d.createdAt).toLocaleDateString("tr-TR") : ""} · {d.reminder ? `Hatırlatma: ${d.reminder}` : "Hatırlatma yok"}
                         </p>
                       </td>
                       <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
@@ -3290,6 +3524,10 @@ export default function App() {
         />
       )}
 
+      {showParasutExport && (
+        <ParasutExportModal deals={filteredDeals} customerById={customerById} totalPaidForDeal={totalPaidForDeal} onClose={() => setShowParasutExport(false)} />
+      )}
+
       {teklifDeal && (
         <TeklifPrint
           deal={teklifDeal}
@@ -3328,7 +3566,7 @@ export default function App() {
 
       {showDealForm && (
         <Modal title={editingDeal ? "Teklifi düzenle" : "Yeni teklif"} onClose={() => { setShowDealForm(false); setEditingDeal(null); }}>
-          <DealForm customers={customers} initial={editingDeal} onSave={upsertDeal} onCancel={() => { setShowDealForm(false); setEditingDeal(null); }} />
+          <DealForm customers={customers} initial={editingDeal} defaultKdvRate={companySettings?.defaultKdvRate} onSave={upsertDeal} onCancel={() => { setShowDealForm(false); setEditingDeal(null); }} />
           {editingDeal && (
             <DealPayments
               deal={editingDeal}
