@@ -246,6 +246,7 @@ function TicketForm({ customers, initial, onSave, onCancel }) {
 
 function TicketList({
   tickets,
+  totalCount,
   customers,
   unreadCountByTicket,
   statusFilter,
@@ -294,7 +295,9 @@ function TicketList({
         <DateRangeFilter from={fromDate} to={toDate} onFromChange={onFromDateChange} onToChange={onToDateChange} />
       </div>
       {sorted.length === 0 ? (
-        <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Bu filtreye uyan talep yok.</p>
+        <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
+          {totalCount === 0 ? "Henüz talep eklenmedi." : "Aramayla eşleşen talep yok."}
+        </p>
       ) : (
         <div>
           <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 8px" }}>
@@ -487,7 +490,7 @@ function KbList({
         <input
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Başlıkta ara..."
+          placeholder="Makale ara (başlık)..."
           style={{ flex: 1, minWidth: 200 }}
         />
         {categories.length > 0 && (
@@ -527,7 +530,7 @@ function KbList({
 
       {filtered.length === 0 ? (
         <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
-          {totalCount === 0 ? "Henüz makale eklenmedi." : "Filtreye uyan makale yok."}
+          {totalCount === 0 ? "Henüz makale eklenmedi." : "Aramayla eşleşen makale yok."}
         </p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -756,7 +759,7 @@ export default function Support({
                 style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
               >
                 <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                Yeni talep
+                Talep ekle
               </button>
             </>
           ) : (
@@ -801,6 +804,7 @@ export default function Support({
       {supportView === "talepler" ? (
         <TicketList
           tickets={sortedTickets}
+          totalCount={tickets.length}
           customers={customers}
           unreadCountByTicket={unreadCountByTicket}
           statusFilter={ticketStatusFilter}

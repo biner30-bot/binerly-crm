@@ -101,6 +101,17 @@ const DEAL_IMPORT_FIELDS = [
   { key: "value", label: "Tutar", type: "number" },
   { key: "cost", label: "Gider", type: "number" },
   { key: "stage", label: "Aşama", type: "enum", enumOptions: STAGES, enumDefault: "ilk_gorusme" },
+  {
+    key: "kdvRate",
+    label: "KDV oranı",
+    type: "enum",
+    enumOptions: [
+      { id: "20", label: "%20" },
+      { id: "10", label: "%10" },
+      { id: "1", label: "%1" },
+      { id: "0", label: "%0" },
+    ],
+  },
 ];
 
 const PANO_RANGES = [
@@ -383,12 +394,18 @@ function DealForm({ customers, initial, defaultKdvRate, onSave, onCancel }) {
   const [closedDate, setClosedDate] = useState(
     (wasAlreadyClosed && initial?.closedAt ? initial.closedAt : new Date().toISOString()).slice(0, 10)
   );
+  const [dateError, setDateError] = useState("");
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
         if (!customerId || !title.trim()) return;
+        if (isClosingStage && closedDate < dealDate) {
+          setDateError("Kapanma tarihi, teklif tarihinden önce olamaz.");
+          return;
+        }
+        setDateError("");
         onSave({
           id: initial?.id || uid(),
           customerId,
@@ -457,7 +474,8 @@ function DealForm({ customers, initial, defaultKdvRate, onSave, onCancel }) {
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
             {stage === "kazanildi" ? "Kapanma / fatura tarihi" : "Kapanma tarihi"}
           </label>
-          <input type="date" value={closedDate} onChange={(e) => setClosedDate(e.target.value)} style={{ width: "100%" }} />
+          <input type="date" min={dealDate} value={closedDate} onChange={(e) => setClosedDate(e.target.value)} style={{ width: "100%" }} />
+          {dateError && <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "4px 0 0" }}>{dateError}</p>}
         </div>
       )}
       <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
@@ -648,6 +666,10 @@ function CustomerDetail({ customer, deals, activities, onAddActivity, onClose })
 }
 
 function TeklifPrint({ deal, customer, companySettings, onClose }) {
+  const kdvRate = deal.kdvRate ?? 20;
+  const netAmount = kdvRate > 0 ? deal.value / (1 + kdvRate / 100) : deal.value;
+  const kdvAmount = deal.value - netAmount;
+
   useEffect(() => {
     const t = setTimeout(() => window.print(), 50);
     return () => clearTimeout(t);
@@ -703,13 +725,21 @@ function TeklifPrint({ deal, customer, companySettings, onClose }) {
           <tbody>
             <tr style={{ borderBottom: "1px solid #e1e8f0" }}>
               <td style={{ padding: "12px 0", fontSize: 14 }}>{deal.title}</td>
-              <td style={{ padding: "12px 0", fontSize: 14, textAlign: "right" }}>{formatTL(deal.value)}</td>
+              <td style={{ padding: "12px 0", fontSize: 14, textAlign: "right" }}>{formatTL(netAmount)}</td>
             </tr>
           </tbody>
           <tfoot>
             <tr>
-              <td style={{ padding: "12px 0", fontWeight: 700, fontSize: 15 }}>Toplam</td>
-              <td style={{ padding: "12px 0", fontWeight: 700, fontSize: 15, textAlign: "right" }}>{formatTL(deal.value)}</td>
+              <td style={{ padding: "6px 0", fontSize: 13, color: "#5b7088" }}>Ara toplam</td>
+              <td style={{ padding: "6px 0", fontSize: 13, color: "#5b7088", textAlign: "right" }}>{formatTL(netAmount)}</td>
+            </tr>
+            <tr>
+              <td style={{ padding: "6px 0", fontSize: 13, color: "#5b7088" }}>KDV (%{kdvRate})</td>
+              <td style={{ padding: "6px 0", fontSize: 13, color: "#5b7088", textAlign: "right" }}>{formatTL(kdvAmount)}</td>
+            </tr>
+            <tr>
+              <td style={{ padding: "12px 0 0", fontWeight: 700, fontSize: 15, borderTop: "2px solid #0c2540" }}>Genel Toplam</td>
+              <td style={{ padding: "12px 0 0", fontWeight: 700, fontSize: 15, textAlign: "right", borderTop: "2px solid #0c2540" }}>{formatTL(deal.value)}</td>
             </tr>
           </tfoot>
         </table>
@@ -2155,7 +2185,7 @@ export default function App() {
       value: d.value,
       cost: d.cost,
       stage: d.stage,
-      kdv_rate: d.kdvRate ?? 20,
+      kdv_rate: d.kdvRate ?? companySettings?.defaultKdvRate ?? 20,
       reminder: d.reminder,
       reminder_date: d.reminderDate || null,
       lost_reason: d.lostReason,
@@ -2238,7 +2268,7 @@ export default function App() {
     const demoNote = "Bu örnek bir kayıttır, istediğiniz zaman silebilirsiniz.";
     const demoCustomers = [
       { id: uid(), name: "Örnek Müşteri — Akın İnşaat", sector: "İnşaat", phone: "0532 000 00 01", email: "", notes: demoNote, lastContact: now, createdAt: now },
-      { id: uid(), name: "Örnek Müşteri — Medipark Klinik", sector: "Medikal", phone: "0532 000 00 02", email: "", notes: demoNote, lastContact: now, createdAt: now },
+      { id: uid(), name: "Örnek Müşteri — Medipark Klinik", sector: "Medikal / Sağlık", phone: "0532 000 00 02", email: "", notes: demoNote, lastContact: now, createdAt: now },
       { id: uid(), name: "Örnek Müşteri — Tazegül Gıda", sector: "Gıda", phone: "0532 000 00 03", email: "", notes: demoNote, lastContact: now, createdAt: now },
     ];
     for (const c of demoCustomers) await upsertCustomer(c);
@@ -2354,7 +2384,6 @@ export default function App() {
         const customer = customers.find((c) => c.id === previous?.customerId);
         const company = companySettings?.companyName || "Binerly";
         const statusLabel = STATUSES.find((s) => s.id === status)?.label || status;
-        notify(`[TEŞHİS] müşteri=${customer?.name || "yok"} e-posta=${customer?.email || "yok"} ayar=${String(companySettings?.customerNotificationsEnabled)}`, "success");
         notifyCustomerByEmail(
           customer,
           `Destek talebiniz güncellendi — ${company}`,
@@ -2508,6 +2537,7 @@ export default function App() {
       return {
         id: uid(), user_id: activeTeamId, customer_id: r.customerId, title: r.title,
         value: r.value || 0, cost: r.cost || 0, stage: r.stage || "ilk_gorusme",
+        kdv_rate: r.kdvRate !== undefined ? Number(r.kdvRate) : (companySettings?.defaultKdvRate ?? 20),
         reminder: "", reminder_date: null, lost_reason: "",
         created_at: now, closed_at: isClosingStage ? now : null,
       };
@@ -3525,7 +3555,7 @@ export default function App() {
       )}
 
       {showParasutExport && (
-        <ParasutExportModal deals={filteredDeals} customerById={customerById} totalPaidForDeal={totalPaidForDeal} onClose={() => setShowParasutExport(false)} />
+        <ParasutExportModal deals={deals} customerById={customerById} totalPaidForDeal={totalPaidForDeal} onClose={() => setShowParasutExport(false)} />
       )}
 
       {teklifDeal && (
