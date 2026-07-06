@@ -2947,7 +2947,7 @@ export default function App() {
         {[
           { id: "pano", label: "Pano", icon: "ti-layout-dashboard" },
           { id: "musteri", label: "Müşteriler", icon: "ti-building" },
-          { id: "firsat", label: "Teklif ve Randevular", icon: "ti-target-arrow" },
+          { id: "firsat", label: "İş Takibi", icon: "ti-target-arrow" },
           { id: "finans", label: "Finans", icon: "ti-chart-line" },
           { id: "destek", label: "Destek", icon: "ti-headset" },
         ].map((t) => (
@@ -3726,7 +3726,7 @@ export default function App() {
       {showImportDeals && (
         <ImportModal
           entityType="deals"
-          entityLabel="Teklif ve Randevular"
+          entityLabel="İş Takibi"
           fieldDefs={DEAL_IMPORT_FIELDS}
           customers={customers}
           onImport={bulkImportDeals}

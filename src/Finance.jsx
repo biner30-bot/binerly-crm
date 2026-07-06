@@ -92,6 +92,7 @@ function expenseDateTimeLabel(dateStr) {
 function CompanyExpenseForm({ onSave, onCancel }) {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
+  const [customCategory, setCustomCategory] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState("");
@@ -104,10 +105,11 @@ function CompanyExpenseForm({ onSave, onCancel }) {
     e.preventDefault();
     const n = Number(amount);
     if (!title.trim() || !n || n <= 0) return;
+    if (category === "Diğer" && !customCategory.trim()) return;
     setSaving(true);
     await onSave({
       title: title.trim(),
-      category,
+      category: category === "Diğer" ? customCategory.trim() : category,
       amount: n,
       expenseDate: (time ? new Date(`${date}T${time}`) : new Date(date)).toISOString(),
       note: note.trim(),
@@ -136,6 +138,12 @@ function CompanyExpenseForm({ onSave, onCancel }) {
             <input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" style={{ width: "100%" }} />
           </div>
         </div>
+        {category === "Diğer" && (
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kategori adı</label>
+            <input value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} placeholder="Kategorinizi yazın" style={{ width: "100%" }} />
+          </div>
+        )}
         <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
           <div style={{ flex: 1 }}>
             <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tarih</label>
@@ -176,7 +184,11 @@ function CompanyExpenseForm({ onSave, onCancel }) {
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button type="button" onClick={onCancel}>Vazgeç</button>
-          <button type="submit" disabled={saving || !title.trim() || !amount} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+          <button
+            type="submit"
+            disabled={saving || !title.trim() || !amount || (category === "Diğer" && !customCategory.trim())}
+            style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+          >
             Kaydet
           </button>
         </div>
