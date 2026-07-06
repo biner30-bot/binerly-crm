@@ -2334,8 +2334,11 @@ export default function App() {
     logAction("payments", id, "deleted", `${formatTL(payment?.amount || 0)} tahsilat çöp kutusuna taşındı`);
   };
 
-  const addCompanyExpense = async ({ title, category, amount, expenseDate, note }) => {
-    const row = { id: uid(), user_id: activeTeamId, title, category: category || "Diğer", amount, expense_date: expenseDate, note: note || null };
+  const addCompanyExpense = async ({ title, category, amount, expenseDate, note, isRecurring, recurrenceInterval }) => {
+    const row = {
+      id: uid(), user_id: activeTeamId, title, category: category || "Diğer", amount, expense_date: expenseDate, note: note || null,
+      is_recurring: !!isRecurring, recurrence_interval: recurrenceInterval || "monthly",
+    };
     const { data, error } = await supabase.from("company_expenses").insert(row).select().single();
     if (error) { notify(`Gider eklenemedi: ${error.message}`); return; }
     const expense = rowToCompanyExpense(data);

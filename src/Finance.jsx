@@ -8,10 +8,71 @@ export function rowToCompanyExpense(r) {
     category: r.category || "Diğer",
     amount: r.amount,
     expenseDate: r.expense_date,
+    isRecurring: r.is_recurring || false,
+    recurrenceInterval: r.recurrence_interval || "monthly",
     note: r.note || "",
     createdAt: r.created_at,
     deletedAt: r.deleted_at || null,
   };
+}
+
+// Tekrarlayan bir gideri (örn. aylık kira veya yıllık sözleşme), kendi tarihinden
+// bugüne kadar her ay/yıl için tek bir sanal kayda (occurrence) genişletir — yeni
+// bir DB satırı oluşturmadan. Gerçek satır sadece kendi döneminde (isProjected:
+// false), diğer dönemlerde sanal olarak (isProjected: true) görünür; silme her
+// zaman gerçek satırı hedefler.
+function expandExpenseOccurrences(expense, bounds) {
+  if (!expense.isRecurring) {
+    return inRange(expense.expenseDate, bounds) ? [{ ...expense, occurrenceDate: expense.expenseDate, isProjected: false }] : [];
+  }
+  const original = new Date(expense.expenseDate);
+  const day = original.getDate();
+  const hh = original.getHours();
+  const mm = original.getMinutes();
+  const now = new Date();
+  const occurrences = [];
+
+  if (expense.recurrenceInterval === "yearly") {
+    const month = original.getMonth();
+    for (let year = original.getFullYear(); year <= now.getFullYear(); year++) {
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const occDate = new Date(year, month, Math.min(day, daysInMonth), hh, mm);
+      if (inRange(occDate.toISOString(), bounds)) {
+        occurrences.push({ ...expense, occurrenceDate: occDate.toISOString(), isProjected: year !== original.getFullYear() });
+      }
+    }
+    return occurrences;
+  }
+
+  if (expense.recurrenceInterval === "daily") {
+    // Uzun bir "tüm zamanlar" aralığında gereksiz yere binlerce eski günü
+    // dolaşmamak için, aralığın başlangıcından önceki günleri atlıyoruz.
+    const startFrom = bounds.start && bounds.start > original ? bounds.start : original;
+    let cursor = new Date(startFrom.getFullYear(), startFrom.getMonth(), startFrom.getDate(), hh, mm);
+    const endCursorDaily = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm);
+    while (cursor <= endCursorDaily) {
+      if (inRange(cursor.toISOString(), bounds)) {
+        const isOriginalDay =
+          cursor.getFullYear() === original.getFullYear() && cursor.getMonth() === original.getMonth() && cursor.getDate() === original.getDate();
+        occurrences.push({ ...expense, occurrenceDate: cursor.toISOString(), isProjected: !isOriginalDay });
+      }
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1, hh, mm);
+    }
+    return occurrences;
+  }
+
+  const endCursor = new Date(now.getFullYear(), now.getMonth(), 1);
+  let cursor = new Date(original.getFullYear(), original.getMonth(), 1);
+  while (cursor <= endCursor) {
+    const daysInMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
+    const occDate = new Date(cursor.getFullYear(), cursor.getMonth(), Math.min(day, daysInMonth), hh, mm);
+    if (inRange(occDate.toISOString(), bounds)) {
+      const isOriginalMonth = cursor.getFullYear() === original.getFullYear() && cursor.getMonth() === original.getMonth();
+      occurrences.push({ ...expense, occurrenceDate: occDate.toISOString(), isProjected: !isOriginalMonth });
+    }
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+  }
+  return occurrences;
 }
 
 const EXPENSE_CATEGORIES = ["Kira", "Maaş", "Fatura / Abonelik", "Ofis / Sarf Malzemesi", "Pazarlama", "Vergi / SGK", "Ulaşım", "Diğer"];
@@ -35,6 +96,8 @@ function CompanyExpenseForm({ onSave, onCancel }) {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState("");
   const [note, setNote] = useState("");
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceInterval, setRecurrenceInterval] = useState("monthly");
   const [saving, setSaving] = useState(false);
 
   const submit = async (e) => {
@@ -48,6 +111,8 @@ function CompanyExpenseForm({ onSave, onCancel }) {
       amount: n,
       expenseDate: (time ? new Date(`${date}T${time}`) : new Date(date)).toISOString(),
       note: note.trim(),
+      isRecurring,
+      recurrenceInterval,
     });
     setSaving(false);
   };
@@ -83,9 +148,31 @@ function CompanyExpenseForm({ onSave, onCancel }) {
             <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={{ width: "100%" }} />
           </div>
         </div>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Not (opsiyonel)</label>
           <input value={note} onChange={(e) => setNote(e.target.value)} style={{ width: "100%" }} />
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-secondary)", cursor: "pointer" }}>
+            <input type="checkbox" checked={isRecurring} onChange={(e) => setIsRecurring(e.target.checked)} />
+            Düzenli tekrarlanan bir gider (örn. kira, sabit fatura)
+          </label>
+          {isRecurring ? (
+            <div style={{ margin: "8px 0 0 26px", maxWidth: 200 }}>
+              <select value={recurrenceInterval} onChange={(e) => setRecurrenceInterval(e.target.value)} style={{ width: "100%" }}>
+                <option value="daily">Her gün tekrarla</option>
+                <option value="monthly">Her ay tekrarla</option>
+                <option value="yearly">Her yıl tekrarla</option>
+              </select>
+              <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0" }}>
+                Bu gideri her seferinde tekrar eklemenize gerek kalmaz, aynı tutar seçtiğiniz sıklıkta otomatik sayılır.
+              </p>
+            </div>
+          ) : (
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0 26px" }}>
+              Örn. yıllık kira sözleşmeniz varsa işaretleyip "Her yıl tekrarla" seçebilirsiniz.
+            </p>
+          )}
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button type="button" onClick={onCancel}>Vazgeç</button>
@@ -108,7 +195,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
   const bounds = getRangeBounds(financeRange);
 
   const rangePayments = payments.filter((p) => inRange(p.paidAt, bounds));
-  const rangeExpenses = companyExpenses.filter((e) => inRange(e.expenseDate, bounds));
+  const rangeExpenses = companyExpenses.flatMap((e) => expandExpenseOccurrences(e, bounds));
   const wonDealsWithCost = deals.filter(
     (d) => d.stage === "kazanildi" && (d.cost || 0) > 0 && inRange(d.closedAt || d.createdAt, bounds)
   );
@@ -138,11 +225,13 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
       };
     }),
     ...rangeExpenses.map((e) => ({
-      id: `expense-${e.id}`,
+      id: `expense-${e.id}-${e.occurrenceDate}`,
       type: "gider",
-      date: e.expenseDate,
+      date: e.occurrenceDate,
       hasTime: true,
       label: `${e.title} · ${e.category}`,
+      isRecurring: e.isRecurring,
+      recurrenceInterval: e.recurrenceInterval,
       amount: e.amount,
       expenseId: e.id,
     })),
@@ -151,7 +240,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
       type: "gider",
       date: d.closedAt || d.createdAt,
       hasTime: false,
-      label: `${d.title} maliyeti`,
+      label: `${customerById(d.customerId)?.name || "Bilinmeyen müşteri"} — ${d.title} maliyeti`,
       amount: d.cost,
     })),
   ].sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -200,7 +289,23 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <Badge tone={item.type === "gelir" ? "success" : "danger"}>{item.type === "gelir" ? "Gelir" : "Gider"}</Badge>
                     <div>
-                      <p style={{ margin: 0 }}>{item.label}</p>
+                      <p style={{ margin: 0, display: "flex", alignItems: "center", gap: 5 }}>
+                        {item.label}
+                        {item.isRecurring && (
+                          <i
+                            className="ti ti-repeat"
+                            title={
+                              item.recurrenceInterval === "yearly"
+                                ? "Her yıl tekrarlanan gider"
+                                : item.recurrenceInterval === "daily"
+                                ? "Her gün tekrarlanan gider"
+                                : "Her ay tekrarlanan gider"
+                            }
+                            style={{ fontSize: 13, color: "var(--text-muted)" }}
+                            aria-hidden="true"
+                          ></i>
+                        )}
+                      </p>
                       <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>
                         {item.hasTime ? expenseDateTimeLabel(item.date) : paymentDateLabel(item.date)}
                       </p>
