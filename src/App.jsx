@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, uid, formatTL, daysAgo, downloadCsv, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter } from "./shared";
+import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, uid, formatTL, daysAgo, downloadCsv, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange } from "./shared";
+import Finance, { rowToCompanyExpense } from "./Finance";
 import Support, {
   rowToTicket,
   rowToTicketMessage,
@@ -18,6 +19,18 @@ const STAGES = [
   { id: "kazanildi", label: "Kazanıldı" },
   { id: "kaybedildi", label: "Kaybedildi" },
 ];
+
+const STAGE_LABELS_BIREYSEL = {
+  ilk_gorusme: "İlgileniyor",
+  teklif: "Planlandı",
+  muzakere: "Onay bekleniyor",
+  kazanildi: "Tamamlandı",
+  kaybedildi: "İptal",
+};
+function stageLabel(stageId, customerType) {
+  if (customerType === "bireysel") return STAGE_LABELS_BIREYSEL[stageId] || stageId;
+  return STAGES.find((s) => s.id === stageId)?.label || stageId;
+}
 
 const SECTORS = [
   "İnşaat", "Medikal / Sağlık", "Gıda", "Tekstil", "Elektrik / Elektronik",
@@ -54,6 +67,7 @@ function rowToCustomer(r) {
   return {
     id: r.id,
     name: r.name,
+    customerType: r.customer_type || "kurumsal",
     sector: r.sector,
     region: r.region || "",
     phone: r.phone || "",
@@ -78,17 +92,29 @@ function rowToDeal(r) {
     reminder: r.reminder || "",
     reminderDate: r.reminder_date || "",
     lostReason: r.lost_reason || "",
+    sessionTotal: r.session_total ?? null,
+    sessionUsed: r.session_used ?? 0,
     createdAt: r.created_at,
     closedAt: r.closed_at || null,
     deletedAt: r.deleted_at || null,
   };
 }
 
-const LOST_REASONS = ["Yüksek fiyat", "Rakip tercih edildi", "Bütçe yok", "Zamanlama uymadı", "Diğer"];
+const LOST_REASONS = ["Yüksek fiyat", "Rakip tercih edildi", "Bütçe yok", "Zamanlama uymadı", "Vazgeçti", "Diğer"];
 
 const CUSTOMER_IMPORT_FIELDS = [
   { key: "name", label: "Ad / Firma adı", required: true },
-  { key: "sector", label: "Sektör" },
+  {
+    key: "customerType",
+    label: "Müşteri tipi",
+    type: "enum",
+    enumOptions: [
+      { id: "kurumsal", label: "Kurumsal" },
+      { id: "bireysel", label: "Bireysel" },
+    ],
+    enumDefault: "kurumsal",
+  },
+  { key: "sector", label: "Sektör (sadece Kurumsal için)" },
   { key: "region", label: "Bölge / Şehir" },
   { key: "phone", label: "Telefon" },
   { key: "email", label: "E-posta" },
@@ -113,31 +139,6 @@ const DEAL_IMPORT_FIELDS = [
     ],
   },
 ];
-
-const PANO_RANGES = [
-  { id: "bu_ay", label: "Bu ay" },
-  { id: "bu_ceyrek", label: "Bu çeyrek" },
-  { id: "bu_yil", label: "Bu yıl" },
-  { id: "son_6_ay", label: "Son 6 ay" },
-  { id: "tum_zamanlar", label: "Tüm zamanlar" },
-];
-
-function getRangeBounds(range) {
-  const now = new Date();
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-  if (range === "bu_ay") return { start: new Date(now.getFullYear(), now.getMonth(), 1), end };
-  if (range === "bu_ceyrek") return { start: new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1), end };
-  if (range === "bu_yil") return { start: new Date(now.getFullYear(), 0, 1), end };
-  if (range === "son_6_ay") return { start: new Date(now.getFullYear(), now.getMonth() - 5, 1), end };
-  return { start: null, end };
-}
-
-function inRange(dateStr, { start, end }) {
-  const t = new Date(dateStr).getTime();
-  if (Number.isNaN(t)) return false;
-  if (start && t < start.getTime()) return false;
-  return t <= end.getTime();
-}
 
 // "Tüm zamanlar" seçiliyken en eski kazanılan fırsattan bugüne kadar aylık bucket
 // üretir; çok eski hesaplarda grafiğin şişmemesi için en fazla 24 ay gösterilir.
@@ -223,6 +224,7 @@ function rowToCompanySettings(r) {
 
 function CustomerForm({ initial, onSave, onCancel }) {
   const initialIsCustomSector = initial?.sector && !SECTORS.includes(initial.sector);
+  const [customerType, setCustomerType] = useState(initial?.customerType || "kurumsal");
   const [name, setName] = useState(initial?.name || "");
   const [sector, setSector] = useState(initialIsCustomSector ? "Diğer" : (initial?.sector || SECTORS[0]));
   const [customSector, setCustomSector] = useState(initialIsCustomSector ? initial.sector : "");
@@ -230,17 +232,19 @@ function CustomerForm({ initial, onSave, onCancel }) {
   const [phone, setPhone] = useState(initial?.phone || "");
   const [email, setEmail] = useState(initial?.email || "");
   const [notes, setNotes] = useState(initial?.notes || "");
+  const isKurumsal = customerType === "kurumsal";
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
         if (!name.trim()) return;
-        if (sector === "Diğer" && !customSector.trim()) return;
+        if (isKurumsal && sector === "Diğer" && !customSector.trim()) return;
         onSave({
           id: initial?.id || uid(),
+          customerType,
           name: name.trim(),
-          sector: sector === "Diğer" ? customSector.trim() : sector,
+          sector: isKurumsal ? (sector === "Diğer" ? customSector.trim() : sector) : "",
           region: region.trim(),
           phone: phone.trim(),
           email: email.trim(),
@@ -251,22 +255,31 @@ function CustomerForm({ initial, onSave, onCancel }) {
       }}
     >
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Firma adı</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Akın İnşaat" style={{ width: "100%" }} />
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Müşteri tipi</label>
+        <select value={customerType} onChange={(e) => setCustomerType(e.target.value)} style={{ width: "100%" }}>
+          <option value="kurumsal">Kurumsal</option>
+          <option value="bireysel">Bireysel</option>
+        </select>
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>{isKurumsal ? "Firma adı" : "Müşteri adı"}</label>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={isKurumsal ? "Akın İnşaat" : "Ayşe Yılmaz"} style={{ width: "100%" }} />
       </div>
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-        <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Sektör</label>
-          <select value={sector} onChange={(e) => setSector(e.target.value)} style={{ width: "100%" }}>
-            {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
+        {isKurumsal && (
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Sektör</label>
+            <select value={sector} onChange={(e) => setSector(e.target.value)} style={{ width: "100%" }}>
+              {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+        )}
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Bölge / Şehir</label>
           <input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="İstanbul" style={{ width: "100%" }} />
         </div>
       </div>
-      {sector === "Diğer" && (
+      {isKurumsal && sector === "Diğer" && (
         <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Sektör adı</label>
           <input value={customSector} onChange={(e) => setCustomSector(e.target.value)} placeholder="Sektörünüzü yazın" style={{ width: "100%" }} />
@@ -378,14 +391,24 @@ function CompanySettingsForm({ initial, onSave, onCancel }) {
   );
 }
 
-function DealForm({ customers, initial, defaultKdvRate, onSave, onCancel }) {
-  const [customerId, setCustomerId] = useState(initial?.customerId || customers[0]?.id || "");
+function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, onSave, onCancel }) {
+  const [customerId, setCustomerId] = useState(
+    initial?.customerId || customers.find((c) => c.customerType === preferredCustomerType)?.id || customers[0]?.id || ""
+  );
+  const selectedCustomerType = customers.find((c) => c.id === customerId)?.customerType || "kurumsal";
   const [title, setTitle] = useState(initial?.title || "");
   const [value, setValue] = useState(initial?.value ?? "");
   const [cost, setCost] = useState(initial?.cost ?? "");
   const [kdvRate, setKdvRate] = useState(initial?.kdvRate ?? defaultKdvRate ?? 20);
   const [stage, setStage] = useState(initial?.stage || "ilk_gorusme");
   const [dealDate, setDealDate] = useState((initial?.createdAt || new Date().toISOString()).slice(0, 10));
+  const [dealTime, setDealTime] = useState(() => {
+    if (!initial?.createdAt) return "";
+    const d = new Date(initial.createdAt);
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return hh === "00" && mm === "00" ? "" : `${hh}:${mm}`;
+  });
   const [reminder, setReminder] = useState(initial?.reminder || "");
   const [reminderDate, setReminderDate] = useState(initial?.reminderDate || "");
   const [lostReason, setLostReason] = useState(initial?.lostReason || LOST_REASONS[0]);
@@ -395,6 +418,10 @@ function DealForm({ customers, initial, defaultKdvRate, onSave, onCancel }) {
     (wasAlreadyClosed && initial?.closedAt ? initial.closedAt : new Date().toISOString()).slice(0, 10)
   );
   const [dateError, setDateError] = useState("");
+  const [isPackageDeal, setIsPackageDeal] = useState(!!initial?.sessionTotal);
+  const [sessionTotal, setSessionTotal] = useState(initial?.sessionTotal ?? 10);
+  const [sessionUsed, setSessionUsed] = useState(initial?.sessionUsed ?? 0);
+  const [sessionError, setSessionError] = useState("");
 
   return (
     <form
@@ -402,10 +429,15 @@ function DealForm({ customers, initial, defaultKdvRate, onSave, onCancel }) {
         e.preventDefault();
         if (!customerId || !title.trim()) return;
         if (isClosingStage && closedDate < dealDate) {
-          setDateError("Kapanma tarihi, teklif tarihinden önce olamaz.");
+          setDateError("Bitiş tarihi, başlangıç tarihinden önce olamaz.");
           return;
         }
         setDateError("");
+        if (isPackageDeal && Number(sessionTotal) < 1) {
+          setSessionError("Toplam seans sayısı en az 1 olmalı.");
+          return;
+        }
+        setSessionError("");
         onSave({
           id: initial?.id || uid(),
           customerId,
@@ -417,14 +449,19 @@ function DealForm({ customers, initial, defaultKdvRate, onSave, onCancel }) {
           reminder: reminder.trim(),
           reminderDate: reminderDate || null,
           lostReason: stage === "kaybedildi" ? lostReason : "",
-          createdAt: new Date(dealDate).toISOString(),
+          isPackageDeal,
+          sessionTotal: isPackageDeal ? Number(sessionTotal) || 0 : null,
+          sessionUsed: isPackageDeal ? Math.min(Number(sessionUsed) || 0, Number(sessionTotal) || 0) : 0,
+          createdAt: (dealTime ? new Date(`${dealDate}T${dealTime}`) : new Date(dealDate)).toISOString(),
           closedAt: isClosingStage ? new Date(closedDate).toISOString() : null,
         });
       }}
     >
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Müşteri</label>
-        {customers.length === 0 ? (
+        {initial ? (
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>{customers.find((c) => c.id === customerId)?.name || "Bilinmeyen müşteri"}</p>
+        ) : customers.length === 0 ? (
           <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Önce bir müşteri ekleyin.</p>
         ) : (
           <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} style={{ width: "100%" }}>
@@ -433,7 +470,7 @@ function DealForm({ customers, initial, defaultKdvRate, onSave, onCancel }) {
         )}
       </div>
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Teklif başlığı</label>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Başlık</label>
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Yıllık tedarik anlaşması" style={{ width: "100%" }} />
       </div>
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
@@ -459,23 +496,48 @@ function DealForm({ customers, initial, defaultKdvRate, onSave, onCancel }) {
       </div>
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Teklif tarihi</label>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tarih</label>
           <input type="date" value={dealDate} onChange={(e) => setDealDate(e.target.value)} style={{ width: "100%" }} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Saat <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span></label>
+          <input type="time" value={dealTime} onChange={(e) => setDealTime(e.target.value)} style={{ width: "100%" }} />
         </div>
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Aşama</label>
           <select value={stage} onChange={(e) => setStage(e.target.value)} style={{ width: "100%" }}>
-            {STAGES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+            {STAGES.map((s) => <option key={s.id} value={s.id}>{stageLabel(s.id, selectedCustomerType)}</option>)}
           </select>
         </div>
       </div>
       {isClosingStage && (
         <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
-            {stage === "kazanildi" ? "Kapanma / fatura tarihi" : "Kapanma tarihi"}
+            {selectedCustomerType === "bireysel"
+              ? (stage === "kazanildi" ? "Tamamlanma / fatura tarihi" : "İptal tarihi")
+              : (stage === "kazanildi" ? "Kapanma / fatura tarihi" : "Kapanma tarihi")}
           </label>
           <input type="date" min={dealDate} value={closedDate} onChange={(e) => setClosedDate(e.target.value)} style={{ width: "100%" }} />
           {dateError && <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "4px 0 0" }}>{dateError}</p>}
+        </div>
+      )}
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-secondary)", cursor: "pointer" }}>
+          <input type="checkbox" checked={isPackageDeal} onChange={(e) => setIsPackageDeal(e.target.checked)} />
+          Bu bir seans/paket satışı
+        </label>
+      </div>
+      {isPackageDeal && (
+        <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Toplam seans sayısı</label>
+            <input type="number" min="1" value={sessionTotal} onChange={(e) => setSessionTotal(e.target.value)} style={{ width: "100%" }} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kullanılan seans sayısı</label>
+            <input type="number" min="0" value={sessionUsed} onChange={(e) => setSessionUsed(e.target.value)} style={{ width: "100%" }} />
+          </div>
+          {sessionError && <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "4px 0 0" }}>{sessionError}</p>}
         </div>
       )}
       <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
@@ -490,7 +552,7 @@ function DealForm({ customers, initial, defaultKdvRate, onSave, onCancel }) {
       </div>
       {stage === "kaybedildi" && (
         <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kayıp nedeni</label>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>{selectedCustomerType === "bireysel" ? "İptal nedeni" : "Kayıp nedeni"}</label>
           <select value={lostReason} onChange={(e) => setLostReason(e.target.value)} style={{ width: "100%" }}>
             {LOST_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
@@ -619,11 +681,10 @@ function CustomerDetail({ customer, deals, activities, onAddActivity, onClose })
         <div style={{ marginBottom: 16 }}>
           <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>Teklifler</p>
           {customerDeals.map((d) => {
-            const stageInfo = STAGES.find((s) => s.id === d.stage);
             return (
               <div key={d.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0" }}>
                 <span>{d.title}</span>
-                <span style={{ color: "var(--text-secondary)" }}>{stageInfo?.label} · {formatTL(d.value)}</span>
+                <span style={{ color: "var(--text-secondary)" }}>{stageLabel(d.stage, customer.customerType || "kurumsal")} · {formatTL(d.value)}</span>
               </div>
             );
           })}
@@ -985,6 +1046,7 @@ const TRASH_TABLE_LABELS = {
   customers: "Müşteri",
   deals: "Teklif",
   payments: "Tahsilat",
+  company_expenses: "Şirket gideri",
   tickets: "Talep",
   kb_articles: "Makale",
 };
@@ -1002,10 +1064,11 @@ function TrashHistoryModal({ notify, onRestore, onClose }) {
 
   const load = async () => {
     setLoading(true);
-    const [{ data: c }, { data: d }, { data: pay }, { data: t }, { data: kb }, { data: log }] = await Promise.all([
+    const [{ data: c }, { data: d }, { data: pay }, { data: exp }, { data: t }, { data: kb }, { data: log }] = await Promise.all([
       supabase.from("customers").select("id,name,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
       supabase.from("deals").select("id,title,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
       supabase.from("payments").select("id,amount,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
+      supabase.from("company_expenses").select("id,title,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
       supabase.from("tickets").select("id,subject,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
       supabase.from("kb_articles").select("id,title,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
       supabase.from("audit_log").select("*").order("created_at", { ascending: false }).limit(200),
@@ -1015,6 +1078,7 @@ function TrashHistoryModal({ notify, onRestore, onClose }) {
       ...(c || []).map((r) => ({ table: "customers", label: r.name, ...r })),
       ...(d || []).map((r) => ({ table: "deals", label: r.title, ...r })),
       ...(pay || []).map((r) => ({ table: "payments", label: `${formatTL(r.amount)} tahsilat`, ...r })),
+      ...(exp || []).map((r) => ({ table: "company_expenses", label: r.title, ...r })),
       ...(t || []).map((r) => ({ table: "tickets", label: r.subject, ...r })),
       ...(kb || []).map((r) => ({ table: "kb_articles", label: r.title, ...r })),
     ];
@@ -1639,7 +1703,7 @@ function LandingPage() {
             tek yerde yönetin
           </h1>
           <p style={{ fontSize: 17, color: "#5b7088", lineHeight: 1.7, margin: "0 0 2rem", maxWidth: 480 }}>
-            Satış, destek ve müşterinizin kendi portalı — hepsi bir arada, KOBİ'ler için.
+            Müşteri veya danışan takibi, teklif ya da randevu süreci, destek ve müşterinizin kendi portalı — hepsi bir arada, KOBİ'ler için.
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <button onClick={() => setAuthModal("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "13px 28px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
@@ -1705,8 +1769,8 @@ function LandingPage() {
               id: "satis-firsat",
               icon: "ti-target-arrow",
               title: "Satış & Teklif Yönetimi",
-              desc: "İlk temastan kapanışa kadar tüm satış sürecini Kanban tahtasında takip edin. Tek tıkla markalı PDF teklif oluşturun, hatırlatma tarihiyle takip randevularınızı kaçırmayın.",
-              tags: ["Kanban Pipeline", "PDF Teklif", "Hatırlatma E-postaları"],
+              desc: "İster iş teklifi ister hizmet/paket satışı olsun, ilk temastan kapanışa kadar tüm süreci Kanban tahtasında takip edin. Tek tıkla markalı PDF teklif oluşturun, hatırlatma tarihiyle takip randevularınızı kaçırmayın.",
+              tags: ["Kanban Pipeline", "PDF Teklif", "Hatırlatma E-postaları", "Seans/Paket Takibi"],
             },
             {
               id: "pazarlama",
@@ -1868,6 +1932,7 @@ export default function App() {
   const [deals, setDeals] = useState([]);
   const [activities, setActivities] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [companyExpenses, setCompanyExpenses] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [ticketMessages, setTicketMessages] = useState([]);
   const [kbArticles, setKbArticles] = useState([]);
@@ -1903,11 +1968,13 @@ export default function App() {
   const [customerFromDate, setCustomerFromDate] = useState("");
   const [customerToDate, setCustomerToDate] = useState("");
   const [customerSectorFilter, setCustomerSectorFilter] = useState("all");
+  const [customerTypeFilter, setCustomerTypeFilter] = useState("all");
   const [dealSearch, setDealSearch] = useState("");
   const [dealFromDate, setDealFromDate] = useState("");
   const [dealToDate, setDealToDate] = useState("");
   const [dealStageFilter, setDealStageFilter] = useState("all");
   const [dealPaymentFilter, setDealPaymentFilter] = useState("all");
+  const [dealAudience, setDealAudience] = useState("kurumsal");
   const [teklifDeal, setTeklifDeal] = useState(null);
   const [quickList, setQuickList] = useState(null);
   const [initialViewTicketId, setInitialViewTicketId] = useState(null);
@@ -1940,7 +2007,7 @@ export default function App() {
 
   useEffect(() => {
     if (!session) {
-      setCustomers([]); setDeals([]); setActivities([]); setPayments([]);
+      setCustomers([]); setDeals([]); setActivities([]); setPayments([]); setCompanyExpenses([]);
       setTickets([]); setTicketMessages([]); setKbArticles([]);
       setCompanySettings(null);
       setActiveTeamId(undefined);
@@ -1954,17 +2021,19 @@ export default function App() {
       supabase.from("deals").select("*").is("deleted_at", null).order("created_at"),
       supabase.from("activities").select("*").order("created_at"),
       supabase.from("payments").select("*").is("deleted_at", null).order("paid_at"),
+      supabase.from("company_expenses").select("*").is("deleted_at", null).order("expense_date"),
       supabase.from("tickets").select("*").is("deleted_at", null).order("created_at"),
       supabase.from("ticket_messages").select("*").order("created_at"),
       supabase.from("kb_articles").select("*").is("deleted_at", null).order("created_at"),
       supabase.from("company_settings").select("*").maybeSingle(),
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: myMembership }, { data: invites }]) => {
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: myMembership }, { data: invites }]) => {
       setCustomers((c || []).map(rowToCustomer));
       setDeals((d || []).map(rowToDeal));
       setActivities((a || []).map(rowToActivity));
       setPayments((pay || []).map(rowToPayment));
+      setCompanyExpenses((exp || []).map(rowToCompanyExpense));
       setTickets((t || []).map(rowToTicket));
       setTicketMessages((tm || []).map(rowToTicketMessage));
       setKbArticles((kb || []).map(rowToKbArticle));
@@ -2110,6 +2179,7 @@ export default function App() {
       id: c.id,
       user_id: activeTeamId,
       name: c.name,
+      customer_type: c.customerType || "kurumsal",
       sector: c.sector,
       region: c.region,
       phone: c.phone,
@@ -2189,6 +2259,8 @@ export default function App() {
       reminder: d.reminder,
       reminder_date: d.reminderDate || null,
       lost_reason: d.lostReason,
+      session_total: d.isPackageDeal ? (Number(d.sessionTotal) || 0) : null,
+      session_used: d.isPackageDeal ? (Number(d.sessionUsed) || 0) : 0,
       created_at: d.createdAt,
       closed_at: d.closedAt || null,
     };
@@ -2206,8 +2278,8 @@ export default function App() {
       const company = companySettings?.companyName || "Binerly";
       notifyCustomerByEmail(
         customer,
-        `Teklifiniz hazır — ${company}`,
-        `Merhaba,\n\n${company} sizin için bir teklif hazırladı: "${deal.title}" — ${formatTL(deal.value)}\n\nDetaylar için bizimle iletişime geçebilir veya müşteri portalımızdan tekliflerinizi görüntüleyebilirsiniz: https://binerly.com/portal\n\n${company}`
+        `${deal.title} hazır — ${company}`,
+        `Merhaba,\n\n${company} sizin için hazırladı: "${deal.title}" — ${formatTL(deal.value)}\n\nDetaylar için bizimle iletişime geçebilir veya müşteri portalımızdan görüntüleyebilirsiniz: https://binerly.com/portal\n\n${company}`
       );
     }
   };
@@ -2262,14 +2334,36 @@ export default function App() {
     logAction("payments", id, "deleted", `${formatTL(payment?.amount || 0)} tahsilat çöp kutusuna taşındı`);
   };
 
+  const addCompanyExpense = async ({ title, category, amount, expenseDate, note }) => {
+    const row = { id: uid(), user_id: activeTeamId, title, category: category || "Diğer", amount, expense_date: expenseDate, note: note || null };
+    const { data, error } = await supabase.from("company_expenses").insert(row).select().single();
+    if (error) { notify(`Gider eklenemedi: ${error.message}`); return; }
+    const expense = rowToCompanyExpense(data);
+    setCompanyExpenses((prev) => [...prev, expense]);
+    logAction("company_expenses", expense.id, "created", `${expense.title} gideri eklendi (${formatTL(expense.amount)})`);
+  };
+
+  const deleteCompanyExpense = async (id) => {
+    const expense = companyExpenses.find((e) => e.id === id);
+    const batchId = uid();
+    const { error } = await supabase
+      .from("company_expenses")
+      .update({ deleted_at: new Date().toISOString(), deleted_batch_id: batchId })
+      .eq("id", id);
+    if (error) { notify(`Gider silinemedi: ${error.message}`); return; }
+    setCompanyExpenses((prev) => prev.filter((e) => e.id !== id));
+    logAction("company_expenses", id, "deleted", `${expense?.title || "Gider"} çöp kutusuna taşındı`);
+  };
+
   const seedDemoData = async () => {
     const now = new Date().toISOString();
     const todayStr = new Date().toISOString().slice(0, 10);
     const demoNote = "Bu örnek bir kayıttır, istediğiniz zaman silebilirsiniz.";
     const demoCustomers = [
-      { id: uid(), name: "Örnek Müşteri — Akın İnşaat", sector: "İnşaat", phone: "0532 000 00 01", email: "", notes: demoNote, lastContact: now, createdAt: now },
-      { id: uid(), name: "Örnek Müşteri — Medipark Klinik", sector: "Medikal / Sağlık", phone: "0532 000 00 02", email: "", notes: demoNote, lastContact: now, createdAt: now },
-      { id: uid(), name: "Örnek Müşteri — Tazegül Gıda", sector: "Gıda", phone: "0532 000 00 03", email: "", notes: demoNote, lastContact: now, createdAt: now },
+      { id: uid(), name: "Örnek Müşteri — Akın İnşaat", customerType: "kurumsal", sector: "İnşaat", phone: "0532 000 00 01", email: "", notes: demoNote, lastContact: now, createdAt: now },
+      { id: uid(), name: "Örnek Müşteri — Medipark Klinik", customerType: "kurumsal", sector: "Medikal / Sağlık", phone: "0532 000 00 02", email: "", notes: demoNote, lastContact: now, createdAt: now },
+      { id: uid(), name: "Örnek Müşteri — Tazegül Gıda", customerType: "kurumsal", sector: "Gıda", phone: "0532 000 00 03", email: "", notes: demoNote, lastContact: now, createdAt: now },
+      { id: uid(), name: "Örnek Müşteri — Ayşe Yılmaz", customerType: "bireysel", sector: "", region: "İzmir", phone: "0532 000 00 04", email: "", notes: demoNote, lastContact: now, createdAt: now },
     ];
     for (const c of demoCustomers) await upsertCustomer(c);
 
@@ -2296,17 +2390,32 @@ export default function App() {
       notify(`Aşama güncellenemedi: ${error.message}`);
       setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, stage: previousStage, closedAt: current?.closedAt ?? null } : d)));
     } else {
-      const stageLabel = STAGES.find((s) => s.id === stage)?.label || stage;
-      logAction("deals", id, "updated", `${current?.title || "Teklif"} aşaması "${stageLabel}" olarak güncellendi`);
+      const currentStageLabel = stageLabel(stage, customers.find((c) => c.id === current?.customerId)?.customerType || "kurumsal");
+      logAction("deals", id, "updated", `${current?.title || "Teklif"} aşaması "${currentStageLabel}" olarak güncellendi`);
       if (stage === "teklif" && previousStage !== "teklif") {
         const customer = customers.find((c) => c.id === current?.customerId);
         const company = companySettings?.companyName || "Binerly";
         notifyCustomerByEmail(
           customer,
-          `Teklifiniz hazır — ${company}`,
-          `Merhaba,\n\n${company} sizin için bir teklif hazırladı: "${current?.title || ""}" — ${formatTL(current?.value || 0)}\n\nDetaylar için bizimle iletişime geçebilir veya müşteri portalımızdan tekliflerinizi görüntüleyebilirsiniz: https://binerly.com/portal\n\n${company}`
+          `${current?.title || "Kaydınız"} hazır — ${company}`,
+          `Merhaba,\n\n${company} sizin için hazırladı: "${current?.title || ""}" — ${formatTL(current?.value || 0)}\n\nDetaylar için bizimle iletişime geçebilir veya müşteri portalımızdan görüntüleyebilirsiniz: https://binerly.com/portal\n\n${company}`
         );
       }
+    }
+  };
+
+  const incrementSessionUsage = async (id) => {
+    const current = deals.find((d) => d.id === id);
+    if (!current?.sessionTotal || current.sessionUsed >= current.sessionTotal) return;
+    const previousUsed = current.sessionUsed;
+    const nextUsed = previousUsed + 1;
+    setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, sessionUsed: nextUsed } : d)));
+    const { error } = await supabase.from("deals").update({ session_used: nextUsed }).eq("id", id);
+    if (error) {
+      notify(`Seans güncellenemedi: ${error.message}`);
+      setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, sessionUsed: previousUsed } : d)));
+    } else {
+      logAction("deals", id, "updated", `${current.title || "Teklif"} — ${nextUsed}. seans kullanıldı (${nextUsed}/${current.sessionTotal})`);
     }
   };
 
@@ -2477,6 +2586,7 @@ export default function App() {
       { name: "customers", setter: setCustomers, map: rowToCustomer, label: (r) => r.name },
       { name: "deals", setter: setDeals, map: rowToDeal, label: (r) => r.title },
       { name: "payments", setter: setPayments, map: rowToPayment, label: (r) => `${formatTL(r.amount)} tahsilat` },
+      { name: "company_expenses", setter: setCompanyExpenses, map: rowToCompanyExpense, label: (r) => r.title },
       { name: "tickets", setter: setTickets, map: rowToTicket, label: (r) => r.subject },
       { name: "kb_articles", setter: setKbArticles, map: rowToKbArticle, label: (r) => r.title },
     ];
@@ -2521,7 +2631,8 @@ export default function App() {
   const bulkImportCustomers = async (records, onProgress) => {
     const now = new Date().toISOString();
     const rows = records.map((r) => ({
-      id: uid(), user_id: activeTeamId, name: r.name, sector: r.sector || "",
+      id: uid(), user_id: activeTeamId, name: r.name, customer_type: r.customerType || "kurumsal",
+      sector: r.customerType === "bireysel" ? "" : (r.sector || ""),
       region: r.region || "", phone: r.phone || "", email: r.email || "",
       notes: r.notes || "", last_contact: now, created_at: now,
     }));
@@ -2622,12 +2733,14 @@ export default function App() {
   const filteredCustomers = customers.filter((c) => {
     if (!matchesDateRange(c.lastContact, customerFromDate, customerToDate)) return false;
     if (customerSectorFilter !== "all" && c.sector !== customerSectorFilter) return false;
+    if (customerTypeFilter !== "all" && c.customerType !== customerTypeFilter) return false;
     if (!customerQuery) return true;
     return [c.name, c.sector, c.region, c.phone, c.email].some((f) => (f || "").toLowerCase().includes(customerQuery));
   });
 
   const dealQuery = dealSearch.trim().toLowerCase();
   const filteredDeals = deals.filter((d) => {
+    if ((customerById(d.customerId)?.customerType || "kurumsal") !== dealAudience) return false;
     if (!matchesDateRange(d.createdAt, dealFromDate, dealToDate)) return false;
     if (dealStageFilter === "acik" && (d.stage === "kazanildi" || d.stage === "kaybedildi")) return false;
     if (dealStageFilter !== "all" && dealStageFilter !== "acik" && d.stage !== dealStageFilter) return false;
@@ -2831,7 +2944,8 @@ export default function App() {
         {[
           { id: "pano", label: "Pano", icon: "ti-layout-dashboard" },
           { id: "musteri", label: "Müşteriler", icon: "ti-building" },
-          { id: "firsat", label: "Teklif ve Anlaşmalar", icon: "ti-target-arrow" },
+          { id: "firsat", label: "Teklif ve Randevular", icon: "ti-target-arrow" },
+          { id: "finans", label: "Finans", icon: "ti-chart-line" },
           { id: "destek", label: "Destek", icon: "ti-headset" },
         ].map((t) => (
           <button
@@ -3172,6 +3286,11 @@ export default function App() {
               placeholder="Müşteri ara (ad, sektör, bölge, telefon, e-posta)..."
               style={{ flex: 1, minWidth: 200 }}
             />
+            <select value={customerTypeFilter} onChange={(e) => setCustomerTypeFilter(e.target.value)} style={{ fontSize: 13 }}>
+              <option value="all">Tüm müşteriler</option>
+              <option value="kurumsal">Kurumsal</option>
+              <option value="bireysel">Bireysel</option>
+            </select>
             <select value={customerSectorFilter} onChange={(e) => setCustomerSectorFilter(e.target.value)} style={{ fontSize: 13 }}>
               <option value="all">Tüm sektörler</option>
               {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -3255,6 +3374,22 @@ export default function App() {
 
       {tab === "firsat" && (
         <div>
+          <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: 12, width: "fit-content" }}>
+            <button
+              onClick={() => setDealAudience("kurumsal")}
+              style={{ border: "none", background: dealAudience === "kurumsal" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+            >
+              <i className="ti ti-building" style={{ fontSize: 15 }} aria-hidden="true"></i>
+              Kurumsal
+            </button>
+            <button
+              onClick={() => setDealAudience("bireysel")}
+              style={{ border: "none", background: dealAudience === "bireysel" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+            >
+              <i className="ti ti-user" style={{ fontSize: 15 }} aria-hidden="true"></i>
+              Bireysel
+            </button>
+          </div>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
             <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3 }}>
               <button
@@ -3283,7 +3418,7 @@ export default function App() {
                       d.title,
                       d.value,
                       d.cost,
-                      STAGES.find((s) => s.id === d.stage)?.label || d.stage,
+                      stageLabel(d.stage, customerById(d.customerId)?.customerType || "kurumsal"),
                       d.reminder,
                       d.createdAt ? new Date(d.createdAt).toLocaleDateString("tr-TR") : "",
                     ])
@@ -3315,7 +3450,7 @@ export default function App() {
                 style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
               >
                 <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                Teklif ekle
+                {dealAudience === "bireysel" ? "Randevu ekle" : "Teklif ekle"}
               </button>
             </div>
           </div>
@@ -3330,7 +3465,7 @@ export default function App() {
             <select value={dealStageFilter} onChange={(e) => setDealStageFilter(e.target.value)} style={{ fontSize: 13 }}>
               <option value="all">Tüm aşamalar</option>
               <option value="acik">Açık teklifler</option>
-              {STAGES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+              {STAGES.map((s) => <option key={s.id} value={s.id}>{stageLabel(s.id, dealAudience)}</option>)}
             </select>
             <select value={dealPaymentFilter} onChange={(e) => setDealPaymentFilter(e.target.value)} style={{ fontSize: 13 }}>
               <option value="all">Tüm ödeme durumları</option>
@@ -3342,7 +3477,7 @@ export default function App() {
           </div>
 
           {customers.length === 0 && (
-            <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>Teklif eklemeden önce bir müşteri oluşturun.</p>
+            <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>Kayıt eklemeden önce bir müşteri oluşturun.</p>
           )}
 
           {filteredDeals.length === 0 ? (
@@ -3362,7 +3497,7 @@ export default function App() {
                     style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 10, minWidth: 220, flex: "0 0 220px" }}
                   >
                     <div style={{ marginBottom: 8 }}>
-                      <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 2px" }}>{stage.label} · {stageDeals.length}</p>
+                      <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 2px" }}>{stageLabel(stage.id, dealAudience)} · {stageDeals.length}</p>
                       <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0 }}>{formatTL(stageValue)}</p>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 40 }}>
@@ -3398,6 +3533,22 @@ export default function App() {
                                 </div>
                               );
                             })()}
+                            {!!d.sessionTotal && (
+                              <div style={{ marginTop: 4, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                                <Badge tone={d.sessionUsed >= d.sessionTotal ? "success" : "default"}>
+                                  {d.sessionUsed >= d.sessionTotal ? "Paket tamamlandı" : `${d.sessionUsed}/${d.sessionTotal} seans`}
+                                </Badge>
+                                {d.sessionUsed < d.sessionTotal && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); incrementSessionUsage(d.id); }}
+                                    title="Seans kullanıldı"
+                                    style={{ width: 22, height: 22, padding: 0 }}
+                                  >
+                                    <i className="ti ti-plus" style={{ fontSize: 12 }} aria-hidden="true"></i>
+                                  </button>
+                                )}
+                              </div>
+                            )}
                             {d.reminder && (
                               <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--text-warning)", display: "flex", alignItems: "center", gap: 4 }}>
                                 <i className="ti ti-bell" style={{ fontSize: 12 }} aria-hidden="true"></i>
@@ -3426,7 +3577,6 @@ export default function App() {
               <tbody>
                 {filteredDeals.map((d) => {
                   const c = customerById(d.customerId);
-                  const stageInfo = STAGES.find((s) => s.id === d.stage);
                   const tone = d.stage === "kazanildi" ? "success" : d.stage === "kaybedildi" ? "default" : d.stage === "muzakere" ? "warning" : "accent";
                   const paid = totalPaidForDeal(d.id);
                   const remaining = d.value - paid;
@@ -3437,11 +3587,22 @@ export default function App() {
                           {c?.name || "Bilinmeyen müşteri"} — {d.title}
                         </p>
                         <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
-                          {d.createdAt ? new Date(d.createdAt).toLocaleDateString("tr-TR") : ""} · {d.reminder ? `Hatırlatma: ${d.reminder}` : "Hatırlatma yok"}
+                          {d.createdAt ? new Date(d.createdAt).toLocaleDateString("tr-TR") : ""}
+                          {d.createdAt && new Date(d.createdAt).toTimeString().slice(0, 5) !== "00:00"
+                            ? ` · ${new Date(d.createdAt).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}`
+                            : ""}
+                          {" "}· {d.reminder ? `Hatırlatma: ${d.reminder}` : "Hatırlatma yok"}
                         </p>
+                        {!!d.sessionTotal && (
+                          <div style={{ marginTop: 4 }}>
+                            <Badge tone={d.sessionUsed >= d.sessionTotal ? "success" : "default"}>
+                              {d.sessionUsed >= d.sessionTotal ? "Paket tamamlandı" : `${d.sessionUsed}/${d.sessionTotal} seans`}
+                            </Badge>
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                        <Badge tone={tone}>{stageInfo?.label}</Badge>
+                        <Badge tone={tone}>{stageLabel(d.stage, c?.customerType || "kurumsal")}</Badge>
                       </td>
                       <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                         {paid > 0 ? <Badge tone={remaining <= 0 ? "success" : "warning"}>{remaining <= 0 ? "Ödendi" : "Kısmi ödeme"}</Badge> : <span style={{ fontSize: 12, color: "var(--text-muted)" }}>—</span>}
@@ -3452,6 +3613,11 @@ export default function App() {
                           <button onClick={() => setTeklifDeal(d)} title="Teklif PDF" style={{ width: 32, height: 32, padding: 0 }}>
                             <i className="ti ti-file-text" style={{ fontSize: 16 }} aria-hidden="true"></i>
                           </button>
+                          {!!d.sessionTotal && d.sessionUsed < d.sessionTotal && (
+                            <button onClick={() => incrementSessionUsage(d.id)} title="Seans kullanıldı" style={{ width: 32, height: 32, padding: 0 }}>
+                              <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                            </button>
+                          )}
                           <button onClick={() => { setEditingDeal(d); setShowDealForm(true); }} style={{ width: 32, height: 32, padding: 0 }}>
                             <i className="ti ti-edit" style={{ fontSize: 16 }} aria-hidden="true"></i>
                           </button>
@@ -3467,6 +3633,17 @@ export default function App() {
             </table>
           )}
         </div>
+      )}
+
+      {tab === "finans" && (
+        <Finance
+          deals={deals}
+          payments={payments}
+          companyExpenses={companyExpenses}
+          customers={customers}
+          onAddExpense={addCompanyExpense}
+          onDeleteExpense={deleteCompanyExpense}
+        />
       )}
 
       {tab === "destek" && (
@@ -3546,7 +3723,7 @@ export default function App() {
       {showImportDeals && (
         <ImportModal
           entityType="deals"
-          entityLabel="Teklif ve Anlaşmalar"
+          entityLabel="Teklif ve Randevular"
           fieldDefs={DEAL_IMPORT_FIELDS}
           customers={customers}
           onImport={bulkImportDeals}
@@ -3596,7 +3773,7 @@ export default function App() {
 
       {showDealForm && (
         <Modal title={editingDeal ? "Teklifi düzenle" : "Yeni teklif"} onClose={() => { setShowDealForm(false); setEditingDeal(null); }}>
-          <DealForm customers={customers} initial={editingDeal} defaultKdvRate={companySettings?.defaultKdvRate} onSave={upsertDeal} onCancel={() => { setShowDealForm(false); setEditingDeal(null); }} />
+          <DealForm customers={customers} initial={editingDeal} defaultKdvRate={companySettings?.defaultKdvRate} preferredCustomerType={dealAudience} onSave={upsertDeal} onCancel={() => { setShowDealForm(false); setEditingDeal(null); }} />
           {editingDeal && (
             <DealPayments
               deal={editingDeal}

@@ -160,31 +160,40 @@ export function TermsPage() {
           yükümlülüklerinizi (KVKK dahil) yerine getirmekten siz sorumlusunuz.
         </p>
       </Section>
-      <Section title="3. Kabul Edilebilir Kullanım">
+      <Section title="3. Faturalandırma ve Vergi Yükümlülükleri">
+        <p>
+          Binerly bir müşteri ilişkileri yönetimi (kayıt ve takip) aracıdır; fatura kesme, vergi dairesine
+          bildirim veya benzeri resmi işlemleri gerçekleştirmez. Sattığınız ürün/hizmetler için fatura
+          düzenlemek, vergi beyanında bulunmak ve ilgili tüm yasal/mali yükümlülükleri yerine getirmek
+          tamamen size (hizmeti kullanan işletmeye) aittir. Binerly'nin sunduğu Paraşüt'e aktarma gibi
+          özellikler sadece bir kolaylık aracıdır, bu konudaki sorumluluğunuzu ortadan kaldırmaz.
+        </p>
+      </Section>
+      <Section title="4. Kabul Edilebilir Kullanım">
         <p>
           Hizmeti yasa dışı amaçlarla, izinsiz veri toplama veya üçüncü kişilerin haklarını ihlal edecek
           şekilde kullanamazsınız.
         </p>
       </Section>
-      <Section title="4. Ücretlendirme">
+      <Section title="5. Ücretlendirme">
         <p>
           Güncel fiyatlandırma ve deneme süresi koşulları binerly.com üzerinden veya tarafımızca ayrıca
           bildirilir. Ödeme koşulları ve iptal politikası ayrıca paylaşılacaktır.
         </p>
       </Section>
-      <Section title="5. Sorumluluğun Sınırlandırılması">
+      <Section title="6. Sorumluluğun Sınırlandırılması">
         <p>
           Binerly, hizmetin kesintisiz veya hatasız olacağını garanti etmez. Yasaların izin verdiği azami
           ölçüde, dolaylı zararlardan sorumlu tutulamaz.
         </p>
       </Section>
-      <Section title="6. Fesih">
+      <Section title="7. Fesih">
         <p>
           Hesabınızı istediğiniz zaman kapatabilirsiniz. Kullanım koşullarının ihlali halinde hizmete
           erişiminiz askıya alınabilir veya sonlandırılabilir.
         </p>
       </Section>
-      <Section title="7. İletişim">
+      <Section title="8. İletişim">
         <p>
           Sorularınız için: <a href="mailto:info@binerly.com" style={{ color: "#185fa5" }}>info@binerly.com</a>
         </p>

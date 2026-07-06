@@ -206,7 +206,9 @@ function TicketForm({ customers, initial, onSave, onCancel }) {
     >
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Müşteri</label>
-        {customers.length === 0 ? (
+        {initial ? (
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>{customers.find((c) => c.id === customerId)?.name || "Bilinmeyen müşteri"}</p>
+        ) : customers.length === 0 ? (
           <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Önce bir müşteri ekleyin.</p>
         ) : (
           <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} style={{ width: "100%" }}>

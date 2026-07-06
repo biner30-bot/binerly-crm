@@ -16,6 +16,31 @@ export function matchesDateRange(dateStr, fromDate, toDate) {
   return true;
 }
 
+export const PANO_RANGES = [
+  { id: "bu_ay", label: "Bu ay" },
+  { id: "bu_ceyrek", label: "Bu çeyrek" },
+  { id: "bu_yil", label: "Bu yıl" },
+  { id: "son_6_ay", label: "Son 6 ay" },
+  { id: "tum_zamanlar", label: "Tüm zamanlar" },
+];
+
+export function getRangeBounds(range) {
+  const now = new Date();
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  if (range === "bu_ay") return { start: new Date(now.getFullYear(), now.getMonth(), 1), end };
+  if (range === "bu_ceyrek") return { start: new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1), end };
+  if (range === "bu_yil") return { start: new Date(now.getFullYear(), 0, 1), end };
+  if (range === "son_6_ay") return { start: new Date(now.getFullYear(), now.getMonth() - 5, 1), end };
+  return { start: null, end };
+}
+
+export function inRange(dateStr, { start, end }) {
+  const t = new Date(dateStr).getTime();
+  if (Number.isNaN(t)) return false;
+  if (start && t < start.getTime()) return false;
+  return t <= end.getTime();
+}
+
 export function DateRangeFilter({ from, to, onFromChange, onToChange }) {
   return (
     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
