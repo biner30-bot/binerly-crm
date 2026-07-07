@@ -37,14 +37,18 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
   const rawBody = await readRawBody(req);
+  console.log("[whatsapp-webhook] raw body length:", rawBody.length);
+
   let payload;
   try {
     payload = JSON.parse(rawBody.toString("utf8"));
-  } catch {
+  } catch (e) {
+    console.log("[whatsapp-webhook] JSON parse failed:", e.message);
     return res.status(200).json({ ok: true });
   }
 
   const phoneNumberId = payload?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
+  console.log("[whatsapp-webhook] phoneNumberId:", phoneNumberId);
   if (!phoneNumberId) return res.status(200).json({ ok: true });
 
   const supabaseAdmin = createClient(
@@ -53,12 +57,13 @@ export default async function handler(req, res) {
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 
-  const { data: cred } = await supabaseAdmin
+  const { data: cred, error: credError } = await supabaseAdmin
     .from("channel_credentials")
     .select("user_id, app_secret")
     .eq("channel", "whatsapp")
     .eq("external_id", phoneNumberId)
     .maybeSingle();
+  console.log("[whatsapp-webhook] credential found:", !!cred, "error:", credError?.message);
   if (!cred) return res.status(200).json({ ok: true });
 
   const signatureHeader = req.headers["x-hub-signature-256"] || "";
@@ -66,9 +71,11 @@ export default async function handler(req, res) {
   const sigBuf = Buffer.from(signatureHeader);
   const expBuf = Buffer.from(expected);
   const validSignature = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
+  console.log("[whatsapp-webhook] signature header present:", !!signatureHeader, "valid:", validSignature);
   if (!validSignature) return res.status(401).json({ error: "Invalid signature" });
 
   const messages = payload.entry?.[0]?.changes?.[0]?.value?.messages || [];
+  console.log("[whatsapp-webhook] messages count:", messages.length);
   if (messages.length > 0) {
     const { data: customers } = await supabaseAdmin
       .from("customers")
@@ -90,7 +97,7 @@ export default async function handler(req, res) {
       const senderNumber = toWhatsAppNumber(msg.from);
       const matched = (customers || []).find((c) => toWhatsAppNumber(c.phone) === senderNumber);
 
-      await supabaseAdmin.from("channel_messages").insert({
+      const { error: insertError } = await supabaseAdmin.from("channel_messages").insert({
         user_id: cred.user_id,
         channel: "whatsapp",
         direction: "in",
@@ -99,6 +106,7 @@ export default async function handler(req, res) {
         customer_id: matched?.id || null,
         body: msg.text?.body || "",
       });
+      console.log("[whatsapp-webhook] insert error:", insertError?.message || "none");
     }
   }
 
