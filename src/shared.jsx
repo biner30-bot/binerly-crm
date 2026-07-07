@@ -75,10 +75,14 @@ export function DateRangeFilter({ from, to, onFromChange, onToChange }) {
 const SESSION_IDLE_LIMIT_MS = 30 * 60 * 1000; // 30 dakika hareketsizlik
 const SESSION_ABSOLUTE_LIMIT_MS = 24 * 60 * 60 * 1000; // 24 saat, hareket olsa bile
 const SESSION_START_KEY = "binerly_session_started_at";
+const SESSION_ACTIVITY_KEY = "binerly_last_activity";
 
 // Supabase'in Pro plan gerektiren sunucu taraflı oturum zaman aşımı ayarlarına
 // (Time-box/Inactivity timeout) alternatif, ücretsiz bir client-side denetim.
 // Sayfa yenilense bile mutlak süre sıfırlanmasın diye başlangıç zamanı localStorage'da tutulur.
+// Son etkileşim zamanı da localStorage'da (sekmeler arası paylaşılan) tutulur —
+// aksi halde arka planda boşta duran bir sekme, aktif kullanılan sekmeyi de
+// (signOut tüm sekmeler için ortak olduğundan) zamanından önce çıkışa zorlar.
 export function useSessionTimeout(session, onTimeout) {
   useEffect(() => {
     if (!session) return;
@@ -95,15 +99,17 @@ export function useSessionTimeout(session, onTimeout) {
       localStorage.setItem(SESSION_START_KEY, JSON.stringify({ userId: session.user.id, startedAt }));
     }
 
-    let lastActivity = Date.now();
-    const markActivity = () => { lastActivity = Date.now(); };
+    const markActivity = () => { localStorage.setItem(SESSION_ACTIVITY_KEY, String(Date.now())); };
+    markActivity();
     const events = ["mousemove", "keydown", "click", "scroll", "touchstart"];
     events.forEach((e) => window.addEventListener(e, markActivity));
 
     const interval = setInterval(() => {
       const now = Date.now();
+      const lastActivity = Number(localStorage.getItem(SESSION_ACTIVITY_KEY)) || now;
       if (now - lastActivity > SESSION_IDLE_LIMIT_MS || now - startedAt > SESSION_ABSOLUTE_LIMIT_MS) {
         localStorage.removeItem(SESSION_START_KEY);
+        localStorage.removeItem(SESSION_ACTIVITY_KEY);
         onTimeout();
       }
     }, 60000);

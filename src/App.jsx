@@ -56,6 +56,13 @@ const LEAD_INFO_TEXT =
   "🟠 Ilık — son 8-30 gün içinde temas edildi\n" +
   "⚪ Soğuk — 30 günden uzun süredir temas yok (veya hiç temas edilmedi)";
 
+const PORTAL_INFO_TEXT =
+  "Müşteri Portalı, müşterilerinizin kendi hesaplarıyla giriş yapıp tekliflerinin durumunu görebildiği, " +
+  "destek talebi açabildiği ve sizinle mesajlaşabildiği ayrı bir alan (binerly.com/portal).\n\n" +
+  "Var — bu müşteri portala kayıt olup kendi hesabını bu müşteri kaydına bağlamış.\n" +
+  "— — bu müşteri henüz portala giriş yapmamış. Müşterinizin, kayıtlı e-posta adresiyle " +
+  "portal üzerinden kendi hesabını oluşturması yeterli, sizin ayrıca bir davet göndermenize gerek yok.";
+
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -3319,7 +3326,9 @@ export default function App() {
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>İlgi durumu <InfoTip text={LEAD_INFO_TEXT} /></span>
                   </th>
                   <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Son temas</th>
-                  <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Portal</th>
+                  <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Portal <InfoTip text={PORTAL_INFO_TEXT} /></span>
+                  </th>
                   <th></th>
                 </tr>
               </thead>
