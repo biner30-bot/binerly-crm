@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Badge, Modal, MetricCard, ConfirmDialog, formatTL, PANO_RANGES, getRangeBounds, inRange } from "./shared";
+import { Badge, Modal, MetricCard, ConfirmDialog, IconButton, formatTL, PANO_RANGES, getRangeBounds, inRange } from "./shared";
 
 export function rowToCompanyExpense(r) {
   return {
@@ -328,9 +328,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
                       {item.type === "gelir" ? "+" : "-"}{formatTL(item.amount)}
                     </span>
                     {item.expenseId && (
-                      <button onClick={() => setConfirmDelete(item.expenseId)} style={{ width: 26, height: 26, padding: 0 }} title="Sil">
-                        <i className="ti ti-trash" style={{ fontSize: 13 }} aria-hidden="true"></i>
-                      </button>
+                      <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(item.expenseId)} />
                     )}
                   </div>
                 </div>

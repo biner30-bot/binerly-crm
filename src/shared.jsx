@@ -204,6 +204,132 @@ export function Badge({ children, tone = "default" }) {
   );
 }
 
+export function TagInput({ tags, onChange, suggestions = [] }) {
+  const [draft, setDraft] = useState("");
+  const add = (t) => {
+    const v = t.trim();
+    if (v && !tags.includes(v)) onChange([...tags, v]);
+  };
+  const remainingSuggestions = suggestions.filter((s) => !tags.includes(s));
+  return (
+    <div>
+      {tags.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+          {tags.map((t) => (
+            <span
+              key={t}
+              style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "var(--surface-1)", color: "var(--text-secondary)", fontSize: 12, fontWeight: 500, padding: "3px 4px 3px 10px", borderRadius: "var(--radius)" }}
+            >
+              {t}
+              <button
+                type="button"
+                onClick={() => onChange(tags.filter((x) => x !== t))}
+                aria-label={`${t} etiketini kaldır`}
+                style={{ width: 16, height: 16, padding: 0, background: "none", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}
+              >
+                <i className="ti ti-x" style={{ fontSize: 11 }} aria-hidden="true"></i>
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === ",") {
+            e.preventDefault();
+            add(draft);
+            setDraft("");
+          }
+        }}
+        placeholder="Etiket ekle, Enter'a basın"
+        style={{ width: "100%" }}
+      />
+      {remainingSuggestions.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+          {remainingSuggestions.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => add(s)}
+              style={{ fontSize: 12, padding: "2px 8px", background: "none", border: "1px dashed var(--border)", borderRadius: "var(--radius)", color: "var(--text-secondary)" }}
+            >
+              + {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const ICON_BUTTON_SIZES = {
+  md: { box: 32, icon: 16 },
+  sm: { box: 26, icon: 13 },
+};
+
+// Uygulama genelindeki tüm ikon butonların tek kaynağı — üst menü, liste satırı
+// aksiyonları (düzenle/sil/PDF vb.) hepsi buradan geçer. Daha önce her yerde
+// elle kopyalanmış farklı boyutlarda (22-32px) inline style vardı, bu tek
+// bileşen sadece iki boyutu (md/sm) destekleyerek tutarlılığı zorunlu kılar.
+export function IconButton({ icon, label, onClick, title, size = "md", active = false, type = "button" }) {
+  const { box, icon: iconSize } = ICON_BUTTON_SIZES[size] || ICON_BUTTON_SIZES.md;
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      title={title}
+      aria-label={title || label}
+      style={
+        label
+          ? { display: "flex", alignItems: "center", gap: 4, height: box, fontSize: 12, color: "var(--text-secondary)" }
+          : {
+              width: box,
+              height: box,
+              padding: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: active ? "var(--text-accent)" : "var(--text-primary)",
+            }
+      }
+    >
+      <i className={`ti ${icon}`} style={{ fontSize: iconSize }} aria-hidden="true"></i>
+      {label && <span>{label}</span>}
+    </button>
+  );
+}
+
+// Ayarlar hub'ı gibi men listelerinde kullanılan tam genişlikte, tıklanabilir satır.
+export function MenuRow({ icon, label, description, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "10px 12px",
+        background: "var(--surface-1)",
+        border: "0.5px solid var(--border)",
+        borderRadius: "var(--radius)",
+        textAlign: "left",
+        marginBottom: 8,
+      }}
+    >
+      <i className={`ti ${icon}`} style={{ fontSize: 18, color: "var(--text-accent)", flexShrink: 0 }} aria-hidden="true"></i>
+      <span style={{ flex: 1 }}>
+        <span style={{ display: "block", fontSize: 14, fontWeight: 500 }}>{label}</span>
+        {description && <span style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{description}</span>}
+      </span>
+      <i className="ti ti-chevron-right" style={{ fontSize: 16, color: "var(--text-muted)", flexShrink: 0 }} aria-hidden="true"></i>
+    </button>
+  );
+}
+
 export function InfoTip({ text }) {
   return (
     <span className="info-tip" tabIndex={0}>

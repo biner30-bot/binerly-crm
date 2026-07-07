@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Badge, Modal, InfoTip, ConfirmDialog, uid, matchesDateRange, DateRangeFilter, downloadCsv } from "./shared";
+import { Badge, Modal, InfoTip, ConfirmDialog, IconButton, uid, matchesDateRange, DateRangeFilter, downloadCsv } from "./shared";
 import { ImportModal } from "./ImportExport";
 
 const PRIORITIES = [
@@ -347,15 +347,9 @@ function TicketList({
                     </td>
                     <td style={{ padding: "10px 12px", borderRadius: "0 var(--radius) var(--radius) 0" }}>
                       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                        <button onClick={() => onOpenTicket(t)} title="Detay ve mesaj geçmişi" style={{ width: 32, height: 32, padding: 0 }}>
-                          <i className="ti ti-message-circle" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                        </button>
-                        <button onClick={() => onEditTicket(t)} style={{ width: 32, height: 32, padding: 0 }}>
-                          <i className="ti ti-edit" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                        </button>
-                        <button onClick={() => setConfirmDelete(t)} style={{ width: 32, height: 32, padding: 0 }}>
-                          <i className="ti ti-trash" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                        </button>
+                        <IconButton icon="ti-message-circle" title="Detay ve mesaj geçmişi" onClick={() => onOpenTicket(t)} />
+                        <IconButton icon="ti-edit" title="Düzenle" onClick={() => onEditTicket(t)} />
+                        <IconButton icon="ti-trash" title="Sil" onClick={() => setConfirmDelete(t)} />
                       </div>
                     </td>
                   </tr>
@@ -544,12 +538,8 @@ function KbList({
                   {a.category ? `${a.category} · ` : ""}{a.content.slice(0, 80)}{a.content.length > 80 ? "…" : ""}
                 </p>
               </div>
-              <button onClick={() => onEdit(a)} style={{ width: 32, height: 32, padding: 0 }}>
-                <i className="ti ti-edit" style={{ fontSize: 16 }} aria-hidden="true"></i>
-              </button>
-              <button onClick={() => setConfirmDelete(a)} style={{ width: 32, height: 32, padding: 0 }}>
-                <i className="ti ti-trash" style={{ fontSize: 16 }} aria-hidden="true"></i>
-              </button>
+              <IconButton icon="ti-edit" title="Düzenle" onClick={() => onEdit(a)} />
+              <IconButton icon="ti-trash" title="Sil" onClick={() => setConfirmDelete(a)} />
             </div>
           ))}
         </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, uid, formatTL, daysAgo, downloadCsv, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange } from "./shared";
+import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, uid, formatTL, daysAgo, downloadCsv, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange } from "./shared";
 import Finance, { rowToCompanyExpense } from "./Finance";
 import Messages, { rowToChannelCredential, rowToChannelMessage } from "./Messages";
 import Support, {
@@ -12,26 +12,16 @@ import Support, {
   STATUSES,
 } from "./Support";
 import { ImportModal } from "./ImportExport";
-
-const STAGES = [
-  { id: "ilk_gorusme", label: "İlk görüşme" },
-  { id: "teklif", label: "Teklif verildi" },
-  { id: "muzakere", label: "Müzakere" },
-  { id: "kazanildi", label: "Kazanıldı" },
-  { id: "kaybedildi", label: "Kaybedildi" },
-];
-
-const STAGE_LABELS_BIREYSEL = {
-  ilk_gorusme: "İlgileniyor",
-  teklif: "Planlandı",
-  muzakere: "Onay bekleniyor",
-  kazanildi: "Tamamlandı",
-  kaybedildi: "İptal",
-};
-function stageLabel(stageId, customerType) {
-  if (customerType === "bireysel") return STAGE_LABELS_BIREYSEL[stageId] || stageId;
-  return STAGES.find((s) => s.id === stageId)?.label || stageId;
-}
+import {
+  STAGES,
+  SECTOR_PRESETS,
+  stageLabel,
+  rowToCustomFieldDef,
+  SectorOnboardingModal,
+  CustomFieldDefsManager,
+  CustomFieldsSection,
+  TagBadges,
+} from "./Sectors";
 
 const SECTORS = [
   "İnşaat", "Medikal / Sağlık", "Gıda", "Tekstil", "Elektrik / Elektronik",
@@ -85,6 +75,8 @@ function rowToCustomer(r) {
     createdAt: r.created_at,
     portalUserId: r.portal_user_id || null,
     deletedAt: r.deleted_at || null,
+    tags: r.tags || [],
+    customFields: r.custom_fields || {},
   };
 }
 
@@ -105,6 +97,8 @@ function rowToDeal(r) {
     createdAt: r.created_at,
     closedAt: r.closed_at || null,
     deletedAt: r.deleted_at || null,
+    tags: r.tags || [],
+    customFields: r.custom_fields || {},
   };
 }
 
@@ -227,10 +221,11 @@ function rowToCompanySettings(r) {
     logoUrl: r.logo_url || "",
     defaultKdvRate: r.default_kdv_rate ?? 20,
     customerNotificationsEnabled: r.customer_notifications_enabled !== false,
+    sector: r.sector || null,
   };
 }
 
-function CustomerForm({ initial, onSave, onCancel }) {
+function CustomerForm({ initial, customFieldDefs = [], sectorTags = [], onSave, onCancel }) {
   const initialIsCustomSector = initial?.sector && !SECTORS.includes(initial.sector);
   const [customerType, setCustomerType] = useState(initial?.customerType || "kurumsal");
   const [name, setName] = useState(initial?.name || "");
@@ -240,7 +235,10 @@ function CustomerForm({ initial, onSave, onCancel }) {
   const [phone, setPhone] = useState(initial?.phone || "");
   const [email, setEmail] = useState(initial?.email || "");
   const [notes, setNotes] = useState(initial?.notes || "");
+  const [tags, setTags] = useState(initial?.tags || []);
+  const [customFields, setCustomFields] = useState(initial?.customFields || {});
   const isKurumsal = customerType === "kurumsal";
+  const defsForEntity = customFieldDefs.filter((d) => d.entity === "customer" && (!d.audience || d.audience === customerType));
 
   return (
     <form
@@ -257,6 +255,8 @@ function CustomerForm({ initial, onSave, onCancel }) {
           phone: phone.trim(),
           email: email.trim(),
           notes: notes.trim(),
+          tags,
+          customFields,
           lastContact: initial?.lastContact || new Date().toISOString(),
           createdAt: initial?.createdAt || new Date().toISOString(),
         });
@@ -303,10 +303,15 @@ function CustomerForm({ initial, onSave, onCancel }) {
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="info@firma.com" style={{ width: "100%" }} />
         </div>
       </div>
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Not</label>
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Örn. yaz aylarında sipariş hacmi artıyor" style={{ width: "100%", minHeight: 70, resize: "vertical" }} />
       </div>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Etiketler</label>
+        <TagInput tags={tags} onChange={setTags} suggestions={sectorTags} />
+      </div>
+      <CustomFieldsSection defs={defsForEntity} values={customFields} onChange={setCustomFields} />
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button type="button" onClick={onCancel}>Vazgeç</button>
         <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
@@ -338,6 +343,7 @@ function CompanySettingsForm({ initial, onSave, onCancel }) {
           logoUrl: logoUrl.trim(),
           defaultKdvRate,
           customerNotificationsEnabled,
+          sector: initial?.sector || null,
         });
       }}
     >
@@ -399,7 +405,7 @@ function CompanySettingsForm({ initial, onSave, onCancel }) {
   );
 }
 
-function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, onSave, onCancel }) {
+function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, customFieldDefs = [], sectorTags = [], onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(
     initial?.customerId || customers.find((c) => c.customerType === preferredCustomerType)?.id || customers[0]?.id || ""
   );
@@ -430,6 +436,9 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, o
   const [sessionTotal, setSessionTotal] = useState(initial?.sessionTotal ?? 10);
   const [sessionUsed, setSessionUsed] = useState(initial?.sessionUsed ?? 0);
   const [sessionError, setSessionError] = useState("");
+  const [tags, setTags] = useState(initial?.tags || []);
+  const [customFields, setCustomFields] = useState(initial?.customFields || {});
+  const defsForEntity = customFieldDefs.filter((d) => d.entity === "deal" && (!d.audience || d.audience === selectedCustomerType));
 
   return (
     <form
@@ -460,6 +469,8 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, o
           isPackageDeal,
           sessionTotal: isPackageDeal ? Number(sessionTotal) || 0 : null,
           sessionUsed: isPackageDeal ? Math.min(Number(sessionUsed) || 0, Number(sessionTotal) || 0) : 0,
+          tags,
+          customFields,
           createdAt: (dealTime ? new Date(`${dealDate}T${dealTime}`) : new Date(dealDate)).toISOString(),
           closedAt: isClosingStage ? new Date(closedDate).toISOString() : null,
         });
@@ -514,7 +525,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, o
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Aşama</label>
           <select value={stage} onChange={(e) => setStage(e.target.value)} style={{ width: "100%" }}>
-            {STAGES.map((s) => <option key={s.id} value={s.id}>{stageLabel(s.id, selectedCustomerType)}</option>)}
+            {STAGES.map((s) => <option key={s.id} value={s.id}>{stageLabel(s.id, selectedCustomerType, sector)}</option>)}
           </select>
         </div>
       </div>
@@ -566,6 +577,11 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, o
           </select>
         </div>
       )}
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Etiketler</label>
+        <TagInput tags={tags} onChange={setTags} suggestions={sectorTags} />
+      </div>
+      <CustomFieldsSection defs={defsForEntity} values={customFields} onChange={setCustomFields} />
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button type="button" onClick={onCancel}>Vazgeç</button>
         <button type="submit" disabled={customers.length === 0} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
@@ -627,9 +643,7 @@ function DealPayments({ deal, payments, onAddPayment, onDeletePayment }) {
           {sorted.map((p) => (
             <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13 }}>
               <span>{formatTL(p.amount)} <span style={{ color: "var(--text-muted)" }}>· {paymentDateLabel(p.paidAt)}{p.note ? ` · ${p.note}` : ""}</span></span>
-              <button onClick={() => onDeletePayment(p.id)} style={{ width: 28, height: 28, padding: 0 }} title="Sil">
-                <i className="ti ti-trash" style={{ fontSize: 14 }} aria-hidden="true"></i>
-              </button>
+              <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => onDeletePayment(p.id)} />
             </div>
           ))}
         </div>
@@ -644,7 +658,7 @@ function activityDateLabel(dateStr) {
     " · " + d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 }
 
-function CustomerDetail({ customer, deals, activities, onAddActivity, onClose }) {
+function CustomerDetail({ customer, deals, activities, sector, customFieldDefs = [], onAddActivity, onClose }) {
   const [type, setType] = useState("note");
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
@@ -683,6 +697,22 @@ function CustomerDetail({ customer, deals, activities, onAddActivity, onClose })
           )}
         </p>
         {customer.notes && <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--text-secondary)" }}>{customer.notes}</p>}
+        {customer.tags?.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            <TagBadges tags={customer.tags} />
+          </div>
+        )}
+        {customFieldDefs.filter((d) => d.entity === "customer" && customer.customFields?.[d.key]).length > 0 && (
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 2 }}>
+            {customFieldDefs
+              .filter((d) => d.entity === "customer" && customer.customFields?.[d.key])
+              .map((d) => (
+                <p key={d.key} style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
+                  <strong>{d.label}:</strong> {customer.customFields[d.key]}
+                </p>
+              ))}
+          </div>
+        )}
       </div>
 
       {customerDeals.length > 0 && (
@@ -692,7 +722,7 @@ function CustomerDetail({ customer, deals, activities, onAddActivity, onClose })
             return (
               <div key={d.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0" }}>
                 <span>{d.title}</span>
-                <span style={{ color: "var(--text-secondary)" }}>{stageLabel(d.stage, customer.customerType || "kurumsal")} · {formatTL(d.value)}</span>
+                <span style={{ color: "var(--text-secondary)" }}>{stageLabel(d.stage, customer.customerType || "kurumsal", sector)} · {formatTL(d.value)}</span>
               </div>
             );
           })}
@@ -1947,12 +1977,16 @@ export default function App() {
   const [ticketMessages, setTicketMessages] = useState([]);
   const [kbArticles, setKbArticles] = useState([]);
   const [companySettings, setCompanySettings] = useState(null);
+  const [customFieldDefs, setCustomFieldDefs] = useState([]);
+  const [showSectorOnboarding, setShowSectorOnboarding] = useState(false);
   // v1: üye sayısı sınırsız, henüz billing yok. Billing eklendiğinde davet
   // oluşturma burada plan bazlı sınırlanabilir.
   const [activeTeamId, setActiveTeamId] = useState(undefined);
   const [pendingInvites, setPendingInvites] = useState([]);
   const [dismissedInviteIds, setDismissedInviteIds] = useState([]);
+  const [showSettingsHub, setShowSettingsHub] = useState(false);
   const [showSettingsForm, setShowSettingsForm] = useState(false);
+  const [showSectorFields, setShowSectorFields] = useState(false);
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [showAppSettings, setShowAppSettings] = useState(false);
   const [showTrashHistory, setShowTrashHistory] = useState(false);
@@ -2021,6 +2055,7 @@ export default function App() {
       setChannelCredentials([]); setChannelMessages([]);
       setTickets([]); setTicketMessages([]); setKbArticles([]);
       setCompanySettings(null);
+      setCustomFieldDefs([]);
       setActiveTeamId(undefined);
       setPendingInvites([]);
       setLoading(false);
@@ -2039,9 +2074,10 @@ export default function App() {
       supabase.from("ticket_messages").select("*").order("created_at"),
       supabase.from("kb_articles").select("*").is("deleted_at", null).order("created_at"),
       supabase.from("company_settings").select("*").maybeSingle(),
+      supabase.from("custom_field_defs").select("*").order("sort_order"),
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: myMembership }, { data: invites }]) => {
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: myMembership }, { data: invites }]) => {
       setCustomers((c || []).map(rowToCustomer));
       setDeals((d || []).map(rowToDeal));
       setActivities((a || []).map(rowToActivity));
@@ -2053,6 +2089,7 @@ export default function App() {
       setTicketMessages((tm || []).map(rowToTicketMessage));
       setKbArticles((kb || []).map(rowToKbArticle));
       setCompanySettings(cs ? rowToCompanySettings(cs) : null);
+      setCustomFieldDefs((cfd || []).map(rowToCustomFieldDef));
       setActiveTeamId(myMembership ? myMembership.team_id : session.user.id);
       // Sadece BANA gelen davetler (kendi gönderdiklerim değil) — RLS iki SELECT
       // politikasını OR ile birleştirdiği için burada e-postaya göre ek filtre şart.
@@ -2064,6 +2101,13 @@ export default function App() {
       setLoading(false);
     });
   }, [session]);
+
+  useEffect(() => {
+    if (loading || !session || !activeTeamId) return;
+    if (companySettings?.sector) return;
+    if (localStorage.getItem(`binerly_sector_onboarding_dismissed_${activeTeamId}`)) return;
+    setShowSectorOnboarding(true);
+  }, [loading, session, activeTeamId, companySettings]);
 
   useEffect(() => {
     if (!session || !("serviceWorker" in navigator)) { setPushSubscribed(false); return; }
@@ -2200,6 +2244,8 @@ export default function App() {
       phone: c.phone,
       email: c.email,
       notes: c.notes,
+      tags: c.tags || [],
+      custom_fields: c.customFields || {},
       last_contact: c.lastContact,
       created_at: c.createdAt,
     };
@@ -2276,6 +2322,8 @@ export default function App() {
       lost_reason: d.lostReason,
       session_total: d.isPackageDeal ? (Number(d.sessionTotal) || 0) : null,
       session_used: d.isPackageDeal ? (Number(d.sessionUsed) || 0) : 0,
+      tags: d.tags || [],
+      custom_fields: d.customFields || {},
       created_at: d.createdAt,
       closed_at: d.closedAt || null,
     };
@@ -2472,7 +2520,7 @@ export default function App() {
       notify(`Aşama güncellenemedi: ${error.message}`);
       setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, stage: previousStage, closedAt: current?.closedAt ?? null } : d)));
     } else {
-      const currentStageLabel = stageLabel(stage, customers.find((c) => c.id === current?.customerId)?.customerType || "kurumsal");
+      const currentStageLabel = stageLabel(stage, customers.find((c) => c.id === current?.customerId)?.customerType || "kurumsal", companySettings?.sector);
       logAction("deals", id, "updated", `${current?.title || "Teklif"} aşaması "${currentStageLabel}" olarak güncellendi`);
       if (stage === "teklif" && previousStage !== "teklif") {
         const customer = customers.find((c) => c.id === current?.customerId);
@@ -2777,12 +2825,73 @@ export default function App() {
       logo_url: s.logoUrl,
       default_kdv_rate: s.defaultKdvRate ?? 20,
       customer_notifications_enabled: s.customerNotificationsEnabled !== false,
+      sector: s.sector || null,
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase.from("company_settings").upsert(row).select().single();
     if (error) { notify(`Şirket ayarları kaydedilemedi: ${error.message}`); return; }
     setCompanySettings(rowToCompanySettings(data));
     setShowSettingsForm(false);
+    if (row.sector) await applySectorCustomFields(row.sector);
+  };
+
+  const addCustomFieldDef = async ({ entity, key, label, type, options, sector = null, audience = null }) => {
+    const row = {
+      id: uid(),
+      user_id: activeTeamId,
+      entity,
+      key,
+      label,
+      field_type: type,
+      options,
+      sector,
+      audience,
+    };
+    const { data, error } = await supabase.from("custom_field_defs").insert(row).select().single();
+    if (error) { notify(`Özel alan eklenemedi: ${error.message}`); return; }
+    setCustomFieldDefs((prev) => [...prev, rowToCustomFieldDef(data)]);
+  };
+
+  const setCustomFieldDefsActive = async (ids, active) => {
+    if (ids.length === 0) return;
+    const { error } = await supabase.from("custom_field_defs").update({ active }).in("id", ids);
+    if (error) { notify(`Özel alanlar güncellenemedi: ${error.message}`); return; }
+    setCustomFieldDefs((prev) => prev.map((d) => (ids.includes(d.id) ? { ...d, active } : d)));
+  };
+
+  const deleteCustomFieldDef = async (id) => {
+    const { error } = await supabase.from("custom_field_defs").delete().eq("id", id);
+    if (error) { notify(`Özel alan silinemedi: ${error.message}`); return; }
+    setCustomFieldDefs((prev) => prev.filter((d) => d.id !== id));
+  };
+
+  // Sektör değişince formda görünen özel alanlar da değişsin isteniyor — ama
+  // müşteri/teklif kayıtlarına daha önce girilmiş değerler kaybolmasın. Bu yüzden
+  // başka bir sektöre ait alanlar SİLİNMEZ, sadece "active:false" ile gizlenir
+  // (kaydedilmiş değerler DB'de durur); yeniden aynı sektöre dönülürse aynı
+  // tanımlar "active:true" ile geri gelir. Elle eklenen alanlar (sector: null)
+  // hiçbir sektör değişikliğinden etkilenmez.
+  const applySectorCustomFields = async (sectorId) => {
+    const preset = SECTOR_PRESETS.find((p) => p.id === sectorId);
+    const toHide = customFieldDefs.filter((d) => d.active && d.sector && d.sector !== sectorId).map((d) => d.id);
+    const toShow = customFieldDefs.filter((d) => !d.active && d.sector === sectorId).map((d) => d.id);
+    await setCustomFieldDefsActive(toHide, false);
+    await setCustomFieldDefsActive(toShow, true);
+    if (!preset) return;
+    for (const f of preset.customFields) {
+      const exists = customFieldDefs.some((d) => d.entity === f.entity && d.key === f.key);
+      if (!exists) await addCustomFieldDef({ ...f, sector: sectorId });
+    }
+  };
+
+  const applySectorPreset = async (sectorId) => {
+    await upsertCompanySettings({ ...(companySettings || {}), sector: sectorId });
+    setShowSectorOnboarding(false);
+  };
+
+  const skipSectorOnboarding = () => {
+    if (activeTeamId) localStorage.setItem(`binerly_sector_onboarding_dismissed_${activeTeamId}`, "1");
+    setShowSectorOnboarding(false);
   };
 
   const acceptTeamInvite = async (invite) => {
@@ -2942,49 +3051,14 @@ export default function App() {
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>KOBİ satış takip sistemi</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button
+          <IconButton
+            icon={pushSubscribed ? "ti-bell-ringing" : "ti-bell"}
+            active={pushSubscribed}
             onClick={() => (pushSubscribed ? unsubscribeFromPush() : subscribeToPush())}
-            style={{ width: 32, height: 32, padding: 0 }}
             title={pushSubscribed ? "Bildirimler açık (kapatmak için tıkla)" : "Yeni mesaj bildirimlerini aç"}
-          >
-            <i className={`ti ${pushSubscribed ? "ti-bell-ringing" : "ti-bell"}`} style={{ fontSize: 16, color: pushSubscribed ? "var(--text-accent)" : undefined }} aria-hidden="true"></i>
-          </button>
-          <button
-            onClick={() => setShowTeamModal(true)}
-            style={{ width: 32, height: 32, padding: 0 }}
-            title="Takım"
-          >
-            <i className="ti ti-users-group" style={{ fontSize: 16 }} aria-hidden="true"></i>
-          </button>
-          <button
-            onClick={() => setShowSettingsForm(true)}
-            style={{ width: 32, height: 32, padding: 0 }}
-            title="Şirket ayarları"
-          >
-            <i className="ti ti-settings" style={{ fontSize: 16 }} aria-hidden="true"></i>
-          </button>
-          <button
-            onClick={() => setShowAppSettings(true)}
-            style={{ width: 32, height: 32, padding: 0 }}
-            title="Ayarlar"
-          >
-            <i className="ti ti-adjustments" style={{ fontSize: 16 }} aria-hidden="true"></i>
-          </button>
-          <button
-            onClick={() => setShowTrashHistory(true)}
-            style={{ width: 32, height: 32, padding: 0 }}
-            title="Çöp Kutusu ve Geçmiş"
-          >
-            <i className="ti ti-history" style={{ fontSize: 16 }} aria-hidden="true"></i>
-          </button>
-          <button
-            onClick={() => supabase.auth.signOut()}
-            style={{ fontSize: 12, color: "var(--text-secondary)", background: "none", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 4 }}
-            title="Çıkış yap"
-          >
-            <i className="ti ti-logout" style={{ fontSize: 14 }} aria-hidden="true"></i>
-            Çıkış
-          </button>
+          />
+          <IconButton icon="ti-settings" onClick={() => setShowSettingsHub(true)} title="Ayarlar" />
+          <IconButton icon="ti-logout" label="Çıkış" onClick={() => supabase.auth.signOut()} title="Çıkış yap" />
         </div>
       </div>
 
@@ -3214,7 +3288,7 @@ export default function App() {
                   return (
                     <div key={stage.id}>
                       <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>
-                        {stage.label} · {stageDeals.length}
+                        {stageLabel(stage.id, undefined, companySettings?.sector)} · {stageDeals.length}
                       </div>
                       {stageDeals.length === 0 && <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Boş</div>}
                       {stageDeals.map((d) => {
@@ -3416,6 +3490,11 @@ export default function App() {
                       <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
                         {c.sector} {c.region ? `· ${c.region}` : ""} {c.phone ? `· ${c.phone}` : ""}
                       </p>
+                      {c.tags?.length > 0 && (
+                        <div style={{ marginTop: 4 }}>
+                          <TagBadges tags={c.tags} />
+                        </div>
+                      )}
                     </td>
                     <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                       <Badge tone={leadScore(c.lastContact).tone}>{leadScore(c.lastContact).label}</Badge>
@@ -3441,15 +3520,9 @@ export default function App() {
                             <WhatsAppIcon />
                           </a>
                         )}
-                        <button onClick={() => setViewingCustomer(c)} title="Detay ve iletişim geçmişi" style={{ width: 32, height: 32, padding: 0 }}>
-                          <i className="ti ti-history" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                        </button>
-                        <button onClick={() => { setEditingCustomer(c); setShowCustomerForm(true); }} style={{ width: 32, height: 32, padding: 0 }}>
-                          <i className="ti ti-edit" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                        </button>
-                        <button onClick={() => setConfirmDeleteCustomer(c)} style={{ width: 32, height: 32, padding: 0 }}>
-                          <i className="ti ti-trash" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                        </button>
+                        <IconButton icon="ti-history" title="Detay ve iletişim geçmişi" onClick={() => setViewingCustomer(c)} />
+                        <IconButton icon="ti-edit" title="Düzenle" onClick={() => { setEditingCustomer(c); setShowCustomerForm(true); }} />
+                        <IconButton icon="ti-trash" title="Sil" onClick={() => setConfirmDeleteCustomer(c)} />
                       </div>
                     </td>
                   </tr>
@@ -3506,7 +3579,7 @@ export default function App() {
                       d.title,
                       d.value,
                       d.cost,
-                      stageLabel(d.stage, customerById(d.customerId)?.customerType || "kurumsal"),
+                      stageLabel(d.stage, customerById(d.customerId)?.customerType || "kurumsal", companySettings?.sector),
                       d.reminder,
                       d.createdAt ? new Date(d.createdAt).toLocaleDateString("tr-TR") : "",
                     ])
@@ -3553,7 +3626,7 @@ export default function App() {
             <select value={dealStageFilter} onChange={(e) => setDealStageFilter(e.target.value)} style={{ fontSize: 13 }}>
               <option value="all">Tüm aşamalar</option>
               <option value="acik">Açık teklifler</option>
-              {STAGES.map((s) => <option key={s.id} value={s.id}>{stageLabel(s.id, dealAudience)}</option>)}
+              {STAGES.map((s) => <option key={s.id} value={s.id}>{stageLabel(s.id, dealAudience, companySettings?.sector)}</option>)}
             </select>
             <select value={dealPaymentFilter} onChange={(e) => setDealPaymentFilter(e.target.value)} style={{ fontSize: 13 }}>
               <option value="all">Tüm ödeme durumları</option>
@@ -3585,7 +3658,7 @@ export default function App() {
                     style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 10, minWidth: 220, flex: "0 0 220px" }}
                   >
                     <div style={{ marginBottom: 8 }}>
-                      <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 2px" }}>{stageLabel(stage.id, dealAudience)} · {stageDeals.length}</p>
+                      <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 2px" }}>{stageLabel(stage.id, dealAudience, companySettings?.sector)} · {stageDeals.length}</p>
                       <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0 }}>{formatTL(stageValue)}</p>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 40 }}>
@@ -3603,13 +3676,12 @@ export default function App() {
                             <p style={{ margin: "0 0 4px", fontSize: 12, color: "var(--text-secondary)" }}>{d.title}</p>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                               <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--text-accent)" }}>{formatTL(d.value)}</p>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setTeklifDeal(d); }}
+                              <IconButton
+                                icon="ti-file-text"
                                 title="Teklif PDF"
-                                style={{ width: 24, height: 24, padding: 0 }}
-                              >
-                                <i className="ti ti-file-text" style={{ fontSize: 13 }} aria-hidden="true"></i>
-                              </button>
+                                size="sm"
+                                onClick={(e) => { e.stopPropagation(); setTeklifDeal(d); }}
+                              />
                             </div>
                             {(() => {
                               const paid = totalPaidForDeal(d.id);
@@ -3627,13 +3699,12 @@ export default function App() {
                                   {d.sessionUsed >= d.sessionTotal ? "Paket tamamlandı" : `${d.sessionUsed}/${d.sessionTotal} seans`}
                                 </Badge>
                                 {d.sessionUsed < d.sessionTotal && (
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); incrementSessionUsage(d.id); }}
+                                  <IconButton
+                                    icon="ti-plus"
                                     title="Seans kullanıldı"
-                                    style={{ width: 22, height: 22, padding: 0 }}
-                                  >
-                                    <i className="ti ti-plus" style={{ fontSize: 12 }} aria-hidden="true"></i>
-                                  </button>
+                                    size="sm"
+                                    onClick={(e) => { e.stopPropagation(); incrementSessionUsage(d.id); }}
+                                  />
                                 )}
                               </div>
                             )}
@@ -3642,6 +3713,11 @@ export default function App() {
                                 <i className="ti ti-bell" style={{ fontSize: 12 }} aria-hidden="true"></i>
                                 {d.reminder}
                               </p>
+                            )}
+                            {d.tags?.length > 0 && (
+                              <div style={{ marginTop: 4 }}>
+                                <TagBadges tags={d.tags} />
+                              </div>
                             )}
                           </div>
                         );
@@ -3688,9 +3764,14 @@ export default function App() {
                             </Badge>
                           </div>
                         )}
+                        {d.tags?.length > 0 && (
+                          <div style={{ marginTop: 4 }}>
+                            <TagBadges tags={d.tags} />
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                        <Badge tone={tone}>{stageLabel(d.stage, c?.customerType || "kurumsal")}</Badge>
+                        <Badge tone={tone}>{stageLabel(d.stage, c?.customerType || "kurumsal", companySettings?.sector)}</Badge>
                       </td>
                       <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                         {paid > 0 ? <Badge tone={remaining <= 0 ? "success" : "warning"}>{remaining <= 0 ? "Ödendi" : "Kısmi ödeme"}</Badge> : <span style={{ fontSize: 12, color: "var(--text-muted)" }}>—</span>}
@@ -3698,20 +3779,12 @@ export default function App() {
                       <td style={{ padding: "10px 12px", whiteSpace: "nowrap", textAlign: "right", fontSize: 13, fontWeight: 500 }}>{formatTL(d.value)}</td>
                       <td style={{ padding: "10px 12px", borderRadius: "0 var(--radius) var(--radius) 0" }}>
                         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                          <button onClick={() => setTeklifDeal(d)} title="Teklif PDF" style={{ width: 32, height: 32, padding: 0 }}>
-                            <i className="ti ti-file-text" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                          </button>
+                          <IconButton icon="ti-file-text" title="Teklif PDF" onClick={() => setTeklifDeal(d)} />
                           {!!d.sessionTotal && d.sessionUsed < d.sessionTotal && (
-                            <button onClick={() => incrementSessionUsage(d.id)} title="Seans kullanıldı" style={{ width: 32, height: 32, padding: 0 }}>
-                              <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                            </button>
+                            <IconButton icon="ti-plus" title="Seans kullanıldı" onClick={() => incrementSessionUsage(d.id)} />
                           )}
-                          <button onClick={() => { setEditingDeal(d); setShowDealForm(true); }} style={{ width: 32, height: 32, padding: 0 }}>
-                            <i className="ti ti-edit" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                          </button>
-                          <button onClick={() => setConfirmDeleteDeal(d)} style={{ width: 32, height: 32, padding: 0 }}>
-                            <i className="ti ti-trash" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                          </button>
+                          <IconButton icon="ti-edit" title="Düzenle" onClick={() => { setEditingDeal(d); setShowDealForm(true); }} />
+                          <IconButton icon="ti-trash" title="Sil" onClick={() => setConfirmDeleteDeal(d)} />
                         </div>
                       </td>
                     </tr>
@@ -3776,14 +3849,77 @@ export default function App() {
 
       {showCustomerForm && (
         <Modal title={editingCustomer?.id ? "Müşteriyi düzenle" : "Yeni müşteri"} onClose={() => { setShowCustomerForm(false); setEditingCustomer(null); }}>
-          <CustomerForm initial={editingCustomer} onSave={upsertCustomer} onCancel={() => { setShowCustomerForm(false); setEditingCustomer(null); }} />
+          <CustomerForm
+            initial={editingCustomer}
+            customFieldDefs={customFieldDefs}
+            sectorTags={SECTOR_PRESETS.find((p) => p.id === companySettings?.sector)?.tags || []}
+            onSave={upsertCustomer}
+            onCancel={() => { setShowCustomerForm(false); setEditingCustomer(null); }}
+          />
+        </Modal>
+      )}
+
+      {showSettingsHub && (
+        <Modal title="Ayarlar" onClose={() => setShowSettingsHub(false)}>
+          <MenuRow
+            icon="ti-building"
+            label="Şirket Bilgileri"
+            description="Şirket adı, adres, iletişim, KDV oranı"
+            onClick={() => { setShowSettingsHub(false); setShowSettingsForm(true); }}
+          />
+          <MenuRow
+            icon="ti-category"
+            label="Sektör & Özel Alanlar"
+            description="Aşama isimleri, etiket önerileri, özel alanlar"
+            onClick={() => { setShowSettingsHub(false); setShowSectorFields(true); }}
+          />
+          <MenuRow
+            icon="ti-adjustments"
+            label="Görünüm, Bildirimler & Hesap"
+            description="Tema, push bildirimleri, şifre"
+            onClick={() => { setShowSettingsHub(false); setShowAppSettings(true); }}
+          />
+          <MenuRow
+            icon="ti-users-group"
+            label="Takım"
+            description="Üyeler ve davetler"
+            onClick={() => { setShowSettingsHub(false); setShowTeamModal(true); }}
+          />
+          <MenuRow
+            icon="ti-history"
+            label="Çöp Kutusu ve Geçmiş"
+            description="Silinen kayıtlar, işlem geçmişi"
+            onClick={() => { setShowSettingsHub(false); setShowTrashHistory(true); }}
+          />
         </Modal>
       )}
 
       {showSettingsForm && (
-        <Modal title="Şirket ayarları" onClose={() => setShowSettingsForm(false)}>
+        <Modal title="Şirket Bilgileri" onClose={() => setShowSettingsForm(false)}>
           <CompanySettingsForm initial={companySettings} onSave={upsertCompanySettings} onCancel={() => setShowSettingsForm(false)} />
         </Modal>
+      )}
+
+      {showSectorFields && (
+        <Modal title="Sektör & Özel Alanlar" onClose={() => setShowSectorFields(false)}>
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Sektör</label>
+            <select
+              value={companySettings?.sector || ""}
+              onChange={(e) => e.target.value && applySectorPreset(e.target.value)}
+              style={{ width: "100%" }}
+            >
+              <option value="">Seçilmedi</option>
+              {SECTOR_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+            </select>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Seçtiğinizde aşama isimlerini, önerilen etiketleri ve özel alanları hemen günceller.</p>
+          </div>
+          <CustomFieldDefsManager customFieldDefs={customFieldDefs} onAdd={addCustomFieldDef} onDelete={deleteCustomFieldDef} />
+        </Modal>
+      )}
+
+      {showSectorOnboarding && (
+        <SectorOnboardingModal onPick={applySectorPreset} onSkip={skipSectorOnboarding} />
       )}
 
       {showTeamModal && (
@@ -3882,7 +4018,17 @@ export default function App() {
 
       {showDealForm && (
         <Modal title={editingDeal?.id ? "Teklifi düzenle" : "Yeni teklif"} onClose={() => { setShowDealForm(false); setEditingDeal(null); }}>
-          <DealForm customers={customers} initial={editingDeal} defaultKdvRate={companySettings?.defaultKdvRate} preferredCustomerType={dealAudience} onSave={upsertDeal} onCancel={() => { setShowDealForm(false); setEditingDeal(null); }} />
+          <DealForm
+            customers={customers}
+            initial={editingDeal}
+            defaultKdvRate={companySettings?.defaultKdvRate}
+            preferredCustomerType={dealAudience}
+            sector={companySettings?.sector}
+            customFieldDefs={customFieldDefs}
+            sectorTags={SECTOR_PRESETS.find((p) => p.id === companySettings?.sector)?.tags || []}
+            onSave={upsertDeal}
+            onCancel={() => { setShowDealForm(false); setEditingDeal(null); }}
+          />
           {editingDeal && (
             <DealPayments
               deal={editingDeal}
@@ -3903,6 +4049,8 @@ export default function App() {
           customer={customerById(viewingCustomer.id) || viewingCustomer}
           deals={deals}
           activities={activities}
+          sector={companySettings?.sector}
+          customFieldDefs={customFieldDefs}
           onAddActivity={addActivity}
           onClose={() => setViewingCustomer(null)}
         />
