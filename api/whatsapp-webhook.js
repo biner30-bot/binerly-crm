@@ -29,7 +29,16 @@ export default async function handler(req, res) {
     const mode = req.query["hub.mode"];
     const token = req.query["hub.verify_token"];
     const challenge = req.query["hub.challenge"];
-    if (mode === "subscribe" && token === process.env.META_WEBHOOK_VERIFY_TOKEN) {
+    const expected = process.env.META_WEBHOOK_VERIFY_TOKEN;
+    console.log(
+      "[whatsapp-webhook GET] mode:", JSON.stringify(mode),
+      "receivedToken:", JSON.stringify(token),
+      "receivedTokenLength:", token?.length,
+      "expectedToken:", JSON.stringify(expected),
+      "expectedTokenLength:", expected?.length,
+      "match:", token === expected
+    );
+    if (mode === "subscribe" && token === expected) {
       return res.status(200).send(challenge);
     }
     return res.status(403).send("Forbidden");
