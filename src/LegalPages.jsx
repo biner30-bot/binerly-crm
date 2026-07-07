@@ -1,8 +1,10 @@
 import React from "react";
+import { TrackingScripts } from "./analytics";
 
 function LegalLayout({ title, updatedAt, children }) {
   return (
     <div style={{ minHeight: "100vh", background: "#f5f8fc" }}>
+      <TrackingScripts />
       <nav style={{ display: "flex", alignItems: "center", padding: "0 2rem", height: 64, background: "#fff", borderBottom: "1px solid #e1e8f0" }}>
         <a href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
           <img src="/favicon.svg" alt="Binerly" style={{ width: 28, height: 28 }} />

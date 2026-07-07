@@ -12,6 +12,7 @@ import Support, {
   STATUSES,
 } from "./Support";
 import { ImportModal } from "./ImportExport";
+import { TrackingScripts } from "./analytics";
 import {
   STAGES,
   SECTOR_PRESETS,
@@ -1698,6 +1699,7 @@ function LandingPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f5f8fc", fontFamily: "system-ui, -apple-system, sans-serif" }}>
+      <TrackingScripts />
       {authModal && <AuthModal initialMode={authModal} onClose={() => setAuthModal(null)} />}
       {showEntryChoice && (
         <EntryChoiceModal

@@ -12,13 +12,16 @@ function readConsent() {
 }
 
 function writeConsent(analytics, marketing) {
-  localStorage.setItem(CONSENT_KEY, JSON.stringify({ necessary: true, analytics, marketing, decidedAt: new Date().toISOString() }));
+  const consent = { necessary: true, analytics, marketing, decidedAt: new Date().toISOString() };
+  localStorage.setItem(CONSENT_KEY, JSON.stringify(consent));
+  window.dispatchEvent(new CustomEvent("binerly-consent-changed", { detail: consent }));
 }
 
-// Binerly şu an zorunlu (oturum/tema) dışında analitik veya pazarlama çerezi
-// KULLANMIYOR — bu banner, ileride bu tür çerezler eklendiğinde (ör. ürün
-// analitiği) zaten rıza altyapısının hazır olması için şimdiden kuruluyor.
-// Tercihler kaydediliyor ama şu an hiçbir şeyi fiilen açıp kapatmıyor.
+// Analytics/marketing onayı verilince "binerly-consent-changed" olayı
+// yayınlanır — src/analytics.js'teki TrackingScripts bunu dinleyip Google
+// Analytics/Meta Pixel'i sadece herkese açık sayfalarda (o bileşen sadece
+// oralarda render edildiği için) yükler. Panel/portal içinde bu bileşen hiç
+// render edilmiyor, dolayısıyla üçüncü taraf kod oraya hiç girmiyor.
 export function CookieConsentBanner() {
   const [dismissed, setDismissed] = useState(() => !!readConsent());
   const [showPrefs, setShowPrefs] = useState(false);
