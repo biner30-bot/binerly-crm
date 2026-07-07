@@ -16,9 +16,13 @@ function readRawBody(req) {
 
 export default async function handler(req, res) {
   if (req.method === "GET") {
-    const mode = req.query["hub.mode"];
-    const token = req.query["hub.verify_token"];
-    const challenge = req.query["hub.challenge"];
+    // bodyParser: false ayarı Vercel'in otomatik doldurduğu req.query'yi de
+    // devre dışı bırakıyor — bu yüzden sorgu parametrelerini doğrudan req.url'den
+    // elle ayrıştırıyoruz.
+    const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+    const mode = url.searchParams.get("hub.mode");
+    const token = url.searchParams.get("hub.verify_token");
+    const challenge = url.searchParams.get("hub.challenge");
     if (mode === "subscribe" && token === process.env.META_WEBHOOK_VERIFY_TOKEN) {
       return res.status(200).send(challenge);
     }
