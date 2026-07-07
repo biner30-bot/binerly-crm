@@ -1,8 +1,14 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App.jsx";
-import CustomerPortal from "./CustomerPortal.jsx";
-import { PrivacyPolicyPage, KvkkPage, TermsPage } from "./LegalPages.jsx";
+import { CookieConsentBanner } from "./CookieConsent.jsx";
+
+// Rota bazlı kod bölme — bir KOBİ kullanıcısı hiç CustomerPortal/Yasal sayfa
+// kodunu indirmez ve tam tersi, her ziyaretçi sadece kendi sayfasının bundle'ını çeker.
+const App = lazy(() => import("./App.jsx"));
+const CustomerPortal = lazy(() => import("./CustomerPortal.jsx"));
+const PrivacyPolicyPage = lazy(() => import("./LegalPages.jsx").then((m) => ({ default: m.PrivacyPolicyPage })));
+const KvkkPage = lazy(() => import("./LegalPages.jsx").then((m) => ({ default: m.KvkkPage })));
+const TermsPage = lazy(() => import("./LegalPages.jsx").then((m) => ({ default: m.TermsPage })));
 
 const path = window.location.pathname;
 
@@ -38,6 +44,9 @@ function resolvePage() {
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    {resolvePage()}
+    <Suspense fallback={<div style={{ padding: "2rem", textAlign: "center", color: "#5b7088" }}>Yükleniyor…</div>}>
+      {resolvePage()}
+    </Suspense>
+    <CookieConsentBanner />
   </React.StrictMode>
 );
