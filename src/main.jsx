@@ -40,7 +40,9 @@ function resolvePage() {
   if (path.startsWith("/gizlilik")) return <PrivacyPolicyPage />;
   if (path.startsWith("/kvkk")) return <KvkkPage />;
   if (path.startsWith("/kullanim-kosullari")) return <TermsPage />;
-  if (path.startsWith("/admin")) return <AdminPage />;
+  // Bilinçli olarak "/admin" gibi tahmin edilebilir bir isim değil — otomatik
+  // tarayan botların/meraklıların rastlamasını zorlaştırmak için.
+  if (path.startsWith("/panel-4k9x")) return <AdminPage />;
   return <App />;
 }
 
@@ -49,6 +51,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <Suspense fallback={<div style={{ padding: "2rem", textAlign: "center", color: "#5b7088" }}>Yükleniyor…</div>}>
       {resolvePage()}
     </Suspense>
-    {!path.startsWith("/admin") && <CookieConsentBanner />}
+    {!path.startsWith("/panel-4k9x") && <CookieConsentBanner />}
   </React.StrictMode>
 );

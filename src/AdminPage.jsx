@@ -5,7 +5,8 @@ import AdminPanel from "./Admin";
 // Sadece bu e-postayla giriş yapan (kurucu) buraya erişebilir — gerçek yetki
 // kontrolü api/admin-data.js'te sunucu tarafında yapılıyor, bu sadece sayfayı
 // gösterip gizlemek için. Bilinçli olarak App.jsx'in sekme çubuğunun dışında,
-// ayrı bir /admin sayfası — normal KOBİ kullanıcılarının hiç görmediği bir yer.
+// ayrı, tahmin edilmesi zor bir adresteki (main.jsx'te /panel-4k9x) sayfa —
+// normal KOBİ kullanıcılarının hiç görmediği ve hiçbir yerden linklenmeyen bir yer.
 const ADMIN_EMAIL = "biner30@gmail.com";
 
 function AdminLogin({ notify }) {
