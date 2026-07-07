@@ -41,7 +41,20 @@ export default async function handler(req, res) {
     if (mode === "subscribe" && token === expected) {
       return res.status(200).send(challenge);
     }
-    return res.status(403).send("Forbidden");
+    // Geçici teşhis: normalde bu bilgiyi bir 403 cevabında göstermek doğru olmaz
+    // ama Vercel log arayüzünde konsol çıktısını bulamadık, bu yüzden hatayı
+    // doğrudan cevabın içine koyup Meta panelinden okuyoruz.
+    return res.status(403).json({
+      error: "Forbidden",
+      debug: {
+        mode: mode || null,
+        receivedTokenLength: token?.length ?? null,
+        expectedTokenLength: expected?.length ?? null,
+        receivedTokenPreview: token ? `${token.slice(0, 3)}...${token.slice(-3)}` : null,
+        expectedTokenPreview: expected ? `${expected.slice(0, 3)}...${expected.slice(-3)}` : null,
+        expectedTokenIsSet: !!expected,
+      },
+    });
   }
   if (req.method !== "POST") return res.status(405).end();
 
