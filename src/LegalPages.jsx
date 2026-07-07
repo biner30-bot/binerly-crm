@@ -162,7 +162,16 @@ export function TermsPage() {
           yükümlülüklerinizi (KVKK dahil) yerine getirmekten siz sorumlusunuz.
         </p>
       </Section>
-      <Section title="3. Faturalandırma ve Vergi Yükümlülükleri">
+      <Section title="3. Takım Üyeliği ve Hesap Paylaşımı">
+        <p>
+          Bir hesaba takım üyesi olarak eklenen kişilerin, o hesabı oluşturan işletmenin çalışanı veya
+          yetkilisi olması gerekir. Bir hesap; birbirinden bağımsız, farklı işletmeler veya kişiler
+          tarafından ortak kullanılamaz, kullanıcı başına maliyeti düşürmek amacıyla ilgisiz taraflarla
+          paylaşılamaz. Takım daveti kabul edilirken bu husus ayrıca beyan edilir. Bu kurala aykırı
+          kullanım tespit edilirse hesap askıya alınabilir veya sonlandırılabilir (bkz. Madde 7 — Fesih).
+        </p>
+      </Section>
+      <Section title="4. Faturalandırma ve Vergi Yükümlülükleri">
         <p>
           Binerly bir müşteri ilişkileri yönetimi (kayıt ve takip) aracıdır; fatura kesme, vergi dairesine
           bildirim veya benzeri resmi işlemleri gerçekleştirmez. Sattığınız ürün/hizmetler için fatura
@@ -171,31 +180,31 @@ export function TermsPage() {
           özellikler sadece bir kolaylık aracıdır, bu konudaki sorumluluğunuzu ortadan kaldırmaz.
         </p>
       </Section>
-      <Section title="4. Kabul Edilebilir Kullanım">
+      <Section title="5. Kabul Edilebilir Kullanım">
         <p>
           Hizmeti yasa dışı amaçlarla, izinsiz veri toplama veya üçüncü kişilerin haklarını ihlal edecek
           şekilde kullanamazsınız.
         </p>
       </Section>
-      <Section title="5. Ücretlendirme">
+      <Section title="6. Ücretlendirme">
         <p>
           Güncel fiyatlandırma ve deneme süresi koşulları binerly.com üzerinden veya tarafımızca ayrıca
           bildirilir. Ödeme koşulları ve iptal politikası ayrıca paylaşılacaktır.
         </p>
       </Section>
-      <Section title="6. Sorumluluğun Sınırlandırılması">
+      <Section title="7. Sorumluluğun Sınırlandırılması">
         <p>
           Binerly, hizmetin kesintisiz veya hatasız olacağını garanti etmez. Yasaların izin verdiği azami
           ölçüde, dolaylı zararlardan sorumlu tutulamaz.
         </p>
       </Section>
-      <Section title="7. Fesih">
+      <Section title="8. Fesih">
         <p>
-          Hesabınızı istediğiniz zaman kapatabilirsiniz. Kullanım koşullarının ihlali halinde hizmete
-          erişiminiz askıya alınabilir veya sonlandırılabilir.
+          Hesabınızı istediğiniz zaman kapatabilirsiniz. Kullanım koşullarının ihlali halinde (Madde 3'teki
+          takım üyeliği kuralı dahil) hizmete erişiminiz askıya alınabilir veya sonlandırılabilir.
         </p>
       </Section>
-      <Section title="8. İletişim">
+      <Section title="9. İletişim">
         <p>
           Sorularınız için: <a href="mailto:info@binerly.com" style={{ color: "#185fa5" }}>info@binerly.com</a>
         </p>

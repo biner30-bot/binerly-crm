@@ -9,6 +9,7 @@ const CustomerPortal = lazy(() => import("./CustomerPortal.jsx"));
 const PrivacyPolicyPage = lazy(() => import("./LegalPages.jsx").then((m) => ({ default: m.PrivacyPolicyPage })));
 const KvkkPage = lazy(() => import("./LegalPages.jsx").then((m) => ({ default: m.KvkkPage })));
 const TermsPage = lazy(() => import("./LegalPages.jsx").then((m) => ({ default: m.TermsPage })));
+const AdminPage = lazy(() => import("./AdminPage.jsx"));
 
 const path = window.location.pathname;
 
@@ -39,6 +40,7 @@ function resolvePage() {
   if (path.startsWith("/gizlilik")) return <PrivacyPolicyPage />;
   if (path.startsWith("/kvkk")) return <KvkkPage />;
   if (path.startsWith("/kullanim-kosullari")) return <TermsPage />;
+  if (path.startsWith("/admin")) return <AdminPage />;
   return <App />;
 }
 
@@ -47,6 +49,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <Suspense fallback={<div style={{ padding: "2rem", textAlign: "center", color: "#5b7088" }}>Yükleniyor…</div>}>
       {resolvePage()}
     </Suspense>
-    <CookieConsentBanner />
+    {!path.startsWith("/admin") && <CookieConsentBanner />}
   </React.StrictMode>
 );

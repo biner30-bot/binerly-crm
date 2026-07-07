@@ -1718,6 +1718,7 @@ function LandingPage() {
         <div style={{ display: "flex", gap: 28, alignItems: "center" }}>
           <div className="landing-nav-links" style={{ display: "flex", gap: 24 }}>
             <a href="#ozellikler" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Hizmetlerimiz</a>
+            <a href="#neden-binerly" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Neden Binerly?</a>
             <a href="#hakkimizda" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Hakkımızda</a>
           </div>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
@@ -1869,6 +1870,52 @@ function LandingPage() {
         </div>
       </div>
 
+      {/* Neden Binerly */}
+      <div id="neden-binerly" style={{ background: "#f5f8fc", borderTop: "1px solid #e1e8f0", borderBottom: "1px solid #e1e8f0", scrollMarginTop: 64 }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "4rem 2rem" }}>
+          <div style={{ display: "inline-block", background: "#e6f1fb", color: "#185fa5", fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 20, marginBottom: 16 }}>
+            Neden Binerly?
+          </div>
+          <h2 style={{ fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: "0 0 1.25rem", maxWidth: 640 }}>
+            Ekibiniz büyüsün, faturanız büyümesin
+          </h2>
+          <p style={{ maxWidth: 680, fontSize: 16, color: "#5b7088", lineHeight: 1.8, margin: "0 0 2.5rem" }}>
+            Türkiye'deki CRM'lerin çoğu kullanıcı başına ücretlendiriyor, bazıları da dolar/euro bazlı — ekibiniz büyüdükçe faturanız da büyüyor, kur dalgalandıkça bütçeniz sarsılıyor. Binerly'de öyle değil: 10 kullanıcıya kadar sabit bir ücretle çalışacağız, her zaman TL bazlı.
+          </p>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 2.5 + "rem" }}>
+            {[
+              ["%9,9", "10-49 çalışanlı işletmelerin CRM kullanma oranı"],
+              ["%18,4", "50-249 çalışanlı işletmelerde bu oran"],
+              ["%90+", "Küçük işletmelerin hâlâ sistemsiz çalıştığı tahmini pay"],
+            ].map(([val, cap]) => (
+              <div key={cap} style={{ background: "#fff", border: "1px solid #e1e8f0", borderRadius: 12, padding: "1.25rem" }}>
+                <div style={{ fontSize: 28, fontWeight: 800, color: "#185fa5" }}>{val}</div>
+                <div style={{ fontSize: 12.5, color: "#5b7088", marginTop: 6, lineHeight: 1.5 }}>{cap}</div>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: 11.5, color: "#94a7bb", margin: "-14px 0 2.5rem" }}>
+            Kaynak: TÜİK, Girişimlerde Bilişim Teknolojileri Kullanım Araştırması, 2025
+          </p>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+            {[
+              ["ti-list-details", "Dağınıklık", "Müşteri bilgisi telefonda, WhatsApp'ta, Excel'de ve kafanızda — dört farklı yerde."],
+              ["ti-eye-off", "Kör nokta", "Bir çalışan izinliyken veya ayrılınca, bildiği müşteri geçmişi de onunla gidiyor."],
+              ["ti-clock-x", "Kaçan takip", "\"Yarın ararım\" dediğiniz teklifi unutup fırsatı rakibe kaptırıyorsunuz."],
+              ["ti-certificate", "Kurumsal görünmeme", "Elle yazılmış teklif, büyük müşteriye karşı güven vermiyor."],
+            ].map(([icon, title, desc]) => (
+              <div key={title} style={{ background: "#fff", border: "1px solid #e1e8f0", borderRadius: 12, padding: "1.25rem" }}>
+                <i className={`ti ${icon}`} style={{ fontSize: 22, color: "#185fa5", display: "block", marginBottom: 10 }} />
+                <h3 style={{ fontSize: 14.5, fontWeight: 700, color: "#0c2540", margin: "0 0 6px" }}>{title}</h3>
+                <p style={{ fontSize: 13, color: "#5b7088", margin: 0, lineHeight: 1.6 }}>{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Hakkımızda */}
       <div id="hakkimizda" style={{ background: "#fff", borderTop: "1px solid #e1e8f0", borderBottom: "1px solid #e1e8f0", scrollMarginTop: 64 }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "4rem 2rem" }}>
@@ -1897,7 +1944,7 @@ function LandingPage() {
               <i className="ti ti-shield-check" style={{ fontSize: 26, color: "#185fa5", display: "block", marginBottom: 12 }} />
               <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>Güvenilirlik</h3>
               <p style={{ fontSize: 13.5, color: "#5b7088", margin: 0, lineHeight: 1.7 }}>
-                Bizim için en önemli değer güven. Verileriniz güvenli şekilde saklanır, KVKK'ya uygun işlenir, asla üçüncü taraflarla paylaşılmaz. Kredi kartı istemeden ücretsiz deneyebilir, istediğiniz an ayrılabilirsiniz.
+                Verileriniz, her hesabın yalnızca kendi kayıtlarına erişebildiği satır bazlı erişim kurallarıyla saklanır — başka bir işletmenin verisine teknik olarak erişim mümkün değildir. KVKK'ya uygun işlenir, asla üçüncü taraflarla paylaşılmaz. Kredi kartı istemeden ücretsiz deneyebilir, istediğiniz an ayrılabilirsiniz.
               </p>
             </div>
           </div>
@@ -1907,7 +1954,7 @@ function LandingPage() {
       {/* CTA */}
       <div style={{ background: "#185fa5", padding: "4rem 2rem", textAlign: "center" }}>
         <h2 style={{ fontSize: "1.75rem", fontWeight: 800, color: "#fff", margin: "0 0 1rem" }}>
-          Hemen başlayın, ücretsiz kullanın
+          İlk KOBİ'lerden biri olun, ücretsiz deneyin
         </h2>
         <p style={{ fontSize: 16, color: "#b8d4f0", margin: "0 0 2rem" }}>Kredi kartı gerekmez. Erken erişim aşamasındayız, şu an için tamamen ücretsiz.</p>
         <button onClick={() => setAuthModal("register")} style={{ background: "#fff", color: "#185fa5", border: "none", borderRadius: 8, padding: "14px 32px", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
@@ -1981,11 +2028,14 @@ export default function App() {
   const [companySettings, setCompanySettings] = useState(null);
   const [customFieldDefs, setCustomFieldDefs] = useState([]);
   const [showSectorOnboarding, setShowSectorOnboarding] = useState(false);
-  // v1: üye sayısı sınırsız, henüz billing yok. Billing eklendiğinde davet
-  // oluşturma burada plan bazlı sınırlanabilir.
+  // v1: üye sayısı kod tarafında henüz sınırlanmıyor, henüz billing yok.
+  // Hedef fiyatlandırma "10 kullanıcıya kadar sabit ücret" olarak siteye
+  // yazıldı (App.jsx LandingPage, "Neden Binerly" bölümü) — billing
+  // eklendiğinde davet oluşturma burada 10 üyeyle sınırlanmalı.
   const [activeTeamId, setActiveTeamId] = useState(undefined);
   const [pendingInvites, setPendingInvites] = useState([]);
   const [dismissedInviteIds, setDismissedInviteIds] = useState([]);
+  const [acknowledgedInviteIds, setAcknowledgedInviteIds] = useState([]);
   const [showSettingsHub, setShowSettingsHub] = useState(false);
   const [showSettingsForm, setShowSettingsForm] = useState(false);
   const [showSectorFields, setShowSectorFields] = useState(false);
@@ -3076,25 +3126,46 @@ export default function App() {
 
       {pendingInvites
         .filter((inv) => !dismissedInviteIds.includes(inv.id))
-        .map((inv) => (
-          <div
-            key={inv.id}
-            style={{
-              display: "flex", justifyContent: "space-between", alignItems: "center",
-              background: "var(--bg-accent)", border: "0.5px solid var(--border-strong)",
-              borderRadius: "var(--radius)", padding: "10px 14px", marginBottom: 12, fontSize: 13,
-            }}
-          >
-            <span>
-              Bir şirket sizi takımına davet etti ({inv.email}) — takıma katılırsanız o şirketin tüm müşteri/teklif/destek verisini görüp düzenleyebilirsiniz.
-              {(customers.length > 0 || deals.length > 0) && " Mevcut verileriniz size özel kalacak, takıma taşınmayacak."}
-            </span>
-            <span style={{ display: "flex", gap: 8, flexShrink: 0, marginLeft: 12 }}>
-              <button onClick={() => setDismissedInviteIds((prev) => [...prev, inv.id])}>Şimdi değil</button>
-              <button onClick={() => acceptTeamInvite(inv)} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kabul et</button>
-            </span>
-          </div>
-        ))}
+        .map((inv) => {
+          const acknowledged = acknowledgedInviteIds.includes(inv.id);
+          return (
+            <div
+              key={inv.id}
+              style={{
+                background: "var(--bg-accent)", border: "0.5px solid var(--border-strong)",
+                borderRadius: "var(--radius)", padding: "10px 14px", marginBottom: 12, fontSize: 13,
+              }}
+            >
+              <p style={{ margin: "0 0 8px" }}>
+                Bir şirket sizi takımına davet etti ({inv.email}) — takıma katılırsanız o şirketin tüm müşteri/teklif/destek verisini görüp düzenleyebilirsiniz.
+                {(customers.length > 0 || deals.length > 0) && " Mevcut verileriniz size özel kalacak, takıma taşınmayacak."}
+              </p>
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 10, cursor: "pointer", fontSize: 12.5 }}>
+                <input
+                  type="checkbox"
+                  checked={acknowledged}
+                  onChange={(e) =>
+                    setAcknowledgedInviteIds((prev) =>
+                      e.target.checked ? [...prev, inv.id] : prev.filter((id) => id !== inv.id)
+                    )
+                  }
+                  style={{ marginTop: 2 }}
+                />
+                <span>Bu şirketin çalışanı veya yetkilisi olduğumu beyan ederim.</span>
+              </label>
+              <span style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                <button onClick={() => setDismissedInviteIds((prev) => [...prev, inv.id])}>Şimdi değil</button>
+                <button
+                  onClick={() => acceptTeamInvite(inv)}
+                  disabled={!acknowledged}
+                  style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+                >
+                  Kabul et
+                </button>
+              </span>
+            </div>
+          );
+        })}
 
       <h2 className="sr-only">KOBİ satış takip uygulaması: pano, müşteriler ve teklif ve anlaşmalar sekmeleri</h2>
 
