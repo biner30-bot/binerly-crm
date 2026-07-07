@@ -20,7 +20,7 @@ export default async function handler(req, res) {
 
   const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
   if (userError || !userData?.user) return res.status(401).json({ error: "Unauthorized" });
-  if (userData.user.email !== process.env.ADMIN_EMAIL) {
+  if (userData.user.email?.toLowerCase() !== (process.env.ADMIN_EMAIL || "").toLowerCase()) {
     return res.status(403).json({ error: "Bu sayfaya erişiminiz yok." });
   }
 

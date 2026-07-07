@@ -51,7 +51,7 @@ export default function AdminPage() {
 
   if (session === undefined) return null;
   if (!session) return <AdminLogin notify={setError} />;
-  if (session.user.email !== ADMIN_EMAIL) {
+  if (session.user.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "system-ui, -apple-system, sans-serif" }}>
         <p style={{ color: "#5b7088" }}>Bu sayfaya erişiminiz yok.</p>
