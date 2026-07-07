@@ -3028,7 +3028,10 @@ export default function App() {
           { id: "musteri", label: "Müşteriler", icon: "ti-building" },
           { id: "firsat", label: "İş Takibi", icon: "ti-target-arrow" },
           { id: "finans", label: "Finans", icon: "ti-chart-line" },
-          { id: "mesajlar", label: "Mesajlar", icon: "ti-message-2" },
+          // "mesajlar" sekmesi bilinçli olarak pasif — kod duruyor (Messages.jsx,
+          // api/whatsapp-webhook.js, api/instagram-webhook.js, api/send-whatsapp.js,
+          // api/send-instagram.js), Meta webhook teslimatı çözülünce bu satır geri eklenir:
+          // { id: "mesajlar", label: "Mesajlar", icon: "ti-message-2" },
           { id: "destek", label: "Destek", icon: "ti-headset" },
         ].map((t) => (
           <button

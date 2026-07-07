@@ -75,13 +75,6 @@ export default async function handler(req, res) {
   console.log("[whatsapp-webhook] credential found:", !!cred, "error:", credError?.message);
   if (!cred) return res.status(200).json({ ok: true });
 
-  // Geçici teşhis işareti: imza kontrolünden BAĞIMSIZ olarak, isteğin buraya
-  // kadar ulaştığını doğrudan Mesajlar sekmesinde görebilmek için.
-  await supabaseAdmin.from("channel_messages").insert({
-    user_id: cred.user_id, channel: "whatsapp", direction: "in",
-    counterpart_id: "debug", body: "DEBUG: POST isteği buraya ulaştı (imza kontrolünden önce)",
-  });
-
   const signatureHeader = req.headers["x-hub-signature-256"] || "";
   const expected = "sha256=" + crypto.createHmac("sha256", cred.app_secret).update(rawBody).digest("hex");
   const sigBuf = Buffer.from(signatureHeader);
