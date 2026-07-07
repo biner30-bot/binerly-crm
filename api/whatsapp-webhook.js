@@ -1,0 +1,106 @@
+import { createClient } from "@supabase/supabase-js";
+import crypto from "node:crypto";
+
+// Meta'nın imza doğrulaması ham byte'lara ihtiyaç duyduğu için Vercel'in
+// otomatik JSON body-parser'ı burada devre dışı bırakılıyor.
+export const config = { api: { bodyParser: false } };
+
+function readRawBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on("data", (c) => chunks.push(c));
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+}
+
+// src/shared.jsx'teki toWhatsAppNumber ile birebir aynı — api/ dosyaları
+// src/'den import edemediği için burada kopyalanmıştır, elle senkron tutulmalı.
+function toWhatsAppNumber(phone) {
+  const digits = (phone || "").replace(/\D/g, "");
+  if (!digits) return null;
+  if (digits.startsWith("90")) return digits;
+  if (digits.startsWith("0")) return "90" + digits.slice(1);
+  return "90" + digits;
+}
+
+export default async function handler(req, res) {
+  if (req.method === "GET") {
+    const mode = req.query["hub.mode"];
+    const token = req.query["hub.verify_token"];
+    const challenge = req.query["hub.challenge"];
+    if (mode === "subscribe" && token === process.env.META_WEBHOOK_VERIFY_TOKEN) {
+      return res.status(200).send(challenge);
+    }
+    return res.status(403).send("Forbidden");
+  }
+  if (req.method !== "POST") return res.status(405).end();
+
+  const rawBody = await readRawBody(req);
+  let payload;
+  try {
+    payload = JSON.parse(rawBody.toString("utf8"));
+  } catch {
+    return res.status(200).json({ ok: true });
+  }
+
+  const phoneNumberId = payload?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
+  if (!phoneNumberId) return res.status(200).json({ ok: true });
+
+  const supabaseAdmin = createClient(
+    process.env.VITE_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+
+  const { data: cred } = await supabaseAdmin
+    .from("channel_credentials")
+    .select("user_id, app_secret")
+    .eq("channel", "whatsapp")
+    .eq("external_id", phoneNumberId)
+    .maybeSingle();
+  if (!cred) return res.status(200).json({ ok: true });
+
+  const signatureHeader = req.headers["x-hub-signature-256"] || "";
+  const expected = "sha256=" + crypto.createHmac("sha256", cred.app_secret).update(rawBody).digest("hex");
+  const sigBuf = Buffer.from(signatureHeader);
+  const expBuf = Buffer.from(expected);
+  const validSignature = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
+  if (!validSignature) return res.status(401).json({ error: "Invalid signature" });
+
+  const messages = payload.entry?.[0]?.changes?.[0]?.value?.messages || [];
+  if (messages.length > 0) {
+    const { data: customers } = await supabaseAdmin
+      .from("customers")
+      .select("id, phone")
+      .eq("user_id", cred.user_id)
+      .is("deleted_at", null);
+
+    for (const msg of messages) {
+      if (msg.type !== "text") continue;
+
+      const { data: existing } = await supabaseAdmin
+        .from("channel_messages")
+        .select("id")
+        .eq("channel", "whatsapp")
+        .eq("external_message_id", msg.id)
+        .maybeSingle();
+      if (existing) continue;
+
+      const senderNumber = toWhatsAppNumber(msg.from);
+      const matched = (customers || []).find((c) => toWhatsAppNumber(c.phone) === senderNumber);
+
+      await supabaseAdmin.from("channel_messages").insert({
+        user_id: cred.user_id,
+        channel: "whatsapp",
+        direction: "in",
+        external_message_id: msg.id,
+        counterpart_id: senderNumber,
+        customer_id: matched?.id || null,
+        body: msg.text?.body || "",
+      });
+    }
+  }
+
+  return res.status(200).json({ ok: true });
+}

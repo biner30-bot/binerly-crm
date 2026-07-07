@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, uid, formatTL, daysAgo, downloadCsv, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange } from "./shared";
 import Finance, { rowToCompanyExpense } from "./Finance";
+import Messages, { rowToChannelCredential, rowToChannelMessage } from "./Messages";
 import Support, {
   rowToTicket,
   rowToTicketMessage,
@@ -1940,6 +1941,8 @@ export default function App() {
   const [activities, setActivities] = useState([]);
   const [payments, setPayments] = useState([]);
   const [companyExpenses, setCompanyExpenses] = useState([]);
+  const [channelCredentials, setChannelCredentials] = useState([]);
+  const [channelMessages, setChannelMessages] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [ticketMessages, setTicketMessages] = useState([]);
   const [kbArticles, setKbArticles] = useState([]);
@@ -2015,6 +2018,7 @@ export default function App() {
   useEffect(() => {
     if (!session) {
       setCustomers([]); setDeals([]); setActivities([]); setPayments([]); setCompanyExpenses([]);
+      setChannelCredentials([]); setChannelMessages([]);
       setTickets([]); setTicketMessages([]); setKbArticles([]);
       setCompanySettings(null);
       setActiveTeamId(undefined);
@@ -2029,18 +2033,22 @@ export default function App() {
       supabase.from("activities").select("*").order("created_at"),
       supabase.from("payments").select("*").is("deleted_at", null).order("paid_at"),
       supabase.from("company_expenses").select("*").is("deleted_at", null).order("expense_date"),
+      supabase.from("channel_credentials").select("id, user_id, channel, external_id, display_name, connected_at"),
+      supabase.from("channel_messages").select("*").order("created_at", { ascending: false }).limit(500),
       supabase.from("tickets").select("*").is("deleted_at", null).order("created_at"),
       supabase.from("ticket_messages").select("*").order("created_at"),
       supabase.from("kb_articles").select("*").is("deleted_at", null).order("created_at"),
       supabase.from("company_settings").select("*").maybeSingle(),
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: myMembership }, { data: invites }]) => {
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: myMembership }, { data: invites }]) => {
       setCustomers((c || []).map(rowToCustomer));
       setDeals((d || []).map(rowToDeal));
       setActivities((a || []).map(rowToActivity));
       setPayments((pay || []).map(rowToPayment));
       setCompanyExpenses((exp || []).map(rowToCompanyExpense));
+      setChannelCredentials((cred || []).map(rowToChannelCredential));
+      setChannelMessages((chMsg || []).map(rowToChannelMessage));
       setTickets((t || []).map(rowToTicket));
       setTicketMessages((tm || []).map(rowToTicketMessage));
       setKbArticles((kb || []).map(rowToKbArticle));
@@ -2363,6 +2371,70 @@ export default function App() {
     if (error) { notify(`Gider silinemedi: ${error.message}`); return; }
     setCompanyExpenses((prev) => prev.filter((e) => e.id !== id));
     logAction("company_expenses", id, "deleted", `${expense?.title || "Gider"} çöp kutusuna taşındı`);
+  };
+
+  const upsertChannelCredential = async (channel, { externalId, accessToken, appSecret, displayName }) => {
+    const row = {
+      user_id: activeTeamId, channel, external_id: externalId, access_token: accessToken,
+      app_secret: appSecret, display_name: displayName || null, updated_at: new Date().toISOString(),
+    };
+    const { data, error } = await supabase
+      .from("channel_credentials")
+      .upsert(row, { onConflict: "user_id,channel" })
+      .select("id, user_id, channel, external_id, display_name, connected_at")
+      .single();
+    if (error) { notify(`Bağlantı kaydedilemedi: ${error.message}`); return; }
+    const credential = rowToChannelCredential(data);
+    setChannelCredentials((prev) => [...prev.filter((c) => c.channel !== channel), credential]);
+    notify(`${channel === "whatsapp" ? "WhatsApp" : "Instagram"} bağlandı.`, "success");
+  };
+
+  const deleteChannelCredential = async (channel) => {
+    const { error } = await supabase.from("channel_credentials").delete().eq("user_id", activeTeamId).eq("channel", channel);
+    if (error) { notify(`Bağlantı kaldırılamadı: ${error.message}`); return; }
+    setChannelCredentials((prev) => prev.filter((c) => c.channel !== channel));
+  };
+
+  const refreshChannelMessages = async () => {
+    const { data } = await supabase.from("channel_messages").select("*").order("created_at", { ascending: false }).limit(500);
+    setChannelMessages((data || []).map(rowToChannelMessage));
+  };
+
+  const markChannelMessagesRead = async (channel, counterpartId) => {
+    const hasUnread = channelMessages.some(
+      (m) => m.channel === channel && m.counterpartId === counterpartId && m.direction === "in" && !m.readAt
+    );
+    if (!hasUnread) return;
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from("channel_messages")
+      .update({ read_at: now })
+      .eq("channel", channel)
+      .eq("counterpart_id", counterpartId)
+      .eq("direction", "in")
+      .is("read_at", null);
+    if (error) return;
+    setChannelMessages((prev) =>
+      prev.map((m) => (m.channel === channel && m.counterpartId === counterpartId && m.direction === "in" && !m.readAt ? { ...m, readAt: now } : m))
+    );
+  };
+
+  const sendChannelMessage = async ({ channel, to, body, customerId }) => {
+    try {
+      const res = await fetch(channel === "whatsapp" ? "/api/send-whatsapp" : "/api/send-instagram", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ teamId: activeTeamId, to, body, customerId }),
+      });
+      const data = await res.json();
+      if (!res.ok) { notify(data.error || "Mesaj gönderilemedi."); return; }
+      setChannelMessages((prev) => [
+        { id: uid(), channel, direction: "out", externalMessageId: null, counterpartId: to, counterpartName: "", customerId: customerId || null, body, createdAt: new Date().toISOString(), readAt: null },
+        ...prev,
+      ]);
+    } catch {
+      notify("Mesaj gönderilirken hata oluştu.");
+    }
   };
 
   const seedDemoData = async () => {
@@ -2956,6 +3028,7 @@ export default function App() {
           { id: "musteri", label: "Müşteriler", icon: "ti-building" },
           { id: "firsat", label: "İş Takibi", icon: "ti-target-arrow" },
           { id: "finans", label: "Finans", icon: "ti-chart-line" },
+          { id: "mesajlar", label: "Mesajlar", icon: "ti-message-2" },
           { id: "destek", label: "Destek", icon: "ti-headset" },
         ].map((t) => (
           <button
@@ -3658,6 +3731,27 @@ export default function App() {
         />
       )}
 
+      {tab === "mesajlar" && (
+        <Messages
+          customers={customers}
+          credentials={channelCredentials}
+          channelMessages={channelMessages}
+          onSaveCredential={upsertChannelCredential}
+          onDisconnectCredential={deleteChannelCredential}
+          onRefresh={refreshChannelMessages}
+          onSendMessage={sendChannelMessage}
+          onMarkRead={markChannelMessagesRead}
+          onConvertToCustomer={(conv) => {
+            setEditingCustomer({ name: conv.counterpartName || "", phone: conv.channel === "whatsapp" ? conv.counterpartId : "" });
+            setShowCustomerForm(true);
+          }}
+          onCreateDeal={(conv) => {
+            setEditingDeal({ customerId: conv.customerId });
+            setShowDealForm(true);
+          }}
+        />
+      )}
+
       {tab === "destek" && (
         <Support
           customers={customers}
@@ -3678,7 +3772,7 @@ export default function App() {
       )}
 
       {showCustomerForm && (
-        <Modal title={editingCustomer ? "Müşteriyi düzenle" : "Yeni müşteri"} onClose={() => { setShowCustomerForm(false); setEditingCustomer(null); }}>
+        <Modal title={editingCustomer?.id ? "Müşteriyi düzenle" : "Yeni müşteri"} onClose={() => { setShowCustomerForm(false); setEditingCustomer(null); }}>
           <CustomerForm initial={editingCustomer} onSave={upsertCustomer} onCancel={() => { setShowCustomerForm(false); setEditingCustomer(null); }} />
         </Modal>
       )}
@@ -3784,7 +3878,7 @@ export default function App() {
       )}
 
       {showDealForm && (
-        <Modal title={editingDeal ? "Teklifi düzenle" : "Yeni teklif"} onClose={() => { setShowDealForm(false); setEditingDeal(null); }}>
+        <Modal title={editingDeal?.id ? "Teklifi düzenle" : "Yeni teklif"} onClose={() => { setShowDealForm(false); setEditingDeal(null); }}>
           <DealForm customers={customers} initial={editingDeal} defaultKdvRate={companySettings?.defaultKdvRate} preferredCustomerType={dealAudience} onSave={upsertDeal} onCancel={() => { setShowDealForm(false); setEditingDeal(null); }} />
           {editingDeal && (
             <DealPayments
