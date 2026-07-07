@@ -34,31 +34,14 @@ export default async function handler(req, res) {
     const token = url.searchParams.get("hub.verify_token");
     const challenge = url.searchParams.get("hub.challenge");
     const expected = process.env.META_WEBHOOK_VERIFY_TOKEN;
-    console.log(
-      "[whatsapp-webhook GET] mode:", JSON.stringify(mode),
-      "receivedToken:", JSON.stringify(token),
-      "receivedTokenLength:", token?.length,
-      "expectedToken:", JSON.stringify(expected),
-      "expectedTokenLength:", expected?.length,
-      "match:", token === expected
-    );
     if (mode === "subscribe" && token === expected) {
       return res.status(200).send(challenge);
     }
-    // Geçici teşhis: normalde bu bilgiyi bir 403 cevabında göstermek doğru olmaz
-    // ama Vercel log arayüzünde konsol çıktısını bulamadık, bu yüzden hatayı
-    // doğrudan cevabın içine koyup Meta panelinden okuyoruz.
-    return res.status(403).json({
-      error: "Forbidden",
-      debug: {
-        mode: mode || null,
-        receivedTokenLength: token?.length ?? null,
-        expectedTokenLength: expected?.length ?? null,
-        receivedTokenPreview: token ? `${token.slice(0, 3)}...${token.slice(-3)}` : null,
-        expectedTokenPreview: expected ? `${expected.slice(0, 3)}...${expected.slice(-3)}` : null,
-        expectedTokenIsSet: !!expected,
-      },
-    });
+    // Gerçek bir doğrulama denemesi değilse (hub.mode hiç yok) — muhtemelen
+    // periyodik bir sağlık kontrolü, 403 ile reddetmek yerine sessizce 200
+    // dönüyoruz. Sadece gerçek bir "subscribe" denemesinde token yanlışsa 403.
+    if (!mode) return res.status(200).send("OK");
+    return res.status(403).send("Forbidden");
   }
   if (req.method !== "POST") return res.status(405).end();
 

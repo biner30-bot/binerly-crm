@@ -26,6 +26,10 @@ export default async function handler(req, res) {
     if (mode === "subscribe" && token === process.env.META_WEBHOOK_VERIFY_TOKEN) {
       return res.status(200).send(challenge);
     }
+    // Gerçek bir doğrulama denemesi değilse (hub.mode hiç yok) — muhtemelen
+    // periyodik bir sağlık kontrolü, 403 ile reddetmek yerine sessizce 200
+    // dönüyoruz. Sadece gerçek bir "subscribe" denemesinde token yanlışsa 403.
+    if (!mode) return res.status(200).send("OK");
     return res.status(403).send("Forbidden");
   }
   if (req.method !== "POST") return res.status(405).end();
