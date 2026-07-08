@@ -13,7 +13,10 @@ export default async function handler(req, res) {
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 
-  const token = req.method === "GET" ? req.query.token : (req.body || {}).token;
+  // req.query bazı durumlarda güvenilir doldurulmuyor (bkz. whatsapp-webhook.js) —
+  // sorgu parametresini doğrudan req.url'den elle ayrıştırıyoruz.
+  const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+  const token = req.method === "GET" ? url.searchParams.get("token") : (req.body || {}).token;
   if (!token) return res.status(400).json({ error: "Eksik token." });
 
   const { data: deal, error: dealError } = await supabaseAdmin
@@ -22,6 +25,7 @@ export default async function handler(req, res) {
     .eq("approval_token", token)
     .is("deleted_at", null)
     .maybeSingle();
+  if (dealError) console.error("deal-approval query error:", dealError.message);
   if (dealError || !deal) return res.status(404).json({ error: "Teklif bulunamadı." });
 
   const [{ data: customer }, { data: settings }] = await Promise.all([
