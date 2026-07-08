@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, uid, formatTL, daysAgo, downloadCsv, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange } from "./shared";
 import Finance, { rowToCompanyExpense } from "./Finance";
-import Messages, { rowToChannelCredential, rowToChannelMessage } from "./Messages";
+import { rowToChannelCredential, rowToChannelMessage } from "./Messages";
 import Support, {
   rowToTicket,
   rowToTicketMessage,
@@ -3317,10 +3317,7 @@ export default function App() {
           { id: "musteri", label: "Müşteriler", icon: "ti-building" },
           { id: "firsat", label: "İş Takibi", icon: "ti-target-arrow" },
           { id: "finans", label: "Finans", icon: "ti-chart-line" },
-          // "mesajlar" sekmesi bilinçli olarak pasif — kod duruyor (Messages.jsx,
-          // api/whatsapp-webhook.js, api/instagram-webhook.js, api/send-whatsapp.js,
-          // api/send-instagram.js), Meta webhook teslimatı çözülünce bu satır geri eklenir:
-          // { id: "mesajlar", label: "Mesajlar", icon: "ti-message-2" },
+          { id: "mesajlar", label: "Mesajlar", icon: "ti-message-2" },
           { id: "destek", label: "Destek", icon: "ti-headset" },
         ].map((t) => (
           <button
@@ -4098,24 +4095,13 @@ export default function App() {
       )}
 
       {tab === "mesajlar" && (
-        <Messages
-          customers={customers}
-          credentials={channelCredentials}
-          channelMessages={channelMessages}
-          onSaveCredential={upsertChannelCredential}
-          onDisconnectCredential={deleteChannelCredential}
-          onRefresh={refreshChannelMessages}
-          onSendMessage={sendChannelMessage}
-          onMarkRead={markChannelMessagesRead}
-          onConvertToCustomer={(conv) => {
-            setEditingCustomer({ name: conv.counterpartName || "", phone: conv.channel === "whatsapp" ? conv.counterpartId : "" });
-            setShowCustomerForm(true);
-          }}
-          onCreateDeal={(conv) => {
-            setEditingDeal({ customerId: conv.customerId });
-            setShowDealForm(true);
-          }}
-        />
+        <div style={{ background: "#fff", borderRadius: 16, padding: "3rem 2rem", textAlign: "center", border: "1px solid #e1e8f0" }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>💬</div>
+          <h3 style={{ margin: "0 0 8px" }}>Yakında</h3>
+          <p style={{ margin: 0, color: "#64748b", maxWidth: 420, marginLeft: "auto", marginRight: "auto" }}>
+            WhatsApp ve Instagram üzerinden gelen mesajları tek yerden yönetme özelliği üzerinde çalışıyoruz. Yakında burada olacak.
+          </p>
+        </div>
       )}
 
       {tab === "destek" && (
