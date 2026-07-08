@@ -330,6 +330,29 @@ export function MenuRow({ icon, label, description, onClick }) {
   );
 }
 
+// Tarayıcının yerleşik konuşma tanıma özelliğiyle metin alanlarına sesle yazma
+// (Chrome/Edge destekliyor, Firefox/Safari desteklemiyor — desteklenmiyorsa
+// bileşen hiç render olmaz, ücretsiz ve ek kütüphane gerektirmez).
+export function VoiceInputButton({ onResult }) {
+  const [listening, setListening] = useState(false);
+  const SpeechRecognitionCtor = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+  if (!SpeechRecognitionCtor) return null;
+
+  const start = () => {
+    const recognition = new SpeechRecognitionCtor();
+    recognition.lang = "tr-TR";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onresult = (e) => onResult(e.results[0][0].transcript);
+    recognition.onend = () => setListening(false);
+    recognition.onerror = () => setListening(false);
+    setListening(true);
+    recognition.start();
+  };
+
+  return <IconButton icon="ti-microphone" title="Sesle yaz" size="sm" active={listening} onClick={start} />;
+}
+
 export function InfoTip({ text }) {
   return (
     <span className="info-tip" tabIndex={0}>

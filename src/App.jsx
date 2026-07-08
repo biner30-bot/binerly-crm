@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, uid, formatTL, daysAgo, downloadCsv, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange } from "./shared";
+import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, uid, formatTL, daysAgo, downloadCsv, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange } from "./shared";
 import Finance, { rowToCompanyExpense } from "./Finance";
 import Messages, { rowToChannelCredential, rowToChannelMessage } from "./Messages";
 import Support, {
@@ -232,6 +232,7 @@ function rowToCompanySettings(r) {
     defaultKdvRate: r.default_kdv_rate ?? 20,
     customerNotificationsEnabled: r.customer_notifications_enabled !== false,
     sector: r.sector || null,
+    leadCaptureToken: r.lead_capture_token || null,
   };
 }
 
@@ -315,7 +316,10 @@ function CustomerForm({ initial, customFieldDefs = [], sectorTags = [], onSave, 
       </div>
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Not</label>
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Örn. yaz aylarında sipariş hacmi artıyor" style={{ width: "100%", minHeight: 70, resize: "vertical" }} />
+        <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Örn. yaz aylarında sipariş hacmi artıyor" style={{ flex: 1, minHeight: 70, resize: "vertical" }} />
+          <VoiceInputButton onResult={(text) => setNotes((prev) => (prev ? `${prev} ${text}` : text))} />
+        </div>
       </div>
       <div style={{ marginBottom: 16 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Etiketler</label>
@@ -415,7 +419,7 @@ function CompanySettingsForm({ initial, onSave, onCancel }) {
   );
 }
 
-function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, onSave, onCancel }) {
+function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, titleSuggestions = [], onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(
     initial?.customerId || customers.find((c) => c.customerType === preferredCustomerType)?.id || customers[0]?.id || ""
   );
@@ -507,7 +511,10 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
       </div>
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Başlık</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Yıllık tedarik anlaşması" style={{ width: "100%" }} />
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Yıllık tedarik anlaşması" list="deal-title-suggestions" style={{ width: "100%" }} />
+        <datalist id="deal-title-suggestions">
+          {titleSuggestions.map((t) => <option key={t} value={t} />)}
+        </datalist>
       </div>
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
         <div style={{ flex: 2 }}>
@@ -579,11 +586,26 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
       <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
         <div style={{ flex: 2 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Hatırlatma notu</label>
-          <input value={reminder} onChange={(e) => setReminder(e.target.value)} placeholder="Yarın takip araması yap" style={{ width: "100%" }} />
+          <div style={{ display: "flex", gap: 6 }}>
+            <input value={reminder} onChange={(e) => setReminder(e.target.value)} placeholder="Yarın takip araması yap" style={{ flex: 1 }} />
+            <VoiceInputButton onResult={(text) => setReminder((prev) => (prev ? `${prev} ${text}` : text))} />
+          </div>
         </div>
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Hatırlatma tarihi</label>
           <input type="date" value={reminderDate} onChange={(e) => setReminderDate(e.target.value)} style={{ width: "100%" }} />
+          <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+            {[["Bugün", 0], ["Yarın", 1], ["1 hafta sonra", 7]].map(([label, days]) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => setReminderDate(new Date(Date.now() + days * 86400000).toISOString().slice(0, 10))}
+                style={{ fontSize: 11, padding: "3px 8px" }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
       {reminder.trim() && reminderDate && (
@@ -2113,6 +2135,7 @@ export default function App() {
   const [dealAudience, setDealAudience] = useState("kurumsal");
   const [teklifDeal, setTeklifDeal] = useState(null);
   const [paymentsDeal, setPaymentsDeal] = useState(null);
+  const [leadCaptureLink, setLeadCaptureLink] = useState(null);
   const [quickList, setQuickList] = useState(null);
   const [initialViewTicketId, setInitialViewTicketId] = useState(null);
   const [toast, setToast] = useState(null);
@@ -2465,6 +2488,19 @@ export default function App() {
     if (error) { notify(`Onay linki oluşturulamadı: ${error.message}`); return null; }
     setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, approvalToken: token } : d)));
     return `https://binerly.com/onay/${token}`;
+  };
+
+  // Şirket başına sabit link/QR — müşteri kendi bilgisini bırakır, KOBİ elle
+  // girmez. approval_token'dan farklı olarak deal'e değil company_settings'e bağlı.
+  const generateLeadCaptureLink = async () => {
+    if (companySettings?.leadCaptureToken) return `https://binerly.com/lead/${companySettings.leadCaptureToken}`;
+    const token = uid();
+    // upsert (update değil) — company_settings satırı henüz hiç oluşmamış olabilir
+    // (ilk kez Şirket Bilgileri kaydedilmeden), sadece bu iki sütunu dokunarak yazar.
+    const { error } = await supabase.from("company_settings").upsert({ user_id: activeTeamId, lead_capture_token: token });
+    if (error) { notify(`Link oluşturulamadı: ${error.message}`); return null; }
+    setCompanySettings((prev) => ({ ...(prev || {}), leadCaptureToken: token }));
+    return `https://binerly.com/lead/${token}`;
   };
 
   const deleteDeal = async (id) => {
@@ -3977,6 +4013,24 @@ export default function App() {
                             <IconButton icon="ti-plus" title="Seans kullanıldı" onClick={() => incrementSessionUsage(d.id)} />
                           )}
                           <IconButton icon="ti-cash" title="Tahsilat" onClick={() => setPaymentsDeal(d)} />
+                          <IconButton
+                            icon="ti-copy"
+                            title="Kopyala"
+                            onClick={() => {
+                              setEditingDeal({
+                                customerId: d.customerId,
+                                title: d.title,
+                                value: d.value,
+                                cost: d.cost,
+                                kdvRate: d.kdvRate,
+                                tags: d.tags,
+                                customFields: d.customFields,
+                                assignedTo: d.assignedTo,
+                                createdAt: new Date().toISOString(),
+                              });
+                              setShowDealForm(true);
+                            }}
+                          />
                           <IconButton icon="ti-edit" title="Düzenle" onClick={() => { setEditingDeal(d); setShowDealForm(true); }} />
                           <IconButton icon="ti-trash" title="Sil" onClick={() => setConfirmDeleteDeal(d)} />
                         </div>
@@ -4085,6 +4139,39 @@ export default function App() {
             description="Silinen kayıtlar, işlem geçmişi"
             onClick={() => { setShowSettingsHub(false); setShowTrashHistory(true); }}
           />
+          <MenuRow
+            icon="ti-qrcode"
+            label="Müşteri Kazanma Linki"
+            description="Müşteri kendi bilgisini bıraksın, elle girmeyin"
+            onClick={async () => {
+              setShowSettingsHub(false);
+              const link = await generateLeadCaptureLink();
+              if (link) setLeadCaptureLink(link);
+            }}
+          />
+        </Modal>
+      )}
+
+      {leadCaptureLink && (
+        <Modal title="Müşteri Kazanma Linki" onClose={() => setLeadCaptureLink(null)}>
+          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px" }}>
+            Bu linki (veya QR kodu) fuarda, mağazada, kartvizitte paylaşın — müşteri kendi adı/telefonu/e-postasını kendisi girer, sizin elle eklemenize gerek kalmaz.
+          </p>
+          <img
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(leadCaptureLink)}`}
+            alt="QR kod"
+            style={{ display: "block", margin: "0 auto 16px" }}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <input readOnly value={leadCaptureLink} style={{ flex: 1, fontSize: 13 }} onFocus={(e) => e.target.select()} />
+            <button
+              type="button"
+              onClick={() => { navigator.clipboard.writeText(leadCaptureLink); notify("Link kopyalandı.", "success"); }}
+              style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+            >
+              Kopyala
+            </button>
+          </div>
         </Modal>
       )}
 
@@ -4223,6 +4310,7 @@ export default function App() {
             teamMembers={teamMembers}
             currentUserId={session.user.id}
             currentUserEmail={session.user.email}
+            titleSuggestions={[...new Set(deals.map((d) => d.title).filter(Boolean))]}
             onSave={upsertDeal}
             onCancel={() => { setShowDealForm(false); setEditingDeal(null); }}
           />
