@@ -7,7 +7,7 @@ function LegalLayout({ title, updatedAt, children }) {
       <TrackingScripts />
       <nav style={{ display: "flex", alignItems: "center", padding: "0 2rem", height: 64, background: "#fff", borderBottom: "1px solid #e1e8f0" }}>
         <a href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-          <img src="/favicon.svg" alt="Binerly" style={{ width: 28, height: 28 }} />
+          <img src="/favicon.svg" alt="Binerly" style={{ width: 39, height: 39 }} />
           <span style={{ fontWeight: 700, fontSize: 18, color: "#0c2540" }}>Binerly</span>
         </a>
       </nav>

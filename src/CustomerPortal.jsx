@@ -109,7 +109,7 @@ function CustomerAuthForm() {
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5f8fc", padding: "1rem" }}>
       <div style={{ background: "#fff", borderRadius: 16, padding: "2rem", width: "100%", maxWidth: 400 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-          <img src="/favicon.svg" alt="Binerly" style={{ width: 28, height: 28 }} />
+          <img src="/favicon.svg" alt="Binerly" style={{ width: 39, height: 39 }} />
           <span style={{ fontWeight: 700, fontSize: 16, color: "#0c2540" }}>Binerly Müşteri Bilgi Sistemi</span>
         </div>
         <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 4px", color: "#0c2540" }}>
@@ -657,7 +657,7 @@ export default function CustomerPortal() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-            <img src="/favicon.svg" alt="Binerly" style={{ width: 22, height: 22 }} />
+            <img src="/favicon.svg" alt="Binerly" style={{ width: 31, height: 31 }} />
             <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Binerly — Müşteri Bilgi Sistemi</h1>
           </div>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>Taleplerinizi ve tekliflerinizi buradan takip edin</p>

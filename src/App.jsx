@@ -1765,7 +1765,7 @@ function EntryChoiceModal({ onChooseCompany, onChooseCustomer, onClose }) {
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", zIndex: 1000, padding: "1rem", overflowY: "auto" }}>
       <div style={{ background: "#fff", borderRadius: 16, padding: "2rem", width: "100%", maxWidth: 380, textAlign: "center", position: "relative", margin: "auto" }}>
         <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#666" }}>✕</button>
-        <img src="/favicon.svg" alt="Binerly" style={{ width: 32, height: 32, marginBottom: 14 }} />
+        <img src="/favicon.svg" alt="Binerly" style={{ width: 45, height: 45, marginBottom: 14 }} />
         <h2 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 6px", color: "#0c2540" }}>Nasıl giriş yapmak istersiniz?</h2>
         <p style={{ fontSize: 13, color: "#5b7088", margin: "0 0 20px" }}>
           Bir KOBİ hesabı mı işletiyorsunuz, yoksa bir firmanın müşterisi misiniz?
@@ -1808,7 +1808,7 @@ function LandingPage() {
       {/* Navbar */}
       <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 2rem", height: 64, background: "#fff", borderBottom: "1px solid #e1e8f0", position: "sticky", top: 0, zIndex: 100 }}>
         <div onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-          <img src="/favicon.svg" alt="Binerly" style={{ width: 28, height: 28 }} />
+          <img src="/favicon.svg" alt="Binerly" style={{ width: 39, height: 39 }} />
           <span style={{ fontWeight: 700, fontSize: 18, color: "#0c2540" }}>Binerly</span>
         </div>
         <div style={{ display: "flex", gap: 28, alignItems: "center" }}>
@@ -2063,7 +2063,7 @@ function LandingPage() {
         <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 32 }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <img src="/favicon.svg" alt="Binerly" style={{ width: 22, height: 22 }} />
+              <img src="/favicon.svg" alt="Binerly" style={{ width: 31, height: 31 }} />
               <span style={{ fontWeight: 700, fontSize: 15, color: "#185fa5" }}>BINERLY</span>
             </div>
             <p style={{ fontSize: 14, fontWeight: 700, color: "#0c2540", margin: "0 0 8px", lineHeight: 1.4 }}>
@@ -3220,7 +3220,7 @@ export default function App() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-            <img src="/favicon.svg" alt="Binerly" style={{ width: 22, height: 22 }} />
+            <img src="/favicon.svg" alt="Binerly" style={{ width: 31, height: 31 }} />
             <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Binerly</h1>
             {companySettings?.companyName && (
               <>
