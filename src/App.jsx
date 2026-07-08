@@ -107,6 +107,7 @@ function urlBase64ToUint8Array(base64String) {
 function rowToCustomer(r) {
   return {
     id: r.id,
+    userId: r.user_id,
     name: r.name,
     customerType: r.customer_type || "kurumsal",
     sector: r.sector,
@@ -126,6 +127,7 @@ function rowToCustomer(r) {
 function rowToDeal(r) {
   return {
     id: r.id,
+    userId: r.user_id,
     customerId: r.customer_id,
     title: r.title,
     value: r.value,
@@ -1249,7 +1251,7 @@ const TRASH_TABLE_LABELS = {
   kb_articles: "Makale",
 };
 
-function TrashHistoryModal({ notify, onRestore, onClose }) {
+function TrashHistoryModal({ notify, onRestore, onClose, activeTeamId }) {
   const [tab, setTab] = useState("trash");
   const [loading, setLoading] = useState(true);
   const [trashGroups, setTrashGroups] = useState([]);
@@ -1263,8 +1265,8 @@ function TrashHistoryModal({ notify, onRestore, onClose }) {
   const load = async () => {
     setLoading(true);
     const [{ data: c }, { data: d }, { data: pay }, { data: exp }, { data: t }, { data: kb }, { data: log }] = await Promise.all([
-      supabase.from("customers").select("id,name,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
-      supabase.from("deals").select("id,title,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
+      supabase.from("customers").select("id,name,user_id,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
+      supabase.from("deals").select("id,title,user_id,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
       supabase.from("payments").select("id,amount,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
       supabase.from("company_expenses").select("id,title,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
       supabase.from("tickets").select("id,subject,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
@@ -1272,9 +1274,11 @@ function TrashHistoryModal({ notify, onRestore, onClose }) {
       supabase.from("audit_log").select("*").order("created_at", { ascending: false }).limit(200),
     ]);
 
+    // customers/deals RLS'i portal kullanıcıları için de eşleşebildiğinden (bkz.
+    // customer_*_view yorumları), burada sadece aktif takıma ait kayıtlarla sınırlıyoruz.
     const rows = [
-      ...(c || []).map((r) => ({ table: "customers", label: r.name, ...r })),
-      ...(d || []).map((r) => ({ table: "deals", label: r.title, ...r })),
+      ...(c || []).filter((r) => r.user_id === activeTeamId).map((r) => ({ table: "customers", label: r.name, ...r })),
+      ...(d || []).filter((r) => r.user_id === activeTeamId).map((r) => ({ table: "deals", label: r.title, ...r })),
       ...(pay || []).map((r) => ({ table: "payments", label: `${formatTL(r.amount)} tahsilat`, ...r })),
       ...(exp || []).map((r) => ({ table: "company_expenses", label: r.title, ...r })),
       ...(t || []).map((r) => ({ table: "tickets", label: r.subject, ...r })),
@@ -2291,13 +2295,20 @@ export default function App() {
       supabase.from("tickets").select("*").is("deleted_at", null).order("created_at"),
       supabase.from("ticket_messages").select("*").order("created_at"),
       supabase.from("kb_articles").select("*").is("deleted_at", null).order("created_at"),
-      supabase.from("company_settings").select("*").maybeSingle(),
+      supabase.from("company_settings").select("*"),
       supabase.from("custom_field_defs").select("*").order("sort_order"),
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
     ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: myMembership }, { data: invites }]) => {
-      setCustomers((c || []).map(rowToCustomer));
-      setDeals((d || []).map(rowToDeal));
+      // customers/deals/company_settings RLS'i, sahiplik politikasına ek olarak
+      // portal kullanıcılarının kendi bağlı oldukları kayıtları görmesine izin
+      // veren bir politikayla da "veya" ile birleşiyor (customer_*_view'ların
+      // security_invoker olması için gerekli). Aynı hesap hem şirket sahibi hem
+      // başka bir firmanın portal müşterisiyse, RLS her ikisini de döndürebilir —
+      // burada sadece aktif takıma ait kayıtlara ek bir filtre uyguluyoruz.
+      const ownerId = myMembership ? myMembership.team_id : session.user.id;
+      setCustomers((c || []).filter((row) => row.user_id === ownerId).map(rowToCustomer));
+      setDeals((d || []).filter((row) => row.user_id === ownerId).map(rowToDeal));
       setActivities((a || []).map(rowToActivity));
       setPayments((pay || []).map(rowToPayment));
       setCompanyExpenses((exp || []).map(rowToCompanyExpense));
@@ -2306,9 +2317,10 @@ export default function App() {
       setTickets((t || []).map(rowToTicket));
       setTicketMessages((tm || []).map(rowToTicketMessage));
       setKbArticles((kb || []).map(rowToKbArticle));
-      setCompanySettings(cs ? rowToCompanySettings(cs) : null);
+      const ownCompanySettings = (cs || []).find((row) => row.user_id === ownerId);
+      setCompanySettings(ownCompanySettings ? rowToCompanySettings(ownCompanySettings) : null);
       setCustomFieldDefs((cfd || []).map(rowToCustomFieldDef));
-      setActiveTeamId(myMembership ? myMembership.team_id : session.user.id);
+      setActiveTeamId(ownerId);
       // Sadece BANA gelen davetler (kendi gönderdiklerim değil) — RLS iki SELECT
       // politikasını OR ile birleştirdiği için burada e-postaya göre ek filtre şart.
       setPendingInvites(
@@ -4349,7 +4361,7 @@ export default function App() {
       )}
 
       {showTrashHistory && (
-        <TrashHistoryModal notify={notify} onRestore={restoreBatch} onClose={() => setShowTrashHistory(false)} />
+        <TrashHistoryModal notify={notify} onRestore={restoreBatch} onClose={() => setShowTrashHistory(false)} activeTeamId={activeTeamId} />
       )}
 
       {showImportCustomers && (
