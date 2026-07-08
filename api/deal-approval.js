@@ -4,8 +4,10 @@ import crypto from "node:crypto";
 // Müşterinin tek tıkla teklif onaylayabildiği kamuya açık uç nokta — Supabase
 // auth GEREKTİRMEZ, token'ın kendisi (crypto.randomUUID) yetki kanıtı. Bilinçli
 // olarak sadece teklif başlığı/tutarı/şirket-müşteri adı döner, telefon/not gibi
-// hiçbir hassas alan hiçbir zaman okunmaz. Onay, teklifin aşamasını otomatik
-// "Kazanıldı"ya taşımaz — sadece onayı kaydedip hesap sahibini bilgilendirir.
+// hiçbir hassas alan hiçbir zaman okunmaz. Onay, teklifi otomatik "Kazanıldı"
+// aşamasına taşır (tahsilat ayrı takip edildiği için bu "ödendi" anlamına gelmez,
+// sadece "müşteri kabul etti" demektir) — zaten kapanmış (kazanıldı/kaybedildi)
+// bir teklifin aşamasına dokunulmaz.
 export default async function handler(req, res) {
   const supabaseAdmin = createClient(
     process.env.VITE_SUPABASE_URL,
@@ -21,7 +23,7 @@ export default async function handler(req, res) {
 
   const { data: deal, error: dealError } = await supabaseAdmin
     .from("deals")
-    .select("id, user_id, customer_id, title, value, kdv_rate, approved_at")
+    .select("id, user_id, customer_id, title, value, kdv_rate, approved_at, created_at, stage")
     .eq("approval_token", token)
     .is("deleted_at", null)
     .maybeSingle();
@@ -38,6 +40,8 @@ export default async function handler(req, res) {
       title: deal.title,
       value: deal.value,
       approved: !!deal.approved_at,
+      approvedAt: deal.approved_at,
+      createdAt: deal.created_at,
       customerName: customer?.name || "",
       companyName: settings?.company_name || "Binerly",
       logoUrl: settings?.logo_url || null,
@@ -46,9 +50,14 @@ export default async function handler(req, res) {
 
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
+  let approvedAt = deal.approved_at;
   if (!deal.approved_at) {
-    const now = new Date().toISOString();
-    const { error: updateError } = await supabaseAdmin.from("deals").update({ approved_at: now }).eq("id", deal.id);
+    approvedAt = new Date().toISOString();
+    const isClosed = deal.stage === "kazanildi" || deal.stage === "kaybedildi";
+    const updatePayload = isClosed
+      ? { approved_at: approvedAt }
+      : { approved_at: approvedAt, stage: "kazanildi", closed_at: approvedAt };
+    const { error: updateError } = await supabaseAdmin.from("deals").update(updatePayload).eq("id", deal.id);
     if (updateError) return res.status(500).json({ error: updateError.message });
 
     await supabaseAdmin.from("activities").insert({
@@ -78,5 +87,5 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(200).json({ ok: true });
+  return res.status(200).json({ ok: true, approvedAt });
 }

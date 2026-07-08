@@ -4,6 +4,12 @@ function formatTL(n) {
   return new Intl.NumberFormat("tr-TR").format(Math.round(n || 0)) + " TL";
 }
 
+function formatDateTime(dateStr) {
+  if (!dateStr) return "";
+  return new Date(dateStr).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" }) +
+    " · " + new Date(dateStr).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+}
+
 // Kamuya açık, giriş gerektirmeyen sayfa — /onay/{token}. Sadece api/deal-approval.js
 // tarafından döndürülen minimal bilgiyi (başlık/tutar/şirket-müşteri adı) gösterir.
 export default function DealApprovalPage() {
@@ -29,7 +35,10 @@ export default function DealApprovalPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
     });
-    if (res.ok) setState((s) => ({ ...s, deal: { ...s.deal, approved: true } }));
+    if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setState((s) => ({ ...s, deal: { ...s.deal, approved: true, approvedAt: data.approvedAt || new Date().toISOString() } }));
+    }
     setApproving(false);
   };
 
@@ -44,10 +53,21 @@ export default function DealApprovalPage() {
           <>
             {state.deal.logoUrl && <img src={state.deal.logoUrl} alt="" style={{ maxHeight: 48, marginBottom: 16 }} />}
             <p style={{ fontSize: 13, color: "#94a7bb", margin: "0 0 4px" }}>{state.deal.companyName}</p>
+            {state.deal.customerName && (
+              <p style={{ fontSize: 14, color: "#5b7088", margin: "0 0 12px" }}>Sayın {state.deal.customerName},</p>
+            )}
             <h1 style={{ fontSize: 20, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>{state.deal.title}</h1>
-            <p style={{ fontSize: 24, fontWeight: 800, color: "#185fa5", margin: "0 0 20px" }}>{formatTL(state.deal.value)}</p>
+            <p style={{ fontSize: 24, fontWeight: 800, color: "#185fa5", margin: "0 0 4px" }}>{formatTL(state.deal.value)}</p>
+            {state.deal.createdAt && (
+              <p style={{ fontSize: 12, color: "#94a7bb", margin: "0 0 20px" }}>Teklif tarihi: {formatDateTime(state.deal.createdAt)}</p>
+            )}
             {state.deal.approved ? (
-              <p style={{ color: "#15803d", fontWeight: 600 }}>✓ Bu teklifi onayladınız.</p>
+              <div>
+                <p style={{ color: "#15803d", fontWeight: 600, margin: "0 0 4px" }}>✓ Bu teklifi onayladınız.</p>
+                {state.deal.approvedAt && (
+                  <p style={{ fontSize: 12, color: "#94a7bb", margin: 0 }}>{formatDateTime(state.deal.approvedAt)}</p>
+                )}
+              </div>
             ) : (
               <button
                 onClick={approve}
