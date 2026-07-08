@@ -9,6 +9,11 @@ const TOTAL_EXPENSE_INFO_TEXT =
   "Elle eklediğiniz şirket giderlerinin yanı sıra, kazanılan tekliflerdeki \"Gider\" tutarlarını da içerir. " +
   "Aşağıdaki \"Kategoriye göre gider\" listesi sadece elle eklenenleri gösterdiği için bu toplamla tam eşleşmeyebilir.";
 
+const KDV_REPORT_INFO_TEXT =
+  "Satış KDV'si, seçilen aydaki \"Kazanıldı\" tekliflerin KDV tutarlarından; Alış KDV'si, o ay içindeki ve KDV oranı " +
+  "girilmiş giderlerden hesaplanır. Bu, resmi bir beyanname veya e-defter değildir — sadece kendi ön hazırlığınız içindir, " +
+  "muhasebecinizin/SMMM'nizin yerine geçmez.";
+
 export function rowToCompanyExpense(r) {
   return {
     id: r.id,
@@ -18,6 +23,7 @@ export function rowToCompanyExpense(r) {
     expenseDate: r.expense_date,
     isRecurring: r.is_recurring || false,
     recurrenceInterval: r.recurrence_interval || "monthly",
+    kdvRate: r.kdv_rate ?? null,
     note: r.note || "",
     createdAt: r.created_at,
     deletedAt: r.deleted_at || null,
@@ -29,7 +35,7 @@ export function rowToCompanyExpense(r) {
 // bir DB satırı oluşturmadan. Gerçek satır sadece kendi döneminde (isProjected:
 // false), diğer dönemlerde sanal olarak (isProjected: true) görünür; silme her
 // zaman gerçek satırı hedefler.
-function expandExpenseOccurrences(expense, bounds) {
+export function expandExpenseOccurrences(expense, bounds) {
   if (!expense.isRecurring) {
     return inRange(expense.expenseDate, bounds) ? [{ ...expense, occurrenceDate: expense.expenseDate, isProjected: false }] : [];
   }
@@ -97,6 +103,16 @@ function expenseDateTimeLabel(dateStr) {
   return hh === "00" && mm === "00" ? dateLabel : `${dateLabel} · ${hh}:${mm}`;
 }
 
+function monthBounds(yyyyMm) {
+  const [y, m] = yyyyMm.split("-").map(Number);
+  return { start: new Date(y, m - 1, 1), end: new Date(y, m, 0, 23, 59, 59, 999) };
+}
+
+function kdvAmountOf(grossAmount, rate) {
+  const net = rate > 0 ? grossAmount / (1 + rate / 100) : grossAmount;
+  return grossAmount - net;
+}
+
 function CompanyExpenseForm({ onSave, onCancel }) {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
@@ -107,6 +123,7 @@ function CompanyExpenseForm({ onSave, onCancel }) {
   const [note, setNote] = useState("");
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceInterval, setRecurrenceInterval] = useState("monthly");
+  const [kdvRate, setKdvRate] = useState("");
   const [saving, setSaving] = useState(false);
 
   const submit = async (e) => {
@@ -123,6 +140,7 @@ function CompanyExpenseForm({ onSave, onCancel }) {
       note: note.trim(),
       isRecurring,
       recurrenceInterval,
+      kdvRate: kdvRate === "" ? null : Number(kdvRate),
     });
     setSaving(false);
   };
@@ -152,6 +170,21 @@ function CompanyExpenseForm({ onSave, onCancel }) {
             <input value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} placeholder="Kategorinizi yazın" style={{ width: "100%" }} />
           </div>
         )}
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
+            KDV oranı <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span>
+          </label>
+          <select value={kdvRate} onChange={(e) => setKdvRate(e.target.value)} style={{ width: "100%" }}>
+            <option value="">KDV bilgisi yok</option>
+            <option value={20}>%20</option>
+            <option value={10}>%10</option>
+            <option value={1}>%1</option>
+            <option value={0}>%0</option>
+          </select>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0" }}>
+            Girerseniz bu gider, KDV Özet Raporu'ndaki "Alış KDV'si" hesabına dahil edilir.
+          </p>
+        </div>
         <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
           <div style={{ flex: 1 }}>
             <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tarih</label>
@@ -206,7 +239,9 @@ function CompanyExpenseForm({ onSave, onCancel }) {
 }
 
 export default function Finance({ deals, payments, companyExpenses, customers, onAddExpense, onDeleteExpense }) {
+  const [financeView, setFinanceView] = useState("defter");
   const [financeRange, setFinanceRange] = useState("bu_ay");
+  const [kdvMonth, setKdvMonth] = useState(new Date().toISOString().slice(0, 7));
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
@@ -265,8 +300,33 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
     })),
   ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
+  const kdvBounds = monthBounds(kdvMonth);
+  const kdvWonDeals = deals.filter((d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, kdvBounds));
+  const satisKdv = kdvWonDeals.reduce((sum, d) => sum + kdvAmountOf(d.value || 0, d.kdvRate ?? 20), 0);
+  const kdvExpenseOccurrences = companyExpenses.flatMap((e) => expandExpenseOccurrences(e, kdvBounds));
+  const expensesWithKdv = kdvExpenseOccurrences.filter((e) => e.kdvRate != null);
+  const expensesWithoutKdvCount = kdvExpenseOccurrences.length - expensesWithKdv.length;
+  const alisKdv = expensesWithKdv.reduce((sum, e) => sum + kdvAmountOf(e.amount || 0, e.kdvRate), 0);
+  const odenecekKdv = satisKdv - alisKdv;
+
   return (
     <div>
+      <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: 12, width: "fit-content" }}>
+        <button
+          onClick={() => setFinanceView("defter")}
+          style={{ border: "none", background: financeView === "defter" ? "var(--surface-2)" : "transparent", fontSize: 13 }}
+        >
+          Gelir-Gider Defteri
+        </button>
+        <button
+          onClick={() => setFinanceView("kdv")}
+          style={{ border: "none", background: financeView === "kdv" ? "var(--surface-2)" : "transparent", fontSize: 13 }}
+        >
+          KDV Özet Raporu
+        </button>
+      </div>
+
+      {financeView === "defter" ? (
       <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: 16, width: "fit-content" }}>
         {PANO_RANGES.map((r) => (
           <button
@@ -278,7 +338,31 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
           </button>
         ))}
       </div>
+      ) : (
+        <div style={{ marginBottom: 16 }}>
+          <input type="month" value={kdvMonth} onChange={(e) => setKdvMonth(e.target.value)} style={{ width: 180 }} />
+        </div>
+      )}
 
+      {financeView === "kdv" ? (
+        <div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px,1fr))", gap: 12, marginBottom: 12 }}>
+            <MetricCard label="Satış KDV'si" value={formatTL(satisKdv)} tone="success" />
+            <MetricCard label="Alış KDV'si" value={formatTL(alisKdv)} tone="danger" />
+            <MetricCard
+              label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Ödenecek/Devreden KDV <InfoTip text={KDV_REPORT_INFO_TEXT} /></span>}
+              value={formatTL(odenecekKdv)}
+              tone={odenecekKdv >= 0 ? "danger" : "success"}
+            />
+          </div>
+          {expensesWithoutKdvCount > 0 && (
+            <p style={{ fontSize: 12.5, color: "var(--text-warning)", margin: 0 }}>
+              {expensesWithoutKdvCount} gider KDV bilgisi olmadığı için Alış KDV'sine dahil edilmedi.
+            </p>
+          )}
+        </div>
+      ) : (
+      <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px,1fr))", gap: 12, marginBottom: 20 }}>
         <MetricCard label="Toplam Gelir" value={formatTL(totalIncome)} tone="success" />
         <MetricCard
@@ -288,7 +372,6 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
         />
         <MetricCard label="Net Kalan" value={formatTL(netRemaining)} tone={netRemaining >= 0 ? "success" : "danger"} />
       </div>
-
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, alignItems: "start", flexWrap: "wrap" }}>
         <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", minWidth: 280 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
@@ -369,6 +452,8 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
           )}
         </div>
       </div>
+      </div>
+      )}
 
       {showExpenseForm && (
         <CompanyExpenseForm

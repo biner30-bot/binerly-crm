@@ -76,7 +76,7 @@ function formatDateTime(dateStr) {
 function CustomerAuthForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState("login");
+  const [mode, setMode] = useState(new URLSearchParams(window.location.search).get("register") ? "register" : "login");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 

@@ -93,6 +93,10 @@ const KDV_RATE_INFO_TEXT =
 const ASSIGNEE_INFO_TEXT =
   "Bu teklif kazanıldığında, Pano'daki \"Personel Performansı\" bölümünde seçtiğiniz kişinin altında sayılır.";
 
+const CARI_BAKIYE_INFO_TEXT =
+  "Bu bakiye, müşterinin \"Kazanıldı\" durumundaki tekliflerinin toplam tutarından tahsil edilen ödemelerin düşülmesiyle bulunur. " +
+  "Resmi bir cari hesap kaydı değildir, sadece kendi takibiniz içindir.";
+
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -755,12 +759,30 @@ function activityDateLabel(dateStr) {
     " · " + d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 }
 
-function CustomerDetail({ customer, deals, activities, sector, customFieldDefs = [], onAddActivity, onClose }) {
+function CustomerDetail({ customer, deals, payments, activities, sector, customFieldDefs = [], onAddActivity, onClose }) {
   const [type, setType] = useState("note");
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
 
   const customerDeals = deals.filter((d) => d.customerId === customer.id);
+  const wonCustomerDeals = customerDeals.filter((d) => d.stage === "kazanildi");
+  const wonDealIds = new Set(wonCustomerDeals.map((d) => d.id));
+  const customerPayments = payments.filter((p) => wonDealIds.has(p.dealId));
+  const totalDebt = wonCustomerDeals.reduce((sum, d) => sum + (d.value || 0), 0);
+  const totalCollected = customerPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const balance = totalDebt - totalCollected;
+  let runningBalance = 0;
+  const ledgerEvents = [
+    ...wonCustomerDeals.map((d) => ({ id: `debt-${d.id}`, kind: "borc", date: d.closedAt || d.createdAt, label: d.title, amount: d.value })),
+    ...customerPayments.map((p) => ({ id: `pay-${p.id}`, kind: "tahsilat", date: p.paidAt, label: p.note || "Tahsilat", amount: p.amount })),
+  ]
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .map((e) => {
+      runningBalance += e.kind === "borc" ? e.amount : -e.amount;
+      return { ...e, runningBalance };
+    })
+    .reverse();
+
   const customerActivities = activities
     .filter((a) => a.customerId === customer.id)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -823,6 +845,39 @@ function CustomerDetail({ customer, deals, activities, sector, customFieldDefs =
               </div>
             );
           })}
+        </div>
+      )}
+
+      {wonCustomerDeals.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px", display: "flex", alignItems: "center", gap: 4 }}>
+            Cari Hesap Ekstresi <InfoTip text={CARI_BAKIYE_INFO_TEXT} />
+          </p>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0" }}>
+            <span style={{ color: "var(--text-secondary)" }}>Toplam Borç</span>
+            <span>{formatTL(totalDebt)}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0" }}>
+            <span style={{ color: "var(--text-secondary)" }}>Toplam Tahsilat</span>
+            <span>{formatTL(totalCollected)}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0", marginBottom: 8 }}>
+            <span style={{ color: "var(--text-secondary)" }}>Bakiye</span>
+            <Badge tone={balance > 0 ? "danger" : "success"}>{formatTL(balance)}</Badge>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 200, overflowY: "auto" }}>
+            {ledgerEvents.map((e) => (
+              <div key={e.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5 }}>
+                <span>
+                  <span style={{ color: "var(--text-muted)" }}>{paymentDateLabel(e.date)} ·</span>{" "}
+                  {e.kind === "borc" ? "Borç" : "Tahsilat"} · {e.label}
+                </span>
+                <span style={{ color: e.kind === "borc" ? "var(--text-danger)" : "var(--text-success)" }}>
+                  {e.kind === "borc" ? "+" : "−"}{formatTL(e.amount)}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -1766,7 +1821,7 @@ function EntryChoiceModal({ onChooseCompany, onChooseCustomer, onClose }) {
       <div style={{ background: "#fff", borderRadius: 16, padding: "2rem", width: "100%", maxWidth: 380, textAlign: "center", position: "relative", margin: "auto" }}>
         <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#666" }}>✕</button>
         <img src="/favicon.svg" alt="Binerly" style={{ width: 45, height: 45, marginBottom: 14 }} />
-        <h2 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 6px", color: "#0c2540" }}>Nasıl giriş yapmak istersiniz?</h2>
+        <h2 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 6px", color: "#0c2540" }}>Hesap türünü seçin</h2>
         <p style={{ fontSize: 13, color: "#5b7088", margin: "0 0 20px" }}>
           Bir KOBİ hesabı mı işletiyorsunuz, yoksa bir firmanın müşterisi misiniz?
         </p>
@@ -1791,17 +1846,17 @@ function EntryChoiceModal({ onChooseCompany, onChooseCustomer, onClose }) {
 
 function LandingPage() {
   const [authModal, setAuthModal] = useState(null);
-  const [showEntryChoice, setShowEntryChoice] = useState(false);
+  const [entryChoiceIntent, setEntryChoiceIntent] = useState(null);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f5f8fc", fontFamily: "system-ui, -apple-system, sans-serif" }}>
       <TrackingScripts />
       {authModal && <AuthModal initialMode={authModal} onClose={() => setAuthModal(null)} />}
-      {showEntryChoice && (
+      {entryChoiceIntent && (
         <EntryChoiceModal
-          onChooseCompany={() => { setShowEntryChoice(false); setAuthModal("login"); }}
-          onChooseCustomer={() => { window.location.href = "/portal"; }}
-          onClose={() => setShowEntryChoice(false)}
+          onChooseCompany={() => { const mode = entryChoiceIntent; setEntryChoiceIntent(null); setAuthModal(mode); }}
+          onChooseCustomer={() => { window.location.href = entryChoiceIntent === "register" ? "/portal?register=1" : "/portal"; }}
+          onClose={() => setEntryChoiceIntent(null)}
         />
       )}
 
@@ -1818,10 +1873,10 @@ function LandingPage() {
             <a href="#hakkimizda" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Hakkımızda</a>
           </div>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <button onClick={() => setShowEntryChoice(true)} style={{ background: "none", border: "none", color: "#185fa5", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "8px 12px" }}>
+            <button onClick={() => setEntryChoiceIntent("login")} style={{ background: "none", border: "none", color: "#185fa5", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "8px 12px" }}>
               Giriş Yap
             </button>
-            <button onClick={() => setAuthModal("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
+            <button onClick={() => setEntryChoiceIntent("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
               Ücretsiz Dene
             </button>
           </div>
@@ -1843,10 +1898,10 @@ function LandingPage() {
             Müşteri veya danışan takibi, teklif ya da randevu süreci, destek ve müşterinizin kendi portalı — hepsi bir arada, KOBİ'ler için.
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <button onClick={() => setAuthModal("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "13px 28px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
+            <button onClick={() => setEntryChoiceIntent("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "13px 28px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
               Ücretsiz Kullanmaya Başla →
             </button>
-            <button onClick={() => setShowEntryChoice(true)} style={{ background: "#fff", color: "#185fa5", border: "1.5px solid #185fa5", borderRadius: 8, padding: "13px 28px", fontWeight: 600, fontSize: 15, cursor: "pointer" }}>
+            <button onClick={() => setEntryChoiceIntent("login")} style={{ background: "#fff", color: "#185fa5", border: "1.5px solid #185fa5", borderRadius: 8, padding: "13px 28px", fontWeight: 600, fontSize: 15, cursor: "pointer" }}>
               Giriş Yap
             </button>
           </div>
@@ -2587,10 +2642,10 @@ export default function App() {
     logAction("payments", id, "deleted", `${formatTL(payment?.amount || 0)} tahsilat çöp kutusuna taşındı`);
   };
 
-  const addCompanyExpense = async ({ title, category, amount, expenseDate, note, isRecurring, recurrenceInterval }) => {
+  const addCompanyExpense = async ({ title, category, amount, expenseDate, note, isRecurring, recurrenceInterval, kdvRate }) => {
     const row = {
       id: uid(), user_id: activeTeamId, title, category: category || "Diğer", amount, expense_date: expenseDate, note: note || null,
-      is_recurring: !!isRecurring, recurrence_interval: recurrenceInterval || "monthly",
+      is_recurring: !!isRecurring, recurrence_interval: recurrenceInterval || "monthly", kdv_rate: kdvRate ?? null,
     };
     const { data, error } = await supabase.from("company_expenses").insert(row).select().single();
     if (error) { notify(`Gider eklenemedi: ${error.message}`); return; }
@@ -3732,11 +3787,18 @@ export default function App() {
                   <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Portal <InfoTip text={PORTAL_INFO_TEXT} /></span>
                   </th>
+                  <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Bakiye <InfoTip text={CARI_BAKIYE_INFO_TEXT} /></span>
+                  </th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {filteredCustomers.map((c) => (
+                {filteredCustomers.map((c) => {
+                  const customerBalance = wonDealsAll
+                    .filter((d) => d.customerId === c.id)
+                    .reduce((sum, d) => sum + (d.value || 0) - totalPaidForDeal(d.id), 0);
+                  return (
                   <tr key={c.id} style={{ background: "var(--surface-1)" }}>
                     <td onClick={() => setViewingCustomer(c)} style={{ padding: "10px 12px", borderRadius: "var(--radius) 0 0 var(--radius)", cursor: "pointer" }}>
                       <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{c.name}</p>
@@ -3760,6 +3822,9 @@ export default function App() {
                     <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                       {c.portalUserId ? <Badge tone="accent">Var</Badge> : <span style={{ fontSize: 12, color: "var(--text-muted)" }}>—</span>}
                     </td>
+                    <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                      {customerBalance > 0 ? <Badge tone="warning">{formatTL(customerBalance)}</Badge> : <span style={{ fontSize: 12, color: "var(--text-muted)" }}>—</span>}
+                    </td>
                     <td style={{ padding: "10px 12px", borderRadius: "0 var(--radius) var(--radius) 0" }}>
                       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                         {c.phone && (
@@ -3779,7 +3844,8 @@ export default function App() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -4364,6 +4430,7 @@ export default function App() {
         <CustomerDetail
           customer={customerById(viewingCustomer.id) || viewingCustomer}
           deals={deals}
+          payments={payments}
           activities={activities}
           sector={companySettings?.sector}
           customFieldDefs={customFieldDefs}
