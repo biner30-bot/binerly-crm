@@ -658,8 +658,7 @@ function DealPayments({ deal, payments, onAddPayment, onDeletePayment }) {
   };
 
   return (
-    <div style={{ marginTop: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
-      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Tahsilat</p>
+    <div>
       <p style={{ fontSize: 13, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span>Toplam: {formatTL(deal.value)} · Tahsil edilen: {formatTL(totalPaid)} · Kalan: {formatTL(Math.max(remaining, 0))}</span>
         {totalPaid > 0 && (
@@ -2113,6 +2112,7 @@ export default function App() {
   const [dealPaymentFilter, setDealPaymentFilter] = useState("all");
   const [dealAudience, setDealAudience] = useState("kurumsal");
   const [teklifDeal, setTeklifDeal] = useState(null);
+  const [paymentsDeal, setPaymentsDeal] = useState(null);
   const [quickList, setQuickList] = useState(null);
   const [initialViewTicketId, setInitialViewTicketId] = useState(null);
   const [toast, setToast] = useState(null);
@@ -3958,7 +3958,7 @@ export default function App() {
                       <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                         <Badge tone={tone}>{stageLabel(d.stage, c?.customerType || "kurumsal", companySettings?.sector)}</Badge>
                       </td>
-                      <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                      <td onClick={() => setPaymentsDeal(d)} style={{ padding: "10px 12px", whiteSpace: "nowrap", cursor: "pointer" }}>
                         {paid > 0 ? <Badge tone={remaining <= 0 ? "success" : "warning"}>{remaining <= 0 ? "Ödendi" : "Kısmi ödeme"}</Badge> : <span style={{ fontSize: 12, color: "var(--text-muted)" }}>—</span>}
                       </td>
                       <td style={{ padding: "10px 12px", whiteSpace: "nowrap", textAlign: "right", fontSize: 13, fontWeight: 500 }}>{formatTL(d.value)}</td>
@@ -3976,6 +3976,7 @@ export default function App() {
                           {!!d.sessionTotal && d.sessionUsed < d.sessionTotal && (
                             <IconButton icon="ti-plus" title="Seans kullanıldı" onClick={() => incrementSessionUsage(d.id)} />
                           )}
+                          <IconButton icon="ti-cash" title="Tahsilat" onClick={() => setPaymentsDeal(d)} />
                           <IconButton icon="ti-edit" title="Düzenle" onClick={() => { setEditingDeal(d); setShowDealForm(true); }} />
                           <IconButton icon="ti-trash" title="Sil" onClick={() => setConfirmDeleteDeal(d)} />
                         </div>
@@ -4225,14 +4226,17 @@ export default function App() {
             onSave={upsertDeal}
             onCancel={() => { setShowDealForm(false); setEditingDeal(null); }}
           />
-          {editingDeal && (
-            <DealPayments
-              deal={editingDeal}
-              payments={paymentsByDeal[editingDeal.id] || []}
-              onAddPayment={addPayment}
-              onDeletePayment={deletePayment}
-            />
-          )}
+        </Modal>
+      )}
+
+      {paymentsDeal && (
+        <Modal title={`Tahsilat — ${paymentsDeal.title}`} onClose={() => setPaymentsDeal(null)}>
+          <DealPayments
+            deal={paymentsDeal}
+            payments={paymentsByDeal[paymentsDeal.id] || []}
+            onAddPayment={addPayment}
+            onDeletePayment={deletePayment}
+          />
         </Modal>
       )}
 
