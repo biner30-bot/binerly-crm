@@ -3077,7 +3077,7 @@ export default function App() {
   })).filter((r) => r.count > 0);
 
   return (
-    <div>
+    <div style={{ maxWidth: 980, margin: "0 auto", padding: "24px 16px 64px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
