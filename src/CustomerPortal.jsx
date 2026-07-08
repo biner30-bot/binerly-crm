@@ -190,7 +190,7 @@ function PortalNewTicketForm({ customerRows, onSave, onCancel }) {
   );
 }
 
-function PortalTicketList({ tickets, unreadCountByTicket, onOpenTicket }) {
+function PortalTicketList({ tickets, unreadCountByTicket, onOpenTicket, companyNameByCustomerId, showCompany }) {
   if (tickets.length === 0) {
     return <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Henüz bir talebiniz yok.</p>;
   }
@@ -210,7 +210,9 @@ function PortalTicketList({ tickets, unreadCountByTicket, onOpenTicket }) {
                 {t.subject}
                 {unreadCountByTicket[t.id] > 0 && <Badge tone="accent">{unreadCountByTicket[t.id]} yeni mesaj</Badge>}
               </p>
-              <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{formatDateTime(t.createdAt)}</p>
+              <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
+                {showCompany && `${companyNameByCustomerId[t.customerId] || "Bilinmeyen firma"} · `}{formatDateTime(t.createdAt)}
+              </p>
             </div>
             <Badge tone={STATUS_TONE[t.status] || "default"}>{statusInfo?.label}</Badge>
           </div>
@@ -273,7 +275,7 @@ function PortalTicketDetail({ ticket, messages, onAddMessage, onClose }) {
   );
 }
 
-function PortalDealList({ deals }) {
+function PortalDealList({ deals, companyNameByCustomerId, showCompany }) {
   if (deals.length === 0) {
     return <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Henüz bir teklifiniz yok.</p>;
   }
@@ -285,7 +287,12 @@ function PortalDealList({ deals }) {
         const tone = d.stage === "kazanildi" ? "success" : d.stage === "kaybedildi" ? "default" : d.stage === "muzakere" ? "warning" : "accent";
         return (
           <div key={d.id} style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{d.title}</p>
+            <div>
+              <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{d.title}</p>
+              {showCompany && (
+                <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{companyNameByCustomerId[d.customerId] || "Bilinmeyen firma"}</p>
+              )}
+            </div>
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <Badge tone={tone}>{stageInfo?.label}</Badge>
               <span style={{ fontSize: 13, fontWeight: 600, minWidth: 90, textAlign: "right" }}>{formatTL(d.value)}</span>
@@ -650,6 +657,11 @@ export default function CustomerPortal() {
     if (m.direction === "giden" && !m.readAt) acc[m.ticketId] = (acc[m.ticketId] || 0) + 1;
     return acc;
   }, {});
+
+  // Birden fazla firmaya bağlıysa (aynı e-posta ile) talep/teklif listelerinde
+  // hangisinin hangi firmaya ait olduğu görünsün diye.
+  const companyNameByCustomerId = Object.fromEntries(customerRows.map((c) => [c.id, c.companyName || c.name]));
+  const showCompanyLabel = customerRows.length > 1;
   const totalUnreadTickets = Object.keys(unreadCountByTicket).length;
 
   return (
@@ -726,11 +738,19 @@ export default function CustomerPortal() {
                   Yeni talep
                 </button>
               </div>
-              <PortalTicketList tickets={tickets} unreadCountByTicket={unreadCountByTicket} onOpenTicket={setViewingTicket} />
+              <PortalTicketList
+                tickets={tickets}
+                unreadCountByTicket={unreadCountByTicket}
+                onOpenTicket={setViewingTicket}
+                companyNameByCustomerId={companyNameByCustomerId}
+                showCompany={showCompanyLabel}
+              />
             </div>
           )}
 
-          {portalTab === "teklifler" && <PortalDealList deals={deals} />}
+          {portalTab === "teklifler" && (
+            <PortalDealList deals={deals} companyNameByCustomerId={companyNameByCustomerId} showCompany={showCompanyLabel} />
+          )}
 
           {portalTab === "ayarlar" && (
             <PortalSettings
