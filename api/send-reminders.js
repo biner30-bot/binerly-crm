@@ -21,7 +21,7 @@ export default async function handler(req, res) {
     const today = new Date().toISOString().slice(0, 10);
     const { data: dueDeals, error: dealsError } = await supabaseAdmin
       .from("deals")
-      .select("id, user_id, customer_id, title, reminder, reminder_date")
+      .select("id, user_id, customer_id, title, reminder, reminder_date, notify_customer")
       .is("deleted_at", null)
       .not("stage", "in", "(kazanildi,kaybedildi)")
       .neq("reminder", "")
@@ -37,8 +37,9 @@ export default async function handler(req, res) {
     const customerIds = [...new Set(dueDeals.map((d) => d.customer_id))];
     const { data: customers } = await supabaseAdmin
       .from("customers")
-      .select("id, name")
+      .select("id, name, email")
       .in("id", customerIds);
+    const customerById = Object.fromEntries((customers || []).map((c) => [c.id, c]));
     const customerNameById = Object.fromEntries((customers || []).map((c) => [c.id, c.name]));
 
     // deal.user_id takım desteğiyle birlikte artık "hesap/takım kimliği" anlamına
@@ -49,8 +50,15 @@ export default async function handler(req, res) {
       (dealsByUser[deal.user_id] ||= []).push(deal);
     }
 
+    const { data: settingsRows } = await supabaseAdmin
+      .from("company_settings")
+      .select("user_id, company_name")
+      .in("user_id", Object.keys(dealsByUser));
+    const companyNameByUser = Object.fromEntries((settingsRows || []).map((s) => [s.user_id, s.company_name]));
+
     let usersNotified = 0;
     let failed = 0;
+    let customersNotified = 0;
 
     for (const [userId, userDeals] of Object.entries(dealsByUser)) {
       const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
@@ -83,9 +91,33 @@ export default async function handler(req, res) {
 
       if (sendRes.ok) usersNotified++;
       else failed++;
+
+      // Müşteriye de gönder işaretliyse (DealForm'daki "Hatırlatma tarihinde
+      // müşteriye de e-posta gönder" kutusu) — sadece müşterinin e-postası
+      // varsa, ayrı ve dostane bir metinle.
+      const company = companyNameByUser[userId] || "Binerly";
+      for (const deal of userDeals) {
+        if (!deal.notify_customer) continue;
+        const customer = customerById[deal.customer_id];
+        if (!customer?.email) continue;
+        const customerRes = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${resendApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: "Binerly <noreply@binerly.com>",
+            to: customer.email,
+            subject: `Hatırlatma: ${deal.title}`,
+            text: `Merhaba ${customer.name || ""},\n\n${company} tarafından hatırlatma: ${deal.reminder}\n\n${company}`,
+          }),
+        });
+        if (customerRes.ok) customersNotified++;
+      }
     }
 
-    return res.status(200).json({ usersNotified, failed });
+    return res.status(200).json({ usersNotified, failed, customersNotified });
   } catch {
     return res.status(500).json({ error: "Gönderim sırasında hata oluştu." });
   }

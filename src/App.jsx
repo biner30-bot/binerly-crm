@@ -24,6 +24,11 @@ import {
   TagBadges,
 } from "./Sectors";
 
+// Beklenen Gelir tahmini için basit, sabit olasılık ağırlıkları — kullanıcı
+// başına ayarlanabilir değil, bilinçli olarak (KISS). Kazanıldı/kaybedildi
+// zaten "openDeals" dışında tutulduğu için burada yer almıyor.
+const STAGE_PROBABILITY = { ilk_gorusme: 0.1, teklif: 0.3, muzakere: 0.6 };
+
 const SECTORS = [
   "İnşaat", "Medikal / Sağlık", "Gıda", "Tekstil", "Elektrik / Elektronik",
   "Otomotiv", "Mobilya", "Perakende / Mağazacılık", "Toptan Ticaret",
@@ -100,6 +105,10 @@ function rowToDeal(r) {
     deletedAt: r.deleted_at || null,
     tags: r.tags || [],
     customFields: r.custom_fields || {},
+    approvalToken: r.approval_token || null,
+    approvedAt: r.approved_at || null,
+    notifyCustomer: r.notify_customer || false,
+    assignedTo: r.assigned_to || null,
   };
 }
 
@@ -406,7 +415,7 @@ function CompanySettingsForm({ initial, onSave, onCancel }) {
   );
 }
 
-function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, customFieldDefs = [], sectorTags = [], onSave, onCancel }) {
+function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(
     initial?.customerId || customers.find((c) => c.customerType === preferredCustomerType)?.id || customers[0]?.id || ""
   );
@@ -439,7 +448,10 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   const [sessionError, setSessionError] = useState("");
   const [tags, setTags] = useState(initial?.tags || []);
   const [customFields, setCustomFields] = useState(initial?.customFields || {});
+  const [assignedTo, setAssignedTo] = useState(initial?.assignedTo || currentUserId || "");
+  const [notifyCustomer, setNotifyCustomer] = useState(initial?.notifyCustomer || false);
   const defsForEntity = customFieldDefs.filter((d) => d.entity === "deal" && (!d.audience || d.audience === selectedCustomerType));
+  const selectedCustomerEmail = customers.find((c) => c.id === customerId)?.email || "";
 
   return (
     <form
@@ -472,6 +484,10 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           sessionUsed: isPackageDeal ? Math.min(Number(sessionUsed) || 0, Number(sessionTotal) || 0) : 0,
           tags,
           customFields,
+          assignedTo: assignedTo || null,
+          notifyCustomer,
+          approvalToken: initial?.approvalToken || null,
+          approvedAt: initial?.approvedAt || null,
           createdAt: (dealTime ? new Date(`${dealDate}T${dealTime}`) : new Date(dealDate)).toISOString(),
           closedAt: isClosingStage ? new Date(closedDate).toISOString() : null,
         });
@@ -570,6 +586,31 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           <input type="date" value={reminderDate} onChange={(e) => setReminderDate(e.target.value)} style={{ width: "100%" }} />
         </div>
       </div>
+      {reminder.trim() && reminderDate && (
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-secondary)", cursor: selectedCustomerEmail ? "pointer" : "not-allowed" }}>
+            <input
+              type="checkbox"
+              checked={notifyCustomer}
+              disabled={!selectedCustomerEmail}
+              onChange={(e) => setNotifyCustomer(e.target.checked)}
+            />
+            Hatırlatma tarihinde müşteriye de e-posta gönder
+          </label>
+          {!selectedCustomerEmail && (
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0 24px" }}>Müşterinin e-postası yok, gönderilemez.</p>
+          )}
+        </div>
+      )}
+      {teamMembers.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Sorumlu</label>
+          <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} style={{ width: "100%" }}>
+            {currentUserId && <option value={currentUserId}>Ben ({currentUserEmail})</option>}
+            {teamMembers.filter((m) => m.id !== currentUserId).map((m) => <option key={m.id} value={m.id}>{m.email}</option>)}
+          </select>
+        </div>
+      )}
       {stage === "kaybedildi" && (
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>{selectedCustomerType === "bireysel" ? "İptal nedeni" : "Kayıp nedeni"}</label>
@@ -2076,6 +2117,7 @@ export default function App() {
   const [initialViewTicketId, setInitialViewTicketId] = useState(null);
   const [toast, setToast] = useState(null);
   const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [teamMembers, setTeamMembers] = useState([]);
 
   const notify = (message, tone = "danger") => setToast({ message, tone });
 
@@ -2168,6 +2210,15 @@ export default function App() {
       .then((sub) => setPushSubscribed(!!sub))
       .catch(() => {});
   }, [session]);
+
+  // "Sorumlu" seçimi ve Personel Performansı için takım üyesi listesi — bulk
+  // fetch'in içinde olamaz çünkü activeTeamId o fetch'in SONUCUNDA belli oluyor.
+  useEffect(() => {
+    if (!activeTeamId) { setTeamMembers([]); return; }
+    supabase.from("team_members").select("member_id, email").eq("team_id", activeTeamId).then(({ data }) => {
+      setTeamMembers((data || []).map((m) => ({ id: m.member_id, email: m.email })));
+    });
+  }, [activeTeamId]);
 
   // Push bildirimi tıklanınca gelen ?ticket= derin bağlantısı — talepler yüklendikten
   // sonra bir kere işlenir, sonra URL'den temizlenir.
@@ -2376,6 +2427,12 @@ export default function App() {
       session_used: d.isPackageDeal ? (Number(d.sessionUsed) || 0) : 0,
       tags: d.tags || [],
       custom_fields: d.customFields || {},
+      notify_customer: d.notifyCustomer || false,
+      assigned_to: d.assignedTo || null,
+      // approval_token/approved_at bu formda hiç düzenlenmiyor — mevcut değeri
+      // koru, yoksa normal "Kaydet" onay durumunu sıfırlardı.
+      approval_token: d.approvalToken || null,
+      approved_at: d.approvedAt || null,
       created_at: d.createdAt,
       closed_at: d.closedAt || null,
     };
@@ -2397,6 +2454,17 @@ export default function App() {
         `Merhaba,\n\n${company} sizin için hazırladı: "${deal.title}" — ${formatTL(deal.value)}\n\nDetaylar için bizimle iletişime geçebilir veya müşteri portalımızdan görüntüleyebilirsiniz: https://binerly.com/portal\n\n${company}`
       );
     }
+  };
+
+  // Müşterinin tek tıkla onaylayabileceği link — teklif zaten bir token'a
+  // sahipse onu döner (aynı link her seferinde çalışsın), yoksa yeni üretip kaydeder.
+  const generateApprovalLink = async (deal) => {
+    if (deal.approvalToken) return `https://binerly.com/onay/${deal.approvalToken}`;
+    const token = uid();
+    const { error } = await supabase.from("deals").update({ approval_token: token }).eq("id", deal.id);
+    if (error) { notify(`Onay linki oluşturulamadı: ${error.message}`); return null; }
+    setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, approvalToken: token } : d)));
+    return `https://binerly.com/onay/${token}`;
   };
 
   const deleteDeal = async (id) => {
@@ -2969,6 +3037,7 @@ export default function App() {
   const wonDeals = wonDealsAll.filter((d) => inRange(d.closedAt || d.createdAt, rangeBounds));
   const lostDeals = lostDealsAll.filter((d) => inRange(d.closedAt || d.createdAt, rangeBounds));
   const totalOpenValue = openDeals.reduce((sum, d) => sum + (d.value || 0), 0);
+  const expectedRevenue = openDeals.reduce((sum, d) => sum + (d.value || 0) * (STAGE_PROBABILITY[d.stage] || 0), 0);
   const dealsWithReminder = deals.filter((d) => d.reminder && d.stage !== "kazanildi" && d.stage !== "kaybedildi");
   const customerById = (id) => customers.find((c) => c.id === id);
 
@@ -3281,6 +3350,11 @@ export default function App() {
               onClick={openDeals.length > 0 ? () => openDealOrList(openDeals, "Açık teklifler") : undefined}
             />
             <MetricCard
+              label="Beklenen Gelir"
+              value={formatTL(expectedRevenue)}
+              sub="Aşama olasılığına göre tahmini"
+            />
+            <MetricCard
               label="Bekleyen alacak"
               value={formatTL(totalOutstanding)}
               onClick={dealsWithOutstanding.length > 0 ? () => openDealOrList(dealsWithOutstanding, "Bekleyen alacağı olan teklifler") : undefined}
@@ -3336,6 +3410,39 @@ export default function App() {
               value={rangeAvgDealSize !== null ? formatTL(rangeAvgDealSize) : "—"}
             />
           </div>
+
+          {wonDeals.length > 0 && (
+            <div style={{ marginBottom: "1.5rem" }}>
+              <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 8px" }}>Personel Performansı</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {Object.entries(
+                  wonDeals.reduce((acc, d) => {
+                    const key = d.assignedTo || "unassigned";
+                    (acc[key] ||= { count: 0, revenue: 0 }).count += 1;
+                    acc[key].revenue += d.value || 0;
+                    return acc;
+                  }, {})
+                )
+                  .sort((a, b) => b[1].revenue - a[1].revenue)
+                  .map(([assigneeId, stats]) => {
+                    const label =
+                      assigneeId === "unassigned"
+                        ? "Atanmamış"
+                        : assigneeId === session.user.id
+                        ? `${session.user.email} (Ben)`
+                        : teamMembers.find((m) => m.id === assigneeId)?.email || "Bilinmeyen";
+                    return (
+                      <div key={assigneeId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
+                        <span style={{ fontSize: 13 }}>{label}</span>
+                        <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                          {stats.count} teklif · <strong style={{ color: "var(--text-primary)" }}>{formatTL(stats.revenue)}</strong>
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
 
           {customers.length === 0 && deals.length === 0 ? (
             <div style={{ background: "var(--surface-1)", borderRadius: 12, padding: "2rem 1.5rem", textAlign: "center" }}>
@@ -3842,6 +3949,11 @@ export default function App() {
                             <TagBadges tags={d.tags} />
                           </div>
                         )}
+                        {d.approvedAt && (
+                          <div style={{ marginTop: 4 }}>
+                            <Badge tone="success">Onaylandı ✓</Badge>
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                         <Badge tone={tone}>{stageLabel(d.stage, c?.customerType || "kurumsal", companySettings?.sector)}</Badge>
@@ -3853,6 +3965,14 @@ export default function App() {
                       <td style={{ padding: "10px 12px", borderRadius: "0 var(--radius) var(--radius) 0" }}>
                         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                           <IconButton icon="ti-file-text" title="Teklif PDF" onClick={() => setTeklifDeal(d)} />
+                          <IconButton
+                            icon="ti-link"
+                            title="Onay linki kopyala"
+                            onClick={async () => {
+                              const link = await generateApprovalLink(d);
+                              if (link) { navigator.clipboard.writeText(link); notify("Onay linki kopyalandı.", "success"); }
+                            }}
+                          />
                           {!!d.sessionTotal && d.sessionUsed < d.sessionTotal && (
                             <IconButton icon="ti-plus" title="Seans kullanıldı" onClick={() => incrementSessionUsage(d.id)} />
                           )}
@@ -4099,6 +4219,9 @@ export default function App() {
             sector={companySettings?.sector}
             customFieldDefs={customFieldDefs}
             sectorTags={SECTOR_PRESETS.find((p) => p.id === companySettings?.sector)?.tags || []}
+            teamMembers={teamMembers}
+            currentUserId={session.user.id}
+            currentUserEmail={session.user.email}
             onSave={upsertDeal}
             onCancel={() => { setShowDealForm(false); setEditingDeal(null); }}
           />

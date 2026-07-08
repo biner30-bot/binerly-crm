@@ -1,0 +1,65 @@
+import { useState, useEffect } from "react";
+
+function formatTL(n) {
+  return new Intl.NumberFormat("tr-TR").format(Math.round(n || 0)) + " TL";
+}
+
+// Kamuya açık, giriş gerektirmeyen sayfa — /onay/{token}. Sadece api/deal-approval.js
+// tarafından döndürülen minimal bilgiyi (başlık/tutar/şirket-müşteri adı) gösterir.
+export default function DealApprovalPage() {
+  const token = window.location.pathname.split("/")[2] || "";
+  const [state, setState] = useState({ loading: true, error: "", deal: null });
+  const [approving, setApproving] = useState(false);
+
+  useEffect(() => {
+    if (!token) { setState({ loading: false, error: "Geçersiz bağlantı.", deal: null }); return; }
+    fetch(`/api/deal-approval?token=${encodeURIComponent(token)}`)
+      .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        if (!ok) { setState({ loading: false, error: data.error || "Bulunamadı.", deal: null }); return; }
+        setState({ loading: false, error: "", deal: data });
+      })
+      .catch(() => setState({ loading: false, error: "Yüklenemedi.", deal: null }));
+  }, [token]);
+
+  const approve = async () => {
+    setApproving(true);
+    const res = await fetch("/api/deal-approval", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+    if (res.ok) setState((s) => ({ ...s, deal: { ...s.deal, approved: true } }));
+    setApproving(false);
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5f8fc", fontFamily: "system-ui, -apple-system, sans-serif", padding: "1rem" }}>
+      <div style={{ background: "#fff", borderRadius: 12, padding: "2rem", width: "100%", maxWidth: 420, border: "1px solid #e1e8f0", textAlign: "center" }}>
+        {state.loading ? (
+          <p style={{ color: "#5b7088" }}>Yükleniyor…</p>
+        ) : state.error ? (
+          <p style={{ color: "#b91c1c" }}>{state.error}</p>
+        ) : (
+          <>
+            {state.deal.logoUrl && <img src={state.deal.logoUrl} alt="" style={{ maxHeight: 48, marginBottom: 16 }} />}
+            <p style={{ fontSize: 13, color: "#94a7bb", margin: "0 0 4px" }}>{state.deal.companyName}</p>
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>{state.deal.title}</h1>
+            <p style={{ fontSize: 24, fontWeight: 800, color: "#185fa5", margin: "0 0 20px" }}>{formatTL(state.deal.value)}</p>
+            {state.deal.approved ? (
+              <p style={{ color: "#15803d", fontWeight: 600 }}>✓ Bu teklifi onayladınız.</p>
+            ) : (
+              <button
+                onClick={approve}
+                disabled={approving}
+                style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
+              >
+                {approving ? "Onaylanıyor…" : "Onaylıyorum"}
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

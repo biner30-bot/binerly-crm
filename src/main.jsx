@@ -10,6 +10,7 @@ const PrivacyPolicyPage = lazy(() => import("./LegalPages.jsx").then((m) => ({ d
 const KvkkPage = lazy(() => import("./LegalPages.jsx").then((m) => ({ default: m.KvkkPage })));
 const TermsPage = lazy(() => import("./LegalPages.jsx").then((m) => ({ default: m.TermsPage })));
 const AdminPage = lazy(() => import("./AdminPage.jsx"));
+const DealApprovalPage = lazy(() => import("./DealApprovalPage.jsx"));
 
 const path = window.location.pathname;
 
@@ -43,6 +44,7 @@ function resolvePage() {
   // Bilinçli olarak "/admin" gibi tahmin edilebilir bir isim değil — otomatik
   // tarayan botların/meraklıların rastlamasını zorlaştırmak için.
   if (path.startsWith("/panel-4k9x")) return <AdminPage />;
+  if (path.startsWith("/onay/")) return <DealApprovalPage />;
   return <App />;
 }
 
@@ -51,6 +53,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <Suspense fallback={<div style={{ padding: "2rem", textAlign: "center", color: "#5b7088" }}>Yükleniyor…</div>}>
       {resolvePage()}
     </Suspense>
-    {!path.startsWith("/panel-4k9x") && <CookieConsentBanner />}
+    {!path.startsWith("/panel-4k9x") && !path.startsWith("/onay/") && <CookieConsentBanner />}
   </React.StrictMode>
 );
