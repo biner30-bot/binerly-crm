@@ -60,6 +60,39 @@ const PORTAL_INFO_TEXT =
   "— — bu müşteri henüz portala giriş yapmamış. Müşterinizin, kayıtlı e-posta adresiyle " +
   "portal üzerinden kendi hesabını oluşturması yeterli, sizin ayrıca bir davet göndermenize gerek yok.";
 
+const DEAL_ACTIONS_INFO_TEXT =
+  "📄 Teklif PDF — markalı, yazdırılabilir teklif belgesi oluşturur.\n" +
+  "🔗 Onay linki — müşterinin tek tıkla \"onaylıyorum\" diyebileceği bir link kopyalar, siz WhatsApp/e-posta ile gönderirsiniz. " +
+  "Müşteri onaylayınca satırda yeşil \"Onaylandı ✓\" rozeti otomatik görünür.\n" +
+  "💵 Tahsilat — bu teklife yapılan ödemeleri kaydedin/görün.\n" +
+  "📋 Kopyala — aynı müşteri/tutar/etiketlerle sıfırdan yeni bir teklif formu açar (tekrar eden işler için), hiçbir şeyi otomatik kaydetmez.\n" +
+  "✏️ Düzenle · 🗑️ Sil";
+
+const CUSTOMER_TYPE_INFO_TEXT =
+  "Kurumsal/Bireysel seçimi sadece bir etiket değil — Sektör alanının görünüp görünmeyeceğini, teklif aşama isimlerini " +
+  "(\"Kazanıldı\" yerine \"Tamamlandı\" gibi), hangi özel alanların çıkacağını ve teklif formundaki bazı metinleri " +
+  "(\"Kayıp nedeni\" yerine \"İptal nedeni\" gibi) uygulamanın birçok yerinde değiştirir.";
+
+const SECTOR_FIELD_INFO_TEXT =
+  "Bu, müşterinin kendi sektörü — Ayarlar'daki \"Sektör & Özel Alanlar\"da seçtiğiniz KENDİ şirket sektörünüzden " +
+  "farklı bir alan. Burada seçtiğiniz değer, teklif formunda etiket önerisi olarak çıkabilir.";
+
+const TAGS_INFO_TEXT =
+  "Serbest metin etiketler — arama/filtrelemede ve listelerde kayda hızlıca göz atmak için kullanılır. " +
+  "Sektörünüze göre bazı etiketler öneri olarak çıkar, istediğiniz herhangi bir kelimeyi de ekleyebilirsiniz.";
+
+const SESSION_PACKAGE_INFO_TEXT =
+  "Kuaför/klinik gibi paket/seans bazlı satış yapıyorsanız kullanın — toplam ve kullanılan seans sayısını siz " +
+  "elle güncellersiniz (\"Seans kullanıldı\" butonuyla), kullanılan sayı toplama ulaşınca kart üzerinde " +
+  "\"Paket tamamlandı\" rozeti otomatik görünür.";
+
+const KDV_RATE_INFO_TEXT =
+  "Yukarıdaki Tutar zaten KDV dahil, müşteriden alınan toplam tutarı DEĞİŞTİRMEZ — sadece yazdırılan teklif PDF'inde " +
+  "\"Ara Toplam / KDV / Genel Toplam\" satırlarının nasıl bölüneceğini belirler.";
+
+const ASSIGNEE_INFO_TEXT =
+  "Bu teklif kazanıldığında, Pano'daki \"Personel Performansı\" bölümünde seçtiğiniz kişinin altında sayılır.";
+
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -274,7 +307,7 @@ function CustomerForm({ initial, customFieldDefs = [], sectorTags = [], onSave, 
       }}
     >
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Müşteri tipi</label>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Müşteri tipi <InfoTip text={CUSTOMER_TYPE_INFO_TEXT} /></label>
         <select value={customerType} onChange={(e) => setCustomerType(e.target.value)} style={{ width: "100%" }}>
           <option value="kurumsal">Kurumsal</option>
           <option value="bireysel">Bireysel</option>
@@ -287,7 +320,7 @@ function CustomerForm({ initial, customFieldDefs = [], sectorTags = [], onSave, 
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
         {isKurumsal && (
           <div style={{ flex: 1 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Sektör</label>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Sektör <InfoTip text={SECTOR_FIELD_INFO_TEXT} /></label>
             <select value={sector} onChange={(e) => setSector(e.target.value)} style={{ width: "100%" }}>
               {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
@@ -322,7 +355,7 @@ function CustomerForm({ initial, customFieldDefs = [], sectorTags = [], onSave, 
         </div>
       </div>
       <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Etiketler</label>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Etiketler <InfoTip text={TAGS_INFO_TEXT} /></label>
         <TagInput tags={tags} onChange={setTags} suggestions={sectorTags} />
       </div>
       <CustomFieldsSection defs={defsForEntity} values={customFields} onChange={setCustomFields} />
@@ -528,7 +561,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           <input type="number" min="0" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="0" style={{ width: "100%" }} />
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>KDV oranı</label>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>KDV oranı <InfoTip text={KDV_RATE_INFO_TEXT} /></label>
           <select value={kdvRate} onChange={(e) => setKdvRate(Number(e.target.value))} style={{ width: "100%" }}>
             <option value={20}>%20</option>
             <option value={10}>%10</option>
@@ -568,6 +601,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-secondary)", cursor: "pointer" }}>
           <input type="checkbox" checked={isPackageDeal} onChange={(e) => setIsPackageDeal(e.target.checked)} />
           Bu bir seans/paket satışı
+          <InfoTip text={SESSION_PACKAGE_INFO_TEXT} />
         </label>
       </div>
       {isPackageDeal && (
@@ -626,7 +660,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
       )}
       {teamMembers.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Sorumlu</label>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Sorumlu <InfoTip text={ASSIGNEE_INFO_TEXT} /></label>
           <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} style={{ width: "100%" }}>
             {currentUserId && <option value={currentUserId}>Ben ({currentUserEmail})</option>}
             {teamMembers.filter((m) => m.id !== currentUserId).map((m) => <option key={m.id} value={m.id}>{m.email}</option>)}
@@ -642,7 +676,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
         </div>
       )}
       <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Etiketler</label>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Etiketler <InfoTip text={TAGS_INFO_TEXT} /></label>
         <TagInput tags={tags} onChange={setTags} suggestions={sectorTags} />
       </div>
       <CustomFieldsSection defs={defsForEntity} values={customFields} onChange={setCustomFields} />
@@ -3256,7 +3290,10 @@ export default function App() {
                   }
                   style={{ marginTop: 2 }}
                 />
-                <span>Bu şirketin çalışanı veya yetkilisi olduğumu beyan ederim.</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  Bu şirketin çalışanı veya yetkilisi olduğumu beyan ederim.
+                  <InfoTip text="Bir hesap yalnızca aynı işletmenin çalışan/yetkilileri arasında paylaşılabilir (Kullanım Koşulları md. 3) — bu beyan, ilgisiz kişi/işletmelerin maliyet paylaşmak için bir hesabı ortak kullanmasını önlemek için isteniyor." />
+                </span>
               </label>
               <span style={{ display: "flex", gap: 8, flexShrink: 0 }}>
                 <button onClick={() => setDismissedInviteIds((prev) => [...prev, inv.id])}>Şimdi değil</button>
@@ -3386,7 +3423,7 @@ export default function App() {
               onClick={openDeals.length > 0 ? () => openDealOrList(openDeals, "Açık teklifler") : undefined}
             />
             <MetricCard
-              label="Beklenen Gelir"
+              label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Beklenen Gelir <InfoTip text={"Açık tekliflerin tutarı, aşamalarına göre kapanma olasılığıyla çarpılıp toplanır:\nİlk görüşme → %10\nTeklif verildi → %30\nMüzakere → %60\n\nGerçek bir tahsilat garantisi değil, kaba bir tahmindir."} /></span>}
               value={formatTL(expectedRevenue)}
               sub="Aşama olasılığına göre tahmini"
             />
@@ -3449,7 +3486,10 @@ export default function App() {
 
           {wonDeals.length > 0 && (
             <div style={{ marginBottom: "1.5rem" }}>
-              <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 8px" }}>Personel Performansı</p>
+              <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 8px", display: "flex", alignItems: "center", gap: 4 }}>
+                Personel Performansı
+                <InfoTip text={"Seçili tarih aralığında (yukarıdaki " + rangeLabel + ") kazanılan tekliflerin, her teklifte seçtiğiniz \"Sorumlu\" kişiye göre dağılımı. Teklif formunda sorumlu atamazsanız \"Atanmamış\" altında görünür."} />
+              </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {Object.entries(
                   wonDeals.reduce((acc, d) => {
@@ -3951,7 +3991,9 @@ export default function App() {
                   <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Aşama</th>
                   <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Ödeme</th>
                   <th style={{ textAlign: "right", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Tutar</th>
-                  <th></th>
+                  <th style={{ textAlign: "right", padding: "0 12px" }}>
+                    <InfoTip text={DEAL_ACTIONS_INFO_TEXT} />
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -4003,7 +4045,7 @@ export default function App() {
                           <IconButton icon="ti-file-text" title="Teklif PDF" onClick={() => setTeklifDeal(d)} />
                           <IconButton
                             icon="ti-link"
-                            title="Onay linki kopyala"
+                            title="Müşterinin onaylayabileceği link — kopyala ve gönder"
                             onClick={async () => {
                               const link = await generateApprovalLink(d);
                               if (link) { navigator.clipboard.writeText(link); notify("Onay linki kopyalandı.", "success"); }
@@ -4015,7 +4057,7 @@ export default function App() {
                           <IconButton icon="ti-cash" title="Tahsilat" onClick={() => setPaymentsDeal(d)} />
                           <IconButton
                             icon="ti-copy"
-                            title="Kopyala"
+                            title="Bu teklifin bilgileriyle yeni bir teklif oluştur"
                             onClick={() => {
                               setEditingDeal({
                                 customerId: d.customerId,

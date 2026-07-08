@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Badge, Modal, ConfirmDialog, IconButton } from "./shared";
+import { Badge, Modal, ConfirmDialog, IconButton, InfoTip } from "./shared";
 
 export const STAGES = [
   { id: "ilk_gorusme", label: "İlk görüşme" },
@@ -341,7 +341,10 @@ export function CustomFieldsSection({ defs, values, onChange }) {
   if (active.length === 0) return null;
   return (
     <div style={{ marginBottom: 12 }}>
-      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>Özel alanlar</p>
+      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px", display: "flex", alignItems: "center", gap: 4 }}>
+        Özel alanlar
+        <InfoTip text="Bu alanlar sabit değil — Ayarlar → Sektör & Özel Alanlar'dan kendiniz ekleyip kaldırabilirsiniz. Sektör seçtiğinizde bazı alanlar otomatik hazır gelir." />
+      </p>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {active.map((d) => (
           <div key={d.key}>

@@ -102,6 +102,21 @@ const MESSAGE_DIRECTIONS = [
   { id: "gelen", label: "Gelen (müşteriden)", icon: "ti-arrow-down-left" },
 ];
 
+const STATUS_INFO_TEXT =
+  "Durumu \"Çözüldü\" veya \"Kapatıldı\" yaptığınızda, e-posta bildirimleri açıksa (Ayarlar → Şirket Bilgileri) " +
+  "müşteriye otomatik bir bilgilendirme e-postası gider.\n\n" +
+  "İkisi arasındaki fark tamamen size kalmış — örn. \"Çözüldü\" sorunun giderildiğini, \"Kapatıldı\" konunun " +
+  "artık takip edilmeyeceğini belirtmek için kullanılabilir. İkisi de SLA süresini durdurur.";
+
+const DIRECTION_INFO_TEXT =
+  "\"Giden (müşteriye)\" bir e-posta GÖNDERMEZ — sadece bu mesajı kaydeder ve müşteri, kendi hesabıyla " +
+  "Müşteri Portalı'na (binerly.com/portal) giriş yaptığında görebilir. Müşteriye gerçekten e-posta atmak için " +
+  "WhatsApp/e-posta gibi kendi iletişim kanallarınızı kullanmanız gerekir.";
+
+const KB_INFO_TEXT =
+  "Bilgi Bankası makaleleri sadece siz ve ekibiniz için — iç kaynak niteliğindedir. Müşterileriniz bu makaleleri " +
+  "Müşteri Portalı'nda göremez.";
+
 function getSlaDueAt(priority, createdAt) {
   const hours = PRIORITIES.find((p) => p.id === priority)?.hours ?? 48;
   return new Date(new Date(createdAt).getTime() + hours * 3600000);
@@ -228,7 +243,7 @@ function TicketForm({ customers, initial, onSave, onCancel }) {
           </select>
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Durum</label>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Durum <InfoTip text={STATUS_INFO_TEXT} /></label>
           <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ width: "100%" }}>
             {STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
@@ -419,7 +434,9 @@ function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange
         </select>
       </div>
 
-      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Mesaj geçmişi</p>
+      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px", display: "flex", alignItems: "center", gap: 4 }}>
+        Mesaj geçmişi <InfoTip text={DIRECTION_INFO_TEXT} />
+      </p>
       <form onSubmit={submit} style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
           <select value={direction} onChange={(e) => setDirection(e.target.value)} style={{ width: 190 }}>
@@ -482,6 +499,9 @@ function KbList({
 
   return (
     <div>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 10px", display: "flex", alignItems: "center", gap: 4 }}>
+        Sadece siz ve ekibiniz görür <InfoTip text={KB_INFO_TEXT} />
+      </p>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
         <input
           value={searchQuery}

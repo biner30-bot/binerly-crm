@@ -1,5 +1,13 @@
 import React, { useState } from "react";
-import { Badge, Modal, MetricCard, ConfirmDialog, IconButton, formatTL, PANO_RANGES, getRangeBounds, inRange } from "./shared";
+import { Badge, Modal, MetricCard, ConfirmDialog, IconButton, InfoTip, formatTL, PANO_RANGES, getRangeBounds, inRange } from "./shared";
+
+const RECURRING_INFO_TEXT =
+  "Bu tekrarlayan bir gider — tek bir kayıt girdiniz, burada gördüğünüz her ay/yıl/gün otomatik oluşturulan bir kopyadır, " +
+  "ayrı ayrı kaydedilmiş değildir. Herhangi birini silmek, geçmiş ve gelecekteki TÜM tekrarları kaldırır.";
+
+const TOTAL_EXPENSE_INFO_TEXT =
+  "Elle eklediğiniz şirket giderlerinin yanı sıra, kazanılan tekliflerdeki \"Gider\" tutarlarını da içerir. " +
+  "Aşağıdaki \"Kategoriye göre gider\" listesi sadece elle eklenenleri gösterdiği için bu toplamla tam eşleşmeyebilir.";
 
 export function rowToCompanyExpense(r) {
   return {
@@ -273,7 +281,11 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px,1fr))", gap: 12, marginBottom: 20 }}>
         <MetricCard label="Toplam Gelir" value={formatTL(totalIncome)} tone="success" />
-        <MetricCard label="Toplam Gider" value={formatTL(totalExpense)} tone="danger" />
+        <MetricCard
+          label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Toplam Gider <InfoTip text={TOTAL_EXPENSE_INFO_TEXT} /></span>}
+          value={formatTL(totalExpense)}
+          tone="danger"
+        />
         <MetricCard label="Net Kalan" value={formatTL(netRemaining)} tone={netRemaining >= 0 ? "success" : "danger"} />
       </div>
 
@@ -317,6 +329,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
                             aria-hidden="true"
                           ></i>
                         )}
+                        {item.isRecurring && <InfoTip text={RECURRING_INFO_TEXT} />}
                       </p>
                       <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>
                         {item.hasTime ? expenseDateTimeLabel(item.date) : paymentDateLabel(item.date)}
@@ -328,7 +341,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
                       {item.type === "gelir" ? "+" : "-"}{formatTL(item.amount)}
                     </span>
                     {item.expenseId && (
-                      <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(item.expenseId)} />
+                      <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(item)} />
                     )}
                   </div>
                 </div>
@@ -338,7 +351,10 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
         </div>
 
         <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", minWidth: 200 }}>
-          <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 12px" }}>Kategoriye göre gider</p>
+          <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 4 }}>
+            Kategoriye göre gider
+            <InfoTip text="Sadece elle eklenen şirket giderlerini gösterir, kazanılan tekliflerdeki gider tutarlarını içermez — bu yüzden yukarıdaki Toplam Gider'le tam eşleşmeyebilir." />
+          </p>
           {Object.keys(categoryTotals).length === 0 ? (
             <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Bu aralıkta şirket gideri yok.</p>
           ) : (
@@ -364,8 +380,12 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
       {confirmDelete && (
         <ConfirmDialog
           title="Gideri sil"
-          message="Bu gider çöp kutusuna taşınacak, dilediğiniz zaman geri yükleyebilirsiniz."
-          onConfirm={() => { onDeleteExpense(confirmDelete); setConfirmDelete(null); }}
+          message={
+            confirmDelete.isRecurring
+              ? "Bu tekrarlayan bir gider — silerseniz geçmiş ve gelecekteki TÜM tekrarları çöp kutusuna taşınır, sadece bu ay/yıl değil. Dilediğiniz zaman geri yükleyebilirsiniz."
+              : "Bu gider çöp kutusuna taşınacak, dilediğiniz zaman geri yükleyebilirsiniz."
+          }
+          onConfirm={() => { onDeleteExpense(confirmDelete.expenseId); setConfirmDelete(null); }}
           onClose={() => setConfirmDelete(null)}
         />
       )}
