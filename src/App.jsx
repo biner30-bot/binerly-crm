@@ -270,12 +270,13 @@ function rowToCompanySettings(r) {
     customerNotificationsEnabled: r.customer_notifications_enabled !== false,
     sector: r.sector || null,
     leadCaptureToken: r.lead_capture_token || null,
+    preferredCustomerType: r.preferred_customer_type || "kurumsal",
   };
 }
 
-function CustomerForm({ initial, customFieldDefs = [], sectorTags = [], onSave, onCancel }) {
+function CustomerForm({ initial, customFieldDefs = [], sectorTags = [], preferredCustomerType, onSave, onCancel, onPreferredTypeChange }) {
   const initialIsCustomSector = initial?.sector && !SECTORS.includes(initial.sector);
-  const [customerType, setCustomerType] = useState(initial?.customerType || "kurumsal");
+  const [customerType, setCustomerType] = useState(initial?.customerType || preferredCustomerType || "kurumsal");
   const [name, setName] = useState(initial?.name || "");
   const [sector, setSector] = useState(initialIsCustomSector ? "Diğer" : (initial?.sector || SECTORS[0]));
   const [customSector, setCustomSector] = useState(initialIsCustomSector ? initial.sector : "");
@@ -312,7 +313,14 @@ function CustomerForm({ initial, customFieldDefs = [], sectorTags = [], onSave, 
     >
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Müşteri tipi <InfoTip text={CUSTOMER_TYPE_INFO_TEXT} /></label>
-        <select value={customerType} onChange={(e) => setCustomerType(e.target.value)} style={{ width: "100%" }}>
+        <select
+          value={customerType}
+          onChange={(e) => {
+            setCustomerType(e.target.value);
+            if (!initial?.id) onPreferredTypeChange?.(e.target.value);
+          }}
+          style={{ width: "100%" }}
+        >
           <option value="kurumsal">Kurumsal</option>
           <option value="bireysel">Bireysel</option>
         </select>
@@ -2239,6 +2247,10 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [toast]);
 
+  useEffect(() => {
+    if (companySettings?.preferredCustomerType) setDealAudience(companySettings.preferredCustomerType);
+  }, [companySettings?.preferredCustomerType]);
+
   const [theme, setTheme] = useTheme();
 
   useSessionTimeout(session, () => {
@@ -2590,6 +2602,16 @@ export default function App() {
     if (error) { notify(`Link oluşturulamadı: ${error.message}`); return null; }
     setCompanySettings((prev) => ({ ...(prev || {}), leadCaptureToken: token }));
     return `https://binerly.com/lead/${token}`;
+  };
+
+  // Kurumsal/Bireysel seçimi her yapıldığında burada güncellenir, böylece bir
+  // sonraki müşteri/teklif formu son seçilen türle açılır — B2C ağırlıklı
+  // KOBİ'ler her seferinde "Kurumsal"ı elle değiştirmek zorunda kalmaz.
+  const updatePreferredCustomerType = async (type) => {
+    if (companySettings?.preferredCustomerType === type) return;
+    const { error } = await supabase.from("company_settings").upsert({ user_id: activeTeamId, preferred_customer_type: type });
+    if (error) return;
+    setCompanySettings((prev) => ({ ...(prev || {}), preferredCustomerType: type }));
   };
 
   const deleteDeal = async (id) => {
@@ -3856,14 +3878,14 @@ export default function App() {
         <div>
           <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: 12, width: "fit-content" }}>
             <button
-              onClick={() => setDealAudience("kurumsal")}
+              onClick={() => { setDealAudience("kurumsal"); updatePreferredCustomerType("kurumsal"); }}
               style={{ border: "none", background: dealAudience === "kurumsal" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
             >
               <i className="ti ti-building" style={{ fontSize: 15 }} aria-hidden="true"></i>
               Kurumsal
             </button>
             <button
-              onClick={() => setDealAudience("bireysel")}
+              onClick={() => { setDealAudience("bireysel"); updatePreferredCustomerType("bireysel"); }}
               style={{ border: "none", background: dealAudience === "bireysel" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
             >
               <i className="ti ti-user" style={{ fontSize: 15 }} aria-hidden="true"></i>
@@ -4195,8 +4217,10 @@ export default function App() {
             initial={editingCustomer}
             customFieldDefs={customFieldDefs}
             sectorTags={SECTOR_PRESETS.find((p) => p.id === companySettings?.sector)?.tags || []}
+            preferredCustomerType={companySettings?.preferredCustomerType}
             onSave={upsertCustomer}
             onCancel={() => { setShowCustomerForm(false); setEditingCustomer(null); }}
+            onPreferredTypeChange={updatePreferredCustomerType}
           />
         </Modal>
       )}
