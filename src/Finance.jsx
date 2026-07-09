@@ -238,10 +238,11 @@ function CompanyExpenseForm({ onSave, onCancel }) {
   );
 }
 
-export default function Finance({ deals, payments, companyExpenses, customers, onAddExpense, onDeleteExpense }) {
+export default function Finance({ deals, payments, companyExpenses, customers, onAddExpense, onDeleteExpense, onOpenPayments }) {
   const [financeView, setFinanceView] = useState("defter");
   const [financeRange, setFinanceRange] = useState("bu_ay");
   const [kdvMonth, setKdvMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [expandedCustomerId, setExpandedCustomerId] = useState(null);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
@@ -309,6 +310,19 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
   const alisKdv = expensesWithKdv.reduce((sum, e) => sum + kdvAmountOf(e.amount || 0, e.kdvRate), 0);
   const odenecekKdv = satisKdv - alisKdv;
 
+  const customerBalances = customers
+    .map((customer) => {
+      const openDeals = deals
+        .filter((d) => d.customerId === customer.id && d.stage === "kazanildi")
+        .map((d) => ({ ...d, remaining: (d.value || 0) - payments.filter((p) => p.dealId === d.id).reduce((sum, p) => sum + (p.amount || 0), 0) }))
+        .filter((d) => d.remaining > 0);
+      const totalDebt = openDeals.reduce((sum, d) => sum + (d.value || 0), 0);
+      const balance = openDeals.reduce((sum, d) => sum + d.remaining, 0);
+      return { customer, openDeals, totalDebt, totalCollected: totalDebt - balance, balance };
+    })
+    .filter((cb) => cb.balance > 0)
+    .sort((a, b) => b.balance - a.balance);
+
   return (
     <div>
       <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: 12, width: "fit-content" }}>
@@ -324,9 +338,15 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
         >
           KDV Özet Raporu
         </button>
+        <button
+          onClick={() => setFinanceView("tahsilat")}
+          style={{ border: "none", background: financeView === "tahsilat" ? "var(--surface-2)" : "transparent", fontSize: 13 }}
+        >
+          Tahsilat / Cari Hesap
+        </button>
       </div>
 
-      {financeView === "defter" ? (
+      {financeView === "defter" && (
       <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: 16, width: "fit-content" }}>
         {PANO_RANGES.map((r) => (
           <button
@@ -338,13 +358,51 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
           </button>
         ))}
       </div>
-      ) : (
+      )}
+      {financeView === "kdv" && (
         <div style={{ marginBottom: 16 }}>
           <input type="month" value={kdvMonth} onChange={(e) => setKdvMonth(e.target.value)} style={{ width: 180 }} />
         </div>
       )}
 
-      {financeView === "kdv" ? (
+      {financeView === "tahsilat" ? (
+        <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem" }}>
+          {customerBalances.length === 0 ? (
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Bekleyen alacağınız yok.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {customerBalances.map((cb) => (
+                <div key={cb.customer.id} style={{ border: "0.5px solid var(--border)", borderRadius: "var(--radius)" }}>
+                  <div
+                    onClick={() => setExpandedCustomerId(expandedCustomerId === cb.customer.id ? null : cb.customer.id)}
+                    style={{ padding: "0.75rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
+                  >
+                    <span style={{ fontSize: 13, fontWeight: 500 }}>{cb.customer.name}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Borç {formatTL(cb.totalDebt)} · Tahsilat {formatTL(cb.totalCollected)}</span>
+                      <Badge tone="warning">{formatTL(cb.balance)}</Badge>
+                      <i className={`ti ${expandedCustomerId === cb.customer.id ? "ti-chevron-up" : "ti-chevron-down"}`} style={{ fontSize: 15, color: "var(--text-muted)" }} aria-hidden="true"></i>
+                    </div>
+                  </div>
+                  {expandedCustomerId === cb.customer.id && (
+                    <div style={{ padding: "0 1rem 0.75rem", display: "flex", flexDirection: "column", gap: 6 }}>
+                      {cb.openDeals.map((d) => (
+                        <div key={d.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, padding: "6px 0", borderTop: "0.5px solid var(--border)" }}>
+                          <span>{d.title}</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ color: "var(--text-secondary)" }}>Kalan {formatTL(d.remaining)}</span>
+                            <button onClick={() => onOpenPayments(d)} style={{ fontSize: 12 }}>Tahsilat ekle</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : financeView === "kdv" ? (
         <div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px,1fr))", gap: 12, marginBottom: 12 }}>
             <MetricCard label="Satış KDV'si" value={formatTL(satisKdv)} tone="success" />

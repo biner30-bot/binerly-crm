@@ -2110,6 +2110,13 @@ function LandingPage() {
                 Verileriniz, her hesabın yalnızca kendi kayıtlarına erişebildiği satır bazlı erişim kurallarıyla saklanır — başka bir işletmenin verisine teknik olarak erişim mümkün değildir. KVKK'ya uygun işlenir, asla üçüncü taraflarla paylaşılmaz. Kredi kartı istemeden ücretsiz deneyebilir, istediğiniz an ayrılabilirsiniz.
               </p>
             </div>
+            <div style={{ background: "#f5f8fc", borderRadius: 12, padding: "1.5rem", border: "1px solid #e1e8f0" }}>
+              <i className="ti ti-heart-handshake" style={{ fontSize: 26, color: "#185fa5", display: "block", marginBottom: 12 }} />
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>Sizi Dinliyoruz</h3>
+              <p style={{ fontSize: 13.5, color: "#5b7088", margin: 0, lineHeight: 1.7 }}>
+                Erken erişim aşamasında olduğumuz için Binerly'yi doğrudan kullanıcılarımızın talepleriyle şekillendiriyoruz. İşinize özel eksik bir özellik veya isteğiniz olursa bize ulaşın — değerlendirip mümkün olan en kısa sürede geliştirip ekleriz.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -3780,6 +3787,16 @@ export default function App() {
               Kampanya gönder
             </button>
             <button
+              onClick={async () => {
+                const link = await generateLeadCaptureLink();
+                if (link) setLeadCaptureLink(link);
+              }}
+              style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+            >
+              <i className="ti ti-qrcode" style={{ fontSize: 16 }} aria-hidden="true"></i>
+              Müşteri Kazanma Linki
+            </button>
+            <button
               onClick={() => { setEditingCustomer(null); setShowCustomerForm(true); }}
               style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
             >
@@ -4202,6 +4219,7 @@ export default function App() {
           customers={customers}
           onAddExpense={addCompanyExpense}
           onDeleteExpense={deleteCompanyExpense}
+          onOpenPayments={setPaymentsDeal}
         />
       )}
 
