@@ -62,12 +62,17 @@ const PORTAL_INFO_TEXT =
 
 const DEAL_ACTIONS_INFO_TEXT =
   "📄 Teklif PDF — markalı, yazdırılabilir teklif belgesi oluşturur.\n" +
-  "🔗 Onay linki — müşterinin tek tıkla \"onaylıyorum\" diyebileceği bir link kopyalar, siz WhatsApp/e-posta ile gönderirsiniz. " +
-  "Müşteri onaylayınca satırda yeşil \"Onaylandı ✓\" rozeti otomatik görünür. Bu, resmi/güvenli elektronik imza değildir — " +
+  "🔗 Onay linki — müşterinin \"onaylıyorum\" diyebileceği bir link kopyalar, siz WhatsApp/e-posta ile gönderirsiniz. Müşteri, " +
+  "sisteme kayıtlı e-postasıyla giriş yapmadan teklifi göremez/onaylayamaz — bu yüzden müşterinin e-postası kayıtlı olmalı. " +
+  "Onaylayınca satırda yeşil \"Onaylandı ✓\" rozeti otomatik görünür. Bu, resmi/güvenli elektronik imza değildir — " +
   "sadece takip ve bildirim amaçlıdır, hukuki bağlayıcılığı önemli anlaşmalarda ıslak imza veya nitelikli e-imza kullanın.\n" +
   "💵 Tahsilat — bu teklife yapılan ödemeleri kaydedin/görün.\n" +
   "📋 Kopyala — aynı müşteri/tutar/etiketlerle sıfırdan yeni bir teklif formu açar (tekrar eden işler için), hiçbir şeyi otomatik kaydetmez.\n" +
   "✏️ Düzenle · 🗑️ Sil";
+
+const CUSTOMER_EMAIL_INFO_TEXT =
+  "Güncel bir e-posta girmeniz önemli — teklif onay linki, müşteri portalı girişi ve hatırlatma e-postaları gibi " +
+  "özellikler ancak müşterinin e-postası kayıtlıysa çalışır. E-posta yoksa bu özellikler o müşteri için kullanılamaz.";
 
 const CUSTOMER_TYPE_INFO_TEXT =
   "Kurumsal/Bireysel seçimi sadece bir etiket değil — Sektör alanının görünüp görünmeyeceğini, teklif aşama isimlerini " +
@@ -358,14 +363,14 @@ function CustomerForm({ initial, customFieldDefs = [], sectorTags = [], preferre
           <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0532 000 00 00" style={{ width: "100%" }} />
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>E-posta</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="info@firma.com" style={{ width: "100%" }} />
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>E-posta <InfoTip text={CUSTOMER_EMAIL_INFO_TEXT} /></label>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={isKurumsal ? "info@firma.com" : "ayse@gmail.com"} style={{ width: "100%" }} />
         </div>
       </div>
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Not</label>
         <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Örn. yaz aylarında sipariş hacmi artıyor" style={{ flex: 1, minHeight: 70, resize: "vertical" }} />
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={isKurumsal ? "Örn. yaz aylarında sipariş hacmi artıyor" : "Örn. genelde akşamları ulaşmak daha kolay"} style={{ flex: 1, minHeight: 70, resize: "vertical" }} />
           <VoiceInputButton onResult={(text) => setNotes((prev) => (prev ? `${prev} ${text}` : text))} />
         </div>
       </div>
@@ -540,8 +545,10 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           notifyCustomer,
           approvalToken: initial?.approvalToken || null,
           approvedAt: initial?.approvedAt || null,
-          createdAt: (dealTime ? new Date(`${dealDate}T${dealTime}`) : new Date(dealDate)).toISOString(),
-          closedAt: isClosingStage ? new Date(closedDate).toISOString() : null,
+          // "T00:00" ekliyoruz çünkü saatsiz "YYYY-MM-DD" string'i JS'de UTC gece
+          // yarısı sayılıyor — Türkiye saatinde bu gece 03:00 gibi görünüyordu.
+          createdAt: new Date(`${dealDate}T${dealTime || "00:00"}`).toISOString(),
+          closedAt: isClosingStage ? new Date(`${closedDate}T00:00`).toISOString() : null,
         });
       }}
     >
@@ -559,7 +566,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
       </div>
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Başlık</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Yıllık tedarik anlaşması" list="deal-title-suggestions" style={{ width: "100%" }} />
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={selectedCustomerType === "bireysel" ? "İlk randevu / danışmanlık" : "Yıllık tedarik anlaşması"} list="deal-title-suggestions" style={{ width: "100%" }} />
         <datalist id="deal-title-suggestions">
           {titleSuggestions.map((t) => <option key={t} value={t} />)}
         </datalist>
@@ -4194,8 +4201,10 @@ export default function App() {
                           <IconButton icon="ti-file-text" title="Teklif PDF" onClick={() => setTeklifDeal(d)} />
                           <IconButton
                             icon="ti-link"
-                            title="Müşterinin onaylayabileceği link — kopyala ve gönder"
+                            title={c?.email ? "Müşterinin onaylayabileceği link — kopyala ve gönder" : "Onay linki için müşterinin e-postası kayıtlı olmalı"}
+                            disabled={!c?.email}
                             onClick={async () => {
+                              if (!c?.email) { notify("Onay linki oluşturmak için önce müşterinin e-postasını ekleyin."); return; }
                               const link = await generateApprovalLink(d);
                               if (link) { navigator.clipboard.writeText(link); notify("Onay linki kopyalandı.", "success"); }
                             }}

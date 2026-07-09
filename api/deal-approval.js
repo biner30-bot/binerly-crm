@@ -1,13 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
 
-// Müşterinin tek tıkla teklif onaylayabildiği kamuya açık uç nokta — Supabase
-// auth GEREKTİRMEZ, token'ın kendisi (crypto.randomUUID) yetki kanıtı. Bilinçli
-// olarak sadece teklif başlığı/tutarı/şirket-müşteri adı döner, telefon/not gibi
-// hiçbir hassas alan hiçbir zaman okunmaz. Onay, teklifi otomatik "Kazanıldı"
-// aşamasına taşır (tahsilat ayrı takip edildiği için bu "ödendi" anlamına gelmez,
-// sadece "müşteri kabul etti" demektir) — zaten kapanmış (kazanıldı/kaybedildi)
-// bir teklifin aşamasına dokunulmaz.
+// Müşterinin teklif onaylayabildiği uç nokta — token tek başına yetmez, müşteri
+// portalına (Supabase Auth) giriş yapmış VE bu teklifin müşterisine bağlı
+// (customers.portal_user_id) olmalı. Bilinçli olarak sadece teklif başlığı/
+// tutarı/şirket-müşteri adı döner, telefon/not gibi hiçbir hassas alan
+// okunmaz. Onay, teklifi otomatik "Kazanıldı" aşamasına taşır (tahsilat ayrı
+// takip edildiği için bu "ödendi" anlamına gelmez, sadece "müşteri kabul
+// etti" demektir) — zaten kapanmış (kazanıldı/kaybedildi) bir teklifin
+// aşamasına dokunulmaz.
 export default async function handler(req, res) {
   const supabaseAdmin = createClient(
     process.env.VITE_SUPABASE_URL,
@@ -31,9 +32,24 @@ export default async function handler(req, res) {
   if (dealError || !deal) return res.status(404).json({ error: "Teklif bulunamadı." });
 
   const [{ data: customer }, { data: settings }] = await Promise.all([
-    supabaseAdmin.from("customers").select("name").eq("id", deal.customer_id).maybeSingle(),
+    supabaseAdmin.from("customers").select("name, portal_user_id").eq("id", deal.customer_id).maybeSingle(),
     supabaseAdmin.from("company_settings").select("company_name, logo_url").eq("user_id", deal.user_id).maybeSingle(),
   ]);
+
+  const branding = { companyName: settings?.company_name || "Binerly", logoUrl: settings?.logo_url || null };
+
+  const authHeader = req.headers.authorization || "";
+  const accessToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  let authedUserId = null;
+  if (accessToken) {
+    const { data: userData } = await supabaseAdmin.auth.getUser(accessToken);
+    authedUserId = userData?.user?.id || null;
+  }
+  const isAuthorized = !!(authedUserId && customer?.portal_user_id && authedUserId === customer.portal_user_id);
+
+  if (!isAuthorized) {
+    return res.status(401).json({ requiresAuth: true, ...branding });
+  }
 
   if (req.method === "GET") {
     return res.status(200).json({
@@ -43,8 +59,7 @@ export default async function handler(req, res) {
       approvedAt: deal.approved_at,
       createdAt: deal.created_at,
       customerName: customer?.name || "",
-      companyName: settings?.company_name || "Binerly",
-      logoUrl: settings?.logo_url || null,
+      ...branding,
     });
   }
 

@@ -273,7 +273,7 @@ const ICON_BUTTON_SIZES = {
 // aksiyonları (düzenle/sil/PDF vb.) hepsi buradan geçer. Daha önce her yerde
 // elle kopyalanmış farklı boyutlarda (22-32px) inline style vardı, bu tek
 // bileşen sadece iki boyutu (md/sm) destekleyerek tutarlılığı zorunlu kılar.
-export function IconButton({ icon, label, onClick, title, size = "md", active = false, type = "button" }) {
+export function IconButton({ icon, label, onClick, title, size = "md", active = false, type = "button", disabled = false }) {
   const { box, icon: iconSize } = ICON_BUTTON_SIZES[size] || ICON_BUTTON_SIZES.md;
   return (
     <button
@@ -281,9 +281,10 @@ export function IconButton({ icon, label, onClick, title, size = "md", active = 
       onClick={onClick}
       title={title}
       aria-label={title || label}
+      disabled={disabled}
       style={
         label
-          ? { display: "flex", alignItems: "center", gap: 4, height: box, fontSize: 12, color: "var(--text-secondary)" }
+          ? { display: "flex", alignItems: "center", gap: 4, height: box, fontSize: 12, color: "var(--text-secondary)", opacity: disabled ? 0.4 : 1, cursor: disabled ? "not-allowed" : "pointer" }
           : {
               width: box,
               height: box,
@@ -292,6 +293,8 @@ export function IconButton({ icon, label, onClick, title, size = "md", active = 
               alignItems: "center",
               justifyContent: "center",
               color: active ? "var(--text-accent)" : "var(--text-primary)",
+              opacity: disabled ? 0.4 : 1,
+              cursor: disabled ? "not-allowed" : "pointer",
             }
       }
     >
