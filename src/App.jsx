@@ -1835,7 +1835,7 @@ function EntryChoiceModal({ onChooseCompany, onChooseCustomer, onClose }) {
         <img src="/favicon.svg" alt="Binerly" style={{ width: 45, height: 45, marginBottom: 14 }} />
         <h2 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 6px", color: "#0c2540" }}>Hesap türünü seçin</h2>
         <p style={{ fontSize: 13, color: "#5b7088", margin: "0 0 20px" }}>
-          Bir KOBİ hesabı mı işletiyorsunuz, yoksa bir firmanın müşterisi misiniz?
+          Bir işletme hesabı mı işletiyorsunuz, yoksa bir firmanın müşterisi misiniz?
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <button
@@ -2124,7 +2124,7 @@ function LandingPage() {
       {/* CTA */}
       <div style={{ background: "#185fa5", padding: "4rem 2rem", textAlign: "center" }}>
         <h2 style={{ fontSize: "1.75rem", fontWeight: 800, color: "#fff", margin: "0 0 1rem" }}>
-          İlk KOBİ'lerden biri olun, ücretsiz deneyin
+          İlk işletmelerden biri olun, ücretsiz deneyin
         </h2>
         <p style={{ fontSize: 16, color: "#b8d4f0", margin: "0 0 2rem" }}>Kredi kartı gerekmez. Erken erişim aşamasındayız, şu an için tamamen ücretsiz.</p>
         <button onClick={() => setAuthModal("register")} style={{ background: "#fff", color: "#185fa5", border: "none", borderRadius: 8, padding: "14px 32px", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
@@ -3149,6 +3149,13 @@ export default function App() {
     const { data, error } = await supabase.from("custom_field_defs").insert(row).select().single();
     if (error) { notify(`Özel alan eklenemedi: ${error.message}`); return; }
     setCustomFieldDefs((prev) => [...prev, rowToCustomFieldDef(data)]);
+  };
+
+  const updateCustomFieldDef = async ({ id, label, options, audience }) => {
+    const row = { label, options, audience };
+    const { data, error } = await supabase.from("custom_field_defs").update(row).eq("id", id).select().single();
+    if (error) { notify(`Özel alan güncellenemedi: ${error.message}`); return; }
+    setCustomFieldDefs((prev) => prev.map((d) => (d.id === id ? rowToCustomFieldDef(data) : d)));
   };
 
   const setCustomFieldDefsActive = async (ids, active) => {
@@ -4367,7 +4374,7 @@ export default function App() {
             </select>
             <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Seçtiğinizde aşama isimlerini, önerilen etiketleri ve özel alanları hemen günceller.</p>
           </div>
-          <CustomFieldDefsManager customFieldDefs={customFieldDefs} onAdd={addCustomFieldDef} onDelete={deleteCustomFieldDef} />
+          <CustomFieldDefsManager customFieldDefs={customFieldDefs} onAdd={addCustomFieldDef} onUpdate={updateCustomFieldDef} onDelete={deleteCustomFieldDef} />
         </Modal>
       )}
 

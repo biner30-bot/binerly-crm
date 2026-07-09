@@ -72,9 +72,9 @@ export const SECTOR_PRESETS = [
     },
     tags: ["Yeni hasta", "Kontrol randevusu", "Takip gerekiyor", "Sigortalı", "Acil"],
     customFields: [
-      { entity: "customer", key: "randevu_turu", label: "Randevu Türü", type: "select", options: ["Muayene", "Kontrol", "Tedavi", "Danışmanlık"] },
-      { entity: "customer", key: "sigorta_durumu", label: "Sigorta/SGK Durumu", type: "select", options: ["Özel sigorta", "SGK", "Sigortasız"] },
-      { entity: "customer", key: "dogum_tarihi", label: "Doğum Tarihi", type: "date" },
+      { entity: "customer", key: "randevu_turu", label: "Randevu Türü", type: "select", options: ["Muayene", "Kontrol", "Tedavi", "Danışmanlık"], audience: "bireysel" },
+      { entity: "customer", key: "sigorta_durumu", label: "Sigorta/SGK Durumu", type: "select", options: ["Özel sigorta", "SGK", "Sigortasız"], audience: "bireysel" },
+      { entity: "customer", key: "dogum_tarihi", label: "Doğum Tarihi", type: "date", audience: "bireysel" },
       { entity: "deal", key: "tedavi_hizmet", label: "Tedavi / Hizmet", type: "text" },
     ],
   },
@@ -93,7 +93,7 @@ export const SECTOR_PRESETS = [
     customFields: [
       { entity: "deal", key: "urun_grubu", label: "Ürün / Ürün Grubu", type: "text" },
       { entity: "deal", key: "siparis_miktari", label: "Sipariş Miktarı", type: "number" },
-      { entity: "customer", key: "odeme_vadesi", label: "Ödeme Vadesi", type: "select", options: ["Peşin", "30 gün", "60 gün", "90 gün"] },
+      { entity: "customer", key: "odeme_vadesi", label: "Ödeme Vadesi", type: "select", options: ["Peşin", "30 gün", "60 gün", "90 gün"], audience: "kurumsal" },
       { entity: "deal", key: "teslimat_tarihi", label: "Teslimat Tarihi", type: "date" },
     ],
   },
@@ -112,7 +112,7 @@ export const SECTOR_PRESETS = [
     customFields: [
       { entity: "deal", key: "ucretlendirme_modeli", label: "Ücretlendirme Modeli", type: "select", options: ["Saatlik", "Proje bazlı", "Aylık paket"] },
       { entity: "deal", key: "teslimat_tarihi", label: "Rapor/Teslimat Tarihi", type: "date" },
-      { entity: "customer", key: "sirket_buyuklugu", label: "Şirket Büyüklüğü", type: "select", options: ["1-10 çalışan", "11-50 çalışan", "51-200 çalışan", "200+ çalışan"] },
+      { entity: "customer", key: "sirket_buyuklugu", label: "Şirket Büyüklüğü", type: "select", options: ["1-10 çalışan", "11-50 çalışan", "51-200 çalışan", "200+ çalışan"], audience: "kurumsal" },
     ],
   },
   {
@@ -129,8 +129,8 @@ export const SECTOR_PRESETS = [
     tags: ["Sadık müşteri", "Kampanya", "Online sipariş", "Mağaza içi"],
     customFields: [
       { entity: "deal", key: "satis_kanali", label: "Satış Kanalı", type: "select", options: ["Mağaza", "Online", "Telefon"] },
-      { entity: "customer", key: "uyelik_no", label: "Üyelik / Sadakat Kartı No", type: "text" },
-      { entity: "customer", key: "dogum_gunu", label: "Doğum Günü", type: "date" },
+      { entity: "customer", key: "uyelik_no", label: "Üyelik / Sadakat Kartı No", type: "text", audience: "bireysel" },
+      { entity: "customer", key: "dogum_gunu", label: "Doğum Günü", type: "date", audience: "bireysel" },
     ],
   },
   {
@@ -222,22 +222,46 @@ export function SectorOnboardingModal({ onPick, onSkip }) {
 
 const FIELD_TYPE_LABELS = { text: "Metin", number: "Sayı", select: "Seçenekli", date: "Tarih" };
 
-export function CustomFieldDefsManager({ customFieldDefs, onAdd, onDelete }) {
+export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDelete }) {
   const [entity, setEntity] = useState("customer");
   const [label, setLabel] = useState("");
   const [type, setType] = useState("text");
   const [options, setOptions] = useState("");
   const [audience, setAudience] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [editingDef, setEditingDef] = useState(null);
 
   const activeDefs = customFieldDefs.filter((d) => d.active);
   const customerDefs = activeDefs.filter((d) => d.entity === "customer");
   const dealDefs = activeDefs.filter((d) => d.entity === "deal");
 
+  const startEdit = (d) => {
+    setEditingDef(d);
+    setEntity(d.entity);
+    setLabel(d.label);
+    setType(d.type);
+    setOptions((d.options || []).join(", "));
+    setAudience(d.audience || "");
+  };
+
+  const cancelEdit = () => {
+    setEditingDef(null);
+    setLabel("");
+    setOptions("");
+    setAudience("");
+    setType("text");
+  };
+
   const submit = (e) => {
     e.preventDefault();
     const trimmedLabel = label.trim();
     if (!trimmedLabel) return;
+    const parsedOptions = type === "select" ? options.split(",").map((o) => o.trim()).filter(Boolean) : null;
+    if (editingDef) {
+      onUpdate({ id: editingDef.id, label: trimmedLabel, options: parsedOptions, audience: audience || null });
+      cancelEdit();
+      return;
+    }
     const key = slugifyKey(trimmedLabel);
     if (!key || activeDefs.some((d) => d.entity === entity && d.key === key)) return;
     onAdd({
@@ -245,7 +269,7 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onDelete }) {
       key,
       label: trimmedLabel,
       type,
-      options: type === "select" ? options.split(",").map((o) => o.trim()).filter(Boolean) : null,
+      options: parsedOptions,
       audience: audience || null,
     });
     setLabel("");
@@ -265,7 +289,10 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onDelete }) {
               <span style={{ fontSize: 13 }}>
                 {d.label} <span style={{ color: "var(--text-muted)" }}>· {FIELD_TYPE_LABELS[d.type] || d.type}{d.audience ? ` · Sadece ${AUDIENCE_LABELS[d.audience]}` : ""}</span>
               </span>
-              <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(d)} />
+              <div style={{ display: "flex", gap: 4 }}>
+                <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => startEdit(d)} />
+                <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(d)} />
+              </div>
             </div>
           ))}
         </div>
@@ -285,7 +312,7 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onDelete }) {
       <form onSubmit={submit} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end", marginTop: 8 }}>
         <div>
           <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Nerede</label>
-          <select value={entity} onChange={(e) => setEntity(e.target.value)} style={{ fontSize: 13 }}>
+          <select value={entity} onChange={(e) => setEntity(e.target.value)} disabled={!!editingDef} style={{ fontSize: 13 }}>
             <option value="customer">Müşteriler</option>
             <option value="deal">İş Takibi</option>
           </select>
@@ -296,7 +323,7 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onDelete }) {
         </div>
         <div>
           <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tip</label>
-          <select value={type} onChange={(e) => setType(e.target.value)} style={{ fontSize: 13 }}>
+          <select value={type} onChange={(e) => setType(e.target.value)} disabled={!!editingDef} style={{ fontSize: 13 }}>
             <option value="text">Metin</option>
             <option value="number">Sayı</option>
             <option value="select">Seçenekli</option>
@@ -318,8 +345,13 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onDelete }) {
           </select>
         </div>
         <button type="submit" style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", fontSize: 13 }}>
-          + Alan ekle
+          {editingDef ? "Güncelle" : "+ Alan ekle"}
         </button>
+        {editingDef && (
+          <button type="button" onClick={cancelEdit} style={{ fontSize: 13 }}>
+            Vazgeç
+          </button>
+        )}
       </form>
 
       {confirmDelete && (
