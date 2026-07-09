@@ -247,10 +247,12 @@ function CompanyExpenseForm({ initial, onSave, onCancel }) {
 }
 
 export default function Finance({ deals, payments, companyExpenses, customers, onAddExpense, onUpdateExpense, onDeleteExpense, onOpenPayments }) {
-  const [financeView, setFinanceView] = useState("defter");
+  const [financeView, setFinanceView] = useState("tahsilat");
   const [financeRange, setFinanceRange] = useState("bu_ay");
   const [kdvMonth, setKdvMonth] = useState(new Date().toISOString().slice(0, 7));
   const [expandedCustomerId, setExpandedCustomerId] = useState(null);
+  const [newPaymentCustomerId, setNewPaymentCustomerId] = useState("");
+  const [newPaymentDealId, setNewPaymentDealId] = useState("");
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -321,20 +323,30 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
 
   const customerBalances = customers
     .map((customer) => {
-      const openDeals = deals
+      const wonDeals = deals
         .filter((d) => d.customerId === customer.id && d.stage === "kazanildi")
-        .map((d) => ({ ...d, remaining: (d.value || 0) - payments.filter((p) => p.dealId === d.id).reduce((sum, p) => sum + (p.amount || 0), 0) }))
-        .filter((d) => d.remaining > 0);
-      const totalDebt = openDeals.reduce((sum, d) => sum + (d.value || 0), 0);
-      const balance = openDeals.reduce((sum, d) => sum + d.remaining, 0);
-      return { customer, openDeals, totalDebt, totalCollected: totalDebt - balance, balance };
+        .map((d) => ({ ...d, remaining: (d.value || 0) - payments.filter((p) => p.dealId === d.id).reduce((sum, p) => sum + (p.amount || 0), 0) }));
+      const totalDebt = wonDeals.reduce((sum, d) => sum + (d.value || 0), 0);
+      const balance = wonDeals.reduce((sum, d) => sum + d.remaining, 0);
+      return { customer, wonDeals, totalDebt, totalCollected: totalDebt - balance, balance };
     })
-    .filter((cb) => cb.balance > 0)
+    .filter((cb) => cb.wonDeals.length > 0)
     .sort((a, b) => b.balance - a.balance);
+
+  const newPaymentCustomer = customerById(newPaymentCustomerId);
+  const newPaymentDealOptions = newPaymentCustomer
+    ? deals.filter((d) => d.customerId === newPaymentCustomer.id && d.stage === "kazanildi")
+    : [];
 
   return (
     <div>
       <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: 12, width: "fit-content" }}>
+        <button
+          onClick={() => setFinanceView("tahsilat")}
+          style={{ border: "none", background: financeView === "tahsilat" ? "var(--surface-2)" : "transparent", fontSize: 13 }}
+        >
+          Tahsilat / Cari Hesap
+        </button>
         <button
           onClick={() => setFinanceView("defter")}
           style={{ border: "none", background: financeView === "defter" ? "var(--surface-2)" : "transparent", fontSize: 13 }}
@@ -346,12 +358,6 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
           style={{ border: "none", background: financeView === "kdv" ? "var(--surface-2)" : "transparent", fontSize: 13 }}
         >
           KDV Özet Raporu
-        </button>
-        <button
-          onClick={() => setFinanceView("tahsilat")}
-          style={{ border: "none", background: financeView === "tahsilat" ? "var(--surface-2)" : "transparent", fontSize: 13 }}
-        >
-          Tahsilat / Cari Hesap
         </button>
       </div>
 
@@ -375,9 +381,51 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
       )}
 
       {financeView === "tahsilat" ? (
-        <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem" }}>
+        <div>
+          <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", marginBottom: 16 }}>
+            <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 12px" }}>Yeni Tahsilat</p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Müşteri</label>
+                <select
+                  value={newPaymentCustomerId}
+                  onChange={(e) => { setNewPaymentCustomerId(e.target.value); setNewPaymentDealId(""); }}
+                  style={{ width: "100%" }}
+                >
+                  <option value="">Müşteri seçin</option>
+                  {customers
+                    .filter((c) => deals.some((d) => d.customerId === c.id && d.stage === "kazanildi"))
+                    .map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Teklif / Randevu</label>
+                <select
+                  value={newPaymentDealId}
+                  onChange={(e) => setNewPaymentDealId(e.target.value)}
+                  disabled={!newPaymentCustomerId}
+                  style={{ width: "100%" }}
+                >
+                  <option value="">Seçin</option>
+                  {newPaymentDealOptions.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}
+                </select>
+              </div>
+              <button
+                disabled={!newPaymentDealId}
+                onClick={() => {
+                  const deal = deals.find((d) => d.id === newPaymentDealId);
+                  if (deal) onOpenPayments(deal);
+                  setNewPaymentCustomerId(""); setNewPaymentDealId("");
+                }}
+                style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+              >
+                Devam
+              </button>
+            </div>
+          </div>
+
           {customerBalances.length === 0 ? (
-            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Bekleyen alacağınız yok.</p>
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz kazanılmış bir teklifiniz yok.</p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {customerBalances.map((cb) => (
@@ -389,17 +437,17 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
                     <span style={{ fontSize: 13, fontWeight: 500 }}>{cb.customer.name}</span>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Borç {formatTL(cb.totalDebt)} · Tahsilat {formatTL(cb.totalCollected)}</span>
-                      <Badge tone="warning">{formatTL(cb.balance)}</Badge>
+                      <Badge tone={cb.balance > 0 ? "warning" : "success"}>{formatTL(cb.balance)}</Badge>
                       <i className={`ti ${expandedCustomerId === cb.customer.id ? "ti-chevron-up" : "ti-chevron-down"}`} style={{ fontSize: 15, color: "var(--text-muted)" }} aria-hidden="true"></i>
                     </div>
                   </div>
                   {expandedCustomerId === cb.customer.id && (
                     <div style={{ padding: "0 1rem 0.75rem", display: "flex", flexDirection: "column", gap: 6 }}>
-                      {cb.openDeals.map((d) => (
+                      {cb.wonDeals.map((d) => (
                         <div key={d.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, padding: "6px 0", borderTop: "0.5px solid var(--border)" }}>
                           <span>{d.title}</span>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ color: "var(--text-secondary)" }}>Kalan {formatTL(d.remaining)}</span>
+                            <span style={{ color: "var(--text-secondary)" }}>{d.remaining > 0 ? `Kalan ${formatTL(d.remaining)}` : "Ödendi"}</span>
                             <button onClick={() => onOpenPayments(d)} style={{ fontSize: 12 }}>Tahsilat ekle</button>
                           </div>
                         </div>
