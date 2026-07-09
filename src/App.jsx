@@ -1923,7 +1923,7 @@ function LandingPage() {
             </button>
           </div>
           <p style={{ fontSize: 13, color: "#185fa5", fontWeight: 600, margin: "12px 0 0" }}>
-            Erken erişim aşamasındayız, şu an için tamamen ücretsiz.
+            Kart bilgisi gerekmez. Erken erişim aşamasındayız, şu an için tamamen ücretsiz.
           </p>
         </div>
 
