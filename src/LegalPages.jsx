@@ -189,7 +189,10 @@ export function TermsPage() {
       <Section title="6. Ücretlendirme">
         <p>
           Güncel fiyatlandırma ve deneme süresi koşulları binerly.com üzerinden veya tarafımızca ayrıca
-          bildirilir. Ödeme koşulları ve iptal politikası ayrıca paylaşılacaktır.
+          bildirilir. Ödeme koşulları ve iptal politikası ayrıca paylaşılacaktır. Hizmet ücretli bir plana
+          geçse veya fiyatlandırma değişse dahi, hesabınızdaki mevcut verileriniz (müşteri, teklif, destek
+          kayıtları vb.) silinmez; herhangi bir ücretlendirme değişikliği yürürlüğe girmeden önce size makul
+          bir süre öncesinden bildirim yapılır.
         </p>
       </Section>
       <Section title="7. Sorumluluğun Sınırlandırılması">
