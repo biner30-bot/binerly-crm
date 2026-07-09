@@ -2228,6 +2228,7 @@ export default function App() {
   const [customerToDate, setCustomerToDate] = useState("");
   const [customerSectorFilter, setCustomerSectorFilter] = useState("all");
   const [customerTypeFilter, setCustomerTypeFilter] = useState("all");
+  const [customerSort, setCustomerSort] = useState("newest");
   const [dealSearch, setDealSearch] = useState("");
   const [dealFromDate, setDealFromDate] = useState("");
   const [dealToDate, setDealToDate] = useState("");
@@ -3201,13 +3202,19 @@ export default function App() {
   const customerById = (id) => customers.find((c) => c.id === id);
 
   const customerQuery = customerSearch.trim().toLowerCase();
-  const filteredCustomers = customers.filter((c) => {
-    if (!matchesDateRange(c.lastContact, customerFromDate, customerToDate)) return false;
-    if (customerSectorFilter !== "all" && c.sector !== customerSectorFilter) return false;
-    if (customerTypeFilter !== "all" && c.customerType !== customerTypeFilter) return false;
-    if (!customerQuery) return true;
-    return [c.name, c.sector, c.region, c.phone, c.email].some((f) => (f || "").toLowerCase().includes(customerQuery));
-  });
+  const filteredCustomers = customers
+    .filter((c) => {
+      if (!matchesDateRange(c.lastContact, customerFromDate, customerToDate)) return false;
+      if (customerSectorFilter !== "all" && c.sector !== customerSectorFilter) return false;
+      if (customerTypeFilter !== "all" && c.customerType !== customerTypeFilter) return false;
+      if (!customerQuery) return true;
+      return [c.name, c.sector, c.region, c.phone, c.email].some((f) => (f || "").toLowerCase().includes(customerQuery));
+    })
+    .sort((a, b) =>
+      customerSort === "newest"
+        ? new Date(b.createdAt) - new Date(a.createdAt)
+        : new Date(a.createdAt) - new Date(b.createdAt)
+    );
 
   const dealQuery = dealSearch.trim().toLowerCase();
   const filteredDeals = deals.filter((d) => {
@@ -3796,6 +3803,10 @@ export default function App() {
             <select value={customerSectorFilter} onChange={(e) => setCustomerSectorFilter(e.target.value)} style={{ fontSize: 13 }}>
               <option value="all">Tüm sektörler</option>
               {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <select value={customerSort} onChange={(e) => setCustomerSort(e.target.value)} style={{ fontSize: 13 }}>
+              <option value="newest">En yeni müşteri</option>
+              <option value="oldest">En eski müşteri</option>
             </select>
             <DateRangeFilter
               from={customerFromDate}
