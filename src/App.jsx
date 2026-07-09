@@ -930,23 +930,27 @@ function TeklifPrint({ deal, customer, companySettings, onClose }) {
   const kdvRate = deal.kdvRate ?? 20;
   const netAmount = kdvRate > 0 ? deal.value / (1 + kdvRate / 100) : deal.value;
   const kdvAmount = deal.value - netAmount;
+  const [downloading, setDownloading] = useState(false);
 
-  useEffect(() => {
-    const t = setTimeout(() => window.print(), 50);
-    return () => clearTimeout(t);
-  }, []);
-
-  useEffect(() => {
-    window.addEventListener("afterprint", onClose);
-    return () => window.removeEventListener("afterprint", onClose);
-  }, [onClose]);
+  const download = async () => {
+    setDownloading(true);
+    const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([import("jspdf"), import("html2canvas")]);
+    const node = document.getElementById("teklif-print");
+    const canvas = await html2canvas(node, { scale: 2, backgroundColor: "#ffffff" });
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({ unit: "px", format: [canvas.width, canvas.height] });
+    pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+    pdf.save(`Teklif - ${customer?.name || "Musteri"} - ${deal.title}.pdf`);
+    setDownloading(false);
+  };
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "#fff", zIndex: 1500, overflowY: "auto" }}>
       <div className="no-print" style={{ position: "fixed", top: 16, right: 16, display: "flex", gap: 8 }}>
-        <button onClick={() => window.print()} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
-          Yazdır
+        <button onClick={download} disabled={downloading} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+          {downloading ? "Hazırlanıyor…" : "İndir (PDF)"}
         </button>
+        <button onClick={() => window.print()}>Yazdır</button>
         <button onClick={onClose}>Kapat</button>
       </div>
       <div id="teklif-print" style={{ maxWidth: 700, margin: "0 auto", padding: "3rem 2rem", color: "#0c2540" }}>
