@@ -320,7 +320,7 @@ function CustomerForm({ initial, customFieldDefs = [], sectorTags = [], preferre
       }}
     >
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Müşteri tipi <InfoTip text={CUSTOMER_TYPE_INFO_TEXT} /></label>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Müşteri tipi <InfoTip text={CUSTOMER_TYPE_INFO_TEXT} placement="bottom" /></label>
         <select
           value={customerType}
           onChange={(e) => {
@@ -363,7 +363,7 @@ function CustomerForm({ initial, customFieldDefs = [], sectorTags = [], preferre
           <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0532 000 00 00" style={{ width: "100%" }} />
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>E-posta <InfoTip text={CUSTOMER_EMAIL_INFO_TEXT} /></label>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>E-posta (Önemli) <InfoTip text={CUSTOMER_EMAIL_INFO_TEXT} /></label>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={isKurumsal ? "info@firma.com" : "ayse@gmail.com"} style={{ width: "100%" }} />
         </div>
       </div>

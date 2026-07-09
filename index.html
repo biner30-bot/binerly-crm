@@ -116,6 +116,13 @@
         white-space: pre-line;
         text-align: left;
       }
+      /* Ekranın/modal'ın en üstüne yakın alanlarda (ör. formun ilk etiketi)
+         yukarı açılan balon görünüm dışına taşıp okunamaz hale geliyordu —
+         bu durumlarda InfoTip'e placement="bottom" verilip aşağı açtırılır. */
+      .info-tip .info-tip-bubble--bottom {
+        bottom: auto;
+        top: calc(100% + 7px);
+      }
       .info-tip:hover .info-tip-bubble,
       .info-tip:focus-visible .info-tip-bubble {
         visibility: visible;

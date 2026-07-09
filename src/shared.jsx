@@ -356,11 +356,11 @@ export function VoiceInputButton({ onResult }) {
   return <IconButton icon="ti-microphone" title="Sesle yaz" size="sm" active={listening} onClick={start} />;
 }
 
-export function InfoTip({ text }) {
+export function InfoTip({ text, placement = "top" }) {
   return (
     <span className="info-tip" tabIndex={0}>
       <i className="ti ti-info-circle" style={{ fontSize: 14, color: "var(--text-muted)", cursor: "help" }} aria-hidden="true"></i>
-      <span className="info-tip-bubble" role="tooltip">{text}</span>
+      <span className={`info-tip-bubble${placement === "bottom" ? " info-tip-bubble--bottom" : ""}`} role="tooltip">{text}</span>
     </span>
   );
 }
