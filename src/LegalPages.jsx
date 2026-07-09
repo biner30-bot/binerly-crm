@@ -12,18 +12,6 @@ function LegalLayout({ title, updatedAt, children }) {
         </a>
       </nav>
       <div style={{ maxWidth: 760, margin: "0 auto", padding: "3rem 2rem 5rem" }}>
-        <div
-          style={{
-            background: "#fef3c7",
-            color: "#b45309",
-            fontSize: 13,
-            padding: "10px 14px",
-            borderRadius: 8,
-            marginBottom: 24,
-          }}
-        >
-          Bu metin genel bir taslaktır ve hukuki danışmanlık yerine geçmez. Yayına almadan önce bir uzman tarafından gözden geçirilmesi önerilir.
-        </div>
         <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0c2540", margin: "0 0 4px" }}>{title}</h1>
         <p style={{ fontSize: 13, color: "#94a7bb", margin: "0 0 32px" }}>Son güncelleme: {updatedAt}</p>
         <div style={{ fontSize: 15, lineHeight: 1.75, color: "#334155" }}>{children}</div>
