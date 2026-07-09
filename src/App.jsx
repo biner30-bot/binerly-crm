@@ -1894,7 +1894,7 @@ function LandingPage() {
               Giriş Yap
             </button>
             <button onClick={() => setEntryChoiceIntent("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
-              Ücretsiz Dene
+              Ücretsiz Kullan
             </button>
           </div>
         </div>
@@ -2129,7 +2129,7 @@ function LandingPage() {
       {/* CTA */}
       <div style={{ background: "#185fa5", padding: "4rem 2rem", textAlign: "center" }}>
         <h2 style={{ fontSize: "1.75rem", fontWeight: 800, color: "#fff", margin: "0 0 1rem" }}>
-          İlk işletmelerden biri olun, ücretsiz deneyin
+          İlk işletmelerden biri olun, ücretsiz kullanın
         </h2>
         <p style={{ fontSize: 16, color: "#b8d4f0", margin: "0 0 2rem" }}>Kredi kartı gerekmez. Erken erişim aşamasındayız, şu an için tamamen ücretsiz.</p>
         <button onClick={() => setAuthModal("register")} style={{ background: "#fff", color: "#185fa5", border: "none", borderRadius: 8, padding: "14px 32px", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
