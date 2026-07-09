@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
+import { GoogleAuthButton, AuthDivider } from "./shared";
 
 function formatTL(n) {
   return new Intl.NumberFormat("tr-TR").format(Math.round(n || 0)) + " TL";
@@ -40,6 +41,7 @@ export default function DealApprovalPage() {
   const [state, setState] = useState({ loading: true, error: "", requiresAuth: false, deal: null, branding: null });
   const [approving, setApproving] = useState(false);
   const [authMode, setAuthMode] = useState("login");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [authMessage, setAuthMessage] = useState("");
@@ -77,7 +79,7 @@ export default function DealApprovalPage() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setAuthMessage(error.message);
     } else {
-      const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.href } });
+      const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name.trim() }, emailRedirectTo: window.location.href } });
       if (error) setAuthMessage(error.message);
       else setAuthMessage("Kayıt başarılı! E-postanıza gelen doğrulama linkine tıklayıp bu sayfaya geri dönün.");
     }
@@ -118,6 +120,12 @@ export default function DealApprovalPage() {
               Bu teklifi görüp onaylayabilmek için, bu firmaya kayıtlı e-posta adresinizle giriş yapmanız gerekiyor.
             </p>
             <form onSubmit={submitAuth}>
+              {authMode === "register" && (
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ fontSize: 12, color: "#5b7088", display: "block", marginBottom: 4 }}>Ad Soyad</label>
+                  <input value={name} onChange={(e) => setName(e.target.value)} required style={{ width: "100%", padding: "9px 10px", border: "1px solid #e1e8f0", borderRadius: 8, fontSize: 14, boxSizing: "border-box" }} />
+                </div>
+              )}
               <div style={{ marginBottom: 10 }}>
                 <label style={{ fontSize: 12, color: "#5b7088", display: "block", marginBottom: 4 }}>E-posta</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: "100%", padding: "9px 10px", border: "1px solid #e1e8f0", borderRadius: 8, fontSize: 14, boxSizing: "border-box" }} />
@@ -131,6 +139,8 @@ export default function DealApprovalPage() {
                 {authLoading ? "Yükleniyor…" : authMode === "login" ? "Giriş yap" : "Kayıt ol"}
               </button>
             </form>
+            <AuthDivider />
+            <GoogleAuthButton onClick={() => supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.href } })} />
             <p style={{ fontSize: 12.5, textAlign: "center", marginTop: 14, color: "#5b7088" }}>
               {authMode === "login" ? "Hesabın yok mu? " : "Hesabın var mı? "}
               <button onClick={() => { setAuthMode(authMode === "login" ? "register" : "login"); setAuthMessage(""); }} style={{ background: "none", border: "none", color: "#185fa5", padding: 0, cursor: "pointer", fontSize: 12.5, fontWeight: 600 }}>

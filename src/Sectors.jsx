@@ -183,8 +183,13 @@ function slugifyKey(label) {
 }
 
 export function SectorOnboardingModal({ onPick, onSkip }) {
+  const [companyName, setCompanyName] = useState("");
   return (
-    <Modal title="Sektörünüzü seçin" onClose={onSkip}>
+    <Modal title="Şirketinizi tanıyalım" onClose={onSkip}>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Şirket adı</label>
+        <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Akın İnşaat Ltd. Şti." style={{ width: "100%" }} />
+      </div>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px" }}>
         Seçtiğiniz sektöre göre satış aşamalarınız, önerilen etiketler ve size özel alanlar otomatik hazırlanır. İstediğiniz zaman Şirket ayarları'ndan değiştirebilirsiniz.
       </p>
@@ -193,7 +198,7 @@ export function SectorOnboardingModal({ onPick, onSkip }) {
           <button
             key={p.id}
             type="button"
-            onClick={() => onPick(p.id)}
+            onClick={() => onPick(p.id, companyName.trim())}
             style={{
               display: "flex",
               alignItems: "center",
@@ -212,7 +217,7 @@ export function SectorOnboardingModal({ onPick, onSkip }) {
         ))}
       </div>
       <div style={{ textAlign: "right" }}>
-        <button type="button" onClick={onSkip} style={{ background: "none", border: "none", fontSize: 13, color: "var(--text-secondary)" }}>
+        <button type="button" onClick={() => onSkip(companyName.trim())} style={{ background: "none", border: "none", fontSize: 13, color: "var(--text-secondary)" }}>
           Atla, sonra Şirket ayarları'ndan seçerim
         </button>
       </div>

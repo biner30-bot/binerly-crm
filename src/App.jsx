@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, uid, formatTL, daysAgo, downloadCsv, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange } from "./shared";
+import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadCsv, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange } from "./shared";
 import Finance, { rowToCompanyExpense } from "./Finance";
 import { rowToChannelCredential, rowToChannelMessage } from "./Messages";
 import Support, {
@@ -685,7 +685,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Sorumlu <InfoTip text={ASSIGNEE_INFO_TEXT} /></label>
           <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} style={{ width: "100%" }}>
             {currentUserId && <option value={currentUserId}>Ben ({currentUserEmail})</option>}
-            {teamMembers.filter((m) => m.id !== currentUserId).map((m) => <option key={m.id} value={m.id}>{m.email}</option>)}
+            {teamMembers.filter((m) => m.id !== currentUserId).map((m) => <option key={m.id} value={m.id}>{m.name || m.email}</option>)}
           </select>
         </div>
       )}
@@ -1179,6 +1179,12 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
     load();
   };
 
+  const toggleEditSettings = async (memberId, value) => {
+    const { error } = await supabase.from("team_members").update({ can_edit_settings: value }).eq("member_id", memberId);
+    if (error) { notify(`Yetki güncellenemedi: ${error.message}`); return; }
+    setMembers((prev) => prev.map((m) => (m.member_id === memberId ? { ...m, can_edit_settings: value } : m)));
+  };
+
   const leaveTeam = async () => {
     const { error } = await supabase.from("team_members").delete().eq("member_id", session.user.id);
     if (error) { notify(`Takımdan ayrılınamadı: ${error.message}`); return; }
@@ -1211,9 +1217,19 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
               <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz takım üyesi yok.</p>
             ) : (
               members.map((m) => (
-                <div key={m.member_id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "0.5px solid var(--border)" }}>
-                  <span style={{ fontSize: 13 }}>{m.email}</span>
-                  <button onClick={() => removeMember(m.member_id)} style={{ fontSize: 12, color: "var(--text-danger)" }}>Kaldır</button>
+                <div key={m.member_id} style={{ padding: "6px 0", borderBottom: "0.5px solid var(--border)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 13 }}>{m.name || m.email}</span>
+                    <button onClick={() => removeMember(m.member_id)} style={{ fontSize: 12, color: "var(--text-danger)" }}>Kaldır</button>
+                  </div>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-secondary)", marginTop: 4, cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={!!m.can_edit_settings}
+                      onChange={(e) => toggleEditSettings(m.member_id, e.target.checked)}
+                    />
+                    Şirket/sektör ayarlarını düzenleyebilir
+                  </label>
                 </div>
               ))
             )}
@@ -1750,6 +1766,7 @@ function PasswordRecoveryModal({ notify, onClose }) {
 }
 
 function AuthModal({ initialMode = "login", onClose }) {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState(initialMode);
@@ -1764,7 +1781,7 @@ function AuthModal({ initialMode = "login", onClose }) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setMessage(error.message);
     } else {
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name.trim() } } });
       if (error) setMessage(error.message);
       else setMessage("Kayıt başarılı! E-postanıza gelen doğrulama linkine tıklayın.");
     }
@@ -1790,6 +1807,12 @@ function AuthModal({ initialMode = "login", onClose }) {
         </h2>
         <p style={{ fontSize: 13, color: "#5b7088", margin: "0 0 1.5rem" }}>Binerly CRM'e hoş geldiniz</p>
         <form onSubmit={submit}>
+          {mode === "register" && (
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>Ad Soyad</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} required style={{ width: "100%", padding: "10px 12px", border: "1px solid #e1e8f0", borderRadius: 8, fontSize: 14, boxSizing: "border-box" }} />
+            </div>
+          )}
           <div style={{ marginBottom: 12 }}>
             <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>E-posta</label>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: "100%", padding: "10px 12px", border: "1px solid #e1e8f0", borderRadius: 8, fontSize: 14, boxSizing: "border-box" }} />
@@ -1810,24 +1833,8 @@ function AuthModal({ initialMode = "login", onClose }) {
             {loading ? "Yükleniyor…" : mode === "login" ? "Giriş yap" : "Kayıt ol"}
           </button>
         </form>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "12px 0" }}>
-          <div style={{ flex: 1, height: 1, background: "#e1e8f0" }} />
-          <span style={{ fontSize: 12, color: "#94a7bb" }}>veya</span>
-          <div style={{ flex: 1, height: 1, background: "#e1e8f0" }} />
-        </div>
-        <button
-          type="button"
-          onClick={() => supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: "https://binerly.com" } })}
-          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "#fff", border: "1px solid #e1e8f0", borderRadius: 8, padding: "10px 16px", cursor: "pointer", fontSize: 14, color: "#0c2540", fontWeight: 500 }}
-        >
-          <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-            <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
-            <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/>
-            <path d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.548 0 9s.348 2.825.957 4.039l3.007-2.332z" fill="#FBBC05"/>
-            <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z" fill="#EA4335"/>
-          </svg>
-          Google ile devam et
-        </button>
+        <AuthDivider />
+        <GoogleAuthButton onClick={() => supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: "https://binerly.com" } })} />
         <p style={{ fontSize: 13, textAlign: "center", marginTop: 12, color: "#5b7088" }}>
           {mode === "login" ? "Hesabın yok mu? " : "Hesabın var mı? "}
           <button onClick={() => { setMode(mode === "login" ? "register" : "login"); setMessage(""); }} style={{ background: "none", border: "none", color: "#185fa5", padding: 0, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
@@ -1931,6 +1938,9 @@ function LandingPage() {
           </div>
           <p style={{ fontSize: 13, color: "#185fa5", fontWeight: 600, margin: "12px 0 0" }}>
             Kart bilgisi gerekmez. Erken erişim aşamasındayız, şu an için tamamen ücretsiz.
+          </p>
+          <p style={{ fontSize: 13, color: "#5b7088", margin: "6px 0 0" }}>
+            💬 Sizi dinliyoruz — talepleriniz doğrultusunda hızla geliştiriyoruz.
           </p>
         </div>
 
@@ -2354,6 +2364,7 @@ export default function App() {
 
   useEffect(() => {
     if (loading || !session || !activeTeamId) return;
+    if (activeTeamId !== session.user.id) return; // sadece gerçek şirket sahibi görür, davet edilen takım üyesi görmez
     if (companySettings?.sector) return;
     if (localStorage.getItem(`binerly_sector_onboarding_dismissed_${activeTeamId}`)) return;
     setShowSectorOnboarding(true);
@@ -2371,8 +2382,8 @@ export default function App() {
   // fetch'in içinde olamaz çünkü activeTeamId o fetch'in SONUCUNDA belli oluyor.
   useEffect(() => {
     if (!activeTeamId) { setTeamMembers([]); return; }
-    supabase.from("team_members").select("member_id, email").eq("team_id", activeTeamId).then(({ data }) => {
-      setTeamMembers((data || []).map((m) => ({ id: m.member_id, email: m.email })));
+    supabase.from("team_members").select("member_id, email, name, can_edit_settings").eq("team_id", activeTeamId).then(({ data }) => {
+      setTeamMembers((data || []).map((m) => ({ id: m.member_id, email: m.email, name: m.name || null, canEditSettings: m.can_edit_settings || false })));
     });
   }, [activeTeamId]);
 
@@ -3202,12 +3213,13 @@ export default function App() {
     }
   };
 
-  const applySectorPreset = async (sectorId) => {
-    await upsertCompanySettings({ ...(companySettings || {}), sector: sectorId });
+  const applySectorPreset = async (sectorId, companyName) => {
+    await upsertCompanySettings({ ...(companySettings || {}), sector: sectorId, ...(companyName ? { companyName } : {}) });
     setShowSectorOnboarding(false);
   };
 
-  const skipSectorOnboarding = () => {
+  const skipSectorOnboarding = (companyName) => {
+    if (companyName) upsertCompanySettings({ ...(companySettings || {}), companyName });
     if (activeTeamId) localStorage.setItem(`binerly_sector_onboarding_dismissed_${activeTeamId}`, "1");
     setShowSectorOnboarding(false);
   };
@@ -3222,6 +3234,9 @@ export default function App() {
   if (!session) return <LandingPage />;
 
   if (loading) return <div style={{ padding: "2rem 0", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
+
+  const isOwner = activeTeamId === session.user.id;
+  const canEditCompanySettings = isOwner || !!teamMembers.find((m) => m.id === session.user.id)?.canEditSettings;
 
   const paymentsByDeal = payments.reduce((acc, p) => { (acc[p.dealId] ||= []).push(p); return acc; }, {});
   const totalPaidForDeal = (dealId) => (paymentsByDeal[dealId] || []).reduce((sum, p) => sum + (p.amount || 0), 0);
@@ -3636,8 +3651,8 @@ export default function App() {
                       assigneeId === "unassigned"
                         ? "Atanmamış"
                         : assigneeId === session.user.id
-                        ? `${session.user.email} (Ben)`
-                        : teamMembers.find((m) => m.id === assigneeId)?.email || "Bilinmeyen";
+                        ? `${session.user.user_metadata?.full_name || session.user.email} (Ben)`
+                        : teamMembers.find((m) => m.id === assigneeId)?.name || teamMembers.find((m) => m.id === assigneeId)?.email || "Bilinmeyen";
                     return (
                       <div key={assigneeId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
                         <span style={{ fontSize: 13 }}>{label}</span>
@@ -4302,18 +4317,22 @@ export default function App() {
 
       {showSettingsHub && (
         <Modal title="Ayarlar" onClose={() => setShowSettingsHub(false)}>
-          <MenuRow
-            icon="ti-building"
-            label="Şirket Bilgileri"
-            description="Şirket adı, adres, iletişim, KDV oranı"
-            onClick={() => { setShowSettingsHub(false); setShowSettingsForm(true); }}
-          />
-          <MenuRow
-            icon="ti-category"
-            label="Sektör & Özel Alanlar"
-            description="Aşama isimleri, etiket önerileri, özel alanlar"
-            onClick={() => { setShowSettingsHub(false); setShowSectorFields(true); }}
-          />
+          {canEditCompanySettings && (
+            <>
+              <MenuRow
+                icon="ti-building"
+                label="Şirket Bilgileri"
+                description="Şirket adı, adres, iletişim, KDV oranı"
+                onClick={() => { setShowSettingsHub(false); setShowSettingsForm(true); }}
+              />
+              <MenuRow
+                icon="ti-category"
+                label="Sektör & Özel Alanlar"
+                description="Aşama isimleri, etiket önerileri, özel alanlar"
+                onClick={() => { setShowSettingsHub(false); setShowSectorFields(true); }}
+              />
+            </>
+          )}
           <MenuRow
             icon="ti-adjustments"
             label="Görünüm, Bildirimler & Hesap"
