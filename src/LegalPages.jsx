@@ -186,7 +186,16 @@ export function TermsPage() {
           şekilde kullanamazsınız.
         </p>
       </Section>
-      <Section title="6. Ücretlendirme">
+      <Section title="6. Teklif Onay Linki">
+        <p>
+          Binerly'nin sunduğu "teklif onay linki" özelliği, müşterinizin bir bağlantıya tıklayarak teklifi
+          onayladığını sisteme kaydeder ve size bildirim gönderir. Bu, 5070 sayılı Elektronik İmza Kanunu
+          anlamında "güvenli elektronik imza" NİTELİĞİNDE DEĞİLDİR ve kimlik doğrulaması içermez — sadece
+          dahili takip ve iletişim kaydı amaçlıdır. Hukuki bağlayıcılığı önemli olan anlaşmalar için ıslak
+          imza, nitelikli elektronik imza veya başka resmi bir onay yöntemi kullanmanızı öneririz.
+        </p>
+      </Section>
+      <Section title="7. Ücretlendirme">
         <p>
           Güncel fiyatlandırma ve deneme süresi koşulları binerly.com üzerinden veya tarafımızca ayrıca
           bildirilir. Ödeme koşulları ve iptal politikası ayrıca paylaşılacaktır. Hizmet ücretli bir plana
@@ -195,19 +204,19 @@ export function TermsPage() {
           bir süre öncesinden bildirim yapılır.
         </p>
       </Section>
-      <Section title="7. Sorumluluğun Sınırlandırılması">
+      <Section title="8. Sorumluluğun Sınırlandırılması">
         <p>
           Binerly, hizmetin kesintisiz veya hatasız olacağını garanti etmez. Yasaların izin verdiği azami
           ölçüde, dolaylı zararlardan sorumlu tutulamaz.
         </p>
       </Section>
-      <Section title="8. Fesih">
+      <Section title="9. Fesih">
         <p>
           Hesabınızı istediğiniz zaman kapatabilirsiniz. Kullanım koşullarının ihlali halinde (Madde 3'teki
           takım üyeliği kuralı dahil) hizmete erişiminiz askıya alınabilir veya sonlandırılabilir.
         </p>
       </Section>
-      <Section title="9. İletişim">
+      <Section title="10. İletişim">
         <p>
           Sorularınız için: <a href="mailto:info@binerly.com" style={{ color: "#185fa5" }}>info@binerly.com</a>
         </p>

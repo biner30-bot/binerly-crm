@@ -144,7 +144,10 @@ function CompanyExpenseForm({ initial, onSave, onCancel }) {
       title: title.trim(),
       category: category === "Diğer" ? customCategory.trim() : category,
       amount: n,
-      expenseDate: (time ? new Date(`${date}T${time}`) : new Date(date)).toISOString(),
+      // "T00:00" ekliyoruz çünkü saatsiz "YYYY-MM-DD" string'i JS'de UTC gece yarısı
+      // sayılıyor — Türkiye saatinde bu gece 03:00 gibi görünür. "T00:00" ekleyince
+      // yerel saat olarak yorumlanıyor, gerçekten gece yarısı oluyor.
+      expenseDate: new Date(`${date}T${time || "00:00"}`).toISOString(),
       note: note.trim(),
       isRecurring,
       recurrenceInterval,

@@ -63,7 +63,8 @@ const PORTAL_INFO_TEXT =
 const DEAL_ACTIONS_INFO_TEXT =
   "📄 Teklif PDF — markalı, yazdırılabilir teklif belgesi oluşturur.\n" +
   "🔗 Onay linki — müşterinin tek tıkla \"onaylıyorum\" diyebileceği bir link kopyalar, siz WhatsApp/e-posta ile gönderirsiniz. " +
-  "Müşteri onaylayınca satırda yeşil \"Onaylandı ✓\" rozeti otomatik görünür.\n" +
+  "Müşteri onaylayınca satırda yeşil \"Onaylandı ✓\" rozeti otomatik görünür. Bu, resmi/güvenli elektronik imza değildir — " +
+  "sadece takip ve bildirim amaçlıdır, hukuki bağlayıcılığı önemli anlaşmalarda ıslak imza veya nitelikli e-imza kullanın.\n" +
   "💵 Tahsilat — bu teklife yapılan ödemeleri kaydedin/görün.\n" +
   "📋 Kopyala — aynı müşteri/tutar/etiketlerle sıfırdan yeni bir teklif formu açar (tekrar eden işler için), hiçbir şeyi otomatik kaydetmez.\n" +
   "✏️ Düzenle · 🗑️ Sil";
