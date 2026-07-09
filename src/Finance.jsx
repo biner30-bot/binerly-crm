@@ -113,17 +113,24 @@ function kdvAmountOf(grossAmount, rate) {
   return grossAmount - net;
 }
 
-function CompanyExpenseForm({ onSave, onCancel }) {
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
-  const [customCategory, setCustomCategory] = useState("");
-  const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [time, setTime] = useState("");
-  const [note, setNote] = useState("");
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [recurrenceInterval, setRecurrenceInterval] = useState("monthly");
-  const [kdvRate, setKdvRate] = useState("");
+function CompanyExpenseForm({ initial, onSave, onCancel }) {
+  const initialIsCustomCategory = initial?.category && !EXPENSE_CATEGORIES.includes(initial.category);
+  const [title, setTitle] = useState(initial?.title || "");
+  const [category, setCategory] = useState(initialIsCustomCategory ? "Diğer" : (initial?.category || EXPENSE_CATEGORIES[0]));
+  const [customCategory, setCustomCategory] = useState(initialIsCustomCategory ? initial.category : "");
+  const [amount, setAmount] = useState(initial?.amount ?? "");
+  const [date, setDate] = useState(initial?.expenseDate ? initial.expenseDate.slice(0, 10) : new Date().toISOString().slice(0, 10));
+  const [time, setTime] = useState(() => {
+    if (!initial?.expenseDate) return "";
+    const d = new Date(initial.expenseDate);
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return hh === "00" && mm === "00" ? "" : `${hh}:${mm}`;
+  });
+  const [note, setNote] = useState(initial?.note || "");
+  const [isRecurring, setIsRecurring] = useState(initial?.isRecurring || false);
+  const [recurrenceInterval, setRecurrenceInterval] = useState(initial?.recurrenceInterval || "monthly");
+  const [kdvRate, setKdvRate] = useState(initial?.kdvRate ?? "");
   const [saving, setSaving] = useState(false);
 
   const submit = async (e) => {
@@ -133,6 +140,7 @@ function CompanyExpenseForm({ onSave, onCancel }) {
     if (category === "Diğer" && !customCategory.trim()) return;
     setSaving(true);
     await onSave({
+      id: initial?.id,
       title: title.trim(),
       category: category === "Diğer" ? customCategory.trim() : category,
       amount: n,
@@ -146,7 +154,7 @@ function CompanyExpenseForm({ onSave, onCancel }) {
   };
 
   return (
-    <Modal title="Gider ekle" onClose={onCancel}>
+    <Modal title={initial ? "Gideri düzenle" : "Gider ekle"} onClose={onCancel}>
       <form onSubmit={submit}>
         <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Başlık</label>
@@ -238,12 +246,13 @@ function CompanyExpenseForm({ onSave, onCancel }) {
   );
 }
 
-export default function Finance({ deals, payments, companyExpenses, customers, onAddExpense, onDeleteExpense, onOpenPayments }) {
+export default function Finance({ deals, payments, companyExpenses, customers, onAddExpense, onUpdateExpense, onDeleteExpense, onOpenPayments }) {
   const [financeView, setFinanceView] = useState("defter");
   const [financeRange, setFinanceRange] = useState("bu_ay");
   const [kdvMonth, setKdvMonth] = useState(new Date().toISOString().slice(0, 7));
   const [expandedCustomerId, setExpandedCustomerId] = useState(null);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const [editingExpense, setEditingExpense] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   const customerById = (id) => customers.find((c) => c.id === id);
@@ -482,7 +491,15 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
                       {item.type === "gelir" ? "+" : "-"}{formatTL(item.amount)}
                     </span>
                     {item.expenseId && (
-                      <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(item)} />
+                      <>
+                        <IconButton
+                          icon="ti-edit"
+                          title="Düzenle"
+                          size="sm"
+                          onClick={() => setEditingExpense(companyExpenses.find((e) => e.id === item.expenseId))}
+                        />
+                        <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(item)} />
+                      </>
                     )}
                   </div>
                 </div>
@@ -517,6 +534,14 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
         <CompanyExpenseForm
           onSave={async (expense) => { await onAddExpense(expense); setShowExpenseForm(false); }}
           onCancel={() => setShowExpenseForm(false)}
+        />
+      )}
+
+      {editingExpense && (
+        <CompanyExpenseForm
+          initial={editingExpense}
+          onSave={async (expense) => { await onUpdateExpense(expense); setEditingExpense(null); }}
+          onCancel={() => setEditingExpense(null)}
         />
       )}
 

@@ -2696,6 +2696,18 @@ export default function App() {
     logAction("company_expenses", expense.id, "created", `${expense.title} gideri eklendi (${formatTL(expense.amount)})`);
   };
 
+  const updateCompanyExpense = async ({ id, title, category, amount, expenseDate, note, isRecurring, recurrenceInterval, kdvRate }) => {
+    const row = {
+      title, category: category || "Diğer", amount, expense_date: expenseDate, note: note || null,
+      is_recurring: !!isRecurring, recurrence_interval: recurrenceInterval || "monthly", kdv_rate: kdvRate ?? null,
+    };
+    const { data, error } = await supabase.from("company_expenses").update(row).eq("id", id).select().single();
+    if (error) { notify(`Gider güncellenemedi: ${error.message}`); return; }
+    const expense = rowToCompanyExpense(data);
+    setCompanyExpenses((prev) => prev.map((e) => (e.id === id ? expense : e)));
+    logAction("company_expenses", expense.id, "updated", `${expense.title} gideri güncellendi (${formatTL(expense.amount)})`);
+  };
+
   const deleteCompanyExpense = async (id) => {
     const expense = companyExpenses.find((e) => e.id === id);
     const batchId = uid();
@@ -4218,6 +4230,7 @@ export default function App() {
           companyExpenses={companyExpenses}
           customers={customers}
           onAddExpense={addCompanyExpense}
+          onUpdateExpense={updateCompanyExpense}
           onDeleteExpense={deleteCompanyExpense}
           onOpenPayments={setPaymentsDeal}
         />
