@@ -101,7 +101,7 @@ export default async function handler(req, res) {
           body: JSON.stringify({
             from: "Binerly <noreply@binerly.com>",
             to: ownerEmail,
-            subject: `${customer?.name || "Müşteriniz"} teklifi onayladı`,
+            subject: `${customer?.name || "Müşteriniz"} "${deal.title}" teklifini onayladı`,
             html: renderEmailHtml({ bodyText, footerLines }),
             text: plainTextFallback(bodyText, null, null, footerLines),
           }),
