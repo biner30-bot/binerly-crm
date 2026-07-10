@@ -34,7 +34,7 @@ function Section({ title, children }) {
 
 export function PrivacyPolicyPage() {
   return (
-    <LegalLayout title="Gizlilik Politikası" updatedAt="2 Temmuz 2026">
+    <LegalLayout title="Gizlilik Politikası" updatedAt="10 Temmuz 2026">
       <Section title="1. Genel">
         <p>
           Bu Gizlilik Politikası, Binerly ("biz", "Binerly") tarafından işletilen KOBİ CRM hizmetinin
@@ -61,7 +61,8 @@ export function PrivacyPolicyPage() {
         <p>
           Verileriniz aşağıdaki alt yüklenicilerle, yalnızca hizmetin çalışması için gerekli ölçüde paylaşılır:
           Supabase (veritabanı, kimlik doğrulama ve barındırma), Vercel (uygulama barındırma), Resend
-          (e-posta gönderimi). Bu sağlayıcılarla veri işleme sözleşmeleri kapsamında çalışılmaktadır.
+          (e-posta gönderimi), Google (Google ile giriş/kayıt tercih ettiğinizde kimlik doğrulama). Bu
+          sağlayıcılarla veri işleme sözleşmeleri kapsamında çalışılmaktadır.
         </p>
       </Section>
       <Section title="5. Veri Güvenliği">
@@ -87,12 +88,12 @@ export function PrivacyPolicyPage() {
 
 export function KvkkPage() {
   return (
-    <LegalLayout title="KVKK Aydınlatma Metni" updatedAt="2 Temmuz 2026">
+    <LegalLayout title="KVKK Aydınlatma Metni" updatedAt="10 Temmuz 2026">
       <Section title="1. Veri Sorumlusu">
         <p>
-          6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") uyarınca, Binerly hizmetini işleten veri
-          sorumlusu sıfatıyla, işbu aydınlatma metni ile kişisel verilerinizin işlenmesine ilişkin sizi
-          bilgilendirmek isteriz.
+          6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") uyarınca, Binerly markası altında hizmet
+          veren Danyel Biner, veri sorumlusu sıfatıyla, işbu aydınlatma metni ile kişisel verilerinizin
+          işlenmesine ilişkin sizi bilgilendirmek ister.
         </p>
       </Section>
       <Section title="2. İşlenen Kişisel Veri Kategorileri">
@@ -111,8 +112,9 @@ export function KvkkPage() {
       </Section>
       <Section title="4. Verilerin Aktarılması">
         <p>
-          Verileriniz, hizmetin sunulabilmesi için gerekli teknik altyapı sağlayıcılarımız (barındırma,
-          veritabanı, e-posta gönderim hizmetleri) ile ve yasal olarak yetkili kamu kurum/kuruluşlarıyla,
+          Verileriniz, hizmetin sunulabilmesi için gerekli teknik altyapı sağlayıcılarımız (Supabase —
+          veritabanı ve kimlik doğrulama, Vercel — barındırma, Resend — e-posta gönderimi, Google — Google
+          ile giriş tercih edildiğinde kimlik doğrulama) ile ve yasal olarak yetkili kamu kurum/kuruluşlarıyla,
           yalnızca talep edilmesi halinde paylaşılabilir.
         </p>
       </Section>
@@ -139,7 +141,7 @@ export function KvkkPage() {
 
 export function TermsPage() {
   return (
-    <LegalLayout title="Kullanım Koşulları" updatedAt="2 Temmuz 2026">
+    <LegalLayout title="Kullanım Koşulları" updatedAt="10 Temmuz 2026">
       <Section title="1. Hizmetin Kapsamı">
         <p>
           Binerly, KOBİ'ler için müşteri ilişkileri yönetimi (CRM), satış takibi, destek talebi ve
