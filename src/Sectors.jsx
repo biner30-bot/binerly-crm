@@ -134,6 +134,26 @@ export const SECTOR_PRESETS = [
     ],
   },
   {
+    id: "guzellik_bakim",
+    label: "Güzellik & Bakım",
+    icon: "ti-scissors",
+    stageLabels: {
+      ilk_gorusme: "Randevu talebi",
+      teklif: "Randevu planlandı",
+      muzakere: "Hatırlatma gönderildi",
+      kazanildi: "Hizmet tamamlandı",
+      kaybedildi: "Randevuya gelmedi / iptal",
+    },
+    tags: ["Yeni randevu", "Sadık müşteri", "Hatırlatma gerekiyor", "Geldi", "Gelmedi (no-show)"],
+    customFields: [
+      { entity: "deal", key: "hizmet_turu", label: "Hizmet Türü", type: "select", options: ["Manikür/Pedikür", "Saç Kesimi/Boyama", "Lazer Epilasyon", "Cilt Bakımı", "Makyaj", "Diğer"] },
+      { entity: "deal", key: "randevu_tarihi", label: "Randevu Tarihi", type: "date" },
+      { entity: "deal", key: "seans_no", label: "Seans No (paket hizmetlerde)", type: "number" },
+      { entity: "customer", key: "tercih_edilen_uzman", label: "Tercih Edilen Uzman/Personel", type: "text", audience: "bireysel" },
+      { entity: "customer", key: "alerji_notu", label: "Alerji / Cilt Notu", type: "text", audience: "bireysel" },
+    ],
+  },
+  {
     id: "genel",
     label: "Genel",
     icon: "ti-building-store",
