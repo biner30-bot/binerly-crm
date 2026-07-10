@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Badge, Modal, InfoTip, ConfirmDialog, IconButton, uid, matchesDateRange, DateRangeFilter, downloadCsv } from "./shared";
 import { ImportModal } from "./ImportExport";
+import { SECTOR_PRESETS } from "./Sectors";
 
 const PRIORITIES = [
   { id: "acil", label: "Acil", hours: 4 },
@@ -43,45 +44,230 @@ const KB_IMPORT_FIELDS = [
   { key: "content", label: "İçerik", required: true, hideInPreview: true },
 ];
 
-const KB_TEMPLATES = [
-  {
-    title: "Siparişim ne zaman kargoya verilir?",
-    category: "Kargo & Teslimat",
-    content:
-      "Siparişleriniz onaylandıktan sonra ortalama [1-3 iş günü] içinde kargoya verilir. " +
-      "Kargoya verildiğinde takip numaranız [e-posta/SMS ile] tarafınıza iletilir. " +
-      "Yoğun dönemlerde (kampanya, tatil öncesi vb.) bu süre uzayabilir.",
-  },
-  {
-    title: "Kargom hasarlı veya eksik geldi, ne yapmalıyım?",
-    category: "Kargo & Teslimat",
-    content:
-      "Paketinizi teslim alırken hasar fark ederseniz kargo görevlisine tutanak tutturmanızı rica ederiz. " +
-      "Hasarlı/eksik ürün fotoğraflarını ve sipariş numaranızı bizimle paylaşırsanız en kısa sürede " +
-      "yeni ürün gönderimi veya iade süreci başlatılır.",
-  },
-  {
-    title: "Fatura bilgilerimi nasıl güncellerim?",
-    category: "Fatura & Ödeme",
-    content:
-      "Fatura bilgilerinizi (ad-soyad/unvan, adres, vergi no) güncellemek için bizimle iletişime geçmeniz yeterli. " +
-      "Zaten kesilmiş bir faturada değişiklik için [muhasebe/mali müşavir süreciniz burada belirtilebilir].",
-  },
-  {
-    title: "Ürün iadesi nasıl yapılır?",
-    category: "İade & Değişim",
-    content:
-      "Ürünü teslim aldığınız tarihten itibaren [14 gün] içinde, kullanılmamış ve orijinal ambalajında olması " +
-      "koşuluyla iade edebilirsiniz. İade talebiniz onaylandıktan sonra ücret [X iş günü] içinde iade edilir.",
-  },
-  {
-    title: "Destek talebimin durumunu nasıl takip ederim?",
-    category: "Destek",
-    content:
-      "Bize e-posta adresinizle kayıtlıysanız, Müşteri Bilgi Sistemi üzerinden (binerly.com/portal) " +
-      "kendi hesabınızla giriş yaparak tüm destek taleplerinizin güncel durumunu ve mesaj geçmişini görebilirsiniz.",
-  },
-];
+const KB_TEMPLATES_BY_SECTOR = {
+  emlak: [
+    {
+      title: "Bu mülk için kredi kullanabilir miyim?",
+      category: "Finansman",
+      content:
+        "Bankaların konut/işyeri kredisi değerlendirmesi, mülkün ekspertiz değerine ve sizin gelir durumunuza göre yapılır. " +
+        "İsterseniz süreçte size eşlik edebilir, [anlaştığımız banka/danışman varsa burada belirtin] yönlendirebiliriz.",
+    },
+    {
+      title: "Tapu devri ne zaman ve nasıl yapılır?",
+      category: "Tapu & Devir",
+      content:
+        "Tapu devri, taraflar anlaştıktan sonra Tapu Müdürlüğü'nde randevu alınarak gerçekleştirilir. " +
+        "Gerekli belgeler: kimlik, [DASK, ekspertiz raporu vb. varsa ekleyin]. Süreç genelde [X iş günü] içinde tamamlanır.",
+    },
+    {
+      title: "Kiralık mülklerde depozito iadesi nasıl işler?",
+      category: "Kiralama",
+      content:
+        "Depozito, kira sözleşmesi sona erdiğinde ve mülk teslim alındığında, hasar/eksik ödeme yoksa " +
+        "[X iş günü] içinde iade edilir. Varsa kesinti sebepleri (hasar, ödenmemiş fatura vb.) yazılı olarak bildirilir.",
+    },
+    {
+      title: "Mülkü görmeden teklif verebilir miyim?",
+      category: "Randevu & Görüşme",
+      content:
+        "Fotoğraf/video ve detaylı bilgi paylaşabiliriz, ancak bağlayıcı bir teklif öncesi yerinde görmenizi öneririz. " +
+        "Uygun bir randevu için bizimle iletişime geçebilirsiniz.",
+    },
+  ],
+  dijital_ajans: [
+    {
+      title: "Reklam bütçem ne zaman harcanmaya başlar?",
+      category: "Reklam Yönetimi",
+      content:
+        "Kampanya kurulumu ve onayınızın ardından reklamlar genelde [1-2 iş günü] içinde yayına alınır. " +
+        "Platform onay süreçleri (Google/Meta) nedeniyle bu süre bazen uzayabilir.",
+    },
+    {
+      title: "Web sitem/projem ne zaman yayına alınır?",
+      category: "Web Tasarım",
+      content:
+        "Proje süresi kapsam ve revizyon sayısına göre değişir — sözleşmede belirtilen [X hafta] hedeflenir. " +
+        "İçerik ve görsellerin zamanında tarafımıza ulaşması süreci hızlandırır.",
+    },
+    {
+      title: "Aylık performans raporum ne zaman gelir?",
+      category: "Raporlama",
+      content:
+        "Raporlar her ayın [ilk haftasında] e-posta ile paylaşılır; talep ederseniz ek olarak bir görüşme de planlayabiliriz.",
+    },
+    {
+      title: "Sözleşmemi/aboneliğimi nasıl iptal ederim?",
+      category: "Sözleşme & İptal",
+      content:
+        "İptal talebinizi bize e-posta ile iletmeniz yeterli. Sözleşmenizde belirtilen [bildirim süresi, varsa cayma koşulları] geçerlidir.",
+    },
+  ],
+  saglik_klinik: [
+    {
+      title: "Randevumu nasıl iptal edebilir veya erteleyebilirim?",
+      category: "Randevu",
+      content:
+        "Randevunuzu en az [X saat] önceden bize bildirerek iptal edebilir veya erteleyebilirsiniz. " +
+        "Geç iptallerde [varsa ücret politikanızı burada belirtin].",
+    },
+    {
+      title: "Sigortam/SGK tedaviyi karşılıyor mu?",
+      category: "Sigorta & Ödeme",
+      content:
+        "Bu, sigorta türünüze ve uygulanacak tedaviye göre değişir. Randevu öncesi sigorta bilgilerinizi paylaşırsanız " +
+        "size net bilgi verebiliriz.",
+    },
+    {
+      title: "Tedavi/muayene sonrası nelere dikkat etmeliyim?",
+      category: "Tedavi Sonrası",
+      content:
+        "Size özel bakım önerileri randevu sonunda sözlü ve/veya yazılı olarak paylaşılır. " +
+        "Herhangi bir olağan dışı durumda bizimle iletişime geçmenizi öneririz.",
+    },
+    {
+      title: "Sonuçlarım/raporum ne zaman hazır olur?",
+      category: "Sonuç & Rapor",
+      content:
+        "Tetkik/tahlil türüne göre değişmekle birlikte genelde [X gün] içinde sonuçlarınız hazır olur ve tarafınıza iletilir.",
+    },
+  ],
+  uretim_satis: [
+    {
+      title: "Siparişim ne zaman kargoya/sevkiyata verilir?",
+      category: "Kargo & Teslimat",
+      content:
+        "Siparişleriniz onaylandıktan sonra ortalama [1-3 iş günü] içinde kargoya/sevkiyata verilir. " +
+        "Yoğun dönemlerde bu süre uzayabilir.",
+    },
+    {
+      title: "Minimum sipariş miktarı var mı?",
+      category: "Sipariş",
+      content:
+        "Ürün grubuna göre minimum sipariş miktarı değişebilir — güncel bilgi için bizimle iletişime geçebilirsiniz.",
+    },
+    {
+      title: "Toptan/bayilik fiyat listesi nasıl alırım?",
+      category: "Bayilik & Toptan",
+      content:
+        "Vergi levhanız ve iletişim bilgilerinizle bize ulaşmanız yeterli, size uygun fiyat listesini paylaşırız.",
+    },
+    {
+      title: "Ürün garantisi ne kadar sürer?",
+      category: "Garanti",
+      content:
+        "Ürünlerimiz [X ay/yıl] garanti kapsamındadır. Garanti belgesi ve fatura ile talepte bulunabilirsiniz.",
+    },
+  ],
+  hizmet_danismanlik: [
+    {
+      title: "Danışmanlık ücreti nasıl hesaplanıyor?",
+      category: "Ücretlendirme",
+      content:
+        "Ücretlendirme; saatlik, proje bazlı veya aylık paket şeklinde olabilir, ihtiyacınıza göre birlikte belirleriz.",
+    },
+    {
+      title: "İlk görüşme ücretsiz mi?",
+      category: "Randevu & Görüşme",
+      content:
+        "İlk ön görüşme genelde ücretsizdir ve ihtiyaçlarınızı anlamaya yöneliktir; kapsam netleştikten sonra teklif sunulur.",
+    },
+    {
+      title: "Raporum/teslimatım ne zaman hazır olur?",
+      category: "Teslimat",
+      content:
+        "Teslimat tarihi, anlaşma kapsamında belirlenen [X hafta/ay] süreye göre planlanır ve süreç boyunca bilgilendirilirsiniz.",
+    },
+    {
+      title: "Sözleşmeyi nasıl feshedebilirim?",
+      category: "Sözleşme",
+      content:
+        "Fesih talebinizi yazılı olarak bize iletmeniz yeterli. Sözleşmenizde belirtilen [bildirim süresi] geçerlidir.",
+    },
+  ],
+  perakende: [
+    {
+      title: "Siparişim ne zaman kargoya verilir?",
+      category: "Kargo & Teslimat",
+      content:
+        "Siparişleriniz onaylandıktan sonra ortalama [1-3 iş günü] içinde kargoya verilir, takip numaranız tarafınıza iletilir.",
+    },
+    {
+      title: "Ürün iadesi nasıl yapılır?",
+      category: "İade & Değişim",
+      content:
+        "Ürünü teslim aldığınız tarihten itibaren [14 gün] içinde, kullanılmamış ve orijinal ambalajında olması " +
+        "koşuluyla iade edebilirsiniz.",
+    },
+    {
+      title: "Sadakat kartı/üyelik avantajları nedir?",
+      category: "Üyelik",
+      content:
+        "Üyeliğiniz kapsamında [puan, indirim, kampanya avantajları vb. burada belirtin] yararlanabilirsiniz.",
+    },
+    {
+      title: "Online sipariş verip mağazadan teslim alabilir miyim?",
+      category: "Sipariş Takibi",
+      content:
+        "Evet, online sipariş verip [mağaza adı/adresi] üzerinden teslim alabilirsiniz — sipariş onayından sonra sizi bilgilendiririz.",
+    },
+  ],
+  guzellik_bakim: [
+    {
+      title: "Randevumu nasıl değiştirebilir veya iptal edebilirim?",
+      category: "Randevu",
+      content:
+        "Randevunuzu en az [X saat] önceden bize bildirerek değiştirebilir veya iptal edebilirsiniz.",
+    },
+    {
+      title: "Lazer epilasyonda kaç seans gerekir?",
+      category: "Hizmet Bilgisi",
+      content:
+        "Seans sayısı bölgeye ve kıl yapısına göre değişir, genelde [X-Y seans] önerilir; ilk seansta size özel bir plan paylaşırız.",
+    },
+    {
+      title: "Randevuma gelemezsem ne olur?",
+      category: "Randevu Politikası",
+      content:
+        "Randevunuza gelemeyecekseniz en az [X saat] önceden haber vermenizi rica ederiz. " +
+        "[Geç iptal/no-show politikanız varsa burada belirtin].",
+    },
+    {
+      title: "Cilt hassasiyeti/alerjim var, önceden bilgi vermeli miyim?",
+      category: "Sağlık & Güvenlik",
+      content:
+        "Evet, randevu öncesi cilt hassasiyeti, alerji veya kullandığınız ilaç/kozmetik ürünleri hakkında bizi " +
+        "bilgilendirmeniz, size en uygun ve güvenli hizmeti sunmamız için önemlidir.",
+    },
+  ],
+  genel: [
+    {
+      title: "Siparişim/talebim ne zaman işleme alınır?",
+      category: "Sipariş & Süreç",
+      content:
+        "Talepleriniz onaylandıktan sonra ortalama [X iş günü] içinde işleme alınır, süreç boyunca sizi bilgilendiririz.",
+    },
+    {
+      title: "Fatura bilgilerimi nasıl güncellerim?",
+      category: "Fatura & Ödeme",
+      content:
+        "Fatura bilgilerinizi (ad-soyad/unvan, adres, vergi no) güncellemek için bizimle iletişime geçmeniz yeterli.",
+    },
+    {
+      title: "Ürün/hizmet iadesi veya iptali nasıl yapılır?",
+      category: "İade & İptal",
+      content:
+        "İade/iptal koşulları [ürün/hizmet türüne göre burada belirtin]. Talebiniz için bizimle iletişime geçebilirsiniz.",
+    },
+    {
+      title: "Destek talebimin durumunu nasıl takip ederim?",
+      category: "Destek",
+      content:
+        "Bize e-posta adresinizle kayıtlıysanız, Müşteri Bilgi Sistemi üzerinden (binerly.com/portal) " +
+        "kendi hesabınızla giriş yaparak tüm destek taleplerinizin güncel durumunu ve mesaj geçmişini görebilirsiniz.",
+    },
+  ],
+};
 
 const PRIORITY_INFO_TEXT =
   "Öncelik, talebin hedef çözüm süresini (talep oluşturulduğu andan itibaren) belirler:\n" +
@@ -492,10 +678,13 @@ function KbList({
   onEdit,
   onDelete,
   onUseTemplate,
+  sector,
 }) {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showTemplates, setShowTemplates] = useState(totalCount === 0);
   const filtered = articles;
+  const sectorLabel = SECTOR_PRESETS.find((p) => p.id === sector)?.label;
+  const templates = KB_TEMPLATES_BY_SECTOR[sector] || KB_TEMPLATES_BY_SECTOR.genel;
 
   return (
     <div>
@@ -528,10 +717,10 @@ function KbList({
       {showTemplates && (
         <div style={{ background: "var(--bg-accent)", borderRadius: "var(--radius)", padding: "0.9rem 1rem", marginBottom: 16 }}>
           <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 500, color: "var(--text-accent)" }}>
-            Hızlı başlangıç için örnek makaleler — "Kullan" ile taslağı açar, düzenleyip kaydedebilirsin.
+            {sectorLabel ? `${sectorLabel} sektörüne uygun örnek makaleler` : "Hızlı başlangıç için örnek makaleler"} — "Kullan" ile taslağı açar, düzenleyip kaydedebilirsin.
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {KB_TEMPLATES.map((t) => (
+            {templates.map((t) => (
               <div key={t.title} style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.6rem 0.8rem", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                 <div style={{ flex: 1, minWidth: 200 }}>
                   <p style={{ margin: 0, fontWeight: 500, fontSize: 13 }}>{t.title}</p>
@@ -631,6 +820,7 @@ export default function Support({
   onBulkImportKbArticles,
   initialViewTicketId,
   onConsumeInitialViewTicket,
+  sector,
 }) {
   const [supportView, setSupportView] = useState("talepler");
   const [showImportTickets, setShowImportTickets] = useState(false);
@@ -851,6 +1041,7 @@ export default function Support({
           onEdit={(a) => { setEditingKbArticle(a); setShowKbForm(true); }}
           onDelete={onDeleteKbArticle}
           onUseTemplate={(t) => { setEditingKbArticle(t); setShowKbForm(true); }}
+          sector={sector}
         />
       )}
 

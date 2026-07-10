@@ -4326,6 +4326,7 @@ export default function App() {
           onDeleteKbArticle={deleteKbArticle}
           onBulkImportTickets={bulkImportTickets}
           onBulkImportKbArticles={bulkImportKbArticles}
+          sector={companySettings?.sector}
           initialViewTicketId={initialViewTicketId}
           onConsumeInitialViewTicket={() => setInitialViewTicketId(null)}
         />
