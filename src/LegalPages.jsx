@@ -66,9 +66,12 @@ export function PrivacyPolicyPage() {
       </Section>
       <Section title="5. Veri Güvenliği">
         <p>
-          Verileriniz, her kullanıcının yalnızca kendi verisine erişebildiği satır düzeyinde erişim kontrolü
-          (Row Level Security) ile korunur. Müşteri Bilgi Sistemi kullanıcıları yalnızca kendi doğrulanmış
-          e-postalarıyla eşleşen kayıtlara erişebilir.
+          Verileriniz bizimle güvendedir. Her kullanıcı yalnızca kendi verisine erişebilir (satır düzeyinde
+          erişim kontrolü — Row Level Security) ve Binerly ekibi, verilerinize size destek olmak amacıyla
+          yalnızca sizin talebiniz veya bilginiz dahilinde erişir. Müşteri Bilgi Sistemi kullanıcıları yalnızca kendi
+          doğrulanmış e-postalarıyla eşleşen kayıtlara erişebilir. WhatsApp/Instagram gibi bağladığınız
+          mesajlaşma hesapları için: bağladığınız hesaba gelen mesajlar hizmetin çalışması amacıyla
+          saklanır; işe özel, ayrı bir hesap/numara bağlamanız önerilir.
         </p>
       </Section>
       <Section title="6. Haklarınız">
