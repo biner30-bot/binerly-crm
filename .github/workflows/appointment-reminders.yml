@@ -1,0 +1,15 @@
+name: Randevu hatırlatmaları
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: API'yi çağır
+        run: |
+          curl -sf -X POST "https://binerly.com/api/send-appointment-reminders" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

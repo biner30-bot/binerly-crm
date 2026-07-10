@@ -1,0 +1,118 @@
+import { createClient } from "@supabase/supabase-js";
+
+// GitHub Actions'tan (bkz. .github/workflows/appointment-reminders.yml) her 15
+// dakikada bir tetiklenir — Vercel'in ücretsiz planındaki "cron günde 1 kez"
+// kısıtını aşmak için ayrı bir zamanlayıcı kullanıyoruz, ekstra ücret gerekmiyor.
+export default async function handler(req, res) {
+  const authHeader = req.headers.authorization;
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (!resendApiKey) {
+    return res.status(500).json({ error: "Sunucu e-posta anahtarı ayarlanmamış." });
+  }
+
+  const supabaseAdmin = createClient(
+    process.env.VITE_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+
+  try {
+    // "Tarih & Saat" (datetime) tipindeki aktif özel alanlar — hangi şirketin
+    // hangi alan adını (örn. randevu_tarihi) randevu saati olarak kullandığını
+    // burada buluyoruz, sektöre göre sabit kodlamıyoruz.
+    const { data: defs, error: defsError } = await supabaseAdmin
+      .from("custom_field_defs")
+      .select("user_id, key")
+      .eq("entity", "deal")
+      .eq("field_type", "datetime")
+      .eq("active", true);
+
+    if (defsError) return res.status(500).json({ error: defsError.message });
+    if (!defs || defs.length === 0) return res.status(200).json({ remindersSent: 0 });
+
+    const now = Date.now();
+    const windowStart = now + 110 * 60 * 1000; // ~1sa50dk sonrası
+    const windowEnd = now + 130 * 60 * 1000; // ~2sa10dk sonrası — 15dk'lık kontrol aralığına güvenli pay
+
+    const userIds = [...new Set(defs.map((d) => d.user_id))];
+    const [{ data: deals, error: dealsError }, { data: settingsRows }] = await Promise.all([
+      supabaseAdmin
+        .from("deals")
+        .select("id, user_id, customer_id, title, custom_fields, stage")
+        .in("user_id", userIds)
+        .is("deleted_at", null)
+        .not("stage", "in", "(kazanildi,kaybedildi)")
+        .is("appointment_reminder_sent_at", null),
+      supabaseAdmin.from("company_settings").select("user_id, company_name").in("user_id", userIds),
+    ]);
+
+    if (dealsError) return res.status(500).json({ error: dealsError.message });
+    if (!deals || deals.length === 0) return res.status(200).json({ remindersSent: 0 });
+
+    const companyNameByUser = Object.fromEntries((settingsRows || []).map((s) => [s.user_id, s.company_name]));
+    const keysByUser = {};
+    for (const d of defs) (keysByUser[d.user_id] ||= []).push(d.key);
+
+    const dueDeals = deals.filter((deal) => {
+      const keys = keysByUser[deal.user_id] || [];
+      return keys.some((key) => {
+        const raw = deal.custom_fields?.[key];
+        if (!raw) return false;
+        // datetime-local değeri saat dilimi bilgisi taşımaz (örn. "2026-07-11T15:00")
+        // — bu proje sadece Türkiye için, bu yüzden +03:00 olarak yorumluyoruz.
+        // Bu adımı atlamak, sunucunun UTC saatiyle karşılaştırıp saatleri kaydırırdı.
+        const apptTime = new Date(`${raw}:00+03:00`).getTime();
+        return !isNaN(apptTime) && apptTime >= windowStart && apptTime <= windowEnd;
+      });
+    });
+
+    if (dueDeals.length === 0) return res.status(200).json({ remindersSent: 0 });
+
+    const customerIds = [...new Set(dueDeals.map((d) => d.customer_id))];
+    const { data: customers } = await supabaseAdmin.from("customers").select("id, name, email").in("id", customerIds);
+    const customerById = Object.fromEntries((customers || []).map((c) => [c.id, c]));
+
+    let remindersSent = 0;
+    const remindedIds = [];
+
+    for (const deal of dueDeals) {
+      remindedIds.push(deal.id);
+      const customer = customerById[deal.customer_id];
+      if (!customer?.email) continue;
+
+      const key = (keysByUser[deal.user_id] || []).find((k) => deal.custom_fields?.[k]);
+      const raw = deal.custom_fields?.[key];
+      const timeLabel = raw ? raw.split("T")[1] : "";
+      const company = companyNameByUser[deal.user_id] || "Binerly";
+
+      const sendRes = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: `${company} <noreply@binerly.com>`,
+          to: customer.email,
+          subject: `Randevu hatırlatması — bugün saat ${timeLabel}`,
+          text:
+            `Merhaba ${customer.name || ""},\n\n${company} bünyesindeki "${deal.title}" randevunuz ` +
+            `bugün saat ${timeLabel}'de. Sizi görmekten mutluluk duyarız.\n\n${company}`,
+        }),
+      });
+      if (sendRes.ok) remindersSent++;
+    }
+
+    if (remindedIds.length > 0) {
+      await supabaseAdmin
+        .from("deals")
+        .update({ appointment_reminder_sent_at: new Date().toISOString() })
+        .in("id", remindedIds);
+    }
+
+    return res.status(200).json({ remindersSent });
+  } catch {
+    return res.status(500).json({ error: "Gönderim sırasında hata oluştu." });
+  }
+}

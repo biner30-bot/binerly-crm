@@ -37,6 +37,7 @@ export const SECTOR_PRESETS = [
       { entity: "deal", key: "mulk_tipi", label: "Mülk Tipi", type: "select", options: ["Daire", "Villa", "Arsa", "İşyeri"] },
       { entity: "deal", key: "islem_turu", label: "İşlem Türü", type: "select", options: ["Satış", "Kiralama"] },
       { entity: "deal", key: "metrekare", label: "Metrekare (m²)", type: "number" },
+      { entity: "deal", key: "gorusme_tarihi", label: "Görüşme/Randevu Tarihi", type: "datetime" },
       { entity: "customer", key: "butce_araligi", label: "Bütçe / Kira aralığı", type: "text" },
     ],
   },
@@ -56,6 +57,7 @@ export const SECTOR_PRESETS = [
       { entity: "deal", key: "hizmet_turu", label: "Hizmet Türü", type: "select", options: ["Sosyal medya yönetimi", "Web tasarım", "SEO", "Reklam yönetimi (Ads)", "İçerik üretimi"] },
       { entity: "deal", key: "sozlesme_suresi", label: "Sözleşme Süresi", type: "select", options: ["Tek seferlik", "Aylık", "3 Aylık", "Yıllık"] },
       { entity: "deal", key: "aylik_butce", label: "Aylık Reklam Bütçesi (TL)", type: "number" },
+      { entity: "deal", key: "gorusme_tarihi", label: "Keşif Görüşmesi Tarihi", type: "datetime" },
       { entity: "customer", key: "web_sitesi", label: "Web sitesi", type: "text" },
     ],
   },
@@ -76,6 +78,7 @@ export const SECTOR_PRESETS = [
       { entity: "customer", key: "sigorta_durumu", label: "Sigorta/SGK Durumu", type: "select", options: ["Özel sigorta", "SGK", "Sigortasız"], audience: "bireysel" },
       { entity: "customer", key: "dogum_tarihi", label: "Doğum Tarihi", type: "date", audience: "bireysel" },
       { entity: "deal", key: "tedavi_hizmet", label: "Tedavi / Hizmet", type: "text" },
+      { entity: "deal", key: "randevu_tarihi", label: "Randevu Tarihi", type: "datetime" },
     ],
   },
   {
@@ -112,6 +115,7 @@ export const SECTOR_PRESETS = [
     customFields: [
       { entity: "deal", key: "ucretlendirme_modeli", label: "Ücretlendirme Modeli", type: "select", options: ["Saatlik", "Proje bazlı", "Aylık paket"] },
       { entity: "deal", key: "teslimat_tarihi", label: "Rapor/Teslimat Tarihi", type: "date" },
+      { entity: "deal", key: "gorusme_tarihi", label: "Görüşme Tarihi", type: "datetime" },
       { entity: "customer", key: "sirket_buyuklugu", label: "Şirket Büyüklüğü", type: "select", options: ["1-10 çalışan", "11-50 çalışan", "51-200 çalışan", "200+ çalışan"], audience: "kurumsal" },
     ],
   },
@@ -147,7 +151,7 @@ export const SECTOR_PRESETS = [
     tags: ["Yeni randevu", "Sadık müşteri", "Hatırlatma gerekiyor", "Geldi", "Gelmedi (no-show)"],
     customFields: [
       { entity: "deal", key: "hizmet_turu", label: "Hizmet Türü", type: "select", options: ["Manikür/Pedikür", "Saç Kesimi/Boyama", "Lazer Epilasyon", "Cilt Bakımı", "Makyaj", "Diğer"] },
-      { entity: "deal", key: "randevu_tarihi", label: "Randevu Tarihi", type: "date" },
+      { entity: "deal", key: "randevu_tarihi", label: "Randevu Tarihi", type: "datetime" },
       { entity: "deal", key: "seans_no", label: "Seans No (paket hizmetlerde)", type: "number" },
       { entity: "customer", key: "tercih_edilen_uzman", label: "Tercih Edilen Uzman/Personel", type: "text", audience: "bireysel" },
       { entity: "customer", key: "alerji_notu", label: "Alerji / Cilt Notu", type: "text", audience: "bireysel" },
@@ -245,7 +249,7 @@ export function SectorOnboardingModal({ onPick, onSkip }) {
   );
 }
 
-const FIELD_TYPE_LABELS = { text: "Metin", number: "Sayı", select: "Seçenekli", date: "Tarih" };
+const FIELD_TYPE_LABELS = { text: "Metin", number: "Sayı", select: "Seçenekli", date: "Tarih", datetime: "Tarih & Saat" };
 
 export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDelete }) {
   const [entity, setEntity] = useState("customer");
@@ -336,7 +340,7 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
 
       <p style={{ fontSize: 13, fontWeight: 500, margin: "12px 0 4px", display: "flex", alignItems: "center", gap: 4 }}>
         {editingDef ? "Alanı düzenle" : "Yeni alan ekle"}
-        <InfoTip text={'Standart alanların (isim, telefon, tutar vb.) dışında, işinize özel ekstra bilgi alanları tanımlayabilirsiniz — örn. "Mülk Tipi", "Tercih Edilen Uzman", "Alerji Notu". "Nerede": bu bilgi müşteri kartında mı yoksa teklif/iş takibi kaydında mı görünsün. "Tip": ne tür veri gireceksiniz (metin, sayı, tarih veya hazır seçim listesi). "Kime": bu alanı sadece kurumsal, sadece bireysel müşterilerde mi yoksa herkeste mi göstermek istiyorsunuz.'} />
+        <InfoTip text={'Standart alanların (isim, telefon, tutar vb.) dışında, işinize özel ekstra bilgi alanları tanımlayabilirsiniz — örn. "Mülk Tipi", "Tercih Edilen Uzman", "Alerji Notu". "Nerede": bu bilgi müşteri kartında mı yoksa teklif/iş takibi kaydında mı görünsün. "Tip": ne tür veri gireceksiniz (metin, sayı, tarih, tarih & saat veya hazır seçim listesi) — "Tarih & Saat" tipiyle teklif/iş takibi kaydına eklenen alanlar için, o saatten 2 saat önce müşteriye otomatik hatırlatma e-postası gönderilir (randevu takibi için). "Kime": bu alanı sadece kurumsal, sadece bireysel müşterilerde mi yoksa herkeste mi göstermek istiyorsunuz.'} />
       </p>
       <form onSubmit={submit} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end", marginTop: 8 }}>
         <div>
@@ -357,6 +361,7 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
             <option value="number">Sayı</option>
             <option value="select">Seçenekli</option>
             <option value="date">Tarih</option>
+            <option value="datetime">Tarih &amp; Saat</option>
           </select>
         </div>
         {type === "select" && (
@@ -417,7 +422,7 @@ export function CustomFieldsSection({ defs, values, onChange }) {
               </select>
             ) : (
               <input
-                type={d.type === "number" ? "number" : d.type === "date" ? "date" : "text"}
+                type={d.type === "number" ? "number" : d.type === "date" ? "date" : d.type === "datetime" ? "datetime-local" : "text"}
                 value={values[d.key] || ""}
                 onChange={(e) => onChange({ ...values, [d.key]: e.target.value })}
                 style={{ width: "100%" }}
