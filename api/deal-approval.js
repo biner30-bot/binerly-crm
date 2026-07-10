@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
+import { renderEmailHtml, plainTextFallback } from "./_email-template.js";
 
 // Müşterinin teklif onaylayabildiği uç nokta — token tek başına yetmez, müşteri
 // portalına (Supabase Auth) giriş yapmış VE bu teklifin müşterisine bağlı
@@ -20,6 +21,7 @@ export default async function handler(req, res) {
   // sorgu parametresini doğrudan req.url'den elle ayrıştırıyoruz.
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
   const token = req.method === "GET" ? url.searchParams.get("token") : (req.body || {}).token;
+  const note = req.method === "POST" ? (req.body || {}).note || null : null;
   if (!token) return res.status(400).json({ error: "Eksik token." });
 
   const { data: deal, error: dealError } = await supabaseAdmin
@@ -80,7 +82,7 @@ export default async function handler(req, res) {
       user_id: deal.user_id,
       customer_id: deal.customer_id,
       type: "note",
-      content: `Müşteri "${deal.title}" teklifini onayladı.`,
+      content: `Müşteri "${deal.title}" teklifini onayladı.${note ? ` Not: "${note}"` : ""}`,
     });
 
     const resendApiKey = process.env.RESEND_API_KEY;
@@ -88,6 +90,11 @@ export default async function handler(req, res) {
       const { data: ownerData } = await supabaseAdmin.auth.admin.getUserById(deal.user_id);
       const ownerEmail = ownerData?.user?.email;
       if (ownerEmail) {
+        const bodyText =
+          `${customer?.name || "Müşteriniz"}, "${deal.title}" (${deal.value} TL) teklifini onayladı.` +
+          (note ? `\n\nMüşterinin notu: "${note}"` : "") +
+          `\n\nBinerly'ye giriş yaparak detayları görebilirsiniz.`;
+        const footerLines = ["Binerly Ekibi"];
         await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
@@ -95,7 +102,8 @@ export default async function handler(req, res) {
             from: "Binerly <noreply@binerly.com>",
             to: ownerEmail,
             subject: `${customer?.name || "Müşteriniz"} teklifi onayladı`,
-            text: `${customer?.name || "Müşteriniz"}, "${deal.title}" (${deal.value} TL) teklifini onayladı.\n\nBinerly'ye giriş yaparak detayları görebilirsiniz.`,
+            html: renderEmailHtml({ bodyText, footerLines }),
+            text: plainTextFallback(bodyText, null, null, footerLines),
           }),
         }).catch(() => {});
       }

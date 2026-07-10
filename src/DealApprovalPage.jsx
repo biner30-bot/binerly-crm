@@ -40,6 +40,7 @@ export default function DealApprovalPage() {
   const [session, setSession] = useState(undefined);
   const [state, setState] = useState({ loading: true, error: "", requiresAuth: false, deal: null, branding: null });
   const [approving, setApproving] = useState(false);
+  const [note, setNote] = useState("");
   const [authMode, setAuthMode] = useState("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -96,7 +97,7 @@ export default function DealApprovalPage() {
     const res = await fetch("/api/deal-approval", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({ token, note: note.trim() || null }),
     });
     if (res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -179,6 +180,13 @@ export default function DealApprovalPage() {
               </div>
             ) : (
               <>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Not eklemek ister misiniz? (opsiyonel)"
+                  rows={2}
+                  style={{ width: "100%", boxSizing: "border-box", padding: "9px 10px", border: "1px solid #e1e8f0", borderRadius: 8, fontSize: 13, fontFamily: "inherit", resize: "vertical", marginBottom: 10 }}
+                />
                 <button
                   onClick={approve}
                   disabled={approving}

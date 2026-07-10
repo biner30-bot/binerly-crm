@@ -1053,7 +1053,7 @@ function TeklifPrint({ deal, customer, companySettings, onClose }) {
   );
 }
 
-function CampaignModal({ customers, replyTo, companyName, onClose }) {
+function CampaignModal({ customers, replyTo, companyName, logoUrl, onClose }) {
   const emailCustomers = customers.filter((c) => c.email);
   const [selected, setSelected] = useState(() => new Set(emailCustomers.map((c) => c.id)));
   const [subject, setSubject] = useState("");
@@ -1080,7 +1080,7 @@ function CampaignModal({ customers, replyTo, companyName, onClose }) {
       const res = await fetch("/api/send-campaign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipients, subject, message, replyTo, companyName }),
+        body: JSON.stringify({ recipients, subject, message, replyTo, companyName, logoUrl }),
       });
       const data = await res.json();
       if (res.ok) setResult(`${recipients.length} kişiye gönderildi.`);
@@ -2524,7 +2524,7 @@ export default function App() {
   // Müşteriye önemli gelişmelerde otomatik bilgilendirme e-postası — asıl işlemi
   // asla engellemez, şirket ayarlarından kapatılabilir, e-postası olmayan
   // müşteriler için sessizce atlanır.
-  const notifyCustomerByEmail = async (customer, subject, message) => {
+  const notifyCustomerByEmail = async (customer, subject, message, opts = {}) => {
     if (companySettings?.customerNotificationsEnabled !== true) return;
     if (!customer?.email) return;
     try {
@@ -2537,11 +2537,58 @@ export default function App() {
           message,
           replyTo: session.user.email,
           companyName: companySettings?.companyName,
+          logoUrl: companySettings?.logoUrl,
+          ctaUrl: opts.ctaUrl,
+          ctaLabel: opts.ctaLabel,
         }),
       });
     } catch {
       // yoksay — bildirim maili başarısız olsa da asıl işlemi bozmaz
     }
+  };
+
+  // Teklif/anlaşma her aşamaya geçtiğinde müşteriye o aşamaya özel bir mail —
+  // "Teklif" ve "Müzakere" aşamalarında onay linki de eklenir (generateApprovalLink
+  // token'ı idempotent üretir/döner, tekrar tekrar çağırmak güvenli).
+  const STAGE_EMAIL_CONTENT = {
+    ilk_gorusme: {
+      subject: () => "Sizinle görüştüğümüz için teşekkürler",
+      needsLink: false,
+      body: (deal, company) => `Merhaba,\n\n${company} olarak "${deal.title}" ile ilgileniyoruz. Kısa süre içinde sizinle tekrar iletişime geçeceğiz.`,
+    },
+    teklif: {
+      subject: (title) => `${title} teklifiniz hazır`,
+      needsLink: true,
+      body: (deal, company) => `Merhaba,\n\n${company} sizin için hazırladı: "${deal.title}" — ${formatTL(deal.value)}`,
+    },
+    muzakere: {
+      subject: (title) => `${title} teklifiniz güncellendi`,
+      needsLink: true,
+      body: (deal) => `Merhaba,\n\n"${deal.title}" teklifiniz üzerinde konuştuğumuz güncellemeler yapıldı.`,
+    },
+    kazanildi: {
+      subject: (title) => `${title} tamamlandı`,
+      needsLink: false,
+      body: (deal) => `Merhaba,\n\n"${deal.title}" ile sürecimiz tamamlandı. Bizi tercih ettiğiniz için teşekkür ederiz!`,
+    },
+    kaybedildi: {
+      subject: (title) => `${title} hakkında`,
+      needsLink: false,
+      body: (deal) => `Merhaba,\n\n"${deal.title}" ile ilgili süreç şu an için sonlandırıldı. İlerleyen dönemde tekrar sizinle çalışmaktan memnuniyet duyarız.`,
+    },
+  };
+
+  const sendStageEmail = async (deal, stage) => {
+    const cfg = STAGE_EMAIL_CONTENT[stage];
+    if (!cfg) return;
+    const customer = customers.find((c) => c.id === deal.customerId);
+    if (!customer?.email) return;
+    const company = companySettings?.companyName || "Binerly";
+    const ctaUrl = cfg.needsLink ? await generateApprovalLink(deal) : null;
+    notifyCustomerByEmail(customer, `${cfg.subject(deal.title)} — ${company}`, cfg.body(deal, company), {
+      ctaUrl,
+      ctaLabel: "Teklifi Görüntüle",
+    });
   };
 
   const addActivity = async ({ customerId, type, content }) => {
@@ -2672,15 +2719,7 @@ export default function App() {
     setShowDealForm(false);
     setEditingDeal(null);
     logAction("deals", deal.id, isNew ? "created" : "updated", `${deal.title} ${isNew ? "oluşturuldu" : "güncellendi"}`);
-    if (deal.stage === "teklif" && previousStage !== "teklif") {
-      const customer = customers.find((c) => c.id === deal.customerId);
-      const company = companySettings?.companyName || "Binerly";
-      notifyCustomerByEmail(
-        customer,
-        `${deal.title} hazır — ${company}`,
-        `Merhaba,\n\n${company} sizin için hazırladı: "${deal.title}" — ${formatTL(deal.value)}\n\nDetaylar için bizimle iletişime geçebilir veya müşteri portalımızdan görüntüleyebilirsiniz: https://binerly.com/portal\n\n${company}`
-      );
-    }
+    if (deal.stage !== previousStage) sendStageEmail(deal, deal.stage);
   };
 
   // Müşterinin tek tıkla onaylayabileceği link — teklif zaten bir token'a
@@ -2904,15 +2943,7 @@ export default function App() {
     } else {
       const currentStageLabel = stageLabel(stage, customers.find((c) => c.id === current?.customerId)?.customerType || "kurumsal", companySettings?.sector);
       logAction("deals", id, "updated", `${current?.title || "Teklif"} aşaması "${currentStageLabel}" olarak güncellendi`);
-      if (stage === "teklif" && previousStage !== "teklif") {
-        const customer = customers.find((c) => c.id === current?.customerId);
-        const company = companySettings?.companyName || "Binerly";
-        notifyCustomerByEmail(
-          customer,
-          `${current?.title || "Kaydınız"} hazır — ${company}`,
-          `Merhaba,\n\n${company} sizin için hazırladı: "${current?.title || ""}" — ${formatTL(current?.value || 0)}\n\nDetaylar için bizimle iletişime geçebilir veya müşteri portalımızdan görüntüleyebilirsiniz: https://binerly.com/portal\n\n${company}`
-        );
-      }
+      if (current && stage !== previousStage) sendStageEmail(current, stage);
     }
   };
 
@@ -4602,7 +4633,7 @@ export default function App() {
       )}
 
       {showCampaignModal && (
-        <CampaignModal customers={customers} replyTo={session.user.email} companyName={companySettings?.companyName} onClose={() => setShowCampaignModal(false)} />
+        <CampaignModal customers={customers} replyTo={session.user.email} companyName={companySettings?.companyName} logoUrl={companySettings?.logoUrl} onClose={() => setShowCampaignModal(false)} />
       )}
 
       {viewingCustomer && (

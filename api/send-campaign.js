@@ -1,9 +1,11 @@
+import { renderEmailHtml, plainTextFallback } from "./_email-template.js";
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { recipients, subject, message, replyTo, companyName } = req.body || {};
+  const { recipients, subject, message, replyTo, companyName, ctaUrl, ctaLabel, logoUrl } = req.body || {};
   if (!Array.isArray(recipients) || recipients.length === 0 || !subject || !message) {
     return res.status(400).json({ error: "Eksik bilgi." });
   }
@@ -18,6 +20,9 @@ export default async function handler(req, res) {
   // "Binerly üzerinden" gönderildiğini açıkça belirtiyoruz, yanıtlar zaten
   // replyTo ile doğrudan şirkete gidiyor.
   const senderName = companyName ? `${companyName} (Binerly ile)` : "Binerly";
+  const footerLines = [senderName, "Bu e-posta Binerly (binerly.com) altyapısıyla gönderildi."];
+  const html = renderEmailHtml({ logoUrl, bodyText: message, ctaLabel, ctaUrl, footerLines });
+  const text = plainTextFallback(message, ctaLabel, ctaUrl, footerLines);
 
   try {
     const results = await Promise.all(
@@ -32,7 +37,8 @@ export default async function handler(req, res) {
             from: `${senderName} <noreply@binerly.com>`,
             to,
             subject,
-            text: message,
+            html,
+            text,
             ...(replyTo ? { reply_to: replyTo } : {}),
           }),
         })

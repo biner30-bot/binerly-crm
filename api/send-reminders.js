@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { renderEmailHtml, plainTextFallback } from "./_email-template.js";
 
 export default async function handler(req, res) {
   const authHeader = req.headers.authorization;
@@ -52,9 +53,9 @@ export default async function handler(req, res) {
 
     const { data: settingsRows } = await supabaseAdmin
       .from("company_settings")
-      .select("user_id, company_name")
+      .select("user_id, company_name, logo_url, email")
       .in("user_id", Object.keys(dealsByUser));
-    const companyNameByUser = Object.fromEntries((settingsRows || []).map((s) => [s.user_id, s.company_name]));
+    const settingsByUser = Object.fromEntries((settingsRows || []).map((s) => [s.user_id, s]));
 
     let usersNotified = 0;
     let failed = 0;
@@ -71,9 +72,8 @@ export default async function handler(req, res) {
       const lines = userDeals.map(
         (d) => `- ${customerNameById[d.customer_id] || "Bilinmeyen müşteri"}: ${d.title} — ${d.reminder}`
       );
-      const message =
-        `Bugün için hatırlatmalarınız:\n\n${lines.join("\n")}\n\n` +
-        `Binerly'ye giriş yaparak fırsatlarınızı görüntüleyebilirsiniz.`;
+      const ownerBodyText = `Bugün için hatırlatmalarınız:\n\n${lines.join("\n")}\n\nBinerly'ye giriş yaparak fırsatlarınızı görüntüleyebilirsiniz.`;
+      const ownerFooterLines = ["Binerly Ekibi"];
 
       const sendRes = await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -85,7 +85,8 @@ export default async function handler(req, res) {
           from: "Binerly <noreply@binerly.com>",
           to: email,
           subject: `Bugünkü hatırlatmalarınız (${userDeals.length})`,
-          text: message,
+          html: renderEmailHtml({ bodyText: ownerBodyText, footerLines: ownerFooterLines }),
+          text: plainTextFallback(ownerBodyText, null, null, ownerFooterLines),
         }),
       });
 
@@ -95,11 +96,14 @@ export default async function handler(req, res) {
       // Müşteriye de gönder işaretliyse (DealForm'daki "Hatırlatma tarihinde
       // müşteriye de e-posta gönder" kutusu) — sadece müşterinin e-postası
       // varsa, ayrı ve dostane bir metinle.
-      const company = companyNameByUser[userId] || "Binerly";
+      const settings = settingsByUser[userId] || {};
+      const company = settings.company_name || "Binerly";
       for (const deal of userDeals) {
         if (!deal.notify_customer) continue;
         const customer = customerById[deal.customer_id];
         if (!customer?.email) continue;
+        const bodyText = `Merhaba ${customer.name || ""},\n\n${company} tarafından hatırlatma: ${deal.reminder}`;
+        const footerLines = [`${company} (Binerly ile)`];
         const customerRes = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {
@@ -107,10 +111,12 @@ export default async function handler(req, res) {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "Binerly <noreply@binerly.com>",
+            from: `${company} (Binerly ile) <noreply@binerly.com>`,
             to: customer.email,
             subject: `Hatırlatma: ${deal.title}`,
-            text: `Merhaba ${customer.name || ""},\n\n${company} tarafından hatırlatma: ${deal.reminder}\n\n${company}`,
+            html: renderEmailHtml({ logoUrl: settings.logo_url, bodyText, footerLines }),
+            text: plainTextFallback(bodyText, null, null, footerLines),
+            ...(settings.email ? { reply_to: settings.email } : {}),
           }),
         });
         if (customerRes.ok) customersNotified++;

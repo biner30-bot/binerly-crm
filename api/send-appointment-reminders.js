@@ -1,4 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
+import crypto from "node:crypto";
+import { renderEmailHtml, plainTextFallback } from "./_email-template.js";
 
 // GitHub Actions'tan (bkz. .github/workflows/appointment-reminders.yml) her 15
 // dakikada bir tetiklenir — Vercel'in ücretsiz planındaki "cron günde 1 kez"
@@ -42,18 +44,18 @@ export default async function handler(req, res) {
     const [{ data: deals, error: dealsError }, { data: settingsRows }] = await Promise.all([
       supabaseAdmin
         .from("deals")
-        .select("id, user_id, customer_id, title, custom_fields, stage")
+        .select("id, user_id, customer_id, title, custom_fields, stage, approval_token")
         .in("user_id", userIds)
         .is("deleted_at", null)
         .not("stage", "in", "(kazanildi,kaybedildi)")
         .is("appointment_reminder_sent_at", null),
-      supabaseAdmin.from("company_settings").select("user_id, company_name").in("user_id", userIds),
+      supabaseAdmin.from("company_settings").select("user_id, company_name, logo_url, email").in("user_id", userIds),
     ]);
 
     if (dealsError) return res.status(500).json({ error: dealsError.message });
     if (!deals || deals.length === 0) return res.status(200).json({ remindersSent: 0 });
 
-    const companyNameByUser = Object.fromEntries((settingsRows || []).map((s) => [s.user_id, s.company_name]));
+    const settingsByUser = Object.fromEntries((settingsRows || []).map((s) => [s.user_id, s]));
     const keysByUser = {};
     for (const d of defs) (keysByUser[d.user_id] ||= []).push(d.key);
 
@@ -87,18 +89,35 @@ export default async function handler(req, res) {
       const key = (keysByUser[deal.user_id] || []).find((k) => deal.custom_fields?.[k]);
       const raw = deal.custom_fields?.[key];
       const timeLabel = raw ? raw.split("T")[1] : "";
-      const company = companyNameByUser[deal.user_id] || "Binerly";
+      const settings = settingsByUser[deal.user_id] || {};
+      const company = settings.company_name || "Binerly";
+
+      // Hatırlatma mailinden de tek tıkla onaylanabilsin diye onay linki —
+      // deal-approval.js'deki üretim mantığıyla aynı, token yoksa burada üretilir.
+      let token = deal.approval_token;
+      if (!token) {
+        token = crypto.randomUUID();
+        await supabaseAdmin.from("deals").update({ approval_token: token }).eq("id", deal.id);
+      }
+      const ctaUrl = `https://binerly.com/onay/${token}`;
+
+      const bodyText =
+        `Merhaba ${customer.name || ""},\n\n${company} bünyesindeki "${deal.title}" randevunuz ` +
+        `bugün saat ${timeLabel}'de. Sizi görmekten mutluluk duyarız.`;
+      const footerLines = [`${company} (Binerly ile)`];
+      const html = renderEmailHtml({ logoUrl: settings.logo_url, bodyText, ctaLabel: "Teklifi Görüntüle", ctaUrl, footerLines });
+      const text = plainTextFallback(bodyText, "Teklifi Görüntüle", ctaUrl, footerLines);
 
       const sendRes = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          from: `${company} <noreply@binerly.com>`,
+          from: `${company} (Binerly ile) <noreply@binerly.com>`,
           to: customer.email,
           subject: `Randevu hatırlatması — bugün saat ${timeLabel}`,
-          text:
-            `Merhaba ${customer.name || ""},\n\n${company} bünyesindeki "${deal.title}" randevunuz ` +
-            `bugün saat ${timeLabel}'de. Sizi görmekten mutluluk duyarız.\n\n${company}`,
+          html,
+          text,
+          ...(settings.email ? { reply_to: settings.email } : {}),
         }),
       });
       if (sendRes.ok) remindersSent++;
