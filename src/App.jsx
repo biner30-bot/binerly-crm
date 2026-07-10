@@ -2349,6 +2349,7 @@ export default function App() {
   const [dealToDate, setDealToDate] = useState("");
   const [dealStageFilter, setDealStageFilter] = useState("all");
   const [dealPaymentFilter, setDealPaymentFilter] = useState("all");
+  const [dealSort, setDealSort] = useState("newest");
   const [dealAudience, setDealAudience] = useState("kurumsal");
   const [teklifDeal, setTeklifDeal] = useState(null);
   const [paymentsDeal, setPaymentsDeal] = useState(null);
@@ -3418,7 +3419,9 @@ export default function App() {
       d.title.toLowerCase().includes(dealQuery) ||
       (customerById(d.customerId)?.name || "").toLowerCase().includes(dealQuery)
     );
-  });
+  }).sort((a, b) =>
+    dealSort === "newest" ? new Date(b.createdAt) - new Date(a.createdAt) : new Date(a.createdAt) - new Date(b.createdAt)
+  );
 
   const openTicketsCount = tickets.filter((t) => !TERMINAL_STATUSES.includes(t.status)).length;
   const breachedTickets = tickets.filter(
@@ -4196,6 +4199,10 @@ export default function App() {
               <option value="odendi">Ödendi</option>
               <option value="kismi">Kısmi ödeme</option>
               <option value="odenmedi">Ödenmedi</option>
+            </select>
+            <select value={dealSort} onChange={(e) => setDealSort(e.target.value)} style={{ fontSize: 13 }}>
+              <option value="newest">En yeni eklenen</option>
+              <option value="oldest">En eski eklenen</option>
             </select>
             <DateRangeFilter from={dealFromDate} to={dealToDate} onFromChange={setDealFromDate} onToChange={setDealToDate} />
           </div>
