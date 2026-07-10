@@ -387,15 +387,32 @@ function CustomerForm({ initial, customFieldDefs = [], sectorTags = [], preferre
   );
 }
 
-function CompanySettingsForm({ initial, onSave, onCancel }) {
+function CompanySettingsForm({ initial, onSave, onCancel, activeTeamId, notify }) {
   const [companyName, setCompanyName] = useState(initial?.companyName || "");
   const [address, setAddress] = useState(initial?.address || "");
   const [phone, setPhone] = useState(initial?.phone || "");
   const [email, setEmail] = useState(initial?.email || "");
   const [taxNumber, setTaxNumber] = useState(initial?.taxNumber || "");
   const [logoUrl, setLogoUrl] = useState(initial?.logoUrl || "");
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [defaultKdvRate, setDefaultKdvRate] = useState(initial?.defaultKdvRate ?? 20);
   const [customerNotificationsEnabled, setCustomerNotificationsEnabled] = useState(initial?.customerNotificationsEnabled === true);
+
+  const handleLogoFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { notify("Sadece resim dosyası yükleyebilirsiniz."); return; }
+    if (file.size > 2 * 1024 * 1024) { notify("Logo dosyası en fazla 2 MB olabilir."); return; }
+    setUploadingLogo(true);
+    const ext = file.name.split(".").pop();
+    const path = `${activeTeamId}/logo-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("logos").upload(path, file, { upsert: true });
+    setUploadingLogo(false);
+    if (error) { notify(`Logo yüklenemedi: ${error.message}`); return; }
+    const { data } = supabase.storage.from("logos").getPublicUrl(path);
+    setLogoUrl(data.publicUrl);
+  };
 
   return (
     <form
@@ -437,9 +454,22 @@ function CompanySettingsForm({ initial, onSave, onCancel }) {
         <input value={taxNumber} onChange={(e) => setTaxNumber(e.target.value)} placeholder="1234567890" style={{ width: "100%" }} />
       </div>
       <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Logo URL</label>
-        <input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://.../logo.png" style={{ width: "100%" }} />
-        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Dosya yükleme yok — bir yerde barındırılan logonuzun bağlantısını yapıştırın.</p>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Logo</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          {logoUrl && (
+            <img src={logoUrl} alt="Logo" style={{ height: 44, borderRadius: 6, objectFit: "contain", background: "var(--surface-1)", padding: 4 }} />
+          )}
+          <label style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 14px", fontSize: 13, cursor: uploadingLogo ? "default" : "pointer" }}>
+            {uploadingLogo ? "Yükleniyor…" : logoUrl ? "Logoyu değiştir" : "Logo yükle"}
+            <input type="file" accept="image/*" onChange={handleLogoFile} disabled={uploadingLogo} style={{ display: "none" }} />
+          </label>
+          {logoUrl && !uploadingLogo && (
+            <button type="button" onClick={() => setLogoUrl("")} style={{ background: "none", border: "none", color: "var(--text-danger)", fontSize: 13, cursor: "pointer" }}>
+              Kaldır
+            </button>
+          )}
+        </div>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>PNG, JPG veya SVG — en fazla 2 MB. Teklif çıktısında ve müşterinin gördüğü sayfalarda görünür.</p>
       </div>
       <div style={{ marginBottom: 16 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Varsayılan KDV oranı</label>
@@ -4420,7 +4450,7 @@ export default function App() {
 
       {showSettingsForm && (
         <Modal title="İşletme Bilgileri" onClose={() => setShowSettingsForm(false)}>
-          <CompanySettingsForm initial={companySettings} onSave={upsertCompanySettings} onCancel={() => setShowSettingsForm(false)} />
+          <CompanySettingsForm initial={companySettings} onSave={upsertCompanySettings} onCancel={() => setShowSettingsForm(false)} activeTeamId={activeTeamId} notify={notify} />
         </Modal>
       )}
 
