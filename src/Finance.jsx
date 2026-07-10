@@ -6,7 +6,7 @@ const RECURRING_INFO_TEXT =
   "ayrı ayrı kaydedilmiş değildir. Herhangi birini silmek, geçmiş ve gelecekteki TÜM tekrarları kaldırır.";
 
 const TOTAL_EXPENSE_INFO_TEXT =
-  "Elle eklediğiniz şirket giderlerinin yanı sıra, kazanılan tekliflerdeki \"Gider\" tutarlarını da içerir. " +
+  "Elle eklediğiniz işletme giderlerinin yanı sıra, kazanılan tekliflerdeki \"Gider\" tutarlarını da içerir. " +
   "Aşağıdaki \"Kategoriye göre gider\" listesi sadece elle eklenenleri gösterdiği için bu toplamla tam eşleşmeyebilir.";
 
 const KDV_REPORT_INFO_TEXT =
@@ -562,10 +562,10 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
         <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", minWidth: 200 }}>
           <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 4 }}>
             Kategoriye göre gider
-            <InfoTip text="Sadece elle eklenen şirket giderlerini gösterir, kazanılan tekliflerdeki gider tutarlarını içermez — bu yüzden yukarıdaki Toplam Gider'le tam eşleşmeyebilir." />
+            <InfoTip text="Sadece elle eklenen işletme giderlerini gösterir, kazanılan tekliflerdeki gider tutarlarını içermez — bu yüzden yukarıdaki Toplam Gider'le tam eşleşmeyebilir." />
           </p>
           {Object.keys(categoryTotals).length === 0 ? (
-            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Bu aralıkta şirket gideri yok.</p>
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Bu aralıkta işletme gideri yok.</p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]).map(([category, total]) => (

@@ -44,7 +44,7 @@ export function PrivacyPolicyPage() {
       </Section>
       <Section title="2. Topladığımız Veriler">
         <p>
-          Hesap sahibi (KOBİ) olarak: ad-soyad, e-posta adresi ve şirket bilgileri. Hesap sahibinin sisteme
+          Hesap sahibi (KOBİ) olarak: ad-soyad, e-posta adresi ve işletme bilgileri. Hesap sahibinin sisteme
           kendi girdiği müşteri verileri: müşteri adı, iletişim bilgileri, satış/teklif kayıtları, destek
           talepleri ve mesajları. Müşteri Bilgi Sistemi (portal) kullanıcıları için: e-posta adresi ve
           portal üzerinden oluşturdukları destek talepleri/mesajlar.

@@ -103,7 +103,7 @@ const MESSAGE_DIRECTIONS = [
 ];
 
 const STATUS_INFO_TEXT =
-  "Durumu \"Çözüldü\" veya \"Kapatıldı\" yaptığınızda, e-posta bildirimleri açıksa (Ayarlar → Şirket Bilgileri) " +
+  "Durumu \"Çözüldü\" veya \"Kapatıldı\" yaptığınızda, e-posta bildirimleri açıksa (Ayarlar → İşletme Bilgileri) " +
   "müşteriye otomatik bir bilgilendirme e-postası gider.\n\n" +
   "İkisi arasındaki fark tamamen size kalmış — örn. \"Çözüldü\" sorunun giderildiğini, \"Kapatıldı\" konunun " +
   "artık takip edilmeyeceğini belirtmek için kullanılabilir. İkisi de SLA süresini durdurur.";

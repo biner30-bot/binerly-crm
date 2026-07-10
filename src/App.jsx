@@ -415,8 +415,8 @@ function CompanySettingsForm({ initial, onSave, onCancel }) {
       }}
     >
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Şirket adı</label>
-        <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Akın İnşaat Ltd. Şti." style={{ width: "100%" }} />
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>İşletme adı</label>
+        <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Akın Diş Kliniği" style={{ width: "100%" }} />
       </div>
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Adres</label>
@@ -1154,7 +1154,7 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
         body: JSON.stringify({
           recipients: [email],
           subject: `${companySettings?.companyName || "Binerly"} sizi takımına davet etti`,
-          message: `Merhaba,\n\n${companySettings?.companyName || "Bir şirket"} sizi Binerly hesabına takım üyesi olarak davet etti. binerly.com adresine bu e-posta ile giriş yaparak (veya kayıt olarak) daveti kabul edebilirsiniz.\n\nBinerly`,
+          message: `Merhaba,\n\n${companySettings?.companyName || "Bir işletme"} sizi Binerly hesabına takım üyesi olarak davet etti. binerly.com adresine bu e-posta ile giriş yaparak (veya kayıt olarak) daveti kabul edebilirsiniz.\n\nBinerly`,
           replyTo: session.user.email,
           companyName: companySettings?.companyName,
         }),
@@ -1195,7 +1195,7 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
     return (
       <Modal title="Takım" onClose={onClose}>
         <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-          Bu hesap <strong>{companySettings?.companyName || "bir şirket"}</strong> takımının bir üyesi. Tüm müşteri, teklif ve destek verisi bu takımla paylaşılıyor.
+          Bu hesap <strong>{companySettings?.companyName || "bir işletme"}</strong> takımının bir üyesi. Tüm müşteri, teklif ve destek verisi bu takımla paylaşılıyor.
         </p>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
           <button onClick={onClose}>Kapat</button>
@@ -1228,7 +1228,7 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
                       checked={!!m.can_edit_settings}
                       onChange={(e) => toggleEditSettings(m.member_id, e.target.checked)}
                     />
-                    Şirket/sektör ayarlarını düzenleyebilir
+                    İşletme/sektör ayarlarını düzenleyebilir
                   </label>
                 </div>
               ))
@@ -1274,7 +1274,7 @@ const TRASH_TABLE_LABELS = {
   customers: "Müşteri",
   deals: "Teklif",
   payments: "Tahsilat",
-  company_expenses: "Şirket gideri",
+  company_expenses: "İşletme gideri",
   tickets: "Talep",
   kb_articles: "Makale",
 };
@@ -1625,10 +1625,22 @@ function ParasutExportModal({ deals, customerById, totalPaidForDeal, onClose }) 
 }
 
 function AppSettingsModal({ session, theme, onThemeChange, pushSubscribed, onSubscribe, onUnsubscribe, notify, onClose }) {
+  const [name, setName] = useState(session.user.user_metadata?.full_name || "");
+  const [savingName, setSavingName] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const saveName = async (e) => {
+    e.preventDefault();
+    if (!name.trim()) { notify("Ad Soyad boş olamaz."); return; }
+    setSavingName(true);
+    const { error } = await supabase.auth.updateUser({ data: { full_name: name.trim() } });
+    setSavingName(false);
+    if (error) { notify(`Kaydedilemedi: ${error.message}`); return; }
+    notify("Adınız güncellendi.", "success");
+  };
 
   const changePassword = async (e) => {
     e.preventDefault();
@@ -1653,6 +1665,19 @@ function AppSettingsModal({ session, theme, onThemeChange, pushSubscribed, onSub
   return (
     <Modal title="Ayarlar" onClose={onClose}>
       <div style={{ marginBottom: 20 }}>
+        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Profil</p>
+        <form onSubmit={saveName} style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ad Soyad</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} style={{ width: "100%" }} />
+          </div>
+          <button type="submit" disabled={savingName || !name.trim()} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
+            {savingName ? "Kaydediliyor…" : "Kaydet"}
+          </button>
+        </form>
+      </div>
+
+      <div style={{ marginBottom: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
         <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Görünüm</p>
         <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, width: "fit-content" }}>
           <button
@@ -2115,7 +2140,7 @@ function LandingPage() {
               <i className="ti ti-bulb" style={{ fontSize: 26, color: "#185fa5", display: "block", marginBottom: 12 }} />
               <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>Misyonumuz</h3>
               <p style={{ fontSize: 13.5, color: "#5b7088", margin: 0, lineHeight: 1.7 }}>
-                KOBİ'lerin günlük operasyonel yükünü azaltıp dijitalleştirerek, zamanlarını ve zihinlerini işlerini büyütmeye, şirketlerini daha iyiye taşıyacak kararlar almaya ve müşterileriyle daha kaliteli ilişkiler kurmaya ayırabilmelerini sağlamak.
+                KOBİ'lerin günlük operasyonel yükünü azaltıp dijitalleştirerek, zamanlarını ve zihinlerini işlerini büyütmeye, işletmelerini daha iyiye taşıyacak kararlar almaya ve müşterileriyle daha kaliteli ilişkiler kurmaya ayırabilmelerini sağlamak.
               </p>
             </div>
             <div style={{ background: "#f5f8fc", borderRadius: 12, padding: "1.5rem", border: "1px solid #e1e8f0" }}>
@@ -3151,7 +3176,7 @@ export default function App() {
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase.from("company_settings").upsert(row).select().single();
-    if (error) { notify(`Şirket ayarları kaydedilemedi: ${error.message}`); return; }
+    if (error) { notify(`İşletme ayarları kaydedilemedi: ${error.message}`); return; }
     setCompanySettings(rowToCompanySettings(data));
     setShowSettingsForm(false);
     if (row.sector) await applySectorCustomFields(row.sector);
@@ -3425,7 +3450,7 @@ export default function App() {
               }}
             >
               <p style={{ margin: "0 0 8px" }}>
-                Bir şirket sizi takımına davet etti ({inv.email}) — takıma katılırsanız o şirketin tüm müşteri/teklif/destek verisini görüp düzenleyebilirsiniz.
+                Bir işletme sizi takımına davet etti ({inv.email}) — takıma katılırsanız o işletmenin tüm müşteri/teklif/destek verisini görüp düzenleyebilirsiniz.
                 {(customers.length > 0 || deals.length > 0) && " Mevcut verileriniz size özel kalacak, takıma taşınmayacak."}
               </p>
               <label style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 10, cursor: "pointer", fontSize: 12.5 }}>
@@ -3440,7 +3465,7 @@ export default function App() {
                   style={{ marginTop: 2 }}
                 />
                 <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  Bu şirketin çalışanı veya yetkilisi olduğumu beyan ederim.
+                  Bu işletmenin çalışanı veya yetkilisi olduğumu beyan ederim.
                   <InfoTip text="Bir hesap yalnızca aynı işletmenin çalışan/yetkilileri arasında paylaşılabilir (Kullanım Koşulları md. 3) — bu beyan, ilgisiz kişi/işletmelerin maliyet paylaşmak için bir hesabı ortak kullanmasını önlemek için isteniyor." />
                 </span>
               </label>
@@ -4321,8 +4346,8 @@ export default function App() {
             <>
               <MenuRow
                 icon="ti-building"
-                label="Şirket Bilgileri"
-                description="Şirket adı, adres, iletişim, KDV oranı"
+                label="İşletme Bilgileri"
+                description="İşletme adı, adres, iletişim, KDV oranı"
                 onClick={() => { setShowSettingsHub(false); setShowSettingsForm(true); }}
               />
               <MenuRow
@@ -4388,7 +4413,7 @@ export default function App() {
       )}
 
       {showSettingsForm && (
-        <Modal title="Şirket Bilgileri" onClose={() => setShowSettingsForm(false)}>
+        <Modal title="İşletme Bilgileri" onClose={() => setShowSettingsForm(false)}>
           <CompanySettingsForm initial={companySettings} onSave={upsertCompanySettings} onCancel={() => setShowSettingsForm(false)} />
         </Modal>
       )}
