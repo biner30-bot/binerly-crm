@@ -49,7 +49,7 @@ export default async function handler(req, res) {
         .is("deleted_at", null)
         .not("stage", "in", "(kazanildi,kaybedildi)")
         .is("appointment_reminder_sent_at", null),
-      supabaseAdmin.from("company_settings").select("user_id, company_name, logo_url, email").in("user_id", userIds),
+      supabaseAdmin.from("company_settings").select("user_id, company_name, logo_url, email, sector").in("user_id", userIds),
     ]);
 
     if (dealsError) return res.status(500).json({ error: dealsError.message });
@@ -80,6 +80,11 @@ export default async function handler(req, res) {
 
     let remindersSent = 0;
     const remindedIds = [];
+    // Güzellik & Bakım'da "Müzakere" aşaması "Hatırlatma gönderildi" anlamına geliyor
+    // (bkz. Sectors.jsx) — bu sektörde hatırlatma başarıyla gidince deal'i otomatik
+    // oraya taşıyoruz. Diğer sektörlerde "Müzakere" farklı bir şey ifade ettiği için
+    // (örn. gerçek bir pazarlık aşaması) bu otomatik taşıma yapılmıyor.
+    const stageAdvanceIds = [];
 
     for (const deal of dueDeals) {
       remindedIds.push(deal.id);
@@ -120,7 +125,10 @@ export default async function handler(req, res) {
           ...(settings.email ? { reply_to: settings.email } : {}),
         }),
       });
-      if (sendRes.ok) remindersSent++;
+      if (sendRes.ok) {
+        remindersSent++;
+        if (settings.sector === "guzellik_bakim" && deal.stage !== "muzakere") stageAdvanceIds.push(deal.id);
+      }
     }
 
     if (remindedIds.length > 0) {
@@ -128,6 +136,9 @@ export default async function handler(req, res) {
         .from("deals")
         .update({ appointment_reminder_sent_at: new Date().toISOString() })
         .in("id", remindedIds);
+    }
+    if (stageAdvanceIds.length > 0) {
+      await supabaseAdmin.from("deals").update({ stage: "muzakere" }).in("id", stageAdvanceIds);
     }
 
     return res.status(200).json({ remindersSent });

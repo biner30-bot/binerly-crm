@@ -70,11 +70,11 @@ export default async function handler(req, res) {
   let approvedAt = deal.approved_at;
   if (!deal.approved_at) {
     approvedAt = new Date().toISOString();
-    const isClosed = deal.stage === "kazanildi" || deal.stage === "kaybedildi";
-    const updatePayload = isClosed
-      ? { approved_at: approvedAt }
-      : { approved_at: approvedAt, stage: "kazanildi", closed_at: approvedAt };
-    const { error: updateError } = await supabaseAdmin.from("deals").update(updatePayload).eq("id", deal.id);
+    // Onay sadece "müşteri kabul etti" demektir — işin/hizmetin/satışın fiilen
+    // tamamlandığı anlamına gelmez, bu yüzden aşamayı OTOMATİK "Kazanıldı"ya
+    // taşımıyoruz. "Onaylandı ✓" rozeti zaten bunu gösteriyor; aşamayı ne zaman
+    // gerçekten tamamlanmış sayacağına her zaman KOBİ kendisi karar verir.
+    const { error: updateError } = await supabaseAdmin.from("deals").update({ approved_at: approvedAt }).eq("id", deal.id);
     if (updateError) return res.status(500).json({ error: updateError.message });
 
     await supabaseAdmin.from("activities").insert({
