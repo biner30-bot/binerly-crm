@@ -167,16 +167,26 @@ export const SECTOR_PRESETS = [
   },
 ];
 
-// Kurumsal/bireysel müşteri tipine göre (mevcut, kanıtlanmış davranış) ve şirketin
-// sektörüne göre (yeni) aşama görünen metnini belirler. Aşama id'leri hiç değişmez —
-// sadece bu fonksiyonun ürettiği metin değişir, iş mantığı hep id üzerinden çalışır.
-// Bireysel müşteri tipi override'ı sektörden önce gelir: bireysel akış zaten kendine
-// özel, ayrı ayarlanmış bir dille çalışıyor, sektör sadece kurumsal anlaşmalarda geçerli.
+// Şirketin sektörüne göre (varsa) ve kurumsal/bireysel müşteri tipine göre aşama
+// görünen metnini belirler. Aşama id'leri hiç değişmez — sadece bu fonksiyonun
+// ürettiği metin değişir, iş mantığı hep id üzerinden çalışır.
+// Sektör override'ı önce gelir: bir sektör (örn. Güzellik & Bakım) bir aşamayı
+// özelleştirmişse, o etiket müşteri kurumsal da olsa bireysel de olsa geçerlidir —
+// çünkü sektörün kendi dili (örn. "Randevu planlandı") ikisi için de doğru. Sektör
+// o aşamayı özelleştirmemişse (örn. "Genel"), bireysel/kurumsal ayrımı devam eder.
 export function stageLabel(stageId, customerType, sector) {
-  if (customerType === "bireysel") return STAGE_LABELS_BIREYSEL[stageId] || stageId;
   const preset = SECTOR_PRESETS.find((p) => p.id === sector);
   if (preset?.stageLabels?.[stageId]) return preset.stageLabels[stageId];
+  if (customerType === "bireysel") return STAGE_LABELS_BIREYSEL[stageId] || stageId;
   return STAGES.find((s) => s.id === stageId)?.label || stageId;
+}
+
+// Bazı sektörlerde kayıt gerçekten bir randevu/hizmet slotudur (teklif değil) —
+// bu sektörlerde uygulamanın dört bir yanındaki "teklif" kelimesi "randevu" olur.
+// Diğer sektörlerde (Emlak, Dijital Ajans vb.) görüşme/randevu sadece bir ara adım,
+// asıl kayıt hâlâ bir tekliftir.
+export function isAppointmentSector(sector) {
+  return sector === "guzellik_bakim" || sector === "saglik_klinik";
 }
 
 export function rowToCustomFieldDef(r) {

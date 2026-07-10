@@ -35,10 +35,10 @@ export default async function handler(req, res) {
 
   const [{ data: customer }, { data: settings }] = await Promise.all([
     supabaseAdmin.from("customers").select("name, portal_user_id").eq("id", deal.customer_id).maybeSingle(),
-    supabaseAdmin.from("company_settings").select("company_name, logo_url").eq("user_id", deal.user_id).maybeSingle(),
+    supabaseAdmin.from("company_settings").select("company_name, logo_url, sector").eq("user_id", deal.user_id).maybeSingle(),
   ]);
 
-  const branding = { companyName: settings?.company_name || "Binerly", logoUrl: settings?.logo_url || null };
+  const branding = { companyName: settings?.company_name || "Binerly", logoUrl: settings?.logo_url || null, sector: settings?.sector || null };
 
   const authHeader = req.headers.authorization || "";
   const accessToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;

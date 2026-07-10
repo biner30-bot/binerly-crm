@@ -17,6 +17,7 @@ import {
   STAGES,
   SECTOR_PRESETS,
   stageLabel,
+  isAppointmentSector,
   rowToCustomFieldDef,
   SectorOnboardingModal,
   CustomFieldDefsManager,
@@ -60,24 +61,29 @@ const PORTAL_INFO_TEXT =
   "— — bu müşteri henüz portala giriş yapmamış. Müşterinizin, kayıtlı e-posta adresiyle " +
   "portal üzerinden kendi hesabını oluşturması yeterli, sizin ayrıca bir davet göndermenize gerek yok.";
 
-const DEAL_ACTIONS_INFO_TEXT =
-  "📄 Teklif PDF — markalı, yazdırılabilir teklif belgesi oluşturur.\n" +
-  "🔗 Onay linki — müşterinin \"onaylıyorum\" diyebileceği bir link kopyalar, siz WhatsApp/e-posta ile gönderirsiniz. Müşteri, " +
-  "sisteme kayıtlı e-postasıyla giriş yapmadan teklifi göremez/onaylayamaz — bu yüzden müşterinin e-postası kayıtlı olmalı. " +
-  "Onaylayınca satırda yeşil \"Onaylandı ✓\" rozeti otomatik görünür. Bu, resmi/güvenli elektronik imza değildir — " +
-  "sadece takip ve bildirim amaçlıdır, hukuki bağlayıcılığı önemli anlaşmalarda ıslak imza veya nitelikli e-imza kullanın.\n" +
-  "💵 Tahsilat — bu teklife yapılan ödemeleri kaydedin/görün.\n" +
-  "📋 Kopyala — aynı müşteri/tutar/etiketlerle sıfırdan yeni bir teklif formu açar (tekrar eden işler için), hiçbir şeyi otomatik kaydetmez.\n" +
-  "✏️ Düzenle · 🗑️ Sil";
+const dealActionsInfoText = (sector) => {
+  const noun = isAppointmentSector(sector) ? "randevu" : "teklif";
+  const pdfLabel = isAppointmentSector(sector) ? "Randevu Özeti PDF" : "Teklif PDF";
+  return (
+    `📄 ${pdfLabel} — markalı, yazdırılabilir ${noun} belgesi oluşturur.\n` +
+    `🔗 Onay linki — müşterinin "onaylıyorum" diyebileceği bir link kopyalar, siz WhatsApp/e-posta ile gönderirsiniz. Müşteri, ` +
+    `sisteme kayıtlı e-postasıyla giriş yapmadan ${noun}i göremez/onaylayamaz — bu yüzden müşterinin e-postası kayıtlı olmalı. ` +
+    `Onaylayınca satırda yeşil "Onaylandı ✓" rozeti otomatik görünür. Bu, resmi/güvenli elektronik imza değildir — ` +
+    `sadece takip ve bildirim amaçlıdır, hukuki bağlayıcılığı önemli anlaşmalarda ıslak imza veya nitelikli e-imza kullanın.\n` +
+    `💵 Tahsilat — bu ${noun}e yapılan ödemeleri kaydedin/görün.\n` +
+    `📋 Kopyala — aynı müşteri/tutar/etiketlerle sıfırdan yeni bir ${noun} formu açar (tekrar eden işler için), hiçbir şeyi otomatik kaydetmez.\n` +
+    "✏️ Düzenle · 🗑️ Sil"
+  );
+};
 
 const CUSTOMER_EMAIL_INFO_TEXT =
   "Güncel bir e-posta girmeniz önemli — teklif onay linki, müşteri portalı girişi ve hatırlatma e-postaları gibi " +
   "özellikler ancak müşterinin e-postası kayıtlıysa çalışır. E-posta yoksa bu özellikler o müşteri için kullanılamaz.";
 
 const CUSTOMER_TYPE_INFO_TEXT =
-  "Kurumsal/Bireysel seçimi sadece bir etiket değil — Sektör alanının görünüp görünmeyeceğini, teklif aşama isimlerini " +
-  "(\"Kazanıldı\" yerine \"Tamamlandı\" gibi), hangi özel alanların çıkacağını ve teklif formundaki bazı metinleri " +
-  "(\"Kayıp nedeni\" yerine \"İptal nedeni\" gibi) uygulamanın birçok yerinde değiştirir.";
+  "Kurumsal/Bireysel seçimi sadece bir etiket değil — Sektör alanının görünüp görünmeyeceğini, hangi özel alanların çıkacağını " +
+  "ve teklif formundaki bazı metinleri (\"Kayıp nedeni\" yerine \"İptal nedeni\" gibi) uygulamanın birçok yerinde değiştirir. " +
+  "Aşama isimleri ise önce sektörünüze (varsa) göre belirlenir, sektör bir aşamayı özelleştirmemişse kurumsal/bireysel ayrımına göre değişir.";
 
 const SECTOR_FIELD_INFO_TEXT =
   "Bu, müşterinin kendi sektörü — Ayarlar'daki \"Sektör & Özel Alanlar\"da seçtiğiniz KENDİ şirket sektörünüzden " +
@@ -92,16 +98,24 @@ const SESSION_PACKAGE_INFO_TEXT =
   "elle güncellersiniz (\"Seans kullanıldı\" butonuyla), kullanılan sayı toplama ulaşınca kart üzerinde " +
   "\"Paket tamamlandı\" rozeti otomatik görünür.";
 
-const KDV_RATE_INFO_TEXT =
-  "Yukarıdaki Tutar zaten KDV dahil, müşteriden alınan toplam tutarı DEĞİŞTİRMEZ — sadece yazdırılan teklif PDF'inde " +
-  "\"Ara Toplam / KDV / Genel Toplam\" satırlarının nasıl bölüneceğini belirler.";
+const kdvRateInfoText = (sector) => {
+  const label = isAppointmentSector(sector) ? "Randevu Özeti PDF'inde" : "yazdırılan teklif PDF'inde";
+  return (
+    `Yukarıdaki Tutar zaten KDV dahil, müşteriden alınan toplam tutarı DEĞİŞTİRMEZ — sadece ${label} ` +
+    "\"Ara Toplam / KDV / Genel Toplam\" satırlarının nasıl bölüneceğini belirler."
+  );
+};
 
 const ASSIGNEE_INFO_TEXT =
   "Bu teklif kazanıldığında, Pano'daki \"Personel Performansı\" bölümünde seçtiğiniz kişinin altında sayılır.";
 
-const CARI_BAKIYE_INFO_TEXT =
-  "Bu bakiye, müşterinin \"Kazanıldı\" durumundaki tekliflerinin toplam tutarından tahsil edilen ödemelerin düşülmesiyle bulunur. " +
-  "Resmi bir cari hesap kaydı değildir, sadece kendi takibiniz içindir.";
+const cariBakiyeInfoText = (sector) => {
+  const noun = isAppointmentSector(sector) ? "randevularının" : "tekliflerinin";
+  return (
+    `Bu bakiye, müşterinin "${stageLabel("kazanildi", "kurumsal", sector)}" durumundaki ${noun} toplam tutarından tahsil edilen ödemelerin düşülmesiyle bulunur. ` +
+    "Resmi bir cari hesap kaydı değildir, sadece kendi takibiniz içindir."
+  );
+};
 
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -178,12 +192,18 @@ const CUSTOMER_IMPORT_FIELDS = [
   { key: "notes", label: "Not", hideInPreview: true },
 ];
 
-const DEAL_IMPORT_FIELDS = [
+const dealImportFields = (sector) => [
   { key: "customerName", label: "Müşteri adı", required: true, resolveCustomer: true },
   { key: "title", label: "Başlık", required: true },
   { key: "value", label: "Tutar", type: "number" },
   { key: "cost", label: "Gider", type: "number" },
-  { key: "stage", label: "Aşama", type: "enum", enumOptions: STAGES, enumDefault: "ilk_gorusme" },
+  {
+    key: "stage",
+    label: "Aşama",
+    type: "enum",
+    enumOptions: STAGES.map((s) => ({ id: s.id, label: stageLabel(s.id, "kurumsal", sector) })),
+    enumDefault: "ilk_gorusme",
+  },
   {
     key: "kdvRate",
     label: "KDV oranı",
@@ -489,7 +509,12 @@ function CompanySettingsForm({ initial, onSave, onCancel, activeTeamId, notify }
             onChange={(e) => setCustomerNotificationsEnabled(e.target.checked)}
           />
           Müşterilere önemli gelişmelerde otomatik e-posta gönder
-          <InfoTip text={"Bir teklifin aşaması her değiştiğinde (İlk görüşme, Teklif, Müzakere, Kazanıldı, Kaybedildi) o aşamaya özel bir mail gider — Teklif/Müzakere'de onay linki de eklenir. Destek talebi durumu değiştiğinde, yeni bir yanıt yazıldığında ve ödeme alındığında da müşteriye bilgilendirme gider.\n\nYanlışlıkla bir teklifi başka bir aşamaya sürüklerseniz endişelenmeyin: mail hemen gitmez, 45 saniye beklenir — bu süre içinde aşamayı düzeltirseniz mail hiç gitmez, sadece son karar verdiğiniz aşama için gider."} />
+          <InfoTip
+            text={
+              `Bir teklifin aşaması her değiştiğinde (${STAGES.map((s) => stageLabel(s.id, "kurumsal", initial?.sector)).join(", ")}) o aşamaya özel bir mail gider — 2. ve 3. aşamalarda onay linki de eklenir. Destek talebi durumu değiştiğinde, yeni bir yanıt yazıldığında ve ödeme alındığında da müşteriye bilgilendirme gider.\n\n` +
+              "Yanlışlıkla bir teklifi başka bir aşamaya sürüklerseniz endişelenmeyin: mail hemen gitmez, 45 saniye beklenir — bu süre içinde aşamayı düzeltirseniz mail hiç gitmez, sadece son karar verdiğiniz aşama için gider."
+            }
+          />
         </label>
       </div>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -611,7 +636,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           <input type="number" min="0" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="0" style={{ width: "100%" }} />
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>KDV oranı <InfoTip text={KDV_RATE_INFO_TEXT} /></label>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>KDV oranı <InfoTip text={kdvRateInfoText(sector)} /></label>
           <select value={kdvRate} onChange={(e) => setKdvRate(Number(e.target.value))} style={{ width: "100%" }}>
             <option value={20}>%20</option>
             <option value={10}>%10</option>
@@ -882,7 +907,7 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
 
       {customerDeals.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>Teklifler</p>
+          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>{isAppointmentSector(sector) ? "Randevular" : "Teklifler"}</p>
           {customerDeals.map((d) => {
             return (
               <div key={d.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0" }}>
@@ -897,7 +922,7 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
       {wonCustomerDeals.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px", display: "flex", alignItems: "center", gap: 4 }}>
-            Cari Hesap Ekstresi <InfoTip text={CARI_BAKIYE_INFO_TEXT} />
+            Cari Hesap Ekstresi <InfoTip text={cariBakiyeInfoText(sector)} />
           </p>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0" }}>
             <span style={{ color: "var(--text-secondary)" }}>Toplam Borç</span>
@@ -1524,7 +1549,7 @@ const PARASUT_HELP_TEXT = `Satış Faturaları
 
 - Destek için destek@parasut.com veya 0212 292 04 94`;
 
-function ParasutExportModal({ deals, customerById, totalPaidForDeal, onClose }) {
+function ParasutExportModal({ deals, customerById, totalPaidForDeal, sector, onClose }) {
   const wonDeals = deals.filter((d) => d.stage === "kazanildi");
   const [selected, setSelected] = useState(() => new Set(wonDeals.map((d) => d.id)));
   const selectedDeals = wonDeals.filter((d) => selected.has(d.id));
@@ -1585,11 +1610,11 @@ function ParasutExportModal({ deals, customerById, totalPaidForDeal, onClose }) 
   return (
     <Modal title="Paraşüt'e Aktar" onClose={onClose}>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 12 }}>
-        "Kazanıldı" aşamasındaki teklifler arasından aktarmak istediklerinizi seçin. Seçilenler, Paraşüt'ün satış faturası içe aktarma şablonuyla uyumlu bir Excel (.xlsx) dosyası olarak indirilecek — her teklifin kendi KDV oranı kullanılır. İndirdiğiniz dosyayı Paraşüt'te Satışlar → Faturalar → İçe/Dışa Aktar → İçeri Aktar ile yükleyebilirsiniz.
+        "{stageLabel("kazanildi", "kurumsal", sector)}" aşamasındaki {isAppointmentSector(sector) ? "randevular" : "teklifler"} arasından aktarmak istediklerinizi seçin. Seçilenler, Paraşüt'ün satış faturası içe aktarma şablonuyla uyumlu bir Excel (.xlsx) dosyası olarak indirilecek — her {isAppointmentSector(sector) ? "randevunun" : "teklifin"} kendi KDV oranı kullanılır. İndirdiğiniz dosyayı Paraşüt'te Satışlar → Faturalar → İçe/Dışa Aktar → İçeri Aktar ile yükleyebilirsiniz.
       </p>
 
       {wonDeals.length === 0 ? (
-        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Aktarılabilecek "Kazanıldı" teklif yok.</p>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Aktarılabilecek "{stageLabel("kazanildi", "kurumsal", sector)}" {isAppointmentSector(sector) ? "randevu" : "teklif"} yok.</p>
       ) : (
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
@@ -2558,14 +2583,14 @@ export default function App() {
       body: (deal, company) => `Merhaba,\n\n${company} olarak "${deal.title}" ile ilgileniyoruz. Kısa süre içinde sizinle tekrar iletişime geçeceğiz.`,
     },
     teklif: {
-      subject: (title) => `${title} teklifiniz hazır`,
+      subject: (title) => `${title} hazır`,
       needsLink: true,
       body: (deal, company) => `Merhaba,\n\n${company} sizin için hazırladı: "${deal.title}" — ${formatTL(deal.value)}`,
     },
     muzakere: {
-      subject: (title) => `${title} teklifiniz güncellendi`,
+      subject: (title) => `${title} güncellendi`,
       needsLink: true,
-      body: (deal) => `Merhaba,\n\n"${deal.title}" teklifiniz üzerinde konuştuğumuz güncellemeler yapıldı.`,
+      body: (deal) => `Merhaba,\n\n"${deal.title}" üzerinde konuştuğumuz güncellemeler yapıldı.`,
     },
     kazanildi: {
       subject: (title) => `${title} tamamlandı`,
@@ -3371,6 +3396,11 @@ export default function App() {
         : new Date(a.createdAt) - new Date(b.createdAt)
     );
 
+  // İş Takibi sekmesindeki genel metinler (arama, boş durum, tablo başlığı vb.)
+  // için "randevu" mu "teklif" mi diyeceğimize karar veren tek sinyal: ya sektörün
+  // kendisi randevu-temelli, ya da o an bireysel görünümdeyiz (kurumsal olsa da
+  // sektör randevu-temelliyse sektör kazanır — stageLabel()'daki önceliğin aynısı).
+  const appointmentStyle = isAppointmentSector(companySettings?.sector) || dealAudience === "bireysel";
   const dealQuery = dealSearch.trim().toLowerCase();
   const filteredDeals = deals.filter((d) => {
     if ((customerById(d.customerId)?.customerType || "kurumsal") !== dealAudience) return false;
@@ -3560,7 +3590,7 @@ export default function App() {
           );
         })}
 
-      <h2 className="sr-only">KOBİ satış takip uygulaması: pano, müşteriler ve teklif ve anlaşmalar sekmeleri</h2>
+      <h2 className="sr-only">KOBİ satış takip uygulaması: pano, müşteriler ve iş takibi sekmeleri</h2>
 
       <div style={{ display: "flex", gap: 8, marginBottom: "1.5rem" }}>
         {[
@@ -3671,7 +3701,11 @@ export default function App() {
               onClick={openDeals.length > 0 ? () => openDealOrList(openDeals, "Açık teklifler") : undefined}
             />
             <MetricCard
-              label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Beklenen Gelir <InfoTip text={"Açık tekliflerin tutarı, aşamalarına göre kapanma olasılığıyla çarpılıp toplanır:\nİlk görüşme → %10\nTeklif verildi → %30\nMüzakere → %60\n\nGerçek bir tahsilat garantisi değil, kaba bir tahmindir."} /></span>}
+              label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Beklenen Gelir <InfoTip text={
+                "Açık tekliflerin tutarı, aşamalarına göre kapanma olasılığıyla çarpılıp toplanır:\n" +
+                Object.entries(STAGE_PROBABILITY).map(([id, p]) => `${stageLabel(id, "kurumsal", companySettings?.sector)} → %${Math.round(p * 100)}`).join("\n") +
+                "\n\nGerçek bir tahsilat garantisi değil, kaba bir tahmindir."
+              } /></span>}
               value={formatTL(expectedRevenue)}
               sub="Aşama olasılığına göre tahmini"
             />
@@ -3772,7 +3806,7 @@ export default function App() {
             <div style={{ background: "var(--surface-1)", borderRadius: 12, padding: "2rem 1.5rem", textAlign: "center" }}>
               <p style={{ fontWeight: 500, margin: "0 0 4px" }}>Henüz veri yok</p>
               <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px" }}>
-                Başlamak için önce bir müşteri ekleyin, sonra ona bir teklif tanımlayın.
+                Başlamak için önce bir müşteri ekleyin, sonra ona bir {isAppointmentSector(companySettings?.sector) ? "randevu" : "teklif"} tanımlayın.
               </p>
               <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
                 <button onClick={() => { setTab("musteri"); setShowCustomerForm(true); }} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
@@ -3785,7 +3819,7 @@ export default function App() {
             </div>
           ) : (
             <div>
-              <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 8px" }}>Teklif aşamaları</p>
+              <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 8px" }}>{isAppointmentSector(companySettings?.sector) ? "Randevu aşamaları" : "Teklif aşamaları"}</p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 8 }}>
                 {STAGES.filter((s) => s.id !== "kaybedildi").map((stage) => {
                   const stageDeals = deals.filter((d) => d.stage === stage.id);
@@ -3998,7 +4032,7 @@ export default function App() {
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Portal <InfoTip text={PORTAL_INFO_TEXT} /></span>
                   </th>
                   <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Bakiye <InfoTip text={CARI_BAKIYE_INFO_TEXT} /></span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Bakiye <InfoTip text={cariBakiyeInfoText(companySettings?.sector)} /></span>
                   </th>
                   <th></th>
                 </tr>
@@ -4140,7 +4174,7 @@ export default function App() {
                 style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
               >
                 <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                {dealAudience === "bireysel" ? "Randevu ekle" : "Teklif ekle"}
+                {appointmentStyle ? "Randevu ekle" : "Teklif ekle"}
               </button>
             </div>
           </div>
@@ -4149,12 +4183,12 @@ export default function App() {
             <input
               value={dealSearch}
               onChange={(e) => setDealSearch(e.target.value)}
-              placeholder="Teklif ara (başlık, müşteri)..."
+              placeholder={appointmentStyle ? "Randevu ara (başlık, müşteri)..." : "Teklif ara (başlık, müşteri)..."}
               style={{ flex: 1, minWidth: 160 }}
             />
             <select value={dealStageFilter} onChange={(e) => setDealStageFilter(e.target.value)} style={{ fontSize: 13 }}>
               <option value="all">Tüm aşamalar</option>
-              <option value="acik">Açık teklifler</option>
+              <option value="acik">{appointmentStyle ? "Bekleyen randevular" : "Açık teklifler"}</option>
               {STAGES.map((s) => <option key={s.id} value={s.id}>{stageLabel(s.id, dealAudience, companySettings?.sector)}</option>)}
             </select>
             <select value={dealPaymentFilter} onChange={(e) => setDealPaymentFilter(e.target.value)} style={{ fontSize: 13 }}>
@@ -4172,7 +4206,9 @@ export default function App() {
 
           {filteredDeals.length === 0 ? (
             <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
-              {deals.length === 0 ? "Henüz teklif eklenmedi." : "Aramayla eşleşen teklif yok."}
+              {deals.length === 0
+                ? appointmentStyle ? "Henüz randevu eklenmedi." : "Henüz teklif eklenmedi."
+                : appointmentStyle ? "Aramayla eşleşen randevu yok." : "Aramayla eşleşen teklif yok."}
             </p>
           ) : dealView === "kanban" ? (
             <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
@@ -4207,7 +4243,7 @@ export default function App() {
                               <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--text-accent)" }}>{formatTL(d.value)}</p>
                               <IconButton
                                 icon="ti-file-text"
-                                title="Teklif PDF"
+                                title={appointmentStyle ? "Randevu Özeti PDF" : "Teklif PDF"}
                                 size="sm"
                                 onClick={(e) => { e.stopPropagation(); setTeklifDeal(d); }}
                               />
@@ -4260,12 +4296,12 @@ export default function App() {
             <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 8px" }}>
               <thead>
                 <tr>
-                  <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>Teklif</th>
+                  <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>{appointmentStyle ? "Randevu" : "Teklif"}</th>
                   <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Aşama</th>
                   <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Ödeme</th>
                   <th style={{ textAlign: "right", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Tutar</th>
                   <th style={{ textAlign: "right", padding: "0 12px" }}>
-                    <InfoTip text={DEAL_ACTIONS_INFO_TEXT} />
+                    <InfoTip text={dealActionsInfoText(companySettings?.sector)} />
                   </th>
                 </tr>
               </thead>
@@ -4315,7 +4351,7 @@ export default function App() {
                       <td style={{ padding: "10px 12px", whiteSpace: "nowrap", textAlign: "right", fontSize: 13, fontWeight: 500 }}>{formatTL(d.value)}</td>
                       <td style={{ padding: "10px 12px", borderRadius: "0 var(--radius) var(--radius) 0" }}>
                         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                          <IconButton icon="ti-file-text" title="Teklif PDF" onClick={() => setTeklifDeal(d)} />
+                          <IconButton icon="ti-file-text" title={appointmentStyle ? "Randevu Özeti PDF" : "Teklif PDF"} onClick={() => setTeklifDeal(d)} />
                           <IconButton
                             icon="ti-link"
                             title={c?.email ? "Müşterinin onaylayabileceği link — kopyala ve gönder" : "Onay linki için müşterinin e-postası kayıtlı olmalı"}
@@ -4371,6 +4407,7 @@ export default function App() {
           onUpdateExpense={updateCompanyExpense}
           onDeleteExpense={deleteCompanyExpense}
           onOpenPayments={setPaymentsDeal}
+          sector={companySettings?.sector}
         />
       )}
 
@@ -4565,7 +4602,7 @@ export default function App() {
         <ImportModal
           entityType="deals"
           entityLabel="İş Takibi"
-          fieldDefs={DEAL_IMPORT_FIELDS}
+          fieldDefs={dealImportFields(companySettings?.sector)}
           customers={customers}
           onImport={bulkImportDeals}
           onClose={() => setShowImportDeals(false)}
@@ -4573,7 +4610,7 @@ export default function App() {
       )}
 
       {showParasutExport && (
-        <ParasutExportModal deals={deals} customerById={customerById} totalPaidForDeal={totalPaidForDeal} onClose={() => setShowParasutExport(false)} />
+        <ParasutExportModal deals={deals} customerById={customerById} totalPaidForDeal={totalPaidForDeal} sector={companySettings?.sector} onClose={() => setShowParasutExport(false)} />
       )}
 
       {teklifDeal && (
@@ -4613,7 +4650,7 @@ export default function App() {
       )}
 
       {showDealForm && (
-        <Modal title={editingDeal?.id ? "Teklifi düzenle" : "Yeni teklif"} onClose={() => { setShowDealForm(false); setEditingDeal(null); }}>
+        <Modal title={editingDeal?.id ? (appointmentStyle ? "Randevuyu düzenle" : "Teklifi düzenle") : (appointmentStyle ? "Yeni randevu" : "Yeni teklif")} onClose={() => { setShowDealForm(false); setEditingDeal(null); }}>
           <DealForm
             customers={customers}
             initial={editingDeal}

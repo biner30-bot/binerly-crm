@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { Badge, Modal, Toast, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider } from "./shared";
+import { stageLabel, isAppointmentSector } from "./Sectors";
 
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -8,14 +9,6 @@ function urlBase64ToUint8Array(base64String) {
   const rawData = window.atob(base64);
   return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
 }
-
-const STAGES = [
-  { id: "ilk_gorusme", label: "İlk görüşme" },
-  { id: "teklif", label: "Teklif verildi" },
-  { id: "muzakere", label: "Müzakere" },
-  { id: "kazanildi", label: "Kazanıldı" },
-  { id: "kaybedildi", label: "Kaybedildi" },
-];
 
 const TICKET_STATUSES = [
   { id: "acik", label: "Açık" },
@@ -122,7 +115,7 @@ function CustomerAuthForm() {
           {mode === "login" ? "Giriş yap" : "Hesap oluştur"}
         </h2>
         <p style={{ fontSize: 13, color: "#5b7088", margin: "0 0 20px" }}>
-          Bir firmanın müşterisiyseniz, taleplerinizi ve tekliflerinizi buradan takip edin.
+          Bir firmanın müşterisiyseniz, taleplerinizi ve kayıtlarınızı buradan takip edin.
         </p>
         <form onSubmit={submit}>
           {mode === "register" && (
@@ -289,15 +282,15 @@ function PortalTicketDetail({ ticket, messages, onAddMessage, onClose }) {
   );
 }
 
-function PortalDealList({ deals, companyNameByCustomerId, showCompany }) {
+function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, showCompany, appointmentStyle }) {
   if (deals.length === 0) {
-    return <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Henüz bir teklifiniz yok.</p>;
+    return <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>{appointmentStyle ? "Henüz bir randevunuz yok." : "Henüz bir teklifiniz yok."}</p>;
   }
   const sorted = [...deals].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {sorted.map((d) => {
-        const stageInfo = STAGES.find((s) => s.id === d.stage);
+        const stageText = stageLabel(d.stage, "bireysel", sectorByCustomerId[d.customerId]);
         const tone = d.stage === "kazanildi" ? "success" : d.stage === "kaybedildi" ? "default" : d.stage === "muzakere" ? "warning" : "accent";
         return (
           <div key={d.id} style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -308,7 +301,7 @@ function PortalDealList({ deals, companyNameByCustomerId, showCompany }) {
               )}
             </div>
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <Badge tone={tone}>{stageInfo?.label}</Badge>
+              <Badge tone={tone}>{stageText}</Badge>
               <span style={{ fontSize: 13, fontWeight: 600, minWidth: 90, textAlign: "right" }}>{formatTL(d.value)}</span>
             </div>
           </div>
@@ -530,7 +523,7 @@ export default function CustomerPortal() {
       // çünkü aynı hesap hem şirket sahibi hem müşteri ise RLS politikaları "veya" ile birleşip
       // şirketin TÜM taleplerini de döndürebilir. Bu ekstra filtre buna karşı bir güvenlik katmanı.
       const { data: c } = await supabase.from("customer_profile_view").select("*");
-      const rows = (c || []).map((r) => ({ id: r.id, userId: r.user_id, name: r.name, companyName: r.company_name }));
+      const rows = (c || []).map((r) => ({ id: r.id, userId: r.user_id, name: r.name, companyName: r.company_name, companySector: r.company_sector }));
       setCustomerRows(rows);
       const customerIds = rows.map((r) => r.id);
 
@@ -675,8 +668,23 @@ export default function CustomerPortal() {
   // Birden fazla firmaya bağlıysa (aynı e-posta ile) talep/teklif listelerinde
   // hangisinin hangi firmaya ait olduğu görünsün diye.
   const companyNameByCustomerId = Object.fromEntries(customerRows.map((c) => [c.id, c.companyName || c.name]));
+  const sectorByCustomerId = Object.fromEntries(customerRows.map((c) => [c.id, c.companySector]));
   const showCompanyLabel = customerRows.length > 1;
   const totalUnreadTickets = Object.keys(unreadCountByTicket).length;
+
+  // "Tekliflerim" mi "Randevularım" mı diyeceğimize, kayıtların çoğunluğu hangi
+  // firmaya aitse onun sektörüne göre karar veriyoruz — karışık/bilinmiyorsa
+  // varsayılan "teklif" dili kalır.
+  const dealCountBySector = {};
+  for (const d of deals) {
+    const s = sectorByCustomerId[d.customerId];
+    dealCountBySector[s] = (dealCountBySector[s] || 0) + 1;
+  }
+  let primarySector = null, primarySectorCount = 0;
+  for (const [s, count] of Object.entries(dealCountBySector)) {
+    if (count > primarySectorCount) { primarySectorCount = count; primarySector = s; }
+  }
+  const appointmentStyle = isAppointmentSector(primarySector);
 
   return (
     <div style={{ maxWidth: 980, margin: "0 auto", padding: "24px 16px 64px" }}>
@@ -686,7 +694,7 @@ export default function CustomerPortal() {
             <img src="/favicon.svg" alt="Binerly" style={{ width: 31, height: 31 }} />
             <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Binerly — Müşteri Bilgi Sistemi</h1>
           </div>
-          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>Taleplerinizi ve tekliflerinizi buradan takip edin</p>
+          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>Taleplerinizi ve {appointmentStyle ? "randevularınızı" : "tekliflerinizi"} buradan takip edin</p>
         </div>
         <button
           onClick={() => supabase.auth.signOut()}
@@ -707,7 +715,7 @@ export default function CustomerPortal() {
           <div style={{ display: "flex", gap: 8, marginBottom: "1.5rem" }}>
             {[
               { id: "talepler", label: "Taleplerim", icon: "ti-ticket" },
-              { id: "teklifler", label: "Tekliflerim", icon: "ti-file-text" },
+              { id: "teklifler", label: appointmentStyle ? "Randevularım" : "Tekliflerim", icon: "ti-file-text" },
               { id: "ayarlar", label: "Ayarlar", icon: "ti-adjustments" },
             ].map((t) => (
               <button
@@ -763,7 +771,7 @@ export default function CustomerPortal() {
           )}
 
           {portalTab === "teklifler" && (
-            <PortalDealList deals={deals} companyNameByCustomerId={companyNameByCustomerId} showCompany={showCompanyLabel} />
+            <PortalDealList deals={deals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} showCompany={showCompanyLabel} appointmentStyle={appointmentStyle} />
           )}
 
           {portalTab === "ayarlar" && (

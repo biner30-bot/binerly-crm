@@ -1,18 +1,27 @@
 import React, { useState } from "react";
 import { Badge, Modal, MetricCard, ConfirmDialog, IconButton, InfoTip, formatTL, PANO_RANGES, getRangeBounds, inRange } from "./shared";
+import { stageLabel, isAppointmentSector } from "./Sectors";
 
 const RECURRING_INFO_TEXT =
   "Bu tekrarlayan bir gider — tek bir kayıt girdiniz, burada gördüğünüz her ay/yıl/gün otomatik oluşturulan bir kopyadır, " +
   "ayrı ayrı kaydedilmiş değildir. Herhangi birini silmek, geçmiş ve gelecekteki TÜM tekrarları kaldırır.";
 
-const TOTAL_EXPENSE_INFO_TEXT =
-  "Elle eklediğiniz işletme giderlerinin yanı sıra, kazanılan tekliflerdeki \"Gider\" tutarlarını da içerir. " +
-  "Aşağıdaki \"Kategoriye göre gider\" listesi sadece elle eklenenleri gösterdiği için bu toplamla tam eşleşmeyebilir.";
+const totalExpenseInfoText = (sector) => {
+  const noun = isAppointmentSector(sector) ? "randevulardaki" : "tekliflerdeki";
+  return (
+    `Elle eklediğiniz işletme giderlerinin yanı sıra, kazanılan ${noun} "Gider" tutarlarını da içerir. ` +
+    "Aşağıdaki \"Kategoriye göre gider\" listesi sadece elle eklenenleri gösterdiği için bu toplamla tam eşleşmeyebilir."
+  );
+};
 
-const KDV_REPORT_INFO_TEXT =
-  "Satış KDV'si, seçilen aydaki \"Kazanıldı\" tekliflerin KDV tutarlarından; Alış KDV'si, o ay içindeki ve KDV oranı " +
-  "girilmiş giderlerden hesaplanır. Bu, resmi bir beyanname veya e-defter değildir — sadece kendi ön hazırlığınız içindir, " +
-  "muhasebecinizin/SMMM'nizin yerine geçmez.";
+const kdvReportInfoText = (sector) => {
+  const noun = isAppointmentSector(sector) ? "randevuların" : "tekliflerin";
+  return (
+    `Satış KDV'si, seçilen aydaki "${stageLabel("kazanildi", "kurumsal", sector)}" ${noun} KDV tutarlarından; Alış KDV'si, o ay içindeki ve KDV oranı ` +
+    "girilmiş giderlerden hesaplanır. Bu, resmi bir beyanname veya e-defter değildir — sadece kendi ön hazırlığınız içindir, " +
+    "muhasebecinizin/SMMM'nizin yerine geçmez."
+  );
+};
 
 export function rowToCompanyExpense(r) {
   return {
@@ -249,7 +258,7 @@ function CompanyExpenseForm({ initial, onSave, onCancel }) {
   );
 }
 
-export default function Finance({ deals, payments, companyExpenses, customers, onAddExpense, onUpdateExpense, onDeleteExpense, onOpenPayments }) {
+export default function Finance({ deals, payments, companyExpenses, customers, onAddExpense, onUpdateExpense, onDeleteExpense, onOpenPayments, sector }) {
   const [financeView, setFinanceView] = useState("tahsilat");
   const [financeRange, setFinanceRange] = useState("bu_ay");
   const [kdvMonth, setKdvMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -402,7 +411,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
                 </select>
               </div>
               <div style={{ flex: 1, minWidth: 160 }}>
-                <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Teklif / Randevu</label>
+                <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>{isAppointmentSector(sector) ? "Randevu" : "Teklif"}</label>
                 <select
                   value={newPaymentDealId}
                   onChange={(e) => setNewPaymentDealId(e.target.value)}
@@ -428,7 +437,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
           </div>
 
           {customerBalances.length === 0 ? (
-            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz kazanılmış bir teklifiniz yok.</p>
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>{isAppointmentSector(sector) ? "Henüz tamamlanmış bir randevunuz yok." : "Henüz kazanılmış bir teklifiniz yok."}</p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {customerBalances.map((cb) => (
@@ -468,7 +477,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
             <MetricCard label="Satış KDV'si" value={formatTL(satisKdv)} tone="success" />
             <MetricCard label="Alış KDV'si" value={formatTL(alisKdv)} tone="danger" />
             <MetricCard
-              label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Ödenecek/Devreden KDV <InfoTip text={KDV_REPORT_INFO_TEXT} /></span>}
+              label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Ödenecek/Devreden KDV <InfoTip text={kdvReportInfoText(sector)} /></span>}
               value={formatTL(odenecekKdv)}
               tone={odenecekKdv >= 0 ? "danger" : "success"}
             />
@@ -484,7 +493,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px,1fr))", gap: 12, marginBottom: 20 }}>
         <MetricCard label="Toplam Gelir" value={formatTL(totalIncome)} tone="success" />
         <MetricCard
-          label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Toplam Gider <InfoTip text={TOTAL_EXPENSE_INFO_TEXT} /></span>}
+          label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Toplam Gider <InfoTip text={totalExpenseInfoText(sector)} /></span>}
           value={formatTL(totalExpense)}
           tone="danger"
         />
@@ -562,7 +571,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
         <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", minWidth: 200 }}>
           <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 4 }}>
             Kategoriye göre gider
-            <InfoTip text="Sadece elle eklenen işletme giderlerini gösterir, kazanılan tekliflerdeki gider tutarlarını içermez — bu yüzden yukarıdaki Toplam Gider'le tam eşleşmeyebilir." />
+            <InfoTip text={`Sadece elle eklenen işletme giderlerini gösterir, kazanılan ${isAppointmentSector(sector) ? "randevulardaki" : "tekliflerdeki"} gider tutarlarını içermez — bu yüzden yukarıdaki Toplam Gider'le tam eşleşmeyebilir.`} />
           </p>
           {Object.keys(categoryTotals).length === 0 ? (
             <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Bu aralıkta işletme gideri yok.</p>
