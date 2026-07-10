@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
 import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadCsv, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange } from "./shared";
 import Finance, { rowToCompanyExpense } from "./Finance";
@@ -489,10 +489,8 @@ function CompanySettingsForm({ initial, onSave, onCancel, activeTeamId, notify }
             onChange={(e) => setCustomerNotificationsEnabled(e.target.checked)}
           />
           Müşterilere önemli gelişmelerde otomatik e-posta gönder
+          <InfoTip text={"Bir teklifin aşaması her değiştiğinde (İlk görüşme, Teklif, Müzakere, Kazanıldı, Kaybedildi) o aşamaya özel bir mail gider — Teklif/Müzakere'de onay linki de eklenir. Destek talebi durumu değiştiğinde, yeni bir yanıt yazıldığında ve ödeme alındığında da müşteriye bilgilendirme gider.\n\nYanlışlıkla bir teklifi başka bir aşamaya sürüklerseniz endişelenmeyin: mail hemen gitmez, 45 saniye beklenir — bu süre içinde aşamayı düzeltirseniz mail hiç gitmez, sadece son karar verdiğiniz aşama için gider."} />
         </label>
-        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0 26px" }}>
-          Teklif hazır olduğunda, destek talebi durumu değiştiğinde, yeni bir yanıt yazıldığında ve ödeme alındığında müşteriye otomatik bilgilendirme e-postası gider.
-        </p>
       </div>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button type="button" onClick={onCancel}>Vazgeç</button>
@@ -2265,6 +2263,9 @@ function LandingPage() {
 }
 
 export default function App() {
+  // Aşama mailleri gecikmeli gönderilir (bkz. sendStageEmail) — yanlışlıkla
+  // sürüklenip hemen düzeltilen bir teklif için müşteriye yanlış mail gitmesin.
+  const stageEmailTimers = useRef(new Map());
   const [session, setSession] = useState(undefined);
   const [tab, setTab] = useState("pano");
   const [customers, setCustomers] = useState([]);
@@ -2578,17 +2579,27 @@ export default function App() {
     },
   };
 
-  const sendStageEmail = async (deal, stage) => {
-    const cfg = STAGE_EMAIL_CONTENT[stage];
-    if (!cfg) return;
-    const customer = customers.find((c) => c.id === deal.customerId);
-    if (!customer?.email) return;
-    const company = companySettings?.companyName || "Binerly";
-    const ctaUrl = cfg.needsLink ? await generateApprovalLink(deal) : null;
-    notifyCustomerByEmail(customer, `${cfg.subject(deal.title)} — ${company}`, cfg.body(deal, company), {
-      ctaUrl,
-      ctaLabel: "Teklifi Görüntüle",
-    });
+  // 45 saniye gecikmeli gönderilir — bu süre içinde aynı teklifin aşaması
+  // tekrar değişirse (yanlış sürükleyip hemen düzeltmek gibi) önceki
+  // zamanlayıcı iptal edilir, müşteriye sadece son karar verilen aşama için
+  // mail gider.
+  const sendStageEmail = (deal, stage) => {
+    const existing = stageEmailTimers.current.get(deal.id);
+    if (existing) clearTimeout(existing);
+    const timer = setTimeout(async () => {
+      stageEmailTimers.current.delete(deal.id);
+      const cfg = STAGE_EMAIL_CONTENT[stage];
+      if (!cfg) return;
+      const customer = customers.find((c) => c.id === deal.customerId);
+      if (!customer?.email) return;
+      const company = companySettings?.companyName || "Binerly";
+      const ctaUrl = cfg.needsLink ? await generateApprovalLink(deal) : null;
+      notifyCustomerByEmail(customer, `${cfg.subject(deal.title)} — ${company}`, cfg.body(deal, company), {
+        ctaUrl,
+        ctaLabel: "Teklifi Görüntüle",
+      });
+    }, 45000);
+    stageEmailTimers.current.set(deal.id, timer);
   };
 
   const addActivity = async ({ customerId, type, content }) => {
