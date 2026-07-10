@@ -86,6 +86,11 @@ export default function DealApprovalPage() {
     setAuthLoading(false);
   };
 
+  const handleGoogleCredential = async (idToken, nonce) => {
+    const { error } = await supabase.auth.signInWithIdToken({ provider: "google", token: idToken, nonce });
+    if (error) setAuthMessage(error.message);
+  };
+
   const approve = async () => {
     setApproving(true);
     const res = await fetch("/api/deal-approval", {
@@ -140,7 +145,7 @@ export default function DealApprovalPage() {
               </button>
             </form>
             <AuthDivider />
-            <GoogleAuthButton onClick={() => supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.href } })} />
+            <GoogleAuthButton onCredential={handleGoogleCredential} />
             <p style={{ fontSize: 12.5, textAlign: "center", marginTop: 14, color: "#5b7088" }}>
               {authMode === "login" ? "Hesabın yok mu? " : "Hesabın var mı? "}
               <button onClick={() => { setAuthMode(authMode === "login" ? "register" : "login"); setAuthMessage(""); }} style={{ background: "none", border: "none", color: "#185fa5", padding: 0, cursor: "pointer", fontSize: 12.5, fontWeight: 600 }}>

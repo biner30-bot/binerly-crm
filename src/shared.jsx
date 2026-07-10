@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function uid() {
   return crypto.randomUUID();
@@ -356,22 +356,65 @@ export function VoiceInputButton({ onResult }) {
   return <IconButton icon="ti-microphone" title="Sesle yaz" size="sm" active={listening} onClick={start} />;
 }
 
-export function GoogleAuthButton({ onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "#fff", border: "1px solid #e1e8f0", borderRadius: 8, padding: "10px 16px", cursor: "pointer", fontSize: 14, color: "#0c2540", fontWeight: 500 }}
-    >
-      <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-        <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
-        <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/>
-        <path d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.548 0 9s.348 2.825.957 4.039l3.007-2.332z" fill="#FBBC05"/>
-        <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z" fill="#EA4335"/>
-      </svg>
-      Google ile devam et
-    </button>
-  );
+const GOOGLE_CLIENT_ID = "1085737573085-om1meeq6h4msv433eo68ef22uutoecm2.apps.googleusercontent.com";
+
+function loadGoogleIdentityScript() {
+  if (document.getElementById("google-identity-script")) return;
+  const script = document.createElement("script");
+  script.id = "google-identity-script";
+  script.src = "https://accounts.google.com/gsi/client";
+  script.async = true;
+  script.defer = true;
+  document.head.appendChild(script);
+}
+
+// Google, kimlik doğrulama isteğinin gerçekten binerly.com'dan geldiğini görebildiği için
+// "Sign in to binerly.com" gösterir — redirect tabanlı signInWithOAuth'ta ise istek Supabase'in
+// kendi proje adresi üzerinden gittiğinden o (çirkin) adres gösteriliyordu.
+async function generateGoogleNonce() {
+  const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))));
+  const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(nonce));
+  const hashedNonce = Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return [nonce, hashedNonce];
+}
+
+export function GoogleAuthButton({ onCredential }) {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadGoogleIdentityScript();
+
+    (async () => {
+      while (!cancelled && !window.google?.accounts?.id) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      if (cancelled || !containerRef.current) return;
+
+      const [nonce, hashedNonce] = await generateGoogleNonce();
+      if (cancelled) return;
+
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        nonce: hashedNonce,
+        callback: (response) => onCredential(response.credential, nonce),
+        use_fedcm_for_prompt: true,
+      });
+      window.google.accounts.id.renderButton(containerRef.current, {
+        type: "standard",
+        theme: "outline",
+        size: "large",
+        text: "continue_with",
+        shape: "pill",
+        locale: "tr",
+        width: Math.min(400, Math.max(200, containerRef.current.offsetWidth || 300)),
+      });
+    })();
+
+    return () => { cancelled = true; };
+  }, [onCredential]);
+
+  return <div ref={containerRef} style={{ display: "flex", justifyContent: "center" }} />;
 }
 
 export function AuthDivider() {

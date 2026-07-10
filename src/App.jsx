@@ -1823,6 +1823,11 @@ function AuthModal({ initialMode = "login", onClose }) {
     setMessage(error ? error.message : "E-postanıza bir şifre sıfırlama bağlantısı gönderdik.");
   };
 
+  const handleGoogleCredential = async (idToken, nonce) => {
+    const { error } = await supabase.auth.signInWithIdToken({ provider: "google", token: idToken, nonce });
+    if (error) setMessage(error.message);
+  };
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", zIndex: 1000, padding: "1rem", overflowY: "auto" }}>
       <div style={{ background: "#fff", borderRadius: 16, padding: "2rem", width: "100%", maxWidth: 420, position: "relative", margin: "auto" }}>
@@ -1859,7 +1864,7 @@ function AuthModal({ initialMode = "login", onClose }) {
           </button>
         </form>
         <AuthDivider />
-        <GoogleAuthButton onClick={() => supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: "https://binerly.com" } })} />
+        <GoogleAuthButton onCredential={handleGoogleCredential} />
         <p style={{ fontSize: 13, textAlign: "center", marginTop: 12, color: "#5b7088" }}>
           {mode === "login" ? "Hesabın yok mu? " : "Hesabın var mı? "}
           <button onClick={() => { setMode(mode === "login" ? "register" : "login"); setMessage(""); }} style={{ background: "none", border: "none", color: "#185fa5", padding: 0, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>

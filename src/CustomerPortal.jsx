@@ -106,6 +106,11 @@ function CustomerAuthForm() {
     setMessage(error ? error.message : "E-postanıza bir şifre sıfırlama bağlantısı gönderdik.");
   };
 
+  const handleGoogleCredential = async (idToken, nonce) => {
+    const { error } = await supabase.auth.signInWithIdToken({ provider: "google", token: idToken, nonce });
+    if (error) setMessage(error.message);
+  };
+
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5f8fc", padding: "1rem" }}>
       <div style={{ background: "#fff", borderRadius: 16, padding: "2rem", width: "100%", maxWidth: 400 }}>
@@ -147,7 +152,7 @@ function CustomerAuthForm() {
           </button>
         </form>
         <AuthDivider />
-        <GoogleAuthButton onClick={() => supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: `${window.location.origin}/portal` } })} />
+        <GoogleAuthButton onCredential={handleGoogleCredential} />
         <p style={{ fontSize: 13, textAlign: "center", marginTop: 16, color: "#5b7088" }}>
           {mode === "login" ? "Hesabın yok mu? " : "Hesabın var mı? "}
           <button onClick={() => { setMode(mode === "login" ? "register" : "login"); setMessage(""); }} style={{ background: "none", border: "none", color: "#185fa5", padding: 0, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
