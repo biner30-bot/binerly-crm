@@ -103,7 +103,7 @@ export default async function handler(req, res) {
         const customer = customerById[deal.customer_id];
         if (!customer?.email) continue;
         const bodyText = `Merhaba ${customer.name || ""},\n\n${company} tarafından hatırlatma: ${deal.reminder}`;
-        const footerLines = [`${company} (Binerly ile)`];
+        const footerLines = [`${company} (Binerly ile)`, "Bu e-posta Binerly (binerly.com) altyapısıyla gönderildi."];
         const customerRes = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {

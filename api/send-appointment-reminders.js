@@ -104,7 +104,7 @@ export default async function handler(req, res) {
       const bodyText =
         `Merhaba ${customer.name || ""},\n\n${company} bünyesindeki "${deal.title}" randevunuz ` +
         `bugün saat ${timeLabel}'de. Sizi görmekten mutluluk duyarız.`;
-      const footerLines = [`${company} (Binerly ile)`];
+      const footerLines = [`${company} (Binerly ile)`, "Bu e-posta Binerly (binerly.com) altyapısıyla gönderildi."];
       const html = renderEmailHtml({ logoUrl: settings.logo_url, bodyText, ctaLabel: "Teklifi Görüntüle", ctaUrl, footerLines });
       const text = plainTextFallback(bodyText, "Teklifi Görüntüle", ctaUrl, footerLines);
 
