@@ -655,7 +655,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
             Tutar (TL) <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>— KDV dahil</span>
           </label>
-          <input type="number" min="0" value={value} onChange={(e) => setValue(e.target.value)} placeholder="50000" style={{ width: "100%" }} />
+          <input type="number" min="0" value={value} onChange={(e) => setValue(e.target.value)} placeholder="0" style={{ width: "100%" }} />
         </div>
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Gider (TL)</label>
@@ -1264,7 +1264,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
         </div>
         <div style={{ width: 120 }}>
           <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Fiyat (TL)</label>
-          <input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="300" style={{ width: "100%", fontSize: 13 }} />
+          <input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" style={{ width: "100%", fontSize: 13 }} />
         </div>
         <button type="submit" style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", fontSize: 13 }}>
           {editingItem ? "Güncelle" : "+ Ekle"}
