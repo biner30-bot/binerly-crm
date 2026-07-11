@@ -1027,7 +1027,7 @@ function TeklifPrint({ deal, customer, companySettings, onClose }) {
     const imgData = canvas.toDataURL("image/png");
     const pdf = new jsPDF({ unit: "px", format: [canvas.width, canvas.height] });
     pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
-    pdf.save(`Teklif - ${customer?.name || "Musteri"} - ${deal.title}.pdf`);
+    pdf.save(`${isAppointmentSector(companySettings?.sector) ? "Randevu Özeti" : "Teklif"} - ${customer?.name || "Musteri"} - ${deal.title}.pdf`);
     setDownloading(false);
   };
 
@@ -1055,7 +1055,7 @@ function TeklifPrint({ deal, customer, companySettings, onClose }) {
             {companySettings?.taxNumber && <p style={{ fontSize: 13, margin: "2px 0 0", color: "#5b7088" }}>Vergi no: {companySettings.taxNumber}</p>}
           </div>
           <div style={{ textAlign: "right" }}>
-            <h1 style={{ fontSize: 22, margin: 0 }}>TEKLİF</h1>
+            <h1 style={{ fontSize: 22, margin: 0 }}>{isAppointmentSector(companySettings?.sector) ? "RANDEVU ÖZETİ" : "TEKLİF"}</h1>
             <p style={{ fontSize: 13, color: "#5b7088", margin: "4px 0 0" }}>{new Date().toLocaleDateString("tr-TR")}</p>
           </div>
         </div>
@@ -1096,7 +1096,7 @@ function TeklifPrint({ deal, customer, companySettings, onClose }) {
           </tfoot>
         </table>
 
-        <p style={{ fontSize: 12, color: "#5b7088" }}>Bu teklif 15 gün geçerlidir.</p>
+        <p style={{ fontSize: 12, color: "#5b7088" }}>Bu {isAppointmentSector(companySettings?.sector) ? "fiyat" : "teklif"} 15 gün geçerlidir.</p>
       </div>
     </div>
   );
