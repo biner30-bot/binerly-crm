@@ -286,6 +286,10 @@ function rowToPayment(r) {
   };
 }
 
+function rowToPriceListItem(r) {
+  return { id: r.id, name: r.name, price: r.price };
+}
+
 function rowToCompanySettings(r) {
   return {
     companyName: r.company_name || "",
@@ -525,7 +529,7 @@ function CompanySettingsForm({ initial, onSave, onCancel, activeTeamId, notify }
   );
 }
 
-function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, titleSuggestions = [], onSave, onCancel }) {
+function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, titleSuggestions = [], priceListItems = [], onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(
     initial?.customerId || customers.find((c) => c.customerType === preferredCustomerType)?.id || customers[0]?.id || ""
   );
@@ -617,6 +621,25 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           </select>
         )}
       </div>
+      {priceListItems.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+            Ürün/Hizmet
+            <InfoTip text="Listeden seçmek başlığı ve tutarı otomatik doldurur, sonrasında yine de değiştirebilirsiniz. Ayarlar → Ürün & Hizmet Fiyat Listesi'nden yönetilir." />
+          </label>
+          <select
+            value=""
+            onChange={(e) => {
+              const item = priceListItems.find((p) => p.id === e.target.value);
+              if (item) { setTitle(item.name); setValue(String(item.price)); }
+            }}
+            style={{ width: "100%" }}
+          >
+            <option value="">Elle gir / listeden seç</option>
+            {priceListItems.map((p) => <option key={p.id} value={p.id}>{p.name} — {formatTL(p.price)}</option>)}
+          </select>
+        </div>
+      )}
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Başlık</label>
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={selectedCustomerType === "bireysel" ? "İlk randevu / danışmanlık" : "Yıllık tedarik anlaşması"} list="deal-title-suggestions" style={{ width: "100%" }} />
@@ -1160,6 +1183,95 @@ function CampaignModal({ customers, replyTo, companyName, logoUrl, onClose }) {
         </div>
       </form>
     </Modal>
+  );
+}
+
+function PriceListManager({ items, onAdd, onUpdate, onDelete }) {
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [editingItem, setEditingItem] = useState(null);
+
+  const startEdit = (item) => {
+    setEditingItem(item);
+    setName(item.name);
+    setPrice(String(item.price));
+  };
+
+  const cancelEdit = () => {
+    setEditingItem(null);
+    setName("");
+    setPrice("");
+  };
+
+  const submit = (e) => {
+    e.preventDefault();
+    const trimmedName = name.trim();
+    if (!trimmedName || price === "") return;
+    if (editingItem) {
+      onUpdate({ id: editingItem.id, name: trimmedName, price: Number(price) });
+      cancelEdit();
+      return;
+    }
+    onAdd({ name: trimmedName, price: Number(price) });
+    setName("");
+    setPrice("");
+  };
+
+  return (
+    <div>
+      <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px", display: "flex", alignItems: "center", gap: 4 }}>
+        Sabit fiyatlı ürün/hizmetlerinizi buraya kaydedin
+        <InfoTip text="Bu tamamen opsiyonel — kaydettikleriniz, yeni teklif/randevu formunda hızlı seçim olarak çıkar; seçince başlık ve tutar otomatik dolar, sonrasında yine de değiştirebilirsiniz. Bir kalemi silmek veya fiyatını güncellemek, daha önce oluşturulmuş teklifleri etkilemez — sadece o teklif kaydedildiği andaki başlık/tutarı taşır." />
+      </p>
+
+      {items.length === 0 ? (
+        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Henüz ürün/hizmet eklenmedi.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+          {items.map((item) => (
+            <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "6px 10px" }}>
+              <span style={{ fontSize: 13 }}>
+                {item.name} <span style={{ color: "var(--text-muted)" }}>· {formatTL(item.price)}</span>
+              </span>
+              <div style={{ display: "flex", gap: 4 }}>
+                <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => startEdit(item)} />
+                <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(item)} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>{editingItem ? "Ürün/hizmeti düzenle" : "Yeni ürün/hizmet ekle"}</p>
+      <form onSubmit={submit} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <div style={{ flex: 1, minWidth: 140 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>İsim</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Örn. Manikür" style={{ width: "100%", fontSize: 13 }} />
+        </div>
+        <div style={{ width: 120 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Fiyat (TL)</label>
+          <input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="300" style={{ width: "100%", fontSize: 13 }} />
+        </div>
+        <button type="submit" style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", fontSize: 13 }}>
+          {editingItem ? "Güncelle" : "+ Ekle"}
+        </button>
+        {editingItem && (
+          <button type="button" onClick={cancelEdit} style={{ fontSize: 13 }}>
+            Vazgeç
+          </button>
+        )}
+      </form>
+
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Ürün/hizmeti sil"
+          message={`"${confirmDelete.name}" kaldırılacak. Daha önce bu kalemle oluşturulmuş teklifler etkilenmez.`}
+          onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
+          onClose={() => setConfirmDelete(null)}
+        />
+      )}
+    </div>
   );
 }
 
@@ -2313,6 +2425,7 @@ export default function App() {
   const [kbArticles, setKbArticles] = useState([]);
   const [companySettings, setCompanySettings] = useState(null);
   const [customFieldDefs, setCustomFieldDefs] = useState([]);
+  const [priceListItems, setPriceListItems] = useState([]);
   const [showSectorOnboarding, setShowSectorOnboarding] = useState(false);
   // v1: üye sayısı kod tarafında henüz sınırlanmıyor, henüz billing yok.
   // Hedef fiyatlandırma "10 kullanıcıya kadar sabit ücret" olarak siteye
@@ -2325,6 +2438,7 @@ export default function App() {
   const [showSettingsHub, setShowSettingsHub] = useState(false);
   const [showSettingsForm, setShowSettingsForm] = useState(false);
   const [showSectorFields, setShowSectorFields] = useState(false);
+  const [showPriceList, setShowPriceList] = useState(false);
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [showAppSettings, setShowAppSettings] = useState(false);
   const [showTrashHistory, setShowTrashHistory] = useState(false);
@@ -2403,6 +2517,7 @@ export default function App() {
       setTickets([]); setTicketMessages([]); setKbArticles([]);
       setCompanySettings(null);
       setCustomFieldDefs([]);
+      setPriceListItems([]);
       setActiveTeamId(undefined);
       setPendingInvites([]);
       setLoading(false);
@@ -2422,9 +2537,10 @@ export default function App() {
       supabase.from("kb_articles").select("*").is("deleted_at", null).order("created_at"),
       supabase.from("company_settings").select("*"),
       supabase.from("custom_field_defs").select("*").order("sort_order"),
+      supabase.from("price_list_items").select("*").order("name"),
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: myMembership }, { data: invites }]) => {
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: myMembership }, { data: invites }]) => {
       // customers/deals/company_settings RLS'i, sahiplik politikasına ek olarak
       // portal kullanıcılarının kendi bağlı oldukları kayıtları görmesine izin
       // veren bir politikayla da "veya" ile birleşiyor (customer_*_view'ların
@@ -2445,6 +2561,7 @@ export default function App() {
       const ownCompanySettings = (cs || []).find((row) => row.user_id === ownerId);
       setCompanySettings(ownCompanySettings ? rowToCompanySettings(ownCompanySettings) : null);
       setCustomFieldDefs((cfd || []).map(rowToCustomFieldDef));
+      setPriceListItems((pli || []).filter((row) => row.user_id === ownerId).map(rowToPriceListItem));
       setActiveTeamId(ownerId);
       // Sadece BANA gelen davetler (kendi gönderdiklerim değil) — RLS iki SELECT
       // politikasını OR ile birleştirdiği için burada e-postaya göre ek filtre şart.
@@ -3328,6 +3445,25 @@ export default function App() {
     const { error } = await supabase.from("custom_field_defs").delete().eq("id", id);
     if (error) { notify(`Özel alan silinemedi: ${error.message}`); return; }
     setCustomFieldDefs((prev) => prev.filter((d) => d.id !== id));
+  };
+
+  const addPriceListItem = async ({ name, price }) => {
+    const row = { id: uid(), user_id: activeTeamId, name, price };
+    const { data, error } = await supabase.from("price_list_items").insert(row).select().single();
+    if (error) { notify(`Ürün/hizmet eklenemedi: ${error.message}`); return; }
+    setPriceListItems((prev) => [...prev, rowToPriceListItem(data)]);
+  };
+
+  const updatePriceListItem = async ({ id, name, price }) => {
+    const { data, error } = await supabase.from("price_list_items").update({ name, price }).eq("id", id).select().single();
+    if (error) { notify(`Ürün/hizmet güncellenemedi: ${error.message}`); return; }
+    setPriceListItems((prev) => prev.map((p) => (p.id === id ? rowToPriceListItem(data) : p)));
+  };
+
+  const deletePriceListItem = async (id) => {
+    const { error } = await supabase.from("price_list_items").delete().eq("id", id);
+    if (error) { notify(`Ürün/hizmet silinemedi: ${error.message}`); return; }
+    setPriceListItems((prev) => prev.filter((p) => p.id !== id));
   };
 
   // Sektör değişince formda görünen özel alanlar da değişsin isteniyor — ama
@@ -4486,6 +4622,12 @@ export default function App() {
                 description="Aşama isimleri, etiket önerileri, özel alanlar"
                 onClick={() => { setShowSettingsHub(false); setShowSectorFields(true); }}
               />
+              <MenuRow
+                icon="ti-tag"
+                label="Ürün & Hizmet Fiyat Listesi"
+                description="Sabit fiyatlı ürün/hizmetlerinizi kaydedin, tekliflerde hızlıca seçin"
+                onClick={() => { setShowSettingsHub(false); setShowPriceList(true); }}
+              />
             </>
           )}
           <MenuRow
@@ -4563,6 +4705,12 @@ export default function App() {
             <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Seçtiğinizde aşama isimlerini, önerilen etiketleri ve özel alanları hemen günceller.</p>
           </div>
           <CustomFieldDefsManager customFieldDefs={customFieldDefs} onAdd={addCustomFieldDef} onUpdate={updateCustomFieldDef} onDelete={deleteCustomFieldDef} />
+        </Modal>
+      )}
+
+      {showPriceList && (
+        <Modal title="Ürün & Hizmet Fiyat Listesi" onClose={() => setShowPriceList(false)}>
+          <PriceListManager items={priceListItems} onAdd={addPriceListItem} onUpdate={updatePriceListItem} onDelete={deletePriceListItem} />
         </Modal>
       )}
 
@@ -4678,6 +4826,7 @@ export default function App() {
             currentUserId={session.user.id}
             currentUserEmail={session.user.email}
             titleSuggestions={[...new Set(deals.map((d) => d.title).filter(Boolean))]}
+            priceListItems={priceListItems}
             onSave={upsertDeal}
             onCancel={() => { setShowDealForm(false); setEditingDeal(null); }}
           />
