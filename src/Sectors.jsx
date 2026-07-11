@@ -189,6 +189,18 @@ export function isAppointmentSector(sector) {
   return sector === "guzellik_bakim" || sector === "saglik_klinik";
 }
 
+const SUPPORT_EXAMPLES = {
+  emlak: { subject: "Sözleşmemle ilgili bir sorum var", message: "Kira sözleşmesi taslağı müşteriye iletildi", kbTitle: "Kira sözleşmesi nasıl hazırlanır?", kbCategory: "Sözleşme, Ödeme, Ekspertiz" },
+  dijital_ajans: { subject: "Reklam raporunda bir tutarsızlık var", message: "Güncel reklam raporu müşteriye iletildi", kbTitle: "Reklam raporu ne zaman gelir?", kbCategory: "Raporlama, Sözleşme, Teknik" },
+  saglik_klinik: { subject: "Randevumu değiştirmek istiyorum", message: "Yeni randevu saati müşteriye iletildi", kbTitle: "Randevumu nasıl değiştiririm?", kbCategory: "Randevu, Ödeme, Sigorta" },
+  uretim_satis: { subject: "Siparişim gecikti", message: "Kargo takip numarası müşteriye iletildi", kbTitle: "Kargo takibi nasıl yapılır?", kbCategory: "Kargo, Faturalama, Teknik" },
+  hizmet_danismanlik: { subject: "Rapor teslim tarihini öğrenmek istiyorum", message: "Güncel proje durumu müşteriye iletildi", kbTitle: "Teslimat süreci nasıl işler?", kbCategory: "Süreç, Ödeme, Sözleşme" },
+  perakende: { subject: "Siparişim gecikti", message: "Kargo takip numarası müşteriye iletildi", kbTitle: "Kargo takibi nasıl yapılır?", kbCategory: "Kargo, İade, Ödeme" },
+  guzellik_bakim: { subject: "Randevumu değiştirmek istiyorum", message: "Yeni randevu saati müşteriye iletildi", kbTitle: "Randevumu nasıl değiştiririm?", kbCategory: "Randevu, Hizmetler, Ödeme" },
+};
+const DEFAULT_SUPPORT_EXAMPLE = { subject: "Bir konuda yardım almak istiyorum", message: "Talep hakkında müşteriye bilgi verildi", kbTitle: "Sıkça sorulan bir soru", kbCategory: "Genel, Ödeme, Teknik" };
+export const supportExamples = (sector) => SUPPORT_EXAMPLES[sector] || DEFAULT_SUPPORT_EXAMPLE;
+
 export function rowToCustomFieldDef(r) {
   return {
     id: r.id,
@@ -261,7 +273,17 @@ export function SectorOnboardingModal({ onPick, onSkip }) {
 
 const FIELD_TYPE_LABELS = { text: "Metin", number: "Sayı", select: "Seçenekli", date: "Tarih", datetime: "Tarih & Saat" };
 
-export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDelete }) {
+const CUSTOM_FIELD_NAME_EXAMPLES = {
+  emlak: "Mülk Tipi",
+  dijital_ajans: "Hizmet Paketi",
+  saglik_klinik: "Tedavi Türü",
+  uretim_satis: "Ürün Kodu",
+  hizmet_danismanlik: "Proje Kapsamı",
+  perakende: "Kampanya Adı",
+  guzellik_bakim: "Tercih Edilen Uzman",
+};
+
+export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDelete, sector }) {
   const [entity, setEntity] = useState("customer");
   const [label, setLabel] = useState("");
   const [type, setType] = useState("text");
@@ -362,7 +384,7 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
         </div>
         <div style={{ flex: 1, minWidth: 120 }}>
           <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Alan adı</label>
-          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Örn. Mülk Tipi" style={{ width: "100%", fontSize: 13 }} />
+          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={`Örn. ${CUSTOM_FIELD_NAME_EXAMPLES[sector] || "Referans Notu"}`} style={{ width: "100%", fontSize: 13 }} />
         </div>
         <div>
           <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tip</label>

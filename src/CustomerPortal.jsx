@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { Badge, Modal, Toast, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider } from "./shared";
-import { stageLabel, isAppointmentSector } from "./Sectors";
+import { stageLabel, isAppointmentSector, supportExamples } from "./Sectors";
 
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -164,6 +164,7 @@ function PortalNewTicketForm({ customerRows, onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(customerRows[0]?.id || "");
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
+  const selectedSector = customerRows.find((c) => c.id === customerId)?.companySector;
 
   return (
     <form
@@ -183,7 +184,7 @@ function PortalNewTicketForm({ customerRows, onSave, onCancel }) {
       )}
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Konu</label>
-        <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Örn. Kargo gecikti" style={{ width: "100%" }} />
+        <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={`Örn. ${supportExamples(selectedSector).subject}`} style={{ width: "100%" }} />
       </div>
       <div style={{ marginBottom: 16 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Açıklama</label>

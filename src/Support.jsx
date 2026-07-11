@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Badge, Modal, InfoTip, ConfirmDialog, IconButton, uid, matchesDateRange, DateRangeFilter, downloadCsv } from "./shared";
 import { ImportModal } from "./ImportExport";
-import { SECTOR_PRESETS } from "./Sectors";
+import { SECTOR_PRESETS, supportExamples } from "./Sectors";
 
 const PRIORITIES = [
   { id: "acil", label: "Acil", hours: 4 },
@@ -380,7 +380,7 @@ function formatDateTime(dateStr) {
     " · " + d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 }
 
-function TicketForm({ customers, initial, onSave, onCancel }) {
+function TicketForm({ customers, initial, onSave, onCancel, sector }) {
   const [customerId, setCustomerId] = useState(initial?.customerId || customers[0]?.id || "");
   const [subject, setSubject] = useState(initial?.subject || "");
   const [description, setDescription] = useState(initial?.description || "");
@@ -419,7 +419,7 @@ function TicketForm({ customers, initial, onSave, onCancel }) {
       </div>
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Konu</label>
-        <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Örn. Kargo gecikti" style={{ width: "100%" }} />
+        <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={`Örn. ${supportExamples(sector).subject}`} style={{ width: "100%" }} />
       </div>
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
         <div style={{ flex: 1 }}>
@@ -573,7 +573,7 @@ function TicketList({
   );
 }
 
-function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange, onClose }) {
+function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange, onClose, sector }) {
   const [direction, setDirection] = useState("giden");
   const [content, setContent] = useState("");
   const [isInternal, setIsInternal] = useState(false);
@@ -628,7 +628,7 @@ function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange
           <select value={direction} onChange={(e) => setDirection(e.target.value)} style={{ width: 190 }}>
             {MESSAGE_DIRECTIONS.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
           </select>
-          <input value={content} onChange={(e) => setContent(e.target.value)} placeholder="Örn. müşteriye kargo takip numarası iletildi" style={{ flex: 1 }} />
+          <input value={content} onChange={(e) => setContent(e.target.value)} placeholder={`Örn. ${supportExamples(sector).message}`} style={{ flex: 1 }} />
         </div>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-secondary)", marginBottom: 8, cursor: "pointer" }}>
           <input type="checkbox" checked={isInternal} onChange={(e) => setIsInternal(e.target.checked)} />
@@ -766,7 +766,7 @@ function KbList({
   );
 }
 
-function KbArticleForm({ initial, onSave, onCancel }) {
+function KbArticleForm({ initial, onSave, onCancel, sector }) {
   const [title, setTitle] = useState(initial?.title || "");
   const [category, setCategory] = useState(initial?.category || "");
   const [content, setContent] = useState(initial?.content || "");
@@ -787,11 +787,11 @@ function KbArticleForm({ initial, onSave, onCancel }) {
     >
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Başlık</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Örn. Kargo takibi nasıl yapılır?" style={{ width: "100%" }} />
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={`Örn. ${supportExamples(sector).kbTitle}`} style={{ width: "100%" }} />
       </div>
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kategori</label>
-        <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Örn. Kargo, Faturalama, Teknik" style={{ width: "100%" }} />
+        <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder={`Örn. ${supportExamples(sector).kbCategory}`} style={{ width: "100%" }} />
       </div>
       <div style={{ marginBottom: 16 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>İçerik</label>
@@ -1047,13 +1047,13 @@ export default function Support({
 
       {showTicketForm && (
         <Modal title={editingTicket ? "Talebi düzenle" : "Yeni destek talebi"} onClose={() => { setShowTicketForm(false); setEditingTicket(null); }}>
-          <TicketForm customers={customers} initial={editingTicket} onSave={saveTicket} onCancel={() => { setShowTicketForm(false); setEditingTicket(null); }} />
+          <TicketForm customers={customers} initial={editingTicket} onSave={saveTicket} onCancel={() => { setShowTicketForm(false); setEditingTicket(null); }} sector={sector} />
         </Modal>
       )}
 
       {showKbForm && (
         <Modal title={editingKbArticle?.id ? "Makaleyi düzenle" : "Yeni makale"} onClose={() => { setShowKbForm(false); setEditingKbArticle(null); }}>
-          <KbArticleForm initial={editingKbArticle} onSave={saveKbArticle} onCancel={() => { setShowKbForm(false); setEditingKbArticle(null); }} />
+          <KbArticleForm initial={editingKbArticle} onSave={saveKbArticle} onCancel={() => { setShowKbForm(false); setEditingKbArticle(null); }} sector={sector} />
         </Modal>
       )}
 
@@ -1086,6 +1086,7 @@ export default function Support({
           onAddMessage={onAddTicketMessage}
           onStatusChange={onChangeTicketStatus}
           onClose={() => setViewingTicket(null)}
+          sector={sector}
         />
       )}
     </div>
