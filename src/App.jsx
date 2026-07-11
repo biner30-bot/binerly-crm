@@ -1018,6 +1018,10 @@ function TeklifPrint({ deal, customer, companySettings, onClose }) {
   const netAmount = kdvRate > 0 ? deal.value / (1 + kdvRate / 100) : deal.value;
   const kdvAmount = deal.value - netAmount;
   const [downloading, setDownloading] = useState(false);
+  const [validityDays, setValidityDays] = useState(15);
+  const [noExpiry, setNoExpiry] = useState(false);
+  const [extraNote, setExtraNote] = useState("");
+  const noun = isAppointmentSector(companySettings?.sector) ? "fiyat" : "teklif";
 
   const download = async () => {
     setDownloading(true);
@@ -1033,14 +1037,41 @@ function TeklifPrint({ deal, customer, companySettings, onClose }) {
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "#fff", zIndex: 1500, overflowY: "auto" }}>
-      <div className="no-print" style={{ position: "fixed", top: 16, right: 16, display: "flex", gap: 8 }}>
-        <button onClick={download} disabled={downloading} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
-          {downloading ? "Hazırlanıyor…" : "İndir (PDF)"}
-        </button>
-        <button onClick={() => window.print()}>Yazdır</button>
-        <button onClick={onClose}>Kapat</button>
+      <div className="no-print" style={{ position: "fixed", top: 0, left: 0, right: 0, background: "#fff", borderBottom: "1px solid #e1e8f0", padding: "12px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, zIndex: 1600 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#5b7088" }}>
+            <input type="checkbox" checked={noExpiry} onChange={(e) => setNoExpiry(e.target.checked)} />
+            Süresiz
+          </label>
+          {!noExpiry && (
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#5b7088" }}>
+              Geçerlilik:
+              <input
+                type="number"
+                min="1"
+                value={validityDays}
+                onChange={(e) => setValidityDays(e.target.value)}
+                style={{ width: 56 }}
+              />
+              gün
+            </label>
+          )}
+          <input
+            value={extraNote}
+            onChange={(e) => setExtraNote(e.target.value)}
+            placeholder="Ek not (opsiyonel)"
+            style={{ fontSize: 13, minWidth: 200 }}
+          />
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={download} disabled={downloading} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+            {downloading ? "Hazırlanıyor…" : "İndir (PDF)"}
+          </button>
+          <button onClick={() => window.print()}>Yazdır</button>
+          <button onClick={onClose}>Kapat</button>
+        </div>
       </div>
-      <div id="teklif-print" style={{ maxWidth: 700, margin: "0 auto", padding: "3rem 2rem", color: "#0c2540" }}>
+      <div id="teklif-print" style={{ maxWidth: 700, margin: "0 auto", padding: "5rem 2rem 3rem", color: "#0c2540" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 40 }}>
           <div>
             {companySettings?.logoUrl && (
@@ -1096,7 +1127,10 @@ function TeklifPrint({ deal, customer, companySettings, onClose }) {
           </tfoot>
         </table>
 
-        <p style={{ fontSize: 12, color: "#5b7088" }}>Bu {isAppointmentSector(companySettings?.sector) ? "fiyat" : "teklif"} 15 gün geçerlidir.</p>
+        <p style={{ fontSize: 12, color: "#5b7088" }}>
+          {noExpiry ? `Bu ${noun} süresiz geçerlidir.` : `Bu ${noun} ${validityDays || 15} gün geçerlidir.`}
+        </p>
+        {extraNote.trim() && <p style={{ fontSize: 12, color: "#5b7088", marginTop: 4 }}>{extraNote.trim()}</p>}
       </div>
     </div>
   );
