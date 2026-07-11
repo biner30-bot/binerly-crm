@@ -1672,12 +1672,36 @@ const PARASUT_HELP_TEXT = `Satış Faturaları
 function ParasutExportModal({ deals, customerById, totalPaidForDeal, sector, onClose }) {
   const wonDeals = deals.filter((d) => d.stage === "kazanildi");
   const [selected, setSelected] = useState(() => new Set(wonDeals.map((d) => d.id)));
+  const [dealQuery, setDealQuery] = useState("");
+  const [minAmount, setMinAmount] = useState("");
+  const [maxAmount, setMaxAmount] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const selectedDeals = wonDeals.filter((d) => selected.has(d.id));
+
+  const dealQueryLower = dealQuery.trim().toLowerCase();
+  const filteredWonDeals = wonDeals.filter((d) => {
+    if (!matchesDateRange(d.createdAt, fromDate, toDate)) return false;
+    if (minAmount !== "" && d.value < Number(minAmount)) return false;
+    if (maxAmount !== "" && d.value > Number(maxAmount)) return false;
+    if (!dealQueryLower) return true;
+    return d.title.toLowerCase().includes(dealQueryLower) || (customerById(d.customerId)?.name || "").toLowerCase().includes(dealQueryLower);
+  });
+  const allVisibleSelected = filteredWonDeals.length > 0 && filteredWonDeals.every((d) => selected.has(d.id));
 
   const toggle = (id) => {
     setSelected((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllVisible = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) filteredWonDeals.forEach((d) => next.delete(d.id));
+      else filteredWonDeals.forEach((d) => next.add(d.id));
       return next;
     });
   };
@@ -1738,16 +1762,49 @@ function ParasutExportModal({ deals, customerById, totalPaidForDeal, sector, onC
       ) : (
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
-            Aktarılacak teklifler ({selectedDeals.length}/{wonDeals.length})
+            Aktarılacak teklifler ({selectedDeals.length}/{wonDeals.length} seçili)
+          </label>
+          <div style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
+            <input
+              value={dealQuery}
+              onChange={(e) => setDealQuery(e.target.value)}
+              placeholder="Müşteri veya başlıkta ara..."
+              style={{ flex: 1, minWidth: 140, fontSize: 13 }}
+            />
+            <input
+              type="number"
+              min="0"
+              value={minAmount}
+              onChange={(e) => setMinAmount(e.target.value)}
+              placeholder="Min. tutar"
+              style={{ width: 100, fontSize: 13 }}
+            />
+            <input
+              type="number"
+              min="0"
+              value={maxAmount}
+              onChange={(e) => setMaxAmount(e.target.value)}
+              placeholder="Maks. tutar"
+              style={{ width: 100, fontSize: 13 }}
+            />
+            <DateRangeFilter from={fromDate} to={toDate} onFromChange={setFromDate} onToChange={setToDate} />
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--text-secondary)", padding: "2px 0 6px", cursor: filteredWonDeals.length === 0 ? "default" : "pointer" }}>
+            <input type="checkbox" checked={allVisibleSelected} disabled={filteredWonDeals.length === 0} onChange={toggleAllVisible} />
+            Görünen {filteredWonDeals.length} teklifin tümünü seç / kaldır
           </label>
           <div style={{ maxHeight: 180, overflowY: "auto", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 8 }}>
-            {wonDeals.map((d) => (
-              <label key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "4px 0", cursor: "pointer" }}>
-                <input type="checkbox" checked={selected.has(d.id)} onChange={() => toggle(d.id)} />
-                {customerById(d.customerId)?.name || "Bilinmeyen müşteri"} — {d.title}{" "}
-                <span style={{ color: "var(--text-muted)" }}>({formatTL(d.value)}, KDV %{d.kdvRate ?? 20})</span>
-              </label>
-            ))}
+            {filteredWonDeals.length === 0 ? (
+              <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: 0 }}>Filtreye uyan teklif yok.</p>
+            ) : (
+              filteredWonDeals.map((d) => (
+                <label key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "4px 0", cursor: "pointer" }}>
+                  <input type="checkbox" checked={selected.has(d.id)} onChange={() => toggle(d.id)} />
+                  {customerById(d.customerId)?.name || "Bilinmeyen müşteri"} — {d.title}{" "}
+                  <span style={{ color: "var(--text-muted)" }}>({formatTL(d.value)}, KDV %{d.kdvRate ?? 20})</span>
+                </label>
+              ))
+            )}
           </div>
           <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "6px 0 0" }}>KDV oranı yanlış görünüyorsa Vazgeç'e basıp ilgili teklifi düzenleyerek değiştirebilirsiniz.</p>
         </div>
