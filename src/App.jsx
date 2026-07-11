@@ -1332,7 +1332,7 @@ const TRASH_TABLE_LABELS = {
   kb_articles: "Makale",
 };
 
-function TrashHistoryModal({ notify, onRestore, onClose, activeTeamId }) {
+function TrashHistoryModal({ notify, onRestore, onClose, activeTeamId, session, teamMembers }) {
   const [tab, setTab] = useState("trash");
   const [loading, setLoading] = useState(true);
   const [trashGroups, setTrashGroups] = useState([]);
@@ -1390,6 +1390,12 @@ function TrashHistoryModal({ notify, onRestore, onClose, activeTeamId }) {
     await onRestore(batchId);
     await load();
     setRestoringBatch(null);
+  };
+
+  const actorLabel = (actorId, actorEmail) => {
+    if (actorId === session.user.id) return session.user.user_metadata?.full_name || actorEmail;
+    const member = teamMembers.find((m) => m.id === actorId);
+    return member?.name || actorEmail;
   };
 
   const queryLower = query.trim().toLowerCase();
@@ -1465,7 +1471,9 @@ function TrashHistoryModal({ notify, onRestore, onClose, activeTeamId }) {
                         <span style={{ color: "var(--text-muted)" }}>{TRASH_TABLE_LABELS[it.table]}:</span> {it.label}
                       </div>
                     ))}
-                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>{daysAgo(g.deletedAt)} silindi</div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+                      {daysAgo(g.deletedAt)} silindi{g.deletedAt ? ` · ${new Date(g.deletedAt).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}` : ""}
+                    </div>
                   </div>
                   <button
                     onClick={() => restore(g.batchId)}
@@ -1489,7 +1497,7 @@ function TrashHistoryModal({ notify, onRestore, onClose, activeTeamId }) {
             <div key={r.id} style={{ padding: "8px 0", borderBottom: "0.5px solid var(--border)" }}>
               <div style={{ fontSize: 13 }}>{r.summary}</div>
               <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
-                {r.actor_email} · {daysAgo(r.created_at)}
+                {actorLabel(r.actor_id, r.actor_email)} · {daysAgo(r.created_at)}{r.created_at ? ` · ${new Date(r.created_at).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}` : ""}
               </div>
             </div>
           ))}
@@ -4590,7 +4598,7 @@ export default function App() {
       )}
 
       {showTrashHistory && (
-        <TrashHistoryModal notify={notify} onRestore={restoreBatch} onClose={() => setShowTrashHistory(false)} activeTeamId={activeTeamId} />
+        <TrashHistoryModal notify={notify} onRestore={restoreBatch} onClose={() => setShowTrashHistory(false)} activeTeamId={activeTeamId} session={session} teamMembers={teamMembers} />
       )}
 
       {showImportCustomers && (
