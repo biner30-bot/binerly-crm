@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Badge, Modal, InfoTip, ConfirmDialog, IconButton, uid, matchesDateRange, DateRangeFilter, downloadCsv } from "./shared";
+import { Badge, Modal, InfoTip, ConfirmDialog, IconButton, uid, matchesDateRange, DateRangeFilter, downloadXlsx } from "./shared";
 import { ImportModal } from "./ImportExport";
 import { SECTOR_PRESETS, supportExamples } from "./Sectors";
 
@@ -930,8 +930,8 @@ export default function Support({
             <>
               <button
                 onClick={() =>
-                  downloadCsv(
-                    "destek-talepleri.csv",
+                  downloadXlsx(
+                    "destek-talepleri.xlsx",
                     ["Müşteri", "Konu", "Öncelik", "Durum", "Oluşturulma tarihi"],
                     sortedTickets.map((t) => [
                       customerById(t.customerId)?.name || "",
@@ -968,8 +968,8 @@ export default function Support({
             <>
               <button
                 onClick={() =>
-                  downloadCsv(
-                    "bilgi-bankasi.csv",
+                  downloadXlsx(
+                    "bilgi-bankasi.xlsx",
                     ["Başlık", "Kategori", "İçerik"],
                     filteredKbArticles.map((a) => [a.title, a.category, a.content])
                   )

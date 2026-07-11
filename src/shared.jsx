@@ -130,25 +130,22 @@ export function useTheme() {
   return [theme, setTheme];
 }
 
-function csvEscape(value) {
-  const s = String(value ?? "");
-  if (/[";\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
-
-export function downloadCsv(filename, headers, rows) {
-  // Türkçe Excel için liste ayracı ";" — virgül ondalık ayracı olduğundan Excel "," ile sütunlara ayırmıyor.
-  const lines = [headers, ...rows].map((row) => row.map(csvEscape).join(";"));
-  const csv = lines.join("\r\n");
-  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+// Düz CSV yerine gerçek .xlsx — CSV'nin sütun genişliği bilgisi taşımaması
+// Excel'de "10.07.2026" gibi biraz daha uzun değerlerin "####" görünmesine yol
+// açıyordu (Excel her CSV açtığında sütun genişliğini yeniden tahmin ediyor).
+// xlsx dosyasına gerçek sütun genişliği gömülüyor, tarihler de düz metin
+// olarak yazıldığı için Excel'in kendi tarih biçimine dönüştürmesi de olmuyor.
+export async function downloadXlsx(filename, headers, rows) {
+  const XLSX = await import("xlsx");
+  const sheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  sheet["!cols"] = headers.map((h, i) => {
+    const headerLen = String(h ?? "").length;
+    const maxRowLen = rows.reduce((max, row) => Math.max(max, String(row[i] ?? "").length), 0);
+    return { wch: Math.min(Math.max(headerLen, maxRowLen) + 2, 50) };
+  });
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, sheet, "Sayfa1");
+  XLSX.writeFile(workbook, filename);
 }
 
 export function formatTL(n) {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadCsv, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange } from "./shared";
+import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange } from "./shared";
 import Finance, { rowToCompanyExpense } from "./Finance";
 import { rowToChannelCredential, rowToChannelMessage } from "./Messages";
 import Support, {
@@ -1742,7 +1742,7 @@ function ExportSelectionModal({ title, items, columns, filename, getLabel, getRo
           <button
             type="button"
             disabled={selectedItems.length === 0}
-            onClick={() => { downloadCsv(filename, columns, selectedItems.map(getRow)); onClose(); }}
+            onClick={() => { downloadXlsx(filename, columns, selectedItems.map(getRow)); onClose(); }}
             style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
           >
             {selectedItems.length} kaydı indir
@@ -4895,7 +4895,7 @@ export default function App() {
         <ExportSelectionModal
           title="Müşterileri Dışa Aktar"
           items={filteredCustomers}
-          filename="musteriler.csv"
+          filename="musteriler.xlsx"
           columns={["Firma adı", "Sektör", "Bölge", "Telefon", "E-posta", "Not", "Son temas"]}
           getLabel={(c) => c.name}
           getRow={(c) => [
@@ -4915,7 +4915,7 @@ export default function App() {
         <ExportSelectionModal
           title={appointmentStyle ? "Randevuları Dışa Aktar" : "Teklifleri Dışa Aktar"}
           items={filteredDeals}
-          filename="teklifler.csv"
+          filename="teklifler.xlsx"
           columns={["Müşteri", "Başlık", "Tutar", "Gider", "Aşama", "Hatırlatma notu", "Oluşturulma tarihi"]}
           getLabel={(d) => `${customerById(d.customerId)?.name || "Bilinmeyen müşteri"} — ${d.title}`}
           getRow={(d) => [
