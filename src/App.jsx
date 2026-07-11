@@ -1682,12 +1682,16 @@ const PARASUT_HELP_TEXT = `Satış Faturaları
 
 - Destek için destek@parasut.com veya 0212 292 04 94`;
 
-function ExportSelectionModal({ title, items, columns, filename, getLabel, getRow, onClose }) {
+function ExportSelectionModal({ title, items, columns, filename, getLabel, getRow, getPaymentStatus, onClose }) {
   const [query, setQuery] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState("all");
   const [selected, setSelected] = useState(() => new Set(items.map((i) => i.id)));
 
   const queryLower = query.trim().toLowerCase();
-  const filtered = items.filter((i) => !queryLower || getLabel(i).toLowerCase().includes(queryLower));
+  const filtered = items.filter((i) => {
+    if (getPaymentStatus && paymentFilter !== "all" && getPaymentStatus(i) !== paymentFilter) return false;
+    return !queryLower || getLabel(i).toLowerCase().includes(queryLower);
+  });
   const allVisibleSelected = filtered.length > 0 && filtered.every((i) => selected.has(i.id));
   const selectedItems = items.filter((i) => selected.has(i.id));
 
@@ -1713,12 +1717,22 @@ function ExportSelectionModal({ title, items, columns, filename, getLabel, getRo
       <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 12px" }}>
         Arayıp istediklerinizi seçin — hepsini dışa aktarabilir, ya da tek bir kaydı bile seçip sadece onu indirebilirsiniz.
       </p>
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Ara..."
-        style={{ width: "100%", marginBottom: 8, fontSize: 13 }}
-      />
+      <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Ara..."
+          style={{ flex: 1, minWidth: 140, fontSize: 13 }}
+        />
+        {getPaymentStatus && (
+          <select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} style={{ fontSize: 13 }}>
+            <option value="all">Tüm ödeme durumları</option>
+            <option value="odendi">Ödendi</option>
+            <option value="kismi">Kısmi ödeme</option>
+            <option value="odenmedi">Ödenmedi</option>
+          </select>
+        )}
+      </div>
       <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--text-secondary)", padding: "2px 0 6px", cursor: filtered.length === 0 ? "default" : "pointer" }}>
         <input type="checkbox" checked={allVisibleSelected} disabled={filtered.length === 0} onChange={toggleAllVisible} />
         Görünen {filtered.length} kaydın tümünü seç / kaldır
@@ -1761,13 +1775,21 @@ function ParasutExportModal({ deals, customerById, totalPaidForDeal, sector, onC
   const [maxAmount, setMaxAmount] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState("all");
   const selectedDeals = wonDeals.filter((d) => selected.has(d.id));
+
+  const paymentStatus = (d) => {
+    const paid = totalPaidForDeal(d.id);
+    if (paid <= 0) return "odenmedi";
+    return paid < d.value ? "kismi" : "odendi";
+  };
 
   const dealQueryLower = dealQuery.trim().toLowerCase();
   const filteredWonDeals = wonDeals.filter((d) => {
     if (!matchesDateRange(d.createdAt, fromDate, toDate)) return false;
     if (minAmount !== "" && d.value < Number(minAmount)) return false;
     if (maxAmount !== "" && d.value > Number(maxAmount)) return false;
+    if (paymentFilter !== "all" && paymentStatus(d) !== paymentFilter) return false;
     if (!dealQueryLower) return true;
     return d.title.toLowerCase().includes(dealQueryLower) || (customerById(d.customerId)?.name || "").toLowerCase().includes(dealQueryLower);
   });
@@ -1871,6 +1893,12 @@ function ParasutExportModal({ deals, customerById, totalPaidForDeal, sector, onC
               placeholder="Maks. tutar"
               style={{ width: 100, fontSize: 13 }}
             />
+            <select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} style={{ fontSize: 13 }}>
+              <option value="all">Tüm ödeme durumları</option>
+              <option value="odendi">Ödendi</option>
+              <option value="kismi">Kısmi ödeme</option>
+              <option value="odenmedi">Ödenmedi</option>
+            </select>
             <DateRangeFilter from={fromDate} to={toDate} onFromChange={setFromDate} onToChange={setToDate} />
           </div>
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--text-secondary)", padding: "2px 0 6px", cursor: filteredWonDeals.length === 0 ? "default" : "pointer" }}>
@@ -4927,6 +4955,11 @@ export default function App() {
             d.reminder,
             d.createdAt ? new Date(d.createdAt).toLocaleDateString("tr-TR") : "",
           ]}
+          getPaymentStatus={(d) => {
+            const paid = totalPaidForDeal(d.id);
+            if (paid <= 0) return "odenmedi";
+            return paid < d.value ? "kismi" : "odendi";
+          }}
           onClose={() => setShowDealExport(false)}
         />
       )}
