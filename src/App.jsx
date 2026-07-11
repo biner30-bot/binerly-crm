@@ -536,6 +536,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   const selectedCustomerType = customers.find((c) => c.id === customerId)?.customerType || "kurumsal";
   const [title, setTitle] = useState(initial?.title || "");
   const [value, setValue] = useState(initial?.value ?? "");
+  const [selectedPriceItemId, setSelectedPriceItemId] = useState("");
   const [cost, setCost] = useState(initial?.cost ?? "");
   const [kdvRate, setKdvRate] = useState(initial?.kdvRate ?? defaultKdvRate ?? 20);
   const [stage, setStage] = useState(initial?.stage || "ilk_gorusme");
@@ -628,14 +629,16 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
             <InfoTip text="Listeden seçmek başlığı ve tutarı otomatik doldurur, sonrasında yine de değiştirebilirsiniz. Ayarlar → Ürün & Hizmet Fiyat Listesi'nden yönetilir." />
           </label>
           <select
-            value=""
+            value={selectedPriceItemId}
             onChange={(e) => {
               const item = priceListItems.find((p) => p.id === e.target.value);
+              setSelectedPriceItemId(e.target.value);
               if (item) { setTitle(item.name); setValue(String(item.price)); }
+              else { setTitle(""); setValue(""); }
             }}
             style={{ width: "100%" }}
           >
-            <option value="">Elle gir / listeden seç</option>
+            <option value="">Elle doldur / listeden seç</option>
             {priceListItems.map((p) => <option key={p.id} value={p.id}>{p.name} — {formatTL(p.price)}</option>)}
           </select>
         </div>
@@ -981,7 +984,7 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
           <select value={type} onChange={(e) => setType(e.target.value)} style={{ width: 160 }}>
             {ACTIVITY_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
           </select>
-          <input value={content} onChange={(e) => setContent(e.target.value)} placeholder="Örn. fiyat teklifi görüşüldü" style={{ flex: 1 }} />
+          <input value={content} onChange={(e) => setContent(e.target.value)} placeholder={isAppointmentSector(sector) ? "Örn. randevu detayları görüşüldü" : "Örn. fiyat teklifi görüşüldü"} style={{ flex: 1 }} />
         </div>
         <button type="submit" disabled={saving || !content.trim()} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
           Ekle
@@ -1186,7 +1189,17 @@ function CampaignModal({ customers, replyTo, companyName, logoUrl, onClose }) {
   );
 }
 
-function PriceListManager({ items, onAdd, onUpdate, onDelete }) {
+const PRICE_ITEM_NAME_EXAMPLES = {
+  emlak: "Ekspertiz Hizmeti",
+  dijital_ajans: "Sosyal Medya Yönetimi (Aylık)",
+  saglik_klinik: "Muayene",
+  uretim_satis: "Toptan Palet",
+  hizmet_danismanlik: "Saatlik Danışmanlık",
+  perakende: "Standart Paket",
+  guzellik_bakim: "Manikür",
+};
+
+function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -1247,7 +1260,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete }) {
       <form onSubmit={submit} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end" }}>
         <div style={{ flex: 1, minWidth: 140 }}>
           <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>İsim</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Örn. Manikür" style={{ width: "100%", fontSize: 13 }} />
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={`Örn. ${PRICE_ITEM_NAME_EXAMPLES[sector] || "Danışmanlık"}`} style={{ width: "100%", fontSize: 13 }} />
         </div>
         <div style={{ width: 120 }}>
           <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Fiyat (TL)</label>
@@ -1668,6 +1681,77 @@ const PARASUT_HELP_TEXT = `Satış Faturaları
 - Bu yardım metnini silmeyin.
 
 - Destek için destek@parasut.com veya 0212 292 04 94`;
+
+function ExportSelectionModal({ title, items, columns, filename, getLabel, getRow, onClose }) {
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState(() => new Set(items.map((i) => i.id)));
+
+  const queryLower = query.trim().toLowerCase();
+  const filtered = items.filter((i) => !queryLower || getLabel(i).toLowerCase().includes(queryLower));
+  const allVisibleSelected = filtered.length > 0 && filtered.every((i) => selected.has(i.id));
+  const selectedItems = items.filter((i) => selected.has(i.id));
+
+  const toggle = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllVisible = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) filtered.forEach((i) => next.delete(i.id));
+      else filtered.forEach((i) => next.add(i.id));
+      return next;
+    });
+  };
+
+  return (
+    <Modal title={title} onClose={onClose}>
+      <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 12px" }}>
+        Arayıp istediklerinizi seçin — hepsini dışa aktarabilir, ya da tek bir kaydı bile seçip sadece onu indirebilirsiniz.
+      </p>
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Ara..."
+        style={{ width: "100%", marginBottom: 8, fontSize: 13 }}
+      />
+      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--text-secondary)", padding: "2px 0 6px", cursor: filtered.length === 0 ? "default" : "pointer" }}>
+        <input type="checkbox" checked={allVisibleSelected} disabled={filtered.length === 0} onChange={toggleAllVisible} />
+        Görünen {filtered.length} kaydın tümünü seç / kaldır
+      </label>
+      <div style={{ maxHeight: 260, overflowY: "auto", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 8, marginBottom: 12 }}>
+        {filtered.length === 0 ? (
+          <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: 0 }}>Filtreye uyan kayıt yok.</p>
+        ) : (
+          filtered.map((item) => (
+            <label key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "4px 0", cursor: "pointer" }}>
+              <input type="checkbox" checked={selected.has(item.id)} onChange={() => toggle(item.id)} />
+              {getLabel(item)}
+            </label>
+          ))
+        )}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>{selectedItems.length} kayıt seçili</span>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button type="button" onClick={onClose}>Vazgeç</button>
+          <button
+            type="button"
+            disabled={selectedItems.length === 0}
+            onClick={() => { downloadCsv(filename, columns, selectedItems.map(getRow)); onClose(); }}
+            style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+          >
+            {selectedItems.length} kaydı indir
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 function ParasutExportModal({ deals, customerById, totalPaidForDeal, sector, onClose }) {
   const wonDeals = deals.filter((d) => d.stage === "kazanildi");
@@ -2502,6 +2586,8 @@ export default function App() {
   const [showImportCustomers, setShowImportCustomers] = useState(false);
   const [showImportDeals, setShowImportDeals] = useState(false);
   const [showParasutExport, setShowParasutExport] = useState(false);
+  const [showCustomerExport, setShowCustomerExport] = useState(false);
+  const [showDealExport, setShowDealExport] = useState(false);
   const [showImportTickets, setShowImportTickets] = useState(false);
   const [showImportKbArticles, setShowImportKbArticles] = useState(false);
   const [showPasswordRecovery, setShowPasswordRecovery] = useState(false);
@@ -4136,21 +4222,7 @@ export default function App() {
         <div>
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
             <button
-              onClick={() =>
-                downloadCsv(
-                  "musteriler.csv",
-                  ["Firma adı", "Sektör", "Bölge", "Telefon", "E-posta", "Not", "Son temas"],
-                  filteredCustomers.map((c) => [
-                    c.name,
-                    c.sector,
-                    c.region,
-                    c.phone,
-                    c.email,
-                    c.notes,
-                    c.lastContact ? new Date(c.lastContact).toLocaleDateString("tr-TR") : "",
-                  ])
-                )
-              }
+              onClick={() => setShowCustomerExport(true)}
               disabled={filteredCustomers.length === 0}
               style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
             >
@@ -4337,21 +4409,7 @@ export default function App() {
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button
-                onClick={() =>
-                  downloadCsv(
-                    "teklifler.csv",
-                    ["Müşteri", "Başlık", "Tutar", "Gider", "Aşama", "Hatırlatma notu", "Oluşturulma tarihi"],
-                    filteredDeals.map((d) => [
-                      customerById(d.customerId)?.name || "",
-                      d.title,
-                      d.value,
-                      d.cost,
-                      stageLabel(d.stage, customerById(d.customerId)?.customerType || "kurumsal", companySettings?.sector),
-                      d.reminder,
-                      d.createdAt ? new Date(d.createdAt).toLocaleDateString("tr-TR") : "",
-                    ])
-                  )
-                }
+                onClick={() => setShowDealExport(true)}
                 disabled={filteredDeals.length === 0}
                 style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
               >
@@ -4761,13 +4819,13 @@ export default function App() {
             </select>
             <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Seçtiğinizde aşama isimlerini, önerilen etiketleri ve özel alanları hemen günceller.</p>
           </div>
-          <CustomFieldDefsManager customFieldDefs={customFieldDefs} onAdd={addCustomFieldDef} onUpdate={updateCustomFieldDef} onDelete={deleteCustomFieldDef} />
+          <CustomFieldDefsManager customFieldDefs={customFieldDefs} onAdd={addCustomFieldDef} onUpdate={updateCustomFieldDef} onDelete={deleteCustomFieldDef} sector={companySettings?.sector} />
         </Modal>
       )}
 
       {showPriceList && (
         <Modal title="Ürün & Hizmet Fiyat Listesi" onClose={() => setShowPriceList(false)}>
-          <PriceListManager items={priceListItems} onAdd={addPriceListItem} onUpdate={updatePriceListItem} onDelete={deletePriceListItem} />
+          <PriceListManager items={priceListItems} onAdd={addPriceListItem} onUpdate={updatePriceListItem} onDelete={deletePriceListItem} sector={companySettings?.sector} />
         </Modal>
       )}
 
@@ -4831,6 +4889,46 @@ export default function App() {
 
       {showParasutExport && (
         <ParasutExportModal deals={deals} customerById={customerById} totalPaidForDeal={totalPaidForDeal} sector={companySettings?.sector} onClose={() => setShowParasutExport(false)} />
+      )}
+
+      {showCustomerExport && (
+        <ExportSelectionModal
+          title="Müşterileri Dışa Aktar"
+          items={filteredCustomers}
+          filename="musteriler.csv"
+          columns={["Firma adı", "Sektör", "Bölge", "Telefon", "E-posta", "Not", "Son temas"]}
+          getLabel={(c) => c.name}
+          getRow={(c) => [
+            c.name,
+            c.sector,
+            c.region,
+            c.phone,
+            c.email,
+            c.notes,
+            c.lastContact ? new Date(c.lastContact).toLocaleDateString("tr-TR") : "",
+          ]}
+          onClose={() => setShowCustomerExport(false)}
+        />
+      )}
+
+      {showDealExport && (
+        <ExportSelectionModal
+          title={appointmentStyle ? "Randevuları Dışa Aktar" : "Teklifleri Dışa Aktar"}
+          items={filteredDeals}
+          filename="teklifler.csv"
+          columns={["Müşteri", "Başlık", "Tutar", "Gider", "Aşama", "Hatırlatma notu", "Oluşturulma tarihi"]}
+          getLabel={(d) => `${customerById(d.customerId)?.name || "Bilinmeyen müşteri"} — ${d.title}`}
+          getRow={(d) => [
+            customerById(d.customerId)?.name || "",
+            d.title,
+            d.value,
+            d.cost,
+            stageLabel(d.stage, customerById(d.customerId)?.customerType || "kurumsal", companySettings?.sector),
+            d.reminder,
+            d.createdAt ? new Date(d.createdAt).toLocaleDateString("tr-TR") : "",
+          ]}
+          onClose={() => setShowDealExport(false)}
+        />
       )}
 
       {teklifDeal && (
