@@ -63,9 +63,9 @@ const PORTAL_INFO_TEXT =
   "portal üzerinden kendi hesabını oluşturması yeterli, sizin ayrıca bir davet göndermenize gerek yok.";
 
 const DEAL_WORD_FORMS = {
-  teklif: { bare: "teklif", pdfLabel: "Teklif PDF", acc: "teklifi", dat: "teklife", plural: "teklifler", gen: "teklifin" },
-  randevu: { bare: "randevu", pdfLabel: "Randevu Özeti PDF", acc: "randevuyu", dat: "randevuya", plural: "randevular", gen: "randevunun" },
-  uyelik: { bare: "üyelik", pdfLabel: "Üyelik Özeti PDF", acc: "üyeliği", dat: "üyeliğe", plural: "üyelikler", gen: "üyeliğin" },
+  teklif: { bare: "teklif", pdfLabel: "Teklif PDF", acc: "teklifi", dat: "teklife", plural: "teklifler", pluralAcc: "teklifleri", gen: "teklifin", genPlural: "tekliflerin", loc: "teklifte", pluralLoc: "tekliflerde", ctaLabel: "Teklifi Görüntüle", possYours: "Teklifiniz" },
+  randevu: { bare: "randevu", pdfLabel: "Randevu Özeti PDF", acc: "randevuyu", dat: "randevuya", plural: "randevular", pluralAcc: "randevuları", gen: "randevunun", genPlural: "randevuların", loc: "randevuda", pluralLoc: "randevularda", ctaLabel: "Randevuyu Görüntüle", possYours: "Randevunuz" },
+  uyelik: { bare: "üyelik", pdfLabel: "Üyelik Özeti PDF", acc: "üyeliği", dat: "üyeliğe", plural: "üyelikler", pluralAcc: "üyelikleri", gen: "üyeliğin", genPlural: "üyeliklerin", loc: "üyelikte", pluralLoc: "üyeliklerde", ctaLabel: "Üyeliği Görüntüle", possYours: "Üyeliğiniz" },
 };
 
 // Müşteri Takibi sekmesindeki liste UI'ı (ekle butonu, arama, boş durumlar,
@@ -75,34 +75,46 @@ const DEAL_TAB_STRINGS = {
     addLabel: "Teklif ekle",
     searchPlaceholder: "Teklif ara (başlık, müşteri)...",
     openFilterLabel: "Açık teklifler",
+    openValueLabel: "Açık teklif değeri",
+    openGenPluralPhrase: "Açık tekliflerin",
     emptyDefault: "Henüz teklif eklenmedi.",
     emptySearch: "Aramayla eşleşen teklif yok.",
     columnHeader: "Teklif",
     exportTitle: "Teklifleri Dışa Aktar",
     editTitle: "Teklifi düzenle",
+    deleteTitle: "Teklifi sil",
     newTitle: "Yeni teklif",
+    exportFilename: "teklifler.xlsx",
   },
   randevu: {
     addLabel: "Randevu ekle",
     searchPlaceholder: "Randevu ara (başlık, müşteri)...",
     openFilterLabel: "Bekleyen randevular",
+    openValueLabel: "Bekleyen randevu değeri",
+    openGenPluralPhrase: "Bekleyen randevuların",
     emptyDefault: "Henüz randevu eklenmedi.",
     emptySearch: "Aramayla eşleşen randevu yok.",
     columnHeader: "Randevu",
     exportTitle: "Randevuları Dışa Aktar",
     editTitle: "Randevuyu düzenle",
+    deleteTitle: "Randevuyu sil",
     newTitle: "Yeni randevu",
+    exportFilename: "randevular.xlsx",
   },
   uyelik: {
     addLabel: "Üyelik ekle",
     searchPlaceholder: "Üyelik ara (başlık, müşteri)...",
     openFilterLabel: "Bekleyen üyelikler",
+    openValueLabel: "Bekleyen üyelik değeri",
+    openGenPluralPhrase: "Bekleyen üyeliklerin",
     emptyDefault: "Henüz üyelik eklenmedi.",
     emptySearch: "Aramayla eşleşen üyelik yok.",
     columnHeader: "Üyelik",
     exportTitle: "Üyelikleri Dışa Aktar",
     editTitle: "Üyeliği düzenle",
+    deleteTitle: "Üyeliği sil",
     newTitle: "Yeni üyelik",
+    exportFilename: "uyelikler.xlsx",
   },
 };
 
@@ -561,8 +573,8 @@ function CompanySettingsForm({ initial, onSave, onCancel, activeTeamId, notify }
           Müşterilere önemli gelişmelerde otomatik e-posta gönder
           <InfoTip
             text={
-              `Bir teklifin aşaması her değiştiğinde (${STAGES.map((s) => stageLabel(s.id, "kurumsal", initial?.sector)).join(", ")}) o aşamaya özel bir mail gider — 2. ve 3. aşamalarda onay linki de eklenir. Destek talebi durumu değiştiğinde, yeni bir yanıt yazıldığında ve ödeme alındığında da müşteriye bilgilendirme gider.\n\n` +
-              "Yanlışlıkla bir teklifi başka bir aşamaya sürüklerseniz endişelenmeyin: mail hemen gitmez, 45 saniye beklenir — bu süre içinde aşamayı düzeltirseniz mail hiç gitmez, sadece son karar verdiğiniz aşama için gider."
+              `Bir ${DEAL_WORD_FORMS[dealWordKind(initial?.sector)].gen} aşaması her değiştiğinde (${STAGES.map((s) => stageLabel(s.id, "kurumsal", initial?.sector)).join(", ")}) o aşamaya özel bir mail gider — 2. ve 3. aşamalarda onay linki de eklenir. Destek talebi durumu değiştiğinde, yeni bir yanıt yazıldığında ve ödeme alındığında da müşteriye bilgilendirme gider.\n\n` +
+              `Yanlışlıkla bir ${DEAL_WORD_FORMS[dealWordKind(initial?.sector)].acc} başka bir aşamaya sürüklerseniz endişelenmeyin: mail hemen gitmez, 45 saniye beklenir — bu süre içinde aşamayı düzeltirseniz mail hiç gitmez, sadece son karar verdiğiniz aşama için gider.`
             }
           />
         </label>
@@ -839,7 +851,7 @@ function paymentDateLabel(dateStr) {
   return new Date(dateStr).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function DealPayments({ deal, payments, onAddPayment, onDeletePayment }) {
+function DealPayments({ deal, payments, sector, onAddPayment, onDeletePayment }) {
   const [amount, setAmount] = useState("");
   const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState("");
@@ -855,7 +867,7 @@ function DealPayments({ deal, payments, onAddPayment, onDeletePayment }) {
     const n = Number(amount);
     if (!n || n <= 0) return;
     if (remaining <= 0) {
-      setError("Bu teklif zaten tamamen tahsil edilmiş, kalan bakiye yok.");
+      setError(`Bu ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} zaten tamamen tahsil edilmiş, kalan bakiye yok.`);
       return;
     }
     if (n > remaining + 0.01) {
@@ -1327,7 +1339,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
     <div>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px", display: "flex", alignItems: "center", gap: 4 }}>
         Sabit fiyatlı ürün/hizmetlerinizi buraya kaydedin
-        <InfoTip text="Bu tamamen opsiyonel — kaydettikleriniz, yeni teklif/randevu formunda hızlı seçim olarak çıkar; seçince başlık ve tutar otomatik dolar, sonrasında yine de değiştirebilirsiniz. Bir kalemi silmek veya fiyatını güncellemek, daha önce oluşturulmuş teklifleri etkilemez — sadece o teklif kaydedildiği andaki başlık/tutarı taşır." />
+        <InfoTip text={`Bu tamamen opsiyonel — kaydettikleriniz, yeni ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} formunda hızlı seçim olarak çıkar; seçince başlık ve tutar otomatik dolar, sonrasında yine de değiştirebilirsiniz. Bir kalemi silmek veya fiyatını güncellemek, daha önce oluşturulmuş ${DEAL_WORD_FORMS[dealWordKind(sector)].pluralAcc} etkilemez — sadece o ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} kaydedildiği andaki başlık/tutarı taşır.`} />
       </p>
 
       {items.length === 0 ? (
@@ -1371,7 +1383,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
       {confirmDelete && (
         <ConfirmDialog
           title="Ürün/hizmeti sil"
-          message={`"${confirmDelete.name}" kaldırılacak. Daha önce bu kalemle oluşturulmuş teklifler etkilenmez.`}
+          message={`"${confirmDelete.name}" kaldırılacak. Daha önce bu kalemle oluşturulmuş ${DEAL_WORD_FORMS[dealWordKind(sector)].plural} etkilenmez.`}
           onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
           onClose={() => setConfirmDelete(null)}
         />
@@ -3010,7 +3022,7 @@ export default function App() {
       const ctaUrl = cfg.needsLink ? await generateApprovalLink(deal) : null;
       notifyCustomerByEmail(customer, `${cfg.subject(deal.title)} — ${company}`, cfg.body(deal, company), {
         ctaUrl,
-        ctaLabel: "Teklifi Görüntüle",
+        ctaLabel: DEAL_WORD_FORMS[dealWordKind(companySettings?.sector)].ctaLabel,
       });
     }, 45000);
     stageEmailTimers.current.set(deal.id, timer);
@@ -3102,7 +3114,7 @@ export default function App() {
     setPayments((prev) => prev.filter((p) => !dealIds.includes(p.dealId)));
 
     logAction("customers", id, "deleted", `${customer?.name || "Müşteri"} çöp kutusuna taşındı`);
-    customerDeals.forEach((d) => logAction("deals", d.id, "deleted", `${d.title} (teklif) çöp kutusuna taşındı`));
+    customerDeals.forEach((d) => logAction("deals", d.id, "deleted", `${d.title} (${DEAL_WORD_FORMS[dealWordKind(companySettings?.sector)].bare}) çöp kutusuna taşındı`));
     customerTickets.forEach((t) => logAction("tickets", t.id, "deleted", `${t.subject} (talep) çöp kutusuna taşındı`));
     cascadePayments.forEach((p) => logAction("payments", p.id, "deleted", `${formatTL(p.amount)} tahsilat çöp kutusuna taşındı`));
   };
@@ -3136,7 +3148,7 @@ export default function App() {
       closed_at: d.closedAt || null,
     };
     const { data, error } = await supabase.from("deals").upsert(row).select().single();
-    if (error) { notify(`Teklif kaydedilemedi: ${error.message}`); return; }
+    if (error) { notify(`${DEAL_TAB_STRINGS[dealWordKind(companySettings?.sector)].columnHeader} kaydedilemedi: ${error.message}`); return; }
     const deal = rowToDeal(data);
     setDeals((prev) =>
       prev.some((x) => x.id === deal.id) ? prev.map((x) => (x.id === deal.id ? deal : x)) : [...prev, deal]
@@ -3190,15 +3202,15 @@ export default function App() {
       .from("payments")
       .update({ deleted_at: now, deleted_batch_id: batchId })
       .eq("deal_id", id);
-    if (payErr) { notify(`Teklif silinemedi: ${payErr.message}`); return; }
+    if (payErr) { notify(`${DEAL_TAB_STRINGS[dealWordKind(companySettings?.sector)].columnHeader} silinemedi: ${payErr.message}`); return; }
     const { error } = await supabase
       .from("deals")
       .update({ deleted_at: now, deleted_batch_id: batchId })
       .eq("id", id);
-    if (error) { notify(`Teklif silinemedi: ${error.message}`); return; }
+    if (error) { notify(`${DEAL_TAB_STRINGS[dealWordKind(companySettings?.sector)].columnHeader} silinemedi: ${error.message}`); return; }
     setDeals((prev) => prev.filter((d) => d.id !== id));
     setPayments((prev) => prev.filter((p) => p.dealId !== id));
-    logAction("deals", id, "deleted", `${deal?.title || "Teklif"} çöp kutusuna taşındı`);
+    logAction("deals", id, "deleted", `${deal?.title || DEAL_TAB_STRINGS[dealWordKind(companySettings?.sector)].columnHeader} çöp kutusuna taşındı`);
     dealPayments.forEach((p) => logAction("payments", p.id, "deleted", `${formatTL(p.amount)} tahsilat çöp kutusuna taşındı`));
   };
 
@@ -3215,7 +3227,7 @@ export default function App() {
     notifyCustomerByEmail(
       customer,
       `Ödemeniz alındı — ${company}`,
-      `Merhaba,\n\n"${deal?.title || "Teklifiniz"}" için ${formatTL(payment.amount)} tutarındaki ödemeniz alınmıştır. Teşekkür ederiz.\n\n${company}`
+      `Merhaba,\n\n"${deal?.title || DEAL_WORD_FORMS[dealWordKind(companySettings?.sector)].possYours}" için ${formatTL(payment.amount)} tutarındaki ödemeniz alınmıştır. Teşekkür ederiz.\n\n${company}`
     );
   };
 
@@ -3367,7 +3379,7 @@ export default function App() {
       setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, stage: previousStage, closedAt: current?.closedAt ?? null } : d)));
     } else {
       const currentStageLabel = stageLabel(stage, customers.find((c) => c.id === current?.customerId)?.customerType || "kurumsal", companySettings?.sector);
-      logAction("deals", id, "updated", `${current?.title || "Teklif"} aşaması "${currentStageLabel}" olarak güncellendi`);
+      logAction("deals", id, "updated", `${current?.title || DEAL_TAB_STRINGS[dealWordKind(companySettings?.sector)].columnHeader} aşaması "${currentStageLabel}" olarak güncellendi`);
       if (current && stage !== previousStage) sendStageEmail(current, stage);
     }
   };
@@ -3383,7 +3395,7 @@ export default function App() {
       notify(`Seans güncellenemedi: ${error.message}`);
       setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, sessionUsed: previousUsed } : d)));
     } else {
-      logAction("deals", id, "updated", `${current.title || "Teklif"} — ${nextUsed}. seans kullanıldı (${nextUsed}/${current.sessionTotal})`);
+      logAction("deals", id, "updated", `${current.title || DEAL_TAB_STRINGS[dealWordKind(companySettings?.sector)].columnHeader} — ${nextUsed}. seans kullanıldı (${nextUsed}/${current.sessionTotal})`);
     }
   };
 
@@ -3622,7 +3634,7 @@ export default function App() {
       };
     });
     const outcome = await bulkInsertChunked("deals", rows, rowToDeal, setDeals, onProgress);
-    if (outcome.insertedCount > 0) logAction("deals", uid(), "created", `${outcome.insertedCount} teklif içe aktarıldı`);
+    if (outcome.insertedCount > 0) logAction("deals", uid(), "created", `${outcome.insertedCount} ${DEAL_WORD_FORMS[dealWordKind(companySettings?.sector)].bare} içe aktarıldı`);
     return outcome;
   };
 
@@ -4110,18 +4122,18 @@ export default function App() {
           <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", margin: "0 0 8px" }}>Şu an</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 12, marginBottom: "1.5rem" }}>
             <MetricCard
-              label="Açık teklifler"
+              label={dealWords.openFilterLabel}
               value={openDeals.length}
-              onClick={openDeals.length > 0 ? () => openDealOrList(openDeals, "Açık teklifler") : undefined}
+              onClick={openDeals.length > 0 ? () => openDealOrList(openDeals, dealWords.openFilterLabel) : undefined}
             />
             <MetricCard
-              label="Açık teklif değeri"
+              label={dealWords.openValueLabel}
               value={formatTL(totalOpenValue)}
-              onClick={openDeals.length > 0 ? () => openDealOrList(openDeals, "Açık teklifler") : undefined}
+              onClick={openDeals.length > 0 ? () => openDealOrList(openDeals, dealWords.openFilterLabel) : undefined}
             />
             <MetricCard
               label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Beklenen Gelir <InfoTip text={
-                "Açık tekliflerin tutarı, aşamalarına göre kapanma olasılığıyla çarpılıp toplanır:\n" +
+                `${dealWords.openGenPluralPhrase} tutarı, aşamalarına göre kapanma olasılığıyla çarpılıp toplanır:\n` +
                 Object.entries(STAGE_PROBABILITY).map(([id, p]) => `${stageLabel(id, "kurumsal", companySettings?.sector)} → %${Math.round(p * 100)}`).join("\n") +
                 "\n\nGerçek bir tahsilat garantisi değil, kaba bir tahmindir."
               } /></span>}
@@ -4131,13 +4143,13 @@ export default function App() {
             <MetricCard
               label="Bekleyen alacak"
               value={formatTL(totalOutstanding)}
-              onClick={dealsWithOutstanding.length > 0 ? () => openDealOrList(dealsWithOutstanding, "Bekleyen alacağı olan teklifler") : undefined}
+              onClick={dealsWithOutstanding.length > 0 ? () => openDealOrList(dealsWithOutstanding, `Bekleyen alacağı olan ${DEAL_WORD_FORMS[dealKind].plural}`) : undefined}
             />
             <MetricCard
               label="Hatırlatması olan"
               value={dealsWithReminder.length}
               tone="warning"
-              onClick={dealsWithReminder.length > 0 ? () => openDealOrList(dealsWithReminder, "Hatırlatması olan teklifler") : undefined}
+              onClick={dealsWithReminder.length > 0 ? () => openDealOrList(dealsWithReminder, `Hatırlatması olan ${DEAL_WORD_FORMS[dealKind].plural}`) : undefined}
             />
             <MetricCard
               label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Açık destek talepleri <InfoTip text="Durumu Çözüldü veya Kapatıldı olmayan destek talepleri." /></span>}
@@ -4164,12 +4176,12 @@ export default function App() {
               label="Kazanılan"
               value={wonDeals.length}
               tone="success"
-              onClick={wonDeals.length > 0 ? () => openDealOrList(wonDeals, "Kazanılan teklifler") : undefined}
+              onClick={wonDeals.length > 0 ? () => openDealOrList(wonDeals, `Kazanılan ${DEAL_WORD_FORMS[dealKind].plural}`) : undefined}
             />
             <MetricCard
               label="Toplam gelir"
               value={formatTL(rangeRevenue)}
-              onClick={wonDeals.length > 0 ? () => openDealOrList(wonDeals, "Kazanılan teklifler") : undefined}
+              onClick={wonDeals.length > 0 ? () => openDealOrList(wonDeals, `Kazanılan ${DEAL_WORD_FORMS[dealKind].plural}`) : undefined}
             />
             <MetricCard label="Toplam gider" value={formatTL(rangeCost)} />
             <MetricCard
@@ -4180,7 +4192,7 @@ export default function App() {
             />
             <MetricCard label="Toplam tahsilat" value={formatTL(totalCollected)} />
             <MetricCard
-              label="Ortalama teklif büyüklüğü"
+              label={`Ortalama ${DEAL_WORD_FORMS[dealKind].bare} büyüklüğü`}
               value={rangeAvgDealSize !== null ? formatTL(rangeAvgDealSize) : "—"}
             />
           </div>
@@ -4189,7 +4201,7 @@ export default function App() {
             <div style={{ marginBottom: "1.5rem" }}>
               <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 8px", display: "flex", alignItems: "center", gap: 4 }}>
                 Personel Performansı
-                <InfoTip text={"Seçili tarih aralığında (yukarıdaki " + rangeLabel + ") kazanılan tekliflerin, her teklifte seçtiğiniz \"Sorumlu\" kişiye göre dağılımı. Teklif formunda sorumlu atamazsanız \"Atanmamış\" altında görünür."} />
+                <InfoTip text={`Seçili tarih aralığında (yukarıdaki ${rangeLabel}) kazanılan ${DEAL_WORD_FORMS[dealKind].genPlural}, her ${DEAL_WORD_FORMS[dealKind].loc} seçtiğiniz "Sorumlu" kişiye göre dağılımı. ${dealWords.columnHeader} formunda sorumlu atamazsanız "Atanmamış" altında görünür.`} />
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {Object.entries(
@@ -4212,7 +4224,7 @@ export default function App() {
                       <div key={assigneeId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
                         <span style={{ fontSize: 13 }}>{label}</span>
                         <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                          {stats.count} teklif · <strong style={{ color: "var(--text-primary)" }}>{formatTL(stats.revenue)}</strong>
+                          {stats.count} {DEAL_WORD_FORMS[dealKind].bare} · <strong style={{ color: "var(--text-primary)" }}>{formatTL(stats.revenue)}</strong>
                         </span>
                       </div>
                     );
@@ -4321,7 +4333,7 @@ export default function App() {
               <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem" }}>
                 <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 12px" }}>Kazanma oranı</p>
                 {winRate === null ? (
-                  <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz kapanmış teklif yok.</p>
+                  <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz kapanmış {DEAL_WORD_FORMS[dealKind].bare} yok.</p>
                 ) : (
                   <div>
                     <p style={{ fontSize: 28, fontWeight: 600, margin: "0 0 4px", color: "var(--text-success)" }}>%{winRate}</p>
@@ -4761,7 +4773,7 @@ export default function App() {
                           <IconButton icon="ti-cash" title="Tahsilat" onClick={() => setPaymentsDeal(d)} />
                           <IconButton
                             icon="ti-copy"
-                            title="Bu teklifin bilgileriyle yeni bir teklif oluştur"
+                            title={`Bu ${DEAL_WORD_FORMS[dealKind].gen} bilgileriyle yeni bir ${DEAL_WORD_FORMS[dealKind].bare} oluştur`}
                             onClick={() => {
                               setEditingDeal({
                                 customerId: d.customerId,
@@ -4867,7 +4879,7 @@ export default function App() {
               <MenuRow
                 icon="ti-tag"
                 label="Ürün & Hizmet Fiyat Listesi"
-                description="Sabit fiyatlı ürün/hizmetlerinizi kaydedin, tekliflerde hızlıca seçin"
+                description={`Sabit fiyatlı ürün/hizmetlerinizi kaydedin, ${DEAL_WORD_FORMS[dealKind].pluralLoc} hızlıca seçin`}
                 onClick={() => { setShowSettingsHub(false); setShowPriceList(true); }}
               />
             </>
@@ -5042,7 +5054,7 @@ export default function App() {
         <ExportSelectionModal
           title={dealWords.exportTitle}
           items={filteredDeals}
-          filename="teklifler.xlsx"
+          filename={DEAL_TAB_STRINGS[dealKind].exportFilename}
           columns={["Müşteri", "Başlık", "Tutar", "Gider", "Aşama", "Hatırlatma notu", "Oluşturulma tarihi"]}
           getLabel={(d) => `${customerById(d.customerId)?.name || "Bilinmeyen müşteri"} — ${d.title}`}
           getRow={(d) => [
@@ -5125,6 +5137,7 @@ export default function App() {
           <DealPayments
             deal={paymentsDeal}
             payments={paymentsByDeal[paymentsDeal.id] || []}
+            sector={companySettings?.sector}
             onAddPayment={addPayment}
             onDeletePayment={deletePayment}
           />
@@ -5151,7 +5164,7 @@ export default function App() {
       {confirmDeleteCustomer && (
         <ConfirmDialog
           title="Müşteriyi sil"
-          message={`"${confirmDeleteCustomer.name}" silinsin mi? Bu müşteriye ait teklifler ve destek talepleri de birlikte çöp kutusuna taşınır — dilediğiniz zaman Çöp Kutusu'ndan geri yükleyebilirsiniz.`}
+          message={`"${confirmDeleteCustomer.name}" silinsin mi? Bu müşteriye ait ${DEAL_WORD_FORMS[dealKind].plural} ve destek talepleri de birlikte çöp kutusuna taşınır — dilediğiniz zaman Çöp Kutusu'ndan geri yükleyebilirsiniz.`}
           onConfirm={() => { deleteCustomer(confirmDeleteCustomer.id); setConfirmDeleteCustomer(null); }}
           onClose={() => setConfirmDeleteCustomer(null)}
         />
@@ -5159,8 +5172,8 @@ export default function App() {
 
       {confirmDeleteDeal && (
         <ConfirmDialog
-          title="Teklifi sil"
-          message="Bu teklif çöp kutusuna taşınacak, dilediğiniz zaman geri yükleyebilirsiniz."
+          title={dealWords.deleteTitle}
+          message={`Bu ${DEAL_WORD_FORMS[dealKind].bare} çöp kutusuna taşınacak, dilediğiniz zaman geri yükleyebilirsiniz.`}
           onConfirm={() => { deleteDeal(confirmDeleteDeal.id); setConfirmDeleteDeal(null); }}
           onClose={() => setConfirmDeleteDeal(null)}
         />

@@ -110,8 +110,8 @@ export default async function handler(req, res) {
         `Merhaba ${customer.name || ""},\n\n${company} bünyesindeki "${deal.title}" randevunuz ` +
         `bugün saat ${timeLabel}'de. Sizi görmekten mutluluk duyarız.`;
       const footerLines = [`${company} (Binerly ile)`, "Bu e-posta Binerly (binerly.com) altyapısıyla gönderildi."];
-      const html = renderEmailHtml({ logoUrl: settings.logo_url, bodyText, ctaLabel: "Teklifi Görüntüle", ctaUrl, footerLines });
-      const text = plainTextFallback(bodyText, "Teklifi Görüntüle", ctaUrl, footerLines);
+      const html = renderEmailHtml({ logoUrl: settings.logo_url, bodyText, ctaLabel: "Randevuyu Görüntüle", ctaUrl, footerLines });
+      const text = plainTextFallback(bodyText, "Randevuyu Görüntüle", ctaUrl, footerLines);
 
       const sendRes = await fetch("https://api.resend.com/emails", {
         method: "POST",
