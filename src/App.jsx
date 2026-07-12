@@ -798,6 +798,7 @@ function DealPayments({ deal, payments, onAddPayment, onDeletePayment }) {
   const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   const sorted = payments.slice().sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt));
   const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
@@ -807,6 +808,15 @@ function DealPayments({ deal, payments, onAddPayment, onDeletePayment }) {
     e.preventDefault();
     const n = Number(amount);
     if (!n || n <= 0) return;
+    if (remaining <= 0) {
+      setError("Bu teklif zaten tamamen tahsil edilmiş, kalan bakiye yok.");
+      return;
+    }
+    if (n > remaining + 0.01) {
+      setError(`Girilen tutar kalan bakiyeden (${formatTL(remaining)}) fazla olamaz.`);
+      return;
+    }
+    setError("");
     setSaving(true);
     await onAddPayment({ dealId: deal.id, amount: n, paidAt, note: note.trim() });
     setAmount("");
@@ -825,11 +835,12 @@ function DealPayments({ deal, payments, onAddPayment, onDeletePayment }) {
 
       <form onSubmit={submit} style={{ marginBottom: 12 }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-          <input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Tutar" style={{ flex: 1 }} />
+          <input type="number" min="0" step="0.01" value={amount} onChange={(e) => { setAmount(e.target.value); setError(""); }} placeholder="Tutar" style={{ flex: 1 }} />
           <input type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} style={{ width: 140 }} />
         </div>
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Not (opsiyonel)" style={{ width: "100%", marginBottom: 8 }} />
-        <button type="submit" disabled={saving || !amount} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
+        {error && <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "0 0 8px" }}>{error}</p>}
+        <button type="submit" disabled={saving || !amount || remaining <= 0} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
           Ekle
         </button>
       </form>
@@ -1231,6 +1242,7 @@ const PRICE_ITEM_NAME_EXAMPLES = {
   hizmet_danismanlik: "Saatlik Danışmanlık",
   perakende: "Standart Paket",
   guzellik_bakim: "Manikür",
+  spor_merkezi: "Aylık Üyelik",
 };
 
 function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {

@@ -240,6 +240,36 @@ const KB_TEMPLATES_BY_SECTOR = {
         "bilgilendirmeniz, size en uygun ve güvenli hizmeti sunmamız için önemlidir.",
     },
   ],
+  spor_merkezi: [
+    {
+      title: "Üyeliğimi nasıl dondurabilirim?",
+      category: "Üyelik",
+      content:
+        "Sağlık raporu, seyahat gibi durumlarda üyeliğinizi en az [X gün] öncesinden bildirerek dondurabilirsiniz. " +
+        "Dondurma süresi üyelik bitiş tarihinize otomatik eklenir.",
+    },
+    {
+      title: "Üyeliğimi iptal etmek istiyorum",
+      category: "Üyelik & İptal",
+      content:
+        "İptal talebinizi resepsiyona veya bize yazılı olarak iletmeniz yeterli. Sözleşmenizde belirtilen " +
+        "[bildirim süresi, varsa cayma koşulları] geçerlidir.",
+    },
+    {
+      title: "PT (Personal Training) seansı nasıl alırım?",
+      category: "Hizmetler",
+      content:
+        "Resepsiyondan veya bizimle iletişime geçerek size uygun bir PT eğitmeniyle randevu oluşturabilirsiniz. " +
+        "PT paketleri üyelikten ayrı olarak satılmaktadır.",
+    },
+    {
+      title: "Salonun çalışma saatleri nedir?",
+      category: "Genel",
+      content:
+        "Salonumuz [hafta içi saatler] ve [hafta sonu saatler] arasında hizmet vermektedir. Resmi tatillerde " +
+        "çalışma saatlerimiz değişebilir, güncel bilgi için bizimle iletişime geçebilirsiniz.",
+    },
+  ],
   genel: [
     {
       title: "Siparişim/talebim ne zaman işleme alınır?",

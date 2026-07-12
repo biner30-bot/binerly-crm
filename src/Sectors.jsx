@@ -158,6 +158,25 @@ export const SECTOR_PRESETS = [
     ],
   },
   {
+    id: "spor_merkezi",
+    label: "Spor Merkezi",
+    icon: "ti-barbell",
+    stageLabels: {
+      ilk_gorusme: "Deneme dersi",
+      teklif: "Üyelik teklifi sunuldu",
+      muzakere: "Paket görüşülüyor",
+      kazanildi: "Üye oldu",
+      kaybedildi: "Üye olmadı",
+    },
+    tags: ["Yeni üye", "Deneme üyeliği", "Üyelik yenileme", "PT (Personal Training)", "Dondurulmuş üyelik"],
+    customFields: [
+      { entity: "deal", key: "uyelik_paketi", label: "Üyelik Paketi", type: "select", options: ["Aylık", "3 Aylık", "6 Aylık", "Yıllık", "PT Paketi"] },
+      { entity: "deal", key: "deneme_dersi_tarihi", label: "Deneme Dersi Tarihi", type: "datetime" },
+      { entity: "customer", key: "uyelik_bitis_tarihi", label: "Üyelik Bitiş Tarihi", type: "date", audience: "bireysel" },
+      { entity: "customer", key: "hedef", label: "Hedef (kilo verme, kas kütlesi vb.)", type: "text", audience: "bireysel" },
+    ],
+  },
+  {
     id: "genel",
     label: "Genel",
     icon: "ti-building-store",
@@ -197,6 +216,7 @@ const SUPPORT_EXAMPLES = {
   hizmet_danismanlik: { subject: "Rapor teslim tarihini öğrenmek istiyorum", message: "Güncel proje durumu müşteriye iletildi", kbTitle: "Teslimat süreci nasıl işler?", kbCategory: "Süreç, Ödeme, Sözleşme" },
   perakende: { subject: "Siparişim gecikti", message: "Kargo takip numarası müşteriye iletildi", kbTitle: "Kargo takibi nasıl yapılır?", kbCategory: "Kargo, İade, Ödeme" },
   guzellik_bakim: { subject: "Randevumu değiştirmek istiyorum", message: "Yeni randevu saati müşteriye iletildi", kbTitle: "Randevumu nasıl değiştiririm?", kbCategory: "Randevu, Hizmetler, Ödeme" },
+  spor_merkezi: { subject: "Üyeliğimi dondurmak istiyorum", message: "Üyelik dondurma talebiniz işleme alındı", kbTitle: "Üyeliğimi nasıl dondurabilirim?", kbCategory: "Üyelik, Ödeme, PT" },
 };
 const DEFAULT_SUPPORT_EXAMPLE = { subject: "Bir konuda yardım almak istiyorum", message: "Talep hakkında müşteriye bilgi verildi", kbTitle: "Sıkça sorulan bir soru", kbCategory: "Genel, Ödeme, Teknik" };
 export const supportExamples = (sector) => SUPPORT_EXAMPLES[sector] || DEFAULT_SUPPORT_EXAMPLE;
@@ -281,6 +301,7 @@ const CUSTOM_FIELD_NAME_EXAMPLES = {
   hizmet_danismanlik: "Proje Kapsamı",
   perakende: "Kampanya Adı",
   guzellik_bakim: "Tercih Edilen Uzman",
+  spor_merkezi: "Üyelik Paketi",
 };
 
 export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDelete, sector }) {
