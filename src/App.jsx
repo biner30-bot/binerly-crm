@@ -3815,7 +3815,7 @@ export default function App() {
   // Spor Merkezi ise her zaman üyelik; değilse ya sektörün kendisi randevu-temelli,
   // ya da o an bireysel görünümdeyiz (kurumsal olsa da sektör randevu-temelliyse
   // sektör kazanır — stageLabel()'daki önceliğin aynısı).
-  const dealKind = dealWordKind(companySettings?.sector, dealAudience);
+  const dealKind = dealWordKind(companySettings?.sector);
   const dealWords = DEAL_TAB_STRINGS[dealKind];
   const dealPdfLabel = DEAL_WORD_FORMS[dealKind].pdfLabel;
   const dealQuery = dealSearch.trim().toLowerCase();

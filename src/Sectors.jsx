@@ -217,12 +217,12 @@ export function isIndividualFocusedSector(sector) {
 }
 
 // Kayıt kelimesinin üç hâli: Spor Merkezi'nde kayıt bir üyeliktir (ne randevu
-// ne teklif), randevu sektörlerinde (veya bireysel ağırlıklı iş akışında)
-// randevudur, geri kalanında tekliftir. dealAudience opsiyoneldir — verilmezse
-// sadece sektöre bakılır.
-export function dealWordKind(sector, dealAudience) {
+// ne teklif), randevu sektörlerinde (Güzellik & Bakım, Sağlık/Klinik) randevudur,
+// geri kalanında tekliftir. Bireysel müşteri görünümü TEK BAŞINA "randevu"ya
+// çevirmez — örn. Emlak'ta bireysel bir alıcıya sunulan şey de yine bir tekliftir.
+export function dealWordKind(sector) {
   if (sector === "spor_merkezi") return "uyelik";
-  if (isAppointmentSector(sector) || dealAudience === "bireysel") return "randevu";
+  if (isAppointmentSector(sector)) return "randevu";
   return "teklif";
 }
 
