@@ -18,6 +18,7 @@ import {
   SECTOR_PRESETS,
   stageLabel,
   isAppointmentSector,
+  isIndividualFocusedSector,
   rowToCustomFieldDef,
   SectorOnboardingModal,
   CustomFieldDefsManager,
@@ -3618,6 +3619,7 @@ export default function App() {
       default_kdv_rate: s.defaultKdvRate ?? 20,
       customer_notifications_enabled: s.customerNotificationsEnabled !== false,
       sector: s.sector || null,
+      ...(s.preferredCustomerType ? { preferred_customer_type: s.preferredCustomerType } : {}),
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase.from("company_settings").upsert(row).select().single();
@@ -3703,7 +3705,12 @@ export default function App() {
   };
 
   const applySectorPreset = async (sectorId, companyName) => {
-    await upsertCompanySettings({ ...(companySettings || {}), sector: sectorId, ...(companyName ? { companyName } : {}) });
+    await upsertCompanySettings({
+      ...(companySettings || {}),
+      sector: sectorId,
+      ...(companyName ? { companyName } : {}),
+      ...(isIndividualFocusedSector(sectorId) ? { preferredCustomerType: "bireysel" } : {}),
+    });
     setShowSectorOnboarding(false);
   };
 

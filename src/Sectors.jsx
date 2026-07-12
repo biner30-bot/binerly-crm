@@ -208,6 +208,14 @@ export function isAppointmentSector(sector) {
   return sector === "guzellik_bakim" || sector === "saglik_klinik";
 }
 
+// Bu sektörlerde müşteri neredeyse hiç kurumsal olmaz (kişisel bakım/üyelik
+// hizmetleri) — yeni müşteri eklerken "Kurumsal" seçeneği kaldırılmıyor
+// (istisnai durumlar için, örn. bir firmanın toplu üyelik alması), ama
+// varsayılan müşteri tipi "Bireysel" olur.
+export function isIndividualFocusedSector(sector) {
+  return isAppointmentSector(sector) || sector === "spor_merkezi";
+}
+
 const SUPPORT_EXAMPLES = {
   emlak: { subject: "Sözleşmemle ilgili bir sorum var", message: "Kira sözleşmesi taslağı müşteriye iletildi", kbTitle: "Kira sözleşmesi nasıl hazırlanır?", kbCategory: "Sözleşme, Ödeme, Ekspertiz" },
   dijital_ajans: { subject: "Reklam raporunda bir tutarsızlık var", message: "Güncel reklam raporu müşteriye iletildi", kbTitle: "Reklam raporu ne zaman gelir?", kbCategory: "Raporlama, Sözleşme, Teknik" },
