@@ -172,7 +172,7 @@ export const SECTOR_PRESETS = [
     customFields: [
       { entity: "deal", key: "uyelik_paketi", label: "Üyelik Paketi", type: "select", options: ["Aylık", "3 Aylık", "6 Aylık", "Yıllık", "PT Paketi"] },
       { entity: "deal", key: "deneme_dersi_tarihi", label: "Deneme Dersi Tarihi", type: "datetime" },
-      { entity: "customer", key: "uyelik_bitis_tarihi", label: "Üyelik Bitiş Tarihi", type: "date", audience: "bireysel" },
+      { entity: "deal", key: "uyelik_bitis_tarihi", label: "Üyelik Bitiş Tarihi", type: "date", audience: "bireysel" },
       { entity: "customer", key: "hedef", label: "Hedef (kilo verme, kas kütlesi vb.)", type: "text", audience: "bireysel" },
     ],
   },
@@ -214,6 +214,16 @@ export function isAppointmentSector(sector) {
 // varsayılan müşteri tipi "Bireysel" olur.
 export function isIndividualFocusedSector(sector) {
   return isAppointmentSector(sector) || sector === "spor_merkezi";
+}
+
+// Kayıt kelimesinin üç hâli: Spor Merkezi'nde kayıt bir üyeliktir (ne randevu
+// ne teklif), randevu sektörlerinde (veya bireysel ağırlıklı iş akışında)
+// randevudur, geri kalanında tekliftir. dealAudience opsiyoneldir — verilmezse
+// sadece sektöre bakılır.
+export function dealWordKind(sector, dealAudience) {
+  if (sector === "spor_merkezi") return "uyelik";
+  if (isAppointmentSector(sector) || dealAudience === "bireysel") return "randevu";
+  return "teklif";
 }
 
 const SUPPORT_EXAMPLES = {

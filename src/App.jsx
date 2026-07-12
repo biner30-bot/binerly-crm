@@ -17,8 +17,8 @@ import {
   STAGES,
   SECTOR_PRESETS,
   stageLabel,
-  isAppointmentSector,
   isIndividualFocusedSector,
+  dealWordKind,
   rowToCustomFieldDef,
   SectorOnboardingModal,
   CustomFieldDefsManager,
@@ -62,17 +62,60 @@ const PORTAL_INFO_TEXT =
   "— — bu müşteri henüz portala giriş yapmamış. Müşterinizin, kayıtlı e-posta adresiyle " +
   "portal üzerinden kendi hesabını oluşturması yeterli, sizin ayrıca bir davet göndermenize gerek yok.";
 
+const DEAL_WORD_FORMS = {
+  teklif: { bare: "teklif", pdfLabel: "Teklif PDF", acc: "teklifi", dat: "teklife", plural: "teklifler", gen: "teklifin" },
+  randevu: { bare: "randevu", pdfLabel: "Randevu Özeti PDF", acc: "randevuyu", dat: "randevuya", plural: "randevular", gen: "randevunun" },
+  uyelik: { bare: "üyelik", pdfLabel: "Üyelik Özeti PDF", acc: "üyeliği", dat: "üyeliğe", plural: "üyelikler", gen: "üyeliğin" },
+};
+
+// Müşteri Takibi sekmesindeki liste UI'ı (ekle butonu, arama, boş durumlar,
+// tablo başlığı, dışa aktar/düzenle modal başlıkları) için hazır metinler.
+const DEAL_TAB_STRINGS = {
+  teklif: {
+    addLabel: "Teklif ekle",
+    searchPlaceholder: "Teklif ara (başlık, müşteri)...",
+    openFilterLabel: "Açık teklifler",
+    emptyDefault: "Henüz teklif eklenmedi.",
+    emptySearch: "Aramayla eşleşen teklif yok.",
+    columnHeader: "Teklif",
+    exportTitle: "Teklifleri Dışa Aktar",
+    editTitle: "Teklifi düzenle",
+    newTitle: "Yeni teklif",
+  },
+  randevu: {
+    addLabel: "Randevu ekle",
+    searchPlaceholder: "Randevu ara (başlık, müşteri)...",
+    openFilterLabel: "Bekleyen randevular",
+    emptyDefault: "Henüz randevu eklenmedi.",
+    emptySearch: "Aramayla eşleşen randevu yok.",
+    columnHeader: "Randevu",
+    exportTitle: "Randevuları Dışa Aktar",
+    editTitle: "Randevuyu düzenle",
+    newTitle: "Yeni randevu",
+  },
+  uyelik: {
+    addLabel: "Üyelik ekle",
+    searchPlaceholder: "Üyelik ara (başlık, müşteri)...",
+    openFilterLabel: "Bekleyen üyelikler",
+    emptyDefault: "Henüz üyelik eklenmedi.",
+    emptySearch: "Aramayla eşleşen üyelik yok.",
+    columnHeader: "Üyelik",
+    exportTitle: "Üyelikleri Dışa Aktar",
+    editTitle: "Üyeliği düzenle",
+    newTitle: "Yeni üyelik",
+  },
+};
+
 const dealActionsInfoText = (sector) => {
-  const noun = isAppointmentSector(sector) ? "randevu" : "teklif";
-  const pdfLabel = isAppointmentSector(sector) ? "Randevu Özeti PDF" : "Teklif PDF";
+  const forms = DEAL_WORD_FORMS[dealWordKind(sector)];
   return (
-    `📄 ${pdfLabel} — markalı, yazdırılabilir ${noun} belgesi oluşturur.\n` +
+    `📄 ${forms.pdfLabel} — markalı, yazdırılabilir ${forms.bare} belgesi oluşturur.\n` +
     `🔗 Onay linki — müşterinin "onaylıyorum" diyebileceği bir link kopyalar, siz WhatsApp/e-posta ile gönderirsiniz. Müşteri, ` +
-    `sisteme kayıtlı e-postasıyla giriş yapmadan ${noun}i göremez/onaylayamaz — bu yüzden müşterinin e-postası kayıtlı olmalı. ` +
+    `sisteme kayıtlı e-postasıyla giriş yapmadan ${forms.acc} göremez/onaylayamaz — bu yüzden müşterinin e-postası kayıtlı olmalı. ` +
     `Onaylayınca satırda yeşil "Onaylandı ✓" rozeti otomatik görünür. Bu, resmi/güvenli elektronik imza değildir — ` +
     `sadece takip ve bildirim amaçlıdır, hukuki bağlayıcılığı önemli anlaşmalarda ıslak imza veya nitelikli e-imza kullanın.\n` +
-    `💵 Tahsilat — bu ${noun}e yapılan ödemeleri kaydedin/görün.\n` +
-    `📋 Kopyala — aynı müşteri/tutar/etiketlerle sıfırdan yeni bir ${noun} formu açar (tekrar eden işler için), hiçbir şeyi otomatik kaydetmez.\n` +
+    `💵 Tahsilat — bu ${forms.dat} yapılan ödemeleri kaydedin/görün.\n` +
+    `📋 Kopyala — aynı müşteri/tutar/etiketlerle sıfırdan yeni bir ${forms.bare} formu açar (tekrar eden işler için), hiçbir şeyi otomatik kaydetmez.\n` +
     "✏️ Düzenle · 🗑️ Sil"
   );
 };
@@ -100,7 +143,8 @@ const SESSION_PACKAGE_INFO_TEXT =
   "\"Paket tamamlandı\" rozeti otomatik görünür.";
 
 const kdvRateInfoText = (sector) => {
-  const label = isAppointmentSector(sector) ? "Randevu Özeti PDF'inde" : "yazdırılan teklif PDF'inde";
+  const kind = dealWordKind(sector);
+  const label = kind === "uyelik" ? "Üyelik Özeti PDF'inde" : kind === "randevu" ? "Randevu Özeti PDF'inde" : "yazdırılan teklif PDF'inde";
   return (
     `Yukarıdaki Tutar zaten KDV dahil, müşteriden alınan toplam tutarı DEĞİŞTİRMEZ — sadece ${label} ` +
     "\"Ara Toplam / KDV / Genel Toplam\" satırlarının nasıl bölüneceğini belirler."
@@ -111,7 +155,8 @@ const ASSIGNEE_INFO_TEXT =
   "Bu teklif kazanıldığında, Pano'daki \"Personel Performansı\" bölümünde seçtiğiniz kişinin altında sayılır.";
 
 const cariBakiyeInfoText = (sector) => {
-  const noun = isAppointmentSector(sector) ? "randevularının" : "tekliflerinin";
+  const kind = dealWordKind(sector);
+  const noun = kind === "uyelik" ? "üyeliklerinin" : kind === "randevu" ? "randevularının" : "tekliflerinin";
   return (
     `Bu bakiye, müşterinin "${stageLabel("kazanildi", "kurumsal", sector)}" durumundaki ${noun} toplam tutarından tahsil edilen ödemelerin düşülmesiyle bulunur. ` +
     "Resmi bir cari hesap kaydı değildir, sadece kendi takibiniz içindir."
@@ -646,7 +691,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
       )}
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Başlık</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={selectedCustomerType === "bireysel" ? "İlk randevu / danışmanlık" : "Yıllık tedarik anlaşması"} list="deal-title-suggestions" style={{ width: "100%" }} />
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={sector === "spor_merkezi" ? "Salon üyeliği / Reformer Pilates" : selectedCustomerType === "bireysel" ? "İlk randevu / danışmanlık" : "Yıllık tedarik anlaşması"} list="deal-title-suggestions" style={{ width: "100%" }} />
         <datalist id="deal-title-suggestions">
           {titleSuggestions.map((t) => <option key={t} value={t} />)}
         </datalist>
@@ -945,7 +990,7 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
 
       {customerDeals.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>{isAppointmentSector(sector) ? "Randevular" : "Teklifler"}</p>
+          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>{dealWordKind(sector) === "uyelik" ? "Üyelikler" : dealWordKind(sector) === "randevu" ? "Randevular" : "Teklifler"}</p>
           {customerDeals.map((d) => {
             return (
               <div key={d.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0" }}>
@@ -996,7 +1041,7 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
           <select value={type} onChange={(e) => setType(e.target.value)} style={{ width: 160 }}>
             {ACTIVITY_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
           </select>
-          <input value={content} onChange={(e) => setContent(e.target.value)} placeholder={isAppointmentSector(sector) ? "Örn. randevu detayları görüşüldü" : "Örn. fiyat teklifi görüşüldü"} style={{ flex: 1 }} />
+          <input value={content} onChange={(e) => setContent(e.target.value)} placeholder={dealWordKind(sector) === "uyelik" ? "Örn. üyelik paketi görüşüldü" : dealWordKind(sector) === "randevu" ? "Örn. randevu detayları görüşüldü" : "Örn. fiyat teklifi görüşüldü"} style={{ flex: 1 }} />
         </div>
         <button type="submit" disabled={saving || !content.trim()} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
           Ekle
@@ -1033,7 +1078,7 @@ function TeklifPrint({ deal, customer, companySettings, onClose }) {
   const [validityDays, setValidityDays] = useState(15);
   const [noExpiry, setNoExpiry] = useState(false);
   const [extraNote, setExtraNote] = useState("");
-  const noun = isAppointmentSector(companySettings?.sector) ? "fiyat" : "teklif";
+  const noun = isIndividualFocusedSector(companySettings?.sector) ? "fiyat" : "teklif";
 
   const download = async () => {
     setDownloading(true);
@@ -1043,7 +1088,7 @@ function TeklifPrint({ deal, customer, companySettings, onClose }) {
     const imgData = canvas.toDataURL("image/png");
     const pdf = new jsPDF({ unit: "px", format: [canvas.width, canvas.height] });
     pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
-    pdf.save(`${isAppointmentSector(companySettings?.sector) ? "Randevu Özeti" : "Teklif"} - ${customer?.name || "Musteri"} - ${deal.title}.pdf`);
+    pdf.save(`${dealWordKind(companySettings?.sector) === "uyelik" ? "Üyelik Özeti" : dealWordKind(companySettings?.sector) === "randevu" ? "Randevu Özeti" : "Teklif"} - ${customer?.name || "Musteri"} - ${deal.title}.pdf`);
     setDownloading(false);
   };
 
@@ -1098,7 +1143,7 @@ function TeklifPrint({ deal, customer, companySettings, onClose }) {
             {companySettings?.taxNumber && <p style={{ fontSize: 13, margin: "2px 0 0", color: "#5b7088" }}>Vergi no: {companySettings.taxNumber}</p>}
           </div>
           <div style={{ textAlign: "right" }}>
-            <h1 style={{ fontSize: 22, margin: 0 }}>{isAppointmentSector(companySettings?.sector) ? "RANDEVU ÖZETİ" : "TEKLİF"}</h1>
+            <h1 style={{ fontSize: 22, margin: 0 }}>{dealWordKind(companySettings?.sector) === "uyelik" ? "ÜYELİK ÖZETİ" : dealWordKind(companySettings?.sector) === "randevu" ? "RANDEVU ÖZETİ" : "TEKLİF"}</h1>
             <p style={{ fontSize: 13, color: "#5b7088", margin: "4px 0 0" }}>{new Date().toLocaleDateString("tr-TR")}</p>
           </div>
         </div>
@@ -1907,11 +1952,11 @@ function ParasutExportModal({ deals, customerById, totalPaidForDeal, sector, onC
   return (
     <Modal title="Paraşüt'e Aktar" onClose={onClose}>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 12 }}>
-        "{stageLabel("kazanildi", "kurumsal", sector)}" aşamasındaki {isAppointmentSector(sector) ? "randevular" : "teklifler"} arasından aktarmak istediklerinizi seçin. Seçilenler, Paraşüt'ün satış faturası içe aktarma şablonuyla uyumlu bir Excel (.xlsx) dosyası olarak indirilecek — her {isAppointmentSector(sector) ? "randevunun" : "teklifin"} kendi KDV oranı kullanılır. İndirdiğiniz dosyayı Paraşüt'te Satışlar → Faturalar → İçe/Dışa Aktar → İçeri Aktar ile yükleyebilirsiniz.
+        "{stageLabel("kazanildi", "kurumsal", sector)}" aşamasındaki {DEAL_WORD_FORMS[dealWordKind(sector)].plural} arasından aktarmak istediklerinizi seçin. Seçilenler, Paraşüt'ün satış faturası içe aktarma şablonuyla uyumlu bir Excel (.xlsx) dosyası olarak indirilecek — her {DEAL_WORD_FORMS[dealWordKind(sector)].gen} kendi KDV oranı kullanılır. İndirdiğiniz dosyayı Paraşüt'te Satışlar → Faturalar → İçe/Dışa Aktar → İçeri Aktar ile yükleyebilirsiniz.
       </p>
 
       {wonDeals.length === 0 ? (
-        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Aktarılabilecek "{stageLabel("kazanildi", "kurumsal", sector)}" {isAppointmentSector(sector) ? "randevu" : "teklif"} yok.</p>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Aktarılabilecek "{stageLabel("kazanildi", "kurumsal", sector)}" {DEAL_WORD_FORMS[dealWordKind(sector)].bare} yok.</p>
       ) : (
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
@@ -3765,11 +3810,14 @@ export default function App() {
         : new Date(a.createdAt) - new Date(b.createdAt)
     );
 
-  // İş Takibi sekmesindeki genel metinler (arama, boş durum, tablo başlığı vb.)
-  // için "randevu" mu "teklif" mi diyeceğimize karar veren tek sinyal: ya sektörün
-  // kendisi randevu-temelli, ya da o an bireysel görünümdeyiz (kurumsal olsa da
-  // sektör randevu-temelliyse sektör kazanır — stageLabel()'daki önceliğin aynısı).
-  const appointmentStyle = isAppointmentSector(companySettings?.sector) || dealAudience === "bireysel";
+  // Müşteri Takibi sekmesindeki genel metinler (arama, boş durum, tablo başlığı vb.)
+  // için "üyelik" mi "randevu" mu "teklif" mi diyeceğimize karar veren tek sinyal:
+  // Spor Merkezi ise her zaman üyelik; değilse ya sektörün kendisi randevu-temelli,
+  // ya da o an bireysel görünümdeyiz (kurumsal olsa da sektör randevu-temelliyse
+  // sektör kazanır — stageLabel()'daki önceliğin aynısı).
+  const dealKind = dealWordKind(companySettings?.sector, dealAudience);
+  const dealWords = DEAL_TAB_STRINGS[dealKind];
+  const dealPdfLabel = DEAL_WORD_FORMS[dealKind].pdfLabel;
   const dealQuery = dealSearch.trim().toLowerCase();
   const filteredDeals = deals.filter((d) => {
     if ((customerById(d.customerId)?.customerType || "kurumsal") !== dealAudience) return false;
@@ -4177,7 +4225,7 @@ export default function App() {
             <div style={{ background: "var(--surface-1)", borderRadius: 12, padding: "2rem 1.5rem", textAlign: "center" }}>
               <p style={{ fontWeight: 500, margin: "0 0 4px" }}>Henüz veri yok</p>
               <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px" }}>
-                Başlamak için önce bir müşteri ekleyin, sonra ona bir {isAppointmentSector(companySettings?.sector) ? "randevu" : "teklif"} tanımlayın.
+                Başlamak için önce bir müşteri ekleyin, sonra ona bir {DEAL_WORD_FORMS[dealWordKind(companySettings?.sector)].bare} tanımlayın.
               </p>
               <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
                 <button onClick={() => { setTab("musteri"); setShowCustomerForm(true); }} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
@@ -4190,7 +4238,7 @@ export default function App() {
             </div>
           ) : (
             <div>
-              <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 8px" }}>{isAppointmentSector(companySettings?.sector) ? "Randevu aşamaları" : "Teklif aşamaları"}</p>
+              <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 8px" }}>{dealWordKind(companySettings?.sector) === "uyelik" ? "Üyelik aşamaları" : dealWordKind(companySettings?.sector) === "randevu" ? "Randevu aşamaları" : "Teklif aşamaları"}</p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 8 }}>
                 {STAGES.filter((s) => s.id !== "kaybedildi").map((stage) => {
                   const stageDeals = deals.filter((d) => d.stage === stage.id);
@@ -4517,7 +4565,7 @@ export default function App() {
                 style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
               >
                 <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                {appointmentStyle ? "Randevu ekle" : "Teklif ekle"}
+                {dealWords.addLabel}
               </button>
             </div>
           </div>
@@ -4526,12 +4574,12 @@ export default function App() {
             <input
               value={dealSearch}
               onChange={(e) => setDealSearch(e.target.value)}
-              placeholder={appointmentStyle ? "Randevu ara (başlık, müşteri)..." : "Teklif ara (başlık, müşteri)..."}
+              placeholder={dealWords.searchPlaceholder}
               style={{ flex: 1, minWidth: 160 }}
             />
             <select value={dealStageFilter} onChange={(e) => setDealStageFilter(e.target.value)} style={{ fontSize: 13 }}>
               <option value="all">Tüm aşamalar</option>
-              <option value="acik">{appointmentStyle ? "Bekleyen randevular" : "Açık teklifler"}</option>
+              <option value="acik">{dealWords.openFilterLabel}</option>
               {STAGES.map((s) => <option key={s.id} value={s.id}>{stageLabel(s.id, dealAudience, companySettings?.sector)}</option>)}
             </select>
             <select value={dealPaymentFilter} onChange={(e) => setDealPaymentFilter(e.target.value)} style={{ fontSize: 13 }}>
@@ -4553,9 +4601,7 @@ export default function App() {
 
           {filteredDeals.length === 0 ? (
             <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
-              {deals.length === 0
-                ? appointmentStyle ? "Henüz randevu eklenmedi." : "Henüz teklif eklenmedi."
-                : appointmentStyle ? "Aramayla eşleşen randevu yok." : "Aramayla eşleşen teklif yok."}
+              {deals.length === 0 ? dealWords.emptyDefault : dealWords.emptySearch}
             </p>
           ) : dealView === "kanban" ? (
             <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
@@ -4590,7 +4636,7 @@ export default function App() {
                               <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--text-accent)" }}>{formatTL(d.value)}</p>
                               <IconButton
                                 icon="ti-file-text"
-                                title={appointmentStyle ? "Randevu Özeti PDF" : "Teklif PDF"}
+                                title={dealPdfLabel}
                                 size="sm"
                                 onClick={(e) => { e.stopPropagation(); setTeklifDeal(d); }}
                               />
@@ -4643,7 +4689,7 @@ export default function App() {
             <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 8px" }}>
               <thead>
                 <tr>
-                  <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>{appointmentStyle ? "Randevu" : "Teklif"}</th>
+                  <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>{dealWords.columnHeader}</th>
                   <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Aşama</th>
                   <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Ödeme</th>
                   <th style={{ textAlign: "right", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Tutar</th>
@@ -4698,7 +4744,7 @@ export default function App() {
                       <td style={{ padding: "10px 12px", whiteSpace: "nowrap", textAlign: "right", fontSize: 13, fontWeight: 500 }}>{formatTL(d.value)}</td>
                       <td style={{ padding: "10px 12px", borderRadius: "0 var(--radius) var(--radius) 0" }}>
                         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                          <IconButton icon="ti-file-text" title={appointmentStyle ? "Randevu Özeti PDF" : "Teklif PDF"} onClick={() => setTeklifDeal(d)} />
+                          <IconButton icon="ti-file-text" title={dealPdfLabel} onClick={() => setTeklifDeal(d)} />
                           <IconButton
                             icon="ti-link"
                             title={c?.email ? "Müşterinin onaylayabileceği link — kopyala ve gönder" : "Onay linki için müşterinin e-postası kayıtlı olmalı"}
@@ -4994,7 +5040,7 @@ export default function App() {
 
       {showDealExport && (
         <ExportSelectionModal
-          title={appointmentStyle ? "Randevuları Dışa Aktar" : "Teklifleri Dışa Aktar"}
+          title={dealWords.exportTitle}
           items={filteredDeals}
           filename="teklifler.xlsx"
           columns={["Müşteri", "Başlık", "Tutar", "Gider", "Aşama", "Hatırlatma notu", "Oluşturulma tarihi"]}
@@ -5054,7 +5100,7 @@ export default function App() {
       )}
 
       {showDealForm && (
-        <Modal title={editingDeal?.id ? (appointmentStyle ? "Randevuyu düzenle" : "Teklifi düzenle") : (appointmentStyle ? "Yeni randevu" : "Yeni teklif")} onClose={() => { setShowDealForm(false); setEditingDeal(null); }}>
+        <Modal title={editingDeal?.id ? dealWords.editTitle : dealWords.newTitle} onClose={() => { setShowDealForm(false); setEditingDeal(null); }}>
           <DealForm
             customers={customers}
             initial={editingDeal}

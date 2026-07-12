@@ -1,7 +1,13 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { GoogleAuthButton, AuthDivider } from "./shared";
-import { isAppointmentSector } from "./Sectors";
+import { dealWordKind } from "./Sectors";
+
+const APPROVAL_DEAL_WORDS = {
+  teklif: { acc: "teklifi", dateLabel: "Teklif tarihi" },
+  randevu: { acc: "randevuyu", dateLabel: "Randevu tarihi" },
+  uyelik: { acc: "üyeliği", dateLabel: "Üyelik tarihi" },
+};
 
 function formatTL(n) {
   return new Intl.NumberFormat("tr-TR").format(Math.round(n || 0)) + " TL";
@@ -124,7 +130,7 @@ export default function DealApprovalPage() {
               {authMode === "login" ? "Giriş yap" : "Hesap oluştur"}
             </h2>
             <p style={{ fontSize: 12.5, color: "#5b7088", margin: "0 0 18px", textAlign: "center" }}>
-              Bu {isAppointmentSector(branding?.sector) ? "randevuyu" : "teklifi"} görüp onaylayabilmek için, bu firmaya kayıtlı e-posta adresinizle giriş yapmanız gerekiyor.
+              Bu {APPROVAL_DEAL_WORDS[dealWordKind(branding?.sector)].acc} görüp onaylayabilmek için, bu firmaya kayıtlı e-posta adresinizle giriş yapmanız gerekiyor.
             </p>
             <form onSubmit={submitAuth}>
               {authMode === "register" && (
@@ -166,13 +172,13 @@ export default function DealApprovalPage() {
             <p style={{ fontSize: 24, fontWeight: 800, color: "#185fa5", margin: "0 0 4px" }}>{formatTL(state.deal.value)}</p>
             {state.deal.createdAt && (
               <p style={{ fontSize: 12, color: "#94a7bb", margin: "0 0 20px" }}>
-                {isAppointmentSector(state.deal.sector) ? "Randevu tarihi" : "Teklif tarihi"}: {formatDate(state.deal.createdAt)}
+                {APPROVAL_DEAL_WORDS[dealWordKind(state.deal.sector)].dateLabel}: {formatDate(state.deal.createdAt)}
               </p>
             )}
             {state.deal.approved ? (
               <div>
                 <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "14px 16px" }}>
-                  <p style={{ color: "#15803d", fontWeight: 600, margin: "0 0 4px" }}>✓ Bu {isAppointmentSector(state.deal.sector) ? "randevuyu" : "teklifi"} onayladınız</p>
+                  <p style={{ color: "#15803d", fontWeight: 600, margin: "0 0 4px" }}>✓ Bu {APPROVAL_DEAL_WORDS[dealWordKind(state.deal.sector)].acc} onayladınız</p>
                   {state.deal.approvedAt && (
                     <p style={{ fontSize: 12, color: "#5b7088", margin: 0 }}>{formatDateTime(state.deal.approvedAt)} tarihinde kaydedildi</p>
                   )}

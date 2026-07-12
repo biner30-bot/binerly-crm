@@ -1,13 +1,19 @@
 import React, { useState } from "react";
 import { Badge, Modal, MetricCard, ConfirmDialog, IconButton, InfoTip, formatTL, PANO_RANGES, getRangeBounds, inRange } from "./shared";
-import { stageLabel, isAppointmentSector } from "./Sectors";
+import { stageLabel, dealWordKind } from "./Sectors";
+
+const FINANCE_DEAL_WORDS = {
+  teklif: { bare: "Teklif", locativePlural: "tekliflerdeki", genPlural: "tekliflerin", noWonEmpty: "Henüz kazanılmış bir teklifiniz yok." },
+  randevu: { bare: "Randevu", locativePlural: "randevulardaki", genPlural: "randevuların", noWonEmpty: "Henüz tamamlanmış bir randevunuz yok." },
+  uyelik: { bare: "Üyelik", locativePlural: "üyeliklerdeki", genPlural: "üyeliklerin", noWonEmpty: "Henüz kazanılmış bir üyeliğiniz yok." },
+};
 
 const RECURRING_INFO_TEXT =
   "Bu tekrarlayan bir gider — tek bir kayıt girdiniz, burada gördüğünüz her ay/yıl/gün otomatik oluşturulan bir kopyadır, " +
   "ayrı ayrı kaydedilmiş değildir. Herhangi birini silmek, geçmiş ve gelecekteki TÜM tekrarları kaldırır.";
 
 const totalExpenseInfoText = (sector) => {
-  const noun = isAppointmentSector(sector) ? "randevulardaki" : "tekliflerdeki";
+  const noun = FINANCE_DEAL_WORDS[dealWordKind(sector)].locativePlural;
   return (
     `Elle eklediğiniz işletme giderlerinin yanı sıra, kazanılan ${noun} "Gider" tutarlarını da içerir. ` +
     "Aşağıdaki \"Kategoriye göre gider\" listesi sadece elle eklenenleri gösterdiği için bu toplamla tam eşleşmeyebilir."
@@ -15,7 +21,7 @@ const totalExpenseInfoText = (sector) => {
 };
 
 const kdvReportInfoText = (sector) => {
-  const noun = isAppointmentSector(sector) ? "randevuların" : "tekliflerin";
+  const noun = FINANCE_DEAL_WORDS[dealWordKind(sector)].genPlural;
   return (
     `Satış KDV'si, seçilen aydaki "${stageLabel("kazanildi", "kurumsal", sector)}" ${noun} KDV tutarlarından; Alış KDV'si, o ay içindeki ve KDV oranı ` +
     "girilmiş giderlerden hesaplanır. Bu, resmi bir beyanname veya e-defter değildir — sadece kendi ön hazırlığınız içindir, " +
@@ -411,7 +417,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
                 </select>
               </div>
               <div style={{ flex: 1, minWidth: 160 }}>
-                <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>{isAppointmentSector(sector) ? "Randevu" : "Teklif"}</label>
+                <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>{FINANCE_DEAL_WORDS[dealWordKind(sector)].bare}</label>
                 <select
                   value={newPaymentDealId}
                   onChange={(e) => setNewPaymentDealId(e.target.value)}
@@ -437,7 +443,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
           </div>
 
           {customerBalances.length === 0 ? (
-            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>{isAppointmentSector(sector) ? "Henüz tamamlanmış bir randevunuz yok." : "Henüz kazanılmış bir teklifiniz yok."}</p>
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>{FINANCE_DEAL_WORDS[dealWordKind(sector)].noWonEmpty}</p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {customerBalances.map((cb) => (
@@ -571,7 +577,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
         <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", minWidth: 200 }}>
           <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 4 }}>
             Kategoriye göre gider
-            <InfoTip text={`Sadece elle eklenen işletme giderlerini gösterir, kazanılan ${isAppointmentSector(sector) ? "randevulardaki" : "tekliflerdeki"} gider tutarlarını içermez — bu yüzden yukarıdaki Toplam Gider'le tam eşleşmeyebilir.`} />
+            <InfoTip text={`Sadece elle eklenen işletme giderlerini gösterir, kazanılan ${FINANCE_DEAL_WORDS[dealWordKind(sector)].locativePlural} gider tutarlarını içermez — bu yüzden yukarıdaki Toplam Gider'le tam eşleşmeyebilir.`} />
           </p>
           {Object.keys(categoryTotals).length === 0 ? (
             <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Bu aralıkta işletme gideri yok.</p>

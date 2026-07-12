@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { Badge, Modal, Toast, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider } from "./shared";
-import { stageLabel, isAppointmentSector, supportExamples } from "./Sectors";
+import { stageLabel, dealWordKind, supportExamples } from "./Sectors";
+
+const PORTAL_DEAL_WORDS = {
+  teklif: { emptyList: "Henüz bir teklifiniz yok.", possAcc: "tekliflerinizi", tabLabel: "Tekliflerim" },
+  randevu: { emptyList: "Henüz bir randevunuz yok.", possAcc: "randevularınızı", tabLabel: "Randevularım" },
+  uyelik: { emptyList: "Henüz bir üyeliğiniz yok.", possAcc: "üyeliklerinizi", tabLabel: "Üyeliklerim" },
+};
 
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -283,9 +289,9 @@ function PortalTicketDetail({ ticket, messages, onAddMessage, onClose }) {
   );
 }
 
-function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, showCompany, appointmentStyle }) {
+function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, showCompany, dealKind }) {
   if (deals.length === 0) {
-    return <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>{appointmentStyle ? "Henüz bir randevunuz yok." : "Henüz bir teklifiniz yok."}</p>;
+    return <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>{PORTAL_DEAL_WORDS[dealKind].emptyList}</p>;
   }
   const sorted = [...deals].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   return (
@@ -685,7 +691,7 @@ export default function CustomerPortal() {
   for (const [s, count] of Object.entries(dealCountBySector)) {
     if (count > primarySectorCount) { primarySectorCount = count; primarySector = s; }
   }
-  const appointmentStyle = isAppointmentSector(primarySector);
+  const dealKind = dealWordKind(primarySector);
 
   return (
     <div style={{ maxWidth: 980, margin: "0 auto", padding: "24px 16px 64px" }}>
@@ -695,7 +701,7 @@ export default function CustomerPortal() {
             <img src="/favicon.svg" alt="Binerly" style={{ width: 31, height: 31 }} />
             <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Binerly — Müşteri Bilgi Sistemi</h1>
           </div>
-          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>Taleplerinizi ve {appointmentStyle ? "randevularınızı" : "tekliflerinizi"} buradan takip edin</p>
+          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>Taleplerinizi ve {PORTAL_DEAL_WORDS[dealKind].possAcc} buradan takip edin</p>
         </div>
         <button
           onClick={() => supabase.auth.signOut()}
@@ -716,7 +722,7 @@ export default function CustomerPortal() {
           <div style={{ display: "flex", gap: 8, marginBottom: "1.5rem" }}>
             {[
               { id: "talepler", label: "Taleplerim", icon: "ti-ticket" },
-              { id: "teklifler", label: appointmentStyle ? "Randevularım" : "Tekliflerim", icon: "ti-file-text" },
+              { id: "teklifler", label: PORTAL_DEAL_WORDS[dealKind].tabLabel, icon: "ti-file-text" },
               { id: "ayarlar", label: "Ayarlar", icon: "ti-adjustments" },
             ].map((t) => (
               <button
@@ -772,7 +778,7 @@ export default function CustomerPortal() {
           )}
 
           {portalTab === "teklifler" && (
-            <PortalDealList deals={deals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} showCompany={showCompanyLabel} appointmentStyle={appointmentStyle} />
+            <PortalDealList deals={deals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} showCompany={showCompanyLabel} dealKind={dealKind} />
           )}
 
           {portalTab === "ayarlar" && (
