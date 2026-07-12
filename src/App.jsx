@@ -2440,35 +2440,53 @@ function LandingPage() {
           </p>
         </div>
 
-        {/* Mockup */}
+        {/* Mockup — tek kart içinde kurumsal/teklif ve bireysel/randevu&üyelik örnekleri bir arada */}
         <div style={{ flex: 1, minWidth: 280 }}>
+          <p style={{ textAlign: "center", fontSize: 13, fontWeight: 600, color: "#185fa5", margin: "0 0 10px" }}>
+            İster kurumsal, ister bireysel müşteriye hitap edin
+          </p>
           <div style={{ background: "#0c2540", borderRadius: 16, padding: "1.5rem", boxShadow: "0 20px 60px rgba(12,37,64,0.2)" }}>
             <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
               <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#ff5f57" }} />
               <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#ffbd2e" }} />
               <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#28c840" }} />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
-              {[["Açık Kayıtlar", "12"], ["Kazanılan", "8"], ["Toplam Değer", "₺284K"]].map(([label, val]) => (
-                <div key={label} style={{ background: "#1a3a5c", borderRadius: 8, padding: "10px 12px" }}>
-                  <div style={{ fontSize: 10, color: "#94a7bb", marginBottom: 4 }}>{label}</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>{val}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
+              {[["Açık Teklifler", "12"], ["Toplam Değer", "₺284K"], ["Bekleyen Randevular", "5"], ["Aktif Üyelikler", "37"]].map(([label, val]) => (
+                <div key={label} style={{ background: "#1a3a5c", borderRadius: 8, padding: "8px 10px" }}>
+                  <div style={{ fontSize: 9.5, color: "#94a7bb", marginBottom: 3 }}>{label}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{val}</div>
                 </div>
               ))}
             </div>
             {[
-              ["Akın İnşaat", "Müzakere · Teklif", "₺85.000"],
-              ["Ayşe Yılmaz", "Randevu planlandı", "₺450"],
-              ["Mehmet Kaya", "Üye oldu", "₺600"],
-            ].map(([name, stage, value]) => (
-              <div key={name} style={{ background: "#1a3a5c", borderRadius: 8, padding: "10px 12px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{name}</div>
-                  <div style={{ fontSize: 11, color: "#94a7bb" }}>{stage}</div>
+              { name: "Akın İnşaat", icon: "ti-building", kind: "Ofis Tadilat Teklifi", stage: "Müzakere", value: "₺85.000" },
+              { name: "Ege Tekstil", icon: "ti-building", kind: "Toptan Kumaş Siparişi", stage: "Kazanıldı", value: "₺120.000" },
+              { name: "Ayşe Yılmaz", icon: "ti-user", kind: "Lazer Epilasyon Randevusu", stage: "Randevu planlandı", value: "₺450" },
+              { name: "Mehmet Kaya", icon: "ti-user", kind: "Aylık Üyelik Paketi", stage: "Üye oldu", value: "₺600/ay" },
+            ].map((r) => (
+              <div key={r.name} style={{ background: "#1a3a5c", borderRadius: 8, padding: "8px 12px", marginBottom: 7, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <div style={{ flex: "none", width: 24, height: 24, borderRadius: "50%", background: "#123457", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <i className={`ti ${r.icon}`} style={{ fontSize: 12, color: "#7fb3e8" }} aria-hidden="true"></i>
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{r.name}</span>
+                      <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.3, color: "#0c2540", background: "#378add", padding: "1px 6px", borderRadius: 20, whiteSpace: "nowrap" }}>{r.kind.toLocaleUpperCase("tr")}</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: "#94a7bb" }}>{r.stage}</div>
+                  </div>
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#378add" }}>{value}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#378add", whiteSpace: "nowrap" }}>{r.value}</div>
               </div>
             ))}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12, paddingTop: 12, borderTop: "1px solid #1e3a5c" }}>
+              {["📄 PDF çıktısı", "✓ Onay linki", "🔔 Otomatik hatırlatma", "👤 Müşteri portalı", "💳 Tahsilat takibi", "🏷️ Etiket & özel alan", "✉️ Müşteriye otomatik e-posta", "📥 Size de anlık bildirim", "📣 E-posta ile kampanya gönderimi"].map((f) => (
+                <span key={f} style={{ fontSize: 10.5, fontWeight: 600, color: "#7fb3e8", background: "#123457", padding: "4px 10px", borderRadius: 20 }}>{f}</span>
+              ))}
+            </div>
+            <p style={{ fontSize: 10, color: "#5b7088", margin: "8px 0 0" }}>Hepsi her kayıtta, her sektörde kullanılabilir.</p>
           </div>
         </div>
       </div>
@@ -3848,6 +3866,14 @@ export default function App() {
   const totalOpenValue = openDeals.reduce((sum, d) => sum + (d.value || 0), 0);
   const expectedRevenue = openDeals.reduce((sum, d) => sum + (d.value || 0) * (STAGE_PROBABILITY[d.stage] || 0), 0);
   const dealsWithReminder = deals.filter((d) => d.reminder && d.stage !== "kazanildi" && d.stage !== "kaybedildi");
+  // Spor Merkezi'ne özel: "Üye oldu" aşamasındaki ve üyelik bitiş tarihi geçmemiş
+  // (veya hiç girilmemiş) kayıtlar "aktif üyelik" sayılır.
+  const activeMemberships = companySettings?.sector === "spor_merkezi"
+    ? wonDealsAll.filter((d) => {
+        const endDate = d.customFields?.uyelik_bitis_tarihi;
+        return !endDate || endDate >= new Date().toISOString().slice(0, 10);
+      })
+    : [];
   const customerById = (id) => customers.find((c) => c.id === id);
 
   const customerQuery = customerSearch.trim().toLowerCase();
@@ -4188,6 +4214,14 @@ export default function App() {
               value={formatTL(totalOutstanding)}
               onClick={dealsWithOutstanding.length > 0 ? () => openDealOrList(dealsWithOutstanding, `Bekleyen alacağı olan ${DEAL_WORD_FORMS[dealKind].plural}`) : undefined}
             />
+            {companySettings?.sector === "spor_merkezi" && (
+              <MetricCard
+                label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Aktif Üyelikler <InfoTip text="Üyelik Bitiş Tarihi bugün veya sonrasında olan (ya da hiç girilmemiş) 'Üye oldu' kayıtlarının sayısı." /></span>}
+                value={activeMemberships.length}
+                tone="success"
+                onClick={activeMemberships.length > 0 ? () => openDealOrList(activeMemberships, "Aktif Üyelikler") : undefined}
+              />
+            )}
             <MetricCard
               label="Hatırlatması olan"
               value={dealsWithReminder.length}
