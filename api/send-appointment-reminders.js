@@ -49,7 +49,7 @@ export default async function handler(req, res) {
         .is("deleted_at", null)
         .not("stage", "in", "(kazanildi,kaybedildi)")
         .is("appointment_reminder_sent_at", null),
-      supabaseAdmin.from("company_settings").select("user_id, company_name, logo_url, email, sector").in("user_id", userIds),
+      supabaseAdmin.from("company_settings").select("user_id, company_name, logo_url, email, sector, appointment_reminders_enabled").in("user_id", userIds),
     ]);
 
     if (dealsError) return res.status(500).json({ error: dealsError.message });
@@ -60,6 +60,7 @@ export default async function handler(req, res) {
     for (const d of defs) (keysByUser[d.user_id] ||= []).push(d.key);
 
     const dueDeals = deals.filter((deal) => {
+      if (settingsByUser[deal.user_id]?.appointment_reminders_enabled === false) return false;
       const keys = keysByUser[deal.user_id] || [];
       return keys.some((key) => {
         const raw = deal.custom_fields?.[key];

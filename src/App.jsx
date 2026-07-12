@@ -358,6 +358,7 @@ function rowToCompanySettings(r) {
     logoUrl: r.logo_url || "",
     defaultKdvRate: r.default_kdv_rate ?? 20,
     customerNotificationsEnabled: r.customer_notifications_enabled !== false,
+    appointmentRemindersEnabled: r.appointment_reminders_enabled !== false,
     sector: r.sector || null,
     leadCaptureToken: r.lead_capture_token || null,
     preferredCustomerType: r.preferred_customer_type || "kurumsal",
@@ -469,7 +470,8 @@ function CustomerForm({ initial, customFieldDefs = [], sectorTags = [], preferre
   );
 }
 
-function CompanySettingsForm({ initial, onSave, onCancel, activeTeamId, notify }) {
+function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, activeTeamId, notify }) {
+  const hasDatetimeField = customFieldDefs.some((d) => d.entity === "deal" && d.type === "datetime" && d.active);
   const [companyName, setCompanyName] = useState(initial?.companyName || "");
   const [address, setAddress] = useState(initial?.address || "");
   const [phone, setPhone] = useState(initial?.phone || "");
@@ -479,6 +481,7 @@ function CompanySettingsForm({ initial, onSave, onCancel, activeTeamId, notify }
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [defaultKdvRate, setDefaultKdvRate] = useState(initial?.defaultKdvRate ?? 20);
   const [customerNotificationsEnabled, setCustomerNotificationsEnabled] = useState(initial?.customerNotificationsEnabled === true);
+  const [appointmentRemindersEnabled, setAppointmentRemindersEnabled] = useState(initial?.appointmentRemindersEnabled !== false);
 
   const handleLogoFile = async (e) => {
     const file = e.target.files?.[0];
@@ -509,6 +512,7 @@ function CompanySettingsForm({ initial, onSave, onCancel, activeTeamId, notify }
           logoUrl: logoUrl.trim(),
           defaultKdvRate,
           customerNotificationsEnabled,
+          appointmentRemindersEnabled,
           sector: initial?.sector || null,
         });
       }}
@@ -579,6 +583,19 @@ function CompanySettingsForm({ initial, onSave, onCancel, activeTeamId, notify }
           />
         </label>
       </div>
+      {hasDatetimeField && (
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={appointmentRemindersEnabled}
+              onChange={(e) => setAppointmentRemindersEnabled(e.target.checked)}
+            />
+            Randevu hatırlatma e-postası gönder
+            <InfoTip text="Tarih & Saat tipindeki özel alanı olan kayıtlarda, o saatten 2 saat önce müşteriye otomatik bir hatırlatma e-postası gider. Bu kutuyu kapatırsanız hiçbir hatırlatma e-postası gönderilmez — diğer bildirimler (aşama değişikliği, destek talebi, ödeme) bundan etkilenmez." />
+          </label>
+        </div>
+      )}
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button type="button" onClick={onCancel}>Vazgeç</button>
         <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
@@ -3677,6 +3694,7 @@ export default function App() {
       logo_url: s.logoUrl,
       default_kdv_rate: s.defaultKdvRate ?? 20,
       customer_notifications_enabled: s.customerNotificationsEnabled !== false,
+      appointment_reminders_enabled: s.appointmentRemindersEnabled !== false,
       sector: s.sector || null,
       ...(s.preferredCustomerType ? { preferred_customer_type: s.preferredCustomerType } : {}),
       updated_at: new Date().toISOString(),
@@ -4942,7 +4960,7 @@ export default function App() {
 
       {showSettingsForm && (
         <Modal title="İşletme Bilgileri" onClose={() => setShowSettingsForm(false)}>
-          <CompanySettingsForm initial={companySettings} onSave={upsertCompanySettings} onCancel={() => setShowSettingsForm(false)} activeTeamId={activeTeamId} notify={notify} />
+          <CompanySettingsForm initial={companySettings} customFieldDefs={customFieldDefs} onSave={upsertCompanySettings} onCancel={() => setShowSettingsForm(false)} activeTeamId={activeTeamId} notify={notify} />
         </Modal>
       )}
 
