@@ -1301,6 +1301,8 @@ const PRICE_ITEM_NAME_EXAMPLES = {
   perakende: "Standart Paket",
   guzellik_bakim: "Manikür",
   spor_merkezi: "Aylık Üyelik",
+  egitim_kurs: "Aylık Yabancı Dil Paketi",
+  sanayi_esnaf: "Yağ Bakımı",
 };
 
 function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {

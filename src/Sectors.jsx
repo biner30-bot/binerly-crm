@@ -177,6 +177,44 @@ export const SECTOR_PRESETS = [
     ],
   },
   {
+    id: "egitim_kurs",
+    label: "Eğitim / Kurs Merkezi",
+    icon: "ti-school",
+    stageLabels: {
+      ilk_gorusme: "Deneme dersi",
+      teklif: "Kayıt teklifi sunuldu",
+      muzakere: "Kayıt görüşülüyor",
+      kazanildi: "Kursa kayıt oldu",
+      kaybedildi: "Kayıt olmadı",
+    },
+    tags: ["Yeni öğrenci", "Deneme dersi", "Kayıt yenileme", "Burslu/İndirimli", "Kurs tamamlandı"],
+    customFields: [
+      { entity: "deal", key: "kurs_programi", label: "Kurs / Program", type: "select", options: ["Yabancı Dil", "Sürücü Kursu", "Müzik/Sanat", "Akademik Destek", "Mesleki Kurs", "Diğer"] },
+      { entity: "deal", key: "deneme_dersi_tarihi", label: "Deneme Dersi Tarihi", type: "datetime" },
+      { entity: "deal", key: "kurs_bitis_tarihi", label: "Kurs Bitiş Tarihi", type: "date", audience: "bireysel" },
+      { entity: "customer", key: "veli_bilgisi", label: "Veli Adı / Telefonu (varsa)", type: "text", audience: "bireysel" },
+    ],
+  },
+  {
+    id: "sanayi_esnaf",
+    label: "Sanayi Esnafı",
+    icon: "ti-tool",
+    stageLabels: {
+      ilk_gorusme: "Arıza tespiti / Keşif",
+      teklif: "Tamir teklifi verildi",
+      muzakere: "Onay bekleniyor",
+      kazanildi: "İşlem tamamlandı",
+      kaybedildi: "Vazgeçildi",
+    },
+    tags: ["Garantili işçilik", "Acil", "Sigorta işi", "Yedek parça bekleniyor", "Teslim edildi"],
+    customFields: [
+      { entity: "deal", key: "arac_ekipman_bilgisi", label: "Araç/Ekipman Bilgisi (Plaka, Marka, Model)", type: "text" },
+      { entity: "deal", key: "servis_turu", label: "Servis Türü", type: "select", options: ["Oto Tamir", "Oto Boya", "Kaynak İşi", "Elektrik İşi", "Tornacılık", "Diğer"] },
+      { entity: "deal", key: "parca_durumu", label: "Yedek Parça Durumu", type: "select", options: ["Stokta var", "Sipariş verildi", "Bekleniyor"] },
+      { entity: "deal", key: "teslim_tarihi", label: "Tahmini Teslim Tarihi", type: "date" },
+    ],
+  },
+  {
     id: "genel",
     label: "Genel",
     icon: "ti-building-store",
@@ -213,7 +251,7 @@ export function isAppointmentSector(sector) {
 // (istisnai durumlar için, örn. bir firmanın toplu üyelik alması), ama
 // varsayılan müşteri tipi "Bireysel" olur.
 export function isIndividualFocusedSector(sector) {
-  return isAppointmentSector(sector) || sector === "spor_merkezi";
+  return isAppointmentSector(sector) || sector === "spor_merkezi" || sector === "egitim_kurs";
 }
 
 // Kayıt kelimesinin üç hâli: Spor Merkezi'nde kayıt bir üyeliktir (ne randevu
@@ -235,6 +273,8 @@ const SUPPORT_EXAMPLES = {
   perakende: { subject: "Siparişim gecikti", message: "Kargo takip numarası müşteriye iletildi", kbTitle: "Kargo takibi nasıl yapılır?", kbCategory: "Kargo, İade, Ödeme" },
   guzellik_bakim: { subject: "Randevumu değiştirmek istiyorum", message: "Yeni randevu saati müşteriye iletildi", kbTitle: "Randevumu nasıl değiştiririm?", kbCategory: "Randevu, Hizmetler, Ödeme" },
   spor_merkezi: { subject: "Üyeliğimi dondurmak istiyorum", message: "Üyelik dondurma talebiniz işleme alındı", kbTitle: "Üyeliğimi nasıl dondurabilirim?", kbCategory: "Üyelik, Ödeme, PT" },
+  egitim_kurs: { subject: "Ders saatimi değiştirmek istiyorum", message: "Yeni ders saati müşteriye iletildi", kbTitle: "Ders saatimi nasıl değiştirebilirim?", kbCategory: "Ders Programı, Ödeme, Kayıt" },
+  sanayi_esnaf: { subject: "Aracım ne zaman teslim edilecek?", message: "Güncel teslim tarihi müşteriye iletildi", kbTitle: "Tahmini teslim süresi ne kadar?", kbCategory: "Servis, Ödeme, Garanti" },
 };
 const DEFAULT_SUPPORT_EXAMPLE = { subject: "Bir konuda yardım almak istiyorum", message: "Talep hakkında müşteriye bilgi verildi", kbTitle: "Sıkça sorulan bir soru", kbCategory: "Genel, Ödeme, Teknik" };
 export const supportExamples = (sector) => SUPPORT_EXAMPLES[sector] || DEFAULT_SUPPORT_EXAMPLE;
@@ -320,6 +360,8 @@ const CUSTOM_FIELD_NAME_EXAMPLES = {
   perakende: "Kampanya Adı",
   guzellik_bakim: "Tercih Edilen Uzman",
   spor_merkezi: "Üyelik Paketi",
+  egitim_kurs: "Kurs Programı",
+  sanayi_esnaf: "Servis Türü",
 };
 
 export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDelete, sector }) {

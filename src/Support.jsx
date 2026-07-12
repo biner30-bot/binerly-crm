@@ -270,6 +270,62 @@ const KB_TEMPLATES_BY_SECTOR = {
         "çalışma saatlerimiz değişebilir, güncel bilgi için bizimle iletişime geçebilirsiniz.",
     },
   ],
+  egitim_kurs: [
+    {
+      title: "Ders saatimi/gruplarımı nasıl değiştirebilirim?",
+      category: "Ders Programı",
+      content:
+        "Ders saati değişikliği taleplerinizi en az [X gün] öncesinden bize iletmeniz yeterli, uygun bir saate " +
+        "göre programınızı güncelleriz.",
+    },
+    {
+      title: "Kayıt ücretini taksitle ödeyebilir miyim?",
+      category: "Ödeme",
+      content:
+        "Kurs ücreti için taksit seçenekleri sunuyoruz, detaylar için bizimle iletişime geçebilirsiniz.",
+    },
+    {
+      title: "Devamsızlık durumunda ders telafisi yapılıyor mu?",
+      category: "Ders Programı",
+      content:
+        "Önceden haber verdiğiniz devamsızlıklar için [telafi koşulları] çerçevesinde telafi dersi planlanabilir.",
+    },
+    {
+      title: "Kursu tamamladığımda sertifika alabilir miyim?",
+      category: "Kayıt",
+      content:
+        "Kursu başarıyla tamamlayan öğrencilerimize katılım/başarı sertifikası verilmektedir.",
+    },
+  ],
+  sanayi_esnaf: [
+    {
+      title: "Aracım/işim ne zaman teslim edilir?",
+      category: "Servis",
+      content:
+        "Tahmini teslim süresi, yapılacak işin kapsamına ve yedek parça durumuna göre değişir — güncel durumu " +
+        "sizinle paylaşırız.",
+    },
+    {
+      title: "Verilen fiyat teklifi kesin midir?",
+      category: "Fiyatlandırma",
+      content:
+        "Teklif, ilk incelemeye göre hazırlanır — sökme sırasında ek bir arıza/ihtiyaç tespit edilirse " +
+        "onayınızı almadan işleme devam etmeyiz.",
+    },
+    {
+      title: "Yapılan işte garanti süresi ne kadar?",
+      category: "Garanti",
+      content:
+        "İşçiliğimiz [X ay/yıl] garantilidir, kullanılan parçalarda üretici garantisi geçerlidir.",
+    },
+    {
+      title: "Sigorta/kasko üzerinden işlem yapabiliyor musunuz?",
+      category: "Sigorta",
+      content:
+        "Anlaşmalı olduğumuz sigorta şirketleri için hasar dosyası üzerinden işlem yapabiliyoruz, poliçe " +
+        "bilgilerinizi bizimle paylaşmanız yeterli.",
+    },
+  ],
   genel: [
     {
       title: "Siparişim/talebim ne zaman işleme alınır?",
