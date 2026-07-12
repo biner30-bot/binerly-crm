@@ -397,18 +397,18 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
         Sektör değiştirdiğinizde başka sektöre ait alanlar burada gizlenir (silinmez) — daha önce kaydedilmiş değerler korunur, aynı sektöre dönerseniz alanlar geri gelir.
       </p>
       {renderGroup("Müşteri alanları", customerDefs)}
-      {renderGroup("İş Takibi alanları", dealDefs)}
+      {renderGroup("Müşteri Takibi alanları", dealDefs)}
 
       <p style={{ fontSize: 13, fontWeight: 500, margin: "12px 0 4px", display: "flex", alignItems: "center", gap: 4 }}>
         {editingDef ? "Alanı düzenle" : "Yeni alan ekle"}
-        <InfoTip text={'Standart alanların (isim, telefon, tutar vb.) dışında, işinize özel ekstra bilgi alanları tanımlayabilirsiniz — örn. "Mülk Tipi", "Tercih Edilen Uzman", "Alerji Notu". "Nerede": bu bilgi müşteri kartında mı yoksa teklif/iş takibi kaydında mı görünsün. "Tip": ne tür veri gireceksiniz (metin, sayı, tarih, tarih & saat veya hazır seçim listesi) — "Tarih & Saat" tipiyle teklif/iş takibi kaydına eklenen alanlar için, o saatten 2 saat önce müşteriye otomatik hatırlatma e-postası gönderilir (randevu takibi için). "Kime": bu alanı sadece kurumsal, sadece bireysel müşterilerde mi yoksa herkeste mi göstermek istiyorsunuz.'} />
+        <InfoTip text={'Standart alanların (isim, telefon, tutar vb.) dışında, işinize özel ekstra bilgi alanları tanımlayabilirsiniz — örn. "Mülk Tipi", "Tercih Edilen Uzman", "Alerji Notu". "Nerede": bu bilgi müşteri kartında mı yoksa teklif/müşteri takibi kaydında mı görünsün. "Tip": ne tür veri gireceksiniz (metin, sayı, tarih, tarih & saat veya hazır seçim listesi) — "Tarih & Saat" tipiyle teklif/müşteri takibi kaydına eklenen alanlar için, o saatten 2 saat önce müşteriye otomatik hatırlatma e-postası gönderilir (randevu takibi için). "Kime": bu alanı sadece kurumsal, sadece bireysel müşterilerde mi yoksa herkeste mi göstermek istiyorsunuz.'} />
       </p>
       <form onSubmit={submit} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end", marginTop: 8 }}>
         <div>
           <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Nerede</label>
           <select value={entity} onChange={(e) => setEntity(e.target.value)} disabled={!!editingDef} style={{ fontSize: 13 }}>
-            <option value="customer">Müşteriler</option>
-            <option value="deal">İş Takibi</option>
+            <option value="customer">Müşteri Kayıtları</option>
+            <option value="deal">Müşteri Takibi</option>
           </select>
         </div>
         <div style={{ flex: 1, minWidth: 120 }}>

@@ -3966,8 +3966,8 @@ export default function App() {
       <div style={{ display: "flex", gap: 8, marginBottom: "1.5rem" }}>
         {[
           { id: "pano", label: "Pano", icon: "ti-layout-dashboard" },
-          { id: "musteri", label: "Müşteriler", icon: "ti-building" },
-          { id: "firsat", label: "İş Takibi", icon: "ti-target-arrow" },
+          { id: "musteri", label: "Müşteri Kayıtları", icon: "ti-building" },
+          { id: "firsat", label: "Müşteri Takibi", icon: "ti-target-arrow" },
           { id: "finans", label: "Finans", icon: "ti-chart-line" },
           { id: "mesajlar", label: "Mesajlar", icon: "ti-message-2" },
           { id: "destek", label: "Destek", icon: "ti-headset" },
@@ -4948,7 +4948,7 @@ export default function App() {
       {showImportCustomers && (
         <ImportModal
           entityType="customers"
-          entityLabel="Müşteriler"
+          entityLabel="Müşteri Kayıtları"
           fieldDefs={CUSTOMER_IMPORT_FIELDS}
           allowVcf
           checkDuplicate={(r) => customers.some((c) => c.name.trim().toLowerCase() === (r.name || "").trim().toLowerCase())}
@@ -4960,7 +4960,7 @@ export default function App() {
       {showImportDeals && (
         <ImportModal
           entityType="deals"
-          entityLabel="İş Takibi"
+          entityLabel="Müşteri Takibi"
           fieldDefs={dealImportFields(companySettings?.sector)}
           customers={customers}
           onImport={bulkImportDeals}
