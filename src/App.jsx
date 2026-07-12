@@ -2395,6 +2395,7 @@ function LandingPage() {
         <div style={{ display: "flex", gap: 28, alignItems: "center" }}>
           <div className="landing-nav-links" style={{ display: "flex", gap: 24 }}>
             <a href="#ozellikler" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Hizmetlerimiz</a>
+            <a href="#sektorler" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Sektörler</a>
             <a href="#neden-binerly" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Neden Binerly?</a>
             <a href="#hakkimizda" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Hakkımızda</a>
           </div>
@@ -2421,7 +2422,7 @@ function LandingPage() {
             tek yerde yönetin
           </h1>
           <p style={{ fontSize: 17, color: "#5b7088", lineHeight: 1.7, margin: "0 0 2rem", maxWidth: 480 }}>
-            Müşteri veya danışan takibi, teklif ya da randevu süreci, destek ve müşterinizin kendi portalı — hepsi bir arada, KOBİ'ler için.
+            Müşteri veya danışan takibi, teklif, randevu ya da üyelik süreci, destek ve müşterinizin kendi portalı — hepsi bir arada, sektörünüze göre şekillenen tek bir sistemde.
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <button onClick={() => setEntryChoiceIntent("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "13px 28px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
@@ -2448,7 +2449,7 @@ function LandingPage() {
               <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#28c840" }} />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
-              {[["Açık Teklifler", "12"], ["Kazanılan", "8"], ["Toplam Değer", "₺284K"]].map(([label, val]) => (
+              {[["Açık Kayıtlar", "12"], ["Kazanılan", "8"], ["Toplam Değer", "₺284K"]].map(([label, val]) => (
                 <div key={label} style={{ background: "#1a3a5c", borderRadius: 8, padding: "10px 12px" }}>
                   <div style={{ fontSize: 10, color: "#94a7bb", marginBottom: 4 }}>{label}</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>{val}</div>
@@ -2456,9 +2457,9 @@ function LandingPage() {
               ))}
             </div>
             {[
-              ["Akın İnşaat", "Müzakere", "₺85.000"],
-              ["Yıldız Medikal", "Teklif verildi", "₺42.500"],
-              ["Ege Tekstil", "Kazanıldı", "₺120.000"],
+              ["Akın İnşaat", "Müzakere · Teklif", "₺85.000"],
+              ["Ayşe Yılmaz", "Randevu planlandı", "₺450"],
+              ["Mehmet Kaya", "Üye oldu", "₺600"],
             ].map(([name, stage, value]) => (
               <div key={name} style={{ background: "#1a3a5c", borderRadius: 8, padding: "10px 12px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
@@ -2490,8 +2491,8 @@ function LandingPage() {
               id: "satis-firsat",
               icon: "ti-target-arrow",
               title: "Satış & Teklif Yönetimi",
-              desc: "İster iş teklifi ister hizmet/paket satışı olsun, ilk temastan kapanışa kadar tüm süreci Kanban tahtasında takip edin. Tek tıkla markalı PDF teklif oluşturun, hatırlatma tarihiyle takip randevularınızı kaçırmayın.",
-              tags: ["Kanban Pipeline", "PDF Teklif", "Hatırlatma E-postaları", "Seans/Paket Takibi"],
+              desc: "İster iş teklifi ister randevu ya da üyelik satışı olsun, ilk temastan kapanışa kadar tüm süreci Kanban tahtasında takip edin. Tek tıkla markalı PDF oluşturun, onay linkiyle müşteriden tek tıkla onay alın, sık sattığınız ürün/hizmetleri fiyat listenize kaydedip saniyeler içinde seçin.",
+              tags: ["Kanban Pipeline", "PDF Çıktısı", "Onay Linki", "Fiyat Listesi", "Seans/Paket Takibi"],
             },
             {
               id: "pazarlama",
@@ -2511,22 +2512,22 @@ function LandingPage() {
               id: "musteri-portali",
               icon: "ti-users-group",
               title: "Müşteri Bilgi Sistemi",
-              desc: "Müşterileriniz kendi hesaplarıyla giriş yapıp destek taleplerini açabilir, sizinle mesajlaşabilir ve tekliflerinin durumunu görebilir — telefon trafiğinizi azaltır.",
+              desc: "Müşterileriniz kendi hesaplarıyla giriş yapıp destek taleplerini açabilir, sizinle mesajlaşabilir ve teklif/randevu/üyelik kayıtlarının durumunu görebilir — telefon trafiğinizi azaltır.",
               tags: ["Müşteri Portalı", "Kendi Talebini Takip"],
             },
             {
               id: "raporlama",
               icon: "ti-chart-bar",
               title: "Raporlama & Analitik",
-              desc: "Kazanma oranı, aylık kazanılan gelir grafiği ve kayıp nedeni analizleriyle stratejik kararlar alın.",
-              tags: ["Dashboard", "Kayıp Analizi"],
+              desc: "Kazanma oranı, aylık kazanılan gelir grafiği ve kayıp nedeni analizleriyle stratejik kararlar alın. Cari hesap ve KDV özet raporuyla kimin ne kadar borcu olduğunu, aylık KDV yükünüzü tek bakışta görün.",
+              tags: ["Dashboard", "Kayıp Analizi", "Cari Hesap", "KDV Özeti"],
             },
             {
               id: "entegrasyonlar",
               icon: "ti-plug-connected",
               title: "Entegrasyonlar & Mobil",
-              desc: "Uygulamayı telefonunuza kurup anında bildirim alın, müşterinize tek tıkla WhatsApp'tan ulaşın. Gmail/Outlook senkronizasyonu ve muhasebe/ERP entegrasyonu yol haritamızda.",
-              tags: ["Mobil Uygulama (PWA)", "Anlık Bildirim", "WhatsApp", "Yakında: ERP/Muhasebe"],
+              desc: "Uygulamayı telefonunuza kurup anında bildirim alın. WhatsApp/Instagram işletme hesabınızı bağlayıp müşteri mesajlarınızı buradan takip edin, ya da tek tıkla WhatsApp'tan ulaşın. Kazanılan kayıtları tek tıkla Paraşüt'e aktarın. Gmail/Outlook senkronizasyonu yol haritamızda.",
+              tags: ["Mobil Uygulama (PWA)", "Anlık Bildirim", "WhatsApp & Instagram", "Paraşüt'e Aktar"],
             },
             {
               id: "is-birligi-agi",
@@ -2548,6 +2549,27 @@ function LandingPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Sektörler */}
+      <div id="sektorler" style={{ maxWidth: 1100, margin: "0 auto", padding: "1rem 2rem 3rem" }}>
+        <h2 style={{ textAlign: "center", fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: "0 0 0.75rem" }}>
+          Hangi işi yapıyorsanız, dili de ona göre değişir
+        </h2>
+        <p style={{ textAlign: "center", fontSize: 15, color: "#5b7088", maxWidth: 640, margin: "0 auto 2rem" }}>
+          Sektörünüzü seçtiğinizde aşama isimleri, alanlar ve hatta "teklif mi, randevu mu, üyelik mi" dediğimiz otomatik ayarlanır — herkese aynı kalıp değil, işinize uygun bir sistem.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
+          {SECTOR_PRESETS.filter((s) => s.id !== "genel").map((s) => (
+            <div key={s.id} style={{ background: "#fff", border: "1px solid #e1e8f0", borderRadius: 12, padding: "1rem", display: "flex", alignItems: "center", gap: 10 }}>
+              <i className={`ti ${s.icon}`} style={{ fontSize: 20, color: "#185fa5", flex: "none" }} />
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: "#0c2540" }}>{s.label}</span>
+            </div>
+          ))}
+        </div>
+        <p style={{ textAlign: "center", fontSize: 13, color: "#94a7bb", margin: "1.5rem 0 0" }}>
+          Listede yoksa da sorun değil — "Genel" ile başlayıp kendi özel alanlarınızı ekleyebilirsiniz.
+        </p>
       </div>
 
       {/* Neden Binerly */}
@@ -2678,6 +2700,7 @@ function LandingPage() {
             <p style={{ fontSize: 12, fontWeight: 700, color: "#0c2540", letterSpacing: 0.5, margin: "0 0 14px" }}>HIZLI ERİŞİM</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <a href="/" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Ana Sayfa</a>
+              <a href="#sektorler" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Sektörler</a>
               <a href="#hakkimizda" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Hakkımızda</a>
               <a href="mailto:info@binerly.com" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>İletişim</a>
             </div>
