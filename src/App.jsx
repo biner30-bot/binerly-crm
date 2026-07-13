@@ -2452,7 +2452,7 @@ function LandingPage() {
               <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#28c840" }} />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
-              {[["Açık Teklifler", "12"], ["Toplam Değer", "₺284K"], ["Bekleyen Randevular", "5"], ["Aktif Üyelikler", "37"]].map(([label, val]) => (
+              {[["Açık Teklifler", "12"], ["Toplam Değer", "₺940K"], ["Bekleyen Randevular", "5"], ["Aktif Üyelikler", "37"]].map(([label, val]) => (
                 <div key={label} style={{ background: "#1a3a5c", borderRadius: 8, padding: "8px 10px" }}>
                   <div style={{ fontSize: 9.5, color: "#94a7bb", marginBottom: 3 }}>{label}</div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{val}</div>
@@ -2460,10 +2460,10 @@ function LandingPage() {
               ))}
             </div>
             {[
-              { name: "Akın İnşaat", icon: "ti-building", kind: "Ofis Tadilat Teklifi", stage: "Müzakere", value: "₺85.000" },
-              { name: "Ege Tekstil", icon: "ti-building", kind: "Toptan Kumaş Siparişi", stage: "Kazanıldı", value: "₺120.000" },
-              { name: "Ayşe Yılmaz", icon: "ti-user", kind: "Lazer Epilasyon Randevusu", stage: "Randevu planlandı", value: "₺450" },
-              { name: "Mehmet Kaya", icon: "ti-user", kind: "Aylık Üyelik Paketi", stage: "Üye oldu", value: "₺600/ay" },
+              { name: "Akın İnşaat", icon: "ti-building", kind: "Ofis Tadilat Teklifi", stage: "Müzakere", value: "₺180.000" },
+              { name: "Ege Tekstil", icon: "ti-building", kind: "Toptan Kumaş Siparişi", stage: "Kazanıldı", value: "₺220.000" },
+              { name: "Ayşe Yılmaz", icon: "ti-user", kind: "Lazer Epilasyon Randevusu", stage: "Randevu planlandı", value: "₺1.200" },
+              { name: "Mehmet Kaya", icon: "ti-user", kind: "Spor Salonu Üyeliği", stage: "Üye oldu", value: "₺3.500/ay" },
             ].map((r) => (
               <div key={r.name} style={{ background: "#1a3a5c", borderRadius: 8, padding: "8px 12px", marginBottom: 7, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
