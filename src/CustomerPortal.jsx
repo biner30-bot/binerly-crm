@@ -93,6 +93,10 @@ function formatDateTime(dateStr) {
     " · " + d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 }
 
+function canCancelAppointmentDeal(randevuTarihi) {
+  return new Date(`${randevuTarihi}+03:00`).getTime() - Date.now() > 2 * 60 * 60 * 1000;
+}
+
 function CustomerAuthForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -310,7 +314,7 @@ function PortalTicketDetail({ ticket, messages, onAddMessage, onClose }) {
   );
 }
 
-function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, showCompany, dealKind }) {
+function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, showCompany, dealKind, onCancelAppointment }) {
   if (deals.length === 0) {
     return <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>{PORTAL_DEAL_WORDS[dealKind].emptyList}</p>;
   }
@@ -320,10 +324,16 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, sh
       {sorted.map((d) => {
         const stageText = stageLabel(d.stage, "bireysel", sectorByCustomerId[d.customerId]);
         const tone = d.stage === "kazanildi" ? "success" : d.stage === "kaybedildi" ? "default" : d.stage === "muzakere" ? "warning" : "accent";
+        const randevuTarihi = d.customFields?.randevu_tarihi;
+        const cancellable = d.stage === "ilk_gorusme" && randevuTarihi;
+        const canCancel = cancellable && canCancelAppointmentDeal(randevuTarihi);
         return (
           <div key={d.id} style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <div>
               <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{d.title}</p>
+              {randevuTarihi && (
+                <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{formatDateTime(randevuTarihi)}</p>
+              )}
               {showCompany && (
                 <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{companyNameByCustomerId[d.customerId] || "Bilinmeyen firma"}</p>
               )}
@@ -331,6 +341,11 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, sh
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <Badge tone={tone}>{stageText}</Badge>
               <span style={{ fontSize: 13, fontWeight: 600, minWidth: 90, textAlign: "right" }}>{formatTL(d.value)}</span>
+              {cancellable && (canCancel ? (
+                <button type="button" onClick={() => onCancelAppointment(d.id)} style={{ fontSize: 13 }}>İptal Et</button>
+              ) : (
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }} title="Randevu saatine 2 saatten az kaldığı için iptal edilemez">İptal edilemez</span>
+              ))}
             </div>
           </div>
         );
@@ -837,6 +852,13 @@ export default function CustomerPortal() {
     return true;
   };
 
+  const cancelAppointment = async (dealId) => {
+    const { error } = await supabase.from("deals").update({ stage: "kaybedildi" }).eq("id", dealId);
+    if (error) { notify(`İptal edilemedi: ${error.message}`); return; }
+    setDeals((prev) => prev.map((d) => (d.id === dealId ? { ...d, stage: "kaybedildi" } : d)));
+    notify("Randevunuz iptal edildi.", "success");
+  };
+
   const addMessage = async ({ ticketId, content }) => {
     const ticket = tickets.find((t) => t.id === ticketId);
     if (!ticket) return;
@@ -1054,7 +1076,7 @@ export default function CustomerPortal() {
                   ))}
                 </div>
               )}
-              <PortalDealList deals={deals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} showCompany={showCompanyLabel} dealKind={dealKind} />
+              <PortalDealList deals={deals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} showCompany={showCompanyLabel} dealKind={dealKind} onCancelAppointment={cancelAppointment} />
             </div>
           )}
 
