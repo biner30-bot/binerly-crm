@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS } from "./shared";
+import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, nextWeeklyOccurrence } from "./shared";
 import Finance, { rowToCompanyExpense } from "./Finance";
 import { rowToChannelCredential, rowToChannelMessage } from "./Messages";
 import Support, {
@@ -1489,6 +1489,9 @@ function GroupClassForm({ initial, onSave, onCancel }) {
           <select value={weekday} onChange={(e) => setWeekday(e.target.value)} style={{ width: "100%" }}>
             {WEEKDAYS.map((w, i) => <option key={w} value={i + 1}>{w}</option>)}
           </select>
+          <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "4px 0 0" }}>
+            Her hafta tekrar eder — ilk oturum: {nextWeeklyOccurrence(Number(weekday), startTime || "00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "long", weekday: "long" })}
+          </p>
         </div>
         <div style={{ flex: 1, minWidth: 100 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Saat</label>
@@ -4174,6 +4177,7 @@ export default function App() {
   };
 
   const updateGroupClass = async ({ id, name, instructorName, weekday, startTime, durationMinutes, capacity, notes }) => {
+    const previous = groupClasses.find((g) => g.id === id);
     const { data, error } = await supabase
       .from("group_classes")
       .update({ name, instructor_name: instructorName || null, weekday, start_time: startTime, duration_minutes: durationMinutes || 60, capacity, notes: notes || null })
@@ -4181,7 +4185,25 @@ export default function App() {
       .select()
       .single();
     if (error) { notify(`Ders güncellenemedi: ${error.message}`); return; }
-    setGroupClasses((prev) => prev.map((g) => (g.id === id ? rowToGroupClass(data) : g)));
+    const updated = rowToGroupClass(data);
+    setGroupClasses((prev) => prev.map((g) => (g.id === id ? updated : g)));
+
+    // Gün, saat veya eğitmen değiştiyse kayıtlı üyelere haber ver — yoksa
+    // örn. "Salı"dan "Çarşamba"ya taşınan bir dersi bekleyen üyeler bundan
+    // habersiz kalır (ders tarihe değil güne bağlı, tekil oturum kaydı yok).
+    const scheduleChanged = previous && (previous.weekday !== updated.weekday || previous.startTime !== updated.startTime || previous.instructorName !== updated.instructorName);
+    if (scheduleChanged) {
+      const enrolledCustomerIds = groupClassEnrollments.filter((e) => e.groupClassId === id).map((e) => e.customerId);
+      for (const customerId of enrolledCustomerIds) {
+        const customer = customers.find((c) => c.id === customerId);
+        if (!customer) continue;
+        notifyCustomerByEmail(
+          customer,
+          `${updated.name} dersinin programı değişti`,
+          `Merhaba,\n\n${companySettings?.companyName || "Binerly"} — ${updated.name} dersinin programı güncellendi. Yeni ders zamanı: ${WEEKDAYS[updated.weekday - 1]} ${updated.startTime}${updated.instructorName ? ` · ${updated.instructorName}` : ""}.`
+        );
+      }
+    }
   };
 
   const deleteGroupClass = async (id) => {
@@ -4536,8 +4558,8 @@ export default function App() {
           { id: "firsat", label: "Müşteri Takibi", icon: "ti-target-arrow" },
           { id: "finans", label: "Finans", icon: "ti-chart-line" },
           { id: "mesajlar", label: "Mesajlar", icon: "ti-message-2" },
-          { id: "destek", label: "Destek", icon: "ti-headset" },
           ...(companySettings?.sector === "spor_merkezi" ? [{ id: "dersler", label: "Dersler", icon: "ti-calendar-time" }] : []),
+          { id: "destek", label: "Destek", icon: "ti-headset" },
         ].map((t) => (
           <button
             key={t.id}
