@@ -1750,7 +1750,7 @@ function BusinessHoursManager({ items, onAdd, onDelete }) {
           <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Slot süresi (dk)</label>
           <input type="number" min="5" step="5" value={slotDurationMinutes} onChange={(e) => setSlotDurationMinutes(e.target.value)} style={{ fontSize: 13, width: "100%" }} />
         </div>
-        <button type="submit" style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", fontSize: 13 }}>+ Ekle</button>
+        <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>+ Ekle</button>
       </form>
 
       {confirmDelete && (

@@ -26,9 +26,14 @@ export default async function handler(req, res) {
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 
-  const targetDate = new Date(`${date}T00:00:00+03:00`);
-  if (isNaN(targetDate.getTime())) return res.status(400).json({ error: "Geçersiz tarih." });
-  const jsWeekday = targetDate.getDay();
+  // Salt takvim günü olarak hesaplanır (saat/saat dilimi karışmasın diye) —
+  // date.getDay() burada KULLANILMAZ: "YYYY-MM-DDT00:00:00+03:00" gibi bir
+  // string'i new Date() ile açıp .getDay() çağırmak, sunucu UTC çalıştığı için
+  // günü bir gün geriye kaydırıyordu (Türkiye'de gece yarısı, UTC'de bir önceki
+  // günün 21:00'i oluyor).
+  const [y, m, d] = date.split("-").map(Number);
+  if (!y || !m || !d) return res.status(400).json({ error: "Geçersiz tarih." });
+  const jsWeekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
   const isoWeekday = jsWeekday === 0 ? 7 : jsWeekday;
 
   const [{ data: hours, error: hoursError }, { data: deals, error: dealsError }] = await Promise.all([
