@@ -1518,7 +1518,7 @@ function GroupClassForm({ initial, onSave, onCancel }) {
   );
 }
 
-function GroupClassRoster({ group, enrollments, customers, onEdit, onDelete, onEnroll, onRemove }) {
+function GroupClassRoster({ group, enrollments, customers, activeCustomerIds, onEdit, onDelete, onEnroll, onRemove }) {
   const [search, setSearch] = useState("");
   const [confirmRemove, setConfirmRemove] = useState(null);
   const enrolledIds = new Set(enrollments.map((e) => e.customerId));
@@ -1526,7 +1526,7 @@ function GroupClassRoster({ group, enrollments, customers, onEdit, onDelete, onE
   const query = search.trim().toLowerCase();
   const matches = query
     ? customers
-        .filter((c) => !enrolledIds.has(c.id) && (c.name.toLowerCase().includes(query) || (c.phone || "").includes(query) || (c.email || "").toLowerCase().includes(query)))
+        .filter((c) => !enrolledIds.has(c.id) && activeCustomerIds.has(c.id) && (c.name.toLowerCase().includes(query) || (c.phone || "").includes(query) || (c.email || "").toLowerCase().includes(query)))
         .slice(0, 8)
     : [];
 
@@ -1564,7 +1564,10 @@ function GroupClassRoster({ group, enrollments, customers, onEdit, onDelete, onE
         <p style={{ fontSize: 12, color: "var(--text-danger)" }}>Ders dolu — yeni üye eklemek için önce birini çıkarın.</p>
       ) : (
         <>
-          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>+ Üye ekle</p>
+          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 4px", display: "flex", alignItems: "center", gap: 4 }}>
+            + Üye ekle
+            <InfoTip text="Sadece aktif üyeliği olan müşteriler listelenir — üyeliği olmayan bir müşteriyi eklemek için önce Müşteri Takibi'nden üyelik kaydı oluşturun." />
+          </p>
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Müşteri ara (ad, telefon, e-posta)" style={{ width: "100%" }} />
           {matches.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8 }}>
@@ -1595,7 +1598,7 @@ function GroupClassRoster({ group, enrollments, customers, onEdit, onDelete, onE
   );
 }
 
-function GroupClassesTab({ groupClasses, groupClassEnrollments, customers, onAdd, onUpdate, onDelete, onEnroll, onRemove }) {
+function GroupClassesTab({ groupClasses, groupClassEnrollments, customers, activeCustomerIds, onAdd, onUpdate, onDelete, onEnroll, onRemove }) {
   const [showForm, setShowForm] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
   const [rosterClass, setRosterClass] = useState(null);
@@ -1669,6 +1672,7 @@ function GroupClassesTab({ groupClasses, groupClassEnrollments, customers, onAdd
             group={rosterClassLive}
             enrollments={groupClassEnrollments.filter((e) => e.groupClassId === rosterClassLive.id)}
             customers={customers}
+            activeCustomerIds={activeCustomerIds}
             onEdit={() => { setEditingClass(rosterClassLive); setShowForm(true); setRosterClass(null); }}
             onDelete={() => setConfirmDeleteClass(rosterClassLive)}
             onEnroll={(customerId) => onEnroll({ groupClassId: rosterClassLive.id, customerId })}
@@ -4224,6 +4228,7 @@ export default function App() {
   const enrollMember = async ({ groupClassId, customerId, silent = false }) => {
     const group = groupClasses.find((g) => g.id === groupClassId);
     if (!group) return;
+    if (!activeMemberships.some((d) => d.customerId === customerId)) { notify("Bu müşterinin aktif bir üyeliği yok — önce üyelik kaydı oluşturun."); return; }
     const currentCount = groupClassEnrollments.filter((e) => e.groupClassId === groupClassId).length;
     if (currentCount >= group.capacity) { notify("Bu ders dolu."); return; }
     if (groupClassEnrollments.some((e) => e.groupClassId === groupClassId && e.customerId === customerId)) { notify("Bu müşteri zaten kayıtlı."); return; }
@@ -5388,6 +5393,7 @@ export default function App() {
           groupClasses={groupClasses}
           groupClassEnrollments={groupClassEnrollments}
           customers={customers}
+          activeCustomerIds={new Set(activeMemberships.map((d) => d.customerId))}
           onAdd={addGroupClass}
           onUpdate={updateGroupClass}
           onDelete={deleteGroupClass}

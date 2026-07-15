@@ -63,6 +63,7 @@ function rowToDeal(r) {
     value: r.value,
     stage: r.stage,
     createdAt: r.created_at,
+    customFields: r.custom_fields || {},
   };
 }
 
@@ -334,7 +335,7 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, sh
   );
 }
 
-function PortalGroupClasses({ groupClasses, groupClassEnrollments, customerRows, showCompany, onEnroll, onCancel }) {
+function PortalGroupClasses({ groupClasses, groupClassEnrollments, customerRows, showCompany, hasActiveMembership, onEnroll, onCancel }) {
   const companyNameByUserId = Object.fromEntries(customerRows.map((c) => [c.userId, c.companyName || c.name]));
   const myCustomerIds = new Set(customerRows.map((c) => c.id));
   const myEnrollments = groupClassEnrollments.filter((e) => myCustomerIds.has(e.customerId));
@@ -384,6 +385,7 @@ function PortalGroupClasses({ groupClasses, groupClassEnrollments, customerRows,
             const count = countFor(g.id);
             const full = count >= g.capacity;
             const myCustomerId = customerRows.find((c) => c.userId === g.userId)?.id;
+            const eligible = myCustomerId && hasActiveMembership(myCustomerId);
             return (
               <div key={g.id} style={rowStyle}>
                 <div>
@@ -391,10 +393,11 @@ function PortalGroupClasses({ groupClasses, groupClassEnrollments, customerRows,
                   <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
                     {WEEKDAYS[g.weekday - 1]} {g.startTime}{g.instructorName ? ` · ${g.instructorName}` : ""}{showCompany ? ` · ${companyNameByUserId[g.userId]}` : ""}
                   </p>
+                  {!eligible && <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--text-muted)" }}>Katılmak için aktif üyeliğiniz olması gerekiyor.</p>}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <Badge tone={full ? "danger" : "success"}>{count}/{g.capacity} dolu</Badge>
-                  <button disabled={full || !myCustomerId} onClick={() => onEnroll({ groupClassId: g.id, customerId: myCustomerId })} style={{ fontSize: 13 }}>Katıl</button>
+                  <button disabled={full || !eligible} onClick={() => onEnroll({ groupClassId: g.id, customerId: myCustomerId })} style={{ fontSize: 13 }}>Katıl</button>
                 </div>
               </div>
             );
@@ -756,10 +759,18 @@ export default function CustomerPortal() {
     if (!msgError) setTicketMessages((prev) => [...prev, rowToTicketMessage(msgData)]);
   };
 
+  const hasActiveMembership = (customerId) =>
+    deals.some((d) => {
+      if (d.customerId !== customerId || d.stage !== "kazanildi") return false;
+      const endDate = d.customFields?.uyelik_bitis_tarihi;
+      return !endDate || endDate >= new Date().toISOString().slice(0, 10);
+    });
+
   const enrollInClass = async ({ groupClassId, customerId }) => {
     const row = customerRows.find((c) => c.id === customerId);
     const group = groupClasses.find((g) => g.id === groupClassId);
     if (!row || !group) return;
+    if (!hasActiveMembership(customerId)) { notify("Bu derse katılabilmek için aktif bir üyeliğiniz olması gerekiyor."); return; }
     const count = groupClassEnrollments.filter((e) => e.groupClassId === groupClassId).length;
     if (count >= group.capacity) { notify("Bu ders dolu."); return; }
     if (groupClassEnrollments.some((e) => e.groupClassId === groupClassId && e.customerId === customerId)) { notify("Zaten kayıtlısınız."); return; }
@@ -1020,6 +1031,7 @@ export default function CustomerPortal() {
               groupClassEnrollments={groupClassEnrollments}
               customerRows={customerRows}
               showCompany={showCompanyLabel}
+              hasActiveMembership={hasActiveMembership}
               onEnroll={enrollInClass}
               onCancel={cancelEnrollment}
             />
