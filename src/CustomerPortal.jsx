@@ -843,7 +843,7 @@ export default function CustomerPortal() {
     const row = {
       id: uid(), user_id: businessUserId, customer_id: customerId,
       title: (note || "").trim() || "Randevu talebi", value: Number(value) || 0, stage: "ilk_gorusme",
-      custom_fields: { randevu_tarihi: dateTime },
+      custom_fields: { randevu_tarihi: dateTime, kaynak: "portal" },
     };
     const { data, error } = await supabase.from("deals").insert(row).select().single();
     if (error) { notify(`Randevu alınamadı: ${error.message}`); return false; }

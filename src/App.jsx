@@ -1065,9 +1065,17 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
         <div style={{ marginBottom: 16 }}>
           <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>{dealWordKind(sector) === "uyelik" ? "Üyelikler" : dealWordKind(sector) === "randevu" ? "Randevular" : "Teklifler"}</p>
           {customerDeals.map((d) => {
+            const randevuTarihi = d.customFields?.randevu_tarihi;
             return (
               <div key={d.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0" }}>
-                <span>{d.title}</span>
+                <span>
+                  {d.title}
+                  {randevuTarihi && (
+                    <span style={{ color: "var(--text-muted)" }}>
+                      {" "}· {new Date(`${randevuTarihi}+03:00`).toLocaleString("tr-TR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  )}
+                </span>
                 <span style={{ color: "var(--text-secondary)" }}>{stageLabel(d.stage, customer.customerType || "kurumsal", sector)} · {formatTL(d.value)}</span>
               </div>
             );
@@ -1446,7 +1454,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
       {confirmDelete && (
         <ConfirmDialog
           title="Ürün/hizmeti sil"
-          message={`"${confirmDelete.name}" kaldırılacak. Daha önce bu kalemle oluşturulmuş ${DEAL_WORD_FORMS[dealWordKind(sector)].plural} etkilenmez.`}
+          message={`"${confirmDelete.name}" kaldırılacak. Bu geri alınamaz — ancak daha önce bu kalemle oluşturulmuş ${DEAL_WORD_FORMS[dealWordKind(sector)].plural} etkilenmez.`}
           onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
           onClose={() => setConfirmDelete(null)}
         />
@@ -1783,7 +1791,7 @@ function BusinessHoursManager({ items, onAdd, onDelete }) {
       {confirmDelete && (
         <ConfirmDialog
           title="Müsaitliği sil"
-          message={`${WEEKDAYS[confirmDelete.weekday - 1]} ${confirmDelete.startTime}–${confirmDelete.endTime} müsaitliği kaldırılacak.`}
+          message={`${WEEKDAYS[confirmDelete.weekday - 1]} ${confirmDelete.startTime}–${confirmDelete.endTime} müsaitliği kaldırılacak. Bu geri alınamaz.`}
           onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
           onClose={() => setConfirmDelete(null)}
         />
@@ -1959,6 +1967,7 @@ const TRASH_TABLE_LABELS = {
   company_expenses: "İşletme gideri",
   tickets: "Talep",
   kb_articles: "Makale",
+  group_classes: "Ders",
 };
 
 function TrashHistoryModal({ notify, onRestore, onClose, activeTeamId, session, teamMembers }) {
@@ -1974,13 +1983,14 @@ function TrashHistoryModal({ notify, onRestore, onClose, activeTeamId, session, 
 
   const load = async () => {
     setLoading(true);
-    const [{ data: c }, { data: d }, { data: pay }, { data: exp }, { data: t }, { data: kb }, { data: log }] = await Promise.all([
+    const [{ data: c }, { data: d }, { data: pay }, { data: exp }, { data: t }, { data: kb }, { data: gc }, { data: log }] = await Promise.all([
       supabase.from("customers").select("id,name,user_id,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
       supabase.from("deals").select("id,title,user_id,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
       supabase.from("payments").select("id,amount,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
       supabase.from("company_expenses").select("id,title,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
       supabase.from("tickets").select("id,subject,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
       supabase.from("kb_articles").select("id,title,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
+      supabase.from("group_classes").select("id,name,user_id,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
       supabase.from("audit_log").select("*").order("created_at", { ascending: false }).limit(200),
     ]);
 
@@ -1993,6 +2003,7 @@ function TrashHistoryModal({ notify, onRestore, onClose, activeTeamId, session, 
       ...(exp || []).map((r) => ({ table: "company_expenses", label: r.title, ...r })),
       ...(t || []).map((r) => ({ table: "tickets", label: r.subject, ...r })),
       ...(kb || []).map((r) => ({ table: "kb_articles", label: r.title, ...r })),
+      ...(gc || []).filter((r) => r.user_id === activeTeamId).map((r) => ({ table: "group_classes", label: r.name, ...r })),
     ];
 
     const groups = {};
@@ -2863,7 +2874,7 @@ function LandingPage() {
               </div>
             ))}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12, paddingTop: 12, borderTop: "1px solid #1e3a5c" }}>
-              {["📄 PDF çıktısı", "✓ Onay linki", "🔔 Otomatik hatırlatma", "👤 Müşteri portalı", "💳 Tahsilat takibi", "🏷️ Etiket & özel alan", "✉️ Müşteriye otomatik e-posta", "📥 Size de anlık bildirim", "📣 E-posta ile kampanya gönderimi"].map((f) => (
+              {["📄 PDF çıktısı", "✓ Onay linki", "🔔 Otomatik hatırlatma", "👤 Müşteri portalı", "📅 Müşteri kendi randevusunu alır", "🧘 Grup dersine kendi kaydolur", "💳 Tahsilat takibi", "🏷️ Etiket & özel alan", "✉️ Müşteriye otomatik e-posta", "📥 Size de anlık bildirim", "📣 E-posta ile kampanya gönderimi"].map((f) => (
                 <span key={f} style={{ fontSize: 10.5, fontWeight: 600, color: "#7fb3e8", background: "#123457", padding: "4px 10px", borderRadius: 20 }}>{f}</span>
               ))}
             </div>
@@ -2911,8 +2922,8 @@ function LandingPage() {
               id: "musteri-portali",
               icon: "ti-users-group",
               title: "Müşteri Bilgi Sistemi",
-              desc: "Müşterileriniz kendi hesaplarıyla giriş yapıp destek taleplerini açabilir, sizinle mesajlaşabilir ve teklif/randevu/üyelik kayıtlarının durumunu görebilir — telefon trafiğinizi azaltır.",
-              tags: ["Müşteri Portalı", "Kendi Talebini Takip"],
+              desc: "Müşterileriniz kendi hesaplarıyla giriş yapıp destek taleplerini açabilir, sizinle mesajlaşabilir ve teklif/randevu/üyelik kayıtlarının durumunu görebilir. Güzellik salonu veya klinikseniz müşteri, sizin tanımladığınız müsaitlik saatlerinden kendi randevusunu alıp gerekirse iptal edebilir; spor merkeziyseniz üyeleriniz grup derslerinize kendi kaydolup çıkabilir — siz her yeni işlemde anında bildirim alırsınız. Telefon trafiğinizi azaltır.",
+              tags: ["Müşteri Portalı", "Kendi Randevusunu Alır", "Grup Dersi Kaydı", "Kendi Talebini Takip"],
             },
             {
               id: "raporlama",
@@ -3326,6 +3337,20 @@ export default function App() {
       setTeamMembers((data || []).map((m) => ({ id: m.member_id, email: m.email, name: m.name || null, canEditSettings: m.can_edit_settings || false })));
     });
   }, [activeTeamId]);
+
+  // Push bildirimi tıklanınca gelen ?tab= derin bağlantısı (randevu bildirimleri
+  // gibi veri yüklenmesini beklemesi gerekmeyen durumlar için) — sayfa açılır
+  // açılmaz bir kere işlenir, sonra URL'den temizlenir.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get("tab");
+    if (!tabParam) return;
+    setTab(tabParam);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("tab");
+    window.history.replaceState({}, "", url);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Push bildirimi tıklanınca gelen ?ticket= derin bağlantısı — talepler yüklendikten
   // sonra bir kere işlenir, sonra URL'den temizlenir.
@@ -4022,6 +4047,7 @@ export default function App() {
       { name: "company_expenses", setter: setCompanyExpenses, map: rowToCompanyExpense, label: (r) => r.title },
       { name: "tickets", setter: setTickets, map: rowToTicket, label: (r) => r.subject },
       { name: "kb_articles", setter: setKbArticles, map: rowToKbArticle, label: (r) => r.title },
+      { name: "group_classes", setter: setGroupClasses, map: rowToGroupClass, label: (r) => r.name },
     ];
     let anyError = null;
     for (const t of tables) {
