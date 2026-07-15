@@ -1433,7 +1433,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
           <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Fiyat (TL)</label>
           <input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" style={{ width: "100%", fontSize: 13 }} />
         </div>
-        <button type="submit" style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", fontSize: 13 }}>
+        <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
           {editingItem ? "Güncelle" : "+ Ekle"}
         </button>
         {editingItem && (
@@ -1698,6 +1698,9 @@ function BusinessHoursManager({ items, onAdd, onDelete }) {
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("18:00");
   const [slotDurationMinutes, setSlotDurationMinutes] = useState(30);
+  const [hasBreak, setHasBreak] = useState(false);
+  const [breakStart, setBreakStart] = useState("12:00");
+  const [breakEnd, setBreakEnd] = useState("13:00");
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   const sorted = [...items].sort((a, b) => a.weekday - b.weekday || a.startTime.localeCompare(b.startTime));
@@ -1705,14 +1708,20 @@ function BusinessHoursManager({ items, onAdd, onDelete }) {
   const submit = (e) => {
     e.preventDefault();
     if (!startTime || !endTime || endTime <= startTime || !slotDurationMinutes) return;
-    onAdd({ weekday: Number(weekday), startTime, endTime, slotDurationMinutes: Number(slotDurationMinutes) });
+    if (hasBreak) {
+      if (!breakStart || !breakEnd || breakStart <= startTime || breakEnd >= endTime || breakEnd <= breakStart) return;
+      onAdd({ weekday: Number(weekday), startTime, endTime: breakStart, slotDurationMinutes: Number(slotDurationMinutes) });
+      onAdd({ weekday: Number(weekday), startTime: breakEnd, endTime, slotDurationMinutes: Number(slotDurationMinutes) });
+    } else {
+      onAdd({ weekday: Number(weekday), startTime, endTime, slotDurationMinutes: Number(slotDurationMinutes) });
+    }
   };
 
   return (
     <div>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px", display: "flex", alignItems: "center", gap: 4 }}>
         Müşterilerinizin portaldan randevu alabileceği çalışma saatleriniz
-        <InfoTip text="Burada tanımladığınız gün/saat pencereleri, belirlediğiniz süre aralıklarla bölünüp müşteri portalında müsait randevu saatleri olarak gösterilir. Öğle arası olan bir gün için aynı güne iki ayrı satır (örn. 09:00-12:00 ve 13:00-18:00) ekleyebilirsiniz." />
+        <InfoTip text={'Burada tanımladığınız gün/saat pencereleri, belirlediğiniz süre aralıklarla bölünüp müşteri portalında müsait randevu saatleri olarak gösterilir. Öğle arası varsa "Öğle arası var" kutusunu işaretleyip ara saatlerini girin — sistem günü otomatik olarak iki parçaya böler.'} />
       </p>
 
       {sorted.length === 0 ? (
@@ -1749,6 +1758,24 @@ function BusinessHoursManager({ items, onAdd, onDelete }) {
         <div style={{ width: 110 }}>
           <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Slot süresi (dk)</label>
           <input type="number" min="5" step="5" value={slotDurationMinutes} onChange={(e) => setSlotDurationMinutes(e.target.value)} style={{ fontSize: 13, width: "100%" }} />
+        </div>
+        <div style={{ width: "100%", display: "flex", gap: 6, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-secondary)", marginBottom: 8 }}>
+            <input type="checkbox" checked={hasBreak} onChange={(e) => setHasBreak(e.target.checked)} />
+            Öğle arası var
+          </label>
+          {hasBreak && (
+            <>
+              <div style={{ width: 100 }}>
+                <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ara başlangıç</label>
+                <input type="time" value={breakStart} onChange={(e) => setBreakStart(e.target.value)} style={{ fontSize: 13, width: "100%" }} />
+              </div>
+              <div style={{ width: 100 }}>
+                <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ara bitiş</label>
+                <input type="time" value={breakEnd} onChange={(e) => setBreakEnd(e.target.value)} style={{ fontSize: 13, width: "100%" }} />
+              </div>
+            </>
+          )}
         </div>
         <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>+ Ekle</button>
       </form>

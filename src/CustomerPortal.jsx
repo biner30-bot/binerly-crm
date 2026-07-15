@@ -414,18 +414,23 @@ function AppointmentBookingModal({ customerRow, onBook, onClose }) {
   const [date, setDate] = useState(todayStr);
   const [slots, setSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [slotsError, setSlotsError] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [note, setNote] = useState("");
   const [booking, setBooking] = useState(false);
 
   useEffect(() => {
-    if (!date) return;
+    if (!date || !customerRow.userId) { setSlotsError("İşletme bilgisi eksik, müsaitlik sorgulanamadı."); return; }
     setLoadingSlots(true);
+    setSlotsError("");
     setSelectedTime("");
     fetch(`/api/appointment-availability?businessUserId=${customerRow.userId}&date=${date}`)
-      .then((r) => r.json())
-      .then((data) => setSlots(data.slots || []))
-      .catch(() => setSlots([]))
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data?.error || "Müsaitlik alınamadı.");
+        setSlots(data.slots || []);
+      })
+      .catch((err) => { setSlots([]); setSlotsError(err.message || "Müsaitlik alınamadı."); })
       .finally(() => setLoadingSlots(false));
   }, [date, customerRow.userId]);
 
@@ -447,6 +452,8 @@ function AppointmentBookingModal({ customerRow, onBook, onClose }) {
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Saat</label>
         {loadingSlots ? (
           <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Yükleniyor…</p>
+        ) : slotsError ? (
+          <p style={{ fontSize: 13, color: "var(--text-danger)" }}>{slotsError}</p>
         ) : slots.length === 0 ? (
           <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Bu tarihte müsait saat yok.</p>
         ) : (

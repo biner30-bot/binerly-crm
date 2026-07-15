@@ -50,9 +50,18 @@ export default async function handler(req, res) {
       .map((dt) => dt.slice(11, 16))
   );
 
-  const nowTurkey = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Istanbul" }));
-  const isToday = date === nowTurkey.toISOString().slice(0, 10);
-  const nowMinutes = nowTurkey.getHours() * 60 + nowTurkey.getMinutes();
+  // Sunucunun kendi çalışma saat dilimine güvenmeyen, doğrudan Europe/Istanbul
+  // için "şu an"ın takvim günü ve saatini veren bir yöntem — new Date(...) ile
+  // dolaylı çeviri yapan önceki yöntem, çalışma ortamına göre yanlış sonuç
+  // verebiliyordu.
+  const nowParts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Istanbul",
+      year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
+    }).formatToParts(new Date()).map((p) => [p.type, p.value])
+  );
+  const isToday = date === `${nowParts.year}-${nowParts.month}-${nowParts.day}`;
+  const nowMinutes = (Number(nowParts.hour) % 24) * 60 + Number(nowParts.minute);
 
   const slots = [];
   for (const window of hours || []) {
