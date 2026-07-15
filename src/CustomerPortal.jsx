@@ -83,6 +83,10 @@ function rowToGroupClassEnrollment(r) {
   return { id: r.id, groupClassId: r.group_class_id, customerId: r.customer_id };
 }
 
+function rowToPriceListItem(r) {
+  return { id: r.id, userId: r.user_id, name: r.name, price: r.price };
+}
+
 function formatDateTime(dateStr) {
   const d = new Date(dateStr);
   return d.toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" }) +
@@ -408,7 +412,7 @@ function PortalGroupClasses({ groupClasses, groupClassEnrollments, customerRows,
   );
 }
 
-function AppointmentBookingModal({ customerRow, onBook, onClose }) {
+function AppointmentBookingModal({ customerRow, priceListItems, onBook, onClose }) {
   const todayStr = new Date().toISOString().slice(0, 10);
   const maxDateStr = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const [date, setDate] = useState(todayStr);
@@ -417,6 +421,7 @@ function AppointmentBookingModal({ customerRow, onBook, onClose }) {
   const [slotsError, setSlotsError] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [note, setNote] = useState("");
+  const [value, setValue] = useState("");
   const [booking, setBooking] = useState(false);
 
   useEffect(() => {
@@ -435,9 +440,9 @@ function AppointmentBookingModal({ customerRow, onBook, onClose }) {
   }, [date, customerRow.userId]);
 
   const confirm = async () => {
-    if (!selectedTime) return;
+    if (!selectedTime || !note.trim()) return;
     setBooking(true);
-    const ok = await onBook({ customerId: customerRow.id, businessUserId: customerRow.userId, dateTime: `${date}T${selectedTime}:00`, note });
+    const ok = await onBook({ customerId: customerRow.id, businessUserId: customerRow.userId, dateTime: `${date}T${selectedTime}:00`, note, value: Number(value) || 0 });
     setBooking(false);
     if (ok) onClose();
   };
@@ -475,15 +480,33 @@ function AppointmentBookingModal({ customerRow, onBook, onClose }) {
           </div>
         )}
       </div>
+      {priceListItems && priceListItems.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Hizmet</label>
+          <select
+            value=""
+            onChange={(e) => {
+              const item = priceListItems.find((p) => p.id === e.target.value);
+              if (item) { setNote(item.name); setValue(String(item.price)); }
+            }}
+            style={{ width: "100%" }}
+          >
+            <option value="">Elle gir / listeden seç</option>
+            {priceListItems.map((p) => (
+              <option key={p.id} value={p.id}>{p.name} — {formatTL(p.price)}</option>
+            ))}
+          </select>
+        </div>
+      )}
       <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Not <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span></label>
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ne için randevu almak istiyorsunuz?" style={{ width: "100%" }} />
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ne için randevu almak istiyorsunuz?</label>
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Örn. Saç kesimi, kontrol muayenesi..." style={{ width: "100%" }} />
       </div>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button type="button" onClick={onClose}>Vazgeç</button>
         <button
           type="button"
-          disabled={!selectedTime || booking}
+          disabled={!selectedTime || !note.trim() || booking}
           onClick={confirm}
           style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
         >
@@ -633,6 +656,7 @@ export default function CustomerPortal() {
   const [customerRows, setCustomerRows] = useState([]);
   const [groupClasses, setGroupClasses] = useState([]);
   const [groupClassEnrollments, setGroupClassEnrollments] = useState([]);
+  const [priceListItems, setPriceListItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNewTicketForm, setShowNewTicketForm] = useState(false);
   const [bookingFor, setBookingFor] = useState(null);
@@ -689,7 +713,7 @@ export default function CustomerPortal() {
   useEffect(() => {
     if (!session) {
       setTickets([]); setTicketMessages([]); setDeals([]); setCustomerRows([]);
-      setGroupClasses([]); setGroupClassEnrollments([]);
+      setGroupClasses([]); setGroupClassEnrollments([]); setPriceListItems([]);
       setLoading(false);
       return;
     }
@@ -716,21 +740,23 @@ export default function CustomerPortal() {
 
       if (customerIds.length === 0) {
         setTickets([]); setTicketMessages([]); setDeals([]);
-        setGroupClasses([]); setGroupClassEnrollments([]);
+        setGroupClasses([]); setGroupClassEnrollments([]); setPriceListItems([]);
         setLoading(false);
         return;
       }
 
       const businessUserIds = [...new Set(rows.map((r) => r.userId))];
 
-      const [{ data: t }, { data: d }, { data: gce }, { data: gc }] = await Promise.all([
+      const [{ data: t }, { data: d }, { data: gce }, { data: gc }, { data: pli }] = await Promise.all([
         supabase.from("tickets").select("*").is("deleted_at", null).in("customer_id", customerIds).order("created_at"),
         supabase.from("customer_deal_view").select("*").order("created_at"),
         supabase.from("group_class_enrollments").select("*").in("customer_id", customerIds),
         supabase.from("group_classes").select("*").is("deleted_at", null).in("user_id", businessUserIds).order("weekday").order("start_time"),
+        supabase.from("price_list_items").select("*").in("user_id", businessUserIds).order("name"),
       ]);
       setGroupClassEnrollments((gce || []).map(rowToGroupClassEnrollment));
       setGroupClasses((gc || []).map(rowToGroupClass));
+      setPriceListItems((pli || []).map(rowToPriceListItem));
       const ticketIds = (t || []).map((row) => row.id);
       const { data: tm } = ticketIds.length
         ? await supabase.from("ticket_messages").select("*").in("ticket_id", ticketIds).order("created_at")
@@ -798,10 +824,10 @@ export default function CustomerPortal() {
     notify("Kaydınız iptal edildi.", "success");
   };
 
-  const bookAppointment = async ({ customerId, businessUserId, dateTime, note }) => {
+  const bookAppointment = async ({ customerId, businessUserId, dateTime, note, value }) => {
     const row = {
       id: uid(), user_id: businessUserId, customer_id: customerId,
-      title: (note || "").trim() || "Randevu talebi", value: 0, stage: "ilk_gorusme",
+      title: (note || "").trim() || "Randevu talebi", value: Number(value) || 0, stage: "ilk_gorusme",
       custom_fields: { randevu_tarihi: dateTime },
     };
     const { data, error } = await supabase.from("deals").insert(row).select().single();
@@ -1080,6 +1106,7 @@ export default function CustomerPortal() {
       {bookingFor && (
         <AppointmentBookingModal
           customerRow={bookingFor}
+          priceListItems={priceListItems.filter((p) => p.userId === bookingFor.userId)}
           onBook={bookAppointment}
           onClose={() => setBookingFor(null)}
         />
