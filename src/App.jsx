@@ -4460,6 +4460,12 @@ export default function App() {
   const dueReminderDeals = deals.filter(
     (d) => d.reminder && d.reminderDate && d.stage !== "kazanildi" && d.stage !== "kaybedildi" && new Date(d.reminderDate) <= todayEnd
   );
+  // Müşteri portalından kendi kendine alınan, henüz KOBİ tarafından hiç
+  // dokunulmamış (hâlâ "ilk_gorusme" aşamasında) randevu talepleri — gözden
+  // kaçmasınlar diye "Bugün ne yapmalıyım" widget'ında en üstte gösterilir.
+  const newPortalAppointments = deals.filter(
+    (d) => d.customFields?.kaynak === "portal" && d.stage === "ilk_gorusme"
+  );
   const urgentTickets = tickets.filter((t) => {
     if (TERMINAL_STATUSES.includes(t.status)) return false;
     const s = getSlaStatus(t);
@@ -4658,10 +4664,24 @@ export default function App() {
         <div>
           <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", marginBottom: "1.5rem" }}>
             <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 10px" }}>Bugün ne yapmalıyım</p>
-            {dueReminderDeals.length === 0 && urgentTickets.length === 0 ? (
+            {dueReminderDeals.length === 0 && urgentTickets.length === 0 && newPortalAppointments.length === 0 ? (
               <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>Bugün için acil bir şey yok.</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
+                {newPortalAppointments.map((d) => {
+                  const c = customerById(d.customerId);
+                  return (
+                    <div
+                      key={`portal-${d.id}`}
+                      onClick={() => { setTab("firsat"); setEditingDeal(d); setShowDealForm(true); }}
+                      style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", padding: "4px 0" }}
+                    >
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--fill-accent)", flexShrink: 0 }} />
+                      <span style={{ flex: 1 }}>{c?.name || "Bilinmeyen müşteri"} — {d.title}</span>
+                      <Badge tone="accent">Portaldan alındı</Badge>
+                    </div>
+                  );
+                })}
                 {urgentTickets
                   .slice()
                   .sort((a, b) => (getSlaStatus(a).isBreached === getSlaStatus(b).isBreached ? 0 : getSlaStatus(a).isBreached ? -1 : 1))
