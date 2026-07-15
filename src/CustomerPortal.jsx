@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { Badge, Modal, Toast, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, WEEKDAYS, nextWeeklyOccurrence } from "./shared";
-import { stageLabel, dealWordKind, isAppointmentSector, supportExamples } from "./Sectors";
+import { stageLabel, dealWordKind, isAppointmentSector, supportExamples, SECTOR_PRESETS } from "./Sectors";
 
 const PORTAL_DEAL_WORDS = {
   teklif: { emptyList: "Henüz bir teklifiniz yok.", possAcc: "tekliflerinizi", tabLabel: "Tekliflerim" },
@@ -669,6 +669,7 @@ export default function CustomerPortal() {
   const [ticketMessages, setTicketMessages] = useState([]);
   const [deals, setDeals] = useState([]);
   const [customerRows, setCustomerRows] = useState([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState(() => localStorage.getItem("binerly_portal_company") || null);
   const [groupClasses, setGroupClasses] = useState([]);
   const [groupClassEnrollments, setGroupClassEnrollments] = useState([]);
   const [priceListItems, setPriceListItems] = useState([]);
@@ -724,6 +725,30 @@ export default function CustomerPortal() {
     url.searchParams.delete("ticket");
     window.history.replaceState({}, "", url);
   }, [tickets]);
+
+  // Tek firmaya bağlı müşteriler hiçbir seçim ekranı görmeden doğrudan portale
+  // düşer — otomatik seçim sadece bağlı firma sayısı 1 olduğunda tetiklenir.
+  useEffect(() => {
+    if (customerRows.length === 1 && !customerRows.some((r) => r.id === selectedCompanyId)) {
+      setSelectedCompanyId(customerRows[0].id);
+    }
+  }, [customerRows]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (selectedCompanyId) localStorage.setItem("binerly_portal_company", selectedCompanyId);
+    else localStorage.removeItem("binerly_portal_company");
+  }, [selectedCompanyId]);
+
+  // Firma değişince önceki firmada açık kalmış olabilecek sekme/modal durumu
+  // yeni firmada anlamsız olabilir (örn. sadece eski firmada var olan "dersler"
+  // sekmesi) — bu yüzden temiz bir başlangıç yapılır.
+  useEffect(() => {
+    setPortalTab("talepler");
+    setBookingFor(null);
+    setViewingTicket(null);
+    setShowNewTicketForm(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCompanyId]);
 
   useEffect(() => {
     if (!session) {
@@ -947,33 +972,31 @@ export default function CustomerPortal() {
   const currentTicket = viewingTicket ? tickets.find((t) => t.id === viewingTicket.id) || viewingTicket : null;
   const currentMessages = currentTicket ? ticketMessages.filter((m) => m.ticketId === currentTicket.id) : [];
 
+  // Birden fazla firmaya bağlıysa (aynı e-posta ile), müşteri önce hangi firmayla
+  // işlem yapmak istediğini seçer — sonrasında tüm ekran (sekmeler, randevu/ders
+  // alanları) SADECE o firmaya göre şekillenir, farklı firmaların verisi asla
+  // karışmaz. Tek firmaya bağlıysa activeCustomerRow otomatik seçilir (yukarıdaki
+  // useEffect), müşteri hiçbir seçim ekranı görmez.
+  const activeCustomerRow = customerRows.find((r) => r.id === selectedCompanyId) || null;
+  const showCompanyPicker = customerRows.length > 1 && !activeCustomerRow;
+
+  const visibleCustomerRows = activeCustomerRow ? [activeCustomerRow] : [];
+  const visibleTickets = activeCustomerRow ? tickets.filter((t) => t.customerId === activeCustomerRow.id) : [];
+  const visibleDeals = activeCustomerRow ? deals.filter((d) => d.customerId === activeCustomerRow.id) : [];
+  const visibleGroupClasses = activeCustomerRow ? groupClasses.filter((g) => g.userId === activeCustomerRow.userId) : [];
+
   const unreadCountByTicket = ticketMessages.reduce((acc, m) => {
     if (m.direction === "giden" && !m.readAt) acc[m.ticketId] = (acc[m.ticketId] || 0) + 1;
     return acc;
   }, {});
 
-  // Birden fazla firmaya bağlıysa (aynı e-posta ile) talep/teklif listelerinde
-  // hangisinin hangi firmaya ait olduğu görünsün diye.
-  const companyNameByCustomerId = Object.fromEntries(customerRows.map((c) => [c.id, c.companyName || c.name]));
-  const sectorByCustomerId = Object.fromEntries(customerRows.map((c) => [c.id, c.companySector]));
-  const showCompanyLabel = customerRows.length > 1;
-  const totalUnreadTickets = Object.keys(unreadCountByTicket).length;
+  const companyNameByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companyName || c.name]));
+  const sectorByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companySector]));
+  const totalUnreadTickets = visibleTickets.filter((t) => unreadCountByTicket[t.id] > 0).length;
 
-  // "Tekliflerim" mi "Randevularım" mı diyeceğimize, kayıtların çoğunluğu hangi
-  // firmaya aitse onun sektörüne göre karar veriyoruz — karışık/bilinmiyorsa
-  // varsayılan "teklif" dili kalır.
-  const dealCountBySector = {};
-  for (const d of deals) {
-    const s = sectorByCustomerId[d.customerId];
-    dealCountBySector[s] = (dealCountBySector[s] || 0) + 1;
-  }
-  let primarySector = null, primarySectorCount = 0;
-  for (const [s, count] of Object.entries(dealCountBySector)) {
-    if (count > primarySectorCount) { primarySectorCount = count; primarySector = s; }
-  }
-  const dealKind = dealWordKind(primarySector);
-  const appointmentCompanies = customerRows.filter((r) => isAppointmentSector(r.companySector));
-  const showDersler = groupClasses.length > 0;
+  const dealKind = dealWordKind(activeCustomerRow?.companySector);
+  const appointmentCompanies = activeCustomerRow && isAppointmentSector(activeCustomerRow.companySector) ? [activeCustomerRow] : [];
+  const showDersler = activeCustomerRow?.companySector === "spor_merkezi" && visibleGroupClasses.length > 0;
 
   return (
     <div style={{ maxWidth: 980, margin: "0 auto", padding: "24px 16px 64px" }}>
@@ -985,20 +1008,65 @@ export default function CustomerPortal() {
           </div>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>Taleplerinizi ve {PORTAL_DEAL_WORDS[dealKind].possAcc} buradan takip edin</p>
         </div>
-        <button
-          onClick={() => supabase.auth.signOut()}
-          style={{ fontSize: 12, color: "var(--text-secondary)", background: "none", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 4 }}
-          title="Çıkış yap"
-        >
-          <i className="ti ti-logout" style={{ fontSize: 14 }} aria-hidden="true"></i>
-          Çıkış
-        </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {customerRows.length > 1 && activeCustomerRow && (
+            <button
+              onClick={() => setSelectedCompanyId(null)}
+              style={{ fontSize: 12, color: "var(--text-secondary)", background: "none", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 4 }}
+              title="Başka bir işletme seç"
+            >
+              <i className="ti ti-building-store" style={{ fontSize: 14 }} aria-hidden="true"></i>
+              İşletme değiştir
+            </button>
+          )}
+          <button
+            onClick={() => supabase.auth.signOut()}
+            style={{ fontSize: 12, color: "var(--text-secondary)", background: "none", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 4 }}
+            title="Çıkış yap"
+          >
+            <i className="ti ti-logout" style={{ fontSize: 14 }} aria-hidden="true"></i>
+            Çıkış
+          </button>
+        </div>
       </div>
 
       {customerRows.length === 0 ? (
         <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
           Hesabınız henüz bir firmayla eşleşmedi. Kayıt olurken kullandığınız e-postanın, ilgili firmanın sisteminde kayıtlı e-posta ile aynı olduğundan emin olun.
         </p>
+      ) : customerRows.length === 1 && !activeCustomerRow ? (
+        // Tek firmaya bağlı müşteri için otomatik seçim efekti henüz işlenmeden
+        // önceki tek karelik an — boş sekme yerine kısa bir yükleniyor gösterilir.
+        <div style={{ textAlign: "center", color: "var(--text-secondary)", padding: "2rem 0" }}>Yükleniyor…</div>
+      ) : showCompanyPicker ? (
+        <div>
+          <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px" }}>
+            Birden fazla işletmeyle bağlantılısınız — hangisiyle işlem yapmak istiyorsunuz?
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {customerRows.map((row) => {
+              const preset = SECTOR_PRESETS.find((s) => s.id === row.companySector);
+              return (
+                <button
+                  key={row.id}
+                  onClick={() => setSelectedCompanyId(row.id)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 12, textAlign: "left",
+                    background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)",
+                    padding: "0.9rem 1rem", fontSize: 14, color: "var(--text-primary)",
+                  }}
+                >
+                  <i className={`ti ${preset?.icon || "ti-building-store"}`} style={{ fontSize: 20, color: "var(--fill-accent)", flex: "none" }} aria-hidden="true"></i>
+                  <span style={{ flex: 1 }}>
+                    <span style={{ display: "block", fontWeight: 600 }}>{row.companyName || row.name}</span>
+                    {preset && <span style={{ display: "block", fontSize: 12, color: "var(--text-secondary)" }}>{preset.label}</span>}
+                  </span>
+                  <i className="ti ti-chevron-right" style={{ fontSize: 16, color: "var(--text-muted)" }} aria-hidden="true"></i>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       ) : (
         <>
           <div style={{ display: "flex", gap: 8, marginBottom: "1.5rem" }}>
@@ -1051,11 +1119,11 @@ export default function CustomerPortal() {
                 </button>
               </div>
               <PortalTicketList
-                tickets={tickets}
+                tickets={visibleTickets}
                 unreadCountByTicket={unreadCountByTicket}
                 onOpenTicket={setViewingTicket}
                 companyNameByCustomerId={companyNameByCustomerId}
-                showCompany={showCompanyLabel}
+                showCompany={false}
               />
             </div>
           )}
@@ -1076,16 +1144,16 @@ export default function CustomerPortal() {
                   ))}
                 </div>
               )}
-              <PortalDealList deals={deals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} showCompany={showCompanyLabel} dealKind={dealKind} onCancelAppointment={cancelAppointment} />
+              <PortalDealList deals={visibleDeals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} showCompany={false} dealKind={dealKind} onCancelAppointment={cancelAppointment} />
             </div>
           )}
 
           {portalTab === "dersler" && (
             <PortalGroupClasses
-              groupClasses={groupClasses}
+              groupClasses={visibleGroupClasses}
               groupClassEnrollments={groupClassEnrollments}
-              customerRows={customerRows}
-              showCompany={showCompanyLabel}
+              customerRows={visibleCustomerRows}
+              showCompany={false}
               hasActiveMembership={hasActiveMembership}
               onEnroll={enrollInClass}
               onCancel={cancelEnrollment}
@@ -1108,7 +1176,7 @@ export default function CustomerPortal() {
 
       {showNewTicketForm && (
         <Modal title="Yeni destek talebi" onClose={() => setShowNewTicketForm(false)}>
-          <PortalNewTicketForm customerRows={customerRows} onSave={createTicket} onCancel={() => setShowNewTicketForm(false)} />
+          <PortalNewTicketForm customerRows={visibleCustomerRows} onSave={createTicket} onCancel={() => setShowNewTicketForm(false)} />
         </Modal>
       )}
 
