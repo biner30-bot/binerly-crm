@@ -556,3 +556,120 @@ export function ConfirmDialog({ title = "Emin misiniz?", message, confirmLabel =
     </Modal>
   );
 }
+
+// KOBİ paneli ve müşteri portalı ortak uygulama-içi bildirim zili — push
+// bildirimlerinden bağımsız (api/send-push.js aynı olayda hem push gönderir
+// hem burada okunan notifications satırını yazar), böylece push izni
+// verilmemiş/farklı cihazdaki kullanıcı da olayı kaçırmaz.
+export function NotificationBell({ userId, supabase }) {
+  const [open, setOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const containerRef = useRef(null);
+
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("notifications")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(30);
+    setNotifications(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (userId) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  const unreadCount = notifications.filter((n) => !n.read_at).length;
+
+  const openBell = () => {
+    setOpen((prev) => !prev);
+    if (!open) load();
+  };
+
+  const openNotification = async (n) => {
+    if (!n.read_at) {
+      await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", n.id);
+    }
+    if (n.url) window.location.assign(n.url);
+    else setOpen(false);
+  };
+
+  const markAllRead = async () => {
+    const unreadIds = notifications.filter((n) => !n.read_at).map((n) => n.id);
+    if (unreadIds.length === 0) return;
+    await supabase.from("notifications").update({ read_at: new Date().toISOString() }).in("id", unreadIds);
+    setNotifications((prev) => prev.map((n) => (unreadIds.includes(n.id) ? { ...n, read_at: new Date().toISOString() } : n)));
+  };
+
+  return (
+    <div ref={containerRef} style={{ position: "relative" }}>
+      <div style={{ position: "relative" }}>
+        <IconButton icon="ti-inbox" onClick={openBell} title="Bildirimler" active={open} />
+        {unreadCount > 0 && (
+          <span
+            style={{
+              position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, borderRadius: 8,
+              background: "var(--text-danger)", color: "var(--on-accent)", fontSize: 10, fontWeight: 700,
+              display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", pointerEvents: "none",
+            }}
+          >
+            {unreadCount}
+          </span>
+        )}
+      </div>
+
+      {open && (
+        <div
+          style={{
+            position: "absolute", top: "calc(100% + 6px)", right: 0, width: 320, maxHeight: 400, overflowY: "auto",
+            background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.15)", zIndex: 50,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", borderBottom: "0.5px solid var(--border)" }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>Bildirimler</span>
+            {unreadCount > 0 && (
+              <button type="button" onClick={markAllRead} style={{ fontSize: 12, background: "none", border: "none", color: "var(--text-accent)" }}>
+                Tümünü okundu işaretle
+              </button>
+            )}
+          </div>
+          {loading ? (
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", padding: 16, margin: 0 }}>Yükleniyor…</p>
+          ) : notifications.length === 0 ? (
+            <p style={{ fontSize: 13, color: "var(--text-muted)", padding: 16, margin: 0 }}>Henüz bildiriminiz yok.</p>
+          ) : (
+            notifications.map((n) => (
+              <div
+                key={n.id}
+                onClick={() => openNotification(n)}
+                style={{
+                  padding: "10px 12px", cursor: "pointer", borderBottom: "0.5px solid var(--border)",
+                  background: n.read_at ? "transparent" : "var(--bg-accent)",
+                }}
+              >
+                <p style={{ margin: 0, fontSize: 13, fontWeight: n.read_at ? 500 : 700 }}>{n.title}</p>
+                {n.body && <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>{n.body}</p>}
+                <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--text-muted)" }}>{daysAgo(n.created_at)}</p>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

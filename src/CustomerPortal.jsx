@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, Toast, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, WEEKDAYS, nextWeeklyOccurrence } from "./shared";
+import { Badge, Modal, Toast, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, WEEKDAYS, nextWeeklyOccurrence, NotificationBell } from "./shared";
 import { stageLabel, dealWordKind, isAppointmentSector, supportExamples, SECTOR_PRESETS } from "./Sectors";
 
 const PORTAL_DEAL_WORDS = {
@@ -1009,6 +1009,7 @@ export default function CustomerPortal() {
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>Taleplerinizi ve {PORTAL_DEAL_WORDS[dealKind].possAcc} buradan takip edin</p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <NotificationBell userId={session.user.id} supabase={supabase} />
           {customerRows.length > 1 && activeCustomerRow && (
             <button
               onClick={() => setSelectedCompanyId(null)}

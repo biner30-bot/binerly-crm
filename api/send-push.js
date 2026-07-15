@@ -136,6 +136,12 @@ function ensureVapid() {
 }
 
 async function sendToRecipients(supabaseAdmin, res, recipientIds, { title, body, url }) {
+  // Uygulama içi bildirim — push izni olmasa/farklı cihazda olsa bile KOBİ/müşteri
+  // panelde görülebilsin diye, push'tan bağımsız her zaman yazılır.
+  await supabaseAdmin.from("notifications").insert(
+    recipientIds.map((userId) => ({ user_id: userId, title, body, url }))
+  );
+
   const { data: subscriptions } = await supabaseAdmin
     .from("push_subscriptions")
     .select("*")

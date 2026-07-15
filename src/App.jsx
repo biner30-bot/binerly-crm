@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, nextWeeklyOccurrence } from "./shared";
+import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, nextWeeklyOccurrence, NotificationBell } from "./shared";
 import Finance, { rowToCompanyExpense } from "./Finance";
 import { rowToChannelCredential, rowToChannelMessage } from "./Messages";
 import Support, {
@@ -1074,6 +1074,9 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
                     <span style={{ color: "var(--text-muted)" }}>
                       {" "}· {new Date(`${randevuTarihi}+03:00`).toLocaleString("tr-TR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                     </span>
+                  )}
+                  {d.customFields?.kaynak === "portal" && (
+                    <span style={{ color: "var(--text-muted)" }}> · Portaldan alındı</span>
                   )}
                 </span>
                 <span style={{ color: "var(--text-secondary)" }}>{stageLabel(d.stage, customer.customerType || "kurumsal", sector)} · {formatTL(d.value)}</span>
@@ -4540,6 +4543,7 @@ export default function App() {
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>KOBİ satış takip sistemi</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          <NotificationBell userId={session.user.id} supabase={supabase} />
           <IconButton
             icon={pushSubscribed ? "ti-bell-ringing" : "ti-bell"}
             active={pushSubscribed}
@@ -5239,6 +5243,11 @@ export default function App() {
                           >
                             <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 500 }}>{c?.name || "Bilinmeyen müşteri"}</p>
                             <p style={{ margin: "0 0 4px", fontSize: 12, color: "var(--text-secondary)" }}>{d.title}</p>
+                            {d.customFields?.kaynak === "portal" && (
+                              <div style={{ marginBottom: 4 }}>
+                                <Badge tone="accent">Portaldan alındı</Badge>
+                              </div>
+                            )}
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                               <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--text-accent)" }}>{formatTL(d.value)}</p>
                               <IconButton
@@ -5324,6 +5333,11 @@ export default function App() {
                             : ""}
                           {" "}· {d.reminder ? `Hatırlatma: ${d.reminder}` : "Hatırlatma yok"}
                         </p>
+                        {d.customFields?.kaynak === "portal" && (
+                          <div style={{ marginTop: 4 }}>
+                            <Badge tone="accent">Portaldan alındı</Badge>
+                          </div>
+                        )}
                         {!!d.sessionTotal && (
                           <div style={{ marginTop: 4 }}>
                             <Badge tone={d.sessionUsed >= d.sessionTotal ? "success" : "default"}>
