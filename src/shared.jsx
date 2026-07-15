@@ -4,6 +4,25 @@ export function uid() {
   return crypto.randomUUID();
 }
 
+export const WEEKDAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
+
+// Haftalık gün/saatten (1=Pazartesi..7=Pazar), Türkiye saatiyle (+03:00) bir
+// sonraki gerçekleşme zamanını hesaplar — hem grup dersi iptal kesme kuralı
+// hem randevu doluluk hesabında kullanılır.
+export function nextWeeklyOccurrence(weekday, startTime) {
+  const now = new Date();
+  const nowTurkey = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Istanbul" }));
+  const [h, m] = startTime.split(":").map(Number);
+  const currentIsoWeekday = nowTurkey.getDay() === 0 ? 7 : nowTurkey.getDay();
+  let daysAhead = weekday - currentIsoWeekday;
+  const candidate = new Date(nowTurkey);
+  candidate.setHours(h, m, 0, 0);
+  if (daysAhead < 0 || (daysAhead === 0 && candidate <= nowTurkey)) daysAhead += 7;
+  candidate.setDate(nowTurkey.getDate() + daysAhead);
+  const offsetMs = now.getTime() - nowTurkey.getTime();
+  return new Date(candidate.getTime() + offsetMs);
+}
+
 // Herhangi bir tarih alanını (ISO string) opsiyonel bir başlangıç/bitiş tarih
 // aralığıyla karşılaştırır — müşteri/teklif arama kutuları, çöp kutusu ve
 // geçmiş ekranı gibi birden fazla listede aynı mantıkla tekrar kullanılır.

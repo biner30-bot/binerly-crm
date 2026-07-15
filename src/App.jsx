@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange } from "./shared";
+import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS } from "./shared";
 import Finance, { rowToCompanyExpense } from "./Finance";
 import { rowToChannelCredential, rowToChannelMessage } from "./Messages";
 import Support, {
@@ -17,6 +17,7 @@ import {
   STAGES,
   SECTOR_PRESETS,
   stageLabel,
+  isAppointmentSector,
   isIndividualFocusedSector,
   dealWordKind,
   rowToCustomFieldDef,
@@ -346,6 +347,32 @@ function rowToPayment(r) {
 
 function rowToPriceListItem(r) {
   return { id: r.id, name: r.name, price: r.price };
+}
+
+function rowToGroupClass(r) {
+  return {
+    id: r.id,
+    name: r.name,
+    instructorName: r.instructor_name || "",
+    weekday: r.weekday,
+    startTime: (r.start_time || "").slice(0, 5),
+    durationMinutes: r.duration_minutes ?? 60,
+    capacity: r.capacity,
+    notes: r.notes || "",
+  };
+}
+
+function rowToGroupClassEnrollment(r) {
+  return { id: r.id, groupClassId: r.group_class_id, customerId: r.customer_id, enrolledAt: r.enrolled_at };
+}
+
+function rowToBusinessHours(r) {
+  return {
+    id: r.id, weekday: r.weekday,
+    startTime: (r.start_time || "").slice(0, 5),
+    endTime: (r.end_time || "").slice(0, 5),
+    slotDurationMinutes: r.slot_duration_minutes,
+  };
 }
 
 function rowToCompanySettings(r) {
@@ -942,10 +969,15 @@ function activityDateLabel(dateStr) {
     " · " + d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 }
 
-function CustomerDetail({ customer, deals, payments, activities, sector, customFieldDefs = [], onAddActivity, onClose }) {
+function CustomerDetail({ customer, deals, payments, activities, sector, customFieldDefs = [], groupClasses = [], groupClassEnrollments = [], onAddActivity, onClose }) {
   const [type, setType] = useState("note");
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const myClasses = groupClassEnrollments
+    .filter((e) => e.customerId === customer.id)
+    .map((e) => groupClasses.find((g) => g.id === e.groupClassId))
+    .filter(Boolean);
 
   const customerDeals = deals.filter((d) => d.customerId === customer.id);
   const wonCustomerDeals = customerDeals.filter((d) => d.stage === "kazanildi");
@@ -1013,6 +1045,18 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
                   <strong>{d.label}:</strong> {customer.customFields[d.key]}
                 </p>
               ))}
+          </div>
+        )}
+        {myClasses.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>Kayıtlı Dersler</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {myClasses.map((g) => (
+                <p key={g.id} style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
+                  {g.name} — {WEEKDAYS[g.weekday - 1]} {g.startTime}
+                </p>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -1403,6 +1447,309 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
         <ConfirmDialog
           title="Ürün/hizmeti sil"
           message={`"${confirmDelete.name}" kaldırılacak. Daha önce bu kalemle oluşturulmuş ${DEAL_WORD_FORMS[dealWordKind(sector)].plural} etkilenmez.`}
+          onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
+          onClose={() => setConfirmDelete(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function GroupClassForm({ initial, onSave, onCancel }) {
+  const [name, setName] = useState(initial?.name || "");
+  const [instructorName, setInstructorName] = useState(initial?.instructorName || "");
+  const [weekday, setWeekday] = useState(initial?.weekday || 1);
+  const [startTime, setStartTime] = useState(initial?.startTime || "18:00");
+  const [durationMinutes, setDurationMinutes] = useState(initial?.durationMinutes ?? 60);
+  const [capacity, setCapacity] = useState(initial?.capacity ?? 10);
+  const [notes, setNotes] = useState(initial?.notes || "");
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (!name.trim() || !capacity || Number(capacity) < 1) return;
+    onSave({
+      name: name.trim(), instructorName: instructorName.trim(), weekday: Number(weekday),
+      startTime, durationMinutes: Number(durationMinutes) || 60, capacity: Number(capacity), notes: notes.trim(),
+    });
+  };
+
+  return (
+    <form onSubmit={submit}>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ders adı</label>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Örn. Pilates" style={{ width: "100%" }} />
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Eğitmen <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span></label>
+        <input value={instructorName} onChange={(e) => setInstructorName(e.target.value)} placeholder="Örn. Ayşe Hoca" style={{ width: "100%" }} />
+      </div>
+      <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 130 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Gün</label>
+          <select value={weekday} onChange={(e) => setWeekday(e.target.value)} style={{ width: "100%" }}>
+            {WEEKDAYS.map((w, i) => <option key={w} value={i + 1}>{w}</option>)}
+          </select>
+        </div>
+        <div style={{ flex: 1, minWidth: 100 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Saat</label>
+          <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} style={{ width: "100%" }} />
+        </div>
+        <div style={{ flex: 1, minWidth: 100 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Süre (dk)</label>
+          <input type="number" min="1" value={durationMinutes} onChange={(e) => setDurationMinutes(e.target.value)} style={{ width: "100%" }} />
+        </div>
+        <div style={{ flex: 1, minWidth: 100 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kapasite</label>
+          <input type="number" min="1" value={capacity} onChange={(e) => setCapacity(e.target.value)} style={{ width: "100%" }} />
+        </div>
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Not <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span></label>
+        <input value={notes} onChange={(e) => setNotes(e.target.value)} style={{ width: "100%" }} />
+      </div>
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <button type="button" onClick={onCancel}>Vazgeç</button>
+        <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
+      </div>
+    </form>
+  );
+}
+
+function GroupClassRoster({ group, enrollments, customers, onEdit, onDelete, onEnroll, onRemove }) {
+  const [search, setSearch] = useState("");
+  const [confirmRemove, setConfirmRemove] = useState(null);
+  const enrolledIds = new Set(enrollments.map((e) => e.customerId));
+  const full = enrollments.length >= group.capacity;
+  const query = search.trim().toLowerCase();
+  const matches = query
+    ? customers
+        .filter((c) => !enrolledIds.has(c.id) && (c.name.toLowerCase().includes(query) || (c.phone || "").includes(query) || (c.email || "").toLowerCase().includes(query)))
+        .slice(0, 8)
+    : [];
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <Badge tone={full ? "danger" : "success"}>{enrollments.length}/{group.capacity} dolu</Badge>
+        <div style={{ display: "flex", gap: 4 }}>
+          <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={onEdit} />
+          <IconButton icon="ti-trash" title="Sil" size="sm" onClick={onDelete} />
+        </div>
+      </div>
+      <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 16px" }}>
+        {WEEKDAYS[group.weekday - 1]} {group.startTime}{group.instructorName ? ` · ${group.instructorName}` : ""}
+      </p>
+
+      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Kayıtlı üyeler</p>
+      {enrollments.length === 0 ? (
+        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Henüz üye yok.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+          {enrollments.map((e) => {
+            const c = customers.find((cust) => cust.id === e.customerId);
+            return (
+              <div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "6px 10px" }}>
+                <span style={{ fontSize: 13 }}>{c?.name || "Bilinmeyen müşteri"}</span>
+                <IconButton icon="ti-x" title="Dersten çıkar" size="sm" onClick={() => setConfirmRemove(e)} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {full ? (
+        <p style={{ fontSize: 12, color: "var(--text-danger)" }}>Ders dolu — yeni üye eklemek için önce birini çıkarın.</p>
+      ) : (
+        <>
+          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>+ Üye ekle</p>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Müşteri ara (ad, telefon, e-posta)" style={{ width: "100%" }} />
+          {matches.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8 }}>
+              {matches.map((c) => (
+                <div
+                  key={c.id}
+                  onClick={() => { onEnroll(c.id); setSearch(""); }}
+                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "6px 10px", cursor: "pointer" }}
+                >
+                  <span style={{ fontSize: 13 }}>{c.name}</span>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{c.phone}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {confirmRemove && (
+        <ConfirmDialog
+          title="Üyeyi dersten çıkar"
+          message={`"${customers.find((c) => c.id === confirmRemove.customerId)?.name || "Müşteri"}" bu dersten çıkarılacak. Bu geri alınamaz.`}
+          onConfirm={() => { onRemove(confirmRemove.id); setConfirmRemove(null); }}
+          onClose={() => setConfirmRemove(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function GroupClassesTab({ groupClasses, groupClassEnrollments, customers, onAdd, onUpdate, onDelete, onEnroll, onRemove }) {
+  const [showForm, setShowForm] = useState(false);
+  const [editingClass, setEditingClass] = useState(null);
+  const [rosterClass, setRosterClass] = useState(null);
+  const [confirmDeleteClass, setConfirmDeleteClass] = useState(null);
+
+  const enrollCountFor = (classId) => groupClassEnrollments.filter((e) => e.groupClassId === classId).length;
+  const rosterClassLive = rosterClass ? groupClasses.find((g) => g.id === rosterClass.id) || null : null;
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>Haftalık grup dersi programınız ve kayıtlı üyeler</p>
+        <button
+          onClick={() => { setEditingClass(null); setShowForm(true); }}
+          style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
+        >
+          <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
+          Yeni ders
+        </button>
+      </div>
+
+      {groupClasses.length === 0 ? (
+        <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Henüz ders eklenmedi.</p>
+      ) : (
+        <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
+          {WEEKDAYS.map((wLabel, i) => {
+            const wd = i + 1;
+            const dayClasses = groupClasses.filter((g) => g.weekday === wd).sort((a, b) => a.startTime.localeCompare(b.startTime));
+            return (
+              <div key={wd} style={{ minWidth: 160, flex: "none" }}>
+                <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", margin: "0 0 8px" }}>{wLabel}</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {dayClasses.map((g) => {
+                    const count = enrollCountFor(g.id);
+                    const full = count >= g.capacity;
+                    return (
+                      <div
+                        key={g.id}
+                        onClick={() => setRosterClass(g)}
+                        style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "10px 12px", cursor: "pointer", opacity: full ? 0.7 : 1 }}
+                      >
+                        <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{g.name}</p>
+                        <p style={{ margin: "2px 0 6px", fontSize: 12, color: "var(--text-secondary)" }}>
+                          {g.startTime}{g.instructorName ? ` · ${g.instructorName}` : ""}
+                        </p>
+                        <Badge tone={full ? "danger" : "success"}>{count}/{g.capacity} dolu</Badge>
+                      </div>
+                    );
+                  })}
+                  {dayClasses.length === 0 && <p style={{ fontSize: 12, color: "var(--text-muted)" }}>—</p>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showForm && (
+        <Modal title={editingClass ? "Dersi düzenle" : "Yeni ders"} onClose={() => setShowForm(false)}>
+          <GroupClassForm
+            initial={editingClass}
+            onSave={(vals) => { editingClass ? onUpdate({ id: editingClass.id, ...vals }) : onAdd(vals); setShowForm(false); }}
+            onCancel={() => setShowForm(false)}
+          />
+        </Modal>
+      )}
+
+      {rosterClassLive && (
+        <Modal title={rosterClassLive.name} onClose={() => setRosterClass(null)}>
+          <GroupClassRoster
+            group={rosterClassLive}
+            enrollments={groupClassEnrollments.filter((e) => e.groupClassId === rosterClassLive.id)}
+            customers={customers}
+            onEdit={() => { setEditingClass(rosterClassLive); setShowForm(true); setRosterClass(null); }}
+            onDelete={() => setConfirmDeleteClass(rosterClassLive)}
+            onEnroll={(customerId) => onEnroll({ groupClassId: rosterClassLive.id, customerId })}
+            onRemove={onRemove}
+          />
+        </Modal>
+      )}
+
+      {confirmDeleteClass && (
+        <ConfirmDialog
+          title="Dersi sil"
+          message={`"${confirmDeleteClass.name}" silinecek. Bu dersteki üyelerin listesi de silinir; dersi geri yüklerseniz üyeleri tekrar eklemeniz gerekir.`}
+          onConfirm={() => { onDelete(confirmDeleteClass.id); setConfirmDeleteClass(null); setRosterClass(null); }}
+          onClose={() => setConfirmDeleteClass(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function BusinessHoursManager({ items, onAdd, onDelete }) {
+  const [weekday, setWeekday] = useState(1);
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("18:00");
+  const [slotDurationMinutes, setSlotDurationMinutes] = useState(30);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const sorted = [...items].sort((a, b) => a.weekday - b.weekday || a.startTime.localeCompare(b.startTime));
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (!startTime || !endTime || endTime <= startTime || !slotDurationMinutes) return;
+    onAdd({ weekday: Number(weekday), startTime, endTime, slotDurationMinutes: Number(slotDurationMinutes) });
+  };
+
+  return (
+    <div>
+      <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px", display: "flex", alignItems: "center", gap: 4 }}>
+        Müşterilerinizin portaldan randevu alabileceği çalışma saatleriniz
+        <InfoTip text="Burada tanımladığınız gün/saat pencereleri, belirlediğiniz süre aralıklarla bölünüp müşteri portalında müsait randevu saatleri olarak gösterilir. Öğle arası olan bir gün için aynı güne iki ayrı satır (örn. 09:00-12:00 ve 13:00-18:00) ekleyebilirsiniz." />
+      </p>
+
+      {sorted.length === 0 ? (
+        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Henüz müsaitlik saati eklenmedi.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+          {sorted.map((b) => (
+            <div key={b.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "6px 10px" }}>
+              <span style={{ fontSize: 13 }}>
+                {WEEKDAYS[b.weekday - 1]} <span style={{ color: "var(--text-muted)" }}>· {b.startTime}–{b.endTime} · {b.slotDurationMinutes} dk aralıklarla</span>
+              </span>
+              <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(b)} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Yeni müsaitlik ekle</p>
+      <form onSubmit={submit} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <div style={{ minWidth: 130 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Gün</label>
+          <select value={weekday} onChange={(e) => setWeekday(e.target.value)} style={{ fontSize: 13 }}>
+            {WEEKDAYS.map((w, i) => <option key={w} value={i + 1}>{w}</option>)}
+          </select>
+        </div>
+        <div style={{ width: 100 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Başlangıç</label>
+          <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} style={{ fontSize: 13, width: "100%" }} />
+        </div>
+        <div style={{ width: 100 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Bitiş</label>
+          <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} style={{ fontSize: 13, width: "100%" }} />
+        </div>
+        <div style={{ width: 110 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Slot süresi (dk)</label>
+          <input type="number" min="5" step="5" value={slotDurationMinutes} onChange={(e) => setSlotDurationMinutes(e.target.value)} style={{ fontSize: 13, width: "100%" }} />
+        </div>
+        <button type="submit" style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", fontSize: 13 }}>+ Ekle</button>
+      </form>
+
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Müsaitliği sil"
+          message={`${WEEKDAYS[confirmDelete.weekday - 1]} ${confirmDelete.startTime}–${confirmDelete.endTime} müsaitliği kaldırılacak.`}
           onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
           onClose={() => setConfirmDelete(null)}
         />
@@ -2759,6 +3106,9 @@ export default function App() {
   const [companySettings, setCompanySettings] = useState(null);
   const [customFieldDefs, setCustomFieldDefs] = useState([]);
   const [priceListItems, setPriceListItems] = useState([]);
+  const [groupClasses, setGroupClasses] = useState([]);
+  const [groupClassEnrollments, setGroupClassEnrollments] = useState([]);
+  const [businessHours, setBusinessHours] = useState([]);
   const [showSectorOnboarding, setShowSectorOnboarding] = useState(false);
   // v1: üye sayısı kod tarafında henüz sınırlanmıyor, henüz billing yok.
   // Hedef fiyatlandırma "10 kullanıcıya kadar sabit ücret" olarak siteye
@@ -2772,6 +3122,7 @@ export default function App() {
   const [showSettingsForm, setShowSettingsForm] = useState(false);
   const [showSectorFields, setShowSectorFields] = useState(false);
   const [showPriceList, setShowPriceList] = useState(false);
+  const [showBusinessHours, setShowBusinessHours] = useState(false);
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [showAppSettings, setShowAppSettings] = useState(false);
   const [showTrashHistory, setShowTrashHistory] = useState(false);
@@ -2853,6 +3204,8 @@ export default function App() {
       setCompanySettings(null);
       setCustomFieldDefs([]);
       setPriceListItems([]);
+      setGroupClasses([]); setGroupClassEnrollments([]);
+      setBusinessHours([]);
       setActiveTeamId(undefined);
       setPendingInvites([]);
       setLoading(false);
@@ -2873,9 +3226,12 @@ export default function App() {
       supabase.from("company_settings").select("*"),
       supabase.from("custom_field_defs").select("*").order("sort_order"),
       supabase.from("price_list_items").select("*").order("name"),
+      supabase.from("group_classes").select("*").is("deleted_at", null).order("weekday").order("start_time"),
+      supabase.from("group_class_enrollments").select("*"),
+      supabase.from("business_hours").select("*").order("weekday").order("start_time"),
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: myMembership }, { data: invites }]) => {
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: bh }, { data: myMembership }, { data: invites }]) => {
       // customers/deals/company_settings RLS'i, sahiplik politikasına ek olarak
       // portal kullanıcılarının kendi bağlı oldukları kayıtları görmesine izin
       // veren bir politikayla da "veya" ile birleşiyor (customer_*_view'ların
@@ -2897,6 +3253,9 @@ export default function App() {
       setCompanySettings(ownCompanySettings ? rowToCompanySettings(ownCompanySettings) : null);
       setCustomFieldDefs((cfd || []).map(rowToCustomFieldDef));
       setPriceListItems((pli || []).filter((row) => row.user_id === ownerId).map(rowToPriceListItem));
+      setGroupClasses((gc || []).filter((row) => row.user_id === ownerId).map(rowToGroupClass));
+      setGroupClassEnrollments((gce || []).filter((row) => row.user_id === ownerId).map(rowToGroupClassEnrollment));
+      setBusinessHours((bh || []).filter((row) => row.user_id === ownerId).map(rowToBusinessHours));
       setActiveTeamId(ownerId);
       // Sadece BANA gelen davetler (kendi gönderdiklerim değil) — RLS iki SELECT
       // politikasını OR ile birleştirdiği için burada e-postaya göre ek filtre şart.
@@ -3803,6 +4162,84 @@ export default function App() {
     setPriceListItems((prev) => prev.filter((p) => p.id !== id));
   };
 
+  const addGroupClass = async ({ name, instructorName, weekday, startTime, durationMinutes, capacity, notes }) => {
+    const row = {
+      id: uid(), user_id: activeTeamId, name, instructor_name: instructorName || null,
+      weekday, start_time: startTime, duration_minutes: durationMinutes || 60, capacity, notes: notes || null,
+    };
+    const { data, error } = await supabase.from("group_classes").insert(row).select().single();
+    if (error) { notify(`Ders eklenemedi: ${error.message}`); return; }
+    setGroupClasses((prev) => [...prev, rowToGroupClass(data)]);
+    logAction("group_classes", data.id, "created", `${name} dersi oluşturuldu`);
+  };
+
+  const updateGroupClass = async ({ id, name, instructorName, weekday, startTime, durationMinutes, capacity, notes }) => {
+    const { data, error } = await supabase
+      .from("group_classes")
+      .update({ name, instructor_name: instructorName || null, weekday, start_time: startTime, duration_minutes: durationMinutes || 60, capacity, notes: notes || null })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) { notify(`Ders güncellenemedi: ${error.message}`); return; }
+    setGroupClasses((prev) => prev.map((g) => (g.id === id ? rowToGroupClass(data) : g)));
+  };
+
+  const deleteGroupClass = async (id) => {
+    const group = groupClasses.find((g) => g.id === id);
+    const now = new Date().toISOString();
+    const batchId = uid();
+    const { error } = await supabase.from("group_classes").update({ deleted_at: now, deleted_batch_id: batchId }).eq("id", id);
+    if (error) { notify(`Ders silinemedi: ${error.message}`); return; }
+    // Kayıtlar (roster) geçmiş/denetim değeri taşımayan hafif bir join olduğu
+    // için hard-delete edilir — ders geri yüklense bile üyelerin tekrar
+    // eklenmesi gerekir (silme onay metninde buna dikkat çekiliyor).
+    await supabase.from("group_class_enrollments").delete().eq("group_class_id", id);
+    setGroupClasses((prev) => prev.filter((g) => g.id !== id));
+    setGroupClassEnrollments((prev) => prev.filter((e) => e.groupClassId !== id));
+    logAction("group_classes", id, "deleted", `${group?.name || "Ders"} çöp kutusuna taşındı`);
+  };
+
+  const enrollMember = async ({ groupClassId, customerId, silent = false }) => {
+    const group = groupClasses.find((g) => g.id === groupClassId);
+    if (!group) return;
+    const currentCount = groupClassEnrollments.filter((e) => e.groupClassId === groupClassId).length;
+    if (currentCount >= group.capacity) { notify("Bu ders dolu."); return; }
+    if (groupClassEnrollments.some((e) => e.groupClassId === groupClassId && e.customerId === customerId)) { notify("Bu müşteri zaten kayıtlı."); return; }
+    const row = { id: uid(), user_id: activeTeamId, group_class_id: groupClassId, customer_id: customerId };
+    const { data, error } = await supabase.from("group_class_enrollments").insert(row).select().single();
+    if (error) { notify(`Üye eklenemedi: ${error.message}`); return; }
+    setGroupClassEnrollments((prev) => [...prev, rowToGroupClassEnrollment(data)]);
+    if (!silent) {
+      const customer = customers.find((c) => c.id === customerId);
+      if (customer) {
+        notifyCustomerByEmail(
+          customer,
+          `${group.name} dersine kaydedildiniz`,
+          `Merhaba,\n\n${companySettings?.companyName || "Binerly"} — ${group.name} dersine (${WEEKDAYS[group.weekday - 1]} ${group.startTime}) kaydınız yapıldı.`
+        );
+      }
+    }
+  };
+
+  const removeMember = async (enrollmentId) => {
+    const { error } = await supabase.from("group_class_enrollments").delete().eq("id", enrollmentId);
+    if (error) { notify(`Üye çıkarılamadı: ${error.message}`); return; }
+    setGroupClassEnrollments((prev) => prev.filter((e) => e.id !== enrollmentId));
+  };
+
+  const addBusinessHours = async ({ weekday, startTime, endTime, slotDurationMinutes }) => {
+    const row = { id: uid(), user_id: activeTeamId, weekday, start_time: startTime, end_time: endTime, slot_duration_minutes: slotDurationMinutes };
+    const { data, error } = await supabase.from("business_hours").insert(row).select().single();
+    if (error) { notify(`Müsaitlik eklenemedi: ${error.message}`); return; }
+    setBusinessHours((prev) => [...prev, rowToBusinessHours(data)]);
+  };
+
+  const deleteBusinessHours = async (id) => {
+    const { error } = await supabase.from("business_hours").delete().eq("id", id);
+    if (error) { notify(`Müsaitlik silinemedi: ${error.message}`); return; }
+    setBusinessHours((prev) => prev.filter((b) => b.id !== id));
+  };
+
   // Sektör değişince formda görünen özel alanlar da değişsin isteniyor — ama
   // müşteri/teklif kayıtlarına daha önce girilmiş değerler kaybolmasın. Bu yüzden
   // başka bir sektöre ait alanlar SİLİNMEZ, sadece "active:false" ile gizlenir
@@ -4100,6 +4537,7 @@ export default function App() {
           { id: "finans", label: "Finans", icon: "ti-chart-line" },
           { id: "mesajlar", label: "Mesajlar", icon: "ti-message-2" },
           { id: "destek", label: "Destek", icon: "ti-headset" },
+          ...(companySettings?.sector === "spor_merkezi" ? [{ id: "dersler", label: "Dersler", icon: "ti-calendar-time" }] : []),
         ].map((t) => (
           <button
             key={t.id}
@@ -4923,6 +5361,19 @@ export default function App() {
         />
       )}
 
+      {tab === "dersler" && companySettings?.sector === "spor_merkezi" && (
+        <GroupClassesTab
+          groupClasses={groupClasses}
+          groupClassEnrollments={groupClassEnrollments}
+          customers={customers}
+          onAdd={addGroupClass}
+          onUpdate={updateGroupClass}
+          onDelete={deleteGroupClass}
+          onEnroll={enrollMember}
+          onRemove={removeMember}
+        />
+      )}
+
       {showCustomerForm && (
         <Modal title={editingCustomer?.id ? "Müşteriyi düzenle" : "Yeni müşteri"} onClose={() => { setShowCustomerForm(false); setEditingCustomer(null); }}>
           <CustomerForm
@@ -4959,6 +5410,14 @@ export default function App() {
                 description={`Sabit fiyatlı ürün/hizmetlerinizi kaydedin, ${DEAL_WORD_FORMS[dealKind].pluralLoc} hızlıca seçin`}
                 onClick={() => { setShowSettingsHub(false); setShowPriceList(true); }}
               />
+              {isAppointmentSector(companySettings?.sector) && (
+                <MenuRow
+                  icon="ti-clock"
+                  label="Müsaitlik Saatleri"
+                  description="Müşteri portalından randevu alınabilecek gün/saatleri belirleyin"
+                  onClick={() => { setShowSettingsHub(false); setShowBusinessHours(true); }}
+                />
+              )}
             </>
           )}
           <MenuRow
@@ -5042,6 +5501,12 @@ export default function App() {
       {showPriceList && (
         <Modal title="Ürün & Hizmet Fiyat Listesi" onClose={() => setShowPriceList(false)}>
           <PriceListManager items={priceListItems} onAdd={addPriceListItem} onUpdate={updatePriceListItem} onDelete={deletePriceListItem} sector={companySettings?.sector} />
+        </Modal>
+      )}
+
+      {showBusinessHours && (
+        <Modal title="Müsaitlik Saatleri" onClose={() => setShowBusinessHours(false)}>
+          <BusinessHoursManager items={businessHours} onAdd={addBusinessHours} onDelete={deleteBusinessHours} />
         </Modal>
       )}
 
@@ -5233,6 +5698,8 @@ export default function App() {
           activities={activities}
           sector={companySettings?.sector}
           customFieldDefs={customFieldDefs}
+          groupClasses={groupClasses}
+          groupClassEnrollments={groupClassEnrollments}
           onAddActivity={addActivity}
           onClose={() => setViewingCustomer(null)}
         />

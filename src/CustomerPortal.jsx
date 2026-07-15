@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, Toast, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider } from "./shared";
-import { stageLabel, dealWordKind, supportExamples } from "./Sectors";
+import { Badge, Modal, Toast, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, WEEKDAYS, nextWeeklyOccurrence } from "./shared";
+import { stageLabel, dealWordKind, isAppointmentSector, supportExamples } from "./Sectors";
 
 const PORTAL_DEAL_WORDS = {
   teklif: { emptyList: "Henüz bir teklifiniz yok.", possAcc: "tekliflerinizi", tabLabel: "Tekliflerim" },
@@ -64,6 +64,22 @@ function rowToDeal(r) {
     stage: r.stage,
     createdAt: r.created_at,
   };
+}
+
+function rowToGroupClass(r) {
+  return {
+    id: r.id,
+    userId: r.user_id,
+    name: r.name,
+    instructorName: r.instructor_name || "",
+    weekday: r.weekday,
+    startTime: (r.start_time || "").slice(0, 5),
+    capacity: r.capacity,
+  };
+}
+
+function rowToGroupClassEnrollment(r) {
+  return { id: r.id, groupClassId: r.group_class_id, customerId: r.customer_id };
 }
 
 function formatDateTime(dateStr) {
@@ -318,6 +334,156 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, sh
   );
 }
 
+function PortalGroupClasses({ groupClasses, groupClassEnrollments, customerRows, showCompany, onEnroll, onCancel }) {
+  const companyNameByUserId = Object.fromEntries(customerRows.map((c) => [c.userId, c.companyName || c.name]));
+  const myCustomerIds = new Set(customerRows.map((c) => c.id));
+  const myEnrollments = groupClassEnrollments.filter((e) => myCustomerIds.has(e.customerId));
+  const myEnrolledClassIds = new Set(myEnrollments.map((e) => e.groupClassId));
+  const enrolled = groupClasses.filter((g) => myEnrolledClassIds.has(g.id));
+  const joinable = groupClasses.filter((g) => !myEnrolledClassIds.has(g.id));
+  const countFor = (classId) => groupClassEnrollments.filter((e) => e.groupClassId === classId).length;
+
+  const rowStyle = { background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" };
+
+  return (
+    <div>
+      <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 8px" }}>Kayıtlı olduklarım</p>
+      {enrolled.length === 0 ? (
+        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20 }}>Henüz kayıtlı bir dersiniz yok.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+          {enrolled.map((g) => {
+            const myEnrollment = myEnrollments.find((e) => e.groupClassId === g.id);
+            const hoursLeft = (nextWeeklyOccurrence(g.weekday, g.startTime).getTime() - Date.now()) / 3600000;
+            const canCancel = hoursLeft >= 2;
+            return (
+              <div key={g.id} style={rowStyle}>
+                <div>
+                  <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{g.name}</p>
+                  <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
+                    {WEEKDAYS[g.weekday - 1]} {g.startTime}{g.instructorName ? ` · ${g.instructorName}` : ""}{showCompany ? ` · ${companyNameByUserId[g.userId]}` : ""}
+                  </p>
+                </div>
+                {canCancel ? (
+                  <button onClick={() => onCancel(myEnrollment.id)} style={{ fontSize: 13 }}>İptal Et</button>
+                ) : (
+                  <span style={{ fontSize: 12, color: "var(--text-muted)" }} title="Ders saatine 2 saatten az kaldığı için iptal edilemez">İptal edilemez</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 8px" }}>Katılabileceklerim</p>
+      {joinable.length === 0 ? (
+        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Katılabileceğiniz başka ders yok.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {joinable.map((g) => {
+            const count = countFor(g.id);
+            const full = count >= g.capacity;
+            const myCustomerId = customerRows.find((c) => c.userId === g.userId)?.id;
+            return (
+              <div key={g.id} style={rowStyle}>
+                <div>
+                  <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{g.name}</p>
+                  <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
+                    {WEEKDAYS[g.weekday - 1]} {g.startTime}{g.instructorName ? ` · ${g.instructorName}` : ""}{showCompany ? ` · ${companyNameByUserId[g.userId]}` : ""}
+                  </p>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Badge tone={full ? "danger" : "success"}>{count}/{g.capacity} dolu</Badge>
+                  <button disabled={full || !myCustomerId} onClick={() => onEnroll({ groupClassId: g.id, customerId: myCustomerId })} style={{ fontSize: 13 }}>Katıl</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AppointmentBookingModal({ customerRow, onBook, onClose }) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const maxDateStr = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const [date, setDate] = useState(todayStr);
+  const [slots, setSlots] = useState([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [selectedTime, setSelectedTime] = useState("");
+  const [note, setNote] = useState("");
+  const [booking, setBooking] = useState(false);
+
+  useEffect(() => {
+    if (!date) return;
+    setLoadingSlots(true);
+    setSelectedTime("");
+    fetch(`/api/appointment-availability?businessUserId=${customerRow.userId}&date=${date}`)
+      .then((r) => r.json())
+      .then((data) => setSlots(data.slots || []))
+      .catch(() => setSlots([]))
+      .finally(() => setLoadingSlots(false));
+  }, [date, customerRow.userId]);
+
+  const confirm = async () => {
+    if (!selectedTime) return;
+    setBooking(true);
+    const ok = await onBook({ customerId: customerRow.id, businessUserId: customerRow.userId, dateTime: `${date}T${selectedTime}:00`, note });
+    setBooking(false);
+    if (ok) onClose();
+  };
+
+  return (
+    <Modal title={`${customerRow.companyName || customerRow.name} — Randevu Al`} onClose={onClose}>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tarih</label>
+        <input type="date" min={todayStr} max={maxDateStr} value={date} onChange={(e) => setDate(e.target.value)} style={{ width: "100%" }} />
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Saat</label>
+        {loadingSlots ? (
+          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Yükleniyor…</p>
+        ) : slots.length === 0 ? (
+          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Bu tarihte müsait saat yok.</p>
+        ) : (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {slots.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSelectedTime(s)}
+                style={{
+                  background: selectedTime === s ? "var(--fill-accent)" : "var(--surface-1)",
+                  color: selectedTime === s ? "var(--on-accent)" : "var(--text-primary)",
+                  border: "0.5px solid var(--border)", fontSize: 13, padding: "6px 10px",
+                }}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Not <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span></label>
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ne için randevu almak istiyorsunuz?" style={{ width: "100%" }} />
+      </div>
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <button type="button" onClick={onClose}>Vazgeç</button>
+        <button
+          type="button"
+          disabled={!selectedTime || booking}
+          onClick={confirm}
+          style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+        >
+          {booking ? "Alınıyor…" : "Randevuyu Onayla"}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 function PasswordRecoveryModal({ notify, onClose }) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -455,8 +621,11 @@ export default function CustomerPortal() {
   const [ticketMessages, setTicketMessages] = useState([]);
   const [deals, setDeals] = useState([]);
   const [customerRows, setCustomerRows] = useState([]);
+  const [groupClasses, setGroupClasses] = useState([]);
+  const [groupClassEnrollments, setGroupClassEnrollments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNewTicketForm, setShowNewTicketForm] = useState(false);
+  const [bookingFor, setBookingFor] = useState(null);
   const [viewingTicket, setViewingTicket] = useState(null);
   const [toast, setToast] = useState(null);
   const [pushSubscribed, setPushSubscribed] = useState(false);
@@ -510,6 +679,7 @@ export default function CustomerPortal() {
   useEffect(() => {
     if (!session) {
       setTickets([]); setTicketMessages([]); setDeals([]); setCustomerRows([]);
+      setGroupClasses([]); setGroupClassEnrollments([]);
       setLoading(false);
       return;
     }
@@ -536,14 +706,21 @@ export default function CustomerPortal() {
 
       if (customerIds.length === 0) {
         setTickets([]); setTicketMessages([]); setDeals([]);
+        setGroupClasses([]); setGroupClassEnrollments([]);
         setLoading(false);
         return;
       }
 
-      const [{ data: t }, { data: d }] = await Promise.all([
+      const businessUserIds = [...new Set(rows.map((r) => r.userId))];
+
+      const [{ data: t }, { data: d }, { data: gce }, { data: gc }] = await Promise.all([
         supabase.from("tickets").select("*").is("deleted_at", null).in("customer_id", customerIds).order("created_at"),
         supabase.from("customer_deal_view").select("*").order("created_at"),
+        supabase.from("group_class_enrollments").select("*").in("customer_id", customerIds),
+        supabase.from("group_classes").select("*").is("deleted_at", null).in("user_id", businessUserIds).order("weekday").order("start_time"),
       ]);
+      setGroupClassEnrollments((gce || []).map(rowToGroupClassEnrollment));
+      setGroupClasses((gc || []).map(rowToGroupClass));
       const ticketIds = (t || []).map((row) => row.id);
       const { data: tm } = ticketIds.length
         ? await supabase.from("ticket_messages").select("*").in("ticket_id", ticketIds).order("created_at")
@@ -577,6 +754,43 @@ export default function CustomerPortal() {
       .select()
       .single();
     if (!msgError) setTicketMessages((prev) => [...prev, rowToTicketMessage(msgData)]);
+  };
+
+  const enrollInClass = async ({ groupClassId, customerId }) => {
+    const row = customerRows.find((c) => c.id === customerId);
+    const group = groupClasses.find((g) => g.id === groupClassId);
+    if (!row || !group) return;
+    const count = groupClassEnrollments.filter((e) => e.groupClassId === groupClassId).length;
+    if (count >= group.capacity) { notify("Bu ders dolu."); return; }
+    if (groupClassEnrollments.some((e) => e.groupClassId === groupClassId && e.customerId === customerId)) { notify("Zaten kayıtlısınız."); return; }
+    const { data, error } = await supabase
+      .from("group_class_enrollments")
+      .insert({ id: uid(), user_id: row.userId, group_class_id: groupClassId, customer_id: customerId })
+      .select()
+      .single();
+    if (error) { notify(`Derse katılamadınız: ${error.message}`); return; }
+    setGroupClassEnrollments((prev) => [...prev, rowToGroupClassEnrollment(data)]);
+    notify("Derse kaydınız yapıldı.", "success");
+  };
+
+  const cancelEnrollment = async (enrollmentId) => {
+    const { error } = await supabase.from("group_class_enrollments").delete().eq("id", enrollmentId);
+    if (error) { notify(`İptal edilemedi: ${error.message}`); return; }
+    setGroupClassEnrollments((prev) => prev.filter((e) => e.id !== enrollmentId));
+    notify("Kaydınız iptal edildi.", "success");
+  };
+
+  const bookAppointment = async ({ customerId, businessUserId, dateTime, note }) => {
+    const row = {
+      id: uid(), user_id: businessUserId, customer_id: customerId,
+      title: (note || "").trim() || "Randevu talebi", value: 0, stage: "ilk_gorusme",
+      custom_fields: { randevu_tarihi: dateTime },
+    };
+    const { data, error } = await supabase.from("deals").insert(row).select().single();
+    if (error) { notify(`Randevu alınamadı: ${error.message}`); return false; }
+    setDeals((prev) => [...prev, rowToDeal(data)]);
+    notify("Randevunuz alındı.", "success");
+    return true;
   };
 
   const addMessage = async ({ ticketId, content }) => {
@@ -692,6 +906,8 @@ export default function CustomerPortal() {
     if (count > primarySectorCount) { primarySectorCount = count; primarySector = s; }
   }
   const dealKind = dealWordKind(primarySector);
+  const appointmentCompanies = customerRows.filter((r) => isAppointmentSector(r.companySector));
+  const showDersler = groupClasses.length > 0;
 
   return (
     <div style={{ maxWidth: 980, margin: "0 auto", padding: "24px 16px 64px" }}>
@@ -723,6 +939,7 @@ export default function CustomerPortal() {
             {[
               { id: "talepler", label: "Taleplerim", icon: "ti-ticket" },
               { id: "teklifler", label: PORTAL_DEAL_WORDS[dealKind].tabLabel, icon: "ti-file-text" },
+              ...(showDersler ? [{ id: "dersler", label: "Derslerim", icon: "ti-calendar-time" }] : []),
               { id: "ayarlar", label: "Ayarlar", icon: "ti-adjustments" },
             ].map((t) => (
               <button
@@ -778,7 +995,34 @@ export default function CustomerPortal() {
           )}
 
           {portalTab === "teklifler" && (
-            <PortalDealList deals={deals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} showCompany={showCompanyLabel} dealKind={dealKind} />
+            <div>
+              {appointmentCompanies.length > 0 && (
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+                  {appointmentCompanies.map((row) => (
+                    <button
+                      key={row.id}
+                      onClick={() => setBookingFor(row)}
+                      style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
+                    >
+                      <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                      {appointmentCompanies.length > 1 ? `${row.companyName || row.name} — Randevu Al` : "Randevu Al"}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <PortalDealList deals={deals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} showCompany={showCompanyLabel} dealKind={dealKind} />
+            </div>
+          )}
+
+          {portalTab === "dersler" && (
+            <PortalGroupClasses
+              groupClasses={groupClasses}
+              groupClassEnrollments={groupClassEnrollments}
+              customerRows={customerRows}
+              showCompany={showCompanyLabel}
+              onEnroll={enrollInClass}
+              onCancel={cancelEnrollment}
+            />
           )}
 
           {portalTab === "ayarlar" && (
@@ -812,6 +1056,14 @@ export default function CustomerPortal() {
 
       {showPasswordRecovery && (
         <PasswordRecoveryModal notify={notify} onClose={() => setShowPasswordRecovery(false)} />
+      )}
+
+      {bookingFor && (
+        <AppointmentBookingModal
+          customerRow={bookingFor}
+          onBook={bookAppointment}
+          onClose={() => setBookingFor(null)}
+        />
       )}
 
       {toast && <Toast message={toast.message} tone={toast.tone} onClose={() => setToast(null)} />}
