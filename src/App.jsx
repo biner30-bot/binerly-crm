@@ -1197,7 +1197,7 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
                       {" "}· {new Date(`${randevuTarihi}+03:00`).toLocaleString("tr-TR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                     </span>
                   )}
-                  {d.customFields?.kaynak === "portal" && (
+                  {d.customFields?.kaynak === "portal" && d.customFields?.portal_randevu_zamani && (
                     <span style={{ color: "var(--text-muted)" }}> · Portaldan alındı</span>
                   )}
                 </span>
@@ -4650,7 +4650,7 @@ export default function App() {
   // dokunulmamış (hâlâ "ilk_gorusme" aşamasında) randevu talepleri — gözden
   // kaçmasınlar diye "Bugün ne yapmalıyım" widget'ında en üstte gösterilir.
   const newPortalAppointments = deals.filter(
-    (d) => d.customFields?.kaynak === "portal" && d.stage === "ilk_gorusme"
+    (d) => d.customFields?.kaynak === "portal" && d.customFields?.portal_randevu_zamani && d.stage === "ilk_gorusme"
   );
   const urgentTickets = tickets.filter((t) => {
     if (TERMINAL_STATUSES.includes(t.status)) return false;
@@ -5450,7 +5450,7 @@ export default function App() {
                           >
                             <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 500 }}>{c?.name || "Bilinmeyen müşteri"}</p>
                             <p style={{ margin: "0 0 4px", fontSize: 12, color: "var(--text-secondary)" }}>{d.title}</p>
-                            {d.customFields?.kaynak === "portal" && (
+                            {d.customFields?.kaynak === "portal" && d.customFields?.portal_randevu_zamani && (
                               <div style={{ marginBottom: 4 }}>
                                 <Badge tone="accent">Portaldan alındı</Badge>
                               </div>
@@ -5540,7 +5540,7 @@ export default function App() {
                             : ""}
                           {" "}· {d.reminder ? `Hatırlatma: ${d.reminder}` : "Hatırlatma yok"}
                         </p>
-                        {d.customFields?.kaynak === "portal" && (
+                        {d.customFields?.kaynak === "portal" && d.customFields?.portal_randevu_zamani && (
                           <div style={{ marginTop: 4 }}>
                             <Badge tone="accent">Portaldan alındı</Badge>
                           </div>
