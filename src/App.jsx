@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, nextWeeklyOccurrence, NotificationBell } from "./shared";
+import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, nextWeeklyOccurrence, NotificationBell, OnboardingTour } from "./shared";
 import Finance, { rowToCompanyExpense } from "./Finance";
 import { rowToChannelCredential, rowToChannelMessage } from "./Messages";
 import Support, {
@@ -3201,6 +3201,8 @@ export default function App() {
   const [groupClassEnrollments, setGroupClassEnrollments] = useState([]);
   const [businessHours, setBusinessHours] = useState([]);
   const [showSectorOnboarding, setShowSectorOnboarding] = useState(false);
+  const [showTour, setShowTour] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
   // v1: üye sayısı kod tarafında henüz sınırlanmıyor, henüz billing yok.
   // Hedef fiyatlandırma "10 kullanıcıya kadar sabit ücret" olarak siteye
   // yazıldı (App.jsx LandingPage, "Neden Binerly" bölümü) — billing
@@ -4385,6 +4387,13 @@ export default function App() {
     }
   };
 
+  const maybeStartTour = () => {
+    if (activeTeamId && !localStorage.getItem(`binerly_tour_dismissed_${activeTeamId}`)) {
+      setTourStep(0);
+      setShowTour(true);
+    }
+  };
+
   const applySectorPreset = async (sectorId, companyName) => {
     await upsertCompanySettings({
       ...(companySettings || {}),
@@ -4393,12 +4402,14 @@ export default function App() {
       ...(isIndividualFocusedSector(sectorId) ? { preferredCustomerType: "bireysel" } : {}),
     });
     setShowSectorOnboarding(false);
+    maybeStartTour();
   };
 
   const skipSectorOnboarding = (companyName) => {
     if (companyName) upsertCompanySettings({ ...(companySettings || {}), companyName });
     if (activeTeamId) localStorage.setItem(`binerly_sector_onboarding_dismissed_${activeTeamId}`, "1");
     setShowSectorOnboarding(false);
+    maybeStartTour();
   };
 
   const acceptTeamInvite = async (invite) => {
@@ -4593,14 +4604,14 @@ export default function App() {
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>KOBİ satış takip sistemi</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <NotificationBell userId={session.user.id} supabase={supabase} />
+          <NotificationBell userId={session.user.id} supabase={supabase} dataTour="notification-bell" />
           <IconButton
             icon={pushSubscribed ? "ti-bell-ringing" : "ti-bell"}
             active={pushSubscribed}
             onClick={() => (pushSubscribed ? unsubscribeFromPush() : subscribeToPush())}
             title={pushSubscribed ? "Bildirimler açık (kapatmak için tıkla)" : "Yeni mesaj bildirimlerini aç"}
           />
-          <IconButton icon="ti-settings" onClick={() => setShowSettingsHub(true)} title="Ayarlar" />
+          <IconButton icon="ti-settings" onClick={() => setShowSettingsHub(true)} title="Ayarlar" data-tour="settings-gear" />
           <IconButton icon="ti-logout" label="Çıkış" onClick={() => supabase.auth.signOut()} title="Çıkış yap" />
         </div>
       </div>
@@ -4676,6 +4687,7 @@ export default function App() {
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
+            data-tour={`tab-${t.id}`}
             style={{
               flex: 1,
               border: tab === t.id ? "0.5px solid var(--border-strong)" : "0.5px solid var(--border)",
@@ -5608,6 +5620,12 @@ export default function App() {
               if (link) setLeadCaptureLink(link);
             }}
           />
+          <MenuRow
+            icon="ti-map-2"
+            label="Turu Tekrar Başlat"
+            description="Sistemin nasıl çalıştığını gösteren kısa turu tekrar izleyin"
+            onClick={() => { setShowSettingsHub(false); setTourStep(0); setShowTour(true); }}
+          />
         </Modal>
       )}
 
@@ -5672,6 +5690,17 @@ export default function App() {
 
       {showSectorOnboarding && (
         <SectorOnboardingModal onPick={applySectorPreset} onSkip={skipSectorOnboarding} />
+      )}
+
+      {showTour && (
+        <OnboardingTour
+          step={tourStep}
+          onStepChange={setTourStep}
+          onClose={() => {
+            if (activeTeamId) localStorage.setItem(`binerly_tour_dismissed_${activeTeamId}`, "1");
+            setShowTour(false);
+          }}
+        />
       )}
 
       {showTeamModal && (

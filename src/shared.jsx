@@ -289,7 +289,7 @@ const ICON_BUTTON_SIZES = {
 // aksiyonları (düzenle/sil/PDF vb.) hepsi buradan geçer. Daha önce her yerde
 // elle kopyalanmış farklı boyutlarda (22-32px) inline style vardı, bu tek
 // bileşen sadece iki boyutu (md/sm) destekleyerek tutarlılığı zorunlu kılar.
-export function IconButton({ icon, label, onClick, title, size = "md", active = false, type = "button", disabled = false }) {
+export function IconButton({ icon, label, onClick, title, size = "md", active = false, type = "button", disabled = false, ...rest }) {
   const { box, icon: iconSize } = ICON_BUTTON_SIZES[size] || ICON_BUTTON_SIZES.md;
   return (
     <button
@@ -298,6 +298,7 @@ export function IconButton({ icon, label, onClick, title, size = "md", active = 
       title={title}
       aria-label={title || label}
       disabled={disabled}
+      {...rest}
       style={
         label
           ? { display: "flex", alignItems: "center", gap: 4, height: box, fontSize: 12, color: "var(--text-secondary)", opacity: disabled ? 0.4 : 1, cursor: disabled ? "not-allowed" : "pointer" }
@@ -561,7 +562,7 @@ export function ConfirmDialog({ title = "Emin misiniz?", message, confirmLabel =
 // bildirimlerinden bağımsız (api/send-push.js aynı olayda hem push gönderir
 // hem burada okunan notifications satırını yazar), böylece push izni
 // verilmemiş/farklı cihazdaki kullanıcı da olayı kaçırmaz.
-export function NotificationBell({ userId, supabase }) {
+export function NotificationBell({ userId, supabase, dataTour }) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -616,7 +617,7 @@ export function NotificationBell({ userId, supabase }) {
   };
 
   return (
-    <div ref={containerRef} style={{ position: "relative" }}>
+    <div ref={containerRef} style={{ position: "relative" }} data-tour={dataTour}>
       <div style={{ position: "relative" }}>
         <IconButton icon="ti-inbox" onClick={openBell} title="Bildirimler" active={open} />
         {unreadCount > 0 && (
@@ -671,5 +672,112 @@ export function NotificationBell({ userId, supabase }) {
         </div>
       )}
     </div>
+  );
+}
+
+// Yeni bir KOBİ ilk kez sektör seçince ("İşletmenizi tanıyalım" modalı, App.jsx)
+// açılan kısa, adım adım tanıtım turu. Bilinçli sadelik: hangi sekme aktif
+// olursa olsun DOM'da her zaman var olan header/sekme-çubuğu elemanlarını
+// (data-tour="...") işaret eder — turun kendisi sekme değiştirmez, tüm ekranı
+// karartan bir "spotlight" maskesi de kullanmaz, sadece hedefin etrafına ince
+// bir çerçeve çizer. Bu, tab-switching + yeniden ölçüm senkronizasyonunu
+// tamamen ortadan kaldırıyor.
+const TOUR_STEPS = [
+  { target: null, title: "Binerly'ye hoş geldiniz!", body: "Sistemi hızlıca tanıtalım, sadece birkaç adım sürecek." },
+  { target: '[data-tour="tab-pano"]', title: "Pano", body: "Günlük özet, bugün yapılacaklar ve gelir/kâr grafiğinizi burada görürsünüz." },
+  { target: '[data-tour="tab-musteri"]', title: "Müşteri Kayıtları", body: "Müşterilerinizi buradan ekleyip yönetirsiniz." },
+  { target: '[data-tour="tab-firsat"]', title: "Müşteri Takibi", body: "Teklif, randevu veya üyelik süreçlerinizi buradan takip edersiniz." },
+  { target: '[data-tour="settings-gear"]', title: "Ayarlar", body: "Sektörünüzü, özel alanlarınızı, fiyat listenizi ve müsaitlik saatlerinizi buradan yönetirsiniz." },
+  { target: '[data-tour="notification-bell"]', title: "Bildirimler", body: "Müşteri portaldan bir işlem yaptığında (randevu alma, mesaj vb.) burada anında görürsünüz." },
+  { target: '[data-tour="tab-destek"]', title: "Destek", body: "Müşteri destek taleplerini buradan yönetirsiniz." },
+  { target: null, title: "Hepsi bu kadar!", body: "İstediğiniz zaman Ayarlar'dan turu tekrar başlatabilirsiniz." },
+];
+
+export function OnboardingTour({ step, onStepChange, onClose }) {
+  const [rect, setRect] = useState(null);
+  const current = TOUR_STEPS[step];
+
+  useEffect(() => {
+    const measure = () => {
+      if (!current.target) { setRect(null); return; }
+      const el = document.querySelector(current.target);
+      setRect(el ? el.getBoundingClientRect() : null);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const isLast = step === TOUR_STEPS.length - 1;
+
+  const tooltipStyle = rect
+    ? {
+        position: "fixed",
+        top: Math.min(rect.bottom + 12, window.innerHeight - 180),
+        left: Math.min(Math.max(rect.left, 12), window.innerWidth - 300),
+        zIndex: 1201,
+      }
+    : {
+        position: "fixed",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        zIndex: 1201,
+      };
+
+  return (
+    <>
+      {rect && (
+        <div
+          style={{
+            position: "fixed",
+            top: rect.top - 6,
+            left: rect.left - 6,
+            width: rect.width + 12,
+            height: rect.height + 12,
+            border: "2px solid var(--fill-accent)",
+            borderRadius: 10,
+            boxShadow: "0 0 0 4px rgba(24,95,165,0.2)",
+            pointerEvents: "none",
+            zIndex: 1200,
+            transition: "all 0.2s ease",
+          }}
+        />
+      )}
+      <div
+        style={{
+          ...tooltipStyle,
+          width: 280,
+          background: "var(--surface-2)",
+          border: "0.5px solid var(--border)",
+          borderRadius: "var(--radius)",
+          boxShadow: "0 12px 32px rgba(0,0,0,0.25)",
+          padding: "14px 16px",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>{current.title}</p>
+          <button onClick={onClose} aria-label="Turu kapat" style={{ width: 22, height: 22, padding: 0, background: "none", border: "none", flex: "none" }}>
+            <i className="ti ti-x" style={{ fontSize: 14 }} aria-hidden="true"></i>
+          </button>
+        </div>
+        <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{current.body}</p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{step + 1}/{TOUR_STEPS.length}</span>
+          <div style={{ display: "flex", gap: 6 }}>
+            {step > 0 && (
+              <button type="button" onClick={() => onStepChange(step - 1)} style={{ fontSize: 12 }}>Geri</button>
+            )}
+            <button
+              type="button"
+              onClick={() => (isLast ? onClose() : onStepChange(step + 1))}
+              style={{ fontSize: 12, background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+            >
+              {isLast ? "Bitir" : "İleri"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
