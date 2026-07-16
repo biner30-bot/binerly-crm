@@ -1220,8 +1220,10 @@ function TeklifPrint({ deal, customer, companySettings, onClose }) {
           <button onClick={onClose}>Kapat</button>
         </div>
       </div>
-      <div id="teklif-print" style={{ width: template.width, height: template.height, position: "relative", margin: "0 auto", background: "#fff" }}>
-        {renderTemplateBlocks(template.blocks, mergeData)}
+      <div style={{ paddingTop: 80, paddingBottom: 48 }}>
+        <div id="teklif-print" style={{ width: template.width, height: template.height, position: "relative", margin: "0 auto", background: "#fff" }}>
+          {renderTemplateBlocks(template.blocks, mergeData)}
+        </div>
       </div>
     </div>
   );
