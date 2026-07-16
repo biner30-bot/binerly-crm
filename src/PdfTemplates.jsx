@@ -46,47 +46,74 @@ export function buildMergeData({ deal, customer, companySettings, netAmount, kdv
   };
 }
 
-export function renderTemplateBlocks(blocks, mergeData) {
+// Her satır kalemi için yaklaşık render yüksekliği — tablo bloğunun ALTINDA
+// kalan bloklar, kalem sayısı 1'in üzerine çıkınca bu kadar aşağı kaydırılır.
+// Genel bir "otomatik akış" motoru değil, sadece bu tek, somut senaryo için
+// hedefli bir çözüm (Faz 3 planı) — şablona hiç yazılmaz, sadece render anında
+// hesaplanır.
+export const TABLE_ROW_HEIGHT = 32;
+
+export function renderTemplateBlocks(blocks, mergeData, lineItems = []) {
+  const kdvRate = Number(mergeData.kdv_orani) || 0;
+  const items = lineItems.length > 0 ? lineItems : [{ description: mergeData.teklif_basligi, quantity: 1, unitPrice: 0 }];
+  const tableBlock = blocks.find((b) => b.type === "table");
+  const extraRows = Math.max(0, items.length - 1);
+  const shiftAmount = extraRows * TABLE_ROW_HEIGHT;
+  const yOf = (b) => (tableBlock && b.id !== tableBlock.id && b.y > tableBlock.y ? b.y + shiftAmount : b.y);
+
   return blocks.map((b) => {
     if (b.type === "rect") {
-      return <div key={b.id} style={{ position: "absolute", left: b.x, top: b.y, width: b.w, height: b.h, background: b.color }} />;
+      return <div key={b.id} style={{ position: "absolute", left: b.x, top: yOf(b), width: b.w, height: b.h, background: b.color }} />;
     }
     if (b.type === "line") {
-      return <div key={b.id} style={{ position: "absolute", left: b.x, top: b.y, width: b.w, height: 1, background: b.color || "#e1e8f0" }} />;
+      return <div key={b.id} style={{ position: "absolute", left: b.x, top: yOf(b), width: b.w, height: 1, background: b.color || "#e1e8f0" }} />;
     }
     if (b.type === "image") {
       const src = fillMergeFields(b.src, mergeData);
       if (!src) return null;
-      return <img key={b.id} src={src} alt="" style={{ position: "absolute", left: b.x, top: b.y, maxWidth: b.w, maxHeight: b.h, objectFit: "contain" }} />;
+      return <img key={b.id} src={src} alt="" style={{ position: "absolute", left: b.x, top: yOf(b), maxWidth: b.w, maxHeight: b.h, objectFit: "contain" }} />;
     }
     if (b.type === "table") {
       const accent = b.accentColor || "#0c2540";
+      let netSum = 0;
+      let grossSum = 0;
+      const rows = items.map((it, idx) => {
+        const qty = Number(it.quantity) || 1;
+        const unitPrice = Number(it.unitPrice) || 0;
+        const gross = qty * unitPrice;
+        const net = kdvRate > 0 ? gross / (1 + kdvRate / 100) : gross;
+        netSum += net;
+        grossSum += gross;
+        const desc = qty !== 1 ? `${it.description} (×${qty})` : it.description;
+        return (
+          <tr key={idx} style={{ borderBottom: "1px solid #e1e8f0", background: b.accentColor ? "#f5f8fc" : "transparent" }}>
+            <td style={{ padding: "9px 8px 9px 0", fontSize: 14, color: "#0c2540" }}>{desc}</td>
+            <td style={{ padding: "9px 0", fontSize: 14, textAlign: "right", color: "#0c2540" }}>{formatTL(net)}</td>
+          </tr>
+        );
+      });
+      const kdvSum = grossSum - netSum;
       return (
-        <table key={b.id} style={{ position: "absolute", left: b.x, top: b.y, width: b.w, borderCollapse: "collapse" }}>
+        <table key={b.id} style={{ position: "absolute", left: b.x, top: yOf(b), width: b.w, borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ borderBottom: `2px solid ${accent}` }}>
               <th style={{ textAlign: "left", padding: "8px 0", fontSize: 12, textTransform: "uppercase", color: "#0c2540" }}>Açıklama</th>
               <th style={{ textAlign: "right", padding: "8px 0", fontSize: 12, textTransform: "uppercase", color: "#0c2540" }}>Tutar</th>
             </tr>
           </thead>
-          <tbody>
-            <tr style={{ borderBottom: "1px solid #e1e8f0", background: b.accentColor ? "#f5f8fc" : "transparent" }}>
-              <td style={{ padding: "12px 8px 12px 0", fontSize: 14, color: "#0c2540" }}>{mergeData.teklif_basligi}</td>
-              <td style={{ padding: "12px 0", fontSize: 14, textAlign: "right", color: "#0c2540" }}>{mergeData.ara_toplam}</td>
-            </tr>
-          </tbody>
+          <tbody>{rows}</tbody>
           <tfoot>
             <tr>
               <td style={{ padding: "6px 0", fontSize: 13, color: "#5b7088" }}>Ara toplam</td>
-              <td style={{ padding: "6px 0", fontSize: 13, color: "#5b7088", textAlign: "right" }}>{mergeData.ara_toplam}</td>
+              <td style={{ padding: "6px 0", fontSize: 13, color: "#5b7088", textAlign: "right" }}>{formatTL(netSum)}</td>
             </tr>
             <tr>
-              <td style={{ padding: "6px 0", fontSize: 13, color: "#5b7088" }}>KDV (%{mergeData.kdv_orani})</td>
-              <td style={{ padding: "6px 0", fontSize: 13, color: "#5b7088", textAlign: "right" }}>{mergeData.kdv_tutari}</td>
+              <td style={{ padding: "6px 0", fontSize: 13, color: "#5b7088" }}>KDV (%{kdvRate})</td>
+              <td style={{ padding: "6px 0", fontSize: 13, color: "#5b7088", textAlign: "right" }}>{formatTL(kdvSum)}</td>
             </tr>
             <tr>
               <td style={{ padding: "12px 0 0", fontWeight: 700, fontSize: 15, borderTop: `2px solid ${accent}`, color: accent }}>Genel Toplam</td>
-              <td style={{ padding: "12px 0 0", fontWeight: 700, fontSize: 15, textAlign: "right", borderTop: `2px solid ${accent}`, color: accent }}>{mergeData.genel_toplam}</td>
+              <td style={{ padding: "12px 0 0", fontWeight: 700, fontSize: 15, textAlign: "right", borderTop: `2px solid ${accent}`, color: accent }}>{formatTL(grossSum)}</td>
             </tr>
           </tfoot>
         </table>
@@ -98,7 +125,7 @@ export function renderTemplateBlocks(blocks, mergeData) {
       <p
         key={b.id}
         style={{
-          position: "absolute", left: b.x, top: b.y, width: b.w, margin: 0,
+          position: "absolute", left: b.x, top: yOf(b), width: b.w, margin: 0,
           fontSize: b.fontSize || 13, fontWeight: b.fontWeight || 400, color: b.color || "#0c2540",
           textAlign: b.align || "left", textTransform: b.textTransform || "none", lineHeight: 1.4,
         }}
@@ -204,6 +231,11 @@ export const SAMPLE_MERGE_DATA = buildMergeData({
   noun: "teklif",
 });
 
+// Editör/galeri önizlemeleri her zaman TEK örnek kalemle çalışır — bu yüzden
+// tablo-altı kayma orada hiç devreye girmez, tasarladığınız şablon ile normal
+// (tek kalemli) bir teklifin çıktısı birebir aynı görünür.
+export const SAMPLE_LINE_ITEMS = [{ description: "Web Sitesi Yenileme", quantity: 1, unitPrice: 5000 }];
+
 const GALLERY_SCALE = 0.32;
 const BLANK_TEMPLATE_WIDTH = 700;
 const BLANK_TEMPLATE_HEIGHT = 900;
@@ -253,7 +285,7 @@ export function TemplateGallery({ activeKey, customTemplates = [], onSelect, onE
             </div>
             <div style={{ width: tpl.width * GALLERY_SCALE, height: tpl.height * GALLERY_SCALE, overflow: "hidden", position: "relative", background: "#fff", border: "0.5px solid var(--border)", borderRadius: 6 }}>
               <div style={{ width: tpl.width, height: tpl.height, position: "relative", transform: `scale(${GALLERY_SCALE})`, transformOrigin: "top left" }}>
-                {renderTemplateBlocks(tpl.blocks, SAMPLE_MERGE_DATA)}
+                {renderTemplateBlocks(tpl.blocks, SAMPLE_MERGE_DATA, SAMPLE_LINE_ITEMS)}
               </div>
             </div>
           </div>

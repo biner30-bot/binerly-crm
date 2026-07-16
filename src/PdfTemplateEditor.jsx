@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { uid } from "./shared";
-import { renderTemplateBlocks, MERGE_FIELD_OPTIONS, SAMPLE_MERGE_DATA } from "./PdfTemplates";
+import { renderTemplateBlocks, MERGE_FIELD_OPTIONS, SAMPLE_MERGE_DATA, SAMPLE_LINE_ITEMS } from "./PdfTemplates";
 
 const DEFAULT_TEXT_HEIGHT = 24;
 
@@ -140,7 +140,7 @@ export function TemplateEditor({ initialTemplate, onSave, onClose }) {
             style={{ width, height, flex: "none", position: "relative", background: "#fff", boxShadow: "0 4px 24px rgba(12,37,64,0.15)" }}
             onMouseDown={(e) => e.stopPropagation()}
           >
-            {renderTemplateBlocks(blocks, SAMPLE_MERGE_DATA)}
+            {renderTemplateBlocks(blocks, SAMPLE_MERGE_DATA, SAMPLE_LINE_ITEMS)}
             {blocks.map((b) => (
               <div
                 key={b.id}

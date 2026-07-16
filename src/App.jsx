@@ -13,7 +13,7 @@ import Support, {
 } from "./Support";
 import { ImportModal } from "./ImportExport";
 import { TrackingScripts } from "./analytics";
-import { PDF_TEMPLATES, buildMergeData, renderTemplateBlocks, TemplateGallery } from "./PdfTemplates";
+import { PDF_TEMPLATES, buildMergeData, renderTemplateBlocks, TemplateGallery, TABLE_ROW_HEIGHT } from "./PdfTemplates";
 import { TemplateEditor } from "./PdfTemplateEditor";
 import {
   STAGES,
@@ -350,6 +350,17 @@ function rowToPayment(r) {
   };
 }
 
+function rowToDealLineItem(r) {
+  return {
+    id: r.id,
+    dealId: r.deal_id,
+    description: r.description,
+    quantity: r.quantity,
+    unitPrice: r.unit_price,
+    sortOrder: r.sort_order,
+  };
+}
+
 function rowToPriceListItem(r) {
   return { id: r.id, name: r.name, price: r.price };
 }
@@ -641,7 +652,7 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
   );
 }
 
-function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, titleSuggestions = [], priceListItems = [], onSave, onCancel }) {
+function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, titleSuggestions = [], priceListItems = [], initialLineItems = [], onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(
     initial?.customerId || customers.find((c) => c.customerType === preferredCustomerType)?.id || customers[0]?.id || ""
   );
@@ -649,6 +660,12 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   const [title, setTitle] = useState(initial?.title || "");
   const [value, setValue] = useState(initial?.value ?? "");
   const [selectedPriceItemId, setSelectedPriceItemId] = useState("");
+  // Kalemler tamamen opsiyonel — boşsa Tutar bugünkü gibi elle girilir, hiçbir
+  // şey değişmez. Dolu ise Tutar bunların toplamına otomatik kilitlenir.
+  const [lineItems, setLineItems] = useState(
+    initialLineItems.map((li) => ({ localId: li.id, description: li.description, quantity: li.quantity, unitPrice: li.unitPrice }))
+  );
+  const lineItemsTotal = lineItems.reduce((sum, li) => sum + (Number(li.quantity) || 0) * (Number(li.unitPrice) || 0), 0);
   const [cost, setCost] = useState(initial?.cost ?? "");
   const [kdvRate, setKdvRate] = useState(initial?.kdvRate ?? defaultKdvRate ?? 20);
   const [stage, setStage] = useState(initial?.stage || "ilk_gorusme");
@@ -679,6 +696,11 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   const [notifyCustomer, setNotifyCustomer] = useState(initial?.notifyCustomer || false);
   const defsForEntity = customFieldDefs.filter((d) => d.entity === "deal" && (!d.audience || d.audience === selectedCustomerType));
   const selectedCustomerEmail = customers.find((c) => c.id === customerId)?.email || "";
+
+  useEffect(() => {
+    if (lineItems.length > 0) setValue(String(lineItemsTotal));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lineItemsTotal, lineItems.length]);
 
   return (
     <form
@@ -711,6 +733,9 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           sessionUsed: isPackageDeal ? Math.min(Number(sessionUsed) || 0, Number(sessionTotal) || 0) : 0,
           tags,
           customFields,
+          lineItems: lineItems
+            .filter((li) => li.description.trim())
+            .map((li) => ({ description: li.description.trim(), quantity: Number(li.quantity) || 1, unitPrice: Number(li.unitPrice) || 0 })),
           assignedTo: assignedTo || null,
           notifyCustomer,
           approvalToken: initial?.approvalToken || null,
@@ -756,6 +781,63 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
         </div>
       )}
       <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+          Kalemler (opsiyonel)
+          <InfoTip text="Birden fazla ürün/hizmet satırı eklerseniz Tutar bunların toplamına otomatik hesaplanır. Hiç kalem eklemezseniz Tutar'ı yine elle girebilirsiniz." />
+        </label>
+        {lineItems.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+            {lineItems.map((li, i) => (
+              <div key={li.localId ?? i} style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+                <input
+                  value={li.description}
+                  onChange={(e) => setLineItems((prev) => prev.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))}
+                  placeholder="Açıklama"
+                  style={{ flex: 3, fontSize: 13 }}
+                />
+                <input
+                  type="number" min="0" step="1"
+                  value={li.quantity}
+                  onChange={(e) => setLineItems((prev) => prev.map((x, j) => (j === i ? { ...x, quantity: e.target.value } : x)))}
+                  placeholder="Adet"
+                  style={{ flex: 1, fontSize: 13 }}
+                />
+                <input
+                  type="number" min="0"
+                  value={li.unitPrice}
+                  onChange={(e) => setLineItems((prev) => prev.map((x, j) => (j === i ? { ...x, unitPrice: e.target.value } : x)))}
+                  placeholder="Birim fiyat"
+                  style={{ flex: 1, fontSize: 13 }}
+                />
+                <IconButton icon="ti-trash" title="Kalemi sil" size="sm" onClick={() => setLineItems((prev) => prev.filter((_, j) => j !== i))} />
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={() => setLineItems((prev) => [...prev, { localId: uid(), description: "", quantity: 1, unitPrice: 0 }])}
+            style={{ fontSize: 12 }}
+          >
+            + Kalem ekle
+          </button>
+          {priceListItems.length > 0 && (
+            <select
+              value=""
+              onChange={(e) => {
+                const item = priceListItems.find((p) => p.id === e.target.value);
+                if (item) setLineItems((prev) => [...prev, { localId: uid(), description: item.name, quantity: 1, unitPrice: item.price }]);
+              }}
+              style={{ fontSize: 12 }}
+            >
+              <option value="">Fiyat listesinden kalem ekle…</option>
+              {priceListItems.map((p) => <option key={p.id} value={p.id}>{p.name} — {formatTL(p.price)}</option>)}
+            </select>
+          )}
+        </div>
+      </div>
+      <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Başlık</label>
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={sector === "spor_merkezi" ? "Salon üyeliği / Reformer Pilates" : selectedCustomerType === "bireysel" ? "İlk randevu / danışmanlık" : "Yıllık tedarik anlaşması"} list="deal-title-suggestions" style={{ width: "100%" }} />
         <datalist id="deal-title-suggestions">
@@ -765,9 +847,9 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
         <div style={{ flex: 2 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
-            Tutar (TL) <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>— KDV dahil</span>
+            Tutar (TL) <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>— KDV dahil{lineItems.length > 0 ? ", kalemlerden otomatik" : ""}</span>
           </label>
-          <input type="number" min="0" value={value} onChange={(e) => setValue(e.target.value)} placeholder="0" style={{ width: "100%" }} />
+          <input type="number" min="0" value={value} disabled={lineItems.length > 0} onChange={(e) => setValue(e.target.value)} placeholder="0" style={{ width: "100%" }} />
         </div>
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Gider (TL)</label>
@@ -1164,7 +1246,7 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
   );
 }
 
-function TeklifPrint({ deal, customer, companySettings, pdfTemplates, onClose }) {
+function TeklifPrint({ deal, customer, companySettings, pdfTemplates, dealLineItems, onClose }) {
   const kdvRate = deal.kdvRate ?? 20;
   const netAmount = kdvRate > 0 ? deal.value / (1 + kdvRate / 100) : deal.value;
   const kdvAmount = deal.value - netAmount;
@@ -1177,6 +1259,13 @@ function TeklifPrint({ deal, customer, companySettings, pdfTemplates, onClose })
   const customTemplate = (pdfTemplates || []).find((t) => t.id === companySettings?.pdfTemplateKey);
   const template = customTemplate || PDF_TEMPLATES[companySettings?.pdfTemplateKey] || PDF_TEMPLATES.klasik;
   const mergeData = buildMergeData({ deal, customer, companySettings, netAmount, kdvAmount, kdvRate, noExpiry, validityDays, extraNote, belgeBasligi, noun });
+  // Kalemsiz (bugüne kadarki TÜM) deal'lerde tek kalemlik bir listeye düşer —
+  // bugünkü PDF çıktısıyla birebir aynı sonucu üretir.
+  const dealItems = (dealLineItems || []).filter((li) => li.dealId === deal.id);
+  const printLineItems = dealItems.length > 0
+    ? dealItems.map((li) => ({ description: li.description, quantity: li.quantity, unitPrice: li.unitPrice }))
+    : [{ description: deal.title, quantity: 1, unitPrice: deal.value }];
+  const extraCanvasHeight = Math.max(0, printLineItems.length - 1) * TABLE_ROW_HEIGHT;
 
   const download = async () => {
     setDownloading(true);
@@ -1227,8 +1316,8 @@ function TeklifPrint({ deal, customer, companySettings, pdfTemplates, onClose })
         </div>
       </div>
       <div style={{ paddingTop: 80, paddingBottom: 48 }}>
-        <div id="teklif-print" style={{ width: template.width, height: template.height, position: "relative", margin: "0 auto", background: "#fff" }}>
-          {renderTemplateBlocks(template.blocks, mergeData)}
+        <div id="teklif-print" style={{ width: template.width, height: template.height + extraCanvasHeight, position: "relative", margin: "0 auto", background: "#fff" }}>
+          {renderTemplateBlocks(template.blocks, mergeData, printLineItems)}
         </div>
       </div>
     </div>
@@ -3143,6 +3232,7 @@ export default function App() {
   const [deals, setDeals] = useState([]);
   const [activities, setActivities] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [dealLineItems, setDealLineItems] = useState([]);
   const [companyExpenses, setCompanyExpenses] = useState([]);
   const [channelCredentials, setChannelCredentials] = useState([]);
   const [channelMessages, setChannelMessages] = useState([]);
@@ -3257,6 +3347,7 @@ export default function App() {
       setPriceListItems([]);
       setGroupClasses([]); setGroupClassEnrollments([]);
       setBusinessHours([]);
+      setDealLineItems([]);
       setActiveTeamId(undefined);
       setPendingInvites([]);
       setLoading(false);
@@ -3281,9 +3372,10 @@ export default function App() {
       supabase.from("group_class_enrollments").select("*"),
       supabase.from("business_hours").select("*").order("weekday").order("start_time"),
       supabase.from("deal_pdf_templates").select("*").order("created_at"),
+      supabase.from("deal_line_items").select("*").order("sort_order"),
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: bh }, { data: pdft }, { data: myMembership }, { data: invites }]) => {
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: bh }, { data: pdft }, { data: dli }, { data: myMembership }, { data: invites }]) => {
       // customers/deals/company_settings RLS'i, sahiplik politikasına ek olarak
       // portal kullanıcılarının kendi bağlı oldukları kayıtları görmesine izin
       // veren bir politikayla da "veya" ile birleşiyor (customer_*_view'ların
@@ -3295,6 +3387,7 @@ export default function App() {
       setDeals((d || []).filter((row) => row.user_id === ownerId).map(rowToDeal));
       setActivities((a || []).map(rowToActivity));
       setPayments((pay || []).map(rowToPayment));
+      setDealLineItems((dli || []).map(rowToDealLineItem));
       setCompanyExpenses((exp || []).map(rowToCompanyExpense));
       setChannelCredentials((cred || []).map(rowToChannelCredential));
       setChannelMessages((chMsg || []).map(rowToChannelMessage));
@@ -3639,6 +3732,26 @@ export default function App() {
     setDeals((prev) =>
       prev.some((x) => x.id === deal.id) ? prev.map((x) => (x.id === deal.id ? deal : x)) : [...prev, deal]
     );
+
+    // Kalemler DealForm'dan geldiyse (d.lineItems tanımlıysa — moveDealStage gibi
+    // kalemlerden habersiz diğer çağrılar bu alanı hiç göndermiyor, dokunulmuyor)
+    // sil-hepsini-baştan-ekle senkronizasyonu yapılır — bu projede diffing yerine
+    // hep bu basit desen tercih ediliyor.
+    if (d.lineItems !== undefined) {
+      await supabase.from("deal_line_items").delete().eq("deal_id", deal.id);
+      if (d.lineItems.length > 0) {
+        const rows = d.lineItems.map((li, i) => ({
+          id: uid(), user_id: activeTeamId, deal_id: deal.id,
+          description: li.description, quantity: Number(li.quantity) || 1, unit_price: Number(li.unitPrice) || 0, sort_order: i,
+        }));
+        const { data: insertedItems, error: liError } = await supabase.from("deal_line_items").insert(rows).select();
+        if (liError) notify(`Kalemler kaydedilemedi: ${liError.message}`);
+        setDealLineItems((prev) => [...prev.filter((li) => li.dealId !== deal.id), ...((insertedItems || []).map(rowToDealLineItem))]);
+      } else {
+        setDealLineItems((prev) => prev.filter((li) => li.dealId !== deal.id));
+      }
+    }
+
     setShowDealForm(false);
     setEditingDeal(null);
     logAction("deals", deal.id, isNew ? "created" : "updated", `${deal.title} ${isNew ? "oluşturuldu" : "güncellendi"}`);
@@ -5827,6 +5940,7 @@ export default function App() {
           customer={customerById(teklifDeal.customerId)}
           companySettings={companySettings}
           pdfTemplates={pdfTemplates}
+          dealLineItems={dealLineItems}
           onClose={() => setTeklifDeal(null)}
         />
       )}
@@ -5873,6 +5987,7 @@ export default function App() {
             currentUserEmail={session.user.email}
             titleSuggestions={[...new Set(deals.map((d) => d.title).filter(Boolean))]}
             priceListItems={priceListItems}
+            initialLineItems={editingDeal ? dealLineItems.filter((li) => li.dealId === editingDeal.id) : []}
             onSave={upsertDeal}
             onCancel={() => { setShowDealForm(false); setEditingDeal(null); }}
           />
