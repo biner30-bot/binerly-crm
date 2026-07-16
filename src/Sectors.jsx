@@ -279,6 +279,15 @@ const SUPPORT_EXAMPLES = {
 const DEFAULT_SUPPORT_EXAMPLE = { subject: "Bir konuda yardım almak istiyorum", message: "Talep hakkında müşteriye bilgi verildi", kbTitle: "Sıkça sorulan bir soru", kbCategory: "Genel, Ödeme, Teknik" };
 export const supportExamples = (sector) => SUPPORT_EXAMPLES[sector] || DEFAULT_SUPPORT_EXAMPLE;
 
+// isAppointmentSector() true olan sektörler için randevu notu örneği — "Saç
+// kesimi" gibi tek bir sabit örnek her iki randevu sektöründe de kullanılırsa
+// Sağlık/Klinik'te yersiz kaçar, bu yüzden sektöre göre ayrılıyor.
+const APPOINTMENT_NOTE_EXAMPLES = {
+  guzellik_bakim: "Saç kesimi, cilt bakımı, manikür...",
+  saglik_klinik: "Kontrol muayenesi, diş temizliği...",
+};
+export const appointmentNoteExample = (sector) => APPOINTMENT_NOTE_EXAMPLES[sector] || "Randevu sebebinizi kısaca yazın...";
+
 export function rowToCustomFieldDef(r) {
   return {
     id: r.id,

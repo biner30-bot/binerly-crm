@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { Badge, Modal, Toast, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, WEEKDAYS, nextWeeklyOccurrence, NotificationBell } from "./shared";
-import { stageLabel, dealWordKind, isAppointmentSector, supportExamples, SECTOR_PRESETS } from "./Sectors";
+import { stageLabel, dealWordKind, isAppointmentSector, supportExamples, appointmentNoteExample, SECTOR_PRESETS } from "./Sectors";
 
 const PORTAL_DEAL_WORDS = {
   teklif: { emptyList: "Henüz bir teklifiniz yok.", possAcc: "tekliflerinizi", tabLabel: "Tekliflerim" },
@@ -515,7 +515,7 @@ function AppointmentBookingModal({ customerRow, priceListItems, onBook, onClose 
       )}
       <div style={{ marginBottom: 16 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ne için randevu almak istiyorsunuz?</label>
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Örn. Saç kesimi, kontrol muayenesi..." style={{ width: "100%" }} />
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={`Örn. ${appointmentNoteExample(customerRow.companySector)}`} style={{ width: "100%" }} />
       </div>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button type="button" onClick={onClose}>Vazgeç</button>
