@@ -829,15 +829,17 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           <button
             type="button"
             onClick={() => setLineItems((prev) => {
+              const blank = { localId: uid(), description: "", quantity: 1, unitPrice: 0 };
               // İlk kalem eklendiğinde, o ana kadar Başlık/Tutar'a elle (veya
               // üstteki Ürün/Hizmet seçiciyle) girilmiş olan tutar sessizce
-              // kaybolmasın diye ilk satır olarak devralınır — kullanıcı
-              // "1500 TL zaten vardı, kalem eklerken neden sıfırlandı" diye
-              // şaşırmasın. Sonraki kalemler her zaman boş başlar.
+              // kaybolmasın diye ilk satır olarak devralınır — AYRICA hemen
+              // arkasından boş bir satır daha eklenir, yoksa buton "hiçbir şey
+              // yapmıyormuş" gibi görünüyordu (Tutar aynı kalıyordu çünkü
+              // devralınan tek kalem zaten mevcut tutara eşit).
               if (prev.length === 0 && title.trim() && Number(value) > 0) {
-                return [{ localId: uid(), description: title.trim(), quantity: 1, unitPrice: Number(value) }];
+                return [{ localId: uid(), description: title.trim(), quantity: 1, unitPrice: Number(value) }, blank];
               }
-              return [...prev, { localId: uid(), description: "", quantity: 1, unitPrice: 0 }];
+              return [...prev, blank];
             })}
             style={{ fontSize: 12 }}
           >
