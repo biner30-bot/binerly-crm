@@ -788,28 +788,39 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
         {lineItems.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
             {lineItems.map((li, i) => (
-              <div key={li.localId ?? i} style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-                <input
-                  value={li.description}
-                  onChange={(e) => setLineItems((prev) => prev.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))}
-                  placeholder="Açıklama"
-                  style={{ flex: 3, fontSize: 13 }}
-                />
-                <input
-                  type="number" min="0" step="1"
-                  value={li.quantity}
-                  onChange={(e) => setLineItems((prev) => prev.map((x, j) => (j === i ? { ...x, quantity: e.target.value } : x)))}
-                  placeholder="Adet"
-                  style={{ flex: 1, fontSize: 13 }}
-                />
-                <input
-                  type="number" min="0"
-                  value={li.unitPrice}
-                  onChange={(e) => setLineItems((prev) => prev.map((x, j) => (j === i ? { ...x, unitPrice: e.target.value } : x)))}
-                  placeholder="Birim fiyat"
-                  style={{ flex: 1, fontSize: 13 }}
-                />
-                <IconButton icon="ti-trash" title="Kalemi sil" size="sm" onClick={() => setLineItems((prev) => prev.filter((_, j) => j !== i))} />
+              <div key={li.localId ?? i} style={{ border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 8 }}>
+                <div style={{ display: "flex", gap: 6, alignItems: "flex-end", marginBottom: 6 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 2 }}>Açıklama</label>
+                    <input
+                      value={li.description}
+                      onChange={(e) => setLineItems((prev) => prev.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))}
+                      placeholder="Örn. Muayene"
+                      style={{ width: "100%", fontSize: 13 }}
+                    />
+                  </div>
+                  <IconButton icon="ti-trash" title="Kalemi sil" size="sm" onClick={() => setLineItems((prev) => prev.filter((_, j) => j !== i))} />
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <div style={{ width: 70 }}>
+                    <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 2 }}>Adet</label>
+                    <input
+                      type="number" min="0" step="1"
+                      value={li.quantity}
+                      onChange={(e) => setLineItems((prev) => prev.map((x, j) => (j === i ? { ...x, quantity: e.target.value } : x)))}
+                      style={{ width: "100%", minWidth: 0, fontSize: 13 }}
+                    />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 2 }}>Birim fiyat (TL)</label>
+                    <input
+                      type="number" min="0"
+                      value={li.unitPrice}
+                      onChange={(e) => setLineItems((prev) => prev.map((x, j) => (j === i ? { ...x, unitPrice: e.target.value } : x)))}
+                      style={{ width: "100%", minWidth: 0, fontSize: 13 }}
+                    />
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -817,7 +828,17 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <button
             type="button"
-            onClick={() => setLineItems((prev) => [...prev, { localId: uid(), description: "", quantity: 1, unitPrice: 0 }])}
+            onClick={() => setLineItems((prev) => {
+              // İlk kalem eklendiğinde, o ana kadar Başlık/Tutar'a elle (veya
+              // üstteki Ürün/Hizmet seçiciyle) girilmiş olan tutar sessizce
+              // kaybolmasın diye ilk satır olarak devralınır — kullanıcı
+              // "1500 TL zaten vardı, kalem eklerken neden sıfırlandı" diye
+              // şaşırmasın. Sonraki kalemler her zaman boş başlar.
+              if (prev.length === 0 && title.trim() && Number(value) > 0) {
+                return [{ localId: uid(), description: title.trim(), quantity: 1, unitPrice: Number(value) }];
+              }
+              return [...prev, { localId: uid(), description: "", quantity: 1, unitPrice: 0 }];
+            })}
             style={{ fontSize: 12 }}
           >
             + Kalem ekle
@@ -827,7 +848,14 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
               value=""
               onChange={(e) => {
                 const item = priceListItems.find((p) => p.id === e.target.value);
-                if (item) setLineItems((prev) => [...prev, { localId: uid(), description: item.name, quantity: 1, unitPrice: item.price }]);
+                if (!item) return;
+                setLineItems((prev) => {
+                  const newRow = { localId: uid(), description: item.name, quantity: 1, unitPrice: item.price };
+                  if (prev.length === 0 && title.trim() && Number(value) > 0) {
+                    return [{ localId: uid(), description: title.trim(), quantity: 1, unitPrice: Number(value) }, newRow];
+                  }
+                  return [...prev, newRow];
+                });
               }}
               style={{ fontSize: 12 }}
             >
