@@ -14,6 +14,7 @@ import Support, {
 import { ImportModal } from "./ImportExport";
 import { TrackingScripts } from "./analytics";
 import { PDF_TEMPLATES, buildMergeData, renderTemplateBlocks, TemplateGallery } from "./PdfTemplates";
+import { TemplateEditor } from "./PdfTemplateEditor";
 import {
   STAGES,
   SECTOR_PRESETS,
@@ -351,6 +352,10 @@ function rowToPayment(r) {
 
 function rowToPriceListItem(r) {
   return { id: r.id, name: r.name, price: r.price };
+}
+
+function rowToPdfTemplate(r) {
+  return { id: r.id, name: r.name, width: r.width, height: r.height, blocks: r.blocks || [] };
 }
 
 function rowToGroupClass(r) {
@@ -1159,7 +1164,7 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
   );
 }
 
-function TeklifPrint({ deal, customer, companySettings, onClose }) {
+function TeklifPrint({ deal, customer, companySettings, pdfTemplates, onClose }) {
   const kdvRate = deal.kdvRate ?? 20;
   const netAmount = kdvRate > 0 ? deal.value / (1 + kdvRate / 100) : deal.value;
   const kdvAmount = deal.value - netAmount;
@@ -1169,7 +1174,8 @@ function TeklifPrint({ deal, customer, companySettings, onClose }) {
   const [extraNote, setExtraNote] = useState("");
   const noun = isIndividualFocusedSector(companySettings?.sector) ? "fiyat" : "teklif";
   const belgeBasligi = dealWordKind(companySettings?.sector) === "uyelik" ? "ÜYELİK ÖZETİ" : dealWordKind(companySettings?.sector) === "randevu" ? "RANDEVU ÖZETİ" : "TEKLİF";
-  const template = PDF_TEMPLATES[companySettings?.pdfTemplateKey] || PDF_TEMPLATES.klasik;
+  const customTemplate = (pdfTemplates || []).find((t) => t.id === companySettings?.pdfTemplateKey);
+  const template = customTemplate || PDF_TEMPLATES[companySettings?.pdfTemplateKey] || PDF_TEMPLATES.klasik;
   const mergeData = buildMergeData({ deal, customer, companySettings, netAmount, kdvAmount, kdvRate, noExpiry, validityDays, extraNote, belgeBasligi, noun });
 
   const download = async () => {
@@ -3146,6 +3152,8 @@ export default function App() {
   const [companySettings, setCompanySettings] = useState(null);
   const [customFieldDefs, setCustomFieldDefs] = useState([]);
   const [priceListItems, setPriceListItems] = useState([]);
+  const [pdfTemplates, setPdfTemplates] = useState([]);
+  const [editingTemplate, setEditingTemplate] = useState(null);
   const [groupClasses, setGroupClasses] = useState([]);
   const [groupClassEnrollments, setGroupClassEnrollments] = useState([]);
   const [businessHours, setBusinessHours] = useState([]);
@@ -3272,9 +3280,10 @@ export default function App() {
       supabase.from("group_classes").select("*").is("deleted_at", null).order("weekday").order("start_time"),
       supabase.from("group_class_enrollments").select("*"),
       supabase.from("business_hours").select("*").order("weekday").order("start_time"),
+      supabase.from("deal_pdf_templates").select("*").order("created_at"),
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: bh }, { data: myMembership }, { data: invites }]) => {
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: bh }, { data: pdft }, { data: myMembership }, { data: invites }]) => {
       // customers/deals/company_settings RLS'i, sahiplik politikasına ek olarak
       // portal kullanıcılarının kendi bağlı oldukları kayıtları görmesine izin
       // veren bir politikayla da "veya" ile birleşiyor (customer_*_view'ların
@@ -3299,6 +3308,7 @@ export default function App() {
       setGroupClasses((gc || []).filter((row) => row.user_id === ownerId).map(rowToGroupClass));
       setGroupClassEnrollments((gce || []).filter((row) => row.user_id === ownerId).map(rowToGroupClassEnrollment));
       setBusinessHours((bh || []).filter((row) => row.user_id === ownerId).map(rowToBusinessHours));
+      setPdfTemplates((pdft || []).filter((row) => row.user_id === ownerId).map(rowToPdfTemplate));
       setActiveTeamId(ownerId);
       // Sadece BANA gelen davetler (kendi gönderdiklerim değil) — RLS iki SELECT
       // politikasını OR ile birleştirdiği için burada e-postaya göre ek filtre şart.
@@ -4219,6 +4229,33 @@ export default function App() {
     const { error } = await supabase.from("price_list_items").delete().eq("id", id);
     if (error) { notify(`Ürün/hizmet silinemedi: ${error.message}`); return; }
     setPriceListItems((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  // Editörden gelen şablon ya mevcut bir DB kaydını günceller (id doluysa) ya
+  // da yeni bir satır olarak eklenir (hazır şablondan çatallanmış veya "+ Yeni
+  // Şablon"dan başlatılmışsa, id boş gelir).
+  const savePdfTemplate = async ({ id, name, width, height, blocks }) => {
+    if (id) {
+      const { data, error } = await supabase.from("deal_pdf_templates").update({ name, width, height, blocks, updated_at: new Date().toISOString() }).eq("id", id).select().single();
+      if (error) { notify(`Şablon kaydedilemedi: ${error.message}`); return; }
+      setPdfTemplates((prev) => prev.map((t) => (t.id === id ? rowToPdfTemplate(data) : t)));
+      setEditingTemplate(null);
+      setShowPdfTemplates(true);
+      return;
+    }
+    const row = { id: uid(), user_id: activeTeamId, name, width, height, blocks };
+    const { data, error } = await supabase.from("deal_pdf_templates").insert(row).select().single();
+    if (error) { notify(`Şablon kaydedilemedi: ${error.message}`); return; }
+    setPdfTemplates((prev) => [...prev, rowToPdfTemplate(data)]);
+    setEditingTemplate(null);
+    setShowPdfTemplates(true);
+  };
+
+  const deletePdfTemplate = async (id) => {
+    const { error } = await supabase.from("deal_pdf_templates").delete().eq("id", id);
+    if (error) { notify(`Şablon silinemedi: ${error.message}`); return; }
+    setPdfTemplates((prev) => prev.filter((t) => t.id !== id));
+    if (companySettings?.pdfTemplateKey === id) await upsertCompanySettings({ ...companySettings, pdfTemplateKey: "klasik" });
   };
 
   const addGroupClass = async ({ name, instructorName, weekday, startTime, durationMinutes, capacity, notes }) => {
@@ -5643,9 +5680,21 @@ export default function App() {
         <Modal title="Teklif Şablonları" onClose={() => setShowPdfTemplates(false)}>
           <TemplateGallery
             activeKey={companySettings?.pdfTemplateKey || "klasik"}
+            customTemplates={pdfTemplates}
             onSelect={(key) => upsertCompanySettings({ ...companySettings, pdfTemplateKey: key })}
+            onEdit={(tpl) => { setShowPdfTemplates(false); setEditingTemplate(tpl); }}
+            onDelete={deletePdfTemplate}
+            onCreateNew={(tpl) => { setShowPdfTemplates(false); setEditingTemplate(tpl); }}
           />
         </Modal>
+      )}
+
+      {editingTemplate && (
+        <TemplateEditor
+          initialTemplate={editingTemplate}
+          onSave={savePdfTemplate}
+          onClose={() => { setEditingTemplate(null); setShowPdfTemplates(true); }}
+        />
       )}
 
       {showBusinessHours && (
@@ -5777,6 +5826,7 @@ export default function App() {
           deal={teklifDeal}
           customer={customerById(teklifDeal.customerId)}
           companySettings={companySettings}
+          pdfTemplates={pdfTemplates}
           onClose={() => setTeklifDeal(null)}
         />
       )}

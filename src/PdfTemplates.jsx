@@ -1,4 +1,5 @@
-import { formatTL, Badge } from "./shared";
+import { useState } from "react";
+import { formatTL, Badge, ConfirmDialog } from "./shared";
 
 // Teklif PDF'i artık tek bir sabit kodlanmış tasarım değil, mutlak konumlu
 // bloklardan oluşan bir ŞABLON — bu şema, ileride eklenecek sürükle-bırak
@@ -128,7 +129,10 @@ export const PDF_TEMPLATES = {
       { id: "musteri_adi", type: "text", content: "{{musteri_adi}}", x: 32, y: 298, w: 380, fontSize: 15, fontWeight: 600, color: "#0c2540" },
       { id: "musteri_telefon", type: "text", content: "{{musteri_telefon}}", x: 32, y: 320, w: 380, fontSize: 13, color: "#5b7088" },
       { id: "musteri_eposta", type: "text", content: "{{musteri_eposta}}", x: 32, y: 338, w: 380, fontSize: 13, color: "#5b7088" },
-      { id: "tablo", type: "table", x: 32, y: 382, w: 636 },
+      // h, tablonun kendi render mantığında kullanılmıyor (yükseklik satır
+      // sayısına göre kendiliğinden oluşuyor) — sadece editördeki sürükleme/
+      // seçim katmanının doğru boyutta bir tıklama alanı çizebilmesi için.
+      { id: "tablo", type: "table", x: 32, y: 382, w: 636, h: 170 },
       { id: "gecerlilik", type: "text", content: "{{gecerlilik_metni}}", x: 32, y: 566, w: 550, fontSize: 12, color: "#5b7088" },
       { id: "ek_not", type: "text", content: "{{ek_not}}", x: 32, y: 584, w: 550, fontSize: 12, color: "#5b7088" },
     ],
@@ -156,14 +160,37 @@ export const PDF_TEMPLATES = {
       // satıra sarsa bile rahatça sığar.
       { id: "firma_adres", type: "text", content: "{{firma_adres}}", x: 380, y: 140, w: 288, fontSize: 12, color: "#5b7088", align: "right" },
       { id: "vergi_no", type: "text", content: "{{vergi_no_line}}", x: 380, y: 224, w: 288, fontSize: 12, color: "#5b7088", align: "right" },
-      { id: "tablo", type: "table", x: 32, y: 270, w: 636, accentColor: "#185fa5" },
+      { id: "tablo", type: "table", x: 32, y: 270, w: 636, h: 170, accentColor: "#185fa5" },
       { id: "gecerlilik", type: "text", content: "{{gecerlilik_metni}}", x: 32, y: 468, w: 550, fontSize: 12, color: "#5b7088" },
       { id: "ek_not", type: "text", content: "{{ek_not}}", x: 32, y: 486, w: 550, fontSize: 12, color: "#5b7088" },
     ],
   },
 };
 
-const SAMPLE_MERGE_DATA = buildMergeData({
+// Editördeki "+ Alan ekle" menüsünde ve önizlemelerde kullanılan, mevcut tüm
+// merge-field'lerin listesi.
+export const MERGE_FIELD_OPTIONS = [
+  { key: "firma_adi", label: "Firma Adı" },
+  { key: "firma_adres", label: "Firma Adresi" },
+  { key: "firma_telefon", label: "Firma Telefonu" },
+  { key: "firma_eposta", label: "Firma E-postası" },
+  { key: "firma_iletisim_line", label: "Firma Telefon · E-posta" },
+  { key: "vergi_no_line", label: "Vergi No" },
+  { key: "musteri_adi", label: "Müşteri Adı" },
+  { key: "musteri_telefon", label: "Müşteri Telefonu" },
+  { key: "musteri_eposta", label: "Müşteri E-postası" },
+  { key: "belge_basligi", label: "Belge Başlığı (Teklif/Randevu/Üyelik)" },
+  { key: "tarih", label: "Tarih" },
+  { key: "teklif_basligi", label: "Kalem Açıklaması" },
+  { key: "ara_toplam", label: "Ara Toplam" },
+  { key: "kdv_orani", label: "KDV Oranı" },
+  { key: "kdv_tutari", label: "KDV Tutarı" },
+  { key: "genel_toplam", label: "Genel Toplam" },
+  { key: "gecerlilik_metni", label: "Geçerlilik Metni" },
+  { key: "ek_not", label: "Ek Not" },
+];
+
+export const SAMPLE_MERGE_DATA = buildMergeData({
   deal: { title: "Web Sitesi Yenileme", value: 5000 },
   customer: { name: "Örnek Müşteri", phone: "0555 000 00 00", email: "ornek@musteri.com" },
   companySettings: { companyName: "Örnek A.Ş.", address: "Mevlana Mah. 1700. Sok. No 42/4 Önder Sitesi E Blok, Konyaaltı/Antalya", phone: "0553 062 43 99", email: "info@ornek.com", taxNumber: "1234567890" },
@@ -178,29 +205,69 @@ const SAMPLE_MERGE_DATA = buildMergeData({
 });
 
 const GALLERY_SCALE = 0.32;
+const BLANK_TEMPLATE_WIDTH = 700;
+const BLANK_TEMPLATE_HEIGHT = 900;
 
-export function TemplateGallery({ activeKey, onSelect }) {
+export function TemplateGallery({ activeKey, customTemplates = [], onSelect, onEdit, onDelete, onCreateNew }) {
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const builtIn = Object.entries(PDF_TEMPLATES).map(([key, tpl]) => ({ key, id: null, label: tpl.label, width: tpl.width, height: tpl.height, blocks: tpl.blocks }));
+  const custom = customTemplates.map((t) => ({ key: t.id, id: t.id, label: t.name, width: t.width, height: t.height, blocks: t.blocks }));
+  const all = [...builtIn, ...custom];
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {Object.entries(PDF_TEMPLATES).map(([key, tpl]) => (
-        <div key={key} style={{ border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{tpl.label}</p>
-            {activeKey === key ? (
-              <Badge tone="success">Seçili</Badge>
-            ) : (
-              <button type="button" onClick={() => onSelect(key)} style={{ fontSize: 12, background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
-                Seç
-              </button>
-            )}
-          </div>
-          <div style={{ width: tpl.width * GALLERY_SCALE, height: tpl.height * GALLERY_SCALE, overflow: "hidden", position: "relative", background: "#fff", border: "0.5px solid var(--border)", borderRadius: 6 }}>
-            <div style={{ width: tpl.width, height: tpl.height, position: "relative", transform: `scale(${GALLERY_SCALE})`, transformOrigin: "top left" }}>
-              {renderTemplateBlocks(tpl.blocks, SAMPLE_MERGE_DATA)}
+    <div>
+      <button
+        type="button"
+        onClick={() => onCreateNew({ id: null, name: "", width: BLANK_TEMPLATE_WIDTH, height: BLANK_TEMPLATE_HEIGHT, blocks: [] })}
+        style={{ width: "100%", marginBottom: 16, background: "var(--surface-1)", border: "1px dashed var(--border-strong)", fontSize: 13, padding: "10px 0" }}
+      >
+        + Yeni Şablon (boş)
+      </button>
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {all.map((tpl) => (
+          <div key={tpl.key} style={{ border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 8, flexWrap: "wrap" }}>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{tpl.label}</p>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                {activeKey === tpl.key ? (
+                  <Badge tone="success">Seçili</Badge>
+                ) : (
+                  <button type="button" onClick={() => onSelect(tpl.key)} style={{ fontSize: 12, background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+                    Seç
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => onEdit({ id: tpl.id, name: tpl.id ? tpl.label : `${tpl.label} (Kopya)`, width: tpl.width, height: tpl.height, blocks: tpl.blocks })}
+                  style={{ fontSize: 12 }}
+                >
+                  Düzenle
+                </button>
+                {tpl.id && (
+                  <button type="button" onClick={() => setConfirmDelete(tpl)} style={{ fontSize: 12, color: "var(--text-danger)" }}>
+                    Sil
+                  </button>
+                )}
+              </div>
+            </div>
+            <div style={{ width: tpl.width * GALLERY_SCALE, height: tpl.height * GALLERY_SCALE, overflow: "hidden", position: "relative", background: "#fff", border: "0.5px solid var(--border)", borderRadius: 6 }}>
+              <div style={{ width: tpl.width, height: tpl.height, position: "relative", transform: `scale(${GALLERY_SCALE})`, transformOrigin: "top left" }}>
+                {renderTemplateBlocks(tpl.blocks, SAMPLE_MERGE_DATA)}
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
+
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Şablonu sil"
+          message={`"${confirmDelete.label}" silinecek. Bu geri alınamaz. Bu şablon seçiliyse, otomatik olarak "Klasik"e dönülür.`}
+          onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
+          onClose={() => setConfirmDelete(null)}
+        />
+      )}
     </div>
   );
 }
