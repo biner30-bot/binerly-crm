@@ -13,6 +13,7 @@ import Support, {
 } from "./Support";
 import { ImportModal } from "./ImportExport";
 import { TrackingScripts } from "./analytics";
+import { PDF_TEMPLATES, buildMergeData, renderTemplateBlocks, TemplateGallery } from "./PdfTemplates";
 import {
   STAGES,
   SECTOR_PRESETS,
@@ -392,6 +393,7 @@ function rowToCompanySettings(r) {
     sector: r.sector || null,
     leadCaptureToken: r.lead_capture_token || null,
     preferredCustomerType: r.preferred_customer_type || "kurumsal",
+    pdfTemplateKey: r.pdf_template_key || null,
   };
 }
 
@@ -1166,6 +1168,9 @@ function TeklifPrint({ deal, customer, companySettings, onClose }) {
   const [noExpiry, setNoExpiry] = useState(false);
   const [extraNote, setExtraNote] = useState("");
   const noun = isIndividualFocusedSector(companySettings?.sector) ? "fiyat" : "teklif";
+  const belgeBasligi = dealWordKind(companySettings?.sector) === "uyelik" ? "ÜYELİK ÖZETİ" : dealWordKind(companySettings?.sector) === "randevu" ? "RANDEVU ÖZETİ" : "TEKLİF";
+  const template = PDF_TEMPLATES[companySettings?.pdfTemplateKey] || PDF_TEMPLATES.klasik;
+  const mergeData = buildMergeData({ deal, customer, companySettings, netAmount, kdvAmount, kdvRate, noExpiry, validityDays, extraNote, belgeBasligi, noun });
 
   const download = async () => {
     setDownloading(true);
@@ -1215,66 +1220,8 @@ function TeklifPrint({ deal, customer, companySettings, onClose }) {
           <button onClick={onClose}>Kapat</button>
         </div>
       </div>
-      <div id="teklif-print" style={{ maxWidth: 700, margin: "0 auto", padding: "5rem 2rem 3rem", color: "#0c2540" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 40 }}>
-          <div>
-            {companySettings?.logoUrl && (
-              <img src={companySettings.logoUrl} alt="Logo" style={{ maxHeight: 60, marginBottom: 10 }} />
-            )}
-            <p style={{ fontWeight: 700, fontSize: 18, margin: 0 }}>
-              {companySettings?.companyName || "Firma bilgisi eksik"}
-            </p>
-            {companySettings?.address && <p style={{ fontSize: 13, margin: "4px 0 0", color: "#5b7088" }}>{companySettings.address}</p>}
-            {companySettings?.phone && <p style={{ fontSize: 13, margin: "2px 0 0", color: "#5b7088" }}>{companySettings.phone}</p>}
-            {companySettings?.email && <p style={{ fontSize: 13, margin: "2px 0 0", color: "#5b7088" }}>{companySettings.email}</p>}
-            {companySettings?.taxNumber && <p style={{ fontSize: 13, margin: "2px 0 0", color: "#5b7088" }}>Vergi no: {companySettings.taxNumber}</p>}
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <h1 style={{ fontSize: 22, margin: 0 }}>{dealWordKind(companySettings?.sector) === "uyelik" ? "ÜYELİK ÖZETİ" : dealWordKind(companySettings?.sector) === "randevu" ? "RANDEVU ÖZETİ" : "TEKLİF"}</h1>
-            <p style={{ fontSize: 13, color: "#5b7088", margin: "4px 0 0" }}>{new Date().toLocaleDateString("tr-TR")}</p>
-          </div>
-        </div>
-
-        <div style={{ marginBottom: 30 }}>
-          <p style={{ fontSize: 12, color: "#5b7088", margin: "0 0 4px", textTransform: "uppercase" }}>Müşteri</p>
-          <p style={{ fontWeight: 600, fontSize: 15, margin: 0 }}>{customer?.name || "Bilinmeyen müşteri"}</p>
-          {customer?.phone && <p style={{ fontSize: 13, margin: "2px 0 0", color: "#5b7088" }}>{customer.phone}</p>}
-          {customer?.email && <p style={{ fontSize: 13, margin: "2px 0 0", color: "#5b7088" }}>{customer.email}</p>}
-        </div>
-
-        <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 30 }}>
-          <thead>
-            <tr style={{ borderBottom: "2px solid #0c2540" }}>
-              <th style={{ textAlign: "left", padding: "8px 0", fontSize: 12, textTransform: "uppercase" }}>Açıklama</th>
-              <th style={{ textAlign: "right", padding: "8px 0", fontSize: 12, textTransform: "uppercase" }}>Tutar</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style={{ borderBottom: "1px solid #e1e8f0" }}>
-              <td style={{ padding: "12px 0", fontSize: 14 }}>{deal.title}</td>
-              <td style={{ padding: "12px 0", fontSize: 14, textAlign: "right" }}>{formatTL(netAmount)}</td>
-            </tr>
-          </tbody>
-          <tfoot>
-            <tr>
-              <td style={{ padding: "6px 0", fontSize: 13, color: "#5b7088" }}>Ara toplam</td>
-              <td style={{ padding: "6px 0", fontSize: 13, color: "#5b7088", textAlign: "right" }}>{formatTL(netAmount)}</td>
-            </tr>
-            <tr>
-              <td style={{ padding: "6px 0", fontSize: 13, color: "#5b7088" }}>KDV (%{kdvRate})</td>
-              <td style={{ padding: "6px 0", fontSize: 13, color: "#5b7088", textAlign: "right" }}>{formatTL(kdvAmount)}</td>
-            </tr>
-            <tr>
-              <td style={{ padding: "12px 0 0", fontWeight: 700, fontSize: 15, borderTop: "2px solid #0c2540" }}>Genel Toplam</td>
-              <td style={{ padding: "12px 0 0", fontWeight: 700, fontSize: 15, textAlign: "right", borderTop: "2px solid #0c2540" }}>{formatTL(deal.value)}</td>
-            </tr>
-          </tfoot>
-        </table>
-
-        <p style={{ fontSize: 12, color: "#5b7088" }}>
-          {noExpiry ? `Bu ${noun} süresiz geçerlidir.` : `Bu ${noun} ${validityDays || 15} gün geçerlidir.`}
-        </p>
-        {extraNote.trim() && <p style={{ fontSize: 12, color: "#5b7088", marginTop: 4 }}>{extraNote.trim()}</p>}
+      <div id="teklif-print" style={{ width: template.width, height: template.height, position: "relative", margin: "0 auto", background: "#fff" }}>
+        {renderTemplateBlocks(template.blocks, mergeData)}
       </div>
     </div>
   );
@@ -3216,6 +3163,7 @@ export default function App() {
   const [showSectorFields, setShowSectorFields] = useState(false);
   const [showPriceList, setShowPriceList] = useState(false);
   const [showBusinessHours, setShowBusinessHours] = useState(false);
+  const [showPdfTemplates, setShowPdfTemplates] = useState(false);
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [showAppSettings, setShowAppSettings] = useState(false);
   const [showTrashHistory, setShowTrashHistory] = useState(false);
@@ -4205,6 +4153,7 @@ export default function App() {
       appointment_reminders_enabled: s.appointmentRemindersEnabled !== false,
       sector: s.sector || null,
       ...(s.preferredCustomerType ? { preferred_customer_type: s.preferredCustomerType } : {}),
+      ...(s.pdfTemplateKey ? { pdf_template_key: s.pdfTemplateKey } : {}),
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase.from("company_settings").upsert(row).select().single();
@@ -5582,6 +5531,12 @@ export default function App() {
                 description={`Sabit fiyatlı ürün/hizmetlerinizi kaydedin, ${DEAL_WORD_FORMS[dealKind].pluralLoc} hızlıca seçin`}
                 onClick={() => { setShowSettingsHub(false); setShowPriceList(true); }}
               />
+              <MenuRow
+                icon="ti-layout"
+                label="Teklif Şablonları"
+                description="PDF teklifinizin tasarımını seçin"
+                onClick={() => { setShowSettingsHub(false); setShowPdfTemplates(true); }}
+              />
               {supportsSelfBooking(companySettings?.sector) && (
                 <MenuRow
                   icon="ti-clock"
@@ -5679,6 +5634,15 @@ export default function App() {
       {showPriceList && (
         <Modal title="Ürün & Hizmet Fiyat Listesi" onClose={() => setShowPriceList(false)}>
           <PriceListManager items={priceListItems} onAdd={addPriceListItem} onUpdate={updatePriceListItem} onDelete={deletePriceListItem} sector={companySettings?.sector} />
+        </Modal>
+      )}
+
+      {showPdfTemplates && (
+        <Modal title="Teklif Şablonları" onClose={() => setShowPdfTemplates(false)}>
+          <TemplateGallery
+            activeKey={companySettings?.pdfTemplateKey || "klasik"}
+            onSelect={(key) => upsertCompanySettings({ ...companySettings, pdfTemplateKey: key })}
+          />
         </Modal>
       )}
 
