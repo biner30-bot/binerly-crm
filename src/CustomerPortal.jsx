@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { Badge, Modal, Toast, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, WEEKDAYS, nextWeeklyOccurrence, NotificationBell } from "./shared";
-import { stageLabel, dealWordKind, isAppointmentSector, supportExamples, appointmentNoteExample, SECTOR_PRESETS } from "./Sectors";
+import { stageLabel, dealWordKind, isAppointmentSector, supportsSelfBooking, supportsGroupClasses, groupClassWords, supportExamples, appointmentNoteExample, SECTOR_PRESETS } from "./Sectors";
 
 const PORTAL_DEAL_WORDS = {
   teklif: { emptyList: "Henüz bir teklifiniz yok.", possAcc: "tekliflerinizi", tabLabel: "Tekliflerim" },
@@ -324,7 +324,7 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, sh
       {sorted.map((d) => {
         const stageText = stageLabel(d.stage, "bireysel", sectorByCustomerId[d.customerId]);
         const tone = d.stage === "kazanildi" ? "success" : d.stage === "kaybedildi" ? "default" : d.stage === "muzakere" ? "warning" : "accent";
-        const randevuTarihi = d.customFields?.randevu_tarihi;
+        const randevuTarihi = d.customFields?.portal_randevu_zamani;
         const cancellable = d.stage === "ilk_gorusme" && randevuTarihi;
         const canCancel = cancellable && canCancelAppointmentDeal(randevuTarihi);
         return (
@@ -355,6 +355,7 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, sh
 }
 
 function PortalGroupClasses({ groupClasses, groupClassEnrollments, customerRows, showCompany, hasActiveMembership, onEnroll, onCancel }) {
+  const words = groupClassWords(customerRows[0]?.companySector);
   const companyNameByUserId = Object.fromEntries(customerRows.map((c) => [c.userId, c.companyName || c.name]));
   const myCustomerIds = new Set(customerRows.map((c) => c.id));
   const myEnrollments = groupClassEnrollments.filter((e) => myCustomerIds.has(e.customerId));
@@ -412,7 +413,7 @@ function PortalGroupClasses({ groupClasses, groupClassEnrollments, customerRows,
                   <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
                     {WEEKDAYS[g.weekday - 1]} {g.startTime}{g.instructorName ? ` · ${g.instructorName}` : ""}{showCompany ? ` · ${companyNameByUserId[g.userId]}` : ""}
                   </p>
-                  {!eligible && <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--text-muted)" }}>Katılmak için aktif üyeliğiniz olması gerekiyor.</p>}
+                  {!eligible && <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--text-muted)" }}>{words.portalEligibility}</p>}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <Badge tone={full ? "danger" : "success"}>{count}/{g.capacity} dolu</Badge>
@@ -438,6 +439,7 @@ function AppointmentBookingModal({ customerRow, priceListItems, onBook, onClose 
   const [note, setNote] = useState("");
   const [value, setValue] = useState("");
   const [booking, setBooking] = useState(false);
+  const [dateTimeKey, setDateTimeKey] = useState(null);
 
   useEffect(() => {
     if (!date || !customerRow.userId) { setSlotsError("İşletme bilgisi eksik, müsaitlik sorgulanamadı."); return; }
@@ -449,15 +451,16 @@ function AppointmentBookingModal({ customerRow, priceListItems, onBook, onClose 
         const data = await r.json();
         if (!r.ok) throw new Error(data?.error || "Müsaitlik alınamadı.");
         setSlots(data.slots || []);
+        setDateTimeKey(data.dateTimeKey || null);
       })
       .catch((err) => { setSlots([]); setSlotsError(err.message || "Müsaitlik alınamadı."); })
       .finally(() => setLoadingSlots(false));
   }, [date, customerRow.userId]);
 
   const confirm = async () => {
-    if (!selectedTime || !note.trim()) return;
+    if (!selectedTime || !note.trim() || !dateTimeKey) return;
     setBooking(true);
-    const ok = await onBook({ customerId: customerRow.id, businessUserId: customerRow.userId, dateTime: `${date}T${selectedTime}:00`, note, value: Number(value) || 0 });
+    const ok = await onBook({ customerId: customerRow.id, businessUserId: customerRow.userId, dateTime: `${date}T${selectedTime}:00`, dateTimeKey, note, value: Number(value) || 0 });
     setBooking(false);
     if (ok) onClose();
   };
@@ -521,7 +524,7 @@ function AppointmentBookingModal({ customerRow, priceListItems, onBook, onClose 
         <button type="button" onClick={onClose}>Vazgeç</button>
         <button
           type="button"
-          disabled={!selectedTime || !note.trim() || booking}
+          disabled={!selectedTime || !note.trim() || !dateTimeKey || booking}
           onClick={confirm}
           style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
         >
@@ -835,7 +838,7 @@ export default function CustomerPortal() {
   const hasActiveMembership = (customerId) =>
     deals.some((d) => {
       if (d.customerId !== customerId || d.stage !== "kazanildi") return false;
-      const endDate = d.customFields?.uyelik_bitis_tarihi;
+      const endDate = d.customFields?.uyelik_bitis_tarihi ?? d.customFields?.kurs_bitis_tarihi;
       return !endDate || endDate >= new Date().toISOString().slice(0, 10);
     });
 
@@ -843,7 +846,7 @@ export default function CustomerPortal() {
     const row = customerRows.find((c) => c.id === customerId);
     const group = groupClasses.find((g) => g.id === groupClassId);
     if (!row || !group) return;
-    if (!hasActiveMembership(customerId)) { notify("Bu derse katılabilmek için aktif bir üyeliğiniz olması gerekiyor."); return; }
+    if (!hasActiveMembership(customerId)) { notify(groupClassWords(row.companySector).portalEligibility); return; }
     const count = groupClassEnrollments.filter((e) => e.groupClassId === groupClassId).length;
     if (count >= group.capacity) { notify("Bu ders dolu."); return; }
     if (groupClassEnrollments.some((e) => e.groupClassId === groupClassId && e.customerId === customerId)) { notify("Zaten kayıtlısınız."); return; }
@@ -864,11 +867,14 @@ export default function CustomerPortal() {
     notify("Kaydınız iptal edildi.", "success");
   };
 
-  const bookAppointment = async ({ customerId, businessUserId, dateTime, note, value }) => {
+  const bookAppointment = async ({ customerId, businessUserId, dateTime, dateTimeKey, note, value }) => {
     const row = {
       id: uid(), user_id: businessUserId, customer_id: customerId,
       title: (note || "").trim() || "Randevu talebi", value: Number(value) || 0, stage: "ilk_gorusme",
-      custom_fields: { randevu_tarihi: dateTime, kaynak: "portal" },
+      // dateTimeKey, işletmenin gerçek sektör alanı (örn. randevu_tarihi/gorusme_tarihi)
+      // — normal DealForm/PDF/hatırlatma akışında görünsün diye. portal_randevu_zamani
+      // ise sektörden bağımsız sabit anahtar — iptal/bildirim/gösterim mantığı bunu okur.
+      custom_fields: { [dateTimeKey]: dateTime, portal_randevu_zamani: dateTime, kaynak: "portal" },
     };
     const { data, error } = await supabase.from("deals").insert(row).select().single();
     if (error) { notify(`Randevu alınamadı: ${error.message}`); return false; }
@@ -995,8 +1001,8 @@ export default function CustomerPortal() {
   const totalUnreadTickets = visibleTickets.filter((t) => unreadCountByTicket[t.id] > 0).length;
 
   const dealKind = dealWordKind(activeCustomerRow?.companySector);
-  const appointmentCompanies = activeCustomerRow && isAppointmentSector(activeCustomerRow.companySector) ? [activeCustomerRow] : [];
-  const showDersler = activeCustomerRow?.companySector === "spor_merkezi" && visibleGroupClasses.length > 0;
+  const appointmentCompanies = activeCustomerRow && supportsSelfBooking(activeCustomerRow.companySector) ? [activeCustomerRow] : [];
+  const showDersler = supportsGroupClasses(activeCustomerRow?.companySector) && visibleGroupClasses.length > 0;
 
   return (
     <div style={{ maxWidth: 980, margin: "0 auto", padding: "24px 16px 64px" }}>

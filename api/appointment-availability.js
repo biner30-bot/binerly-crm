@@ -1,12 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
 
-// Randevulu sektörlerde (Güzellik & Bakım, Sağlık/Klinik) hâlihazırda
-// kullanılan sabit özel alan anahtarı — SECTOR_PRESETS'te (Sectors.jsx) ikisi
-// de aynı anahtarı kullanıyor. v1 basitleştirmesi: dinamik custom_field_defs
-// araması yerine sabit kodlanmış — bir KOBİ bu alanı farklı bir anahtarla
-// yeniden oluşturursa bu uç nokta o hesap için çalışmaz.
-const APPOINTMENT_DATETIME_KEY = "randevu_tarihi";
-
 // Müşteri portalındaki bir kullanıcı, RLS gereği sadece KENDİ randevularını
 // görebilir — başka müşterilerin randevu saatlerini görüp "bu saat dolu mu"
 // diye client-side hesaplayamaz (haklı bir gizlilik kısıtı). Bu yüzden
@@ -36,18 +29,26 @@ export default async function handler(req, res) {
   const jsWeekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
   const isoWeekday = jsWeekday === 0 ? 7 : jsWeekday;
 
-  const [{ data: hours, error: hoursError }, { data: deals, error: dealsError }] = await Promise.all([
+  // Randevu tarihi özel alanının gerçek anahtarı sektöre göre değişiyor (Güzellik &
+  // Bakım/Sağlık-Klinik'te randevu_tarihi, Emlak/Dijital Ajans/Danışmanlık'ta
+  // gorusme_tarihi) — send-appointment-reminders.js'in zaten yaptığı gibi, sabit
+  // kodlamak yerine bu işletmenin aktif "Tarih & Saat" alanı dinamik bulunuyor.
+  const [{ data: fieldDefs, error: fieldDefsError }, { data: hours, error: hoursError }, { data: deals, error: dealsError }] = await Promise.all([
+    supabaseAdmin.from("custom_field_defs").select("key").eq("user_id", businessUserId).eq("entity", "deal").eq("field_type", "datetime").eq("active", true).limit(1),
     supabaseAdmin.from("business_hours").select("start_time, end_time, slot_duration_minutes").eq("user_id", businessUserId).eq("weekday", isoWeekday),
     supabaseAdmin.from("deals").select("custom_fields").eq("user_id", businessUserId).is("deleted_at", null).neq("stage", "kaybedildi"),
   ]);
 
-  if (hoursError || dealsError) return res.status(500).json({ error: (hoursError || dealsError).message });
+  if (fieldDefsError || hoursError || dealsError) return res.status(500).json({ error: (fieldDefsError || hoursError || dealsError).message });
 
+  const dateTimeKey = fieldDefs?.[0]?.key || null;
   const takenTimes = new Set(
-    (deals || [])
-      .map((d) => d.custom_fields?.[APPOINTMENT_DATETIME_KEY])
-      .filter((dt) => typeof dt === "string" && dt.startsWith(date))
-      .map((dt) => dt.slice(11, 16))
+    dateTimeKey
+      ? (deals || [])
+          .map((d) => d.custom_fields?.[dateTimeKey])
+          .filter((dt) => typeof dt === "string" && dt.startsWith(date))
+          .map((dt) => dt.slice(11, 16))
+      : []
   );
 
   // Sunucunun kendi çalışma saat dilimine güvenmeyen, doğrudan Europe/Istanbul
@@ -63,6 +64,10 @@ export default async function handler(req, res) {
   const isToday = date === `${nowParts.year}-${nowParts.month}-${nowParts.day}`;
   const nowMinutes = (Number(nowParts.hour) % 24) * 60 + Number(nowParts.minute);
 
+  // Aktif randevu tarihi alanı yoksa (işletme devre dışı bırakmış vb.) alınacak
+  // randevunun nereye yazılacağı belirsiz olur — güvenli tarafta kalıp boş dönülür.
+  if (!dateTimeKey) return res.status(200).json({ slots: [], dateTimeKey: null });
+
   const slots = [];
   for (const window of hours || []) {
     const [startH, startM] = window.start_time.slice(0, 5).split(":").map(Number);
@@ -77,5 +82,5 @@ export default async function handler(req, res) {
   }
   slots.sort();
 
-  return res.status(200).json({ slots });
+  return res.status(200).json({ slots, dateTimeKey });
 }

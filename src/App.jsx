@@ -20,6 +20,9 @@ import {
   isAppointmentSector,
   isIndividualFocusedSector,
   dealWordKind,
+  supportsSelfBooking,
+  supportsGroupClasses,
+  groupClassWords,
   rowToCustomFieldDef,
   SectorOnboardingModal,
   CustomFieldDefsManager,
@@ -1065,7 +1068,7 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
         <div style={{ marginBottom: 16 }}>
           <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>{dealWordKind(sector) === "uyelik" ? "Üyelikler" : dealWordKind(sector) === "randevu" ? "Randevular" : "Teklifler"}</p>
           {customerDeals.map((d) => {
-            const randevuTarihi = d.customFields?.randevu_tarihi;
+            const randevuTarihi = d.customFields?.portal_randevu_zamani;
             return (
               <div key={d.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0" }}>
                 <span>
@@ -1529,7 +1532,8 @@ function GroupClassForm({ initial, onSave, onCancel }) {
   );
 }
 
-function GroupClassRoster({ group, enrollments, customers, activeCustomerIds, onEdit, onDelete, onEnroll, onRemove }) {
+function GroupClassRoster({ group, enrollments, customers, activeCustomerIds, sector, onEdit, onDelete, onEnroll, onRemove }) {
+  const words = groupClassWords(sector);
   const [search, setSearch] = useState("");
   const [confirmRemove, setConfirmRemove] = useState(null);
   const enrolledIds = new Set(enrollments.map((e) => e.customerId));
@@ -1554,9 +1558,9 @@ function GroupClassRoster({ group, enrollments, customers, activeCustomerIds, on
         {WEEKDAYS[group.weekday - 1]} {group.startTime}{group.instructorName ? ` · ${group.instructorName}` : ""}
       </p>
 
-      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Kayıtlı üyeler</p>
+      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>{words.rosterTitle}</p>
       {enrollments.length === 0 ? (
-        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Henüz üye yok.</p>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>{words.emptyRoster}</p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
           {enrollments.map((e) => {
@@ -1572,12 +1576,12 @@ function GroupClassRoster({ group, enrollments, customers, activeCustomerIds, on
       )}
 
       {full ? (
-        <p style={{ fontSize: 12, color: "var(--text-danger)" }}>Ders dolu — yeni üye eklemek için önce birini çıkarın.</p>
+        <p style={{ fontSize: 12, color: "var(--text-danger)" }}>{words.fullMessage}</p>
       ) : (
         <>
           <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 4px", display: "flex", alignItems: "center", gap: 4 }}>
-            + Üye ekle
-            <InfoTip text="Sadece aktif üyeliği olan müşteriler listelenir — üyeliği olmayan bir müşteriyi eklemek için önce Müşteri Takibi'nden üyelik kaydı oluşturun." />
+            {words.addMemberLabel}
+            <InfoTip text={words.addMemberInfoTip} />
           </p>
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Müşteri ara (ad, telefon, e-posta)" style={{ width: "100%" }} />
           {matches.length > 0 && (
@@ -1599,7 +1603,7 @@ function GroupClassRoster({ group, enrollments, customers, activeCustomerIds, on
 
       {confirmRemove && (
         <ConfirmDialog
-          title="Üyeyi dersten çıkar"
+          title={words.removeMemberTitle}
           message={`"${customers.find((c) => c.id === confirmRemove.customerId)?.name || "Müşteri"}" bu dersten çıkarılacak. Bu geri alınamaz.`}
           onConfirm={() => { onRemove(confirmRemove.id); setConfirmRemove(null); }}
           onClose={() => setConfirmRemove(null)}
@@ -1609,7 +1613,8 @@ function GroupClassRoster({ group, enrollments, customers, activeCustomerIds, on
   );
 }
 
-function GroupClassesTab({ groupClasses, groupClassEnrollments, customers, activeCustomerIds, onAdd, onUpdate, onDelete, onEnroll, onRemove }) {
+function GroupClassesTab({ groupClasses, groupClassEnrollments, customers, activeCustomerIds, sector, onAdd, onUpdate, onDelete, onEnroll, onRemove }) {
+  const words = groupClassWords(sector);
   const [showForm, setShowForm] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
   const [rosterClass, setRosterClass] = useState(null);
@@ -1621,7 +1626,7 @@ function GroupClassesTab({ groupClasses, groupClassEnrollments, customers, activ
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>Haftalık grup dersi programınız ve kayıtlı üyeler</p>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>{words.tabSubtitle}</p>
         <button
           onClick={() => { setEditingClass(null); setShowForm(true); }}
           style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
@@ -1684,6 +1689,7 @@ function GroupClassesTab({ groupClasses, groupClassEnrollments, customers, activ
             enrollments={groupClassEnrollments.filter((e) => e.groupClassId === rosterClassLive.id)}
             customers={customers}
             activeCustomerIds={activeCustomerIds}
+            sector={sector}
             onEdit={() => { setEditingClass(rosterClassLive); setShowForm(true); setRosterClass(null); }}
             onDelete={() => setConfirmDeleteClass(rosterClassLive)}
             onEnroll={(customerId) => onEnroll({ groupClassId: rosterClassLive.id, customerId })}
@@ -1695,7 +1701,7 @@ function GroupClassesTab({ groupClasses, groupClassEnrollments, customers, activ
       {confirmDeleteClass && (
         <ConfirmDialog
           title="Dersi sil"
-          message={`"${confirmDeleteClass.name}" silinecek. Bu dersteki üyelerin listesi de silinir; dersi geri yüklerseniz üyeleri tekrar eklemeniz gerekir.`}
+          message={`"${confirmDeleteClass.name}" ${words.deleteClassMessage}`}
           onConfirm={() => { onDelete(confirmDeleteClass.id); setConfirmDeleteClass(null); setRosterClass(null); }}
           onClose={() => setConfirmDeleteClass(null)}
         />
@@ -4284,13 +4290,13 @@ export default function App() {
   const enrollMember = async ({ groupClassId, customerId, silent = false }) => {
     const group = groupClasses.find((g) => g.id === groupClassId);
     if (!group) return;
-    if (!activeMemberships.some((d) => d.customerId === customerId)) { notify("Bu müşterinin aktif bir üyeliği yok — önce üyelik kaydı oluşturun."); return; }
+    if (!activeMemberships.some((d) => d.customerId === customerId)) { notify(groupClassWords(companySettings?.sector).noMembershipToast); return; }
     const currentCount = groupClassEnrollments.filter((e) => e.groupClassId === groupClassId).length;
     if (currentCount >= group.capacity) { notify("Bu ders dolu."); return; }
     if (groupClassEnrollments.some((e) => e.groupClassId === groupClassId && e.customerId === customerId)) { notify("Bu müşteri zaten kayıtlı."); return; }
     const row = { id: uid(), user_id: activeTeamId, group_class_id: groupClassId, customer_id: customerId };
     const { data, error } = await supabase.from("group_class_enrollments").insert(row).select().single();
-    if (error) { notify(`Üye eklenemedi: ${error.message}`); return; }
+    if (error) { notify(`${groupClassWords(companySettings?.sector).addErrorPrefix}: ${error.message}`); return; }
     setGroupClassEnrollments((prev) => [...prev, rowToGroupClassEnrollment(data)]);
     if (!silent) {
       const customer = customers.find((c) => c.id === customerId);
@@ -4306,7 +4312,7 @@ export default function App() {
 
   const removeMember = async (enrollmentId) => {
     const { error } = await supabase.from("group_class_enrollments").delete().eq("id", enrollmentId);
-    if (error) { notify(`Üye çıkarılamadı: ${error.message}`); return; }
+    if (error) { notify(`${groupClassWords(companySettings?.sector).removeErrorPrefix}: ${error.message}`); return; }
     setGroupClassEnrollments((prev) => prev.filter((e) => e.id !== enrollmentId));
   };
 
@@ -4386,11 +4392,12 @@ export default function App() {
   const totalOpenValue = openDeals.reduce((sum, d) => sum + (d.value || 0), 0);
   const expectedRevenue = openDeals.reduce((sum, d) => sum + (d.value || 0) * (STAGE_PROBABILITY[d.stage] || 0), 0);
   const dealsWithReminder = deals.filter((d) => d.reminder && d.stage !== "kazanildi" && d.stage !== "kaybedildi");
-  // Spor Merkezi'ne özel: "Üye oldu" aşamasındaki ve üyelik bitiş tarihi geçmemiş
-  // (veya hiç girilmemiş) kayıtlar "aktif üyelik" sayılır.
-  const activeMemberships = companySettings?.sector === "spor_merkezi"
+  // Grup Dersleri destekleyen sektörlerde: "kazanıldı" aşamasındaki ve bitiş
+  // tarihi geçmemiş (veya hiç girilmemiş) kayıtlar "aktif üyelik/kayıt" sayılır
+  // — Spor Merkezi'nde uyelik_bitis_tarihi, Eğitim/Kurs Merkezi'nde kurs_bitis_tarihi.
+  const activeMemberships = supportsGroupClasses(companySettings?.sector)
     ? wonDealsAll.filter((d) => {
-        const endDate = d.customFields?.uyelik_bitis_tarihi;
+        const endDate = d.customFields?.uyelik_bitis_tarihi ?? d.customFields?.kurs_bitis_tarihi;
         return !endDate || endDate >= new Date().toISOString().slice(0, 10);
       })
     : [];
@@ -4626,7 +4633,7 @@ export default function App() {
           { id: "firsat", label: "Müşteri Takibi", icon: "ti-target-arrow" },
           { id: "finans", label: "Finans", icon: "ti-chart-line" },
           { id: "mesajlar", label: "Mesajlar", icon: "ti-message-2" },
-          ...(companySettings?.sector === "spor_merkezi" ? [{ id: "dersler", label: "Dersler", icon: "ti-calendar-time" }] : []),
+          ...(supportsGroupClasses(companySettings?.sector) ? [{ id: "dersler", label: "Dersler", icon: "ti-calendar-time" }] : []),
           { id: "destek", label: "Destek", icon: "ti-headset" },
         ].map((t) => (
           <button
@@ -4756,12 +4763,12 @@ export default function App() {
               value={formatTL(totalOutstanding)}
               onClick={dealsWithOutstanding.length > 0 ? () => openDealOrList(dealsWithOutstanding, `Bekleyen alacağı olan ${DEAL_WORD_FORMS[dealKind].plural}`) : undefined}
             />
-            {companySettings?.sector === "spor_merkezi" && (
+            {supportsGroupClasses(companySettings?.sector) && (
               <MetricCard
-                label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Aktif Üyelikler <InfoTip text="Üyelik Bitiş Tarihi bugün veya sonrasında olan (ya da hiç girilmemiş) 'Üye oldu' kayıtlarının sayısı." /></span>}
+                label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>{groupClassWords(companySettings?.sector).panoMetricLabel} <InfoTip text={groupClassWords(companySettings?.sector).panoMetricInfoTip} /></span>}
                 value={activeMemberships.length}
                 tone="success"
-                onClick={activeMemberships.length > 0 ? () => openDealOrList(activeMemberships, "Aktif Üyelikler") : undefined}
+                onClick={activeMemberships.length > 0 ? () => openDealOrList(activeMemberships, groupClassWords(companySettings?.sector).panoMetricLabel) : undefined}
               />
             )}
             <MetricCard
@@ -5475,12 +5482,13 @@ export default function App() {
         />
       )}
 
-      {tab === "dersler" && companySettings?.sector === "spor_merkezi" && (
+      {tab === "dersler" && supportsGroupClasses(companySettings?.sector) && (
         <GroupClassesTab
           groupClasses={groupClasses}
           groupClassEnrollments={groupClassEnrollments}
           customers={customers}
           activeCustomerIds={new Set(activeMemberships.map((d) => d.customerId))}
+          sector={companySettings?.sector}
           onAdd={addGroupClass}
           onUpdate={updateGroupClass}
           onDelete={deleteGroupClass}
@@ -5525,7 +5533,7 @@ export default function App() {
                 description={`Sabit fiyatlı ürün/hizmetlerinizi kaydedin, ${DEAL_WORD_FORMS[dealKind].pluralLoc} hızlıca seçin`}
                 onClick={() => { setShowSettingsHub(false); setShowPriceList(true); }}
               />
-              {isAppointmentSector(companySettings?.sector) && (
+              {supportsSelfBooking(companySettings?.sector) && (
                 <MenuRow
                   icon="ti-clock"
                   label="Müsaitlik Saatleri"

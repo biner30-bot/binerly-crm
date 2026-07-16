@@ -246,6 +246,22 @@ export function isAppointmentSector(sector) {
   return sector === "guzellik_bakim" || sector === "saglik_klinik";
 }
 
+// Müşterinin portaldan kendi randevusunu alabildiği sektörler — isAppointmentSector()'dan
+// KASITLI OLARAK AYRI bir bayrak: Emlak/Dijital Ajans/Hizmet-Danışmanlık'ta da bir
+// "görüşme tarihi" alanı var ve müşteri kendi görüşme saatini seçebilmeli, ama bu üç
+// sektörde asıl kayıt hâlâ bir tekliftir (dealWordKind/isIndividualFocusedSector
+// değişmiyor) — sadece randevu alma YETENEĞİ ekleniyor, "randevu" diline geçilmiyor.
+export function supportsSelfBooking(sector) {
+  return isAppointmentSector(sector) || sector === "emlak" || sector === "dijital_ajans" || sector === "hizmet_danismanlik";
+}
+
+// Grup Dersleri (haftalık program, kapasite, kendi kendine kayıt/iptal) hem Spor
+// Merkezi'nde (üyeler) hem Eğitim/Kurs Merkezi'nde (öğrenciler) aynı ihtiyaca karşılık
+// geliyor.
+export function supportsGroupClasses(sector) {
+  return sector === "spor_merkezi" || sector === "egitim_kurs";
+}
+
 // Bu sektörlerde müşteri neredeyse hiç kurumsal olmaz (kişisel bakım/üyelik
 // hizmetleri) — yeni müşteri eklerken "Kurumsal" seçeneği kaldırılmıyor
 // (istisnai durumlar için, örn. bir firmanın toplu üyelik alması), ama
@@ -285,8 +301,51 @@ export const supportExamples = (sector) => SUPPORT_EXAMPLES[sector] || DEFAULT_S
 const APPOINTMENT_NOTE_EXAMPLES = {
   guzellik_bakim: "Saç kesimi, cilt bakımı, manikür...",
   saglik_klinik: "Kontrol muayenesi, diş temizliği...",
+  emlak: "Mülk gösterimi, kira sözleşmesi görüşmesi...",
+  dijital_ajans: "Keşif görüşmesi, reklam kampanyası planlaması...",
+  hizmet_danismanlik: "Danışmanlık görüşmesi, proje kapsamı...",
 };
 export const appointmentNoteExample = (sector) => APPOINTMENT_NOTE_EXAMPLES[sector] || "Randevu sebebinizi kısaca yazın...";
+
+// Grup Dersleri hem Spor Merkezi (üye/üyelik dili) hem Eğitim/Kurs Merkezi (öğrenci/kayıt
+// dili) için kullanılıyor — Türkçe'de "üyeliği"/"kaydı" gibi çekimler farklı olduğu için
+// (STAGE_LABELS/SUPPORT_EXAMPLES'taki gibi) kelime birleştirmek yerine tam cümleler
+// sektöre göre saklanıyor.
+const GROUP_CLASS_WORDS = {
+  egitim_kurs: {
+    tabSubtitle: "Haftalık ders programınız ve kayıtlı öğrenciler",
+    rosterTitle: "Kayıtlı öğrenciler",
+    emptyRoster: "Henüz öğrenci yok.",
+    fullMessage: "Ders dolu — yeni öğrenci eklemek için önce birini çıkarın.",
+    addMemberLabel: "+ Öğrenci ekle",
+    addMemberInfoTip: "Sadece aktif kaydı olan müşteriler listelenir — kaydı olmayan bir öğrenciyi eklemek için önce Müşteri Takibi'nden kayıt oluşturun.",
+    removeMemberTitle: "Öğrenciyi dersten çıkar",
+    deleteClassMessage: "silinecek. Bu dersteki öğrencilerin listesi de silinir; dersi geri yüklerseniz öğrencileri tekrar eklemeniz gerekir.",
+    noMembershipToast: "Bu müşterinin aktif bir kaydı yok — önce Müşteri Takibi'nden kayıt oluşturun.",
+    addErrorPrefix: "Öğrenci eklenemedi",
+    removeErrorPrefix: "Öğrenci çıkarılamadı",
+    portalEligibility: "Katılmak için aktif kaydınız olması gerekiyor.",
+    panoMetricLabel: "Aktif Kayıtlar",
+    panoMetricInfoTip: "Kurs Bitiş Tarihi bugün veya sonrasında olan (ya da hiç girilmemiş) 'Kursa kayıt oldu' kayıtlarının sayısı.",
+  },
+  spor_merkezi: {
+    tabSubtitle: "Haftalık grup dersi programınız ve kayıtlı üyeler",
+    rosterTitle: "Kayıtlı üyeler",
+    emptyRoster: "Henüz üye yok.",
+    fullMessage: "Ders dolu — yeni üye eklemek için önce birini çıkarın.",
+    addMemberLabel: "+ Üye ekle",
+    addMemberInfoTip: "Sadece aktif üyeliği olan müşteriler listelenir — üyeliği olmayan bir müşteriyi eklemek için önce Müşteri Takibi'nden üyelik kaydı oluşturun.",
+    removeMemberTitle: "Üyeyi dersten çıkar",
+    deleteClassMessage: "silinecek. Bu dersteki üyelerin listesi de silinir; dersi geri yüklerseniz üyeleri tekrar eklemeniz gerekir.",
+    noMembershipToast: "Bu müşterinin aktif bir üyeliği yok — önce üyelik kaydı oluşturun.",
+    addErrorPrefix: "Üye eklenemedi",
+    removeErrorPrefix: "Üye çıkarılamadı",
+    portalEligibility: "Katılmak için aktif üyeliğiniz olması gerekiyor.",
+    panoMetricLabel: "Aktif Üyelikler",
+    panoMetricInfoTip: "Üyelik Bitiş Tarihi bugün veya sonrasında olan (ya da hiç girilmemiş) 'Üye oldu' kayıtlarının sayısı.",
+  },
+};
+export const groupClassWords = (sector) => GROUP_CLASS_WORDS[sector] || GROUP_CLASS_WORDS.spor_merkezi;
 
 export function rowToCustomFieldDef(r) {
   return {

@@ -88,7 +88,7 @@ async function handleAppointmentPush(req, res, supabaseAdmin) {
   const type = req.body?.type;
   const record = req.body?.record;
   const oldRecord = req.body?.old_record;
-  if (!record || record.custom_fields?.kaynak !== "portal" || !record.custom_fields?.randevu_tarihi) {
+  if (!record || record.custom_fields?.kaynak !== "portal" || !record.custom_fields?.portal_randevu_zamani) {
     return res.status(200).json({ skipped: true });
   }
 
@@ -110,7 +110,7 @@ async function handleAppointmentPush(req, res, supabaseAdmin) {
     .eq("id", record.customer_id)
     .maybeSingle();
 
-  const dateLabel = new Date(`${record.custom_fields.randevu_tarihi}+03:00`).toLocaleString("tr-TR", {
+  const dateLabel = new Date(`${record.custom_fields.portal_randevu_zamani}+03:00`).toLocaleString("tr-TR", {
     day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
   });
 
