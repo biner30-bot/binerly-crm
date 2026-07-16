@@ -2882,12 +2882,46 @@ function LandingPage() {
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#378add", whiteSpace: "nowrap" }}>{r.value}</div>
               </div>
             ))}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12, paddingTop: 12, borderTop: "1px solid #1e3a5c" }}>
-              {["📄 PDF çıktısı", "✓ Onay linki", "🔔 Otomatik hatırlatma", "👤 Müşteri portalı", "📅 Müşteri kendi randevusunu alır", "🧘 Grup dersine kendi kaydolur", "💳 Tahsilat takibi", "🏷️ Etiket & özel alan", "✉️ Müşteriye otomatik e-posta", "📥 Size de anlık bildirim", "📣 E-posta ile kampanya gönderimi"].map((f) => (
-                <span key={f} style={{ fontSize: 10.5, fontWeight: 600, color: "#7fb3e8", background: "#123457", padding: "4px 10px", borderRadius: 20 }}>{f}</span>
-              ))}
-            </div>
-            <p style={{ fontSize: 10, color: "#5b7088", margin: "8px 0 0" }}>Hepsi her kayıtta, her sektörde kullanılabilir.</p>
+            {[
+              {
+                label: "Süreç Otomasyonu",
+                items: [
+                  { icon: "ti-file-text", text: "PDF çıktısı" },
+                  { icon: "ti-circle-check", text: "Onay linki" },
+                  { icon: "ti-bell", text: "Otomatik hatırlatma" },
+                  { icon: "ti-mail", text: "Müşteriye otomatik e-posta" },
+                ],
+              },
+              {
+                label: "Müşteri Kendi Halleder",
+                items: [
+                  { icon: "ti-users-group", text: "Müşteri portalı" },
+                  { icon: "ti-calendar-plus", text: "Kendi randevusunu alır" },
+                  { icon: "ti-calendar-time", text: "Grup dersine kendi kaydolur" },
+                ],
+              },
+              {
+                label: "Takip & İletişim",
+                items: [
+                  { icon: "ti-cash", text: "Tahsilat takibi" },
+                  { icon: "ti-tag", text: "Etiket & özel alan" },
+                  { icon: "ti-bell-ringing", text: "Size de anlık bildirim" },
+                  { icon: "ti-speakerphone", text: "E-posta ile kampanya gönderimi" },
+                ],
+              },
+            ].map((group) => (
+              <div key={group.label} style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #1e3a5c" }}>
+                <p style={{ fontSize: 9.5, fontWeight: 700, color: "#5b7088", textTransform: "uppercase", letterSpacing: 0.5, margin: "0 0 6px" }}>{group.label}</p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {group.items.map((it) => (
+                    <span key={it.text} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 600, color: "#7fb3e8", background: "#123457", padding: "4px 10px 4px 8px", borderRadius: 20 }}>
+                      <i className={`ti ${it.icon}`} style={{ fontSize: 12 }} aria-hidden="true"></i>
+                      {it.text}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
