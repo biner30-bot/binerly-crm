@@ -199,12 +199,13 @@ export default function DealApprovalPage() {
             )}
             {(() => {
               const isPaid = state.deal.paymentStatus === "paid";
+              // Onaylı bir teklifin ödemesi sonradan iade/silinebiliyor — yani
+              // "onaylandı" ödemenin de tamamlandığı anlamına gelmiyor (özellikle
+              // "zorunlu" modda bile). needsPayment bu ikisini kasıtlı olarak
+              // ayrı tutuyor, approved durumundan bağımsız.
               const needsPayment = state.deal.paymentMode !== "none" && !isPaid;
               const isOptionalPay = state.deal.paymentMode === "optional";
-              // "İsteğe bağlı öde" modunda onay ve ödeme birbirinden bağımsız —
-              // biri gerçekleşse bile diğeri hâlâ bekliyor olabilir, bu yüzden
-              // "onaylandı" durumu ödeme butonunu artık gizlemiyor.
-              const hasPendingAction = !state.deal.approved || (isOptionalPay && !isPaid);
+              const hasPendingAction = !state.deal.approved || needsPayment;
               return (
                 <>
                   {state.deal.approved && (
@@ -232,13 +233,13 @@ export default function DealApprovalPage() {
                   {paymentError && (
                     <p style={{ fontSize: 12.5, color: "#b91c1c", margin: "0 0 12px" }}>{paymentError}</p>
                   )}
-                  {state.deal.paymentMode === "required" && !state.deal.approved && (
+                  {state.deal.paymentMode === "required" && needsPayment && (
                     <button
                       onClick={payNow}
                       disabled={paying}
                       style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
                     >
-                      {paying ? "Yönlendiriliyor…" : "Öde ve Onayla"}
+                      {paying ? "Yönlendiriliyor…" : state.deal.approved ? "Öde" : "Öde ve Onayla"}
                     </button>
                   )}
                   {state.deal.paymentMode !== "required" && !state.deal.approved && (
