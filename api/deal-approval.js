@@ -181,6 +181,30 @@ async function handlePaymentCallback(req, res, supabaseAdmin, url) {
       headers: { "Content-Type": "application/json", "x-push-secret": (process.env.PUSH_WEBHOOK_SECRET || "").trim() },
       body: JSON.stringify({ table: "payments", record: { deal_id: deal.id, amount: deal.value } }),
     }).catch(() => {});
+
+    // iyzico, ödemeyi hesaba geçirmeden önce kendi komisyonunu kesiyor —
+    // KOBİ'nin gerçek net kazancı deal.value'dan daha az. Bu farkı otomatik
+    // bir gider olarak kaydediyoruz ki Gelir-Gider Defteri gerçeği yansıtsın.
+    // Komisyonun kendi KDV'si var ama bu bizim satış KDV'mizle ilgisiz bir
+    // ayrı işlem — kdv_rate bilinçli olarak boş bırakılıyor (KOBİ isterse
+    // gideri düzenleyip kendi muhasebesine göre KDV oranı ekleyebilir).
+    const item = result.itemTransactions?.[0];
+    const commission = item ? Number(item.iyziCommissionRateAmount || 0) + Number(item.iyziCommissionFee || 0) : 0;
+    if (commission > 0) {
+      const { error: expenseError } = await supabaseAdmin.from("company_expenses").insert({
+        id: crypto.randomUUID(),
+        user_id: deal.user_id,
+        title: "iyzico komisyonu",
+        category: "Ödeme Komisyonu",
+        amount: commission,
+        expense_date: new Date().toISOString().slice(0, 10),
+        note: `"${deal.title}" teklifinin online ödemesi için`,
+        is_recurring: false,
+        recurrence_interval: "monthly",
+        kdv_rate: null,
+      });
+      if (expenseError) console.error("iyzico commission expense insert error:", expenseError.message, "deal.id:", deal.id);
+    }
   }
 
   // Gerçek para tahsil edildiği için (payment_mode ne olursa olsun) teklif

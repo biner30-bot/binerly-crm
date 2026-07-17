@@ -105,7 +105,7 @@ export function expandExpenseOccurrences(expense, bounds) {
   return occurrences;
 }
 
-const EXPENSE_CATEGORIES = ["Kira", "Maaş", "Fatura / Abonelik", "Ofis / Sarf Malzemesi", "Pazarlama", "Vergi / SGK", "Ulaşım", "Diğer"];
+const EXPENSE_CATEGORIES = ["Kira", "Maaş", "Fatura / Abonelik", "Ofis / Sarf Malzemesi", "Pazarlama", "Vergi / SGK", "Ulaşım", "Ödeme Komisyonu", "Diğer"];
 
 function paymentDateLabel(dateStr) {
   return new Date(dateStr).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" });
