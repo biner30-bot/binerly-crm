@@ -359,6 +359,8 @@ function rowToPayment(r) {
     note: r.note || "",
     createdAt: r.created_at,
     deletedAt: r.deleted_at || null,
+    provider: r.provider || null,
+    refundOfPaymentId: r.refund_of_payment_id || null,
   };
 }
 
@@ -1056,16 +1058,53 @@ function paymentDateLabel(dateStr) {
   return new Date(dateStr).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function DealPayments({ deal, payments, sector, onAddPayment, onDeletePayment }) {
+const REFUND_REASON_OPTIONS = [
+  { value: "buyer_request", label: "Müşteri talebi" },
+  { value: "double_payment", label: "Mükerrer ödeme" },
+  { value: "other", label: "Diğer" },
+];
+
+function DealPayments({ deal, payments, sector, onAddPayment, onDeletePayment, onRefundPayment }) {
   const [amount, setAmount] = useState("");
   const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [refundingId, setRefundingId] = useState(null);
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundReason, setRefundReason] = useState(REFUND_REASON_OPTIONS[0].value);
+  const [refundSaving, setRefundSaving] = useState(false);
+  const [refundError, setRefundError] = useState("");
 
   const sorted = payments.slice().sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt));
   const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
   const remaining = deal.value - totalPaid;
+
+  const refundableFor = (payment) => {
+    const refunded = payments
+      .filter((p) => p.refundOfPaymentId === payment.id)
+      .reduce((sum, p) => sum + Math.abs(p.amount || 0), 0);
+    return payment.amount - refunded;
+  };
+
+  const startRefund = (payment) => {
+    setRefundingId(payment.id);
+    setRefundAmount(String(refundableFor(payment)));
+    setRefundReason(REFUND_REASON_OPTIONS[0].value);
+    setRefundError("");
+  };
+
+  const confirmRefund = async (payment) => {
+    const n = Number(refundAmount);
+    const refundable = refundableFor(payment);
+    if (!n || n <= 0) { setRefundError("Geçerli bir tutar girin."); return; }
+    if (n > refundable + 0.01) { setRefundError(`En fazla ${formatTL(refundable)} iade edilebilir.`); return; }
+    setRefundSaving(true);
+    const ok = await onRefundPayment({ dealId: deal.id, paymentId: payment.id, amount: n, reason: refundReason });
+    setRefundSaving(false);
+    if (ok) setRefundingId(null);
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -1111,14 +1150,67 @@ function DealPayments({ deal, payments, sector, onAddPayment, onDeletePayment })
       {sorted.length === 0 ? (
         <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz tahsilat kaydı yok.</p>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 200, overflowY: "auto" }}>
-          {sorted.map((p) => (
-            <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13 }}>
-              <span>{formatTL(p.amount)} <span style={{ color: "var(--text-muted)" }}>· {paymentDateLabel(p.paidAt)}{p.note ? ` · ${p.note}` : ""}</span></span>
-              <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => onDeletePayment(p.id)} />
-            </div>
-          ))}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 260, overflowY: "auto" }}>
+          {sorted.map((p) => {
+            const isRefund = p.amount < 0;
+            const isOnline = p.provider === "iyzico";
+            const refundable = isOnline && !isRefund ? refundableFor(p) : 0;
+            return (
+              <div key={p.id}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13 }}>
+                  <span style={{ color: isRefund ? "var(--text-danger)" : "inherit" }}>
+                    {isRefund ? "−" : ""}{formatTL(Math.abs(p.amount))}{" "}
+                    <span style={{ color: "var(--text-muted)" }}>· {paymentDateLabel(p.paidAt)}{p.note ? ` · ${p.note}` : ""}</span>
+                  </span>
+                  {isRefund ? null : isOnline ? (
+                    refundable > 0.01 ? (
+                      <button type="button" onClick={() => startRefund(p)} style={{ fontSize: 12 }}>İade Et</button>
+                    ) : (
+                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Tamamen iade edildi</span>
+                    )
+                  ) : (
+                    <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDeleteId(p.id)} />
+                  )}
+                </div>
+                {refundingId === p.id && (
+                  <div style={{ marginTop: 6, padding: 8, border: "0.5px solid var(--border)", borderRadius: "var(--radius)" }}>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                      <input
+                        type="number" min="0" step="0.01" max={refundable}
+                        value={refundAmount}
+                        onChange={(e) => { setRefundAmount(e.target.value); setRefundError(""); }}
+                        style={{ flex: 1, fontSize: 13 }}
+                      />
+                      <select value={refundReason} onChange={(e) => setRefundReason(e.target.value)} style={{ fontSize: 13 }}>
+                        {REFUND_REASON_OPTIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                      </select>
+                    </div>
+                    {refundError && <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "0 0 8px" }}>{refundError}</p>}
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button type="button" onClick={() => setRefundingId(null)} style={{ fontSize: 12 }}>Vazgeç</button>
+                      <button
+                        type="button"
+                        onClick={() => confirmRefund(p)}
+                        disabled={refundSaving}
+                        style={{ fontSize: 12, background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+                      >
+                        {refundSaving ? "İade ediliyor…" : "İadeyi Onayla"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
+      )}
+      {confirmDeleteId && (
+        <ConfirmDialog
+          title="Tahsilat silinsin mi?"
+          message="Bu tahsilat kaydı çöp kutusuna taşınır."
+          onConfirm={() => { onDeletePayment(confirmDeleteId); setConfirmDeleteId(null); }}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
       )}
     </div>
   );
@@ -4050,8 +4142,16 @@ export default function App() {
     );
   };
 
+  // Online (iyzico) ödemeler artık buradan silinemez — gerçek para geri
+  // çekilmeden iç kaydı silmek "ödendi" izlenimini kaldırıp aynı linkten
+  // ikinci kez gerçek tahsilata (çift ödeme) yol açabiliyordu. Tek yol
+  // refundPayment — iyzico'ya gerçekten iade isteği gönderiyor.
   const deletePayment = async (id) => {
     const payment = payments.find((p) => p.id === id);
+    if (payment?.provider === "iyzico") {
+      notify("Online ödemeler doğrudan silinemez — \"İade Et\" ile geri ödeme yapın.");
+      return;
+    }
     const batchId = uid();
     const { error } = await supabase
       .from("payments")
@@ -4060,16 +4160,28 @@ export default function App() {
     if (error) { notify(`Tahsilat silinemedi: ${error.message}`); return; }
     setPayments((prev) => prev.filter((p) => p.id !== id));
     logAction("payments", id, "deleted", `${formatTL(payment?.amount || 0)} tahsilat çöp kutusuna taşındı`);
-    // Silinen kayıt iyzico'nun online ödemesiyse "✓ Online ödendi" rozeti artık
-    // yanlış bilgi verir (para kayıttan çıktı) — deal.payment_status'ü de temizle,
-    // ayrıca müşteri linkten tekrar ödemek isterse çalışabilsin diye.
-    if (payment?.note === "iyzico ile online ödeme") {
-      const deal = deals.find((d) => d.id === payment.dealId);
-      if (deal?.paymentStatus === "paid") {
-        const { error: dealError } = await supabase.from("deals").update({ payment_status: null }).eq("id", deal.id);
-        if (!dealError) setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, paymentStatus: null } : d)));
-      }
+  };
+
+  // İade Prosedürü — iyzico ile online alınmış bir tahsilatı tam veya kısmi
+  // olarak GERÇEKTEN iade eder (api/deal-approval.js:handleRefund, KOBİ'nin
+  // kendi oturumuyla çağrılıyor). Başarılıysa negatif tutarlı yeni bir
+  // payments satırı döner — totalPaidForDeal/Finance zaten bunu doğru netler.
+  const refundPayment = async ({ dealId, paymentId, amount, reason }) => {
+    const res = await fetch("/api/deal-approval", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ action: "refund", dealId, paymentId, amount, reason }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { notify(`İade edilemedi: ${data.error || "Bilinmeyen hata"}`); return false; }
+    const refundRow = rowToPayment(data.payment);
+    setPayments((prev) => [...prev, refundRow]);
+    logAction("payments", refundRow.id, "created", `${formatTL(Math.abs(refundRow.amount))} iade edildi`);
+    if (data.dealPaymentStatusCleared) {
+      setDeals((prev) => prev.map((d) => (d.id === dealId ? { ...d, paymentStatus: null } : d)));
     }
+    notify("İade işlemi tamamlandı.", "success");
+    return true;
   };
 
   const addCompanyExpense = async ({ title, category, amount, expenseDate, note, isRecurring, recurrenceInterval, kdvRate }) => {
@@ -6279,6 +6391,7 @@ export default function App() {
             sector={companySettings?.sector}
             onAddPayment={addPayment}
             onDeletePayment={deletePayment}
+            onRefundPayment={refundPayment}
           />
         </Modal>
       )}

@@ -149,9 +149,6 @@ async function handlePaymentCallback(req, res, supabaseAdmin, url) {
     iyzipay.checkoutForm.retrieve({ locale: Iyzipay.LOCALE.TR, token: iyzicoToken }, (err, body) => resolve(err ? null : body));
   });
   if (!result || result.paymentStatus !== "SUCCESS") return redirect(`${target}?paid=0`);
-  // GEÇİCİ — İade Prosedürü için paymentId/paymentTransactionId alan adlarını
-  // doğrulamak amacıyla eklendi, teyit edilince kaldırılacak.
-  console.log("iyzico checkoutForm.retrieve result:", JSON.stringify(result));
 
   const { error: paymentInsertError } = await supabaseAdmin.from("payments").insert({
     id: crypto.randomUUID(),
@@ -160,6 +157,9 @@ async function handlePaymentCallback(req, res, supabaseAdmin, url) {
     amount: deal.value,
     paid_at: new Date().toISOString().slice(0, 10),
     note: "iyzico ile online ödeme",
+    provider: "iyzico",
+    iyzico_payment_id: result.paymentId || null,
+    iyzico_payment_transaction_id: result.itemTransactions?.[0]?.paymentTransactionId || null,
   });
   if (paymentInsertError) console.error("payments insert error:", paymentInsertError.message, "deal.id:", deal.id);
 
@@ -180,6 +180,117 @@ async function handlePaymentCallback(req, res, supabaseAdmin, url) {
   }
 
   return redirect(`${target}?paid=1`);
+}
+
+function getClientIp(req) {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (forwarded) return forwarded.split(",")[0].trim();
+  return req.socket?.remoteAddress || "85.34.78.112";
+}
+
+const REFUND_REASON_LABELS_TR = { buyer_request: "Müşteri talebi", double_payment: "Mükerrer ödeme", fraud: "Sahtecilik", other: "Diğer" };
+
+// KOBİ'nin (müşterinin değil) bir online ödemeyi tam/kısmi iade edebildiği uç
+// nokta — approval_token değil deal.id + payment.id ile çalışır, çünkü bunu
+// tetikleyen işletme sahibinin kendi normal Supabase Auth oturumu (portal
+// müşteri oturumu değil). Bu yüzden yetki kontrolü customers.portal_user_id
+// yerine deal.user_id / team_members'a bakıyor. Online ödemeler artık asla
+// doğrudan silinemiyor — tek "geri alma" yolu burası, gerçekten iyzico'ya
+// iade isteği gönderiyor (bkz. İade Prosedürü planı).
+async function handleRefund(req, res, supabaseAdmin) {
+  const { dealId, paymentId, amount, reason } = req.body || {};
+  if (!dealId || !paymentId) return res.status(400).json({ error: "Eksik bilgi." });
+
+  const authHeader = req.headers.authorization || "";
+  const accessToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!accessToken) return res.status(401).json({ error: "Yetkisiz." });
+  const { data: userData } = await supabaseAdmin.auth.getUser(accessToken);
+  const authedUserId = userData?.user?.id || null;
+  if (!authedUserId) return res.status(401).json({ error: "Yetkisiz." });
+
+  const { data: deal } = await supabaseAdmin.from("deals").select("id, user_id, payment_status").eq("id", dealId).maybeSingle();
+  if (!deal) return res.status(404).json({ error: "Teklif bulunamadı." });
+
+  let authorized = authedUserId === deal.user_id;
+  if (!authorized) {
+    const { data: tm } = await supabaseAdmin.from("team_members").select("team_id").eq("member_id", authedUserId).eq("team_id", deal.user_id).maybeSingle();
+    authorized = !!tm;
+  }
+  if (!authorized) return res.status(403).json({ error: "Bu işlemi yapma yetkiniz yok." });
+
+  const { data: payment } = await supabaseAdmin.from("payments").select("*").eq("id", paymentId).eq("deal_id", dealId).is("deleted_at", null).maybeSingle();
+  if (!payment) return res.status(404).json({ error: "Tahsilat bulunamadı." });
+  if (payment.provider !== "iyzico" || !payment.iyzico_payment_transaction_id) {
+    return res.status(400).json({ error: "Bu tahsilat online ödeme değil, doğrudan silinebilir." });
+  }
+  if (payment.amount <= 0) return res.status(400).json({ error: "Bu kayıt zaten bir iade." });
+
+  const { data: existingRefunds } = await supabaseAdmin
+    .from("payments")
+    .select("amount")
+    .eq("refund_of_payment_id", payment.id)
+    .is("deleted_at", null);
+  const alreadyRefunded = (existingRefunds || []).reduce((sum, r) => sum + Math.abs(r.amount || 0), 0);
+  const refundable = payment.amount - alreadyRefunded;
+  const refundAmount = Number(amount) > 0 ? Number(amount) : refundable;
+  if (refundAmount > refundable + 0.01) {
+    return res.status(400).json({ error: `En fazla ${refundable} TL iade edilebilir.` });
+  }
+
+  const { data: cred } = await supabaseAdmin
+    .from("payment_credentials")
+    .select("api_key, secret_key, sandbox")
+    .eq("user_id", deal.user_id)
+    .eq("provider", "iyzico")
+    .maybeSingle();
+  if (!cred) return res.status(400).json({ error: "iyzico bağlantısı bulunamadı." });
+
+  const iyzipay = new Iyzipay({
+    apiKey: cred.api_key,
+    secretKey: cred.secret_key,
+    uri: cred.sandbox ? IYZICO_BASE_URL.sandbox : IYZICO_BASE_URL.production,
+  });
+  const validReasons = Object.values(Iyzipay.REFUND_REASON);
+  const refundReason = validReasons.includes(reason) ? reason : Iyzipay.REFUND_REASON.OTHER;
+
+  const result = await new Promise((resolve) => {
+    iyzipay.refund.create(
+      {
+        locale: Iyzipay.LOCALE.TR,
+        paymentTransactionId: payment.iyzico_payment_transaction_id,
+        price: String(refundAmount),
+        ip: getClientIp(req),
+        currency: Iyzipay.CURRENCY.TRY,
+        reason: refundReason,
+      },
+      (err, body) => resolve(err ? { status: "failure", errorMessage: err.message } : body)
+    );
+  });
+  if (result.status !== "success") {
+    return res.status(502).json({ error: result.errorMessage || "İade işlemi başarısız oldu." });
+  }
+
+  const refundRow = {
+    id: crypto.randomUUID(),
+    user_id: deal.user_id,
+    deal_id: dealId,
+    amount: -refundAmount,
+    paid_at: new Date().toISOString().slice(0, 10),
+    note: `iyzico ile iade — ${REFUND_REASON_LABELS_TR[refundReason] || "Diğer"}`,
+    provider: "iyzico",
+    refund_of_payment_id: payment.id,
+  };
+  const { data: inserted, error: insertError } = await supabaseAdmin.from("payments").insert(refundRow).select().single();
+  if (insertError) return res.status(500).json({ error: `İade iyzico'da yapıldı ama kayıt eklenemedi: ${insertError.message}` });
+
+  let dealPaymentStatusCleared = false;
+  const isFullRefund = refundAmount >= refundable - 0.01;
+  if (isFullRefund && deal.payment_status === "paid") {
+    const { error: dealError } = await supabaseAdmin.from("deals").update({ payment_status: null }).eq("id", dealId);
+    if (!dealError) dealPaymentStatusCleared = true;
+  }
+
+  return res.status(200).json({ ok: true, payment: inserted, dealPaymentStatusCleared });
 }
 
 // Müşterinin teklif onaylayabildiği (ve isteğe bağlı/zorunlu online ödeme
@@ -205,6 +316,11 @@ export default async function handler(req, res) {
   // iyzico'nun kendi sunucusundan gelen callback — portal oturumu yok, ayrı ele alınır.
   if (req.method === "POST" && url.searchParams.get("action") === "payment-callback") {
     return handlePaymentCallback(req, res, supabaseAdmin, url);
+  }
+
+  // İşletme sahibinin iade isteği — token bazlı değil, ayrı ele alınır.
+  if (req.method === "POST" && (req.body || {}).action === "refund") {
+    return handleRefund(req, res, supabaseAdmin);
   }
 
   const token = req.method === "GET" ? url.searchParams.get("token") : (req.body || {}).token;

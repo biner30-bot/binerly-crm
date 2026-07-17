@@ -300,13 +300,14 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
     ...rangePayments.map((p) => {
       const deal = dealById(p.dealId);
       const customer = customerById(deal?.customerId);
+      const isRefund = p.amount < 0;
       return {
         id: `payment-${p.id}`,
-        type: "gelir",
+        type: isRefund ? "gider" : "gelir",
         date: p.paidAt,
         hasTime: false,
-        label: `${customer?.name || "Bilinmeyen müşteri"} — ${deal?.title || "Tahsilat"}`,
-        amount: p.amount,
+        label: `${customer?.name || "Bilinmeyen müşteri"} — ${deal?.title || "Tahsilat"}${isRefund ? " (iade)" : ""}`,
+        amount: Math.abs(p.amount),
       };
     }),
     ...rangeExpenses.map((e) => ({
