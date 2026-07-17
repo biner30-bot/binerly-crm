@@ -4,6 +4,18 @@ import Iyzipay from "iyzipay";
 import { renderEmailHtml, plainTextFallback } from "./_email-template.js";
 
 const IYZICO_BASE_URL = { sandbox: "https://sandbox-api.iyzipay.com", production: "https://api.iyzipay.com" };
+const PAYTR_GET_TOKEN_URL = "https://www.paytr.com/odeme/api/get-token";
+const PAYTR_REFUND_URL = "https://www.paytr.com/odeme/iade";
+
+function hmacSha256Base64(str, key) {
+  return crypto.createHmac("sha256", key).update(str).digest("base64");
+}
+
+function getClientIp(req) {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (forwarded) return forwarded.split(",")[0].trim();
+  return req.socket?.remoteAddress || "85.34.78.112";
+}
 
 // Deal'i onaylanmış işaretler + KOBİ'ye bilgi maili atar — hem müşterinin
 // normal "Onaylıyorum" akışından hem de (payment_mode='required' teklifler
@@ -57,21 +69,84 @@ async function markApproved(supabaseAdmin, deal, customer, note, contentSuffix) 
   return approvedAt;
 }
 
+// Bir online ödeme başarıyla tamamlandığında yapılması gereken HER ŞEY —
+// hangi sağlayıcıdan geldiği (iyzico/PayTR) fark etmeksizin tek yerden:
+// payments kaydı, bildirim, (varsa) komisyon gideri, payment_status/stage
+// güncellemesi, gerekirse otomatik onay. Hem handlePaymentCallback (iyzico)
+// hem handlePayTRCallback buraya çağrı yapar — kod tekrarı yok.
+async function recordSuccessfulPayment(supabaseAdmin, deal, { provider, iyzicoPaymentId, iyzicoPaymentTransactionId, paytrMerchantOid, commissionAmount }) {
+  const { error: paymentInsertError } = await supabaseAdmin.from("payments").insert({
+    id: crypto.randomUUID(),
+    user_id: deal.user_id,
+    deal_id: deal.id,
+    amount: deal.value,
+    paid_at: new Date().toISOString().slice(0, 10),
+    note: provider === "paytr" ? "PayTR ile online ödeme" : "iyzico ile online ödeme",
+    provider,
+    iyzico_payment_id: iyzicoPaymentId || null,
+    iyzico_payment_transaction_id: iyzicoPaymentTransactionId || null,
+    paytr_merchant_oid: paytrMerchantOid || null,
+  });
+  if (paymentInsertError) {
+    console.error("payments insert error:", paymentInsertError.message, "deal.id:", deal.id);
+    return;
+  }
+
+  fetch("https://binerly.com/api/send-push", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-push-secret": (process.env.PUSH_WEBHOOK_SECRET || "").trim() },
+    body: JSON.stringify({ table: "payments", record: { deal_id: deal.id, amount: deal.value } }),
+  }).catch(() => {});
+
+  // Sağlayıcı, ödemeyi hesaba geçirmeden önce kendi komisyonunu kesiyor —
+  // KOBİ'nin gerçek net kazancı deal.value'dan az. Bu farkı otomatik bir
+  // gider olarak kaydediyoruz ki Gelir-Gider Defteri gerçeği yansıtsın.
+  // Komisyonun kendi KDV'si var ama bu bizim satış KDV'mizle ilgisiz bir
+  // ayrı işlem — kdv_rate bilinçli olarak boş bırakılıyor. (PayTR'nin
+  // bildirim callback'i komisyon tutarını vermiyor — bu yüzden commissionAmount
+  // sadece iyzico'da doluyor, v1 sınırı.)
+  if (commissionAmount > 0) {
+    const { error: expenseError } = await supabaseAdmin.from("company_expenses").insert({
+      id: crypto.randomUUID(),
+      user_id: deal.user_id,
+      title: provider === "paytr" ? "PayTR komisyonu" : "iyzico komisyonu",
+      category: "Ödeme Komisyonu",
+      amount: commissionAmount,
+      expense_date: new Date().toISOString().slice(0, 10),
+      note: `"${deal.title}" teklifinin online ödemesi için`,
+      is_recurring: false,
+      recurrence_interval: "monthly",
+      kdv_rate: null,
+    });
+    if (expenseError) console.error("commission expense insert error:", expenseError.message, "deal.id:", deal.id);
+  }
+
+  // Gerçek para tahsil edildiği için (payment_mode ne olursa olsun) teklif
+  // kazanılmış sayılır — zaten kapanmış (kazanıldı/kaybedildi) bir aşamaya dokunulmaz.
+  const isAlreadyClosed = deal.stage === "kazanildi" || deal.stage === "kaybedildi";
+  const dealUpdate = { payment_status: "paid" };
+  if (!isAlreadyClosed) {
+    dealUpdate.stage = "kazanildi";
+    dealUpdate.closed_at = deal.closed_at || new Date().toISOString();
+  }
+  const { error: dealUpdateError } = await supabaseAdmin.from("deals").update(dealUpdate).eq("id", deal.id);
+  if (dealUpdateError) console.error("deals payment_status/stage update error:", dealUpdateError.message, "deal.id:", deal.id);
+
+  // Ödeme, hangi modda olursa olsun onaydan daha güçlü bir sinyal — "isteğe
+  // bağlı" modda ayrı bir "Onaylıyorum" adımı hâlâ sunuluyor, ama müşteri
+  // onu hiç kullanmadan direkt öderse bu da onay yerine geçer.
+  if (!deal.approved_at) {
+    const { data: customer } = await supabaseAdmin.from("customers").select("name").eq("id", deal.customer_id).maybeSingle();
+    await markApproved(supabaseAdmin, deal, customer, null, "ödeyerek onayladı").catch((e) => console.error("auto-approve error:", e.message));
+  }
+}
+
 // Müşterinin kartla doğrudan ödeyebilmesi için iyzico Checkout Form başlatır —
 // dönen paymentPageUrl'e müşteri yönlendirilir, kart bilgisi hiç bizim
 // sunucumuzdan geçmez. checkoutforms zorunlu buyer/address alanları için
 // customers tablosunda toplanmayan bilgiler (TCKN, açık adres) minimal/
 // placeholder değerlerle dolduruluyor — bkz. plan notu.
-async function initCheckout(supabaseAdmin, deal, customer, token) {
-  const { data: cred, error: credError } = await supabaseAdmin
-    .from("payment_credentials")
-    .select("api_key, secret_key, sandbox")
-    .eq("user_id", deal.user_id)
-    .eq("provider", "iyzico")
-    .maybeSingle();
-  if (credError) console.error("payment_credentials query error:", credError.message, "deal.user_id:", deal.user_id);
-  if (!cred) return { error: "Bu işletme için ödeme bağlantısı kurulmamış." };
-
+async function initIyzicoCheckout(deal, customer, token, cred) {
   const iyzipay = new Iyzipay({
     apiKey: cred.api_key,
     secretKey: cred.secret_key,
@@ -119,6 +194,74 @@ async function initCheckout(supabaseAdmin, deal, customer, token) {
   return { paymentPageUrl: result.paymentPageUrl };
 }
 
+// PayTR'nin iFrame API'siyle ödeme başlatır — iyzico'dan farklı olarak
+// bildirim URL'i dinamik geçilemiyor (KOBİ'nin PayTR panelinde BİR KEZ,
+// sabit olarak ayarlanması gerekiyor), bu yüzden hangi deal olduğunu
+// callback'te bulabilmek için ürettiğimiz merchant_oid'i deals.paytr_merchant_oid'e
+// geçici olarak kaydediyoruz.
+async function initPayTRCheckout(req, supabaseAdmin, deal, customer, token, cred) {
+  const merchantOid = crypto.randomUUID().replace(/-/g, "");
+  const { error: oidError } = await supabaseAdmin.from("deals").update({ paytr_merchant_oid: merchantOid }).eq("id", deal.id);
+  if (oidError) return { error: "Ödeme başlatılamadı." };
+
+  const userIp = getClientIp(req);
+  const email = customer?.email || "musteri@binerly.com";
+  const paymentAmount = Math.round(Number(deal.value) * 100);
+  const userBasket = Buffer.from(JSON.stringify([[deal.title, Number(deal.value).toFixed(2), 1]])).toString("base64");
+  const noInstallment = 0;
+  const maxInstallment = 0;
+  const currency = "TL";
+  const testMode = cred.sandbox ? 1 : 0;
+
+  const hashStr =
+    `${cred.api_key}${userIp}${merchantOid}${email}${paymentAmount}${userBasket}` +
+    `${noInstallment}${maxInstallment}${currency}${testMode}`;
+  const paytrToken = hmacSha256Base64(hashStr + cred.merchant_salt, cred.secret_key);
+
+  const body = new URLSearchParams({
+    merchant_id: cred.api_key,
+    user_ip: userIp,
+    merchant_oid: merchantOid,
+    email,
+    payment_amount: String(paymentAmount),
+    paytr_token: paytrToken,
+    user_basket: userBasket,
+    no_installment: String(noInstallment),
+    max_installment: String(maxInstallment),
+    currency,
+    test_mode: String(testMode),
+    user_name: customer?.name || "Müşteri",
+    user_address: customer?.region || "Belirtilmedi",
+    user_phone: customer?.phone || "5000000000",
+    merchant_ok_url: `https://binerly.com/onay/${token}?paid=1`,
+    merchant_fail_url: `https://binerly.com/onay/${token}?paid=0`,
+  });
+
+  const resp = await fetch(PAYTR_GET_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (data.status !== "success" || !data.token) {
+    return { error: data.reason || "Ödeme başlatılamadı." };
+  }
+  return { paymentPageUrl: `https://www.paytr.com/odeme/guvenli/${data.token}` };
+}
+
+async function initCheckout(req, supabaseAdmin, deal, customer, token) {
+  const { data: cred, error: credError } = await supabaseAdmin
+    .from("payment_credentials")
+    .select("provider, api_key, secret_key, merchant_salt, sandbox")
+    .eq("user_id", deal.user_id)
+    .maybeSingle();
+  if (credError) console.error("payment_credentials query error:", credError.message, "deal.user_id:", deal.user_id);
+  if (!cred) return { error: "Bu işletme için ödeme bağlantısı kurulmamış." };
+
+  if (cred.provider === "paytr") return initPayTRCheckout(req, supabaseAdmin, deal, customer, token, cred);
+  return initIyzicoCheckout(deal, customer, token, cred);
+}
+
 // iyzico'nun ödeme sonucunu bildirmek için tarayıcıyı yönlendirdiği uç nokta —
 // gelen isteğin kimliği doğrulanmış bir portal kullanıcısından geldiğine dair
 // hiçbir garanti yok, bu yüzden iyzico'nun kendi token'ıyla retrieve API'sine
@@ -159,80 +302,58 @@ async function handlePaymentCallback(req, res, supabaseAdmin, url) {
   });
   if (!result || result.paymentStatus !== "SUCCESS") return redirect(`${target}?paid=0`);
 
-  const { error: paymentInsertError } = await supabaseAdmin.from("payments").insert({
-    id: crypto.randomUUID(),
-    user_id: deal.user_id,
-    deal_id: deal.id,
-    amount: deal.value,
-    paid_at: new Date().toISOString().slice(0, 10),
-    note: "iyzico ile online ödeme",
+  const item = result.itemTransactions?.[0];
+  const commissionAmount = item ? Number(item.iyziCommissionRateAmount || 0) + Number(item.iyziCommissionFee || 0) : 0;
+
+  await recordSuccessfulPayment(supabaseAdmin, deal, {
     provider: "iyzico",
-    iyzico_payment_id: result.paymentId || null,
-    iyzico_payment_transaction_id: result.itemTransactions?.[0]?.paymentTransactionId || null,
+    iyzicoPaymentId: result.paymentId || null,
+    iyzicoPaymentTransactionId: item?.paymentTransactionId || null,
+    commissionAmount,
   });
-  if (paymentInsertError) console.error("payments insert error:", paymentInsertError.message, "deal.id:", deal.id);
-  else {
-    // KOBİ'ye "ödeme alındı" bildirimi — deals/ticket_messages'ın aksine bunun
-    // için ayrı bir Supabase webhook kurmak yerine api/send-push.js'i (yeni
-    // "payments" dalı) doğrudan çağırıyoruz, aynı bildirim altyapısı yeniden
-    // kullanılıyor. Bildirim gitmezse ödeme akışını asla bozmasın diye sessizce yutuluyor.
-    fetch("https://binerly.com/api/send-push", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-push-secret": (process.env.PUSH_WEBHOOK_SECRET || "").trim() },
-      body: JSON.stringify({ table: "payments", record: { deal_id: deal.id, amount: deal.value } }),
-    }).catch(() => {});
-
-    // iyzico, ödemeyi hesaba geçirmeden önce kendi komisyonunu kesiyor —
-    // KOBİ'nin gerçek net kazancı deal.value'dan daha az. Bu farkı otomatik
-    // bir gider olarak kaydediyoruz ki Gelir-Gider Defteri gerçeği yansıtsın.
-    // Komisyonun kendi KDV'si var ama bu bizim satış KDV'mizle ilgisiz bir
-    // ayrı işlem — kdv_rate bilinçli olarak boş bırakılıyor (KOBİ isterse
-    // gideri düzenleyip kendi muhasebesine göre KDV oranı ekleyebilir).
-    const item = result.itemTransactions?.[0];
-    const commission = item ? Number(item.iyziCommissionRateAmount || 0) + Number(item.iyziCommissionFee || 0) : 0;
-    if (commission > 0) {
-      const { error: expenseError } = await supabaseAdmin.from("company_expenses").insert({
-        id: crypto.randomUUID(),
-        user_id: deal.user_id,
-        title: "iyzico komisyonu",
-        category: "Ödeme Komisyonu",
-        amount: commission,
-        expense_date: new Date().toISOString().slice(0, 10),
-        note: `"${deal.title}" teklifinin online ödemesi için`,
-        is_recurring: false,
-        recurrence_interval: "monthly",
-        kdv_rate: null,
-      });
-      if (expenseError) console.error("iyzico commission expense insert error:", expenseError.message, "deal.id:", deal.id);
-    }
-  }
-
-  // Gerçek para tahsil edildiği için (payment_mode ne olursa olsun) teklif
-  // kazanılmış sayılır — zaten kapanmış (kazanıldı/kaybedildi) bir aşamaya dokunulmaz.
-  const isAlreadyClosed = deal.stage === "kazanildi" || deal.stage === "kaybedildi";
-  const dealUpdate = { payment_status: "paid" };
-  if (!isAlreadyClosed) {
-    dealUpdate.stage = "kazanildi";
-    dealUpdate.closed_at = deal.closed_at || new Date().toISOString();
-  }
-  const { error: dealUpdateError } = await supabaseAdmin.from("deals").update(dealUpdate).eq("id", deal.id);
-  if (dealUpdateError) console.error("deals payment_status/stage update error:", dealUpdateError.message, "deal.id:", deal.id);
-
-  // Ödeme, hangi modda olursa olsun onaydan daha güçlü bir sinyal — "isteğe
-  // bağlı" modda ayrı bir "Onaylıyorum" adımı hâlâ sunuluyor, ama müşteri
-  // onu hiç kullanmadan direkt öderse bu da onay yerine geçer.
-  if (!deal.approved_at) {
-    const { data: customer } = await supabaseAdmin.from("customers").select("name").eq("id", deal.customer_id).maybeSingle();
-    await markApproved(supabaseAdmin, deal, customer, null, "ödeyerek onayladı").catch((e) => console.error("auto-approve error:", e.message));
-  }
 
   return redirect(`${target}?paid=1`);
 }
 
-function getClientIp(req) {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return req.socket?.remoteAddress || "85.34.78.112";
+// PayTR'nin bildirim_url'e (KOBİ'nin kendi PayTR panelinde bir kez ayarladığı
+// SABİT bir adres) attığı POST — hangi deal olduğunu deals.paytr_merchant_oid
+// üzerinden buluyoruz. PayTR bu uç noktadan MUTLAKA düz metin "OK" bekliyor,
+// aksi halde bildirimi tekrar tekrar dener.
+async function handlePayTRCallback(req, res, supabaseAdmin) {
+  const respondOk = () => { res.status(200).setHeader("Content-Type", "text/plain"); res.end("OK"); };
+
+  const body = req.body || {};
+  const { merchant_oid: merchantOid, status, total_amount: totalAmount, hash } = body;
+  if (!merchantOid || !status || !hash) return respondOk();
+
+  const { data: deal } = await supabaseAdmin
+    .from("deals")
+    .select("id, user_id, customer_id, title, value, stage, closed_at, payment_mode, payment_status, approved_at")
+    .eq("paytr_merchant_oid", merchantOid)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!deal) return respondOk();
+  if (deal.payment_status === "paid") return respondOk(); // aynı bildirim tekrar gelirse mükerrer işlem yapma
+
+  const { data: cred } = await supabaseAdmin
+    .from("payment_credentials")
+    .select("api_key, secret_key, merchant_salt")
+    .eq("user_id", deal.user_id)
+    .eq("provider", "paytr")
+    .maybeSingle();
+  if (!cred) return respondOk();
+
+  const expectedHash = hmacSha256Base64(`${merchantOid}${cred.merchant_salt}${status}${totalAmount}`, cred.secret_key);
+  if (expectedHash !== hash) {
+    console.error("PayTR hash mismatch, merchant_oid:", merchantOid);
+    return respondOk();
+  }
+
+  if (status === "success") {
+    await recordSuccessfulPayment(supabaseAdmin, deal, { provider: "paytr", paytrMerchantOid: merchantOid });
+  }
+
+  return respondOk();
 }
 
 const REFUND_REASON_LABELS_TR = { buyer_request: "Müşteri talebi", double_payment: "Mükerrer ödeme", fraud: "Sahtecilik", other: "Diğer" };
@@ -242,8 +363,11 @@ const REFUND_REASON_LABELS_TR = { buyer_request: "Müşteri talebi", double_paym
 // tetikleyen işletme sahibinin kendi normal Supabase Auth oturumu (portal
 // müşteri oturumu değil). Bu yüzden yetki kontrolü customers.portal_user_id
 // yerine deal.user_id / team_members'a bakıyor. Online ödemeler artık asla
-// doğrudan silinemiyor — tek "geri alma" yolu burası, gerçekten iyzico'ya
-// iade isteği gönderiyor (bkz. İade Prosedürü planı).
+// doğrudan silinemiyor — tek "geri alma" yolu burası, gerçekten sağlayıcıya
+// (iyzico veya PayTR) iade isteği gönderiyor (bkz. İade Prosedürü planı).
+// Kredi, HANGİ sağlayıcıyla alındıysa (payment.provider) o sağlayıcının
+// credentials'ı aranıyor — KOBİ o sırada başka bir sağlayıcıya geçmiş olsa
+// bile (tek-aktif-sağlayıcı modeli) eski ödemenin geçmişi bozulmaz.
 async function handleRefund(req, res, supabaseAdmin) {
   const { dealId, paymentId, amount, reason } = req.body || {};
   if (!dealId || !paymentId) return res.status(400).json({ error: "Eksik bilgi." });
@@ -267,10 +391,16 @@ async function handleRefund(req, res, supabaseAdmin) {
 
   const { data: payment } = await supabaseAdmin.from("payments").select("*").eq("id", paymentId).eq("deal_id", dealId).is("deleted_at", null).maybeSingle();
   if (!payment) return res.status(404).json({ error: "Tahsilat bulunamadı." });
-  if (payment.provider !== "iyzico" || !payment.iyzico_payment_transaction_id) {
+  if (payment.amount <= 0) return res.status(400).json({ error: "Bu kayıt zaten bir iade." });
+  if (payment.provider === "iyzico" && !payment.iyzico_payment_transaction_id) {
     return res.status(400).json({ error: "Bu tahsilat online ödeme değil, doğrudan silinebilir." });
   }
-  if (payment.amount <= 0) return res.status(400).json({ error: "Bu kayıt zaten bir iade." });
+  if (payment.provider === "paytr" && !payment.paytr_merchant_oid) {
+    return res.status(400).json({ error: "Bu tahsilat online ödeme değil, doğrudan silinebilir." });
+  }
+  if (payment.provider !== "iyzico" && payment.provider !== "paytr") {
+    return res.status(400).json({ error: "Bu tahsilat online ödeme değil, doğrudan silinebilir." });
+  }
 
   const { data: existingRefunds } = await supabaseAdmin
     .from("payments")
@@ -284,51 +414,74 @@ async function handleRefund(req, res, supabaseAdmin) {
     return res.status(400).json({ error: `En fazla ${refundable} TL iade edilebilir.` });
   }
 
+  // Ödemenin alındığı sağlayıcının credentials'ı aranıyor — KOBİ o sırada
+  // başka bir sağlayıcıya geçmiş olabilir, bu kasıtlı olarak payment.provider'a bakıyor.
   const { data: cred } = await supabaseAdmin
     .from("payment_credentials")
-    .select("api_key, secret_key, sandbox")
+    .select("api_key, secret_key, merchant_salt, sandbox")
     .eq("user_id", deal.user_id)
-    .eq("provider", "iyzico")
+    .eq("provider", payment.provider)
     .maybeSingle();
-  if (!cred) return res.status(400).json({ error: "iyzico bağlantısı bulunamadı." });
+  if (!cred) {
+    const providerLabel = payment.provider === "paytr" ? "PayTR" : "iyzico";
+    return res.status(400).json({ error: `${providerLabel} bağlantısı bulunamadı — iade için önce bu sağlayıcıyı yeniden bağlamanız gerekiyor.` });
+  }
 
-  const iyzipay = new Iyzipay({
-    apiKey: cred.api_key,
-    secretKey: cred.secret_key,
-    uri: cred.sandbox ? IYZICO_BASE_URL.sandbox : IYZICO_BASE_URL.production,
-  });
   const validReasons = Object.values(Iyzipay.REFUND_REASON);
   const refundReason = validReasons.includes(reason) ? reason : Iyzipay.REFUND_REASON.OTHER;
 
-  const result = await new Promise((resolve) => {
-    iyzipay.refund.create(
-      {
-        locale: Iyzipay.LOCALE.TR,
-        paymentTransactionId: payment.iyzico_payment_transaction_id,
-        price: String(refundAmount),
-        ip: getClientIp(req),
-        currency: Iyzipay.CURRENCY.TRY,
-        reason: refundReason,
-      },
-      (err, body) => resolve(err ? { status: "failure", errorMessage: err.message } : body)
-    );
-  });
-  if (result.status !== "success") {
-    return res.status(502).json({ error: result.errorMessage || "İade işlemi başarısız oldu." });
+  if (payment.provider === "paytr") {
+    const returnAmount = refundAmount.toFixed(2);
+    const hashStr = `${cred.api_key}${payment.paytr_merchant_oid}${returnAmount}${cred.merchant_salt}`;
+    const paytrToken = hmacSha256Base64(hashStr, cred.secret_key);
+    const body = new URLSearchParams({
+      merchant_id: cred.api_key,
+      merchant_oid: payment.paytr_merchant_oid,
+      return_amount: returnAmount,
+      paytr_token: paytrToken,
+    });
+    const resp = await fetch(PAYTR_REFUND_URL, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body });
+    const data = await resp.json().catch(() => ({}));
+    if (data.status !== "success") {
+      return res.status(502).json({ error: data.err_msg || "İade işlemi başarısız oldu." });
+    }
+  } else {
+    const iyzipay = new Iyzipay({
+      apiKey: cred.api_key,
+      secretKey: cred.secret_key,
+      uri: cred.sandbox ? IYZICO_BASE_URL.sandbox : IYZICO_BASE_URL.production,
+    });
+    const result = await new Promise((resolve) => {
+      iyzipay.refund.create(
+        {
+          locale: Iyzipay.LOCALE.TR,
+          paymentTransactionId: payment.iyzico_payment_transaction_id,
+          price: String(refundAmount),
+          ip: getClientIp(req),
+          currency: Iyzipay.CURRENCY.TRY,
+          reason: refundReason,
+        },
+        (err, body) => resolve(err ? { status: "failure", errorMessage: err.message } : body)
+      );
+    });
+    if (result.status !== "success") {
+      return res.status(502).json({ error: result.errorMessage || "İade işlemi başarısız oldu." });
+    }
   }
 
+  const providerLabel = payment.provider === "paytr" ? "PayTR" : "iyzico";
   const refundRow = {
     id: crypto.randomUUID(),
     user_id: deal.user_id,
     deal_id: dealId,
     amount: -refundAmount,
     paid_at: new Date().toISOString().slice(0, 10),
-    note: `iyzico ile iade — ${REFUND_REASON_LABELS_TR[refundReason] || "Diğer"}`,
-    provider: "iyzico",
+    note: `${providerLabel} ile iade — ${REFUND_REASON_LABELS_TR[refundReason] || "Diğer"}`,
+    provider: payment.provider,
     refund_of_payment_id: payment.id,
   };
   const { data: inserted, error: insertError } = await supabaseAdmin.from("payments").insert(refundRow).select().single();
-  if (insertError) return res.status(500).json({ error: `İade iyzico'da yapıldı ama kayıt eklenemedi: ${insertError.message}` });
+  if (insertError) return res.status(500).json({ error: `İade sağlayıcıda yapıldı ama kayıt eklenemedi: ${insertError.message}` });
 
   let dealPaymentStatusCleared = false;
   const isFullRefund = refundAmount >= refundable - 0.01;
@@ -363,6 +516,11 @@ export default async function handler(req, res) {
   // iyzico'nun kendi sunucusundan gelen callback — portal oturumu yok, ayrı ele alınır.
   if (req.method === "POST" && url.searchParams.get("action") === "payment-callback") {
     return handlePaymentCallback(req, res, supabaseAdmin, url);
+  }
+
+  // PayTR'nin sabit bildirim URL'ine gelen callback — portal oturumu yok, ayrı ele alınır.
+  if (req.method === "POST" && url.searchParams.get("action") === "paytr-callback") {
+    return handlePayTRCallback(req, res, supabaseAdmin);
   }
 
   // İşletme sahibinin iade isteği — token bazlı değil, ayrı ele alınır.
@@ -421,7 +579,7 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   if (action === "checkout-init") {
-    const result = await initCheckout(supabaseAdmin, deal, customer, token);
+    const result = await initCheckout(req, supabaseAdmin, deal, customer, token);
     if (result.error) return res.status(502).json({ error: result.error });
     return res.status(200).json({ paymentPageUrl: result.paymentPageUrl });
   }

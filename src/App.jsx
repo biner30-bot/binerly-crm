@@ -362,6 +362,7 @@ function rowToPayment(r) {
     provider: r.provider || null,
     refundOfPaymentId: r.refund_of_payment_id || null,
     iyzicoPaymentTransactionId: r.iyzico_payment_transaction_id || null,
+    paytrMerchantOid: r.paytr_merchant_oid || null,
   };
 }
 
@@ -945,14 +946,14 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
           Müşteri ödemesi
-          <InfoTip text="Onay linkinden veya müşteri portalından kartla ödeme alınabilir — iyzico bağlantısı Ayarlar'dan kurulmalı." />
+          <InfoTip text="Onay linkinden veya müşteri portalından kartla ödeme alınabilir — iyzico veya PayTR bağlantısı Ayarlar'dan kurulmalı." />
         </label>
         <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)} style={{ width: "100%" }}>
           {PAYMENT_MODE_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
         </select>
         {paymentMode !== "none" && !hasPaymentConnection && (
           <p style={{ fontSize: 12.5, color: "var(--text-warning, #b45309)", margin: "4px 0 0" }}>
-            Ödeme almak için önce Ayarlar'dan iyzico hesabınızı bağlamanız gerekiyor.
+            Ödeme almak için önce Ayarlar'dan iyzico veya PayTR hesabınızı bağlamanız gerekiyor.
           </p>
         )}
       </div>
@@ -1176,7 +1177,7 @@ function DealPayments({ deal, payments, sector, onAddPayment, onDeletePayment, o
         <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 260, overflowY: "auto" }}>
           {sorted.map((p) => {
             const isRefund = p.amount < 0;
-            const isOnline = p.provider === "iyzico" && !!p.iyzicoPaymentTransactionId;
+            const isOnline = (p.provider === "iyzico" && !!p.iyzicoPaymentTransactionId) || (p.provider === "paytr" && !!p.paytrMerchantOid);
             const refundable = isOnline && !isRefund ? refundableFor(p) : 0;
             return (
               <div key={p.id}>
@@ -2768,7 +2769,7 @@ const PAYMENT_MODE_OPTIONS = [
 // Onay linki her kopyalandığında açılan, o teklife özel ödeme tercihi seçimi —
 // son seçilen localStorage'dan ön-işaretli gelir, KOBİ'nin her seferinde
 // Ayarlar'a gidip global bir tercih değiştirmesine gerek kalmaz.
-function PaymentModeModal({ deal, iyzicoConnected, onConfirm, onClose }) {
+function PaymentModeModal({ deal, paymentConnected, onConfirm, onClose }) {
   const [mode, setMode] = useState(
     deal.paymentMode !== "none" ? deal.paymentMode : localStorage.getItem(PAYMENT_MODE_LAST_CHOICE_KEY) || "none"
   );
@@ -2792,16 +2793,16 @@ function PaymentModeModal({ deal, iyzicoConnected, onConfirm, onClose }) {
           </label>
         ))}
       </div>
-      {mode !== "none" && !iyzicoConnected && (
+      {mode !== "none" && !paymentConnected && (
         <p style={{ fontSize: 12.5, color: "var(--text-warning, #b45309)", margin: "0 0 12px" }}>
-          Ödeme almak için önce Ayarlar'dan iyzico hesabınızı bağlamanız gerekiyor.
+          Ödeme almak için önce Ayarlar'dan iyzico veya PayTR hesabınızı bağlamanız gerekiyor.
         </p>
       )}
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
         <button onClick={onClose}>Vazgeç</button>
         <button
           onClick={() => { localStorage.setItem(PAYMENT_MODE_LAST_CHOICE_KEY, mode); onConfirm(mode); }}
-          disabled={mode !== "none" && !iyzicoConnected}
+          disabled={mode !== "none" && !paymentConnected}
           style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
         >
           Onayla ve linki kopyala
@@ -2811,18 +2812,26 @@ function PaymentModeModal({ deal, iyzicoConnected, onConfirm, onClose }) {
   );
 }
 
+const PAYTR_NOTIFICATION_URL = "https://binerly.com/api/deal-approval?action=paytr-callback";
+
 function PaymentCredentialForm({ credential, onSave, onDelete, onClose }) {
+  const [provider, setProvider] = useState(credential?.provider || "iyzico");
   const [apiKey, setApiKey] = useState("");
   const [secretKey, setSecretKey] = useState("");
+  const [merchantSalt, setMerchantSalt] = useState("");
   const [sandbox, setSandbox] = useState(credential?.sandbox ?? true);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  const isPayTR = provider === "paytr";
+  const isConnectedProvider = credential && credential.provider === provider;
+  const requiredFilled = apiKey.trim() && secretKey.trim() && (!isPayTR || merchantSalt.trim());
+
   const submit = async (e) => {
     e.preventDefault();
-    if (!apiKey.trim() || !secretKey.trim()) return;
+    if (!requiredFilled) return;
     setSaving(true);
-    await onSave({ apiKey: apiKey.trim(), secretKey: secretKey.trim(), sandbox });
+    await onSave({ provider, apiKey: apiKey.trim(), secretKey: secretKey.trim(), merchantSalt: isPayTR ? merchantSalt.trim() : null, sandbox });
     setSaving(false);
     onClose();
   };
@@ -2830,21 +2839,36 @@ function PaymentCredentialForm({ credential, onSave, onDelete, onClose }) {
   return (
     <>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 14px" }}>
-        Müşterilerinizin onay linkinden kartla doğrudan ödeme yapabilmesi için kendi iyzico hesabınızın API bilgilerini girin.
-        Kart bilgisi hiçbir zaman Binerly sunucularından geçmez, iyzico'nun kendi güvenli sayfasında girilir.
+        Müşterilerinizin onay linkinden kartla doğrudan ödeme yapabilmesi için kendi iyzico veya PayTR hesabınızın API
+        bilgilerini girin. Kart bilgisi hiçbir zaman Binerly sunucularından geçmez, sağlayıcının kendi güvenli sayfasında girilir.
+        Aynı anda sadece bir sağlayıcı aktif olabilir — yeni birini bağlarsanız öncekinin yerini alır.
       </p>
       {credential && (
         <div style={{ background: "var(--surface-2)", borderRadius: "var(--radius)", padding: 10, marginBottom: 14, fontSize: 13 }}>
-          iyzico bağlı ✓ {credential.sandbox ? "(Test modu / Sandbox)" : "(Canlı)"}
+          {credential.provider === "paytr" ? "PayTR" : "iyzico"} bağlı ✓ {credential.sandbox ? "(Test modu / Sandbox)" : "(Canlı)"}
+        </div>
+      )}
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Sağlayıcı</label>
+        <select value={provider} onChange={(e) => { setProvider(e.target.value); setApiKey(""); setSecretKey(""); setMerchantSalt(""); }} style={{ width: "100%" }}>
+          <option value="iyzico">iyzico</option>
+          <option value="paytr">PayTR</option>
+        </select>
+      </div>
+      {isPayTR && (
+        <div style={{ background: "var(--surface-2)", borderRadius: "var(--radius)", padding: 10, marginBottom: 14, fontSize: 12.5 }}>
+          PayTR panelinizde <strong>Bildirim URL'i</strong> olarak (bir kez) şunu ayarlamanız gerekiyor:
+          <div style={{ fontFamily: "monospace", fontSize: 11.5, margin: "6px 0", wordBreak: "break-all", userSelect: "all" }}>{PAYTR_NOTIFICATION_URL}</div>
+          Bu adım yapılmadan ödemeler onaylanmaz.
         </div>
       )}
       <form onSubmit={submit} autoComplete="off">
         <div style={{ marginBottom: 10 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>API Key</label>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>{isPayTR ? "Mağaza No (Merchant ID)" : "API Key"}</label>
           <input
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            placeholder={credential ? "Değiştirmek için yeniden girin" : ""}
+            placeholder={isConnectedProvider ? "Değiştirmek için yeniden girin" : ""}
             autoComplete="off"
             data-1p-ignore
             data-lpignore="true"
@@ -2852,11 +2876,11 @@ function PaymentCredentialForm({ credential, onSave, onDelete, onClose }) {
           />
         </div>
         <div style={{ marginBottom: 10 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Secret Key</label>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>{isPayTR ? "Merchant Key" : "Secret Key"}</label>
           <input
             value={secretKey}
             onChange={(e) => setSecretKey(e.target.value)}
-            placeholder={credential ? "Değiştirmek için yeniden girin" : ""}
+            placeholder={isConnectedProvider ? "Değiştirmek için yeniden girin" : ""}
             type="password"
             autoComplete="new-password"
             data-1p-ignore
@@ -2864,9 +2888,24 @@ function PaymentCredentialForm({ credential, onSave, onDelete, onClose }) {
             style={{ width: "100%" }}
           />
         </div>
+        {isPayTR && (
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Merchant Salt</label>
+            <input
+              value={merchantSalt}
+              onChange={(e) => setMerchantSalt(e.target.value)}
+              placeholder={isConnectedProvider ? "Değiştirmek için yeniden girin" : ""}
+              type="password"
+              autoComplete="new-password"
+              data-1p-ignore
+              data-lpignore="true"
+              style={{ width: "100%" }}
+            />
+          </div>
+        )}
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, marginBottom: 16 }}>
           <input type="checkbox" checked={sandbox} onChange={(e) => setSandbox(e.target.checked)} />
-          Test modu (Sandbox) — canlıya geçmeden önce iyzico test anahtarlarınızla deneyin
+          Test modu (Sandbox) — canlıya geçmeden önce test anahtarlarınızla deneyin
         </label>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
           {credential ? (
@@ -2874,7 +2913,7 @@ function PaymentCredentialForm({ credential, onSave, onDelete, onClose }) {
           ) : <span />}
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" onClick={onClose}>Kapat</button>
-            <button type="submit" disabled={saving || !apiKey.trim() || !secretKey.trim()} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+            <button type="submit" disabled={saving || !requiredFilled} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
               {saving ? "Kaydediliyor…" : "Kaydet"}
             </button>
           </div>
@@ -2883,8 +2922,8 @@ function PaymentCredentialForm({ credential, onSave, onDelete, onClose }) {
       {confirmDelete && (
         <ConfirmDialog
           title="Bağlantı kaldırılsın mı?"
-          message="iyzico bağlantısı kaldırılır, ödeme modu seçilmiş tekliflerdeki online ödeme butonları çalışmaz hale gelir."
-          onConfirm={async () => { await onDelete(); setConfirmDelete(false); onClose(); }}
+          message={`${credential?.provider === "paytr" ? "PayTR" : "iyzico"} bağlantısı kaldırılır, ödeme modu seçilmiş tekliflerdeki online ödeme butonları çalışmaz hale gelir.`}
+          onConfirm={async () => { await onDelete(credential.provider); setConfirmDelete(false); onClose(); }}
           onClose={() => setConfirmDelete(false)}
         />
       )}
@@ -4255,7 +4294,8 @@ export default function App() {
     // ödemeler buradan silinemez. İade Prosedürü'nden ÖNCEKİ eski online
     // ödemelerde bu numara hiç kaydedilmemişti — onlar API ile iade edilemediği
     // için (aksi halde sıkışıp kalırlar) burada normal silmeye izin veriliyor.
-    if (payment?.provider === "iyzico" && payment?.iyzicoPaymentTransactionId) {
+    const isRefundableOnline = (payment?.provider === "iyzico" && payment?.iyzicoPaymentTransactionId) || (payment?.provider === "paytr" && payment?.paytrMerchantOid);
+    if (isRefundableOnline) {
       notify("Online ödemeler doğrudan silinemez — \"İade Et\" ile geri ödeme yapın.");
       return;
     }
@@ -4267,7 +4307,7 @@ export default function App() {
     if (error) { notify(`Tahsilat silinemedi: ${error.message}`); return; }
     setPayments((prev) => prev.filter((p) => p.id !== id));
     logAction("payments", id, "deleted", `${formatTL(payment?.amount || 0)} tahsilat çöp kutusuna taşındı`);
-    if (payment?.provider === "iyzico") {
+    if (payment?.provider === "iyzico" || payment?.provider === "paytr") {
       const deal = deals.find((d) => d.id === payment.dealId);
       if (deal?.paymentStatus === "paid") {
         const { error: dealError } = await supabase.from("deals").update({ payment_status: null }).eq("id", deal.id);
@@ -4356,23 +4396,36 @@ export default function App() {
     setChannelCredentials((prev) => prev.filter((c) => c.channel !== channel));
   };
 
-  const upsertPaymentCredential = async ({ apiKey, secretKey, sandbox }) => {
-    const row = { user_id: activeTeamId, provider: "iyzico", api_key: apiKey, secret_key: secretKey, sandbox, updated_at: new Date().toISOString() };
+  // Tek seferde sadece TEK bir sağlayıcı aktif olabiliyor (basitlik — "hangisi
+  // kullanılacak" belirsizliği hiç oluşmasın diye) — yeni bir sağlayıcı
+  // bağlanınca varsa başka sağlayıcının kaydı önce siliniyor.
+  const upsertPaymentCredential = async ({ provider, apiKey, secretKey, merchantSalt, sandbox }) => {
+    const { error: deleteError } = await supabase
+      .from("payment_credentials")
+      .delete()
+      .eq("user_id", activeTeamId)
+      .neq("provider", provider);
+    if (deleteError) { notify(`Bağlantı kaydedilemedi: ${deleteError.message}`); return; }
+
+    const row = {
+      user_id: activeTeamId, provider, api_key: apiKey, secret_key: secretKey,
+      merchant_salt: merchantSalt || null, sandbox, updated_at: new Date().toISOString(),
+    };
     const { data, error } = await supabase
       .from("payment_credentials")
       .upsert(row, { onConflict: "user_id,provider" })
       .select("id, user_id, provider, sandbox, connected_at")
       .single();
-    if (error) { notify(`iyzico bağlantısı kaydedilemedi: ${error.message}`); return; }
+    if (error) { notify(`Bağlantı kaydedilemedi: ${error.message}`); return; }
     const credential = rowToPaymentCredential(data);
-    setPaymentCredentials((prev) => [...prev.filter((pc) => pc.provider !== "iyzico"), credential]);
-    notify("iyzico bağlandı.", "success");
+    setPaymentCredentials([credential]);
+    notify(`${provider === "paytr" ? "PayTR" : "iyzico"} bağlandı.`, "success");
   };
 
-  const deletePaymentCredential = async () => {
-    const { error } = await supabase.from("payment_credentials").delete().eq("user_id", activeTeamId).eq("provider", "iyzico");
+  const deletePaymentCredential = async (provider) => {
+    const { error } = await supabase.from("payment_credentials").delete().eq("user_id", activeTeamId).eq("provider", provider);
     if (error) { notify(`Bağlantı kaldırılamadı: ${error.message}`); return; }
-    setPaymentCredentials((prev) => prev.filter((pc) => pc.provider !== "iyzico"));
+    setPaymentCredentials((prev) => prev.filter((pc) => pc.provider !== provider));
   };
 
   const refreshChannelMessages = async () => {
@@ -6185,8 +6238,8 @@ export default function App() {
               />
               <MenuRow
                 icon="ti-credit-card"
-                label="Ödeme Bağlantısı (iyzico)"
-                description={paymentCredentials.some((pc) => pc.provider === "iyzico") ? "Bağlı ✓ — müşteriler onay linkinden kartla ödeyebilir" : "Onay linkinden kartla tahsilat almak için bağlayın"}
+                label="Ödeme Bağlantısı"
+                description={paymentCredentials.length > 0 ? `Bağlı ✓ (${paymentCredentials[0].provider === "paytr" ? "PayTR" : "iyzico"}) — müşteriler onay linkinden kartla ödeyebilir` : "Onay linkinden kartla tahsilat almak için iyzico veya PayTR bağlayın"}
                 onClick={() => { setShowSettingsHub(false); setShowPaymentSettings(true); }}
               />
               {supportsSelfBooking(companySettings?.sector) && (
@@ -6303,9 +6356,9 @@ export default function App() {
       )}
 
       {showPaymentSettings && (
-        <Modal title="Ödeme Bağlantısı (iyzico)" onClose={() => setShowPaymentSettings(false)}>
+        <Modal title="Ödeme Bağlantısı" onClose={() => setShowPaymentSettings(false)}>
           <PaymentCredentialForm
-            credential={paymentCredentials.find((pc) => pc.provider === "iyzico") || null}
+            credential={paymentCredentials[0] || null}
             onSave={upsertPaymentCredential}
             onDelete={deletePaymentCredential}
             onClose={() => setShowPaymentSettings(false)}
@@ -6499,7 +6552,7 @@ export default function App() {
             titleSuggestions={[...new Set(deals.map((d) => d.title).filter(Boolean))]}
             priceListItems={priceListItems}
             initialLineItems={editingDeal ? dealLineItems.filter((li) => li.dealId === editingDeal.id) : []}
-            hasPaymentConnection={paymentCredentials.some((pc) => pc.provider === "iyzico")}
+            hasPaymentConnection={paymentCredentials.length > 0}
             totalPaid={editingDeal ? totalPaidForDeal(editingDeal.id) : 0}
             onSave={upsertDeal}
             onCancel={() => { setShowDealForm(false); setEditingDeal(null); }}
@@ -6523,7 +6576,7 @@ export default function App() {
       {paymentModeDeal && (
         <PaymentModeModal
           deal={paymentModeDeal}
-          iyzicoConnected={paymentCredentials.some((pc) => pc.provider === "iyzico")}
+          paymentConnected={paymentCredentials.length > 0}
           onConfirm={async (mode) => {
             await setDealPaymentMode(paymentModeDeal.id, mode);
             const link = await generateApprovalLink(paymentModeDeal);
