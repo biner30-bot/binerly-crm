@@ -1045,6 +1045,9 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} style={{ width: "100%" }}>
             {currentUserId && <option value={currentUserId}>Ben ({currentUserEmail})</option>}
             {teamMembers.filter((m) => m.id !== currentUserId).map((m) => <option key={m.id} value={m.id}>{m.name || m.email}</option>)}
+            {assignedTo && assignedTo !== currentUserId && !teamMembers.some((m) => m.id === assignedTo) && (
+              <option value={assignedTo}>Eski üye (takımdan çıkarılmış)</option>
+            )}
           </select>
         </div>
       )}
@@ -4601,6 +4604,7 @@ export default function App() {
       { name: "group_classes", setter: setGroupClasses, map: rowToGroupClass, label: (r) => r.name },
     ];
     let anyError = null;
+    let restoredTicketIds = [];
     for (const t of tables) {
       const { data, error } = await supabase
         .from(t.name)
@@ -4612,6 +4616,17 @@ export default function App() {
         const rows = data.map(t.map);
         t.setter((prev) => [...prev, ...rows]);
         rows.forEach((r) => logAction(t.name, r.id, "restored", `${t.label(r)} geri yüklendi`));
+        if (t.name === "tickets") restoredTicketIds = rows.map((r) => r.id);
+      }
+    }
+    // ticket_messages'ın kendi deleted_at'i yok — talep silinirken sadece
+    // yerel state'ten filtreleniyordu, DB'de hep kaldı. Talep geri yüklenince
+    // mesaj geçmişi görünsün diye burada ayrıca çekip state'e ekliyoruz.
+    if (restoredTicketIds.length > 0) {
+      const { data: tm } = await supabase.from("ticket_messages").select("*").in("ticket_id", restoredTicketIds).order("created_at");
+      if (tm && tm.length > 0) {
+        const restoredMessages = tm.map(rowToTicketMessage);
+        setTicketMessages((prev) => [...prev, ...restoredMessages]);
       }
     }
     if (anyError) notify(`Geri yükleme sırasında hata: ${anyError.message}`);
