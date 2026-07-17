@@ -124,7 +124,7 @@ async function handlePaymentCallback(req, res, supabaseAdmin, url) {
 
   const { data: deal } = await supabaseAdmin
     .from("deals")
-    .select("id, user_id, customer_id, title, value, payment_mode, payment_status, approved_at")
+    .select("id, user_id, customer_id, title, value, stage, closed_at, payment_mode, payment_status, approved_at")
     .eq("approval_token", dealToken)
     .is("deleted_at", null)
     .maybeSingle();
@@ -150,8 +150,7 @@ async function handlePaymentCallback(req, res, supabaseAdmin, url) {
   });
   if (!result || result.paymentStatus !== "SUCCESS") return redirect(`${target}?paid=0`);
 
-  await supabaseAdmin.from("deals").update({ payment_status: "paid" }).eq("id", deal.id);
-  await supabaseAdmin.from("payments").insert({
+  const { error: paymentInsertError } = await supabaseAdmin.from("payments").insert({
     id: crypto.randomUUID(),
     user_id: deal.user_id,
     deal_id: deal.id,
@@ -159,6 +158,18 @@ async function handlePaymentCallback(req, res, supabaseAdmin, url) {
     paid_at: new Date().toISOString().slice(0, 10),
     note: "iyzico ile online ödeme",
   });
+  if (paymentInsertError) console.error("payments insert error:", paymentInsertError.message, "deal.id:", deal.id);
+
+  // Gerçek para tahsil edildiği için (payment_mode ne olursa olsun) teklif
+  // kazanılmış sayılır — zaten kapanmış (kazanıldı/kaybedildi) bir aşamaya dokunulmaz.
+  const isAlreadyClosed = deal.stage === "kazanildi" || deal.stage === "kaybedildi";
+  const dealUpdate = { payment_status: "paid" };
+  if (!isAlreadyClosed) {
+    dealUpdate.stage = "kazanildi";
+    dealUpdate.closed_at = deal.closed_at || new Date().toISOString();
+  }
+  const { error: dealUpdateError } = await supabaseAdmin.from("deals").update(dealUpdate).eq("id", deal.id);
+  if (dealUpdateError) console.error("deals payment_status/stage update error:", dealUpdateError.message, "deal.id:", deal.id);
 
   if (deal.payment_mode === "required" && !deal.approved_at) {
     const { data: customer } = await supabaseAdmin.from("customers").select("name").eq("id", deal.customer_id).maybeSingle();
