@@ -24,6 +24,7 @@ import {
   dealWordKind,
   supportsSelfBooking,
   supportsGroupClasses,
+  supportsSessionPackages,
   groupClassWords,
   rowToCustomFieldDef,
   SectorOnboardingModal,
@@ -684,7 +685,10 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   );
   const lineItemsTotal = lineItems.reduce((sum, li) => sum + (Number(li.quantity) || 0) * (Number(li.unitPrice) || 0), 0);
   const [cost, setCost] = useState(initial?.cost ?? "");
-  const [paymentMode, setPaymentMode] = useState(initial?.paymentMode || "none");
+  // Yeni tekliflerde son seçilen ödeme tercihi hatırlanır (localStorage) —
+  // kaydetmeden formu kapatıp tekrar açsa bile "Sadece onaylasın"a sıfırlanmasın.
+  // Var olan bir teklifi düzenlerken bu, kaydedilmiş değeri EZMEZ.
+  const [paymentMode, setPaymentMode] = useState(initial?.paymentMode || localStorage.getItem(PAYMENT_MODE_LAST_CHOICE_KEY) || "none");
   const [kdvRate, setKdvRate] = useState(initial?.kdvRate ?? defaultKdvRate ?? 20);
   const [stage, setStage] = useState(initial?.stage || "ilk_gorusme");
   const [dealDate, setDealDate] = useState((initial?.createdAt || new Date().toISOString()).slice(0, 10));
@@ -949,7 +953,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           Müşteri ödemesi
           <InfoTip text="Onay linkinden veya müşteri portalından kartla ödeme alınabilir — iyzico veya PayTR bağlantısı Ayarlar'dan kurulmalı." />
         </label>
-        <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)} style={{ width: "100%" }}>
+        <select value={paymentMode} onChange={(e) => { setPaymentMode(e.target.value); localStorage.setItem(PAYMENT_MODE_LAST_CHOICE_KEY, e.target.value); }} style={{ width: "100%" }}>
           {PAYMENT_MODE_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
         </select>
         {paymentMode !== "none" && !hasPaymentConnection && (
@@ -985,14 +989,16 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           {dateError && <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "4px 0 0" }}>{dateError}</p>}
         </div>
       )}
-      <div style={{ marginBottom: 12 }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-secondary)", cursor: "pointer" }}>
-          <input type="checkbox" checked={isPackageDeal} onChange={(e) => setIsPackageDeal(e.target.checked)} />
-          Bu bir seans/paket satışı
-          <InfoTip text={SESSION_PACKAGE_INFO_TEXT} />
-        </label>
-      </div>
-      {isPackageDeal && (
+      {supportsSessionPackages(sector) && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-secondary)", cursor: "pointer" }}>
+            <input type="checkbox" checked={isPackageDeal} onChange={(e) => setIsPackageDeal(e.target.checked)} />
+            Bu bir seans/paket satışı
+            <InfoTip text={SESSION_PACKAGE_INFO_TEXT} />
+          </label>
+        </div>
+      )}
+      {supportsSessionPackages(sector) && isPackageDeal && (
         <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
           <div style={{ flex: 1 }}>
             <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Toplam seans sayısı</label>
@@ -6227,83 +6233,85 @@ export default function App() {
       )}
 
       {showSettingsHub && (
-        <Modal title="Ayarlar" onClose={() => setShowSettingsHub(false)}>
-          {canEditCompanySettings && (
-            <>
-              <MenuRow
-                icon="ti-building"
-                label="İşletme Bilgileri"
-                description="İşletme adı, adres, iletişim, KDV oranı"
-                onClick={() => { setShowSettingsHub(false); setShowSettingsForm(true); }}
-              />
-              <MenuRow
-                icon="ti-category"
-                label="Sektör & Özel Alanlar"
-                description="Aşama isimleri, etiket önerileri, özel alanlar"
-                onClick={() => { setShowSettingsHub(false); setShowSectorFields(true); }}
-              />
-              <MenuRow
-                icon="ti-tag"
-                label="Ürün & Hizmet Fiyat Listesi"
-                description={`Sabit fiyatlı ürün/hizmetlerinizi kaydedin, ${DEAL_WORD_FORMS[dealKind].pluralLoc} hızlıca seçin`}
-                onClick={() => { setShowSettingsHub(false); setShowPriceList(true); }}
-              />
-              <MenuRow
-                icon="ti-layout"
-                label="Teklif Şablonları"
-                description="PDF teklifinizin tasarımını seçin"
-                onClick={() => { setShowSettingsHub(false); setShowPdfTemplates(true); }}
-              />
-              <MenuRow
-                icon="ti-credit-card"
-                label="Ödeme Bağlantısı"
-                description={paymentCredentials.length > 0 ? `Bağlı ✓ (${paymentCredentials[0].provider === "paytr" ? "PayTR" : "iyzico"}) — müşteriler onay linkinden kartla ödeyebilir` : "Onay linkinden kartla tahsilat almak için iyzico veya PayTR bağlayın"}
-                onClick={() => { setShowSettingsHub(false); setShowPaymentSettings(true); }}
-              />
-              {supportsSelfBooking(companySettings?.sector) && (
+        <Modal title="Ayarlar" onClose={() => setShowSettingsHub(false)} wide>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 8 }}>
+            {canEditCompanySettings && (
+              <>
                 <MenuRow
-                  icon="ti-clock"
-                  label="Müsaitlik Saatleri"
-                  description="Müşteri portalından randevu alınabilecek gün/saatleri belirleyin"
-                  onClick={() => { setShowSettingsHub(false); setShowBusinessHours(true); }}
+                  icon="ti-building"
+                  label="İşletme Bilgileri"
+                  description="İşletme adı, adres, iletişim, KDV oranı"
+                  onClick={() => { setShowSettingsHub(false); setShowSettingsForm(true); }}
                 />
-              )}
-            </>
-          )}
-          <MenuRow
-            icon="ti-adjustments"
-            label="Görünüm, Bildirimler & Hesap"
-            description="Tema, push bildirimleri, şifre"
-            onClick={() => { setShowSettingsHub(false); setShowAppSettings(true); }}
-          />
-          <MenuRow
-            icon="ti-users-group"
-            label="Takım"
-            description="Üyeler ve davetler"
-            onClick={() => { setShowSettingsHub(false); setShowTeamModal(true); }}
-          />
-          <MenuRow
-            icon="ti-history"
-            label="Çöp Kutusu ve Geçmiş"
-            description="Silinen kayıtlar, işlem geçmişi"
-            onClick={() => { setShowSettingsHub(false); setShowTrashHistory(true); }}
-          />
-          <MenuRow
-            icon="ti-qrcode"
-            label="Müşteri Kazanma Linki"
-            description="Müşteri kendi bilgisini bıraksın, elle girmeyin"
-            onClick={async () => {
-              setShowSettingsHub(false);
-              const link = await generateLeadCaptureLink();
-              if (link) setLeadCaptureLink(link);
-            }}
-          />
-          <MenuRow
-            icon="ti-map-2"
-            label="Turu Tekrar Başlat"
-            description="Sistemin nasıl çalıştığını gösteren kısa turu tekrar izleyin"
-            onClick={() => { setShowSettingsHub(false); setTourStep(0); setShowTour(true); }}
-          />
+                <MenuRow
+                  icon="ti-category"
+                  label="Sektör & Özel Alanlar"
+                  description="Aşama isimleri, etiket önerileri, özel alanlar"
+                  onClick={() => { setShowSettingsHub(false); setShowSectorFields(true); }}
+                />
+                <MenuRow
+                  icon="ti-tag"
+                  label="Ürün & Hizmet Fiyat Listesi"
+                  description={`Sabit fiyatlı ürün/hizmetlerinizi kaydedin, ${DEAL_WORD_FORMS[dealKind].pluralLoc} hızlıca seçin`}
+                  onClick={() => { setShowSettingsHub(false); setShowPriceList(true); }}
+                />
+                <MenuRow
+                  icon="ti-layout"
+                  label="Teklif Şablonları"
+                  description="PDF teklifinizin tasarımını seçin"
+                  onClick={() => { setShowSettingsHub(false); setShowPdfTemplates(true); }}
+                />
+                <MenuRow
+                  icon="ti-credit-card"
+                  label="Ödeme Bağlantısı"
+                  description={paymentCredentials.length > 0 ? `Bağlı ✓ (${paymentCredentials[0].provider === "paytr" ? "PayTR" : "iyzico"}) — müşteriler onay linkinden kartla ödeyebilir` : "Onay linkinden kartla tahsilat almak için iyzico veya PayTR bağlayın"}
+                  onClick={() => { setShowSettingsHub(false); setShowPaymentSettings(true); }}
+                />
+                {supportsSelfBooking(companySettings?.sector) && (
+                  <MenuRow
+                    icon="ti-clock"
+                    label="Müsaitlik Saatleri"
+                    description="Müşteri portalından randevu alınabilecek gün/saatleri belirleyin"
+                    onClick={() => { setShowSettingsHub(false); setShowBusinessHours(true); }}
+                  />
+                )}
+              </>
+            )}
+            <MenuRow
+              icon="ti-adjustments"
+              label="Görünüm, Bildirimler & Hesap"
+              description="Tema, push bildirimleri, şifre"
+              onClick={() => { setShowSettingsHub(false); setShowAppSettings(true); }}
+            />
+            <MenuRow
+              icon="ti-users-group"
+              label="Takım"
+              description="Üyeler ve davetler"
+              onClick={() => { setShowSettingsHub(false); setShowTeamModal(true); }}
+            />
+            <MenuRow
+              icon="ti-history"
+              label="Çöp Kutusu ve Geçmiş"
+              description="Silinen kayıtlar, işlem geçmişi"
+              onClick={() => { setShowSettingsHub(false); setShowTrashHistory(true); }}
+            />
+            <MenuRow
+              icon="ti-qrcode"
+              label="Müşteri Kazanma Linki"
+              description="Müşteri kendi bilgisini bıraksın, elle girmeyin"
+              onClick={async () => {
+                setShowSettingsHub(false);
+                const link = await generateLeadCaptureLink();
+                if (link) setLeadCaptureLink(link);
+              }}
+            />
+            <MenuRow
+              icon="ti-map-2"
+              label="Turu Tekrar Başlat"
+              description="Sistemin nasıl çalıştığını gösteren kısa turu tekrar izleyin"
+              onClick={() => { setShowSettingsHub(false); setTourStep(0); setShowTour(true); }}
+            />
+          </div>
         </Modal>
       )}
 

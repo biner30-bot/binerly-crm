@@ -337,11 +337,10 @@ export function MenuRow({ icon, label, description, onClick }) {
         border: "0.5px solid var(--border)",
         borderRadius: "var(--radius)",
         textAlign: "left",
-        marginBottom: 8,
       }}
     >
       <i className={`ti ${icon}`} style={{ fontSize: 18, color: "var(--text-accent)", flexShrink: 0 }} aria-hidden="true"></i>
-      <span style={{ flex: 1 }}>
+      <span style={{ flex: 1, minWidth: 0 }}>
         <span style={{ display: "block", fontSize: 14, fontWeight: 500 }}>{label}</span>
         {description && <span style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{description}</span>}
       </span>
@@ -503,7 +502,7 @@ export function Toast({ message, tone = "danger", onClose }) {
   );
 }
 
-export function Modal({ title, onClose, children }) {
+export function Modal({ title, onClose, wide, children }) {
   return (
     <div
       style={{
@@ -524,7 +523,7 @@ export function Modal({ title, onClose, children }) {
           borderRadius: 12,
           padding: "1.5rem",
           width: "100%",
-          maxWidth: 420,
+          maxWidth: wide ? 620 : 420,
           margin: "auto",
         }}
       >

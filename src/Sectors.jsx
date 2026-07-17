@@ -262,6 +262,13 @@ export function supportsGroupClasses(sector) {
   return sector === "spor_merkezi" || sector === "egitim_kurs";
 }
 
+// Seans/paket satışı (10 seanslık PT paketi, epilasyon paketi, kurs dönemi, fizyoterapi
+// paketi vb.) bu sektörlerde doğal bir satış şekli — diğerlerinde (Emlak, Üretim/Satış,
+// Perakende vb.) hiç karşılığı olmadığı için teklif formunda gereksiz bir alan olarak kalıyordu.
+export function supportsSessionPackages(sector) {
+  return sector === "spor_merkezi" || sector === "egitim_kurs" || sector === "guzellik_bakim" || sector === "saglik_klinik";
+}
+
 // Bu sektörlerde müşteri neredeyse hiç kurumsal olmaz (kişisel bakım/üyelik
 // hizmetleri) — yeni müşteri eklerken "Kurumsal" seçeneği kaldırılmıyor
 // (istisnai durumlar için, örn. bir firmanın toplu üyelik alması), ama
