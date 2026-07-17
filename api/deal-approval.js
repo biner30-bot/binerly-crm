@@ -54,12 +54,13 @@ async function markApproved(supabaseAdmin, deal, customer, note, contentSuffix) 
 // customers tablosunda toplanmayan bilgiler (TCKN, açık adres) minimal/
 // placeholder değerlerle dolduruluyor — bkz. plan notu.
 async function initCheckout(supabaseAdmin, deal, customer, token) {
-  const { data: cred } = await supabaseAdmin
+  const { data: cred, error: credError } = await supabaseAdmin
     .from("payment_credentials")
     .select("api_key, secret_key, sandbox")
     .eq("user_id", deal.user_id)
     .eq("provider", "iyzico")
     .maybeSingle();
+  if (credError) console.error("payment_credentials query error:", credError.message, "deal.user_id:", deal.user_id);
   if (!cred) return { error: "Bu işletme için ödeme bağlantısı kurulmamış." };
 
   const iyzipay = new Iyzipay({
@@ -130,12 +131,13 @@ async function handlePaymentCallback(req, res, supabaseAdmin, url) {
   if (!deal) return redirect("https://binerly.com/");
   if (deal.payment_status === "paid") return redirect(`${target}?paid=1`); // aynı callback tekrar tetiklenirse mükerrer işlem yapma
 
-  const { data: cred } = await supabaseAdmin
+  const { data: cred, error: credError } = await supabaseAdmin
     .from("payment_credentials")
     .select("api_key, secret_key, sandbox")
     .eq("user_id", deal.user_id)
     .eq("provider", "iyzico")
     .maybeSingle();
+  if (credError) console.error("payment_credentials query error:", credError.message, "deal.user_id:", deal.user_id);
   if (!cred) return redirect(`${target}?paid=0`);
 
   const iyzipay = new Iyzipay({

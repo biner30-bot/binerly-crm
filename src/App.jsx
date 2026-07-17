@@ -4089,16 +4089,13 @@ export default function App() {
     setChannelCredentials((prev) => prev.filter((c) => c.channel !== channel));
   };
 
-  // channel_credentials'ın aksine payment_credentials'ta (user_id, provider) için
-  // benzersizlik kısıtı yok — bu yüzden upsert yerine, önce mevcut kaydı yerelde
-  // arayıp varsa id'siyle update, yoksa insert ediyoruz.
   const upsertPaymentCredential = async ({ apiKey, secretKey, sandbox }) => {
-    const existing = paymentCredentials.find((pc) => pc.provider === "iyzico");
     const row = { user_id: activeTeamId, provider: "iyzico", api_key: apiKey, secret_key: secretKey, sandbox, updated_at: new Date().toISOString() };
-    const query = existing
-      ? supabase.from("payment_credentials").update(row).eq("id", existing.id)
-      : supabase.from("payment_credentials").insert(row);
-    const { data, error } = await query.select("id, user_id, provider, sandbox, connected_at").single();
+    const { data, error } = await supabase
+      .from("payment_credentials")
+      .upsert(row, { onConflict: "user_id,provider" })
+      .select("id, user_id, provider, sandbox, connected_at")
+      .single();
     if (error) { notify(`iyzico bağlantısı kaydedilemedi: ${error.message}`); return; }
     const credential = rowToPaymentCredential(data);
     setPaymentCredentials((prev) => [...prev.filter((pc) => pc.provider !== "iyzico"), credential]);
