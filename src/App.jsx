@@ -781,6 +781,12 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           </select>
         )}
       </div>
+      {(initial?.approvedAt || initial?.paymentStatus === "paid") && (
+        <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+          {initial?.approvedAt && <Badge tone="success">✓ Müşteri onayladı</Badge>}
+          {initial?.paymentStatus === "paid" && <Badge tone="success">✓ Online ödendi</Badge>}
+        </div>
+      )}
       {priceListItems.length > 0 && (
         <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
@@ -922,6 +928,11 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           </select>
         </div>
       </div>
+      {initial?.stage === "kazanildi" && (Number(value) !== initial?.value || Number(kdvRate) !== initial?.kdvRate) && (
+        <p style={{ fontSize: 12.5, color: "var(--text-warning, #b45309)", margin: "-6px 0 12px" }}>
+          Bu {DEAL_WORD_FORMS[dealWordKind(sector)].bare} zaten kazanılmış — Tutar/KDV değişikliği, bu döneme ait KDV Özet Raporu'nu da geriye dönük etkiler.
+        </p>
+      )}
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
           Müşteri ödemesi
@@ -4000,7 +4011,8 @@ export default function App() {
 
   const upsertDeal = async (d) => {
     const isNew = !deals.some((x) => x.id === d.id);
-    const previousStage = deals.find((x) => x.id === d.id)?.stage;
+    const previousDeal = deals.find((x) => x.id === d.id);
+    const previousStage = previousDeal?.stage;
     const row = {
       id: d.id,
       user_id: activeTeamId,
@@ -4059,6 +4071,14 @@ export default function App() {
     setShowDealForm(false);
     setEditingDeal(null);
     logAction("deals", deal.id, isNew ? "created" : "updated", `${deal.title} ${isNew ? "oluşturuldu" : "güncellendi"}`);
+    // Kazanılmış bir teklifin Tutar/KDV'si değiştirilirse bu, geçmiş bir KDV
+    // raporunu sessizce etkileyebilir — ayrı, açık bir denetim kaydı bırakıyoruz.
+    if (previousDeal?.stage === "kazanildi" && (previousDeal.value !== deal.value || previousDeal.kdvRate !== deal.kdvRate)) {
+      logAction(
+        "deals", deal.id, "updated",
+        `${deal.title}: kazanılmış teklifte Tutar ${formatTL(previousDeal.value)} → ${formatTL(deal.value)}, KDV %${previousDeal.kdvRate} → %${deal.kdvRate} olarak değiştirildi`
+      );
+    }
     if (deal.stage !== previousStage) sendStageEmail(deal, deal.stage);
   };
 

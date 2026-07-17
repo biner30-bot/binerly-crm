@@ -25,7 +25,8 @@ const kdvReportInfoText = (sector) => {
   return (
     `Satış KDV'si, seçilen aydaki "${stageLabel("kazanildi", "kurumsal", sector)}" ${noun} KDV tutarlarından; Alış KDV'si, o ay içindeki ve KDV oranı ` +
     "girilmiş giderlerden hesaplanır. Bu, resmi bir beyanname veya e-defter değildir — sadece kendi ön hazırlığınız içindir, " +
-    "muhasebecinizin/SMMM'nizin yerine geçmez."
+    "muhasebecinizin/SMMM'nizin yerine geçmez. Rapor her zaman GÜNCEL verilerle hesaplanır — geçmiş bir ayın " +
+    "kazanılmış teklifinde Tutar/KDV değişikliği yaparsanız, o ayın raporu da (zaten beyan etmiş olsanız bile) buna göre değişir."
   );
 };
 
