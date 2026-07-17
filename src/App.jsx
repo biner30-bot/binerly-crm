@@ -3777,6 +3777,32 @@ export default function App() {
     });
   }, [session]);
 
+  // Müşteri kendi onay linkinden öderse, kayıt KOBİ'nin oturumundan bağımsız
+  // (service-role, webhook) bir yoldan yazılıyor — sayfa yenilenmeden bunu
+  // görebilmek için payments/deals'ı canlı dinliyoruz. Sadece bu iki tablo,
+  // sadece bu iki olay (INSERT/UPDATE) — projede ilk Realtime kullanımı,
+  // kapsamı bilerek dar tutuyoruz.
+  useEffect(() => {
+    if (!activeTeamId) return;
+    const channel = supabase
+      .channel(`live-${activeTeamId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "payments", filter: `user_id=eq.${activeTeamId}` }, (payload) => {
+        setPayments((prev) => (prev.some((p) => p.id === payload.new.id) ? prev : [...prev, rowToPayment(payload.new)]));
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "payments", filter: `user_id=eq.${activeTeamId}` }, (payload) => {
+        setPayments((prev) =>
+          payload.new.deleted_at
+            ? prev.filter((p) => p.id !== payload.new.id)
+            : prev.map((p) => (p.id === payload.new.id ? rowToPayment(payload.new) : p))
+        );
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "deals", filter: `user_id=eq.${activeTeamId}` }, (payload) => {
+        setDeals((prev) => prev.map((d) => (d.id === payload.new.id ? rowToDeal(payload.new) : d)));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [activeTeamId]);
+
   useEffect(() => {
     if (loading || !session || !activeTeamId) return;
     if (activeTeamId !== session.user.id) return; // sadece gerçek şirket sahibi görür, davet edilen takım üyesi görmez
