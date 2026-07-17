@@ -4086,11 +4086,11 @@ export default function App() {
       assigned_to: d.assignedTo || null,
       payment_mode: d.paymentMode || "none",
       // approved_at bu formda hiç düzenlenmiyor — mevcut değeri koru, yoksa
-      // normal "Kaydet" onay durumunu sıfırlardı. approval_token da genelde
-      // korunuyor — TEK istisna: ödeme tercihi "none" dışına ilk kez çekiliyor
-      // ve henüz hiç link kopyalanmadıysa (approvalToken yok), portaldaki
-      // "Öde" linkinin çalışabilmesi için burada otomatik üretiliyor.
-      approval_token: d.approvalToken || (d.paymentMode && d.paymentMode !== "none" ? uid() : null),
+      // normal "Kaydet" onay durumunu sıfırlardı. approval_token yoksa (ödeme
+      // modundan bağımsız, HER teklif için) burada otomatik üretiliyor —
+      // Müşteri Portalı'nın her teklif için aynı /onay/{token} sayfasına
+      // (onayla/öde) link verebilmesi buna dayanıyor.
+      approval_token: d.approvalToken || uid(),
       approved_at: d.approvedAt || null,
       created_at: d.createdAt,
       closed_at: d.closedAt || null,

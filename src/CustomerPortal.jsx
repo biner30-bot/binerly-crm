@@ -67,6 +67,7 @@ function rowToDeal(r) {
     approvalToken: r.approval_token || null,
     paymentMode: r.payment_mode || "none",
     paymentStatus: r.payment_status || null,
+    approvedAt: r.approved_at || null,
   };
 }
 
@@ -330,6 +331,16 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, sh
         const randevuTarihi = d.customFields?.portal_randevu_zamani;
         const cancellable = d.stage === "ilk_gorusme" && randevuTarihi;
         const canCancel = cancellable && canCancelAppointmentDeal(randevuTarihi);
+        // Onay ve ödeme birbirinden bağımsız — /onay/{token} sayfası zaten
+        // hangi moda göre ne göstereceğini kendi kararlaştırıyor, burada
+        // sadece o sayfaya giden tek bir uyarlanmış link/rozet sunuluyor.
+        const isApproved = !!d.approvedAt;
+        const isPaid = d.paymentStatus === "paid";
+        const needsPayment = d.paymentMode !== "none" && !isPaid;
+        const actionLabel = !isApproved
+          ? (d.paymentMode === "required" ? "Öde ve Onayla" : d.paymentMode === "optional" ? "Onayla / Öde" : "Onayla")
+          : "Öde";
+        const showAction = d.approvalToken && (!isApproved || needsPayment);
         return (
           <div key={d.id} style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <div>
@@ -343,11 +354,11 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, sh
             </div>
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <Badge tone={tone}>{stageText}</Badge>
-              {d.paymentStatus === "paid" ? (
-                <Badge tone="success">✓ Ödendi</Badge>
-              ) : d.paymentMode !== "none" && d.approvalToken ? (
-                <a href={`/onay/${d.approvalToken}`} style={{ fontSize: 13, fontWeight: 600, color: "var(--fill-accent)" }}>💳 Öde</a>
-              ) : null}
+              {isApproved && <Badge tone="success">✓ Onaylandı</Badge>}
+              {isPaid && <Badge tone="success">✓ Ödendi</Badge>}
+              {showAction && (
+                <a href={`/onay/${d.approvalToken}`} style={{ fontSize: 13, fontWeight: 600, color: "var(--fill-accent)" }}>{actionLabel}</a>
+              )}
               <span style={{ fontSize: 13, fontWeight: 600, minWidth: 90, textAlign: "right" }}>{formatTL(d.value)}</span>
               {cancellable && (canCancel ? (
                 <button type="button" onClick={() => onCancelAppointment(d.id)} style={{ fontSize: 13 }}>İptal Et</button>
