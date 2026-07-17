@@ -767,9 +767,13 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           notifyCustomer,
           approvalToken: initial?.approvalToken || null,
           approvedAt: initial?.approvedAt || null,
-          // "T00:00" ekliyoruz çünkü saatsiz "YYYY-MM-DD" string'i JS'de UTC gece
-          // yarısı sayılıyor — Türkiye saatinde bu gece 03:00 gibi görünüyordu.
-          createdAt: new Date(`${dealDate}T${dealTime || "00:00"}`).toISOString(),
+          // Saat boş bırakılırsa YENİ bir teklifte gerçek "şu an"ın saatini
+          // kullanıyoruz — yoksa aynı gün eklenen tüm teklifler aynı (gece
+          // yarısı) zaman damgasını alıp "en yeni eklenen" sıralamasında
+          // birbirinden ayırt edilemiyordu (ekleme sırası korunuyor, en
+          // yeni en üste çıkmıyordu). Var olan bir teklifi düzenlerken bu
+          // davranış değişmiyor — kaydedilmiş saat neyse o korunuyor.
+          createdAt: new Date(`${dealDate}T${dealTime || (initial ? "00:00" : new Date().toTimeString().slice(0, 5))}`).toISOString(),
           closedAt: isClosingStage ? new Date(`${closedDate}T00:00`).toISOString() : null,
         });
       }}
