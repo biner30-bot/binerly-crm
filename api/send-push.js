@@ -24,6 +24,8 @@ export default async function handler(req, res) {
   try {
     const table = req.body?.table;
     if (table === "deals") return await handleAppointmentPush(req, res, supabaseAdmin);
+    if (table === "payments") return await handlePaymentPush(req, res, supabaseAdmin);
+    if (table === "deal_approvals") return await handleDealApprovalPush(req, res, supabaseAdmin);
     return await handleTicketMessagePush(req, res, supabaseAdmin);
   } catch (err) {
     return res.status(200).json({ error: "Gönderim sırasında hata oluştu.", detail: err?.message });
@@ -123,6 +125,63 @@ async function handleAppointmentPush(req, res, supabaseAdmin) {
   return await sendToRecipients(supabaseAdmin, res, recipientIds, {
     title,
     body: `${customer?.name || "Bir müşteri"} — ${dateLabel}`,
+    url: "/?tab=firsat",
+  });
+}
+
+// Müşteri kendi onay linkinden online ödeme yaparsa (api/deal-approval.js:
+// handlePaymentCallback), bu uç noktayı Supabase webhook'u yerine DOĞRUDAN
+// kendisi çağırır (yeni bir webhook kurulumu gerekmesin diye) — record
+// olarak yeni eklenen payments satırını gönderir. İadeler tetiklemez (KOBİ
+// zaten kendi işlemi, bildirime gerek yok).
+async function handlePaymentPush(req, res, supabaseAdmin) {
+  const record = req.body?.record;
+  if (!record || !(record.amount > 0)) return res.status(200).json({ skipped: true });
+
+  const vapidReady = ensureVapid();
+  if (!vapidReady) return res.status(200).json({ skipped: true, reason: "VAPID keys not configured" });
+
+  const { data: deal } = await supabaseAdmin
+    .from("deals")
+    .select("id, title, user_id")
+    .eq("id", record.deal_id)
+    .maybeSingle();
+  if (!deal) return res.status(200).json({ skipped: true, reason: "deal not found" });
+
+  const { data: members } = await supabaseAdmin
+    .from("team_members")
+    .select("member_id")
+    .eq("team_id", deal.user_id);
+  const recipientIds = [deal.user_id, ...(members || []).map((m) => m.member_id)];
+
+  const amountLabel = new Intl.NumberFormat("tr-TR").format(Math.round(record.amount)) + " TL";
+  return await sendToRecipients(supabaseAdmin, res, recipientIds, {
+    title: "Ödeme alındı",
+    body: `${deal.title} — ${amountLabel}`,
+    url: "/?tab=firsat",
+  });
+}
+
+// Müşteri bir teklifi onaylayınca (manuel "Onaylıyorum" veya ödeme ile
+// otomatik onay) — api/deal-approval.js:markApproved doğrudan çağırır,
+// "deals" tablosu gerçek bir Supabase webhook payload'u olmadığı için
+// tablo adı yerine sadece bir ayırt edici string olarak kullanılıyor.
+async function handleDealApprovalPush(req, res, supabaseAdmin) {
+  const record = req.body?.record;
+  if (!record) return res.status(200).json({ skipped: true });
+
+  const vapidReady = ensureVapid();
+  if (!vapidReady) return res.status(200).json({ skipped: true, reason: "VAPID keys not configured" });
+
+  const { data: members } = await supabaseAdmin
+    .from("team_members")
+    .select("member_id")
+    .eq("team_id", record.user_id);
+  const recipientIds = [record.user_id, ...(members || []).map((m) => m.member_id)];
+
+  return await sendToRecipients(supabaseAdmin, res, recipientIds, {
+    title: "Teklif onaylandı",
+    body: `${record.customer_name || "Bir müşteri"} — ${record.title}`,
     url: "/?tab=firsat",
   });
 }

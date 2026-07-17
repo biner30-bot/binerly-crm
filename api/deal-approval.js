@@ -45,6 +45,15 @@ async function markApproved(supabaseAdmin, deal, customer, note, contentSuffix) 
     }
   }
 
+  // Hem normal "Onaylıyorum" akışından hem ödeme ile otomatik onaydan tek
+  // yerden çağrıldığı için bildirim de burada — deals/ticket_messages gibi
+  // ayrı bir Supabase webhook kurmaya gerek yok, doğrudan çağrılıyor.
+  fetch("https://binerly.com/api/send-push", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-push-secret": (process.env.PUSH_WEBHOOK_SECRET || "").trim() },
+    body: JSON.stringify({ table: "deal_approvals", record: { deal_id: deal.id, user_id: deal.user_id, title: deal.title, customer_name: customer?.name || null } }),
+  }).catch(() => {});
+
   return approvedAt;
 }
 
@@ -162,6 +171,17 @@ async function handlePaymentCallback(req, res, supabaseAdmin, url) {
     iyzico_payment_transaction_id: result.itemTransactions?.[0]?.paymentTransactionId || null,
   });
   if (paymentInsertError) console.error("payments insert error:", paymentInsertError.message, "deal.id:", deal.id);
+  else {
+    // KOBİ'ye "ödeme alındı" bildirimi — deals/ticket_messages'ın aksine bunun
+    // için ayrı bir Supabase webhook kurmak yerine api/send-push.js'i (yeni
+    // "payments" dalı) doğrudan çağırıyoruz, aynı bildirim altyapısı yeniden
+    // kullanılıyor. Bildirim gitmezse ödeme akışını asla bozmasın diye sessizce yutuluyor.
+    fetch("https://binerly.com/api/send-push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-push-secret": (process.env.PUSH_WEBHOOK_SECRET || "").trim() },
+      body: JSON.stringify({ table: "payments", record: { deal_id: deal.id, amount: deal.value } }),
+    }).catch(() => {});
+  }
 
   // Gerçek para tahsil edildiği için (payment_mode ne olursa olsun) teklif
   // kazanılmış sayılır — zaten kapanmış (kazanıldı/kaybedildi) bir aşamaya dokunulmaz.
