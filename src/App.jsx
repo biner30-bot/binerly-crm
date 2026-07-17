@@ -361,6 +361,7 @@ function rowToPayment(r) {
     deletedAt: r.deleted_at || null,
     provider: r.provider || null,
     refundOfPaymentId: r.refund_of_payment_id || null,
+    iyzicoPaymentTransactionId: r.iyzico_payment_transaction_id || null,
   };
 }
 
@@ -1171,7 +1172,7 @@ function DealPayments({ deal, payments, sector, onAddPayment, onDeletePayment, o
         <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 260, overflowY: "auto" }}>
           {sorted.map((p) => {
             const isRefund = p.amount < 0;
-            const isOnline = p.provider === "iyzico";
+            const isOnline = p.provider === "iyzico" && !!p.iyzicoPaymentTransactionId;
             const refundable = isOnline && !isRefund ? refundableFor(p) : 0;
             return (
               <div key={p.id}>
@@ -4220,7 +4221,11 @@ export default function App() {
   // refundPayment — iyzico'ya gerçekten iade isteği gönderiyor.
   const deletePayment = async (id) => {
     const payment = payments.find((p) => p.id === id);
-    if (payment?.provider === "iyzico") {
+    // "İade Et" ile gerçekten iade edilebilecek (iyzico işlem numarası kayıtlı)
+    // ödemeler buradan silinemez. İade Prosedürü'nden ÖNCEKİ eski online
+    // ödemelerde bu numara hiç kaydedilmemişti — onlar API ile iade edilemediği
+    // için (aksi halde sıkışıp kalırlar) burada normal silmeye izin veriliyor.
+    if (payment?.provider === "iyzico" && payment?.iyzicoPaymentTransactionId) {
       notify("Online ödemeler doğrudan silinemez — \"İade Et\" ile geri ödeme yapın.");
       return;
     }
@@ -4232,6 +4237,13 @@ export default function App() {
     if (error) { notify(`Tahsilat silinemedi: ${error.message}`); return; }
     setPayments((prev) => prev.filter((p) => p.id !== id));
     logAction("payments", id, "deleted", `${formatTL(payment?.amount || 0)} tahsilat çöp kutusuna taşındı`);
+    if (payment?.provider === "iyzico") {
+      const deal = deals.find((d) => d.id === payment.dealId);
+      if (deal?.paymentStatus === "paid") {
+        const { error: dealError } = await supabase.from("deals").update({ payment_status: null }).eq("id", deal.id);
+        if (!dealError) setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, paymentStatus: null } : d)));
+      }
+    }
   };
 
   // İade Prosedürü — iyzico ile online alınmış bir tahsilatı tam veya kısmi
