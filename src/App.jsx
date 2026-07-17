@@ -1228,7 +1228,7 @@ function DealPayments({ deal, payments, sector, onAddPayment, onDeletePayment, o
           title="Tahsilat silinsin mi?"
           message="Bu tahsilat kaydı çöp kutusuna taşınır."
           onConfirm={() => { onDeletePayment(confirmDeleteId); setConfirmDeleteId(null); }}
-          onCancel={() => setConfirmDeleteId(null)}
+          onClose={() => setConfirmDeleteId(null)}
         />
       )}
     </div>
@@ -1598,7 +1598,7 @@ function CampaignModal({ customers, replyTo, companyName, logoUrl, onClose }) {
           title="Kampanya gönderilsin mi?"
           message={`${selected.size} kişiye e-posta gönderilecek — bu işlem geri alınamaz.`}
           onConfirm={() => { setConfirmSend(false); send(); }}
-          onCancel={() => setConfirmSend(false)}
+          onClose={() => setConfirmSend(false)}
         />
       )}
     </Modal>
@@ -2153,7 +2153,7 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
             title="Takımdan ayrılınsın mı?"
             message="Bu takımın müşteri/teklif/destek verilerine erişiminiz kalmaz — tekrar erişmek için yeniden davet edilmeniz gerekir."
             onConfirm={() => { setConfirmLeave(false); leaveTeam(); }}
-            onCancel={() => setConfirmLeave(false)}
+            onClose={() => setConfirmLeave(false)}
           />
         )}
       </Modal>
@@ -2194,7 +2194,7 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
               title="Üye kaldırılsın mı?"
               message={`${confirmRemoveMember.name || confirmRemoveMember.email}, bu takımın müşteri/teklif/destek verilerine erişimini kaybeder.`}
               onConfirm={() => { const id = confirmRemoveMember.member_id; setConfirmRemoveMember(null); removeMember(id); }}
-              onCancel={() => setConfirmRemoveMember(null)}
+              onClose={() => setConfirmRemoveMember(null)}
             />
           )}
           {invites.length > 0 && (
@@ -2881,7 +2881,7 @@ function PaymentCredentialForm({ credential, onSave, onDelete, onClose }) {
           title="Bağlantı kaldırılsın mı?"
           message="iyzico bağlantısı kaldırılır, ödeme modu seçilmiş tekliflerdeki online ödeme butonları çalışmaz hale gelir."
           onConfirm={async () => { await onDelete(); setConfirmDelete(false); onClose(); }}
-          onCancel={() => setConfirmDelete(false)}
+          onClose={() => setConfirmDelete(false)}
         />
       )}
     </>
