@@ -737,6 +737,10 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           setSessionError("Toplam seans sayısı en az 1 olmalı.");
           return;
         }
+        if (isPackageDeal && Number(sessionTotal) < Number(sessionUsed)) {
+          setSessionError(`Toplam seans sayısı, zaten kullanılan ${sessionUsed} seansın altına düşürülemez.`);
+          return;
+        }
         setSessionError("");
         onSave({
           id: initial?.id || uid(),
@@ -1504,6 +1508,7 @@ function CampaignModal({ customers, replyTo, companyName, logoUrl, onClose }) {
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState("");
   const [consentConfirmed, setConsentConfirmed] = useState(false);
+  const [confirmSend, setConfirmSend] = useState(false);
 
   const toggle = (id) => {
     setSelected((prev) => {
@@ -1513,10 +1518,15 @@ function CampaignModal({ customers, replyTo, companyName, logoUrl, onClose }) {
     });
   };
 
-  const send = async (e) => {
+  const requestSend = (e) => {
     e.preventDefault();
     const recipients = emailCustomers.filter((c) => selected.has(c.id)).map((c) => c.email);
     if (recipients.length === 0 || !subject.trim() || !message.trim() || !consentConfirmed) return;
+    setConfirmSend(true);
+  };
+
+  const send = async () => {
+    const recipients = emailCustomers.filter((c) => selected.has(c.id)).map((c) => c.email);
     setSending(true);
     setResult("");
     try {
@@ -1536,7 +1546,7 @@ function CampaignModal({ customers, replyTo, companyName, logoUrl, onClose }) {
 
   return (
     <Modal title="E-posta kampanyası" onClose={onClose}>
-      <form onSubmit={send}>
+      <form onSubmit={requestSend}>
         <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
             Alıcılar ({selected.size}/{emailCustomers.length})
@@ -1579,6 +1589,14 @@ function CampaignModal({ customers, replyTo, companyName, logoUrl, onClose }) {
           </button>
         </div>
       </form>
+      {confirmSend && (
+        <ConfirmDialog
+          title="Kampanya gönderilsin mi?"
+          message={`${selected.size} kişiye e-posta gönderilecek — bu işlem geri alınamaz.`}
+          onConfirm={() => { setConfirmSend(false); send(); }}
+          onCancel={() => setConfirmSend(false)}
+        />
+      )}
     </Modal>
   );
 }
@@ -1685,7 +1703,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
   );
 }
 
-function GroupClassForm({ initial, onSave, onCancel }) {
+function GroupClassForm({ initial, currentEnrollment = 0, onSave, onCancel }) {
   const [name, setName] = useState(initial?.name || "");
   const [instructorName, setInstructorName] = useState(initial?.instructorName || "");
   const [weekday, setWeekday] = useState(initial?.weekday || 1);
@@ -1693,10 +1711,16 @@ function GroupClassForm({ initial, onSave, onCancel }) {
   const [durationMinutes, setDurationMinutes] = useState(initial?.durationMinutes ?? 60);
   const [capacity, setCapacity] = useState(initial?.capacity ?? 10);
   const [notes, setNotes] = useState(initial?.notes || "");
+  const [capacityError, setCapacityError] = useState("");
 
   const submit = (e) => {
     e.preventDefault();
     if (!name.trim() || !capacity || Number(capacity) < 1) return;
+    if (currentEnrollment > 0 && Number(capacity) < currentEnrollment) {
+      setCapacityError(`Kapasite, zaten kayıtlı ${currentEnrollment} kişinin altına düşürülemez.`);
+      return;
+    }
+    setCapacityError("");
     onSave({
       name: name.trim(), instructorName: instructorName.trim(), weekday: Number(weekday),
       startTime, durationMinutes: Number(durationMinutes) || 60, capacity: Number(capacity), notes: notes.trim(),
@@ -1733,9 +1757,10 @@ function GroupClassForm({ initial, onSave, onCancel }) {
         </div>
         <div style={{ flex: 1, minWidth: 100 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kapasite</label>
-          <input type="number" min="1" value={capacity} onChange={(e) => setCapacity(e.target.value)} style={{ width: "100%" }} />
+          <input type="number" min="1" value={capacity} onChange={(e) => { setCapacity(e.target.value); setCapacityError(""); }} style={{ width: "100%" }} />
         </div>
       </div>
+      {capacityError && <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "-8px 0 12px" }}>{capacityError}</p>}
       <div style={{ marginBottom: 16 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Not <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span></label>
         <input value={notes} onChange={(e) => setNotes(e.target.value)} style={{ width: "100%" }} />
@@ -1892,6 +1917,7 @@ function GroupClassesTab({ groupClasses, groupClassEnrollments, customers, activ
         <Modal title={editingClass ? "Dersi düzenle" : "Yeni ders"} onClose={() => setShowForm(false)}>
           <GroupClassForm
             initial={editingClass}
+            currentEnrollment={editingClass ? enrollCountFor(editingClass.id) : 0}
             onSave={(vals) => { editingClass ? onUpdate({ id: editingClass.id, ...vals }) : onAdd(vals); setShowForm(false); }}
             onCancel={() => setShowForm(false)}
           />
@@ -2032,6 +2058,8 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState("");
   const [sending, setSending] = useState(false);
+  const [confirmRemoveMember, setConfirmRemoveMember] = useState(null);
+  const [confirmLeave, setConfirmLeave] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -2114,8 +2142,16 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
         </p>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
           <button onClick={onClose}>Kapat</button>
-          <button onClick={leaveTeam} style={{ color: "var(--text-danger)" }}>Takımdan ayrıl</button>
+          <button onClick={() => setConfirmLeave(true)} style={{ color: "var(--text-danger)" }}>Takımdan ayrıl</button>
         </div>
+        {confirmLeave && (
+          <ConfirmDialog
+            title="Takımdan ayrılınsın mı?"
+            message="Bu takımın müşteri/teklif/destek verilerine erişiminiz kalmaz — tekrar erişmek için yeniden davet edilmeniz gerekir."
+            onConfirm={() => { setConfirmLeave(false); leaveTeam(); }}
+            onCancel={() => setConfirmLeave(false)}
+          />
+        )}
       </Modal>
     );
   }
@@ -2135,7 +2171,7 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
                 <div key={m.member_id} style={{ padding: "6px 0", borderBottom: "0.5px solid var(--border)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ fontSize: 13 }}>{m.name || m.email}</span>
-                    <button onClick={() => removeMember(m.member_id)} style={{ fontSize: 12, color: "var(--text-danger)" }}>Kaldır</button>
+                    <button onClick={() => setConfirmRemoveMember(m)} style={{ fontSize: 12, color: "var(--text-danger)" }}>Kaldır</button>
                   </div>
                   <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-secondary)", marginTop: 4, cursor: "pointer" }}>
                     <input
@@ -2149,6 +2185,14 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
               ))
             )}
           </div>
+          {confirmRemoveMember && (
+            <ConfirmDialog
+              title="Üye kaldırılsın mı?"
+              message={`${confirmRemoveMember.name || confirmRemoveMember.email}, bu takımın müşteri/teklif/destek verilerine erişimini kaybeder.`}
+              onConfirm={() => { const id = confirmRemoveMember.member_id; setConfirmRemoveMember(null); removeMember(id); }}
+              onCancel={() => setConfirmRemoveMember(null)}
+            />
+          )}
           {invites.length > 0 && (
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>Bekleyen davetler</label>
@@ -3995,6 +4039,10 @@ export default function App() {
       .update({ deleted_at: now, deleted_batch_id: batchId })
       .eq("id", id);
     if (error) { notify(`Müşteri silinemedi: ${error.message}`); return; }
+    // group_class_enrollments'ın deleted_at'i yok (deleteGroupClass ile aynı
+    // desen — hard delete) — yoksa "hayalet" kayıt kontenjanı işgal etmeye
+    // devam eder, ders geri geldiğinde müşteri zaten silinmiş olur.
+    await supabase.from("group_class_enrollments").delete().eq("customer_id", id);
 
     const ticketIds = customerTickets.map((t) => t.id);
     setCustomers((prev) => prev.filter((c) => c.id !== id));
@@ -4002,6 +4050,7 @@ export default function App() {
     setTickets((prev) => prev.filter((t) => t.customerId !== id));
     setTicketMessages((prev) => prev.filter((m) => !ticketIds.includes(m.ticketId)));
     setPayments((prev) => prev.filter((p) => !dealIds.includes(p.dealId)));
+    setGroupClassEnrollments((prev) => prev.filter((e) => e.customerId !== id));
 
     logAction("customers", id, "deleted", `${customer?.name || "Müşteri"} çöp kutusuna taşındı`);
     customerDeals.forEach((d) => logAction("deals", d.id, "deleted", `${d.title} (${DEAL_WORD_FORMS[dealWordKind(companySettings?.sector)].bare}) çöp kutusuna taşındı`));
