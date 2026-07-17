@@ -265,7 +265,44 @@ function CompanyExpenseForm({ initial, onSave, onCancel }) {
   );
 }
 
-export default function Finance({ deals, payments, companyExpenses, customers, onAddExpense, onUpdateExpense, onDeleteExpense, onOpenPayments, sector }) {
+// Teklifin "Gider" alanını (Teklifi düzenle formundakiyle AYNI sütun) tek bir
+// tutar alanıyla hızlıca düzenlemek için — Kalemler/KDV gibi diğer alanları
+// değiştirmeye gerek olmadığından tüm teklif formunu açmaya gerek yok.
+function DealCostEditForm({ deal, onSave, onCancel }) {
+  const [amount, setAmount] = useState(String(deal.cost ?? 0));
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    const n = Number(amount);
+    if (n < 0 || Number.isNaN(n)) return;
+    setSaving(true);
+    await onSave(n);
+    setSaving(false);
+  };
+
+  return (
+    <Modal title={`Gideri düzenle — ${deal.title}`} onClose={onCancel}>
+      <form onSubmit={submit}>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Gider (TL)</label>
+          <input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: "100%" }} autoFocus />
+          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0" }}>
+            Bu, Müşteri Takibi'ndeki teklifin "Gider" alanıyla aynıdır — burada değiştirirseniz orada da yansır.
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button type="button" onClick={onCancel}>Vazgeç</button>
+          <button type="submit" disabled={saving} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+            Kaydet
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+export default function Finance({ deals, payments, companyExpenses, customers, onAddExpense, onUpdateExpense, onDeleteExpense, onUpdatePayment, onDeletePayment, onUpdateDealCost, onOpenPayments, sector }) {
   const [financeView, setFinanceView] = useState("tahsilat");
   const [financeRange, setFinanceRange] = useState("bu_ay");
   const [kdvMonth, setKdvMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -275,6 +312,14 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [editingPayment, setEditingPayment] = useState(null);
+  const [editPaymentAmount, setEditPaymentAmount] = useState("");
+  const [editPaymentDate, setEditPaymentDate] = useState("");
+  const [editPaymentNote, setEditPaymentNote] = useState("");
+  const [editPaymentSaving, setEditPaymentSaving] = useState(false);
+  const [confirmDeletePayment, setConfirmDeletePayment] = useState(null);
+  const [editingDealCost, setEditingDealCost] = useState(null);
+  const [confirmClearDealCost, setConfirmClearDealCost] = useState(null);
 
   const customerById = (id) => customers.find((c) => c.id === id);
   const dealById = (id) => deals.find((d) => d.id === id);
@@ -302,6 +347,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
       const deal = dealById(p.dealId);
       const customer = customerById(deal?.customerId);
       const isRefund = p.amount < 0;
+      const isOnline = (p.provider === "iyzico" && !!p.iyzicoPaymentTransactionId) || (p.provider === "paytr" && !!p.paytrMerchantOid);
       return {
         id: `payment-${p.id}`,
         type: isRefund ? "gider" : "gelir",
@@ -310,7 +356,9 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
         label: `${customer?.name || "Bilinmeyen müşteri"} — ${deal?.title || "Tahsilat"}${isRefund ? " (iade)" : ""}`,
         amount: Math.abs(p.amount),
         dealId: deal?.id || null,
-        isOnlinePayment: !isRefund && p.provider === "iyzico",
+        paymentId: p.id,
+        isOnlinePayment: !isRefund && isOnline,
+        isManualPayment: !isRefund && !isOnline,
       };
     }),
     ...rangeExpenses.map((e) => ({
@@ -331,6 +379,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
       hasTime: false,
       label: `${customerById(d.customerId)?.name || "Bilinmeyen müşteri"} — ${d.title} maliyeti`,
       amount: d.cost,
+      dealCostId: d.id,
     })),
   ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -580,6 +629,34 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
                         İade Et
                       </button>
                     )}
+                    {item.isManualPayment && (
+                      <>
+                        <IconButton
+                          icon="ti-edit"
+                          title="Düzenle"
+                          size="sm"
+                          onClick={() => {
+                            const payment = payments.find((p) => p.id === item.paymentId);
+                            setEditingPayment(payment);
+                            setEditPaymentAmount(String(payment.amount));
+                            setEditPaymentDate(payment.paidAt.slice(0, 10));
+                            setEditPaymentNote(payment.note || "");
+                          }}
+                        />
+                        <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDeletePayment(item)} />
+                      </>
+                    )}
+                    {item.dealCostId && (
+                      <>
+                        <IconButton
+                          icon="ti-edit"
+                          title="Düzenle"
+                          size="sm"
+                          onClick={() => setEditingDealCost(dealById(item.dealCostId))}
+                        />
+                        <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmClearDealCost(item)} />
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -634,6 +711,67 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
           }
           onConfirm={() => { onDeleteExpense(confirmDelete.expenseId); setConfirmDelete(null); }}
           onClose={() => setConfirmDelete(null)}
+        />
+      )}
+
+      {editingPayment && (
+        <Modal title="Tahsilatı düzenle" onClose={() => setEditingPayment(null)}>
+          <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tutar (TL)</label>
+              <input type="number" min="0" step="0.01" value={editPaymentAmount} onChange={(e) => setEditPaymentAmount(e.target.value)} style={{ width: "100%" }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tarih</label>
+              <input type="date" value={editPaymentDate} onChange={(e) => setEditPaymentDate(e.target.value)} style={{ width: "100%" }} />
+            </div>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Not (opsiyonel)</label>
+            <input value={editPaymentNote} onChange={(e) => setEditPaymentNote(e.target.value)} style={{ width: "100%" }} />
+          </div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <button type="button" onClick={() => setEditingPayment(null)}>Vazgeç</button>
+            <button
+              type="button"
+              disabled={editPaymentSaving || !editPaymentAmount}
+              onClick={async () => {
+                setEditPaymentSaving(true);
+                await onUpdatePayment({ id: editingPayment.id, amount: Number(editPaymentAmount), paidAt: editPaymentDate, note: editPaymentNote.trim() });
+                setEditPaymentSaving(false);
+                setEditingPayment(null);
+              }}
+              style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+            >
+              {editPaymentSaving ? "Kaydediliyor…" : "Kaydet"}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {confirmDeletePayment && (
+        <ConfirmDialog
+          title="Tahsilat silinsin mi?"
+          message="Bu tahsilat kaydı çöp kutusuna taşınır."
+          onConfirm={() => { onDeletePayment(confirmDeletePayment.paymentId); setConfirmDeletePayment(null); }}
+          onClose={() => setConfirmDeletePayment(null)}
+        />
+      )}
+
+      {editingDealCost && (
+        <DealCostEditForm
+          deal={editingDealCost}
+          onSave={async (cost) => { await onUpdateDealCost(editingDealCost.id, cost); setEditingDealCost(null); }}
+          onCancel={() => setEditingDealCost(null)}
+        />
+      )}
+
+      {confirmClearDealCost && (
+        <ConfirmDialog
+          title="Gider kaldırılsın mı?"
+          message={`${confirmClearDealCost.label.split(" — ")[0]} müşterisinin bu tekliften kaynaklanan Gider tutarı 0'a çekilecek — bu, Müşteri Takibi'ndeki teklifte de aynı şekilde yansır.`}
+          onConfirm={() => { onUpdateDealCost(confirmClearDealCost.dealCostId, 0); setConfirmClearDealCost(null); }}
+          onClose={() => setConfirmClearDealCost(null)}
         />
       )}
     </div>

@@ -1095,13 +1095,19 @@ const REFUND_REASON_OPTIONS = [
   { value: "other", label: "Diğer" },
 ];
 
-function DealPayments({ deal, payments, sector, onAddPayment, onDeletePayment, onRefundPayment }) {
+function DealPayments({ deal, payments, sector, onAddPayment, onUpdatePayment, onDeletePayment, onRefundPayment }) {
   const [amount, setAmount] = useState("");
   const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editPaidAt, setEditPaidAt] = useState("");
+  const [editNote, setEditNote] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
   const [refundingId, setRefundingId] = useState(null);
   const [refundAmount, setRefundAmount] = useState("");
   const [refundReason, setRefundReason] = useState(REFUND_REASON_OPTIONS[0].value);
@@ -1117,6 +1123,26 @@ function DealPayments({ deal, payments, sector, onAddPayment, onDeletePayment, o
       .filter((p) => p.refundOfPaymentId === payment.id)
       .reduce((sum, p) => sum + Math.abs(p.amount || 0), 0);
     return payment.amount - refunded;
+  };
+
+  const startEdit = (payment) => {
+    setEditingId(payment.id);
+    setEditAmount(String(payment.amount));
+    setEditPaidAt(payment.paidAt.slice(0, 10));
+    setEditNote(payment.note || "");
+    setEditError("");
+  };
+
+  const confirmEdit = async (payment) => {
+    const n = Number(editAmount);
+    if (!n || n <= 0) { setEditError("Geçerli bir tutar girin."); return; }
+    // Bu ödeme hariç tutulunca kalan bakiye: yeni tutar bunu aşamaz.
+    const remainingExcluding = remaining + payment.amount;
+    if (n > remainingExcluding + 0.01) { setEditError(`En fazla ${formatTL(remainingExcluding)} girilebilir.`); return; }
+    setEditSaving(true);
+    await onUpdatePayment({ id: payment.id, amount: n, paidAt: editPaidAt, note: editNote.trim() });
+    setEditSaving(false);
+    setEditingId(null);
   };
 
   const startRefund = (payment) => {
@@ -1200,9 +1226,38 @@ function DealPayments({ deal, payments, sector, onAddPayment, onDeletePayment, o
                       <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Tamamen iade edildi</span>
                     )
                   ) : (
-                    <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDeleteId(p.id)} />
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => startEdit(p)} />
+                      <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDeleteId(p.id)} />
+                    </div>
                   )}
                 </div>
+                {editingId === p.id && (
+                  <div style={{ marginTop: 6, padding: 8, border: "0.5px solid var(--border)", borderRadius: "var(--radius)" }}>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                      <input
+                        type="number" min="0" step="0.01"
+                        value={editAmount}
+                        onChange={(e) => { setEditAmount(e.target.value); setEditError(""); }}
+                        style={{ flex: 1, fontSize: 13 }}
+                      />
+                      <input type="date" value={editPaidAt} onChange={(e) => setEditPaidAt(e.target.value)} style={{ width: 140, fontSize: 13 }} />
+                    </div>
+                    <input value={editNote} onChange={(e) => setEditNote(e.target.value)} placeholder="Not (opsiyonel)" style={{ width: "100%", marginBottom: 8, fontSize: 13 }} />
+                    {editError && <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "0 0 8px" }}>{editError}</p>}
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button type="button" onClick={() => setEditingId(null)} style={{ fontSize: 12 }}>Vazgeç</button>
+                      <button
+                        type="button"
+                        onClick={() => confirmEdit(p)}
+                        disabled={editSaving}
+                        style={{ fontSize: 12, background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+                      >
+                        {editSaving ? "Kaydediliyor…" : "Kaydet"}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {refundingId === p.id && (
                   <div style={{ marginTop: 6, padding: 8, border: "0.5px solid var(--border)", borderRadius: "var(--radius)" }}>
                     <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
@@ -4246,6 +4301,17 @@ export default function App() {
     setDeals((prev) => prev.map((d) => (d.id === dealId ? { ...d, paymentMode: mode } : d)));
   };
 
+  // Gelir-Gider Defteri'ndeki bir teklif maliyetini (Gider) doğrudan günceller —
+  // Teklifi düzenle formundaki "Gider" alanıyla AYNI sütunu yazar, bu yüzden
+  // hangi ekrandan değiştirilirse değiştirilsin iki yer otomatik senkron kalır.
+  const updateDealCost = async (dealId, cost) => {
+    const deal = deals.find((d) => d.id === dealId);
+    const { error } = await supabase.from("deals").update({ cost }).eq("id", dealId);
+    if (error) { notify(`Gider güncellenemedi: ${error.message}`); return; }
+    setDeals((prev) => prev.map((d) => (d.id === dealId ? { ...d, cost } : d)));
+    logAction("deals", dealId, "updated", `${deal?.title || ""}: Gider ${formatTL(cost)} olarak güncellendi`);
+  };
+
   // Şirket başına sabit link/QR — müşteri kendi bilgisini bırakır, KOBİ elle
   // girmez. approval_token'dan farklı olarak deal'e değil company_settings'e bağlı.
   const generateLeadCaptureLink = async () => {
@@ -4305,6 +4371,29 @@ export default function App() {
       `Ödemeniz alındı — ${company}`,
       `Merhaba,\n\n"${deal?.title || DEAL_WORD_FORMS[dealWordKind(companySettings?.sector)].possYours}" için ${formatTL(payment.amount)} tutarındaki ödemeniz alınmıştır. Teşekkür ederiz.\n\n${company}`
     );
+  };
+
+  // Sadece elle eklenen (online olmayan) tahsilatlar burada düzenlenebilir —
+  // online bir ödemenin tutarını burada değiştirmek gerçek sağlayıcı işlemiyle
+  // tutarsızlığa yol açar, onlar sadece "İade Et" ile değişebilir (deletePayment
+  // ile aynı gerekçe/koruma). İade kayıtları (amount<0) da düzenlenemez.
+  const updatePayment = async ({ id, amount, paidAt, note }) => {
+    const payment = payments.find((p) => p.id === id);
+    const isRefundableOnline = (payment?.provider === "iyzico" && payment?.iyzicoPaymentTransactionId) || (payment?.provider === "paytr" && payment?.paytrMerchantOid);
+    if (isRefundableOnline || (payment?.amount || 0) < 0) {
+      notify("Online ödemeler ve iade kayıtları burada düzenlenemez.");
+      return;
+    }
+    const { data, error } = await supabase
+      .from("payments")
+      .update({ amount, paid_at: paidAt, note: note || null })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) { notify(`Tahsilat güncellenemedi: ${error.message}`); return; }
+    const updated = rowToPayment(data);
+    setPayments((prev) => prev.map((p) => (p.id === id ? updated : p)));
+    logAction("payments", updated.id, "updated", `Tahsilat ${formatTL(updated.amount)} olarak güncellendi`);
   };
 
   // Online (iyzico) ödemeler artık buradan silinemez — gerçek para geri
@@ -6168,6 +6257,9 @@ export default function App() {
           onAddExpense={addCompanyExpense}
           onUpdateExpense={updateCompanyExpense}
           onDeleteExpense={deleteCompanyExpense}
+          onUpdatePayment={updatePayment}
+          onDeletePayment={deletePayment}
+          onUpdateDealCost={updateDealCost}
           onOpenPayments={setPaymentsDeal}
           sector={companySettings?.sector}
         />
@@ -6593,6 +6685,7 @@ export default function App() {
             payments={paymentsByDeal[paymentsDeal.id] || []}
             sector={companySettings?.sector}
             onAddPayment={addPayment}
+            onUpdatePayment={updatePayment}
             onDeletePayment={deletePayment}
             onRefundPayment={refundPayment}
           />
