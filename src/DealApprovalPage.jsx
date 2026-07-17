@@ -48,6 +48,11 @@ export default function DealApprovalPage() {
   const [state, setState] = useState({ loading: true, error: "", requiresAuth: false, deal: null, branding: null });
   const [approving, setApproving] = useState(false);
   const [note, setNote] = useState("");
+  // iyzico dönüşünden sonra URL'e eklenen ?paid=1/0 — sadece bir kerelik sonuç
+  // banner'ı için okunur, kalıcı durum her zaman sunucudan gelen deal.paymentStatus'e dayanır.
+  const [paidParam] = useState(() => new URLSearchParams(window.location.search).get("paid"));
+  const [paying, setPaying] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
   const [authMode, setAuthMode] = useState("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -111,6 +116,23 @@ export default function DealApprovalPage() {
       setState((s) => ({ ...s, deal: { ...s.deal, approved: true, approvedAt: data.approvedAt || new Date().toISOString() } }));
     }
     setApproving(false);
+  };
+
+  const payNow = async () => {
+    setPaymentError("");
+    setPaying(true);
+    const res = await fetch("/api/deal-approval", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ token, action: "checkout-init" }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.paymentPageUrl) {
+      window.location.href = data.paymentPageUrl;
+      return;
+    }
+    setPaymentError(data.error || "Ödeme başlatılamadı, lütfen tekrar deneyin.");
+    setPaying(false);
   };
 
   const branding = state.branding || state.deal;
@@ -189,20 +211,52 @@ export default function DealApprovalPage() {
               </div>
             ) : (
               <>
-                <textarea
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="Not eklemek ister misiniz? (opsiyonel)"
-                  rows={2}
-                  style={{ width: "100%", boxSizing: "border-box", padding: "9px 10px", border: "1px solid #e1e8f0", borderRadius: 8, fontSize: 13, fontFamily: "inherit", resize: "vertical", marginBottom: 10 }}
-                />
-                <button
-                  onClick={approve}
-                  disabled={approving}
-                  style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
-                >
-                  {approving ? "Onaylanıyor…" : "Onaylıyorum"}
-                </button>
+                {state.deal.paymentStatus === "paid" && (
+                  <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "#15803d", fontWeight: 600 }}>
+                    ✓ Ödemeniz alındı
+                  </div>
+                )}
+                {paidParam === "0" && (
+                  <p style={{ fontSize: 12.5, color: "#b45309", margin: "0 0 12px" }}>Ödeme tamamlanamadı, lütfen tekrar deneyin.</p>
+                )}
+                {paymentError && (
+                  <p style={{ fontSize: 12.5, color: "#b91c1c", margin: "0 0 12px" }}>{paymentError}</p>
+                )}
+                {state.deal.paymentMode === "required" ? (
+                  <button
+                    onClick={payNow}
+                    disabled={paying}
+                    style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
+                  >
+                    {paying ? "Yönlendiriliyor…" : "Öde ve Onayla"}
+                  </button>
+                ) : (
+                  <>
+                    <textarea
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      placeholder="Not eklemek ister misiniz? (opsiyonel)"
+                      rows={2}
+                      style={{ width: "100%", boxSizing: "border-box", padding: "9px 10px", border: "1px solid #e1e8f0", borderRadius: 8, fontSize: 13, fontFamily: "inherit", resize: "vertical", marginBottom: 10 }}
+                    />
+                    <button
+                      onClick={approve}
+                      disabled={approving}
+                      style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
+                    >
+                      {approving ? "Onaylanıyor…" : "Onaylıyorum"}
+                    </button>
+                    {state.deal.paymentMode === "optional" && state.deal.paymentStatus !== "paid" && (
+                      <button
+                        onClick={payNow}
+                        disabled={paying}
+                        style={{ width: "100%", background: "#fff", color: "#185fa5", border: "1px solid #185fa5", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: "pointer", marginTop: 8 }}
+                      >
+                        {paying ? "Yönlendiriliyor…" : "💳 Şimdi öde"}
+                      </button>
+                    )}
+                  </>
+                )}
                 <p style={{ fontSize: 11.5, color: "#94a7bb", margin: "12px 0 0", lineHeight: 1.5, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
                   <i className="ti ti-lock" style={{ fontSize: 13 }} aria-hidden="true"></i>
                   Kimliğiniz doğrulandı, onayınız zaman damgasıyla kaydedilir.

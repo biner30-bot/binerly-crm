@@ -1,9 +1,174 @@
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
+import Iyzipay from "iyzipay";
 import { renderEmailHtml, plainTextFallback } from "./_email-template.js";
 
-// Müşterinin teklif onaylayabildiği uç nokta — token tek başına yetmez, müşteri
-// portalına (Supabase Auth) giriş yapmış VE bu teklifin müşterisine bağlı
+const IYZICO_BASE_URL = { sandbox: "https://sandbox-api.iyzipay.com", production: "https://api.iyzipay.com" };
+
+// Deal'i onaylanmış işaretler + KOBİ'ye bilgi maili atar — hem müşterinin
+// normal "Onaylıyorum" akışından hem de (payment_mode='required' teklifler
+// için) ödeme başarıyla tamamlandığında otomatik onaydan çağrılır.
+async function markApproved(supabaseAdmin, deal, customer, note, contentSuffix) {
+  const approvedAt = new Date().toISOString();
+  const { error: updateError } = await supabaseAdmin.from("deals").update({ approved_at: approvedAt }).eq("id", deal.id);
+  if (updateError) throw new Error(updateError.message);
+
+  await supabaseAdmin.from("activities").insert({
+    id: crypto.randomUUID(),
+    user_id: deal.user_id,
+    customer_id: deal.customer_id,
+    type: "note",
+    content: `Müşteri "${deal.title}" teklifini ${contentSuffix}.${note ? ` Not: "${note}"` : ""}`,
+  });
+
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (resendApiKey) {
+    const { data: ownerData } = await supabaseAdmin.auth.admin.getUserById(deal.user_id);
+    const ownerEmail = ownerData?.user?.email;
+    if (ownerEmail) {
+      const bodyText =
+        `${customer?.name || "Müşteriniz"}, "${deal.title}" (${deal.value} TL) teklifini ${contentSuffix}.` +
+        (note ? `\n\nMüşterinin notu: "${note}"` : "") +
+        `\n\nBinerly'ye giriş yaparak detayları görebilirsiniz.`;
+      const footerLines = ["Binerly Ekibi"];
+      await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: "Binerly <noreply@binerly.com>",
+          to: ownerEmail,
+          subject: `${customer?.name || "Müşteriniz"} "${deal.title}" teklifini onayladı`,
+          html: renderEmailHtml({ bodyText, footerLines }),
+          text: plainTextFallback(bodyText, null, null, footerLines),
+        }),
+      }).catch(() => {});
+    }
+  }
+
+  return approvedAt;
+}
+
+// Müşterinin kartla doğrudan ödeyebilmesi için iyzico Checkout Form başlatır —
+// dönen paymentPageUrl'e müşteri yönlendirilir, kart bilgisi hiç bizim
+// sunucumuzdan geçmez. checkoutforms zorunlu buyer/address alanları için
+// customers tablosunda toplanmayan bilgiler (TCKN, açık adres) minimal/
+// placeholder değerlerle dolduruluyor — bkz. plan notu.
+async function initCheckout(supabaseAdmin, deal, customer, token) {
+  const { data: cred } = await supabaseAdmin
+    .from("payment_credentials")
+    .select("api_key, secret_key, sandbox")
+    .eq("user_id", deal.user_id)
+    .eq("provider", "iyzico")
+    .maybeSingle();
+  if (!cred) return { error: "Bu işletme için ödeme bağlantısı kurulmamış." };
+
+  const iyzipay = new Iyzipay({
+    apiKey: cred.api_key,
+    secretKey: cred.secret_key,
+    uri: cred.sandbox ? IYZICO_BASE_URL.sandbox : IYZICO_BASE_URL.production,
+  });
+
+  const nameParts = (customer?.name || "Müşteri").trim().split(/\s+/);
+  const surname = nameParts.length > 1 ? nameParts.pop() : nameParts[0];
+  const name = nameParts.join(" ") || surname;
+  const cityOrFallback = customer?.region || "Belirtilmedi";
+  const address = { address: cityOrFallback, contactName: customer?.name || "Müşteri", city: cityOrFallback, country: "Turkey" };
+
+  const request = {
+    locale: Iyzipay.LOCALE.TR,
+    conversationId: deal.id,
+    price: String(deal.value),
+    paidPrice: String(deal.value),
+    currency: Iyzipay.CURRENCY.TRY,
+    basketId: deal.id,
+    paymentGroup: Iyzipay.PAYMENT_GROUP.PRODUCT,
+    callbackUrl: `https://binerly.com/api/deal-approval?action=payment-callback&dealToken=${token}`,
+    buyer: {
+      id: deal.customer_id,
+      name,
+      surname,
+      identityNumber: "11111111111",
+      email: customer?.email || "musteri@binerly.com",
+      gsmNumber: customer?.phone || "+905000000000",
+      registrationAddress: cityOrFallback,
+      city: cityOrFallback,
+      country: "Turkey",
+    },
+    shippingAddress: address,
+    billingAddress: address,
+    basketItems: [{ id: deal.id, price: String(deal.value), name: deal.title, category1: "Hizmet", itemType: Iyzipay.BASKET_ITEM_TYPE.VIRTUAL }],
+  };
+
+  const result = await new Promise((resolve) => {
+    iyzipay.checkoutFormInitialize.create(request, (err, body) => resolve(err ? { status: "failure", errorMessage: err.message } : body));
+  });
+
+  if (result.status !== "success" || !result.paymentPageUrl) {
+    return { error: result.errorMessage || "Ödeme başlatılamadı." };
+  }
+  return { paymentPageUrl: result.paymentPageUrl };
+}
+
+// iyzico'nun ödeme sonucunu bildirmek için tarayıcıyı yönlendirdiği uç nokta —
+// gelen isteğin kimliği doğrulanmış bir portal kullanıcısından geldiğine dair
+// hiçbir garanti yok, bu yüzden iyzico'nun kendi token'ıyla retrieve API'sine
+// sunucu-sunucu sorgusu atıp gerçek ödeme durumunu doğruluyoruz.
+async function handlePaymentCallback(req, res, supabaseAdmin, url) {
+  const dealToken = url.searchParams.get("dealToken");
+  const iyzicoToken = (req.body || {}).token;
+  const redirect = (path) => res.writeHead(302, { Location: path }).end();
+  if (!dealToken || !iyzicoToken) return redirect("https://binerly.com/");
+
+  const target = `https://binerly.com/onay/${dealToken}`;
+
+  const { data: deal } = await supabaseAdmin
+    .from("deals")
+    .select("id, user_id, customer_id, title, value, payment_mode, payment_status, approved_at")
+    .eq("approval_token", dealToken)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!deal) return redirect("https://binerly.com/");
+  if (deal.payment_status === "paid") return redirect(`${target}?paid=1`); // aynı callback tekrar tetiklenirse mükerrer işlem yapma
+
+  const { data: cred } = await supabaseAdmin
+    .from("payment_credentials")
+    .select("api_key, secret_key, sandbox")
+    .eq("user_id", deal.user_id)
+    .eq("provider", "iyzico")
+    .maybeSingle();
+  if (!cred) return redirect(`${target}?paid=0`);
+
+  const iyzipay = new Iyzipay({
+    apiKey: cred.api_key,
+    secretKey: cred.secret_key,
+    uri: cred.sandbox ? IYZICO_BASE_URL.sandbox : IYZICO_BASE_URL.production,
+  });
+  const result = await new Promise((resolve) => {
+    iyzipay.checkoutForm.retrieve({ locale: Iyzipay.LOCALE.TR, token: iyzicoToken }, (err, body) => resolve(err ? null : body));
+  });
+  if (!result || result.paymentStatus !== "SUCCESS") return redirect(`${target}?paid=0`);
+
+  await supabaseAdmin.from("deals").update({ payment_status: "paid" }).eq("id", deal.id);
+  await supabaseAdmin.from("payments").insert({
+    id: crypto.randomUUID(),
+    user_id: deal.user_id,
+    deal_id: deal.id,
+    amount: deal.value,
+    paid_at: new Date().toISOString().slice(0, 10),
+    note: "iyzico ile online ödeme",
+  });
+
+  if (deal.payment_mode === "required" && !deal.approved_at) {
+    const { data: customer } = await supabaseAdmin.from("customers").select("name").eq("id", deal.customer_id).maybeSingle();
+    await markApproved(supabaseAdmin, deal, customer, null, "ödeyerek onayladı").catch((e) => console.error("auto-approve error:", e.message));
+  }
+
+  return redirect(`${target}?paid=1`);
+}
+
+// Müşterinin teklif onaylayabildiği (ve isteğe bağlı/zorunlu online ödeme
+// yapabildiği) uç nokta — token tek başına yetmez, müşteri portalına
+// (Supabase Auth) giriş yapmış VE bu teklifin müşterisine bağlı
 // (customers.portal_user_id) olmalı. Bilinçli olarak sadece teklif başlığı/
 // tutarı/şirket-müşteri adı döner, telefon/not gibi hiçbir hassas alan
 // okunmaz. Onay, teklifi otomatik "Kazanıldı" aşamasına taşır (tahsilat ayrı
@@ -20,13 +185,20 @@ export default async function handler(req, res) {
   // req.query bazı durumlarda güvenilir doldurulmuyor (bkz. whatsapp-webhook.js) —
   // sorgu parametresini doğrudan req.url'den elle ayrıştırıyoruz.
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+
+  // iyzico'nun kendi sunucusundan gelen callback — portal oturumu yok, ayrı ele alınır.
+  if (req.method === "POST" && url.searchParams.get("action") === "payment-callback") {
+    return handlePaymentCallback(req, res, supabaseAdmin, url);
+  }
+
   const token = req.method === "GET" ? url.searchParams.get("token") : (req.body || {}).token;
   const note = req.method === "POST" ? (req.body || {}).note || null : null;
+  const action = req.method === "POST" ? (req.body || {}).action || "approve" : null;
   if (!token) return res.status(400).json({ error: "Eksik token." });
 
   const { data: deal, error: dealError } = await supabaseAdmin
     .from("deals")
-    .select("id, user_id, customer_id, title, value, kdv_rate, approved_at, created_at, stage")
+    .select("id, user_id, customer_id, title, value, kdv_rate, approved_at, created_at, stage, payment_mode, payment_status")
     .eq("approval_token", token)
     .is("deleted_at", null)
     .maybeSingle();
@@ -34,7 +206,7 @@ export default async function handler(req, res) {
   if (dealError || !deal) return res.status(404).json({ error: "Teklif bulunamadı." });
 
   const [{ data: customer }, { data: settings }] = await Promise.all([
-    supabaseAdmin.from("customers").select("name, portal_user_id").eq("id", deal.customer_id).maybeSingle(),
+    supabaseAdmin.from("customers").select("name, email, phone, region, portal_user_id").eq("id", deal.customer_id).maybeSingle(),
     supabaseAdmin.from("company_settings").select("company_name, logo_url, sector").eq("user_id", deal.user_id).maybeSingle(),
   ]);
 
@@ -61,52 +233,26 @@ export default async function handler(req, res) {
       approvedAt: deal.approved_at,
       createdAt: deal.created_at,
       customerName: customer?.name || "",
+      paymentMode: deal.payment_mode || "none",
+      paymentStatus: deal.payment_status || null,
       ...branding,
     });
   }
 
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
+  if (action === "checkout-init") {
+    const result = await initCheckout(supabaseAdmin, deal, customer, token);
+    if (result.error) return res.status(502).json({ error: result.error });
+    return res.status(200).json({ paymentPageUrl: result.paymentPageUrl });
+  }
+
   let approvedAt = deal.approved_at;
   if (!deal.approved_at) {
-    approvedAt = new Date().toISOString();
-    // Onay sadece "müşteri kabul etti" demektir — işin/hizmetin/satışın fiilen
-    // tamamlandığı anlamına gelmez, bu yüzden aşamayı OTOMATİK "Kazanıldı"ya
-    // taşımıyoruz. "Onaylandı ✓" rozeti zaten bunu gösteriyor; aşamayı ne zaman
-    // gerçekten tamamlanmış sayacağına her zaman KOBİ kendisi karar verir.
-    const { error: updateError } = await supabaseAdmin.from("deals").update({ approved_at: approvedAt }).eq("id", deal.id);
-    if (updateError) return res.status(500).json({ error: updateError.message });
-
-    await supabaseAdmin.from("activities").insert({
-      id: crypto.randomUUID(),
-      user_id: deal.user_id,
-      customer_id: deal.customer_id,
-      type: "note",
-      content: `Müşteri "${deal.title}" teklifini onayladı.${note ? ` Not: "${note}"` : ""}`,
-    });
-
-    const resendApiKey = process.env.RESEND_API_KEY;
-    if (resendApiKey) {
-      const { data: ownerData } = await supabaseAdmin.auth.admin.getUserById(deal.user_id);
-      const ownerEmail = ownerData?.user?.email;
-      if (ownerEmail) {
-        const bodyText =
-          `${customer?.name || "Müşteriniz"}, "${deal.title}" (${deal.value} TL) teklifini onayladı.` +
-          (note ? `\n\nMüşterinin notu: "${note}"` : "") +
-          `\n\nBinerly'ye giriş yaparak detayları görebilirsiniz.`;
-        const footerLines = ["Binerly Ekibi"];
-        await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            from: "Binerly <noreply@binerly.com>",
-            to: ownerEmail,
-            subject: `${customer?.name || "Müşteriniz"} "${deal.title}" teklifini onayladı`,
-            html: renderEmailHtml({ bodyText, footerLines }),
-            text: plainTextFallback(bodyText, null, null, footerLines),
-          }),
-        }).catch(() => {});
-      }
+    try {
+      approvedAt = await markApproved(supabaseAdmin, deal, customer, note, "onayladı");
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
     }
   }
 

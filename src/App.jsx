@@ -232,6 +232,18 @@ function rowToDeal(r) {
     approvedAt: r.approved_at || null,
     notifyCustomer: r.notify_customer || false,
     assignedTo: r.assigned_to || null,
+    paymentMode: r.payment_mode || "none",
+    paymentStatus: r.payment_status || null,
+  };
+}
+
+function rowToPaymentCredential(r) {
+  return {
+    id: r.id,
+    userId: r.user_id,
+    provider: r.provider,
+    sandbox: !!r.sandbox,
+    connectedAt: r.connected_at,
   };
 }
 
@@ -2564,6 +2576,123 @@ function ParasutExportModal({ deals, customerById, totalPaidForDeal, sector, onC
   );
 }
 
+const PAYMENT_MODE_LAST_CHOICE_KEY = "binerly_last_payment_mode";
+const PAYMENT_MODE_OPTIONS = [
+  { value: "none", label: "Sadece onaylasın", desc: "Bugünkü gibi — ödeme adımı yok, müşteri sadece onaylar." },
+  { value: "optional", label: "Onaylasın + isterse ödesin", desc: "Onay ve ödeme birbirinden bağımsız, ikisi de ayrı ayrı sunulur." },
+  { value: "required", label: "Onaylamak için ödemesi şart", desc: "Tek adım: ödeme tamamlanınca onay da otomatik gerçekleşir." },
+];
+
+// Onay linki her kopyalandığında açılan, o teklife özel ödeme tercihi seçimi —
+// son seçilen localStorage'dan ön-işaretli gelir, KOBİ'nin her seferinde
+// Ayarlar'a gidip global bir tercih değiştirmesine gerek kalmaz.
+function PaymentModeModal({ deal, iyzicoConnected, onConfirm, onClose }) {
+  const [mode, setMode] = useState(
+    deal.paymentMode !== "none" ? deal.paymentMode : localStorage.getItem(PAYMENT_MODE_LAST_CHOICE_KEY) || "none"
+  );
+  return (
+    <Modal title="Onay linki için ödeme tercihi" onClose={onClose}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+        {PAYMENT_MODE_OPTIONS.map((opt) => (
+          <label
+            key={opt.value}
+            style={{
+              display: "flex", gap: 8, alignItems: "flex-start", padding: 10,
+              border: `0.5px solid ${mode === opt.value ? "var(--fill-accent)" : "var(--border)"}`,
+              borderRadius: "var(--radius)", cursor: "pointer",
+            }}
+          >
+            <input type="radio" checked={mode === opt.value} onChange={() => setMode(opt.value)} style={{ marginTop: 2 }} />
+            <div>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 500 }}>{opt.label}</p>
+              <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{opt.desc}</p>
+            </div>
+          </label>
+        ))}
+      </div>
+      {mode !== "none" && !iyzicoConnected && (
+        <p style={{ fontSize: 12.5, color: "var(--text-warning, #b45309)", margin: "0 0 12px" }}>
+          Ödeme almak için önce Ayarlar'dan iyzico hesabınızı bağlamanız gerekiyor.
+        </p>
+      )}
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+        <button onClick={onClose}>Vazgeç</button>
+        <button
+          onClick={() => { localStorage.setItem(PAYMENT_MODE_LAST_CHOICE_KEY, mode); onConfirm(mode); }}
+          disabled={mode !== "none" && !iyzicoConnected}
+          style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+        >
+          Onayla ve linki kopyala
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function PaymentCredentialForm({ credential, onSave, onDelete, onClose }) {
+  const [apiKey, setApiKey] = useState("");
+  const [secretKey, setSecretKey] = useState("");
+  const [sandbox, setSandbox] = useState(credential?.sandbox ?? true);
+  const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!apiKey.trim() || !secretKey.trim()) return;
+    setSaving(true);
+    await onSave({ apiKey: apiKey.trim(), secretKey: secretKey.trim(), sandbox });
+    setSaving(false);
+    onClose();
+  };
+
+  return (
+    <>
+      <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 14px" }}>
+        Müşterilerinizin onay linkinden kartla doğrudan ödeme yapabilmesi için kendi iyzico hesabınızın API bilgilerini girin.
+        Kart bilgisi hiçbir zaman Binerly sunucularından geçmez, iyzico'nun kendi güvenli sayfasında girilir.
+      </p>
+      {credential && (
+        <div style={{ background: "var(--surface-2)", borderRadius: "var(--radius)", padding: 10, marginBottom: 14, fontSize: 13 }}>
+          iyzico bağlı ✓ {credential.sandbox ? "(Test modu / Sandbox)" : "(Canlı)"}
+        </div>
+      )}
+      <form onSubmit={submit}>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>API Key</label>
+          <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={credential ? "Değiştirmek için yeniden girin" : ""} style={{ width: "100%" }} />
+        </div>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Secret Key</label>
+          <input value={secretKey} onChange={(e) => setSecretKey(e.target.value)} placeholder={credential ? "Değiştirmek için yeniden girin" : ""} type="password" style={{ width: "100%" }} />
+        </div>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, marginBottom: 16 }}>
+          <input type="checkbox" checked={sandbox} onChange={(e) => setSandbox(e.target.checked)} />
+          Test modu (Sandbox) — canlıya geçmeden önce iyzico test anahtarlarınızla deneyin
+        </label>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+          {credential ? (
+            <button type="button" onClick={() => setConfirmDelete(true)} style={{ color: "var(--text-danger, #b91c1c)" }}>Bağlantıyı kaldır</button>
+          ) : <span />}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" onClick={onClose}>Kapat</button>
+            <button type="submit" disabled={saving || !apiKey.trim() || !secretKey.trim()} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+              {saving ? "Kaydediliyor…" : "Kaydet"}
+            </button>
+          </div>
+        </div>
+      </form>
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Bağlantı kaldırılsın mı?"
+          message="iyzico bağlantısı kaldırılır, ödeme modu seçilmiş tekliflerdeki online ödeme butonları çalışmaz hale gelir."
+          onConfirm={async () => { await onDelete(); setConfirmDelete(false); onClose(); }}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
+    </>
+  );
+}
+
 function AppSettingsModal({ session, theme, onThemeChange, pushSubscribed, onSubscribe, onUnsubscribe, notify, onClose }) {
   const [name, setName] = useState(session.user.user_metadata?.full_name || "");
   const [savingName, setSavingName] = useState(false);
@@ -3265,6 +3394,7 @@ export default function App() {
   const [dealLineItems, setDealLineItems] = useState([]);
   const [companyExpenses, setCompanyExpenses] = useState([]);
   const [channelCredentials, setChannelCredentials] = useState([]);
+  const [paymentCredentials, setPaymentCredentials] = useState([]);
   const [channelMessages, setChannelMessages] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [ticketMessages, setTicketMessages] = useState([]);
@@ -3294,6 +3424,7 @@ export default function App() {
   const [showPriceList, setShowPriceList] = useState(false);
   const [showBusinessHours, setShowBusinessHours] = useState(false);
   const [showPdfTemplates, setShowPdfTemplates] = useState(false);
+  const [showPaymentSettings, setShowPaymentSettings] = useState(false);
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [showAppSettings, setShowAppSettings] = useState(false);
   const [showTrashHistory, setShowTrashHistory] = useState(false);
@@ -3332,6 +3463,7 @@ export default function App() {
   const [dealAudience, setDealAudience] = useState("kurumsal");
   const [teklifDeal, setTeklifDeal] = useState(null);
   const [paymentsDeal, setPaymentsDeal] = useState(null);
+  const [paymentModeDeal, setPaymentModeDeal] = useState(null);
   const [leadCaptureLink, setLeadCaptureLink] = useState(null);
   const [quickList, setQuickList] = useState(null);
   const [initialViewTicketId, setInitialViewTicketId] = useState(null);
@@ -3370,7 +3502,7 @@ export default function App() {
   useEffect(() => {
     if (!session) {
       setCustomers([]); setDeals([]); setActivities([]); setPayments([]); setCompanyExpenses([]);
-      setChannelCredentials([]); setChannelMessages([]);
+      setChannelCredentials([]); setPaymentCredentials([]); setChannelMessages([]);
       setTickets([]); setTicketMessages([]); setKbArticles([]);
       setCompanySettings(null);
       setCustomFieldDefs([]);
@@ -3391,6 +3523,7 @@ export default function App() {
       supabase.from("payments").select("*").is("deleted_at", null).order("paid_at"),
       supabase.from("company_expenses").select("*").is("deleted_at", null).order("expense_date"),
       supabase.from("channel_credentials").select("id, user_id, channel, external_id, display_name, connected_at"),
+      supabase.from("payment_credentials").select("id, user_id, provider, sandbox, connected_at"),
       supabase.from("channel_messages").select("*").order("created_at", { ascending: false }).limit(500),
       supabase.from("tickets").select("*").is("deleted_at", null).order("created_at"),
       supabase.from("ticket_messages").select("*").order("created_at"),
@@ -3405,7 +3538,7 @@ export default function App() {
       supabase.from("deal_line_items").select("*").order("sort_order"),
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: bh }, { data: pdft }, { data: dli }, { data: myMembership }, { data: invites }]) => {
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: bh }, { data: pdft }, { data: dli }, { data: myMembership }, { data: invites }]) => {
       // customers/deals/company_settings RLS'i, sahiplik politikasına ek olarak
       // portal kullanıcılarının kendi bağlı oldukları kayıtları görmesine izin
       // veren bir politikayla da "veya" ile birleşiyor (customer_*_view'ların
@@ -3420,6 +3553,7 @@ export default function App() {
       setDealLineItems((dli || []).map(rowToDealLineItem));
       setCompanyExpenses((exp || []).map(rowToCompanyExpense));
       setChannelCredentials((cred || []).map(rowToChannelCredential));
+      setPaymentCredentials((payCred || []).map(rowToPaymentCredential));
       setChannelMessages((chMsg || []).map(rowToChannelMessage));
       setTickets((t || []).map(rowToTicket));
       setTicketMessages((tm || []).map(rowToTicketMessage));
@@ -3799,6 +3933,14 @@ export default function App() {
     return `https://binerly.com/onay/${token}`;
   };
 
+  // Onay linki her kopyalandığında sorulan, o teklife özel ödeme tercihi —
+  // link'in kendisi (approval_token) sabit kalır, sadece bu mod değişir.
+  const setDealPaymentMode = async (dealId, mode) => {
+    const { error } = await supabase.from("deals").update({ payment_mode: mode }).eq("id", dealId);
+    if (error) { notify(`Ödeme tercihi kaydedilemedi: ${error.message}`); return; }
+    setDeals((prev) => prev.map((d) => (d.id === dealId ? { ...d, paymentMode: mode } : d)));
+  };
+
   // Şirket başına sabit link/QR — müşteri kendi bilgisini bırakır, KOBİ elle
   // girmez. approval_token'dan farklı olarak deal'e değil company_settings'e bağlı.
   const generateLeadCaptureLink = async () => {
@@ -3928,6 +4070,28 @@ export default function App() {
     const { error } = await supabase.from("channel_credentials").delete().eq("user_id", activeTeamId).eq("channel", channel);
     if (error) { notify(`Bağlantı kaldırılamadı: ${error.message}`); return; }
     setChannelCredentials((prev) => prev.filter((c) => c.channel !== channel));
+  };
+
+  // channel_credentials'ın aksine payment_credentials'ta (user_id, provider) için
+  // benzersizlik kısıtı yok — bu yüzden upsert yerine, önce mevcut kaydı yerelde
+  // arayıp varsa id'siyle update, yoksa insert ediyoruz.
+  const upsertPaymentCredential = async ({ apiKey, secretKey, sandbox }) => {
+    const existing = paymentCredentials.find((pc) => pc.provider === "iyzico");
+    const row = { user_id: activeTeamId, provider: "iyzico", api_key: apiKey, secret_key: secretKey, sandbox, updated_at: new Date().toISOString() };
+    const query = existing
+      ? supabase.from("payment_credentials").update(row).eq("id", existing.id)
+      : supabase.from("payment_credentials").insert(row);
+    const { data, error } = await query.select("id, user_id, provider, sandbox, connected_at").single();
+    if (error) { notify(`iyzico bağlantısı kaydedilemedi: ${error.message}`); return; }
+    const credential = rowToPaymentCredential(data);
+    setPaymentCredentials((prev) => [...prev.filter((pc) => pc.provider !== "iyzico"), credential]);
+    notify("iyzico bağlandı.", "success");
+  };
+
+  const deletePaymentCredential = async () => {
+    const { error } = await supabase.from("payment_credentials").delete().eq("user_id", activeTeamId).eq("provider", "iyzico");
+    if (error) { notify(`Bağlantı kaldırılamadı: ${error.message}`); return; }
+    setPaymentCredentials((prev) => prev.filter((pc) => pc.provider !== "iyzico"));
   };
 
   const refreshChannelMessages = async () => {
@@ -5455,6 +5619,11 @@ export default function App() {
                                 <Badge tone="accent">Portaldan alındı</Badge>
                               </div>
                             )}
+                            {d.paymentStatus === "paid" && (
+                              <div style={{ marginBottom: 4 }}>
+                                <Badge tone="success">✓ Online ödendi</Badge>
+                              </div>
+                            )}
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                               <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--text-accent)" }}>{formatTL(d.value)}</p>
                               <IconButton
@@ -5545,6 +5714,11 @@ export default function App() {
                             <Badge tone="accent">Portaldan alındı</Badge>
                           </div>
                         )}
+                        {d.paymentStatus === "paid" && (
+                          <div style={{ marginTop: 4 }}>
+                            <Badge tone="success">✓ Online ödendi</Badge>
+                          </div>
+                        )}
                         {!!d.sessionTotal && (
                           <div style={{ marginTop: 4 }}>
                             <Badge tone={d.sessionUsed >= d.sessionTotal ? "success" : "default"}>
@@ -5577,10 +5751,9 @@ export default function App() {
                             icon="ti-link"
                             title={c?.email ? "Müşterinin onaylayabileceği link — kopyala ve gönder" : "Onay linki için müşterinin e-postası kayıtlı olmalı"}
                             disabled={!c?.email}
-                            onClick={async () => {
+                            onClick={() => {
                               if (!c?.email) { notify("Onay linki oluşturmak için önce müşterinin e-postasını ekleyin."); return; }
-                              const link = await generateApprovalLink(d);
-                              if (link) { navigator.clipboard.writeText(link); notify("Onay linki kopyalandı.", "success"); }
+                              setPaymentModeDeal(d);
                             }}
                           />
                           {!!d.sessionTotal && d.sessionUsed < d.sessionTotal && (
@@ -5719,6 +5892,12 @@ export default function App() {
                 description="PDF teklifinizin tasarımını seçin"
                 onClick={() => { setShowSettingsHub(false); setShowPdfTemplates(true); }}
               />
+              <MenuRow
+                icon="ti-credit-card"
+                label="Ödeme Bağlantısı (iyzico)"
+                description={paymentCredentials.some((pc) => pc.provider === "iyzico") ? "Bağlı ✓ — müşteriler onay linkinden kartla ödeyebilir" : "Onay linkinden kartla tahsilat almak için bağlayın"}
+                onClick={() => { setShowSettingsHub(false); setShowPaymentSettings(true); }}
+              />
               {supportsSelfBooking(companySettings?.sector) && (
                 <MenuRow
                   icon="ti-clock"
@@ -5828,6 +6007,17 @@ export default function App() {
             onEdit={(tpl) => { setShowPdfTemplates(false); setEditingTemplate(tpl); }}
             onDelete={deletePdfTemplate}
             onCreateNew={(tpl) => { setShowPdfTemplates(false); setEditingTemplate(tpl); }}
+          />
+        </Modal>
+      )}
+
+      {showPaymentSettings && (
+        <Modal title="Ödeme Bağlantısı (iyzico)" onClose={() => setShowPaymentSettings(false)}>
+          <PaymentCredentialForm
+            credential={paymentCredentials.find((pc) => pc.provider === "iyzico") || null}
+            onSave={upsertPaymentCredential}
+            onDelete={deletePaymentCredential}
+            onClose={() => setShowPaymentSettings(false)}
           />
         </Modal>
       )}
@@ -6034,6 +6224,20 @@ export default function App() {
             onDeletePayment={deletePayment}
           />
         </Modal>
+      )}
+
+      {paymentModeDeal && (
+        <PaymentModeModal
+          deal={paymentModeDeal}
+          iyzicoConnected={paymentCredentials.some((pc) => pc.provider === "iyzico")}
+          onConfirm={async (mode) => {
+            await setDealPaymentMode(paymentModeDeal.id, mode);
+            const link = await generateApprovalLink(paymentModeDeal);
+            if (link) { navigator.clipboard.writeText(link); notify("Onay linki kopyalandı.", "success"); }
+            setPaymentModeDeal(null);
+          }}
+          onClose={() => setPaymentModeDeal(null)}
+        />
       )}
 
       {showCampaignModal && (
