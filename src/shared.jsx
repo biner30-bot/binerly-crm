@@ -619,7 +619,7 @@ export function NotificationBell({ userId, supabase, dataTour }) {
   return (
     <div ref={containerRef} style={{ position: "relative" }} data-tour={dataTour}>
       <div style={{ position: "relative" }}>
-        <IconButton icon="ti-inbox" onClick={openBell} title="Bildirimler" active={open} />
+        <IconButton icon={unreadCount > 0 ? "ti-bell-ringing" : "ti-bell"} onClick={openBell} title="Bildirimler" active={open} />
         {unreadCount > 0 && (
           <span
             style={{

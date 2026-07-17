@@ -5193,12 +5193,6 @@ export default function App() {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <NotificationBell userId={session.user.id} supabase={supabase} dataTour="notification-bell" />
-          <IconButton
-            icon={pushSubscribed ? "ti-bell-ringing" : "ti-bell"}
-            active={pushSubscribed}
-            onClick={() => (pushSubscribed ? unsubscribeFromPush() : subscribeToPush())}
-            title={pushSubscribed ? "Bildirimler açık (kapatmak için tıkla)" : "Yeni mesaj bildirimlerini aç"}
-          />
           <IconButton icon="ti-settings" onClick={() => setShowSettingsHub(true)} title="Ayarlar" data-tour="settings-gear" />
           <IconButton icon="ti-logout" label="Çıkış" onClick={() => supabase.auth.signOut()} title="Çıkış yap" />
         </div>
@@ -5210,7 +5204,11 @@ export default function App() {
 
       {!pushSubscribed && (
         <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "-12px 0 12px" }}>
-          🔔 simgesine basarak yeni müşteri mesajlarında anında bildirim alabilirsiniz. iPhone'da bildirim almak için önce uygulamayı Ana Ekrana eklemeniz gerekir.
+          🔔{" "}
+          <button type="button" onClick={() => setShowSettingsHub(true)} style={{ fontSize: 11, color: "var(--text-accent)", background: "none", border: "none", padding: 0, cursor: "pointer", textDecoration: "underline" }}>
+            Ayarlar'dan bildirimleri açarak
+          </button>{" "}
+          yeni müşteri mesajlarında anında haberdar olabilirsiniz. iPhone'da bildirim almak için önce uygulamayı Ana Ekrana eklemeniz gerekir.
         </p>
       )}
 
