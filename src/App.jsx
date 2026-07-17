@@ -664,7 +664,7 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
   );
 }
 
-function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, onSave, onCancel }) {
+function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(
     initial?.customerId || customers.find((c) => c.customerType === preferredCustomerType)?.id || customers[0]?.id || ""
   );
@@ -703,6 +703,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   const [sessionTotal, setSessionTotal] = useState(initial?.sessionTotal ?? 10);
   const [sessionUsed, setSessionUsed] = useState(initial?.sessionUsed ?? 0);
   const [sessionError, setSessionError] = useState("");
+  const [valueError, setValueError] = useState("");
   const [tags, setTags] = useState(initial?.tags || []);
   const [customFields, setCustomFields] = useState(initial?.customFields || {});
   const [assignedTo, setAssignedTo] = useState(initial?.assignedTo || currentUserId || "");
@@ -720,6 +721,11 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
       onSubmit={(e) => {
         e.preventDefault();
         if (!customerId || !title.trim()) return;
+        if (totalPaid > 0 && Number(value) < totalPaid) {
+          setValueError(`Tutar, zaten tahsil edilen ${formatTL(totalPaid)}'nin altına düşürülemez.`);
+          return;
+        }
+        setValueError("");
         if (isClosingStage && closedDate < dealDate) {
           setDateError("Bitiş tarihi, başlangıç tarihinden önce olamaz.");
           return;
@@ -894,6 +900,11 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
             Tutar (TL) <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>— KDV dahil{lineItems.length > 0 ? ", kalemlerden otomatik" : ""}</span>
           </label>
           <input type="number" min="0" value={value} disabled={lineItems.length > 0} onChange={(e) => setValue(e.target.value)} placeholder="0" style={{ width: "100%" }} />
+          {totalPaid > 0 && (
+            <p style={{ fontSize: 12, color: valueError ? "var(--text-danger)" : "var(--text-muted)", margin: "4px 0 0" }}>
+              {valueError || `Şu ana kadar ${formatTL(totalPaid)} tahsil edildi.`}
+            </p>
+          )}
         </div>
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Gider (TL)</label>
@@ -6243,6 +6254,7 @@ export default function App() {
             priceListItems={priceListItems}
             initialLineItems={editingDeal ? dealLineItems.filter((li) => li.dealId === editingDeal.id) : []}
             hasPaymentConnection={paymentCredentials.some((pc) => pc.provider === "iyzico")}
+            totalPaid={editingDeal ? totalPaidForDeal(editingDeal.id) : 0}
             onSave={upsertDeal}
             onCancel={() => { setShowDealForm(false); setEditingDeal(null); }}
           />
