@@ -149,6 +149,9 @@ async function handlePaymentCallback(req, res, supabaseAdmin, url) {
     iyzipay.checkoutForm.retrieve({ locale: Iyzipay.LOCALE.TR, token: iyzicoToken }, (err, body) => resolve(err ? null : body));
   });
   if (!result || result.paymentStatus !== "SUCCESS") return redirect(`${target}?paid=0`);
+  // GEÇİCİ — İade Prosedürü için paymentId/paymentTransactionId alan adlarını
+  // doğrulamak amacıyla eklendi, teyit edilince kaldırılacak.
+  console.log("iyzico checkoutForm.retrieve result:", JSON.stringify(result));
 
   const { error: paymentInsertError } = await supabaseAdmin.from("payments").insert({
     id: crypto.randomUUID(),
