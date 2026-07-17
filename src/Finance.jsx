@@ -309,6 +309,8 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
         hasTime: false,
         label: `${customer?.name || "Bilinmeyen müşteri"} — ${deal?.title || "Tahsilat"}${isRefund ? " (iade)" : ""}`,
         amount: Math.abs(p.amount),
+        dealId: deal?.id || null,
+        isOnlinePayment: !isRefund && p.provider === "iyzico",
       };
     }),
     ...rangeExpenses.map((e) => ({
@@ -568,6 +570,15 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
                         />
                         <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(item)} />
                       </>
+                    )}
+                    {item.isOnlinePayment && (
+                      <button
+                        type="button"
+                        onClick={() => { const deal = dealById(item.dealId); if (deal) onOpenPayments(deal); }}
+                        style={{ fontSize: 12 }}
+                      >
+                        İade Et
+                      </button>
                     )}
                   </div>
                 </div>
