@@ -243,6 +243,7 @@ function rowToPaymentCredential(r) {
     userId: r.user_id,
     provider: r.provider,
     sandbox: !!r.sandbox,
+    maxInstallment: r.max_installment || 1,
     connectedAt: r.connected_at,
   };
 }
@@ -2813,6 +2814,7 @@ function PaymentModeModal({ deal, paymentConnected, onConfirm, onClose }) {
 }
 
 const PAYTR_NOTIFICATION_URL = "https://binerly.com/api/deal-approval?action=paytr-callback";
+const INSTALLMENT_TIERS = [1, 2, 3, 6, 9, 12]; // Türkiye'deki standart taksit kademeleri
 
 function PaymentCredentialForm({ credential, onSave, onDelete, onClose }) {
   const [provider, setProvider] = useState(credential?.provider || "iyzico");
@@ -2820,6 +2822,7 @@ function PaymentCredentialForm({ credential, onSave, onDelete, onClose }) {
   const [secretKey, setSecretKey] = useState("");
   const [merchantSalt, setMerchantSalt] = useState("");
   const [sandbox, setSandbox] = useState(credential?.sandbox ?? true);
+  const [maxInstallment, setMaxInstallment] = useState(credential?.maxInstallment || 1);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -2831,7 +2834,7 @@ function PaymentCredentialForm({ credential, onSave, onDelete, onClose }) {
     e.preventDefault();
     if (!requiredFilled) return;
     setSaving(true);
-    await onSave({ provider, apiKey: apiKey.trim(), secretKey: secretKey.trim(), merchantSalt: isPayTR ? merchantSalt.trim() : null, sandbox });
+    await onSave({ provider, apiKey: apiKey.trim(), secretKey: secretKey.trim(), merchantSalt: isPayTR ? merchantSalt.trim() : null, sandbox, maxInstallment });
     setSaving(false);
     onClose();
   };
@@ -2903,6 +2906,20 @@ function PaymentCredentialForm({ credential, onSave, onDelete, onClose }) {
             />
           </div>
         )}
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Taksit</label>
+          <select value={maxInstallment} onChange={(e) => setMaxInstallment(Number(e.target.value))} style={{ width: "100%" }}>
+            <option value={1}>Tek çekim</option>
+            {INSTALLMENT_TIERS.filter((t) => t > 1).map((t) => (
+              <option key={t} value={t}>{t} taksite kadar</option>
+            ))}
+          </select>
+          <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0 0" }}>
+            Müşteriye ödeme sayfasında sunulacak azami taksit sayısı. Bu sadece bir üst sınır — taksitin gerçekten
+            sunulabilmesi {isPayTR ? "PayTR" : "iyzico"} hesabınızda taksitli satış özelliğinin açık olmasına ve
+            müşterinin kartının taksit desteğine bağlıdır; hesabınızda kapalıysa bu ayara rağmen tek çekim gösterilir.
+          </p>
+        </div>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, marginBottom: 16 }}>
           <input type="checkbox" checked={sandbox} onChange={(e) => setSandbox(e.target.checked)} />
           Test modu (Sandbox) — canlıya geçmeden önce test anahtarlarınızla deneyin
@@ -4399,7 +4416,7 @@ export default function App() {
   // Tek seferde sadece TEK bir sağlayıcı aktif olabiliyor (basitlik — "hangisi
   // kullanılacak" belirsizliği hiç oluşmasın diye) — yeni bir sağlayıcı
   // bağlanınca varsa başka sağlayıcının kaydı önce siliniyor.
-  const upsertPaymentCredential = async ({ provider, apiKey, secretKey, merchantSalt, sandbox }) => {
+  const upsertPaymentCredential = async ({ provider, apiKey, secretKey, merchantSalt, sandbox, maxInstallment }) => {
     const { error: deleteError } = await supabase
       .from("payment_credentials")
       .delete()
@@ -4409,12 +4426,13 @@ export default function App() {
 
     const row = {
       user_id: activeTeamId, provider, api_key: apiKey, secret_key: secretKey,
-      merchant_salt: merchantSalt || null, sandbox, updated_at: new Date().toISOString(),
+      merchant_salt: merchantSalt || null, sandbox, max_installment: maxInstallment || 1,
+      updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase
       .from("payment_credentials")
       .upsert(row, { onConflict: "user_id,provider" })
-      .select("id, user_id, provider, sandbox, connected_at")
+      .select("id, user_id, provider, sandbox, max_installment, connected_at")
       .single();
     if (error) { notify(`Bağlantı kaydedilemedi: ${error.message}`); return; }
     const credential = rowToPaymentCredential(data);

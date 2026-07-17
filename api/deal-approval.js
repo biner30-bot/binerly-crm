@@ -6,6 +6,7 @@ import { renderEmailHtml, plainTextFallback } from "./_email-template.js";
 const IYZICO_BASE_URL = { sandbox: "https://sandbox-api.iyzipay.com", production: "https://api.iyzipay.com" };
 const PAYTR_GET_TOKEN_URL = "https://www.paytr.com/odeme/api/get-token";
 const PAYTR_REFUND_URL = "https://www.paytr.com/odeme/iade";
+const INSTALLMENT_TIERS = [1, 2, 3, 6, 9, 12]; // Türkiye'deki standart taksit kademeleri
 
 function hmacSha256Base64(str, key) {
   return crypto.createHmac("sha256", key).update(str).digest("base64");
@@ -182,6 +183,11 @@ async function initIyzicoCheckout(deal, customer, token, cred) {
     shippingAddress: address,
     billingAddress: address,
     basketItems: [{ id: deal.id, price: String(deal.value), name: deal.title, category1: "Hizmet", itemType: Iyzipay.BASKET_ITEM_TYPE.VIRTUAL }],
+    // enabledInstallments belirli taksit sayılarının bir DİZİSİ (iyzipay SDK
+    // örneklerinden doğrulandı, örn. [1,2,3,6,9,12]) — Türkiye'deki standart
+    // taksit kademeleri kullanılıyor. KOBİ Ayarlar'dan taksit izni vermediyse
+    // (max_installment=1) sadece [1] gönderilip tek çekime zorlanıyor.
+    enabledInstallments: INSTALLMENT_TIERS.filter((t) => t <= (cred.max_installment || 1)),
   };
 
   const result = await new Promise((resolve) => {
@@ -208,8 +214,12 @@ async function initPayTRCheckout(req, supabaseAdmin, deal, customer, token, cred
   const email = customer?.email || "musteri@binerly.com";
   const paymentAmount = Math.round(Number(deal.value) * 100);
   const userBasket = Buffer.from(JSON.stringify([[deal.title, Number(deal.value).toFixed(2), 1]])).toString("base64");
-  const noInstallment = 0;
-  const maxInstallment = 0;
+  // no_installment=1 taksiti tamamen kapatır; max_installment=0 PayTR'nin
+  // kendi varsayılanına bırakır — KOBİ'nin Ayarlar'daki seçimini olduğu
+  // gibi yansıtmak için tek çekim isteniyorsa açıkça kapatılıyor.
+  const allowInstallments = (cred.max_installment || 1) > 1;
+  const noInstallment = allowInstallments ? 0 : 1;
+  const maxInstallment = allowInstallments ? cred.max_installment : 0;
   const currency = "TL";
   const testMode = cred.sandbox ? 1 : 0;
 
@@ -252,7 +262,7 @@ async function initPayTRCheckout(req, supabaseAdmin, deal, customer, token, cred
 async function initCheckout(req, supabaseAdmin, deal, customer, token) {
   const { data: cred, error: credError } = await supabaseAdmin
     .from("payment_credentials")
-    .select("provider, api_key, secret_key, merchant_salt, sandbox")
+    .select("provider, api_key, secret_key, merchant_salt, sandbox, max_installment")
     .eq("user_id", deal.user_id)
     .maybeSingle();
   if (credError) console.error("payment_credentials query error:", credError.message, "deal.user_id:", deal.user_id);
