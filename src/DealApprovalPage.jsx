@@ -197,75 +197,86 @@ export default function DealApprovalPage() {
                 {APPROVAL_DEAL_WORDS[dealWordKind(state.deal.sector)].dateLabel}: {formatDate(state.deal.createdAt)}
               </p>
             )}
-            {state.deal.approved ? (
-              <div>
-                <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "14px 16px" }}>
-                  <p style={{ color: "#15803d", fontWeight: 600, margin: "0 0 4px" }}>✓ Bu {APPROVAL_DEAL_WORDS[dealWordKind(state.deal.sector)].acc} onayladınız</p>
-                  {state.deal.paymentStatus === "paid" && (
-                    <p style={{ color: "#15803d", fontWeight: 600, margin: "0 0 4px" }}>✓ Ödeme alındı</p>
+            {(() => {
+              const isPaid = state.deal.paymentStatus === "paid";
+              const needsPayment = state.deal.paymentMode !== "none" && !isPaid;
+              const isOptionalPay = state.deal.paymentMode === "optional";
+              // "İsteğe bağlı öde" modunda onay ve ödeme birbirinden bağımsız —
+              // biri gerçekleşse bile diğeri hâlâ bekliyor olabilir, bu yüzden
+              // "onaylandı" durumu ödeme butonunu artık gizlemiyor.
+              const hasPendingAction = !state.deal.approved || (isOptionalPay && !isPaid);
+              return (
+                <>
+                  {state.deal.approved && (
+                    <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "14px 16px", marginBottom: hasPendingAction ? 12 : 0 }}>
+                      <p style={{ color: "#15803d", fontWeight: 600, margin: "0 0 4px" }}>✓ Bu {APPROVAL_DEAL_WORDS[dealWordKind(state.deal.sector)].acc} onayladınız</p>
+                      {isPaid && <p style={{ color: "#15803d", fontWeight: 600, margin: "0 0 4px" }}>✓ Ödeme alındı</p>}
+                      {state.deal.approvedAt && (
+                        <p style={{ fontSize: 12, color: "#5b7088", margin: 0 }}>{formatDateTime(state.deal.approvedAt)} tarihinde kaydedildi</p>
+                      )}
+                    </div>
                   )}
-                  {state.deal.approvedAt && (
-                    <p style={{ fontSize: 12, color: "#5b7088", margin: 0 }}>{formatDateTime(state.deal.approvedAt)} tarihinde kaydedildi</p>
+                  {!state.deal.approved && isPaid && (
+                    <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "#15803d", fontWeight: 600 }}>
+                      ✓ Ödemeniz alındı
+                    </div>
                   )}
-                </div>
-                <p style={{ fontSize: 12, color: "#94a7bb", margin: "12px 0 0" }}>
-                  {state.deal.companyName} en kısa sürede sizinle iletişime geçecek.
-                </p>
-              </div>
-            ) : (
-              <>
-                {state.deal.paymentStatus === "paid" && (
-                  <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "#15803d", fontWeight: 600 }}>
-                    ✓ Ödemeniz alındı
-                  </div>
-                )}
-                {paidParam === "0" && (
-                  <p style={{ fontSize: 12.5, color: "#b45309", margin: "0 0 12px" }}>Ödeme tamamlanamadı, lütfen tekrar deneyin.</p>
-                )}
-                {paymentError && (
-                  <p style={{ fontSize: 12.5, color: "#b91c1c", margin: "0 0 12px" }}>{paymentError}</p>
-                )}
-                {state.deal.paymentMode === "required" ? (
-                  <button
-                    onClick={payNow}
-                    disabled={paying}
-                    style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
-                  >
-                    {paying ? "Yönlendiriliyor…" : "Öde ve Onayla"}
-                  </button>
-                ) : (
-                  <>
-                    <textarea
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                      placeholder="Not eklemek ister misiniz? (opsiyonel)"
-                      rows={2}
-                      style={{ width: "100%", boxSizing: "border-box", padding: "9px 10px", border: "1px solid #e1e8f0", borderRadius: 8, fontSize: 13, fontFamily: "inherit", resize: "vertical", marginBottom: 10 }}
-                    />
+                  {state.deal.approved && !hasPendingAction && (
+                    <p style={{ fontSize: 12, color: "#94a7bb", margin: "0 0 12px" }}>
+                      {state.deal.companyName} en kısa sürede sizinle iletişime geçecek.
+                    </p>
+                  )}
+                  {paidParam === "0" && (
+                    <p style={{ fontSize: 12.5, color: "#b45309", margin: "0 0 12px" }}>Ödeme tamamlanamadı, lütfen tekrar deneyin.</p>
+                  )}
+                  {paymentError && (
+                    <p style={{ fontSize: 12.5, color: "#b91c1c", margin: "0 0 12px" }}>{paymentError}</p>
+                  )}
+                  {state.deal.paymentMode === "required" && !state.deal.approved && (
                     <button
-                      onClick={approve}
-                      disabled={approving}
+                      onClick={payNow}
+                      disabled={paying}
                       style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
                     >
-                      {approving ? "Onaylanıyor…" : "Onaylıyorum"}
+                      {paying ? "Yönlendiriliyor…" : "Öde ve Onayla"}
                     </button>
-                    {state.deal.paymentMode === "optional" && state.deal.paymentStatus !== "paid" && (
+                  )}
+                  {state.deal.paymentMode !== "required" && !state.deal.approved && (
+                    <>
+                      <textarea
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        placeholder="Not eklemek ister misiniz? (opsiyonel)"
+                        rows={2}
+                        style={{ width: "100%", boxSizing: "border-box", padding: "9px 10px", border: "1px solid #e1e8f0", borderRadius: 8, fontSize: 13, fontFamily: "inherit", resize: "vertical", marginBottom: 10 }}
+                      />
                       <button
-                        onClick={payNow}
-                        disabled={paying}
-                        style={{ width: "100%", background: "#fff", color: "#185fa5", border: "1px solid #185fa5", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: "pointer", marginTop: 8 }}
+                        onClick={approve}
+                        disabled={approving}
+                        style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
                       >
-                        {paying ? "Yönlendiriliyor…" : "💳 Şimdi öde"}
+                        {approving ? "Onaylanıyor…" : "Onaylıyorum"}
                       </button>
-                    )}
-                  </>
-                )}
-                <p style={{ fontSize: 11.5, color: "#94a7bb", margin: "12px 0 0", lineHeight: 1.5, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-                  <i className="ti ti-lock" style={{ fontSize: 13 }} aria-hidden="true"></i>
-                  Kimliğiniz doğrulandı, onayınız zaman damgasıyla kaydedilir.
-                </p>
-              </>
-            )}
+                    </>
+                  )}
+                  {isOptionalPay && !isPaid && (
+                    <button
+                      onClick={payNow}
+                      disabled={paying}
+                      style={{ width: "100%", background: "#fff", color: "#185fa5", border: "1px solid #185fa5", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: "pointer", marginTop: 8 }}
+                    >
+                      {paying ? "Yönlendiriliyor…" : "💳 Şimdi öde"}
+                    </button>
+                  )}
+                  {hasPendingAction && (
+                    <p style={{ fontSize: 11.5, color: "#94a7bb", margin: "12px 0 0", lineHeight: 1.5, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                      <i className="ti ti-lock" style={{ fontSize: 13 }} aria-hidden="true"></i>
+                      Kimliğiniz doğrulandı, onayınız zaman damgasıyla kaydedilir.
+                    </p>
+                  )}
+                </>
+              );
+            })()}
           </>
         )}
       </div>
