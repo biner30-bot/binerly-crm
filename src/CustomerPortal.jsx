@@ -64,6 +64,9 @@ function rowToDeal(r) {
     stage: r.stage,
     createdAt: r.created_at,
     customFields: r.custom_fields || {},
+    approvalToken: r.approval_token || null,
+    paymentMode: r.payment_mode || "none",
+    paymentStatus: r.payment_status || null,
   };
 }
 
@@ -340,6 +343,11 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, sh
             </div>
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <Badge tone={tone}>{stageText}</Badge>
+              {d.paymentStatus === "paid" ? (
+                <Badge tone="success">✓ Ödendi</Badge>
+              ) : d.paymentMode !== "none" && d.approvalToken ? (
+                <a href={`/onay/${d.approvalToken}`} style={{ fontSize: 13, fontWeight: 600, color: "var(--fill-accent)" }}>💳 Öde</a>
+              ) : null}
               <span style={{ fontSize: 13, fontWeight: 600, minWidth: 90, textAlign: "right" }}>{formatTL(d.value)}</span>
               {cancellable && (canCancel ? (
                 <button type="button" onClick={() => onCancelAppointment(d.id)} style={{ fontSize: 13 }}>İptal Et</button>

@@ -664,7 +664,7 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
   );
 }
 
-function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, titleSuggestions = [], priceListItems = [], initialLineItems = [], onSave, onCancel }) {
+function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(
     initial?.customerId || customers.find((c) => c.customerType === preferredCustomerType)?.id || customers[0]?.id || ""
   );
@@ -679,6 +679,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   );
   const lineItemsTotal = lineItems.reduce((sum, li) => sum + (Number(li.quantity) || 0) * (Number(li.unitPrice) || 0), 0);
   const [cost, setCost] = useState(initial?.cost ?? "");
+  const [paymentMode, setPaymentMode] = useState(initial?.paymentMode || "none");
   const [kdvRate, setKdvRate] = useState(initial?.kdvRate ?? defaultKdvRate ?? 20);
   const [stage, setStage] = useState(initial?.stage || "ilk_gorusme");
   const [dealDate, setDealDate] = useState((initial?.createdAt || new Date().toISOString()).slice(0, 10));
@@ -735,6 +736,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           title: title.trim(),
           value: Number(value) || 0,
           cost: Number(cost) || 0,
+          paymentMode,
           kdvRate,
           stage,
           reminder: reminder.trim(),
@@ -906,6 +908,20 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
             <option value={0}>%0</option>
           </select>
         </div>
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+          Müşteri ödemesi
+          <InfoTip text="Onay linkinden veya müşteri portalından kartla ödeme alınabilir — iyzico bağlantısı Ayarlar'dan kurulmalı." />
+        </label>
+        <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)} style={{ width: "100%" }}>
+          {PAYMENT_MODE_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+        </select>
+        {paymentMode !== "none" && !hasPaymentConnection && (
+          <p style={{ fontSize: 12.5, color: "var(--text-warning, #b45309)", margin: "4px 0 0" }}>
+            Ödeme almak için önce Ayarlar'dan iyzico hesabınızı bağlamanız gerekiyor.
+          </p>
+        )}
       </div>
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
         <div style={{ flex: 1 }}>
@@ -3900,9 +3916,13 @@ export default function App() {
       custom_fields: d.customFields || {},
       notify_customer: d.notifyCustomer || false,
       assigned_to: d.assignedTo || null,
-      // approval_token/approved_at bu formda hiç düzenlenmiyor — mevcut değeri
-      // koru, yoksa normal "Kaydet" onay durumunu sıfırlardı.
-      approval_token: d.approvalToken || null,
+      payment_mode: d.paymentMode || "none",
+      // approved_at bu formda hiç düzenlenmiyor — mevcut değeri koru, yoksa
+      // normal "Kaydet" onay durumunu sıfırlardı. approval_token da genelde
+      // korunuyor — TEK istisna: ödeme tercihi "none" dışına ilk kez çekiliyor
+      // ve henüz hiç link kopyalanmadıysa (approvalToken yok), portaldaki
+      // "Öde" linkinin çalışabilmesi için burada otomatik üretiliyor.
+      approval_token: d.approvalToken || (d.paymentMode && d.paymentMode !== "none" ? uid() : null),
       approved_at: d.approvedAt || null,
       created_at: d.createdAt,
       closed_at: d.closedAt || null,
@@ -6222,6 +6242,7 @@ export default function App() {
             titleSuggestions={[...new Set(deals.map((d) => d.title).filter(Boolean))]}
             priceListItems={priceListItems}
             initialLineItems={editingDeal ? dealLineItems.filter((li) => li.dealId === editingDeal.id) : []}
+            hasPaymentConnection={paymentCredentials.some((pc) => pc.provider === "iyzico")}
             onSave={upsertDeal}
             onCancel={() => { setShowDealForm(false); setEditingDeal(null); }}
           />
