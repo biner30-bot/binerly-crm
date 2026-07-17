@@ -2656,14 +2656,31 @@ function PaymentCredentialForm({ credential, onSave, onDelete, onClose }) {
           iyzico bağlı ✓ {credential.sandbox ? "(Test modu / Sandbox)" : "(Canlı)"}
         </div>
       )}
-      <form onSubmit={submit}>
+      <form onSubmit={submit} autoComplete="off">
         <div style={{ marginBottom: 10 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>API Key</label>
-          <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={credential ? "Değiştirmek için yeniden girin" : ""} style={{ width: "100%" }} />
+          <input
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder={credential ? "Değiştirmek için yeniden girin" : ""}
+            autoComplete="off"
+            data-1p-ignore
+            data-lpignore="true"
+            style={{ width: "100%" }}
+          />
         </div>
         <div style={{ marginBottom: 10 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Secret Key</label>
-          <input value={secretKey} onChange={(e) => setSecretKey(e.target.value)} placeholder={credential ? "Değiştirmek için yeniden girin" : ""} type="password" style={{ width: "100%" }} />
+          <input
+            value={secretKey}
+            onChange={(e) => setSecretKey(e.target.value)}
+            placeholder={credential ? "Değiştirmek için yeniden girin" : ""}
+            type="password"
+            autoComplete="new-password"
+            data-1p-ignore
+            data-lpignore="true"
+            style={{ width: "100%" }}
+          />
         </div>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, marginBottom: 16 }}>
           <input type="checkbox" checked={sandbox} onChange={(e) => setSandbox(e.target.checked)} />
