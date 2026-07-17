@@ -4060,6 +4060,16 @@ export default function App() {
     if (error) { notify(`Tahsilat silinemedi: ${error.message}`); return; }
     setPayments((prev) => prev.filter((p) => p.id !== id));
     logAction("payments", id, "deleted", `${formatTL(payment?.amount || 0)} tahsilat çöp kutusuna taşındı`);
+    // Silinen kayıt iyzico'nun online ödemesiyse "✓ Online ödendi" rozeti artık
+    // yanlış bilgi verir (para kayıttan çıktı) — deal.payment_status'ü de temizle,
+    // ayrıca müşteri linkten tekrar ödemek isterse çalışabilsin diye.
+    if (payment?.note === "iyzico ile online ödeme") {
+      const deal = deals.find((d) => d.id === payment.dealId);
+      if (deal?.paymentStatus === "paid") {
+        const { error: dealError } = await supabase.from("deals").update({ payment_status: null }).eq("id", deal.id);
+        if (!dealError) setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, paymentStatus: null } : d)));
+      }
+    }
   };
 
   const addCompanyExpense = async ({ title, category, amount, expenseDate, note, isRecurring, recurrenceInterval, kdvRate }) => {
