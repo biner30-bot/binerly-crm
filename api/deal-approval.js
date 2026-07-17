@@ -174,7 +174,10 @@ async function handlePaymentCallback(req, res, supabaseAdmin, url) {
   const { error: dealUpdateError } = await supabaseAdmin.from("deals").update(dealUpdate).eq("id", deal.id);
   if (dealUpdateError) console.error("deals payment_status/stage update error:", dealUpdateError.message, "deal.id:", deal.id);
 
-  if (deal.payment_mode === "required" && !deal.approved_at) {
+  // Ödeme, hangi modda olursa olsun onaydan daha güçlü bir sinyal — "isteğe
+  // bağlı" modda ayrı bir "Onaylıyorum" adımı hâlâ sunuluyor, ama müşteri
+  // onu hiç kullanmadan direkt öderse bu da onay yerine geçer.
+  if (!deal.approved_at) {
     const { data: customer } = await supabaseAdmin.from("customers").select("name").eq("id", deal.customer_id).maybeSingle();
     await markApproved(supabaseAdmin, deal, customer, null, "ödeyerek onayladı").catch((e) => console.error("auto-approve error:", e.message));
   }

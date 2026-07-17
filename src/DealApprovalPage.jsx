@@ -266,7 +266,7 @@ export default function DealApprovalPage() {
                       disabled={paying}
                       style={{ width: "100%", background: "#fff", color: "#185fa5", border: "1px solid #185fa5", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: "pointer", marginTop: 8 }}
                     >
-                      {paying ? "Yönlendiriliyor…" : "💳 Şimdi öde"}
+                      {paying ? "Yönlendiriliyor…" : state.deal.approved ? "💳 Şimdi öde" : "💳 Öde ve Onayla"}
                     </button>
                   )}
                   {hasPendingAction && (
