@@ -201,6 +201,9 @@ export default function DealApprovalPage() {
               <div>
                 <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "14px 16px" }}>
                   <p style={{ color: "#15803d", fontWeight: 600, margin: "0 0 4px" }}>✓ Bu {APPROVAL_DEAL_WORDS[dealWordKind(state.deal.sector)].acc} onayladınız</p>
+                  {state.deal.paymentStatus === "paid" && (
+                    <p style={{ color: "#15803d", fontWeight: 600, margin: "0 0 4px" }}>✓ Ödeme alındı</p>
+                  )}
                   {state.deal.approvedAt && (
                     <p style={{ fontSize: 12, color: "#5b7088", margin: 0 }}>{formatDateTime(state.deal.approvedAt)} tarihinde kaydedildi</p>
                   )}
