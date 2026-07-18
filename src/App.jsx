@@ -290,6 +290,83 @@ const SECTOR_DEMO_PRESETS = {
       { customerIndex: 0, title: "Elektrik Arızası", value: 1200, cost: 0, stage: "ilk_gorusme", customFields: { servis_turu: "Elektrik İşi" } },
     ],
   },
+  emlak: {
+    customers: [
+      { name: "Örnek Müşteri — Can Öztürk", customerType: "bireysel", phone: "0532 000 00 41" },
+      { name: "Örnek Müşteri — Ada Yapı A.Ş.", customerType: "kurumsal", phone: "0532 000 00 42" },
+    ],
+    deals: [
+      { customerIndex: 0, title: "3+1 Daire Satışı — Kadıköy", value: 2500000, cost: 0, stage: "kazanildi", customFields: { mulk_tipi: "Daire", islem_turu: "Satış", metrekare: 120, ilan_no: "KDK-1042" } },
+      { customerIndex: 1, title: "Ofis Kiralama Teklifi", value: 45000, cost: 0, stage: "teklif", reminderToday: true, reminder: "Mülk fotoğraflarını gönder", customFields: { mulk_tipi: "İşyeri", islem_turu: "Kiralama", metrekare: 200 } },
+      { customerIndex: 0, title: "Villa Görüşmesi", value: 4500000, cost: 0, stage: "ilk_gorusme", customFields: { mulk_tipi: "Villa", islem_turu: "Satış" } },
+    ],
+  },
+  dijital_ajans: {
+    customers: [
+      { name: "Örnek Müşteri — Lezzet Cafe", customerType: "kurumsal", phone: "0532 000 00 51" },
+      { name: "Örnek Müşteri — Parlak Kozmetik", customerType: "kurumsal", phone: "0532 000 00 52" },
+    ],
+    deals: [
+      { customerIndex: 0, title: "Sosyal Medya Yönetimi (Aylık)", value: 12000, cost: 0, stage: "kazanildi", customFields: { hizmet_turu: "Sosyal medya yönetimi", sozlesme_suresi: "Aylık", aylik_butce: 5000 } },
+      { customerIndex: 1, title: "Web Sitesi Yenileme Teklifi", value: 35000, cost: 0, stage: "teklif", reminderToday: true, reminder: "Teklifi takip et", customFields: { hizmet_turu: "Web tasarım", sozlesme_suresi: "Tek seferlik" } },
+      { customerIndex: 0, title: "SEO Danışmanlığı Görüşmesi", value: 8000, cost: 0, stage: "ilk_gorusme", customFields: { hizmet_turu: "SEO" } },
+    ],
+  },
+  uretim_satis: {
+    customers: [
+      { name: "Örnek Müşteri — Yıldız Market Zinciri", customerType: "kurumsal", phone: "0532 000 00 61" },
+      { name: "Örnek Müşteri — Deniz Toptan Gıda", customerType: "kurumsal", phone: "0532 000 00 62" },
+    ],
+    deals: [
+      { customerIndex: 0, title: "Aylık Ürün Sevkiyatı", value: 85000, cost: 0, stage: "kazanildi", customFields: { urun_grubu: "Gıda ambalaj", siparis_miktari: 5000, sevkiyat_durumu: "Teslim edildi" } },
+      { customerIndex: 1, title: "Toptan Sipariş Teklifi", value: 42000, cost: 0, stage: "teklif", reminderToday: true, reminder: "Fiyat teklifini takip et", customFields: { urun_grubu: "Temizlik ürünleri", siparis_miktari: 2000 } },
+      { customerIndex: 0, title: "Yeni Ürün Görüşmesi", value: 15000, cost: 0, stage: "ilk_gorusme", customFields: { urun_grubu: "Kağıt ürünleri" } },
+    ],
+  },
+  hizmet_danismanlik: {
+    customers: [
+      { name: "Örnek Müşteri — Vizyon Holding", customerType: "kurumsal", phone: "0532 000 00 71" },
+      { name: "Örnek Müşteri — Selin Aydın", customerType: "bireysel", phone: "0532 000 00 72" },
+    ],
+    deals: [
+      { customerIndex: 0, title: "Kurumsal Verimlilik Danışmanlığı", value: 60000, cost: 0, stage: "kazanildi", customFields: { ucretlendirme_modeli: "Proje bazlı", proje_kapsami: "Süreç iyileştirme" } },
+      { customerIndex: 1, title: "Kariyer Koçluğu Teklifi", value: 6000, cost: 0, stage: "teklif", reminderToday: true, reminder: "Teklifi takip et", customFields: { ucretlendirme_modeli: "Aylık paket" } },
+      { customerIndex: 0, title: "Yeni Proje Görüşmesi", value: 25000, cost: 0, stage: "muzakere", customFields: { ucretlendirme_modeli: "Saatlik" } },
+    ],
+  },
+  perakende: {
+    customers: [
+      { name: "Örnek Müşteri — Burak Kaya", customerType: "bireysel", phone: "0532 000 00 81" },
+      { name: "Örnek Müşteri — Naz Yılmaz", customerType: "bireysel", phone: "0532 000 00 82" },
+    ],
+    deals: [
+      { customerIndex: 0, title: "Mağaza İçi Alışveriş", value: 3200, cost: 0, stage: "kazanildi", customFields: { satis_kanali: "Mağaza", urun_kategorisi: "Giyim" } },
+      { customerIndex: 1, title: "Online Sipariş Teklifi", value: 1500, cost: 0, stage: "teklif", reminderToday: true, reminder: "Siparişi takip et", customFields: { satis_kanali: "Online", urun_kategorisi: "Ayakkabı" } },
+      { customerIndex: 0, title: "Telefon Siparişi Görüşmesi", value: 900, cost: 0, stage: "ilk_gorusme", customFields: { satis_kanali: "Telefon" } },
+    ],
+  },
+  spor_merkezi: {
+    customers: [
+      { name: "Örnek Üye — Deniz Arslan", customerType: "bireysel", phone: "0532 000 00 91" },
+      { name: "Örnek Üye — Ege Korkmaz", customerType: "bireysel", phone: "0532 000 00 92" },
+    ],
+    deals: [
+      { customerIndex: 0, title: "Yıllık Üyelik", value: 18000, cost: 0, stage: "kazanildi", customFields: { uyelik_paketi: "Yıllık" } },
+      { customerIndex: 1, title: "PT Paketi Teklifi", value: 9000, cost: 0, stage: "teklif", reminderToday: true, reminder: "Paketi takip et", customFields: { uyelik_paketi: "PT Paketi", antrenor: "Mert Hoca" } },
+      { customerIndex: 0, title: "Deneme Dersi Görüşmesi", value: 250, cost: 0, stage: "ilk_gorusme", customFields: { uyelik_paketi: "Aylık" } },
+    ],
+  },
+  egitim_kurs: {
+    customers: [
+      { name: "Örnek Öğrenci — Defne Yıldız", customerType: "bireysel", phone: "0532 000 01 01" },
+      { name: "Örnek Öğrenci — Kerem Çelik", customerType: "bireysel", phone: "0532 000 01 02" },
+    ],
+    deals: [
+      { customerIndex: 0, title: "İngilizce Kursu Kaydı", value: 7500, cost: 0, stage: "kazanildi", customFields: { kurs_programi: "Yabancı Dil", egitmen: "Ayşe Öğretmen" } },
+      { customerIndex: 1, title: "Sürücü Kursu Teklifi", value: 12000, cost: 0, stage: "teklif", reminderToday: true, reminder: "Kaydı takip et", customFields: { kurs_programi: "Sürücü Kursu" } },
+      { customerIndex: 0, title: "Deneme Dersi Görüşmesi", value: 500, cost: 0, stage: "ilk_gorusme", customFields: { kurs_programi: "Müzik/Sanat" } },
+    ],
+  },
 };
 
 const CUSTOMER_IMPORT_FIELDS = [
@@ -5268,10 +5345,20 @@ export default function App() {
     : null;
   // Sanayi Esnafı'nda kazanılan işlerin ortalama tamamlanma süresi (gün) —
   // müşteriye "genelde ne kadar sürer" sorusuna somut bir cevap verir.
-  const avgCompletionDays = companySettings?.sector === "sanayi_esnaf" && wonDeals.length > 0
+  const avgCompletionDays = (companySettings?.sector === "sanayi_esnaf" || companySettings?.sector === "emlak") && wonDeals.length > 0
     ? Math.round(
         wonDeals.reduce((sum, d) => sum + (new Date(d.closedAt || d.createdAt) - new Date(d.createdAt)) / 86400000, 0) / wonDeals.length
       )
+    : null;
+  // Dijital Ajans'ta "Aylık/3 Aylık/Yıllık" sözleşme, Hizmet/Danışmanlık'ta
+  // "Aylık paket" ücretlendirme modeli tekrarlayan (recurring) gelir sayılır.
+  const RECURRING_VALUES = { dijital_ajans: ["Aylık", "3 Aylık", "Yıllık"], hizmet_danismanlik: ["Aylık paket"] };
+  const recurringField = companySettings?.sector === "dijital_ajans" ? "sozlesme_suresi" : companySettings?.sector === "hizmet_danismanlik" ? "ucretlendirme_modeli" : null;
+  const recurringRevenueRate = recurringField && wonDeals.length > 0
+    ? Math.round((wonDeals.filter((d) => RECURRING_VALUES[companySettings.sector]?.includes(d.customFields?.[recurringField])).length / wonDeals.length) * 100)
+    : null;
+  const onlineSalesRate = companySettings?.sector === "perakende" && wonDeals.length > 0
+    ? Math.round((wonDeals.filter((d) => d.customFields?.satis_kanali === "Online").length / wonDeals.length) * 100)
     : null;
   const totalOpenValue = openDeals.reduce((sum, d) => sum + (d.value || 0), 0);
   const expectedRevenue = openDeals.reduce((sum, d) => sum + (d.value || 0) * (STAGE_PROBABILITY[d.stage] || 0), 0);
@@ -5709,6 +5796,12 @@ export default function App() {
             )}
             {avgCompletionDays !== null && (
               <MetricCard label="Ortalama tamamlanma süresi" value={`${avgCompletionDays} gün`} />
+            )}
+            {recurringRevenueRate !== null && (
+              <MetricCard label="Tekrarlayan gelir oranı" value={`%${recurringRevenueRate}`} />
+            )}
+            {onlineSalesRate !== null && (
+              <MetricCard label="Online satış oranı" value={`%${onlineSalesRate}`} />
             )}
           </div>
 
