@@ -553,6 +553,7 @@ function TicketList({
   onOpenTicket,
   onEditTicket,
   onDeleteTicket,
+  onCreateNew,
 }) {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const customerById = (id) => customers.find((c) => c.id === id);
@@ -584,9 +585,17 @@ function TicketList({
         <DateRangeFilter from={fromDate} to={toDate} onFromChange={onFromDateChange} onToChange={onToDateChange} />
       </div>
       {sorted.length === 0 ? (
-        <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
-          {totalCount === 0 ? "Henüz talep eklenmedi." : "Aramayla eşleşen talep yok."}
-        </p>
+        totalCount === 0 ? (
+          <div style={{ background: "var(--surface-1)", borderRadius: 12, padding: "2rem 1.5rem", textAlign: "center" }}>
+            <p style={{ fontWeight: 500, margin: "0 0 4px" }}>Henüz talep eklenmedi</p>
+            <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px" }}>Müşteri portaldan yazdığında burada görünür, isterseniz kendiniz de bir talep oluşturabilirsiniz.</p>
+            <button onClick={onCreateNew} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+              + Yeni Talep
+            </button>
+          </div>
+        ) : (
+          <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Aramayla eşleşen talep yok.</p>
+        )
       ) : (
         <div>
           <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 8px" }}>
@@ -1110,6 +1119,7 @@ export default function Support({
           onOpenTicket={setViewingTicket}
           onEditTicket={(t) => { setEditingTicket(t); setShowTicketForm(true); }}
           onDeleteTicket={onDeleteTicket}
+          onCreateNew={() => { setEditingTicket(null); setShowTicketForm(true); }}
         />
       ) : (
         <KbList

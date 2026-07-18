@@ -369,6 +369,52 @@ const SECTOR_DEMO_PRESETS = {
   },
 };
 
+// KOBİ'nin kendisi için "? Yardım" panelindeki statik içerik — bilinçli
+// olarak küçük tutuluyor: yeni bir DB tablosu/yönetim ekranı YOK, sadece
+// nadiren değişen temel "nasıl yapılır" konularını kapsıyor. Amaç, ürün
+// hızla değişirken bakım yükü yaratacak kapsamlı bir dokümantasyon merkezi
+// değil, düşük bakımlı bir başvuru kaynağı olmak.
+const HELP_TOPICS = [
+  { q: "Yeni müşteri nasıl eklerim?", a: "Müşteriler sekmesine gidip \"+ Müşteri ekle\" butonuna tıklayın. Ad/firma adı zorunlu, geri kalan alanlar opsiyoneldir." },
+  { q: "Teklif/randevu/üyelik nasıl oluşturulur?", a: "Müşteri Takibi sekmesinden \"+ Ekle\" ile yeni bir kayıt açın; önce bir müşteri seçilmiş olmalı. Aşama değiştikçe kayıt otomatik ilerler." },
+  { q: "Müşteriden online ödeme nasıl alınır?", a: "Ayarlar → Ödeme Bağlantısı'ndan iyzico veya PayTR hesabınızı bağlayın. Sonra bir kaydı düzenlerken \"Müşteri ödemesi\" alanından onay linkine ödeme ekleyebilirsiniz." },
+  { q: "Sektörümü nasıl değiştiririm?", a: "Ayarlar → Sektör & Özel Alanlar'dan istediğiniz zaman değiştirebilirsiniz — aşama isimleri, önerilen etiketler ve özel alanlar otomatik güncellenir." },
+  { q: "Takıma nasıl üye davet ederim?", a: "Ayarlar → Takım'dan e-posta ile davet gönderebilirsiniz. Davet edilen kişi hesabı kabul edince tüm müşteri/kayıt verilerinizi görüp düzenleyebilir." },
+  { q: "Örnek verilerle nasıl başlarım?", a: "Pano boşken görünen \"Örnek verilerle başla\" butonuyla birkaç örnek müşteri ve kayıt oluşturabilirsiniz — istediğiniz zaman silinebilir, gerçek verilerinizi etkilemez." },
+  { q: "Yanlışlıkla sildiğim bir kaydı nasıl geri getiririm?", a: "Ayarlar → Çöp Kutusu ve Geçmiş'ten silinen müşteri/teklif/tahsilat kayıtlarını geri yükleyebilirsiniz." },
+  { q: "Teklif onay linkini müşteriyle nasıl paylaşırım?", a: "İlgili kaydı açıp onay linkini kopyalayın, müşteriye WhatsApp/e-posta ile gönderin. Müşteri linke tıklayıp onaylayabilir, ayarladıysanız ödeme de yapabilir." },
+  { q: "Müşterilerim kendi bilgilerini nasıl görebilir?", a: "Ayarlar → Müşteri Kazanma Linki'nden paylaşacağınız linkle müşteriniz kendi portalına kaydolup tekliflerini/randevularını görebilir." },
+];
+
+function HelpPanel({ onClose }) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const filtered = q ? HELP_TOPICS.filter((t) => t.q.toLowerCase().includes(q) || t.a.toLowerCase().includes(q)) : HELP_TOPICS;
+  return (
+    <Modal title="Yardım" onClose={onClose}>
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Ne yapmak istiyorsunuz?"
+        style={{ width: "100%", marginBottom: 14 }}
+        autoFocus
+      />
+      {filtered.length === 0 ? (
+        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Eşleşen bir konu bulunamadı.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, maxHeight: 400, overflowY: "auto" }}>
+          {filtered.map((t) => (
+            <div key={t.q}>
+              <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 500 }}>{t.q}</p>
+              <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{t.a}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 const CUSTOMER_IMPORT_FIELDS = [
   { key: "name", label: "Ad / Firma adı", required: true },
   {
@@ -3850,6 +3896,8 @@ export default function App() {
   const [showSectorOnboarding, setShowSectorOnboarding] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [tourStep, setTourStep] = useState(0);
+  const [activationChecklistDismissedClick, setActivationChecklistDismissedClick] = useState(false);
+  const [showHelpPanel, setShowHelpPanel] = useState(false);
   // v1: üye sayısı kod tarafında henüz sınırlanmıyor, henüz billing yok.
   // Hedef fiyatlandırma "10 kullanıcıya kadar sabit ücret" olarak siteye
   // yazıldı (App.jsx LandingPage, "Neden Binerly" bölümü) — billing
@@ -5362,6 +5410,41 @@ export default function App() {
     : null;
   const totalOpenValue = openDeals.reduce((sum, d) => sum + (d.value || 0), 0);
   const expectedRevenue = openDeals.reduce((sum, d) => sum + (d.value || 0) * (STAGE_PROBABILITY[d.stage] || 0), 0);
+  // "Gelecek ay tahmini" — Pano'nun seçili tarih aralığından bağımsız, hep
+  // "şu an"a göre son 3 TAM ayın (içinde bulunulan ay hariç — eksik olduğu
+  // için yanıltıcı olur) ortalama kazanılan gelirine dayanan basit bir trend
+  // tahmini. Beklenen Gelir'den farklı: o açık pipeline'ı ölçer, bu geçmiş
+  // performansın ortalamasını ölçer.
+  const now = new Date();
+  const trailingMonthRevenues = [1, 2, 3].map((monthsAgo) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    return wonDealsAll
+      .filter((deal) => `${new Date(deal.closedAt || deal.createdAt).getFullYear()}-${new Date(deal.closedAt || deal.createdAt).getMonth()}` === key)
+      .reduce((sum, deal) => sum + (deal.value || 0), 0);
+  });
+  const nextMonthForecast = wonDealsAll.length > 0
+    ? trailingMonthRevenues.reduce((a, b) => a + b, 0) / trailingMonthRevenues.length
+    : null;
+  // "Pasif müşteri oranı" — "churn" yerine bilinçli olarak bu isim kullanıldı
+  // (bkz. plan notu): net bir abonelik iptali sinyali her sektörde yok, bu
+  // yüzden "en az bir kez satın almış ama uzun süredir hiç yeni işlemi
+  // olmayan müşteri" tanımı kullanılıyor. Pano'nun tarih aralığı filtresinden
+  // bağımsız, hep "şu an"a göre hesaplanan bir anlık görüntü.
+  const PASSIVE_CUSTOMER_DAYS = 90;
+  const customersWithPastPurchase = customers.filter((c) => wonDealsAll.some((d) => d.customerId === c.id));
+  const passiveCustomerRate = customersWithPastPurchase.length > 0
+    ? Math.round(
+        (customersWithPastPurchase.filter((c) => {
+          const hasOpenDeal = openDeals.some((d) => d.customerId === c.id);
+          if (hasOpenDeal) return false;
+          const lastActivity = deals
+            .filter((d) => d.customerId === c.id)
+            .reduce((latest, d) => { const t = new Date(d.closedAt || d.createdAt); return t > latest ? t : latest; }, new Date(0));
+          return (Date.now() - lastActivity.getTime()) / 86400000 > PASSIVE_CUSTOMER_DAYS;
+        }).length / customersWithPastPurchase.length) * 100
+      )
+    : null;
   const dealsWithReminder = deals.filter((d) => d.reminder && d.stage !== "kazanildi" && d.stage !== "kaybedildi");
   // Grup Dersleri destekleyen sektörlerde: "kazanıldı" aşamasındaki ve bitiş
   // tarihi geçmemiş (veya hiç girilmemiş) kayıtlar "aktif üyelik/kayıt" sayılır
@@ -5528,6 +5611,7 @@ export default function App() {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <NotificationBell userId={session.user.id} supabase={supabase} dataTour="notification-bell" />
+          <IconButton icon="ti-help-circle" onClick={() => setShowHelpPanel(true)} title="Yardım" data-tour="help-icon" />
           <IconButton icon="ti-settings" onClick={() => setShowSettingsHub(true)} title="Ayarlar" data-tour="settings-gear" />
           <IconButton icon="ti-logout" label="Çıkış" onClick={() => supabase.auth.signOut()} title="Çıkış yap" />
         </div>
@@ -5639,6 +5723,44 @@ export default function App() {
 
       {tab === "pano" && (
         <div>
+          {!(activationChecklistDismissedClick || (activeTeamId && localStorage.getItem(`binerly_activation_checklist_dismissed_${activeTeamId}`))) && (() => {
+            const steps = [
+              { label: "Şirket bilgilerinizi girin", done: !!companySettings?.companyName, onGo: () => setShowSettingsForm(true) },
+              { label: "Sektörünüzü seçin", done: !!companySettings?.sector, onGo: () => setShowSectorFields(true) },
+              { label: "İlk müşterinizi ekleyin", done: customers.length > 0, onGo: () => { setTab("musteri"); setShowCustomerForm(true); } },
+              { label: `İlk ${DEAL_WORD_FORMS[dealWordKind(companySettings?.sector)].bare.toLowerCase()}inizi oluşturun`, done: deals.length > 0, onGo: () => { if (customers.length > 0) { setTab("firsat"); setShowDealForm(true); } else { setTab("musteri"); setShowCustomerForm(true); } } },
+            ];
+            const doneCount = steps.filter((s) => s.done).length;
+            const allDone = doneCount === steps.length;
+            const dismiss = () => {
+              if (activeTeamId) localStorage.setItem(`binerly_activation_checklist_dismissed_${activeTeamId}`, "1");
+              setActivationChecklistDismissedClick(true);
+            };
+            return (
+              <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", marginBottom: "1.5rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: allDone ? 0 : 10 }}>
+                  <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>
+                    {allDone ? "✅ Kurulum tamamlandı" : `Kuruluma başlayın (${doneCount}/${steps.length})`}
+                  </p>
+                  <button onClick={dismiss} style={{ fontSize: 12 }}>Gizle</button>
+                </div>
+                {!allDone && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {steps.map((s) => (
+                      <div
+                        key={s.label}
+                        onClick={s.done ? undefined : s.onGo}
+                        style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: s.done ? "default" : "pointer", padding: "2px 0" }}
+                      >
+                        <i className={`ti ${s.done ? "ti-circle-check-filled" : "ti-circle"}`} style={{ fontSize: 16, color: s.done ? "var(--text-success)" : "var(--text-muted)", flexShrink: 0 }} aria-hidden="true"></i>
+                        <span style={{ color: s.done ? "var(--text-muted)" : "inherit", textDecoration: s.done ? "line-through" : "none" }}>{s.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", marginBottom: "1.5rem" }}>
             <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 10px" }}>Bugün ne yapmalıyım</p>
             {dueReminderDeals.length === 0 && urgentTickets.length === 0 && newPortalAppointments.length === 0 ? (
@@ -5728,6 +5850,20 @@ export default function App() {
               value={formatTL(expectedRevenue)}
               sub="Aşama olasılığına göre tahmini"
             />
+            {nextMonthForecast !== null && (
+              <MetricCard
+                label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Gelecek ay tahmini <InfoTip text="Son 3 tam ayda (içinde bulunulan ay hariç) kazanılan ortalama aylık gelir. Beklenen Gelir'den farklı olarak açık pipeline'a değil, geçmiş performansa dayanır." /></span>}
+                value={formatTL(nextMonthForecast)}
+                sub="Son 3 ayın ortalaması"
+              />
+            )}
+            {passiveCustomerRate !== null && (
+              <MetricCard
+                label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Pasif müşteri oranı <InfoTip text={`En az bir kez satın almış ama son ${PASSIVE_CUSTOMER_DAYS} gündür hiç yeni işlemi/randevusu olmayan ve şu an açık bir kaydı da bulunmayan müşteri oranı. Gerçek bir abonelik iptali takibi değildir, kaba bir "uzun süredir işlem yapmadı" göstergesidir.`} /></span>}
+                value={`%${passiveCustomerRate}`}
+                tone={passiveCustomerRate > 30 ? "danger" : undefined}
+              />
+            )}
             <MetricCard
               label="Bekleyen alacak"
               value={formatTL(totalOutstanding)}
@@ -5805,18 +5941,19 @@ export default function App() {
             )}
           </div>
 
-          {wonDeals.length > 0 && (
+          {(wonDeals.length > 0 || lostDeals.length > 0) && (
             <div style={{ marginBottom: "1.5rem" }}>
               <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 8px", display: "flex", alignItems: "center", gap: 4 }}>
                 Personel Performansı
-                <InfoTip text={`Seçili tarih aralığında (yukarıdaki ${rangeLabel}) kazanılan ${DEAL_WORD_FORMS[dealKind].genPlural}, her ${DEAL_WORD_FORMS[dealKind].loc} seçtiğiniz "Sorumlu" kişiye göre dağılımı. ${dealWords.columnHeader} formunda sorumlu atamazsanız "Atanmamış" altında görünür.`} />
+                <InfoTip text={`Seçili tarih aralığında (yukarıdaki ${rangeLabel}) kapanan (kazanılan + kaybedilen) ${DEAL_WORD_FORMS[dealKind].genPlural}, her ${DEAL_WORD_FORMS[dealKind].loc} seçtiğiniz "Sorumlu" kişiye göre dağılımı ve kazanma oranı. ${dealWords.columnHeader} formunda sorumlu atamazsanız "Atanmamış" altında görünür.`} />
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {Object.entries(
-                  wonDeals.reduce((acc, d) => {
+                  [...wonDeals, ...lostDeals].reduce((acc, d) => {
                     const key = d.assignedTo || "unassigned";
-                    (acc[key] ||= { count: 0, revenue: 0 }).count += 1;
-                    acc[key].revenue += d.value || 0;
+                    const stats = (acc[key] ||= { won: 0, lost: 0, revenue: 0 });
+                    if (d.stage === "kazanildi") { stats.won += 1; stats.revenue += d.value || 0; }
+                    else stats.lost += 1;
                     return acc;
                   }, {})
                 )
@@ -5828,11 +5965,14 @@ export default function App() {
                         : assigneeId === session.user.id
                         ? `${session.user.user_metadata?.full_name || session.user.email} (Ben)`
                         : teamMembers.find((m) => m.id === assigneeId)?.name || teamMembers.find((m) => m.id === assigneeId)?.email || "Bilinmeyen";
+                    const total = stats.won + stats.lost;
+                    const rate = total > 0 ? Math.round((stats.won / total) * 100) : null;
                     return (
                       <div key={assigneeId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
                         <span style={{ fontSize: 13 }}>{label}</span>
                         <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                          {stats.count} {DEAL_WORD_FORMS[dealKind].bare} · <strong style={{ color: "var(--text-primary)" }}>{formatTL(stats.revenue)}</strong>
+                          {stats.won} {DEAL_WORD_FORMS[dealKind].bare} · <strong style={{ color: "var(--text-primary)" }}>{formatTL(stats.revenue)}</strong>
+                          {rate !== null && <> · <span style={{ color: "var(--text-success)" }}>%{rate} kazanma oranı</span></>}
                         </span>
                       </div>
                     );
@@ -5953,12 +6093,48 @@ export default function App() {
                 {lostReasonCounts.length > 0 && (
                   <div style={{ marginTop: 14 }}>
                     <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 6px" }}>Kayıp nedenleri</p>
-                    {lostReasonCounts.map((r) => (
-                      <div key={r.reason} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "2px 0" }}>
-                        <span>{r.reason}</span>
-                        <span style={{ color: "var(--text-secondary)" }}>{r.count}</span>
-                      </div>
-                    ))}
+                    {lostReasonCounts.map((r) => {
+                      const maxCount = Math.max(...lostReasonCounts.map((x) => x.count));
+                      return (
+                        <div key={r.reason} style={{ marginBottom: 6 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
+                            <span>{r.reason}</span>
+                            <span style={{ color: "var(--text-secondary)" }}>{r.count}</span>
+                          </div>
+                          <div style={{ height: 6, borderRadius: 3, background: "var(--surface-2)" }}>
+                            <div title={`${r.reason}: ${r.count}`} style={{ height: "100%", width: `${Math.max(6, (r.count / maxCount) * 100)}%`, borderRadius: 3, background: "var(--text-danger)" }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem" }}>
+                <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 4px", display: "flex", alignItems: "center", gap: 4 }}>
+                  Aşama huni
+                  <InfoTip text={`Şu an açık olan (kapanmamış) ${DEAL_WORD_FORMS[dealKind].plural}, aşamalarına göre dağılımı.`} />
+                </p>
+                {openDeals.length === 0 ? (
+                  <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 10 }}>Şu an açık {DEAL_WORD_FORMS[dealKind].plural} yok.</p>
+                ) : (
+                  <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                    {STAGES.filter((s) => s.id !== "kazanildi" && s.id !== "kaybedildi").map((s) => {
+                      const count = openDeals.filter((d) => d.stage === s.id).length;
+                      const maxStageCount = Math.max(1, ...STAGES.filter((x) => x.id !== "kazanildi" && x.id !== "kaybedildi").map((x) => openDeals.filter((d) => d.stage === x.id).length));
+                      return (
+                        <div key={s.id}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
+                            <span>{stageLabel(s.id, "kurumsal", companySettings?.sector)}</span>
+                            <span style={{ color: "var(--text-secondary)" }}>{count}</span>
+                          </div>
+                          <div style={{ height: 8, borderRadius: 4, background: "var(--surface-2)" }}>
+                            <div title={`${count}`} style={{ height: "100%", width: `${count > 0 ? Math.max(6, (count / maxStageCount) * 100) : 0}%`, borderRadius: 4, background: "var(--fill-accent)" }} />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -6041,9 +6217,17 @@ export default function App() {
           </div>
 
           {filteredCustomers.length === 0 ? (
-            <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
-              {customers.length === 0 ? "Henüz müşteri eklenmedi." : "Aramayla eşleşen müşteri yok."}
-            </p>
+            customers.length === 0 ? (
+              <div style={{ background: "var(--surface-1)", borderRadius: 12, padding: "2rem 1.5rem", textAlign: "center" }}>
+                <p style={{ fontWeight: 500, margin: "0 0 4px" }}>Henüz müşteri eklenmedi</p>
+                <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px" }}>Başlamak için ilk müşterinizi ekleyin.</p>
+                <button onClick={() => { setEditingCustomer(null); setShowCustomerForm(true); }} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+                  + Müşteri ekle
+                </button>
+              </div>
+            ) : (
+              <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Aramayla eşleşen müşteri yok.</p>
+            )
           ) : (
             <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 8px" }}>
               <thead>
@@ -6504,6 +6688,8 @@ export default function App() {
           />
         </Modal>
       )}
+
+      {showHelpPanel && <HelpPanel onClose={() => setShowHelpPanel(false)} />}
 
       {showSettingsHub && (
         <Modal title="Ayarlar" onClose={() => setShowSettingsHub(false)} wide>
