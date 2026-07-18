@@ -79,7 +79,15 @@ export const SECTOR_PRESETS = [
       { entity: "customer", key: "dogum_tarihi", label: "Doğum Tarihi", type: "date", audience: "bireysel" },
       { entity: "deal", key: "tedavi_hizmet", label: "Tedavi / Hizmet", type: "text" },
       { entity: "deal", key: "randevu_tarihi", label: "Randevu Tarihi", type: "datetime" },
+      { entity: "deal", key: "tetkik_turu", label: "İstenen Tetkik", type: "text" },
     ],
+    stageGuides: {
+      ilk_gorusme: "Şikayeti/geçmişi not alın, gerekiyorsa tetkik isteyin.",
+      teklif: "Tedavi planını ve maliyetini hastaya açıkça anlatın.",
+      muzakere: "Randevudan bir gün önce hatırlatma yapmayı unutmayın.",
+      kazanildi: "Kontrol randevusu gerekiyorsa hatırlatma ekleyin.",
+      kaybedildi: "Vazgeçme nedenini not alın.",
+    },
   },
   {
     id: "uretim_satis",
@@ -155,7 +163,15 @@ export const SECTOR_PRESETS = [
       { entity: "deal", key: "seans_no", label: "Seans No (paket hizmetlerde)", type: "number" },
       { entity: "customer", key: "tercih_edilen_uzman", label: "Tercih Edilen Uzman/Personel", type: "text", audience: "bireysel" },
       { entity: "customer", key: "alerji_notu", label: "Alerji / Cilt Notu", type: "text", audience: "bireysel" },
+      { entity: "deal", key: "hizmet_suresi_dk", label: "Hizmet Süresi (dk)", type: "number" },
     ],
+    stageGuides: {
+      ilk_gorusme: "Hizmet türünü ve tahmini süreyi netleştirip randevu saatini onaylayın.",
+      teklif: "Randevu saatini müşteriye tekrar teyit edin.",
+      muzakere: "Randevudan bir gün önce hatırlatma mesajı/arama yapın — no-show riskini azaltır.",
+      kazanildi: "Paket hizmetse sonraki seans için hatırlatma ekleyin.",
+      kaybedildi: "Müşteri randevuya gelmediyse \"Gelmedi (no-show)\" etiketini ekleyin — Pano'daki oran bunu kullanıyor.",
+    },
   },
   {
     id: "spor_merkezi",
@@ -206,13 +222,21 @@ export const SECTOR_PRESETS = [
       kazanildi: "İşlem tamamlandı",
       kaybedildi: "Vazgeçildi",
     },
-    tags: ["Garantili işçilik", "Acil", "Sigorta işi", "Yedek parça bekleniyor", "Teslim edildi"],
+    tags: ["Garantili işçilik", "Acil", "Sigorta işi", "Yedek parça bekleniyor", "Teslim edildi", "Fiyat onayı bekleniyor"],
     customFields: [
       { entity: "deal", key: "arac_ekipman_bilgisi", label: "Araç/Ekipman Bilgisi (Plaka, Marka, Model)", type: "text" },
       { entity: "deal", key: "servis_turu", label: "Servis Türü", type: "select", options: ["Oto Tamir", "Oto Boya", "Kaynak İşi", "Elektrik İşi", "Tornacılık", "Diğer"] },
       { entity: "deal", key: "parca_durumu", label: "Yedek Parça Durumu", type: "select", options: ["Stokta var", "Sipariş verildi", "Bekleniyor"] },
       { entity: "deal", key: "teslim_tarihi", label: "Tahmini Teslim Tarihi", type: "date" },
+      { entity: "deal", key: "tahmini_ucret", label: "Tahmini Ücret (TL)", type: "number" },
     ],
+    stageGuides: {
+      ilk_gorusme: "Arıza/ihtiyaç net değilse önce keşif için randevu netleştirin.",
+      teklif: "Yedek parça durumunu kontrol edin, bekleme süresi varsa müşteriye bildirin.",
+      muzakere: "Tahmini teslim tarihini netleştirip müşteriye bildirin.",
+      kazanildi: "Teslim öncesi son kontrolü yapın, garanti bilgisini paylaşın.",
+      kaybedildi: "Vazgeçme nedenini not düşün.",
+    },
   },
   {
     id: "genel",
@@ -267,6 +291,15 @@ export function supportsGroupClasses(sector) {
 // Perakende vb.) hiç karşılığı olmadığı için teklif formunda gereksiz bir alan olarak kalıyordu.
 export function supportsSessionPackages(sector) {
   return sector === "spor_merkezi" || sector === "egitim_kurs" || sector === "guzellik_bakim" || sector === "saglik_klinik";
+}
+
+// Bir teklifin o anki aşaması için sektöre özel, salt bilgilendirici bir
+// "yapılacaklar" rehberi — kayıt/işaretleme tutmuyor, sadece Teklif formunda
+// gösterilecek kısa bir metin. Preset'i (veya o aşama için tanımlı rehberi)
+// olmayan sektörlerde/aşamalarda null döner, hiçbir şey gösterilmez.
+export function stageGuide(stageId, sector) {
+  const preset = SECTOR_PRESETS.find((p) => p.id === sector);
+  return preset?.stageGuides?.[stageId] || null;
 }
 
 // Bu sektörlerde müşteri neredeyse hiç kurumsal olmaz (kişisel bakım/üyelik

@@ -25,6 +25,7 @@ import {
   supportsSelfBooking,
   supportsGroupClasses,
   supportsSessionPackages,
+  stageGuide,
   groupClassWords,
   rowToCustomFieldDef,
   SectorOnboardingModal,
@@ -250,6 +251,46 @@ function rowToPaymentCredential(r) {
 }
 
 const LOST_REASONS = ["Yüksek fiyat", "Rakip tercih edildi", "Bütçe yok", "Zamanlama uymadı", "Vazgeçti", "Diğer"];
+
+// "Örnek verilerle başla" — şirket bir sektör seçtiyse (şimdilik 3 sektör
+// için), örnek kayıtlar o sektörün gerçek diliyle (başlık, özel alan, etiket)
+// geliyor. Diğer sektörlerde/sektör seçilmemişse seedDemoData'daki genel
+// (sektörden bağımsız) sabit set kullanılmaya devam ediyor.
+const SECTOR_DEMO_PRESETS = {
+  guzellik_bakim: {
+    customers: [
+      { name: "Örnek Müşteri — Elif Kaya", customerType: "bireysel", phone: "0532 000 00 11" },
+      { name: "Örnek Müşteri — Zeynep Demir", customerType: "bireysel", phone: "0532 000 00 12" },
+    ],
+    deals: [
+      { customerIndex: 0, title: "Lazer Epilasyon Paketi", value: 3500, cost: 0, stage: "kazanildi", customFields: { hizmet_turu: "Lazer Epilasyon", seans_no: 3, hizmet_suresi_dk: 45 } },
+      { customerIndex: 1, title: "Saç Kesimi Randevusu", value: 400, cost: 0, stage: "kaybedildi", tags: ["Gelmedi (no-show)"], customFields: { hizmet_turu: "Saç Kesimi/Boyama" } },
+      { customerIndex: 0, title: "Cilt Bakımı Randevusu", value: 800, cost: 0, stage: "muzakere", reminderToday: true, reminder: "Randevu hatırlatması yap", customFields: { hizmet_turu: "Cilt Bakımı" } },
+    ],
+  },
+  saglik_klinik: {
+    customers: [
+      { name: "Örnek Hasta — Mehmet Aydın", customerType: "bireysel", phone: "0532 000 00 21" },
+      { name: "Örnek Hasta — Fatma Şahin", customerType: "bireysel", phone: "0532 000 00 22" },
+    ],
+    deals: [
+      { customerIndex: 0, title: "Diş Muayenesi ve Tedavi", value: 2500, cost: 0, stage: "kazanildi", customFields: { tedavi_hizmet: "Diş dolgusu", tetkik_turu: "Panoramik röntgen" } },
+      { customerIndex: 1, title: "Check-up Paketi", value: 1800, cost: 0, stage: "teklif", reminderToday: true, reminder: "Tedavi planını sun", customFields: { tedavi_hizmet: "Genel check-up" } },
+      { customerIndex: 0, title: "Kontrol Muayenesi", value: 300, cost: 0, stage: "muzakere", customFields: { tedavi_hizmet: "Kontrol" } },
+    ],
+  },
+  sanayi_esnaf: {
+    customers: [
+      { name: "Örnek Müşteri — Ahmet Yılmaz", customerType: "bireysel", phone: "0532 000 00 31" },
+      { name: "Örnek Müşteri — Kaya Nakliyat", customerType: "kurumsal", phone: "0532 000 00 32" },
+    ],
+    deals: [
+      { customerIndex: 0, title: "Oto Boya İşlemi", value: 8500, cost: 3000, stage: "kazanildi", customFields: { servis_turu: "Oto Boya", arac_ekipman_bilgisi: "34 ABC 123, Toyota Corolla", tahmini_ucret: 8000 } },
+      { customerIndex: 1, title: "Kaynak İşi Teklifi", value: 4200, cost: 0, stage: "teklif", reminderToday: true, reminder: "Parça durumunu kontrol et", customFields: { servis_turu: "Kaynak İşi", parca_durumu: "Sipariş verildi" } },
+      { customerIndex: 0, title: "Elektrik Arızası", value: 1200, cost: 0, stage: "ilk_gorusme", customFields: { servis_turu: "Elektrik İşi" } },
+    ],
+  },
+};
 
 const CUSTOMER_IMPORT_FIELDS = [
   { key: "name", label: "Ad / Firma adı", required: true },
@@ -978,6 +1019,12 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           </select>
         </div>
       </div>
+      {stageGuide(stage, sector) && (
+        <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "8px 10px", marginBottom: 12, fontSize: 12.5, color: "var(--text-secondary)", display: "flex", alignItems: "flex-start", gap: 6 }}>
+          <i className="ti ti-bulb" style={{ fontSize: 14, flexShrink: 0, marginTop: 1, color: "var(--text-accent)" }} aria-hidden="true"></i>
+          <span>{stageGuide(stage, sector)}</span>
+        </div>
+      )}
       {isClosingStage && (
         <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
@@ -4587,19 +4634,41 @@ export default function App() {
     const now = new Date().toISOString();
     const todayStr = new Date().toISOString().slice(0, 10);
     const demoNote = "Bu örnek bir kayıttır, istediğiniz zaman silebilirsiniz.";
-    const demoCustomers = [
-      { id: uid(), name: "Örnek Müşteri — Akın İnşaat", customerType: "kurumsal", sector: "İnşaat", phone: "0532 000 00 01", email: "", notes: demoNote, lastContact: now, createdAt: now },
-      { id: uid(), name: "Örnek Müşteri — Medipark Klinik", customerType: "kurumsal", sector: "Medikal / Sağlık", phone: "0532 000 00 02", email: "", notes: demoNote, lastContact: now, createdAt: now },
-      { id: uid(), name: "Örnek Müşteri — Tazegül Gıda", customerType: "kurumsal", sector: "Gıda", phone: "0532 000 00 03", email: "", notes: demoNote, lastContact: now, createdAt: now },
-      { id: uid(), name: "Örnek Müşteri — Ayşe Yılmaz", customerType: "bireysel", sector: "", region: "İzmir", phone: "0532 000 00 04", email: "", notes: demoNote, lastContact: now, createdAt: now },
-    ];
+    const sectorPreset = SECTOR_DEMO_PRESETS[companySettings?.sector];
+
+    const demoCustomers = sectorPreset
+      ? sectorPreset.customers.map((c) => ({
+          id: uid(), name: c.name, customerType: c.customerType, sector: "", region: "", phone: c.phone, email: "", notes: demoNote, lastContact: now, createdAt: now,
+        }))
+      : [
+          { id: uid(), name: "Örnek Müşteri — Akın İnşaat", customerType: "kurumsal", sector: "İnşaat", phone: "0532 000 00 01", email: "", notes: demoNote, lastContact: now, createdAt: now },
+          { id: uid(), name: "Örnek Müşteri — Medipark Klinik", customerType: "kurumsal", sector: "Medikal / Sağlık", phone: "0532 000 00 02", email: "", notes: demoNote, lastContact: now, createdAt: now },
+          { id: uid(), name: "Örnek Müşteri — Tazegül Gıda", customerType: "kurumsal", sector: "Gıda", phone: "0532 000 00 03", email: "", notes: demoNote, lastContact: now, createdAt: now },
+          { id: uid(), name: "Örnek Müşteri — Ayşe Yılmaz", customerType: "bireysel", sector: "", region: "İzmir", phone: "0532 000 00 04", email: "", notes: demoNote, lastContact: now, createdAt: now },
+        ];
     for (const c of demoCustomers) await upsertCustomer(c);
 
-    const demoDeals = [
-      { id: uid(), customerId: demoCustomers[0].id, title: "Yıllık bakım anlaşması", value: 45000, cost: 0, stage: "ilk_gorusme", reminder: "", reminderDate: null, lostReason: "", createdAt: now, closedAt: null },
-      { id: uid(), customerId: demoCustomers[1].id, title: "Ekipman teklifi", value: 60000, cost: 0, stage: "muzakere", reminder: "Fiyat için tekrar ara", reminderDate: todayStr, lostReason: "", createdAt: now, closedAt: null },
-      { id: uid(), customerId: demoCustomers[2].id, title: "Tedarik sözleşmesi", value: 32000, cost: 12000, stage: "kazanildi", reminder: "", reminderDate: null, lostReason: "", createdAt: now, closedAt: now },
-    ];
+    const demoDeals = sectorPreset
+      ? sectorPreset.deals.map((d) => ({
+          id: uid(),
+          customerId: demoCustomers[d.customerIndex].id,
+          title: d.title,
+          value: d.value,
+          cost: d.cost,
+          stage: d.stage,
+          reminder: d.reminderToday ? d.reminder : "",
+          reminderDate: d.reminderToday ? todayStr : null,
+          lostReason: "",
+          tags: d.tags || [],
+          customFields: d.customFields || {},
+          createdAt: now,
+          closedAt: d.stage === "kazanildi" || d.stage === "kaybedildi" ? now : null,
+        }))
+      : [
+          { id: uid(), customerId: demoCustomers[0].id, title: "Yıllık bakım anlaşması", value: 45000, cost: 0, stage: "ilk_gorusme", reminder: "", reminderDate: null, lostReason: "", createdAt: now, closedAt: null },
+          { id: uid(), customerId: demoCustomers[1].id, title: "Ekipman teklifi", value: 60000, cost: 0, stage: "muzakere", reminder: "Fiyat için tekrar ara", reminderDate: todayStr, lostReason: "", createdAt: now, closedAt: null },
+          { id: uid(), customerId: demoCustomers[2].id, title: "Tedarik sözleşmesi", value: 32000, cost: 12000, stage: "kazanildi", reminder: "", reminderDate: null, lostReason: "", createdAt: now, closedAt: now },
+        ];
     for (const d of demoDeals) await upsertDeal(d);
     notify("Örnek veriler eklendi.", "success");
   };
@@ -5191,6 +5260,19 @@ export default function App() {
   const rangeBounds = getRangeBounds(panoRange);
   const wonDeals = wonDealsAll.filter((d) => inRange(d.closedAt || d.createdAt, rangeBounds));
   const lostDeals = lostDealsAll.filter((d) => inRange(d.closedAt || d.createdAt, rangeBounds));
+  // Randevu sektörlerinde (Güzellik & Bakım, Sağlık/Klinik) "Gelmedi (no-show)"
+  // etiketi zaten önerilen etiketler arasında var — burada sadece bu etiketin
+  // kaybedilen randevulardaki oranını hesaplıyoruz, yeni bir alan gerekmiyor.
+  const noShowRate = isAppointmentSector(companySettings?.sector) && wonDeals.length + lostDeals.length > 0
+    ? Math.round((lostDeals.filter((d) => d.tags?.includes("Gelmedi (no-show)")).length / (wonDeals.length + lostDeals.length)) * 100)
+    : null;
+  // Sanayi Esnafı'nda kazanılan işlerin ortalama tamamlanma süresi (gün) —
+  // müşteriye "genelde ne kadar sürer" sorusuna somut bir cevap verir.
+  const avgCompletionDays = companySettings?.sector === "sanayi_esnaf" && wonDeals.length > 0
+    ? Math.round(
+        wonDeals.reduce((sum, d) => sum + (new Date(d.closedAt || d.createdAt) - new Date(d.createdAt)) / 86400000, 0) / wonDeals.length
+      )
+    : null;
   const totalOpenValue = openDeals.reduce((sum, d) => sum + (d.value || 0), 0);
   const expectedRevenue = openDeals.reduce((sum, d) => sum + (d.value || 0) * (STAGE_PROBABILITY[d.stage] || 0), 0);
   const dealsWithReminder = deals.filter((d) => d.reminder && d.stage !== "kazanildi" && d.stage !== "kaybedildi");
@@ -5622,6 +5704,12 @@ export default function App() {
               label={`Ortalama ${DEAL_WORD_FORMS[dealKind].bare} büyüklüğü`}
               value={rangeAvgDealSize !== null ? formatTL(rangeAvgDealSize) : "—"}
             />
+            {noShowRate !== null && (
+              <MetricCard label="Gelmedi/İptal oranı" value={`%${noShowRate}`} tone={noShowRate > 20 ? "danger" : undefined} />
+            )}
+            {avgCompletionDays !== null && (
+              <MetricCard label="Ortalama tamamlanma süresi" value={`${avgCompletionDays} gün`} />
+            )}
           </div>
 
           {wonDeals.length > 0 && (
@@ -6449,6 +6537,15 @@ export default function App() {
               {SECTOR_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
             </select>
             <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Seçtiğinizde aşama isimlerini, önerilen etiketleri ve özel alanları hemen günceller.</p>
+            {companySettings?.sector && (
+              <button
+                type="button"
+                onClick={async () => { await applySectorCustomFields(companySettings.sector); notify("Sektöre özel yeni alanlar getirildi.", "success"); }}
+                style={{ fontSize: 12, marginTop: 8 }}
+              >
+                Sektöre özel yeni alanları getir
+              </button>
+            )}
           </div>
           <CustomFieldDefsManager customFieldDefs={customFieldDefs} onAdd={addCustomFieldDef} onUpdate={updateCustomFieldDef} onDelete={deleteCustomFieldDef} sector={companySettings?.sector} />
         </Modal>
