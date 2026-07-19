@@ -2193,6 +2193,113 @@ function GroupClassesTab({ groupClasses, groupClassEnrollments, customers, activ
   );
 }
 
+// Randevu ile çalışan sektörlerde (supportsSelfBooking) günün/haftanın/ayın
+// randevularını tek yerde, kronolojik sırayla gösteren ayrı bir sekme —
+// Kanban/Liste görünümleri aşama bazlı olduğu için "bugün kimim var" sorusuna
+// hızlı cevap vermiyordu. dateTimeKey null ise (bu sektör için aktif "Tarih &
+// Saat" alanı tanımlı değilse) durum açıkça belirtilir, boş liste yerine.
+const APPOINTMENT_PERIODS = [
+  { id: "bugun", label: "Bugün" },
+  { id: "hafta", label: "Bu Hafta" },
+  { id: "ay", label: "Bu Ay" },
+];
+
+function appointmentPeriodBounds(periodId) {
+  const now = new Date();
+  if (periodId === "bugun") {
+    return {
+      start: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+      end: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999),
+    };
+  }
+  if (periodId === "hafta") {
+    const day = now.getDay(); // 0=Pazar..6=Cumartesi
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday);
+    return { start, end: new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6, 23, 59, 59, 999) };
+  }
+  return {
+    start: new Date(now.getFullYear(), now.getMonth(), 1),
+    end: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999),
+  };
+}
+
+// deals.custom_fields'teki datetime-local değeri saat dilimi bilgisi taşımaz
+// (örn. "2026-07-20T14:00") — bu proje sadece Türkiye için, +03:00 olarak
+// yorumlanır (api/send-appointment-reminders.js'teki aynı yaklaşım).
+function parseAppointmentDateTime(raw) {
+  if (typeof raw !== "string" || raw.length < 16) return null;
+  const d = new Date(`${raw.slice(0, 16)}:00+03:00`);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function AppointmentsTab({ deals, customers, dateTimeKey, sector, onOpenDeal }) {
+  const [period, setPeriod] = useState("bugun");
+  const bounds = appointmentPeriodBounds(period);
+  const customerName = (id) => customers.find((c) => c.id === id)?.name || "Bilinmeyen müşteri";
+
+  const appointments = dateTimeKey
+    ? deals
+        .filter((d) => d.stage !== "kaybedildi")
+        .map((d) => ({ deal: d, date: parseAppointmentDateTime(d.customFields?.[dateTimeKey]) }))
+        .filter(({ date }) => date && date >= bounds.start && date <= bounds.end)
+        .sort((a, b) => a.date - b.date)
+    : [];
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, marginBottom: "1rem" }}>
+        {APPOINTMENT_PERIODS.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => setPeriod(p.id)}
+            style={{
+              background: period === p.id ? "var(--fill-accent)" : "var(--surface-1)",
+              color: period === p.id ? "var(--on-accent)" : "var(--text-primary)",
+              border: "0.5px solid var(--border)",
+            }}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+      {!dateTimeKey ? (
+        <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
+          Bu sektör için aktif bir "Tarih &amp; Saat" özel alanı bulunamadı. Ayarlar → Sektör &amp; Özel Alanlar'dan kontrol edin.
+        </p>
+      ) : appointments.length === 0 ? (
+        <p style={{ fontSize: 14, color: "var(--text-muted)" }}>Bu dönemde randevu yok.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {appointments.map(({ deal, date }) => (
+            <div
+              key={deal.id}
+              onClick={() => onOpenDeal(deal)}
+              style={{
+                background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem",
+                display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, cursor: "pointer",
+              }}
+            >
+              <div>
+                <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{deal.title}</p>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{customerName(deal.customerId)}</p>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>
+                  {date.toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} · {date.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
+                </p>
+                <Badge tone={deal.stage === "kazanildi" ? "success" : deal.stage === "muzakere" ? "warning" : "accent"}>
+                  {stageLabel(deal.stage, customers.find((c) => c.id === deal.customerId)?.customerType || "kurumsal", sector)}
+                </Badge>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BusinessHoursManager({ items, onAdd, onDelete }) {
   const [weekday, setWeekday] = useState(1);
   const [startTime, setStartTime] = useState("09:00");
@@ -5500,6 +5607,10 @@ export default function App() {
   const dealKind = dealWordKind(companySettings?.sector);
   const dealWords = DEAL_TAB_STRINGS[dealKind];
   const dealPdfLabel = DEAL_WORD_FORMS[dealKind].pdfLabel;
+  // "Randevularım" sekmesi için — appointment-availability.js/send-appointment-
+  // reminders.js'in yaptığı gibi, sektöre göre değişen randevu tarihi alanının
+  // gerçek anahtarını aktif "Tarih & Saat" tipindeki tanımdan buluyoruz.
+  const appointmentDateTimeKey = customFieldDefs.find((d) => d.entity === "deal" && d.type === "datetime" && d.active)?.key || null;
   const dealQuery = dealSearch.trim().toLowerCase();
   const filteredDeals = deals.filter((d) => {
     if ((customerById(d.customerId)?.customerType || "kurumsal") !== dealAudience) return false;
@@ -5704,6 +5815,7 @@ export default function App() {
           { id: "pano", label: "Pano", icon: "ti-layout-dashboard" },
           { id: "musteri", label: "Müşteri Kayıtları", icon: "ti-building" },
           { id: "firsat", label: "Müşteri Takibi", icon: "ti-target-arrow" },
+          ...(supportsSelfBooking(companySettings?.sector) ? [{ id: "randevular", label: "Randevularım", icon: "ti-calendar-event" }] : []),
           { id: "finans", label: "Finans", icon: "ti-chart-line" },
           { id: "mesajlar", label: "Mesajlar", icon: "ti-message-2" },
           ...(supportsGroupClasses(companySettings?.sector) ? [{ id: "dersler", label: "Dersler", icon: "ti-calendar-time" }] : []),
@@ -6682,6 +6794,16 @@ export default function App() {
           sector={companySettings?.sector}
           initialViewTicketId={initialViewTicketId}
           onConsumeInitialViewTicket={() => setInitialViewTicketId(null)}
+        />
+      )}
+
+      {tab === "randevular" && supportsSelfBooking(companySettings?.sector) && (
+        <AppointmentsTab
+          deals={deals}
+          customers={customers}
+          dateTimeKey={appointmentDateTimeKey}
+          sector={companySettings?.sector}
+          onOpenDeal={(deal) => openDealOrList([deal], deal.title)}
         />
       )}
 
