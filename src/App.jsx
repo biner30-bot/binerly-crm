@@ -5152,10 +5152,11 @@ export default function App() {
     setCustomFieldDefs((prev) => [...prev, rowToCustomFieldDef(data)]);
   };
 
-  const updateCustomFieldDef = async ({ id, label, options, audience, sector, active }) => {
+  const updateCustomFieldDef = async ({ id, label, options, audience, sector, active, type }) => {
     const row = { label, options, audience };
     if (sector !== undefined) row.sector = sector;
     if (active !== undefined) row.active = active;
+    if (type !== undefined) row.field_type = type;
     const { data, error } = await supabase.from("custom_field_defs").update(row).eq("id", id).select().single();
     if (error) { notify(`Özel alan güncellenemedi: ${error.message}`); return; }
     setCustomFieldDefs((prev) => prev.map((d) => (d.id === id ? rowToCustomFieldDef(data) : d)));
@@ -5343,8 +5344,13 @@ export default function App() {
       const existing = customFieldDefs.find((d) => d.entity === f.entity && d.key === f.key);
       if (!existing) {
         await addCustomFieldDef({ ...f, sector: sectorId });
-      } else if (existing.sector !== sectorId || !existing.active) {
-        await updateCustomFieldDef({ id: existing.id, label: f.label, options: f.options, audience: existing.audience, sector: sectorId, active: true });
+      } else if (existing.sector !== sectorId || !existing.active || existing.type !== f.type) {
+        // type de kontrol/düzeltiliyor — aksi halde örn. elle "Randevu Tarihi"
+        // adında "Tarih" (date) tipinde bir alan daha önce oluşturulmuşsa, bu
+        // sektöre "reclaim" edilirken sadece etiket/sektör/aktiflik güncellenip
+        // tip yanlış kalır — "Tarih & Saat" (datetime) beklenen yerlerde
+        // (randevu müsaitliği/hatırlatma) alan hiç bulunamaz.
+        await updateCustomFieldDef({ id: existing.id, label: f.label, options: f.options, audience: existing.audience, sector: sectorId, active: true, type: f.type });
       }
     }
   };
