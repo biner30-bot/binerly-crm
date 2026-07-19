@@ -5477,7 +5477,10 @@ export default function App() {
         // sektöre "reclaim" edilirken sadece etiket/sektör/aktiflik güncellenip
         // tip yanlış kalır — "Tarih & Saat" (datetime) beklenen yerlerde
         // (randevu müsaitliği/hatırlatma) alan hiç bulunamaz.
-        await updateCustomFieldDef({ id: existing.id, label: f.label, options: f.options, audience: existing.audience, sector: sectorId, active: true, type: f.type });
+        // audience de f'den (yeni sektörün preset'i) alınır, existing'den DEĞİL —
+        // aksi halde reklam edilen alan eski sektörün "sadece bireysel/kurumsal"
+        // kısıtını yanlışlıkla taşımaya devam ederdi.
+        await updateCustomFieldDef({ id: existing.id, label: f.label, options: f.options, audience: f.audience ?? null, sector: sectorId, active: true, type: f.type });
       }
     }
   };

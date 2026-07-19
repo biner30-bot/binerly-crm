@@ -55,12 +55,18 @@ function rowToTicketMessage(r) {
   };
 }
 
+// Portal UI'ının gerçekten okuduğu custom_fields anahtarları — customer_deal_view
+// select("*") tüm JSONB'yi döndürür, ama geri kalanı (KOBİ'nin teklife girdiği
+// başka özel alanlar, iç notlar olabilir) tarayıcıya hiç gitmesin diye rowToDeal
+// SADECE bu listedeki anahtarları taşır. Yeni bir yerde d.customFields?.X
+// okumaya başlarsan X'i buraya da eklemeyi unutma — yoksa (uyelik_bitis_tarihi/
+// kurs_bitis_tarihi'nde olduğu gibi) o alan sessizce undefined gelir.
+const PORTAL_VISIBLE_DEAL_CUSTOM_FIELD_KEYS = ["portal_randevu_zamani", "kaynak", "uyelik_bitis_tarihi", "kurs_bitis_tarihi"];
+
 function rowToDeal(r) {
-  // customer_deal_view select("*") ile tüm custom_fields JSONB'sini döndürüyor,
-  // ama portal UI'ı bunlardan sadece ikisini okuyor — geri kalanı (KOBİ'nin
-  // teklife girdiği başka özel alanlar, iç notlar olabilir) tarayıcıya hiç
-  // gitmesin diye burada bilinçli olarak sadece bu iki anahtar taşınıyor.
   const cf = r.custom_fields || {};
+  const customFields = {};
+  for (const key of PORTAL_VISIBLE_DEAL_CUSTOM_FIELD_KEYS) customFields[key] = cf[key];
   return {
     id: r.id,
     customerId: r.customer_id,
@@ -68,7 +74,7 @@ function rowToDeal(r) {
     value: r.value,
     stage: r.stage,
     createdAt: r.created_at,
-    customFields: { portal_randevu_zamani: cf.portal_randevu_zamani, kaynak: cf.kaynak },
+    customFields,
     approvalToken: r.approval_token || null,
     paymentMode: r.payment_mode || "none",
     paymentStatus: r.payment_status || null,
