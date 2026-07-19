@@ -1138,7 +1138,12 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
       </div>
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tarih</label>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+            {supportsSelfBooking(sector) ? "Kayıt Tarihi" : "Tarih"}
+            {supportsSelfBooking(sector) && (
+              <InfoTip text={`Bu, kaydın oluşturulma/güncellenme tarihidir — ${DEAL_WORD_FORMS[dealWordKind(sector)].bare === "randevu" ? "randevunun" : "görüşmenin"} kendi tarih/saati için aşağıdaki özel alanlar bölümündeki "${isAppointmentSector(sector) ? "Randevu Tarihi" : "Görüşme Tarihi"}" alanını kullanın.`} />
+            )}
+          </label>
           <input type="date" value={dealDate} onChange={(e) => setDealDate(e.target.value)} style={{ width: "100%" }} />
         </div>
         <div style={{ flex: 1 }}>
