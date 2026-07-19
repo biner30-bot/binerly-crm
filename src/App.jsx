@@ -1137,7 +1137,22 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
         </div>
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Aşama</label>
-          <select value={stage} onChange={(e) => setStage(e.target.value)} style={{ width: "100%" }}>
+          <select
+            value={stage}
+            onChange={(e) => {
+              const next = e.target.value;
+              setStage(next);
+              // Randevu sektörlerinde "Randevuya gelmedi / iptal" aşamasına
+              // geçince "Gelmedi" etiketi otomatik eklenir — Pano'daki gelmeme
+              // oranı bu etikete dayanıyor, elle eklemeyi unutmak metrikte
+              // sessiz eksik sayıma yol açardı. Gerçekte bir iptal (no-show
+              // değil) ise kullanıcı etiketi formdan elle kaldırabilir.
+              if (next === "kaybedildi" && isAppointmentSector(sector)) {
+                setTags((prev) => (prev.includes("Gelmedi") ? prev : [...prev, "Gelmedi"]));
+              }
+            }}
+            style={{ width: "100%" }}
+          >
             {STAGES.map((s) => <option key={s.id} value={s.id}>{stageLabel(s.id, selectedCustomerType, sector)}</option>)}
           </select>
         </div>
@@ -4913,11 +4928,19 @@ export default function App() {
     const closedAt = isClosingStage
       ? (wasAlreadyClosed && current?.closedAt ? current.closedAt : new Date().toISOString())
       : null;
-    setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, stage, closedAt } : d)));
-    const { error } = await supabase.from("deals").update({ stage, closed_at: closedAt }).eq("id", id);
+    // DealForm'daki stage <select>'in aynı davranışının Kanban sürükle-bırak
+    // karşılığı — randevu sektörlerinde "kaybedildi"ye sürüklenince "Gelmedi"
+    // etiketi otomatik eklenir, aksi halde bu yoldan geçen kayıtlar Pano'daki
+    // gelmeme oranına sessizce dahil olmazdı.
+    const previousTags = current?.tags || [];
+    const nextTags = stage === "kaybedildi" && isAppointmentSector(companySettings?.sector) && !previousTags.includes("Gelmedi")
+      ? [...previousTags, "Gelmedi"]
+      : previousTags;
+    setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, stage, closedAt, tags: nextTags } : d)));
+    const { error } = await supabase.from("deals").update({ stage, closed_at: closedAt, tags: nextTags }).eq("id", id);
     if (error) {
       notify(`Aşama güncellenemedi: ${error.message}`);
-      setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, stage: previousStage, closedAt: current?.closedAt ?? null } : d)));
+      setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, stage: previousStage, closedAt: current?.closedAt ?? null, tags: previousTags } : d)));
     } else {
       const currentStageLabel = stageLabel(stage, customers.find((c) => c.id === current?.customerId)?.customerType || "kurumsal", companySettings?.sector);
       logAction("deals", id, "updated", `${current?.title || DEAL_TAB_STRINGS[dealWordKind(companySettings?.sector)].columnHeader} aşaması "${currentStageLabel}" olarak güncellendi`);
