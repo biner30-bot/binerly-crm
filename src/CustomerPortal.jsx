@@ -943,9 +943,12 @@ export default function CustomerPortal() {
   };
 
   const cancelAppointment = async (dealId) => {
-    const { error } = await supabase.from("deals").update({ stage: "kaybedildi" }).eq("id", dealId);
+    // Müşterinin kendi iptali her zaman "İptal etti" — asla "Randevuya gelmedi"
+    // sayılmaz, bu iki farklı iş anlamı taşıyor (KOBİ tarafında da aynı ayrım
+    // App.jsx'teki dealLostReasons ile yapılıyor).
+    const { error } = await supabase.from("deals").update({ stage: "kaybedildi", lost_reason: "İptal etti" }).eq("id", dealId);
     if (error) { notify(`İptal edilemedi: ${error.message}`); return; }
-    setDeals((prev) => prev.map((d) => (d.id === dealId ? { ...d, stage: "kaybedildi" } : d)));
+    setDeals((prev) => prev.map((d) => (d.id === dealId ? { ...d, stage: "kaybedildi", lostReason: "İptal etti" } : d)));
     notify("Randevunuz iptal edildi.", "success");
   };
 

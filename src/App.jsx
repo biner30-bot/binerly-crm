@@ -251,6 +251,16 @@ function rowToPaymentCredential(r) {
 }
 
 const LOST_REASONS = ["Yüksek fiyat", "Rakip tercih edildi", "Bütçe yok", "Zamanlama uymadı", "Vazgeçti", "Diğer"];
+// Randevu sektörlerinde (Güzellik & Bakım, Sağlık/Klinik) "kaybedildi" hemen
+// hemen hep ya "randevuya gelmedi" ya "iptal etti" demek — genel satış
+// nedenleri ("Yüksek fiyat", "Rakip tercih edildi" vb.) burada anlamsız
+// kalıyordu. "İptal etti" bilinçli olarak İLK sırada: bir kaybı yanlışlıkla
+// "gelmedi" (no-show, müşteri hakkında daha ağır bir iddia) olarak
+// varsayılmasın diye varsayılan seçim daha nötr olan tarafta.
+const APPOINTMENT_LOST_REASONS = ["İptal etti", "Randevuya gelmedi", "Diğer"];
+function dealLostReasons(sector) {
+  return isAppointmentSector(sector) ? APPOINTMENT_LOST_REASONS : LOST_REASONS;
+}
 
 // "Örnek verilerle başla" — şirket bir sektör seçtiyse (şimdilik 3 sektör
 // için), örnek kayıtlar o sektörün gerçek diliyle (başlık, özel alan, etiket)
@@ -865,7 +875,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   });
   const [reminder, setReminder] = useState(initial?.reminder || "");
   const [reminderDate, setReminderDate] = useState(initial?.reminderDate || "");
-  const [lostReason, setLostReason] = useState(initial?.lostReason || LOST_REASONS[0]);
+  const [lostReason, setLostReason] = useState(initial?.lostReason || dealLostReasons(sector)[0]);
   const isClosingStage = stage === "kazanildi" || stage === "kaybedildi";
   const wasAlreadyClosed = initial?.stage === "kazanildi" || initial?.stage === "kaybedildi";
   const [closedDate, setClosedDate] = useState(
@@ -1139,18 +1149,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Aşama</label>
           <select
             value={stage}
-            onChange={(e) => {
-              const next = e.target.value;
-              setStage(next);
-              // Randevu sektörlerinde "Randevuya gelmedi / iptal" aşamasına
-              // geçince "Gelmedi" etiketi otomatik eklenir — Pano'daki gelmeme
-              // oranı bu etikete dayanıyor, elle eklemeyi unutmak metrikte
-              // sessiz eksik sayıma yol açardı. Gerçekte bir iptal (no-show
-              // değil) ise kullanıcı etiketi formdan elle kaldırabilir.
-              if (next === "kaybedildi" && isAppointmentSector(sector)) {
-                setTags((prev) => (prev.includes("Gelmedi") ? prev : [...prev, "Gelmedi"]));
-              }
-            }}
+            onChange={(e) => setStage(e.target.value)}
             style={{ width: "100%" }}
           >
             {STAGES.map((s) => <option key={s.id} value={s.id}>{stageLabel(s.id, selectedCustomerType, sector)}</option>)}
@@ -1253,7 +1252,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>{selectedCustomerType === "bireysel" ? "İptal nedeni" : "Kayıp nedeni"}</label>
           <select value={lostReason} onChange={(e) => setLostReason(e.target.value)} style={{ width: "100%" }}>
-            {LOST_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+            {dealLostReasons(sector).map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
         </div>
       )}
@@ -4055,6 +4054,7 @@ export default function App() {
   const [dealView, setDealView] = useState("list");
   const [panoRange, setPanoRange] = useState("tum_zamanlar");
   const [dragDealId, setDragDealId] = useState(null);
+  const [pendingLostReasonMove, setPendingLostReasonMove] = useState(null); // { dealId }
   const [showCampaignModal, setShowCampaignModal] = useState(false);
   const [confirmDeleteCustomer, setConfirmDeleteCustomer] = useState(null);
   const [confirmDeleteDeal, setConfirmDeleteDeal] = useState(null);
@@ -4920,7 +4920,7 @@ export default function App() {
     notify("Örnek veriler eklendi.", "success");
   };
 
-  const moveDealStage = async (id, stage) => {
+  const moveDealStage = async (id, stage, lostReason) => {
     const current = deals.find((d) => d.id === id);
     const previousStage = current?.stage;
     const isClosingStage = stage === "kazanildi" || stage === "kaybedildi";
@@ -4928,19 +4928,16 @@ export default function App() {
     const closedAt = isClosingStage
       ? (wasAlreadyClosed && current?.closedAt ? current.closedAt : new Date().toISOString())
       : null;
-    // DealForm'daki stage <select>'in aynı davranışının Kanban sürükle-bırak
-    // karşılığı — randevu sektörlerinde "kaybedildi"ye sürüklenince "Gelmedi"
-    // etiketi otomatik eklenir, aksi halde bu yoldan geçen kayıtlar Pano'daki
-    // gelmeme oranına sessizce dahil olmazdı.
-    const previousTags = current?.tags || [];
-    const nextTags = stage === "kaybedildi" && isAppointmentSector(companySettings?.sector) && !previousTags.includes("Gelmedi")
-      ? [...previousTags, "Gelmedi"]
-      : previousTags;
-    setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, stage, closedAt, tags: nextTags } : d)));
-    const { error } = await supabase.from("deals").update({ stage, closed_at: closedAt, tags: nextTags }).eq("id", id);
+    // lostReason sadece "kaybedildi"ye geçerken (Kanban'daki randevu-sektörü
+    // seçim penceresinden) veriliyor — DealForm'un kendi lostReason state'iyle
+    // aynı sütunu (deals.lost_reason) hedefliyor, tek bir kaynaktan yönetiliyor.
+    const previousLostReason = current?.lostReason || "";
+    const nextLostReason = stage === "kaybedildi" ? (lostReason ?? previousLostReason) : "";
+    setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, stage, closedAt, lostReason: nextLostReason } : d)));
+    const { error } = await supabase.from("deals").update({ stage, closed_at: closedAt, lost_reason: nextLostReason }).eq("id", id);
     if (error) {
       notify(`Aşama güncellenemedi: ${error.message}`);
-      setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, stage: previousStage, closedAt: current?.closedAt ?? null, tags: previousTags } : d)));
+      setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, stage: previousStage, closedAt: current?.closedAt ?? null, lostReason: previousLostReason } : d)));
     } else {
       const currentStageLabel = stageLabel(stage, customers.find((c) => c.id === current?.customerId)?.customerType || "kurumsal", companySettings?.sector);
       logAction("deals", id, "updated", `${current?.title || DEAL_TAB_STRINGS[dealWordKind(companySettings?.sector)].columnHeader} aşaması "${currentStageLabel}" olarak güncellendi`);
@@ -5535,13 +5532,14 @@ export default function App() {
   const rangeBounds = getRangeBounds(panoRange);
   const wonDeals = wonDealsAll.filter((d) => inRange(d.closedAt || d.createdAt, rangeBounds));
   const lostDeals = lostDealsAll.filter((d) => inRange(d.closedAt || d.createdAt, rangeBounds));
-  // Randevu sektörlerinde (Güzellik & Bakım, Sağlık/Klinik) "Gelmedi" etiketi
-  // zaten önerilen etiketler arasında var — burada sadece bu etiketin
-  // kaybedilen randevulardaki oranını hesaplıyoruz, yeni bir alan gerekmiyor.
-  // "Gelmedi (no-show)" etiketi Türkçeleştirilmeden önce eklenmiş kayıtlar da
-  // sayılmaya devam etsin diye eski etiket string'i de kabul ediliyor.
+  // Randevu sektörlerinde "kaybedildi" nedeni artık "İptal etti"/"Randevuya
+  // gelmedi" olarak ayrı ayrı seçiliyor (dealLostReasons) — bu oran SADECE
+  // gerçek gelmeme (no-show) vakalarını sayar, iptalleri dahil etmez; ikisi
+  // farklı işletme riskleri (iptal önceden bilinir, gelmeme boş yer kaybıdır).
+  // Eski etiket tabanlı kayıtlar (geçiş öncesi test verisi) da geriye dönük
+  // sayılmaya devam etsin diye tags da kontrol ediliyor.
   const noShowRate = isAppointmentSector(companySettings?.sector) && wonDeals.length + lostDeals.length > 0
-    ? Math.round((lostDeals.filter((d) => d.tags?.includes("Gelmedi") || d.tags?.includes("Gelmedi (no-show)")).length / (wonDeals.length + lostDeals.length)) * 100)
+    ? Math.round((lostDeals.filter((d) => d.lostReason === "Randevuya gelmedi" || d.tags?.includes("Gelmedi") || d.tags?.includes("Gelmedi (no-show)")).length / (wonDeals.length + lostDeals.length)) * 100)
     : null;
   // Sanayi Esnafı'nda kazanılan işlerin ortalama tamamlanma süresi (gün) —
   // müşteriye "genelde ne kadar sürer" sorusuna somut bir cevap verir.
@@ -5734,7 +5732,7 @@ export default function App() {
   const rangePayments = payments.filter((p) => inRange(p.paidAt, rangeBounds));
   const totalCollected = rangePayments.reduce((sum, p) => sum + (p.amount || 0), 0);
 
-  const lostReasonCounts = LOST_REASONS.map((reason) => ({
+  const lostReasonCounts = dealLostReasons(companySettings?.sector).map((reason) => ({
     reason,
     count: lostDeals.filter((d) => d.lostReason === reason).length,
   })).filter((r) => r.count > 0);
@@ -6090,7 +6088,7 @@ export default function App() {
               value={rangeAvgDealSize !== null ? formatTL(rangeAvgDealSize) : "—"}
             />
             {noShowRate !== null && (
-              <MetricCard label="Gelmedi/İptal oranı" value={`%${noShowRate}`} tone={noShowRate > 20 ? "danger" : undefined} />
+              <MetricCard label="Gelmeme oranı" value={`%${noShowRate}`} tone={noShowRate > 20 ? "danger" : undefined} />
             )}
             {avgCompletionDays !== null && (
               <MetricCard label="Ortalama tamamlanma süresi" value={`${avgCompletionDays} gün`} />
@@ -6578,7 +6576,19 @@ export default function App() {
                   <div
                     key={stage.id}
                     onDragOver={(e) => e.preventDefault()}
-                    onDrop={() => { if (dragDealId) { moveDealStage(dragDealId, stage.id); setDragDealId(null); } }}
+                    onDrop={() => {
+                      if (!dragDealId) return;
+                      // Randevu sektörlerinde "kaybedildi"ye sürüklerken hemen
+                      // sormadan varsayılan bir neden atamak yerine (önceki
+                      // deneme buydu, kullanıcı elle düzeltmek zorunda kalıyordu),
+                      // önce hangisi olduğunu (gelmedi/iptal) açıkça soruyoruz.
+                      if (stage.id === "kaybedildi" && isAppointmentSector(companySettings?.sector)) {
+                        setPendingLostReasonMove({ dealId: dragDealId });
+                      } else {
+                        moveDealStage(dragDealId, stage.id);
+                      }
+                      setDragDealId(null);
+                    }}
                     style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 10, minWidth: 220, flex: "0 0 220px" }}
                   >
                     <div style={{ marginBottom: 8 }}>
@@ -7256,6 +7266,25 @@ export default function App() {
 
       {showCampaignModal && (
         <CampaignModal customers={customers} replyTo={session.user.email} companyName={companySettings?.companyName} logoUrl={companySettings?.logoUrl} session={session} onClose={() => setShowCampaignModal(false)} />
+      )}
+
+      {pendingLostReasonMove && (
+        <Modal title="Neden kaybedildi?" onClose={() => setPendingLostReasonMove(null)}>
+          <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px" }}>
+            Müşteri randevuya gelmedi mi, yoksa iptal mi etti? Bu ayrım Pano'daki "Gelmeme oranı" hesabında kullanılıyor.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {dealLostReasons(companySettings?.sector).map((reason) => (
+              <button
+                key={reason}
+                onClick={() => { moveDealStage(pendingLostReasonMove.dealId, "kaybedildi", reason); setPendingLostReasonMove(null); }}
+                style={{ textAlign: "left" }}
+              >
+                {reason}
+              </button>
+            ))}
+          </div>
+        </Modal>
       )}
 
       {viewingCustomer && (
