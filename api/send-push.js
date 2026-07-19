@@ -119,8 +119,12 @@ async function handleAppointmentPush(req, res, supabaseAdmin) {
     .eq("id", record.customer_id)
     .maybeSingle();
 
+  // timeZone AÇIKÇA belirtilmezse toLocaleString sunucunun kendi saat dilimini
+  // (Vercel'de UTC) kullanır — "tr-TR" locale'i sadece biçimi (ay adı, sıra)
+  // Türkçeleştirir, saati Türkiye'ye çevirmez. Bu eksikti, bildirimde randevu
+  // saati 3 saat geride görünüyordu (09:00 yerine 06:00).
   const dateLabel = new Date(`${record.custom_fields.portal_randevu_zamani}+03:00`).toLocaleString("tr-TR", {
-    day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+    day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul",
   });
 
   const { data: members } = await supabaseAdmin
