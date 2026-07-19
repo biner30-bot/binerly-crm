@@ -844,7 +844,7 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
   );
 }
 
-function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, onSave, onCancel }) {
+function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], appointmentDateTimeKey = null, customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(
     initial?.customerId || customers.find((c) => c.customerType === preferredCustomerType)?.id || customers[0]?.id || ""
   );
@@ -891,8 +891,25 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   const [customFields, setCustomFields] = useState(initial?.customFields || {});
   const [assignedTo, setAssignedTo] = useState(initial?.assignedTo || currentUserId || "");
   const [notifyCustomer, setNotifyCustomer] = useState(initial?.notifyCustomer || false);
+  const [pendingConflictSave, setPendingConflictSave] = useState(null); // { payload, conflictTitle }
   const defsForEntity = customFieldDefs.filter((d) => d.entity === "deal" && (!d.audience || d.audience === selectedCustomerType));
   const selectedCustomerEmail = customers.find((c) => c.id === customerId)?.email || "";
+
+  // Aynı tarih/saate iki aktif randevu düşerse (örn. biri iptal edilip slot
+  // boşaldıktan sonra başkası aynı saati aldı, sonra ilk randevu yeniden
+  // "planlandı"ya çekildi) sessizce çift rezervasyon oluşurdu — kısıtlamak
+  // yerine (proje felsefesi: görünürlük, kısıtlama değil) kaydetmeden önce
+  // açıkça uyarıyoruz, KOBİ isterse yine de kaydedebilir.
+  const findAppointmentConflict = (candidateStage, candidateCustomFields) => {
+    if (!appointmentDateTimeKey || !supportsSelfBooking(sector) || candidateStage === "kaybedildi") return null;
+    const dt = candidateCustomFields?.[appointmentDateTimeKey];
+    if (!dt) return null;
+    const conflict = deals.find((d) =>
+      d.id !== initial?.id && d.stage !== "kaybedildi" && d.customFields?.[appointmentDateTimeKey] === dt
+    );
+    if (!conflict) return null;
+    return customers.find((c) => c.id === conflict.customerId)?.name || "başka bir kayıt";
+  };
 
   useEffect(() => {
     if (lineItems.length > 0) setValue(String(lineItemsTotal));
@@ -900,6 +917,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   }, [lineItemsTotal, lineItems.length]);
 
   return (
+    <>
     <form
       onSubmit={(e) => {
         e.preventDefault();
@@ -923,7 +941,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           return;
         }
         setSessionError("");
-        onSave({
+        const payload = {
           id: initial?.id || uid(),
           customerId,
           title: title.trim(),
@@ -955,7 +973,13 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           // davranış değişmiyor — kaydedilmiş saat neyse o korunuyor.
           createdAt: new Date(`${dealDate}T${dealTime || (initial ? "00:00" : new Date().toTimeString().slice(0, 5))}`).toISOString(),
           closedAt: isClosingStage ? new Date(`${closedDate}T00:00`).toISOString() : null,
-        });
+        };
+        const conflictWith = findAppointmentConflict(stage, customFields);
+        if (conflictWith) {
+          setPendingConflictSave({ payload, conflictWith });
+          return;
+        }
+        onSave(payload);
       }}
     >
       <div style={{ marginBottom: 12 }}>
@@ -1271,6 +1295,16 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
         <button type="submit" disabled={customers.length === 0} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
       </div>
     </form>
+    {pendingConflictSave && (
+      <ConfirmDialog
+        title="Randevu çakışması"
+        message={`Bu tarih/saatte ${pendingConflictSave.conflictWith} için de aktif bir randevu var. Yine de bu şekilde kaydetmek istiyor musunuz?`}
+        confirmLabel="Yine de kaydet"
+        onConfirm={() => { onSave(pendingConflictSave.payload); setPendingConflictSave(null); }}
+        onClose={() => setPendingConflictSave(null)}
+      />
+    )}
+    </>
   );
 }
 
@@ -4060,6 +4094,7 @@ export default function App() {
   const [panoRange, setPanoRange] = useState("tum_zamanlar");
   const [dragDealId, setDragDealId] = useState(null);
   const [pendingLostReasonMove, setPendingLostReasonMove] = useState(null); // { dealId }
+  const [pendingAppointmentConflict, setPendingAppointmentConflict] = useState(null); // { dealId, targetStage, conflictWith }
   const [showCampaignModal, setShowCampaignModal] = useState(false);
   const [confirmDeleteCustomer, setConfirmDeleteCustomer] = useState(null);
   const [confirmDeleteDeal, setConfirmDeleteDeal] = useState(null);
@@ -6593,7 +6628,24 @@ export default function App() {
                       if (stage.id === "kaybedildi" && isAppointmentSector(companySettings?.sector)) {
                         setPendingLostReasonMove({ dealId: dragDealId });
                       } else {
-                        moveDealStage(dragDealId, stage.id);
+                        // "Kaybedildi"den (iptal/gelmedi) tekrar aktif bir aşamaya
+                        // çekiliyorsa — o saat bu arada başka birine verilmiş
+                        // olabilir (slot iptalle boşalmıştı) — sessizce çift
+                        // rezervasyon oluşturmadan önce uyar.
+                        const draggedDeal = deals.find((d) => d.id === dragDealId);
+                        const dt = appointmentDateTimeKey && draggedDeal?.customFields?.[appointmentDateTimeKey];
+                        const conflict = draggedDeal?.stage === "kaybedildi" && dt
+                          ? deals.find((d) => d.id !== dragDealId && d.stage !== "kaybedildi" && d.customFields?.[appointmentDateTimeKey] === dt)
+                          : null;
+                        if (conflict) {
+                          setPendingAppointmentConflict({
+                            dealId: dragDealId,
+                            targetStage: stage.id,
+                            conflictWith: customers.find((c) => c.id === conflict.customerId)?.name || "başka bir kayıt",
+                          });
+                        } else {
+                          moveDealStage(dragDealId, stage.id);
+                        }
                       }
                       setDragDealId(null);
                     }}
@@ -7228,6 +7280,8 @@ export default function App() {
             defaultKdvRate={companySettings?.defaultKdvRate}
             preferredCustomerType={dealAudience}
             sector={companySettings?.sector}
+            deals={deals}
+            appointmentDateTimeKey={appointmentDateTimeKey}
             customFieldDefs={customFieldDefs}
             sectorTags={SECTOR_PRESETS.find((p) => p.id === companySettings?.sector)?.tags || []}
             teamMembers={teamMembers}
@@ -7293,6 +7347,16 @@ export default function App() {
             ))}
           </div>
         </Modal>
+      )}
+
+      {pendingAppointmentConflict && (
+        <ConfirmDialog
+          title="Randevu çakışması"
+          message={`Bu tarih/saatte ${pendingAppointmentConflict.conflictWith} için de aktif bir randevu var. Yine de bu şekilde taşımak istiyor musunuz?`}
+          confirmLabel="Yine de taşı"
+          onConfirm={() => { moveDealStage(pendingAppointmentConflict.dealId, pendingAppointmentConflict.targetStage); setPendingAppointmentConflict(null); }}
+          onClose={() => setPendingAppointmentConflict(null)}
+        />
       )}
 
       {viewingCustomer && (
