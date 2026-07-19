@@ -8,6 +8,12 @@ import { createClient } from "@supabase/supabase-js";
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).end();
 
+  // Müsaitlik her zaman anlık hesaplanmalı — bir dakika önce dolu görünen bir
+  // saat az sonra boşalabilir (iptal) veya tam tersi. Cache-Control header'ı
+  // olmadan tarayıcı/CDN aynı URL için 304 dönüp eski yanıtı yeniden
+  // kullanabiliyordu (Network sekmesinde gözlemlendi).
+  res.setHeader("Cache-Control", "no-store");
+
   const { businessUserId, date } = req.query;
   if (!businessUserId || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return res.status(400).json({ error: "businessUserId ve date (YYYY-MM-DD) gerekli." });

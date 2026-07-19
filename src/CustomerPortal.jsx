@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, Toast, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, WEEKDAYS, nextWeeklyOccurrence, NotificationBell } from "./shared";
+import { Badge, Modal, Toast, ConfirmDialog, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, WEEKDAYS, nextWeeklyOccurrence, NotificationBell } from "./shared";
 import { stageLabel, dealWordKind, isAppointmentSector, supportsSelfBooking, supportsGroupClasses, groupClassWords, supportExamples, appointmentNoteExample, SECTOR_PRESETS } from "./Sectors";
 
 const PORTAL_DEAL_WORDS = {
@@ -56,6 +56,11 @@ function rowToTicketMessage(r) {
 }
 
 function rowToDeal(r) {
+  // customer_deal_view select("*") ile tüm custom_fields JSONB'sini döndürüyor,
+  // ama portal UI'ı bunlardan sadece ikisini okuyor — geri kalanı (KOBİ'nin
+  // teklife girdiği başka özel alanlar, iç notlar olabilir) tarayıcıya hiç
+  // gitmesin diye burada bilinçli olarak sadece bu iki anahtar taşınıyor.
+  const cf = r.custom_fields || {};
   return {
     id: r.id,
     customerId: r.customer_id,
@@ -63,7 +68,7 @@ function rowToDeal(r) {
     value: r.value,
     stage: r.stage,
     createdAt: r.created_at,
-    customFields: r.custom_fields || {},
+    customFields: { portal_randevu_zamani: cf.portal_randevu_zamani, kaynak: cf.kaynak },
     approvalToken: r.approval_token || null,
     paymentMode: r.payment_mode || "none",
     paymentStatus: r.payment_status || null,
@@ -337,10 +342,17 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, sh
         const isApproved = !!d.approvedAt;
         const isPaid = d.paymentStatus === "paid";
         const needsPayment = d.paymentMode !== "none" && !isPaid;
-        const actionLabel = !isApproved
-          ? (d.paymentMode === "required" ? "Öde ve Onayla" : d.paymentMode === "optional" ? "Onayla / Öde" : "Onayla")
-          : "Öde";
-        const showAction = d.approvalToken && (!isApproved || needsPayment);
+        // İş tamamlanmışsa (stage=kazanildi) saf onay adımının artık bir anlamı
+        // yok — müşteri işi zaten yüz yüze/telefonla onaylamış ya da hizmet
+        // doğrudan verilmiş demektir. Ödeme hâlâ eksikse yine de gösterilir,
+        // ama "Onayla" değil sadece "Öde" olarak.
+        const isCompleted = d.stage === "kazanildi";
+        const actionLabel = isCompleted
+          ? "Öde"
+          : !isApproved
+            ? (d.paymentMode === "required" ? "Öde ve Onayla" : d.paymentMode === "optional" ? "Onayla / Öde" : "Onayla")
+            : "Öde";
+        const showAction = d.approvalToken && (isCompleted ? needsPayment : (!isApproved || needsPayment));
         return (
           <div key={d.id} style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <div>
@@ -703,6 +715,8 @@ export default function CustomerPortal() {
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [theme, setTheme] = useTheme();
   const [showPasswordRecovery, setShowPasswordRecovery] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(null); // { type: "appointment" | "enrollment", id }
+  const [loadError, setLoadError] = useState(false);
 
   const notify = (message, tone = "danger") => setToast({ message, tone });
 
@@ -780,54 +794,80 @@ export default function CustomerPortal() {
       return;
     }
     setLoading(true);
+    setLoadError(false);
     (async () => {
-      await supabase
-        .from("customer_portal_users")
-        .upsert({ id: session.user.id, email: session.user.email }, { onConflict: "id", ignoreDuplicates: true });
-      await supabase
-        .from("customers")
-        .update({ portal_user_id: session.user.id })
-        .is("portal_user_id", null)
-        .is("deleted_at", null)
-        .ilike("email", session.user.email);
+      try {
+        await supabase
+          .from("customer_portal_users")
+          .upsert({ id: session.user.id, email: session.user.email }, { onConflict: "id", ignoreDuplicates: true });
+        await supabase
+          .from("customers")
+          .update({ portal_user_id: session.user.id })
+          .is("portal_user_id", null)
+          .is("deleted_at", null)
+          .ilike("email", session.user.email);
 
-      // Önce sadece kendi bağlı müşteri kayıtlarımızı öğreniyoruz, sonra tickets/ticket_messages
-      // sorgularını bilerek bu customer_id'lerle sınırlıyoruz — RLS'e tek başına güvenmiyoruz,
-      // çünkü aynı hesap hem şirket sahibi hem müşteri ise RLS politikaları "veya" ile birleşip
-      // şirketin TÜM taleplerini de döndürebilir. Bu ekstra filtre buna karşı bir güvenlik katmanı.
-      const { data: c } = await supabase.from("customer_profile_view").select("*");
-      const rows = (c || []).map((r) => ({ id: r.id, userId: r.user_id, name: r.name, companyName: r.company_name, companySector: r.company_sector }));
-      setCustomerRows(rows);
-      const customerIds = rows.map((r) => r.id);
+        // Önce sadece kendi bağlı müşteri kayıtlarımızı öğreniyoruz, sonra tickets/ticket_messages
+        // sorgularını bilerek bu customer_id'lerle sınırlıyoruz — RLS'e tek başına güvenmiyoruz,
+        // çünkü aynı hesap hem şirket sahibi hem müşteri ise RLS politikaları "veya" ile birleşip
+        // şirketin TÜM taleplerini de döndürebilir. Bu ekstra filtre buna karşı bir güvenlik katmanı.
+        const { data: c, error: profileError } = await supabase.from("customer_profile_view").select("*");
+        if (profileError) {
+          // Burada sessizce customerRows=[] set edilirse müşteriye "hesabınız hiçbir
+          // firmayla eşleşmedi" gibi YANLIŞ bir mesaj gösterilir — oysa asıl sebep
+          // geçici bir ağ/DB hatası olabilir. Ayrı bir hata durumu gösteriyoruz.
+          console.error("customer_profile_view load error:", profileError.message);
+          setLoadError(true);
+          return;
+        }
+        const rows = (c || []).map((r) => ({ id: r.id, userId: r.user_id, name: r.name, companyName: r.company_name, companySector: r.company_sector }));
+        setCustomerRows(rows);
+        const customerIds = rows.map((r) => r.id);
 
-      if (customerIds.length === 0) {
-        setTickets([]); setTicketMessages([]); setDeals([]);
-        setGroupClasses([]); setGroupClassEnrollments([]); setPriceListItems([]);
+        if (customerIds.length === 0) {
+          setTickets([]); setTicketMessages([]); setDeals([]);
+          setGroupClasses([]); setGroupClassEnrollments([]); setPriceListItems([]);
+          return;
+        }
+
+        const businessUserIds = [...new Set(rows.map((r) => r.userId))];
+
+        const [
+          { data: t, error: tError },
+          { data: d, error: dError },
+          { data: gce, error: gceError },
+          { data: gc, error: gcError },
+          { data: pli, error: pliError },
+        ] = await Promise.all([
+          supabase.from("tickets").select("*").is("deleted_at", null).in("customer_id", customerIds).order("created_at"),
+          // Diğer sorgular gibi (tickets/group_classes) customer_id ile bilerek
+          // sınırlanıyor — RLS'e tek başına güvenmeme prensibi (yukarıdaki yorum)
+          // burada da geçerli.
+          supabase.from("customer_deal_view").select("*").in("customer_id", customerIds).order("created_at"),
+          supabase.from("group_class_enrollments").select("*").in("customer_id", customerIds),
+          supabase.from("group_classes").select("*").is("deleted_at", null).in("user_id", businessUserIds).order("weekday").order("start_time"),
+          supabase.from("price_list_items").select("*").in("user_id", businessUserIds).order("name"),
+        ]);
+        const firstError = tError || dError || gceError || gcError || pliError;
+        if (firstError) { console.error("customer portal data load error:", firstError.message); setLoadError(true); }
+        setGroupClassEnrollments((gce || []).map(rowToGroupClassEnrollment));
+        setGroupClasses((gc || []).map(rowToGroupClass));
+        setPriceListItems((pli || []).map(rowToPriceListItem));
+        const ticketIds = (t || []).map((row) => row.id);
+        const { data: tm, error: tmError } = ticketIds.length
+          ? await supabase.from("ticket_messages").select("*").eq("is_internal", false).in("ticket_id", ticketIds).order("created_at")
+          : { data: [] };
+        if (tmError) console.error("ticket_messages load error:", tmError.message);
+
+        setTickets((t || []).map(rowToTicket));
+        setTicketMessages((tm || []).map(rowToTicketMessage));
+        setDeals((d || []).map(rowToDeal));
+      } catch (err) {
+        console.error("customer portal load fatal error:", err.message);
+        setLoadError(true);
+      } finally {
         setLoading(false);
-        return;
       }
-
-      const businessUserIds = [...new Set(rows.map((r) => r.userId))];
-
-      const [{ data: t }, { data: d }, { data: gce }, { data: gc }, { data: pli }] = await Promise.all([
-        supabase.from("tickets").select("*").is("deleted_at", null).in("customer_id", customerIds).order("created_at"),
-        supabase.from("customer_deal_view").select("*").order("created_at"),
-        supabase.from("group_class_enrollments").select("*").in("customer_id", customerIds),
-        supabase.from("group_classes").select("*").is("deleted_at", null).in("user_id", businessUserIds).order("weekday").order("start_time"),
-        supabase.from("price_list_items").select("*").in("user_id", businessUserIds).order("name"),
-      ]);
-      setGroupClassEnrollments((gce || []).map(rowToGroupClassEnrollment));
-      setGroupClasses((gc || []).map(rowToGroupClass));
-      setPriceListItems((pli || []).map(rowToPriceListItem));
-      const ticketIds = (t || []).map((row) => row.id);
-      const { data: tm } = ticketIds.length
-        ? await supabase.from("ticket_messages").select("*").in("ticket_id", ticketIds).order("created_at")
-        : { data: [] };
-
-      setTickets((t || []).map(rowToTicket));
-      setTicketMessages((tm || []).map(rowToTicketMessage));
-      setDeals((d || []).map(rowToDeal));
-      setLoading(false);
     })();
   }, [session]);
 
@@ -1056,7 +1096,11 @@ export default function CustomerPortal() {
         </div>
       </div>
 
-      {customerRows.length === 0 ? (
+      {loadError ? (
+        <p style={{ fontSize: 14, color: "var(--text-danger)" }}>
+          Verileriniz yüklenirken bir hata oluştu. Lütfen sayfayı yenileyip tekrar deneyin.
+        </p>
+      ) : customerRows.length === 0 ? (
         <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
           Hesabınız henüz bir firmayla eşleşmedi. Kayıt olurken kullandığınız e-postanın, ilgili firmanın sisteminde kayıtlı e-posta ile aynı olduğundan emin olun.
         </p>
@@ -1170,7 +1214,7 @@ export default function CustomerPortal() {
                   ))}
                 </div>
               )}
-              <PortalDealList deals={visibleDeals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} showCompany={false} dealKind={dealKind} onCancelAppointment={cancelAppointment} />
+              <PortalDealList deals={visibleDeals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} showCompany={false} dealKind={dealKind} onCancelAppointment={(id) => setConfirmCancel({ type: "appointment", id })} />
             </div>
           )}
 
@@ -1182,7 +1226,7 @@ export default function CustomerPortal() {
               showCompany={false}
               hasActiveMembership={hasActiveMembership}
               onEnroll={enrollInClass}
-              onCancel={cancelEnrollment}
+              onCancel={(id) => setConfirmCancel({ type: "enrollment", id })}
             />
           )}
 
@@ -1225,6 +1269,20 @@ export default function CustomerPortal() {
           priceListItems={priceListItems.filter((p) => p.userId === bookingFor.userId)}
           onBook={bookAppointment}
           onClose={() => setBookingFor(null)}
+        />
+      )}
+
+      {confirmCancel && (
+        <ConfirmDialog
+          title="İptal edilsin mi?"
+          message={confirmCancel.type === "appointment" ? "Randevunuzu iptal etmek istediğinizden emin misiniz? Bu işlem geri alınamaz." : "Bu derse kaydınızı iptal etmek istediğinizden emin misiniz? Bu işlem geri alınamaz."}
+          confirmLabel="İptal Et"
+          onClose={() => setConfirmCancel(null)}
+          onConfirm={async () => {
+            if (confirmCancel.type === "appointment") await cancelAppointment(confirmCancel.id);
+            else await cancelEnrollment(confirmCancel.id);
+            setConfirmCancel(null);
+          }}
         />
       )}
 

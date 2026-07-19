@@ -205,7 +205,14 @@ export default function DealApprovalPage() {
               // ayrı tutuyor, approved durumundan bağımsız.
               const needsPayment = state.deal.paymentMode !== "none" && !isPaid;
               const isOptionalPay = state.deal.paymentMode === "optional";
-              const hasPendingAction = !state.deal.approved || needsPayment;
+              // İş zaten tamamlanmışsa (stage=kazanildi — tüm sektörlerde ortak
+              // "bitti" durumu) saf onay adımının bir anlamı kalmıyor: müşteri işi
+              // zaten yüz yüze/telefonla onaylamış ya da hizmet doğrudan verilmiş
+              // demektir. Ödeme hâlâ eksikse o kısım (sadece "Öde", "...ve Onayla"
+              // değil) yine de gösterilir — onay değil tahsilat kalan tek şey.
+              const isCompleted = state.deal.stage === "kazanildi";
+              const showApproveOnly = !isCompleted && state.deal.paymentMode !== "required" && !state.deal.approved;
+              const hasPendingAction = isCompleted ? needsPayment : (!state.deal.approved || needsPayment);
               return (
                 <>
                   {state.deal.approved && (
@@ -239,10 +246,10 @@ export default function DealApprovalPage() {
                       disabled={paying}
                       style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
                     >
-                      {paying ? "Yönlendiriliyor…" : state.deal.approved ? "Öde" : "Öde ve Onayla"}
+                      {paying ? "Yönlendiriliyor…" : (isCompleted || state.deal.approved) ? "Öde" : "Öde ve Onayla"}
                     </button>
                   )}
-                  {state.deal.paymentMode !== "required" && !state.deal.approved && (
+                  {showApproveOnly && (
                     <>
                       <textarea
                         value={note}
@@ -266,7 +273,7 @@ export default function DealApprovalPage() {
                       disabled={paying}
                       style={{ width: "100%", background: "#fff", color: "#185fa5", border: "1px solid #185fa5", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: "pointer", marginTop: 8 }}
                     >
-                      {paying ? "Yönlendiriliyor…" : state.deal.approved ? "💳 Şimdi öde" : "💳 Öde ve Onayla"}
+                      {paying ? "Yönlendiriliyor…" : (isCompleted || state.deal.approved) ? "💳 Şimdi öde" : "💳 Öde ve Onayla"}
                     </button>
                   )}
                   {hasPendingAction && (

@@ -71,9 +71,9 @@ const PORTAL_INFO_TEXT =
   "portal üzerinden kendi hesabını oluşturması yeterli, sizin ayrıca bir davet göndermenize gerek yok.";
 
 const DEAL_WORD_FORMS = {
-  teklif: { bare: "teklif", pdfLabel: "Teklif PDF", acc: "teklifi", dat: "teklife", plural: "teklifler", pluralAcc: "teklifleri", gen: "teklifin", genPlural: "tekliflerin", loc: "teklifte", pluralLoc: "tekliflerde", ctaLabel: "Teklifi Görüntüle", possYours: "Teklifiniz" },
-  randevu: { bare: "randevu", pdfLabel: "Randevu Özeti PDF", acc: "randevuyu", dat: "randevuya", plural: "randevular", pluralAcc: "randevuları", gen: "randevunun", genPlural: "randevuların", loc: "randevuda", pluralLoc: "randevularda", ctaLabel: "Randevuyu Görüntüle", possYours: "Randevunuz" },
-  uyelik: { bare: "üyelik", pdfLabel: "Üyelik Özeti PDF", acc: "üyeliği", dat: "üyeliğe", plural: "üyelikler", pluralAcc: "üyelikleri", gen: "üyeliğin", genPlural: "üyeliklerin", loc: "üyelikte", pluralLoc: "üyeliklerde", ctaLabel: "Üyeliği Görüntüle", possYours: "Üyeliğiniz" },
+  teklif: { bare: "teklif", pdfLabel: "Teklif PDF", acc: "teklifi", dat: "teklife", plural: "teklifler", pluralAcc: "teklifleri", gen: "teklifin", genPlural: "tekliflerin", loc: "teklifte", pluralLoc: "tekliflerde", ctaLabel: "Teklifi Görüntüle", possYours: "Teklifiniz", possYoursAcc: "teklifinizi" },
+  randevu: { bare: "randevu", pdfLabel: "Randevu Özeti PDF", acc: "randevuyu", dat: "randevuya", plural: "randevular", pluralAcc: "randevuları", gen: "randevunun", genPlural: "randevuların", loc: "randevuda", pluralLoc: "randevularda", ctaLabel: "Randevuyu Görüntüle", possYours: "Randevunuz", possYoursAcc: "randevunuzu" },
+  uyelik: { bare: "üyelik", pdfLabel: "Üyelik Özeti PDF", acc: "üyeliği", dat: "üyeliğe", plural: "üyelikler", pluralAcc: "üyelikleri", gen: "üyeliğin", genPlural: "üyeliklerin", loc: "üyelikte", pluralLoc: "üyeliklerde", ctaLabel: "Üyeliği Görüntüle", possYours: "Üyeliğiniz", possYoursAcc: "üyeliğinizi" },
 };
 
 // Müşteri Takibi sekmesindeki liste UI'ı (ekle butonu, arama, boş durumlar,
@@ -1741,7 +1741,7 @@ function TeklifPrint({ deal, customer, companySettings, pdfTemplates, dealLineIt
   );
 }
 
-function CampaignModal({ customers, replyTo, companyName, logoUrl, onClose }) {
+function CampaignModal({ customers, replyTo, companyName, logoUrl, session, onClose }) {
   const emailCustomers = customers.filter((c) => c.email);
   const [selected, setSelected] = useState(() => new Set(emailCustomers.map((c) => c.id)));
   const [subject, setSubject] = useState("");
@@ -1773,7 +1773,7 @@ function CampaignModal({ customers, replyTo, companyName, logoUrl, onClose }) {
     try {
       const res = await fetch("/api/send-campaign", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({ recipients, subject, message, replyTo, companyName, logoUrl }),
       });
       const data = await res.json();
@@ -2334,7 +2334,7 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
     try {
       await fetch("/api/send-campaign", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({
           recipients: [email],
           subject: `${companySettings?.companyName || "Binerly"} sizi takımına davet etti`,
@@ -4214,7 +4214,7 @@ export default function App() {
     try {
       await fetch("/api/send-campaign", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({
           recipients: [customer.email],
           subject,
@@ -5152,8 +5152,10 @@ export default function App() {
     setCustomFieldDefs((prev) => [...prev, rowToCustomFieldDef(data)]);
   };
 
-  const updateCustomFieldDef = async ({ id, label, options, audience }) => {
+  const updateCustomFieldDef = async ({ id, label, options, audience, sector, active }) => {
     const row = { label, options, audience };
+    if (sector !== undefined) row.sector = sector;
+    if (active !== undefined) row.active = active;
     const { data, error } = await supabase.from("custom_field_defs").update(row).eq("id", id).select().single();
     if (error) { notify(`Özel alan güncellenemedi: ${error.message}`); return; }
     setCustomFieldDefs((prev) => prev.map((d) => (d.id === id ? rowToCustomFieldDef(data) : d)));
@@ -5322,16 +5324,28 @@ export default function App() {
   // (kaydedilmiş değerler DB'de durur); yeniden aynı sektöre dönülürse aynı
   // tanımlar "active:true" ile geri gelir. Elle eklenen alanlar (sector: null)
   // hiçbir sektör değişikliğinden etkilenmez.
+  //
+  // Bazı sektörler aynı (entity,key)'i FARKLI etiket/seçeneklerle kullanıyor
+  // (örn. "gorusme_tarihi" emlak'ta "Görüşme/Randevu Tarihi", dijital_ajans'ta
+  // "Keşif Görüşmesi Tarihi") — bu yüzden preset'teki her alan için önce
+  // sektörden bağımsız var olup olmadığına bakılıyor: varsa yeni sektörün
+  // etiket/seçenekleriyle güncellenip yeniden bu sektöre atanıyor (reclaim),
+  // yoksa sıfırdan oluşturuluyor. "exists" kontrolü (entity,key)'i görmezden
+  // gelip sektörü yok sayarsa, önceden başka bir sektöre etiketlenmiş inactive
+  // bir satır hiç geri gelmeyip alan kalıcı kaybolur (geçmişte yaşanan bug).
   const applySectorCustomFields = async (sectorId) => {
     const preset = SECTOR_PRESETS.find((p) => p.id === sectorId);
-    const toHide = customFieldDefs.filter((d) => d.active && d.sector && d.sector !== sectorId).map((d) => d.id);
-    const toShow = customFieldDefs.filter((d) => !d.active && d.sector === sectorId).map((d) => d.id);
+    const presetKeys = new Set((preset?.customFields || []).map((f) => `${f.entity}:${f.key}`));
+    const toHide = customFieldDefs.filter((d) => d.active && d.sector && !presetKeys.has(`${d.entity}:${d.key}`)).map((d) => d.id);
     await setCustomFieldDefsActive(toHide, false);
-    await setCustomFieldDefsActive(toShow, true);
     if (!preset) return;
     for (const f of preset.customFields) {
-      const exists = customFieldDefs.some((d) => d.entity === f.entity && d.key === f.key);
-      if (!exists) await addCustomFieldDef({ ...f, sector: sectorId });
+      const existing = customFieldDefs.find((d) => d.entity === f.entity && d.key === f.key);
+      if (!existing) {
+        await addCustomFieldDef({ ...f, sector: sectorId });
+      } else if (existing.sector !== sectorId || !existing.active) {
+        await updateCustomFieldDef({ id: existing.id, label: f.label, options: f.options, audience: existing.audience, sector: sectorId, active: true });
+      }
     }
   };
 
@@ -5423,7 +5437,7 @@ export default function App() {
       .filter((deal) => `${new Date(deal.closedAt || deal.createdAt).getFullYear()}-${new Date(deal.closedAt || deal.createdAt).getMonth()}` === key)
       .reduce((sum, deal) => sum + (deal.value || 0), 0);
   });
-  const nextMonthForecast = wonDealsAll.length > 0
+  const nextMonthForecast = trailingMonthRevenues.some((v) => v > 0)
     ? trailingMonthRevenues.reduce((a, b) => a + b, 0) / trailingMonthRevenues.length
     : null;
   // "Pasif müşteri oranı" — "churn" yerine bilinçli olarak bu isim kullanıldı
@@ -5725,10 +5739,15 @@ export default function App() {
         <div>
           {!(activationChecklistDismissedClick || (activeTeamId && localStorage.getItem(`binerly_activation_checklist_dismissed_${activeTeamId}`))) && (() => {
             const steps = [
-              { label: "Şirket bilgilerinizi girin", done: !!companySettings?.companyName, onGo: () => setShowSettingsForm(true) },
-              { label: "Sektörünüzü seçin", done: !!companySettings?.sector, onGo: () => setShowSectorFields(true) },
+              // Şirket bilgileri/sektör adımları Ayarlar hub'ındaki ile aynı yetkiye
+              // (canEditCompanySettings) tabi — aksi halde yetkisi olmayan bir takım
+              // üyesi checklist üzerinden bu formlara ulaşıp değiştirebilirdi.
+              ...(canEditCompanySettings ? [
+                { label: "Şirket bilgilerinizi girin", done: !!companySettings?.companyName, onGo: () => setShowSettingsForm(true) },
+                { label: "Sektörünüzü seçin", done: !!companySettings?.sector, onGo: () => setShowSectorFields(true) },
+              ] : []),
               { label: "İlk müşterinizi ekleyin", done: customers.length > 0, onGo: () => { setTab("musteri"); setShowCustomerForm(true); } },
-              { label: `İlk ${DEAL_WORD_FORMS[dealWordKind(companySettings?.sector)].bare.toLowerCase()}inizi oluşturun`, done: deals.length > 0, onGo: () => { if (customers.length > 0) { setTab("firsat"); setShowDealForm(true); } else { setTab("musteri"); setShowCustomerForm(true); } } },
+              { label: `İlk ${DEAL_WORD_FORMS[dealWordKind(companySettings?.sector)].possYoursAcc} oluşturun`, done: deals.length > 0, onGo: () => { if (customers.length > 0) { setTab("firsat"); setShowDealForm(true); } else { setTab("musteri"); setShowCustomerForm(true); } } },
             ];
             const doneCount = steps.filter((s) => s.done).length;
             const allDone = doneCount === steps.length;
@@ -7083,7 +7102,7 @@ export default function App() {
       )}
 
       {showCampaignModal && (
-        <CampaignModal customers={customers} replyTo={session.user.email} companyName={companySettings?.companyName} logoUrl={companySettings?.logoUrl} onClose={() => setShowCampaignModal(false)} />
+        <CampaignModal customers={customers} replyTo={session.user.email} companyName={companySettings?.companyName} logoUrl={companySettings?.logoUrl} session={session} onClose={() => setShowCampaignModal(false)} />
       )}
 
       {viewingCustomer && (

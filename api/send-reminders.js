@@ -1,9 +1,16 @@
+import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { renderEmailHtml, plainTextFallback } from "./_email-template.js";
 
+function secretsMatch(a, b) {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
+}
+
 export default async function handler(req, res) {
-  const authHeader = req.headers.authorization;
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const authHeader = req.headers.authorization || "";
+  if (!process.env.CRON_SECRET || !secretsMatch(authHeader, `Bearer ${process.env.CRON_SECRET}`)) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
@@ -124,7 +131,8 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({ usersNotified, failed, customersNotified });
-  } catch {
+  } catch (err) {
+    console.error("send-reminders fatal error:", err.message);
     return res.status(500).json({ error: "Gönderim sırasında hata oluştu." });
   }
 }

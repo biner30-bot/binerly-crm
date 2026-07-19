@@ -12,10 +12,37 @@ function hmacSha256Base64(str, key) {
   return crypto.createHmac("sha256", key).update(str).digest("base64");
 }
 
+// Callback'ler önce SELECT ile payment_status kontrol edip sonra ayrı bir
+// adımda UPDATE ediyor — sağlayıcının (özellikle PayTR'nin, "OK" dönene
+// kadar tekrar tekrar deneyen) neredeyse eş zamanlı iki bildirimi arada bu
+// SELECT/UPDATE boşluğuna denk gelirse ikisi de "henüz ödenmemiş" görüp
+// mükerrer payments/komisyon/bildirim kaydı üretebilirdi. Bunun yerine
+// deals satırını ATOMİK olarak "işleniyor" durumuna claim ediyoruz — DB
+// satırının O ANKİ payment_status'u hâlâ 'paid' değilse tek bir istek
+// başarılı olur, diğerleri claimed=false alıp sessizce çıkar.
+async function claimDealPayment(supabaseAdmin, dealId) {
+  const { data, error } = await supabaseAdmin
+    .from("deals")
+    .update({ payment_status: "paid" })
+    .eq("id", dealId)
+    .neq("payment_status", "paid")
+    .select("id");
+  if (error) {
+    console.error("claimDealPayment error:", error.message, "deal.id:", dealId);
+    return false;
+  }
+  return (data || []).length > 0;
+}
+
 function getClientIp(req) {
   const forwarded = req.headers["x-forwarded-for"];
   if (forwarded) return forwarded.split(",")[0].trim();
-  return req.socket?.remoteAddress || "85.34.78.112";
+  // Vercel normalde x-forwarded-for'u hep dolduruyor, buraya düşmek çok nadir —
+  // ama düşerse gerçek/başkasına ait olabilecek bir IP yerine RFC 5737 "TEST-NET-3"
+  // (203.0.113.0/24, dokümantasyon için ayrılmış, hiçbir gerçek müşteriye ait
+  // olamaz) kullanılıyor; sağlayıcının syntax olarak geçerli bir IPv4 beklentisini
+  // karşılarken fraud/velocity skorlamasını gerçek bir kişinin IP'siyle kirletmiyor.
+  return req.socket?.remoteAddress || "203.0.113.1";
 }
 
 // Deal'i onaylanmış işaretler + KOBİ'ye bilgi maili atar — hem müşterinin
@@ -312,6 +339,18 @@ async function handlePaymentCallback(req, res, supabaseAdmin, url) {
   });
   if (!result || result.paymentStatus !== "SUCCESS") return redirect(`${target}?paid=0`);
 
+  // iyzicoToken, tarayıcıdan (istemciden) geliyor ve TEORİK olarak müşterinin
+  // kendi başka bir teklifi için aldığı gerçek/geçerli bir token olabilir —
+  // retrieve SUCCESS dönse bile bu ödemenin gerçekten dealToken'ın işaret
+  // ettiği TEKLİFE ait olduğunu (basketId/tutar checkout başlatılırken
+  // deal.id/deal.value olarak set edilmişti) doğrulamadan asla ödendi işaretleme.
+  if (result.basketId !== deal.id || Number(result.paidPrice) !== Number(deal.value)) {
+    console.error("payment-callback deal/amount mismatch:", "deal.id:", deal.id, "basketId:", result.basketId, "paidPrice:", result.paidPrice, "deal.value:", deal.value);
+    return redirect(`${target}?paid=0`);
+  }
+
+  if (!(await claimDealPayment(supabaseAdmin, deal.id))) return redirect(`${target}?paid=1`); // eş zamanlı başka bir istek zaten işledi
+
   const item = result.itemTransactions?.[0];
   const commissionAmount = item ? Number(item.iyziCommissionRateAmount || 0) + Number(item.iyziCommissionFee || 0) : 0;
 
@@ -360,7 +399,9 @@ async function handlePayTRCallback(req, res, supabaseAdmin) {
   }
 
   if (status === "success") {
-    await recordSuccessfulPayment(supabaseAdmin, deal, { provider: "paytr", paytrMerchantOid: merchantOid });
+    if (await claimDealPayment(supabaseAdmin, deal.id)) {
+      await recordSuccessfulPayment(supabaseAdmin, deal, { provider: "paytr", paytrMerchantOid: merchantOid });
+    } // false ise: PayTR'nin "OK" almadan yaptığı tekrar denemesi, zaten işlendi
   }
 
   return respondOk();
@@ -576,6 +617,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       title: deal.title,
       value: deal.value,
+      stage: deal.stage,
       approved: !!deal.approved_at,
       approvedAt: deal.approved_at,
       createdAt: deal.created_at,

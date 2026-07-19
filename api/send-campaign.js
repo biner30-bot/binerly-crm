@@ -1,13 +1,35 @@
+import { createClient } from "@supabase/supabase-js";
 import { renderEmailHtml, plainTextFallback } from "./_email-template.js";
+
+const MAX_RECIPIENTS = 500; // tek seferde bir kampanya için makul bir üst sınır
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  // Bu uç nokta Binerly'nin kendi Resend hesabı/domaini üzerinden e-posta
+  // gönderiyor — kimlik doğrulaması olmadan herkes bunu açık bir mail
+  // aktarıcısı gibi kötüye kullanabilir (spam/phishing, binerly.com'un
+  // gönderim itibarını riske atar). Geçerli bir Binerly oturumu şart.
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
+
+  const supabaseAdmin = createClient(
+    process.env.VITE_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+  const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+  if (userError || !userData?.user) return res.status(401).json({ error: "Unauthorized" });
+
   const { recipients, subject, message, replyTo, companyName, ctaUrl, ctaLabel, logoUrl } = req.body || {};
   if (!Array.isArray(recipients) || recipients.length === 0 || !subject || !message) {
     return res.status(400).json({ error: "Eksik bilgi." });
+  }
+  if (recipients.length > MAX_RECIPIENTS) {
+    return res.status(400).json({ error: `Tek seferde en fazla ${MAX_RECIPIENTS} alıcıya gönderilebilir.` });
   }
 
   const apiKey = process.env.RESEND_API_KEY;
@@ -51,7 +73,8 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({ sent: recipients.length });
-  } catch {
+  } catch (err) {
+    console.error("send-campaign fatal error:", err.message);
     return res.status(500).json({ error: "Gönderim sırasında hata oluştu." });
   }
 }

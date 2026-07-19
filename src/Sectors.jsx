@@ -460,6 +460,13 @@ export function rowToCustomFieldDef(r) {
 
 const AUDIENCE_LABELS = { kurumsal: "Kurumsal", bireysel: "Bireysel" };
 
+// Uygulamanın kendi iç mantığının (portal randevu akışı, kaynak rozetleri vb.)
+// custom_fields JSONB'sinde ayırt edici olarak okuduğu sabit anahtarlar — bir
+// kullanıcı "Kaynak" gibi gayet doğal bir alan adı eklerse slugifyKey aynı
+// anahtarı üretip bu iç işaretle çakışabilir (bkz. proje geçmişindeki "kaynak"
+// çakışma hatası). Elle alan eklerken bu anahtarlar asla üretilmemeli.
+const RESERVED_CUSTOM_FIELD_KEYS = new Set(["kaynak", "portal_randevu_zamani"]);
+
 function slugifyKey(label) {
   const map = { ç: "c", ğ: "g", ı: "i", ö: "o", ş: "s", ü: "u", İ: "i", Ç: "c", Ğ: "g", Ö: "o", Ş: "s", Ü: "u" };
   return label
@@ -569,7 +576,10 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
       return;
     }
     const key = slugifyKey(trimmedLabel);
-    if (!key || activeDefs.some((d) => d.entity === entity && d.key === key)) return;
+    // customFieldDefs (sadece activeDefs değil) kontrol ediliyor — aksi halde başka
+    // bir sektöre etiketlenmiş, şu an gizli (inactive) bir satırla aynı key'e sahip
+    // ikinci bir tanım oluşturulabilir (aynı JSONB anahtarını paylaşan iki kayıt).
+    if (!key || RESERVED_CUSTOM_FIELD_KEYS.has(key) || customFieldDefs.some((d) => d.entity === entity && d.key === key)) return;
     onAdd({
       entity,
       key,

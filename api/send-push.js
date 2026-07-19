@@ -1,5 +1,12 @@
+import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
+
+function secretsMatch(a, b) {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
+}
 
 // Vercel Hobby planındaki 12 serverless function sınırı yüzünden, farklı
 // tablolardaki push bildirimleri ayrı dosyalar yerine burada, Supabase'in
@@ -9,7 +16,7 @@ import webpush from "web-push";
 export default async function handler(req, res) {
   const providedSecret = (req.headers["x-push-secret"] || "").trim();
   const secret = (process.env.PUSH_WEBHOOK_SECRET || "").trim();
-  if (!secret || providedSecret !== secret) {
+  if (!secret || !secretsMatch(providedSecret, secret)) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 

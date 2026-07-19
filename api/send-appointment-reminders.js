@@ -2,12 +2,18 @@ import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
 import { renderEmailHtml, plainTextFallback } from "./_email-template.js";
 
+function secretsMatch(a, b) {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
+}
+
 // GitHub Actions'tan (bkz. .github/workflows/appointment-reminders.yml) her 15
 // dakikada bir tetiklenir — Vercel'in ücretsiz planındaki "cron günde 1 kez"
 // kısıtını aşmak için ayrı bir zamanlayıcı kullanıyoruz, ekstra ücret gerekmiyor.
 export default async function handler(req, res) {
-  const authHeader = req.headers.authorization;
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const authHeader = req.headers.authorization || "";
+  if (!process.env.CRON_SECRET || !secretsMatch(authHeader, `Bearer ${process.env.CRON_SECRET}`)) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
@@ -80,70 +86,78 @@ export default async function handler(req, res) {
     const customerById = Object.fromEntries((customers || []).map((c) => [c.id, c]));
 
     let remindersSent = 0;
-    const remindedIds = [];
-    // Güzellik & Bakım'da "Müzakere" aşaması "Hatırlatma gönderildi" anlamına geliyor
-    // (bkz. Sectors.jsx) — bu sektörde hatırlatma başarıyla gidince deal'i otomatik
-    // oraya taşıyoruz. Diğer sektörlerde "Müzakere" farklı bir şey ifade ettiği için
-    // (örn. gerçek bir pazarlık aşaması) bu otomatik taşıma yapılmıyor.
-    const stageAdvanceIds = [];
 
+    // Her deal'i kendi try/catch'i içinde, gönderim BAŞARILI olur olmaz ANINDA
+    // appointment_reminder_sent_at yazarak işliyoruz — önceden bu tek bir toplu
+    // update ile döngü SONUNDA yapılıyordu, bu yüzden döngü ortasında bir
+    // deal'de beklenmeyen bir hata (örn. fetch reddi) atarsa daha önce başarıyla
+    // gönderilmiş hatırlatmalar hiç işaretlenmiyor, cron 15dk sonra tekrar
+    // çalışınca aynı müşterilere mükerrer hatırlatma mailleri gidiyordu.
     for (const deal of dueDeals) {
-      remindedIds.push(deal.id);
-      const customer = customerById[deal.customer_id];
-      if (!customer?.email) continue;
+      try {
+        const customer = customerById[deal.customer_id];
+        if (!customer?.email) {
+          await supabaseAdmin.from("deals").update({ appointment_reminder_sent_at: new Date().toISOString() }).eq("id", deal.id);
+          continue;
+        }
 
-      const key = (keysByUser[deal.user_id] || []).find((k) => deal.custom_fields?.[k]);
-      const raw = deal.custom_fields?.[key];
-      const timeLabel = raw ? raw.split("T")[1] : "";
-      const settings = settingsByUser[deal.user_id] || {};
-      const company = settings.company_name || "Binerly";
+        const key = (keysByUser[deal.user_id] || []).find((k) => deal.custom_fields?.[k]);
+        const raw = deal.custom_fields?.[key];
+        const timeLabel = raw ? raw.split("T")[1] : "";
+        const settings = settingsByUser[deal.user_id] || {};
+        const company = settings.company_name || "Binerly";
 
-      // Hatırlatma mailinden de tek tıkla onaylanabilsin diye onay linki —
-      // deal-approval.js'deki üretim mantığıyla aynı, token yoksa burada üretilir.
-      let token = deal.approval_token;
-      if (!token) {
-        token = crypto.randomUUID();
-        await supabaseAdmin.from("deals").update({ approval_token: token }).eq("id", deal.id);
+        // Hatırlatma mailinden de tek tıkla onaylanabilsin diye onay linki —
+        // deal-approval.js'deki üretim mantığıyla aynı, token yoksa burada üretilir.
+        let token = deal.approval_token;
+        if (!token) {
+          token = crypto.randomUUID();
+          await supabaseAdmin.from("deals").update({ approval_token: token }).eq("id", deal.id);
+        }
+        const ctaUrl = `https://binerly.com/onay/${token}`;
+
+        const bodyText =
+          `Merhaba ${customer.name || ""},\n\n${company} bünyesindeki "${deal.title}" randevunuz ` +
+          `bugün saat ${timeLabel}'de. Sizi görmekten mutluluk duyarız.`;
+        const footerLines = [`${company} (Binerly ile)`, "Bu e-posta Binerly (binerly.com) altyapısıyla gönderildi."];
+        const html = renderEmailHtml({ logoUrl: settings.logo_url, bodyText, ctaLabel: "Randevuyu Görüntüle", ctaUrl, footerLines });
+        const text = plainTextFallback(bodyText, "Randevuyu Görüntüle", ctaUrl, footerLines);
+
+        const sendRes = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: `${company} (Binerly ile) <noreply@binerly.com>`,
+            to: customer.email,
+            subject: `Randevu hatırlatması — bugün saat ${timeLabel}`,
+            html,
+            text,
+            ...(settings.email ? { reply_to: settings.email } : {}),
+          }),
+        });
+
+        if (sendRes.ok) {
+          remindersSent++;
+          const dealUpdate = { appointment_reminder_sent_at: new Date().toISOString() };
+          // Güzellik & Bakım'da "Müzakere" aşaması "Hatırlatma gönderildi" anlamına
+          // geliyor (bkz. Sectors.jsx) — hatırlatma başarıyla gidince deal'i otomatik
+          // oraya taşıyoruz. Diğer sektörlerde "Müzakere" farklı bir şey ifade ettiği
+          // için (örn. gerçek bir pazarlık aşaması) bu otomatik taşıma yapılmıyor.
+          if (settings.sector === "guzellik_bakim" && deal.stage !== "muzakere") dealUpdate.stage = "muzakere";
+          await supabaseAdmin.from("deals").update(dealUpdate).eq("id", deal.id);
+        } else {
+          console.error("appointment reminder send failed, deal.id:", deal.id, sendRes.status, await sendRes.text().catch(() => ""));
+          // appointment_reminder_sent_at bilinçli olarak YAZILMIYOR — bir sonraki
+          // cron çalışmasında (15dk sonra) tekrar denensin.
+        }
+      } catch (dealErr) {
+        console.error("appointment reminder error, deal.id:", deal.id, dealErr.message);
       }
-      const ctaUrl = `https://binerly.com/onay/${token}`;
-
-      const bodyText =
-        `Merhaba ${customer.name || ""},\n\n${company} bünyesindeki "${deal.title}" randevunuz ` +
-        `bugün saat ${timeLabel}'de. Sizi görmekten mutluluk duyarız.`;
-      const footerLines = [`${company} (Binerly ile)`, "Bu e-posta Binerly (binerly.com) altyapısıyla gönderildi."];
-      const html = renderEmailHtml({ logoUrl: settings.logo_url, bodyText, ctaLabel: "Randevuyu Görüntüle", ctaUrl, footerLines });
-      const text = plainTextFallback(bodyText, "Randevuyu Görüntüle", ctaUrl, footerLines);
-
-      const sendRes = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from: `${company} (Binerly ile) <noreply@binerly.com>`,
-          to: customer.email,
-          subject: `Randevu hatırlatması — bugün saat ${timeLabel}`,
-          html,
-          text,
-          ...(settings.email ? { reply_to: settings.email } : {}),
-        }),
-      });
-      if (sendRes.ok) {
-        remindersSent++;
-        if (settings.sector === "guzellik_bakim" && deal.stage !== "muzakere") stageAdvanceIds.push(deal.id);
-      }
-    }
-
-    if (remindedIds.length > 0) {
-      await supabaseAdmin
-        .from("deals")
-        .update({ appointment_reminder_sent_at: new Date().toISOString() })
-        .in("id", remindedIds);
-    }
-    if (stageAdvanceIds.length > 0) {
-      await supabaseAdmin.from("deals").update({ stage: "muzakere" }).in("id", stageAdvanceIds);
     }
 
     return res.status(200).json({ remindersSent });
-  } catch {
+  } catch (err) {
+    console.error("send-appointment-reminders fatal error:", err.message);
     return res.status(500).json({ error: "Gönderim sırasında hata oluştu." });
   }
 }

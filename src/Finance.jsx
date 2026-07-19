@@ -60,11 +60,16 @@ export function expandExpenseOccurrences(expense, bounds) {
   const hh = original.getHours();
   const mm = original.getMinutes();
   const now = new Date();
+  // KDV raporu gibi bazı ekranlar bounds.end'i geleceğe (örn. henüz gelmemiş bir
+  // ay) ayarlayabiliyor — üretim sınırını sadece "bugün"e kesersek, o gelecek
+  // dönem için tekrarlayan gider (örn. kira) sessizce hiç görünmez ve rapor
+  // eksik/yanlış hesaplanır. Bounds ne kadar ileri istiyorsa oraya kadar üret.
+  const genEnd = bounds.end && bounds.end > now ? bounds.end : now;
   const occurrences = [];
 
   if (expense.recurrenceInterval === "yearly") {
     const month = original.getMonth();
-    for (let year = original.getFullYear(); year <= now.getFullYear(); year++) {
+    for (let year = original.getFullYear(); year <= genEnd.getFullYear(); year++) {
       const daysInMonth = new Date(year, month + 1, 0).getDate();
       const occDate = new Date(year, month, Math.min(day, daysInMonth), hh, mm);
       if (inRange(occDate.toISOString(), bounds)) {
@@ -79,7 +84,7 @@ export function expandExpenseOccurrences(expense, bounds) {
     // dolaşmamak için, aralığın başlangıcından önceki günleri atlıyoruz.
     const startFrom = bounds.start && bounds.start > original ? bounds.start : original;
     let cursor = new Date(startFrom.getFullYear(), startFrom.getMonth(), startFrom.getDate(), hh, mm);
-    const endCursorDaily = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm);
+    const endCursorDaily = new Date(genEnd.getFullYear(), genEnd.getMonth(), genEnd.getDate(), hh, mm);
     while (cursor <= endCursorDaily) {
       if (inRange(cursor.toISOString(), bounds)) {
         const isOriginalDay =
@@ -91,7 +96,7 @@ export function expandExpenseOccurrences(expense, bounds) {
     return occurrences;
   }
 
-  const endCursor = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endCursor = new Date(genEnd.getFullYear(), genEnd.getMonth(), 1);
   let cursor = new Date(original.getFullYear(), original.getMonth(), 1);
   while (cursor <= endCursor) {
     const daysInMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
