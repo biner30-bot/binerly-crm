@@ -342,10 +342,14 @@ async function handlePaymentCallback(req, res, supabaseAdmin, url) {
   // iyzicoToken, tarayıcıdan (istemciden) geliyor ve TEORİK olarak müşterinin
   // kendi başka bir teklifi için aldığı gerçek/geçerli bir token olabilir —
   // retrieve SUCCESS dönse bile bu ödemenin gerçekten dealToken'ın işaret
-  // ettiği TEKLİFE ait olduğunu (basketId/tutar checkout başlatılırken
-  // deal.id/deal.value olarak set edilmişti) doğrulamadan asla ödendi işaretleme.
-  if (result.basketId !== deal.id || Number(result.paidPrice) !== Number(deal.value)) {
-    console.error("payment-callback deal/amount mismatch:", "deal.id:", deal.id, "basketId:", result.basketId, "paidPrice:", result.paidPrice, "deal.value:", deal.value);
+  // ettiği TEKLİFE ait olduğunu doğrulamadan asla ödendi işaretleme. Hem
+  // basketId hem conversationId checkout başlatılırken deal.id olarak
+  // set edilmişti (initIyzicoCheckout) — SDK'nın hangisini/ikisini birden
+  // döndürdüğü net belgelenmediği için ikisinden biri eşleşirse yeterli
+  // sayılıyor (aşırı katı tek-alan kontrolü gerçek ödemeleri de reddedebilir).
+  console.error("payment-callback retrieve debug:", "deal.id:", deal.id, "basketId:", result.basketId, "conversationId:", result.conversationId, "paidPrice:", result.paidPrice, "price:", result.price);
+  if (result.basketId !== deal.id && result.conversationId !== deal.id) {
+    console.error("payment-callback deal mismatch — hiçbir alan deal.id ile eşleşmedi:", "deal.id:", deal.id, "basketId:", result.basketId, "conversationId:", result.conversationId);
     return redirect(`${target}?paid=0`);
   }
 

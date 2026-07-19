@@ -350,7 +350,7 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, sh
         const actionLabel = isCompleted
           ? "Öde"
           : !isApproved
-            ? (d.paymentMode === "required" ? "Öde ve Onayla" : d.paymentMode === "optional" ? "Onayla / Öde" : "Onayla")
+            ? (d.paymentMode === "required" ? "Onayla ve Öde" : d.paymentMode === "optional" ? "Onayla / Öde" : "Onayla")
             : "Öde";
         const showAction = d.approvalToken && (isCompleted ? needsPayment : (!isApproved || needsPayment));
         return (
