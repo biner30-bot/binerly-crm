@@ -88,7 +88,7 @@ export const SECTOR_PRESETS = [
       kazanildi: "Tedavi tamamlandı",
       kaybedildi: "Vazgeçti",
     },
-    tags: ["Yeni hasta", "Kontrol randevusu", "Takip gerekiyor", "Sigortalı", "Acil"],
+    tags: ["Yeni hasta", "Kontrol randevusu", "Takip gerekiyor", "Sigortalı", "Acil", "Gelmedi"],
     customFields: [
       { entity: "customer", key: "randevu_turu", label: "Randevu Türü", type: "select", options: ["Muayene", "Kontrol", "Tedavi", "Danışmanlık"], audience: "bireysel" },
       { entity: "customer", key: "sigorta_durumu", label: "Sigorta/SGK Durumu", type: "select", options: ["Özel sigorta", "SGK", "Sigortasız"], audience: "bireysel" },
@@ -102,7 +102,7 @@ export const SECTOR_PRESETS = [
       teklif: "Tedavi planını ve maliyetini hastaya açıkça anlatın.",
       muzakere: "Randevudan bir gün önce hatırlatma yapmayı unutmayın.",
       kazanildi: "Kontrol randevusu gerekiyorsa hatırlatma ekleyin.",
-      kaybedildi: "Vazgeçme nedenini not alın.",
+      kaybedildi: "Vazgeçme nedenini not alın; hasta randevuya gelmediyse \"Gelmedi\" etiketini ekleyin — Pano'daki oran bunu kullanıyor.",
     },
   },
   {
@@ -196,7 +196,7 @@ export const SECTOR_PRESETS = [
       kazanildi: "Hizmet tamamlandı",
       kaybedildi: "Randevuya gelmedi / iptal",
     },
-    tags: ["Yeni randevu", "Sadık müşteri", "Hatırlatma gerekiyor", "Geldi", "Gelmedi (no-show)"],
+    tags: ["Yeni randevu", "Sadık müşteri", "Hatırlatma gerekiyor", "Geldi", "Gelmedi"],
     customFields: [
       { entity: "deal", key: "hizmet_turu", label: "Hizmet Türü", type: "select", options: ["Manikür/Pedikür", "Saç Kesimi/Boyama", "Lazer Epilasyon", "Cilt Bakımı", "Makyaj", "Diğer"] },
       { entity: "deal", key: "randevu_tarihi", label: "Randevu Tarihi", type: "datetime" },
@@ -208,9 +208,9 @@ export const SECTOR_PRESETS = [
     stageGuides: {
       ilk_gorusme: "Hizmet türünü ve tahmini süreyi netleştirip randevu saatini onaylayın.",
       teklif: "Randevu saatini müşteriye tekrar teyit edin.",
-      muzakere: "Randevudan bir gün önce hatırlatma mesajı/arama yapın — no-show riskini azaltır.",
+      muzakere: "Randevudan bir gün önce hatırlatma mesajı/arama yapın — randevuya gelmeme riskini azaltır.",
       kazanildi: "Paket hizmetse sonraki seans için hatırlatma ekleyin.",
-      kaybedildi: "Müşteri randevuya gelmediyse \"Gelmedi (no-show)\" etiketini ekleyin — Pano'daki oran bunu kullanıyor.",
+      kaybedildi: "Müşteri randevuya gelmediyse \"Gelmedi\" etiketini ekleyin — Pano'daki oran bunu kullanıyor.",
     },
   },
   {

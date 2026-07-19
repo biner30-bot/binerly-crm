@@ -230,7 +230,7 @@ const KB_TEMPLATES_BY_SECTOR = {
       category: "Randevu Politikası",
       content:
         "Randevunuza gelemeyecekseniz en az [X saat] önceden haber vermenizi rica ederiz. " +
-        "[Geç iptal/no-show politikanız varsa burada belirtin].",
+        "[Geç iptal/randevuya gelmeme politikanız varsa burada belirtin].",
     },
     {
       title: "Cilt hassasiyeti/alerjim var, önceden bilgi vermeli miyim?",

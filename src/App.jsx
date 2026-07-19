@@ -264,7 +264,7 @@ const SECTOR_DEMO_PRESETS = {
     ],
     deals: [
       { customerIndex: 0, title: "Lazer Epilasyon Paketi", value: 3500, cost: 0, stage: "kazanildi", customFields: { hizmet_turu: "Lazer Epilasyon", seans_no: 3, hizmet_suresi_dk: 45 } },
-      { customerIndex: 1, title: "Saç Kesimi Randevusu", value: 400, cost: 0, stage: "kaybedildi", tags: ["Gelmedi (no-show)"], customFields: { hizmet_turu: "Saç Kesimi/Boyama" } },
+      { customerIndex: 1, title: "Saç Kesimi Randevusu", value: 400, cost: 0, stage: "kaybedildi", tags: ["Gelmedi"], customFields: { hizmet_turu: "Saç Kesimi/Boyama" } },
       { customerIndex: 0, title: "Cilt Bakımı Randevusu", value: 800, cost: 0, stage: "muzakere", reminderToday: true, reminder: "Randevu hatırlatması yap", customFields: { hizmet_turu: "Cilt Bakımı" } },
     ],
   },
@@ -5512,11 +5512,13 @@ export default function App() {
   const rangeBounds = getRangeBounds(panoRange);
   const wonDeals = wonDealsAll.filter((d) => inRange(d.closedAt || d.createdAt, rangeBounds));
   const lostDeals = lostDealsAll.filter((d) => inRange(d.closedAt || d.createdAt, rangeBounds));
-  // Randevu sektörlerinde (Güzellik & Bakım, Sağlık/Klinik) "Gelmedi (no-show)"
-  // etiketi zaten önerilen etiketler arasında var — burada sadece bu etiketin
+  // Randevu sektörlerinde (Güzellik & Bakım, Sağlık/Klinik) "Gelmedi" etiketi
+  // zaten önerilen etiketler arasında var — burada sadece bu etiketin
   // kaybedilen randevulardaki oranını hesaplıyoruz, yeni bir alan gerekmiyor.
+  // "Gelmedi (no-show)" etiketi Türkçeleştirilmeden önce eklenmiş kayıtlar da
+  // sayılmaya devam etsin diye eski etiket string'i de kabul ediliyor.
   const noShowRate = isAppointmentSector(companySettings?.sector) && wonDeals.length + lostDeals.length > 0
-    ? Math.round((lostDeals.filter((d) => d.tags?.includes("Gelmedi (no-show)")).length / (wonDeals.length + lostDeals.length)) * 100)
+    ? Math.round((lostDeals.filter((d) => d.tags?.includes("Gelmedi") || d.tags?.includes("Gelmedi (no-show)")).length / (wonDeals.length + lostDeals.length)) * 100)
     : null;
   // Sanayi Esnafı'nda kazanılan işlerin ortalama tamamlanma süresi (gün) —
   // müşteriye "genelde ne kadar sürer" sorusuna somut bir cevap verir.
