@@ -4349,6 +4349,15 @@ export default function App() {
     });
   }, [activeTeamId]);
 
+  // Açılış sayfasındaki "#ozellikler" gibi demir bağlantılardan giriş yapılınca
+  // hash URL'de kalıp uygulama içinde sekme değiştirse bile hiç temizlenmiyordu
+  // (sekmeler URL değil state ile yönetiliyor) — oturum açılınca bir kere temizle.
+  useEffect(() => {
+    if (session && window.location.hash) {
+      window.history.replaceState({}, "", window.location.pathname + window.location.search);
+    }
+  }, [session]);
+
   // Push bildirimi tıklanınca gelen ?tab= derin bağlantısı (randevu bildirimleri
   // gibi veri yüklenmesini beklemesi gerekmeyen durumlar için) — sayfa açılır
   // açılmaz bir kere işlenir, sonra URL'den temizlenir.
@@ -5103,6 +5112,7 @@ export default function App() {
     // dropdown) ile aynı davranış, çünkü kullanıcı durumu iki farklı yerden
     // değiştirebiliyor.
     if (TERMINAL_STATUSES.includes(ticket.status) && previousStatus !== ticket.status) {
+      markMessagesRead(ticket.id, "gelen");
       const customer = customers.find((c) => c.id === ticket.customerId);
       const company = companySettings?.companyName || "Binerly";
       const statusLabel = STATUSES.find((s) => s.id === ticket.status)?.label || ticket.status;
@@ -5141,6 +5151,7 @@ export default function App() {
       // geçişinde e-posta atmak hem müşteriyi gereksiz meşgul eder hem de
       // Resend'in günlük gönderim limitini gereksiz yere tüketir.
       if (TERMINAL_STATUSES.includes(status)) {
+        markMessagesRead(id, "gelen");
         const customer = customers.find((c) => c.id === previous?.customerId);
         const company = companySettings?.companyName || "Binerly";
         const statusLabel = STATUSES.find((s) => s.id === status)?.label || status;
