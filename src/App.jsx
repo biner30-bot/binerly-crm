@@ -250,7 +250,33 @@ function rowToPaymentCredential(r) {
   };
 }
 
-const LOST_REASONS = ["Yüksek fiyat", "Rakip tercih edildi", "Bütçe yok", "Zamanlama uymadı", "Vazgeçti", "Diğer"];
+function rowToAttachment(r) {
+  return {
+    id: r.id,
+    userId: r.user_id,
+    entityType: r.entity_type,
+    entityId: r.entity_id,
+    fileName: r.file_name,
+    storagePath: r.storage_path,
+    fileSize: r.file_size || 0,
+    contentType: r.content_type || "",
+    uploadedBy: r.uploaded_by || "",
+    createdAt: r.created_at,
+    deletedAt: r.deleted_at || null,
+    deletedBatchId: r.deleted_batch_id || null,
+  };
+}
+
+function formatFileSize(bytes) {
+  if (!bytes) return "0 KB";
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+const BLOCKED_ATTACHMENT_EXTENSIONS = [".exe", ".bat", ".cmd", ".sh", ".msi", ".jar", ".app"];
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
+
+const LOST_REASONS =["Yüksek fiyat", "Rakip tercih edildi", "Bütçe yok", "Zamanlama uymadı", "Vazgeçti", "Diğer"];
 // Randevu sektörlerinde (Güzellik & Bakım, Sağlık/Klinik) "kaybedildi" hemen
 // hemen hep ya "randevuya gelmedi" ya "iptal etti" demek — genel satış
 // nedenleri ("Yüksek fiyat", "Rakip tercih edildi" vb.) burada anlamsız
@@ -895,7 +921,7 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
   );
 }
 
-function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], appointmentDateTimeKey = null, customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, onSave, onCancel }) {
+function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], appointmentDateTimeKey = null, customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(
     initial?.customerId || customers.find((c) => c.customerType === preferredCustomerType)?.id || customers[0]?.id || ""
   );
@@ -1341,6 +1367,16 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
         <TagInput tags={tags} onChange={setTags} suggestions={sectorTags} />
       </div>
       <CustomFieldsSection defs={defsForEntity} values={customFields} onChange={setCustomFields} />
+      {initial?.id && (
+        <AttachmentList
+          entityType="deals"
+          entityId={initial.id}
+          attachments={attachments}
+          onUpload={onUploadAttachment}
+          onDownload={onDownloadAttachment}
+          onDelete={onDeleteAttachment}
+        />
+      )}
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button type="button" onClick={onCancel}>Vazgeç</button>
         <button type="submit" disabled={customers.length === 0} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
@@ -1576,13 +1612,61 @@ function DealPayments({ deal, payments, sector, onAddPayment, onUpdatePayment, o
   );
 }
 
+function AttachmentList({ entityType, entityId, attachments, onUpload, onDownload, onDelete }) {
+  const [uploading, setUploading] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const items = attachments.filter((a) => a.entityType === entityType && a.entityId === entityId);
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    await onUpload(entityType, entityId, file);
+    setUploading(false);
+  };
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Dosyalar</label>
+      {items.length === 0 && <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 6px" }}>Henüz dosya eklenmedi.</p>}
+      {items.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+          {items.map((a) => (
+            <div key={a.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12.5, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "6px 10px" }}>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.fileName} <span style={{ color: "var(--text-muted)" }}>· {formatFileSize(a.fileSize)}</span></span>
+              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                <button type="button" onClick={() => onDownload(a)} style={{ fontSize: 12 }}>İndir</button>
+                <button type="button" onClick={() => setConfirmDeleteId(a.id)} style={{ fontSize: 12, color: "var(--text-danger)" }}>Sil</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <label style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "6px 12px", fontSize: 12.5, cursor: uploading ? "default" : "pointer", display: "inline-block" }}>
+        {uploading ? "Yükleniyor…" : "+ Dosya Ekle"}
+        <input type="file" onChange={handleFile} disabled={uploading} style={{ display: "none" }} />
+      </label>
+      <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "4px 0 0" }}>En fazla 10 MB.</p>
+      {confirmDeleteId && (
+        <ConfirmDialog
+          title="Dosya silinsin mi?"
+          message="Bu dosya çöp kutusuna taşınır."
+          onConfirm={() => { onDelete(confirmDeleteId); setConfirmDeleteId(null); }}
+          onClose={() => setConfirmDeleteId(null)}
+        />
+      )}
+    </div>
+  );
+}
+
 function activityDateLabel(dateStr) {
   const d = new Date(dateStr);
   return d.toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" }) +
     " · " + d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 }
 
-function CustomerDetail({ customer, deals, payments, activities, sector, customFieldDefs = [], groupClasses = [], groupClassEnrollments = [], onAddActivity, onClose }) {
+function CustomerDetail({ customer, deals, payments, activities, sector, customFieldDefs = [], groupClasses = [], groupClassEnrollments = [], attachments = [], onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onAddActivity, onClose }) {
   const [type, setType] = useState("note");
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
@@ -1672,6 +1756,16 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
             </div>
           </div>
         )}
+        <div style={{ marginTop: 12 }}>
+          <AttachmentList
+            entityType="customers"
+            entityId={customer.id}
+            attachments={attachments}
+            onUpload={onUploadAttachment}
+            onDownload={onDownloadAttachment}
+            onDelete={onDeleteAttachment}
+          />
+        </div>
       </div>
 
       {customerDeals.length > 0 && (
@@ -2708,6 +2802,7 @@ const TRASH_TABLE_LABELS = {
   tickets: "Talep",
   kb_articles: "Makale",
   group_classes: "Ders",
+  attachments: "Dosya",
 };
 
 function TrashHistoryModal({ notify, onRestore, onClose, activeTeamId, session, teamMembers }) {
@@ -2723,7 +2818,7 @@ function TrashHistoryModal({ notify, onRestore, onClose, activeTeamId, session, 
 
   const load = async () => {
     setLoading(true);
-    const [{ data: c }, { data: d }, { data: pay }, { data: exp }, { data: t }, { data: kb }, { data: gc }, { data: log }] = await Promise.all([
+    const [{ data: c }, { data: d }, { data: pay }, { data: exp }, { data: t }, { data: kb }, { data: gc }, { data: log }, { data: att }] = await Promise.all([
       supabase.from("customers").select("id,name,user_id,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
       supabase.from("deals").select("id,title,user_id,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
       supabase.from("payments").select("id,amount,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
@@ -2732,6 +2827,7 @@ function TrashHistoryModal({ notify, onRestore, onClose, activeTeamId, session, 
       supabase.from("kb_articles").select("id,title,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
       supabase.from("group_classes").select("id,name,user_id,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
       supabase.from("audit_log").select("*").order("created_at", { ascending: false }).limit(200),
+      supabase.from("attachments").select("id,file_name,user_id,deleted_at,deleted_batch_id").not("deleted_at", "is", null),
     ]);
 
     // customers/deals RLS'i portal kullanıcıları için de eşleşebildiğinden (bkz.
@@ -2744,6 +2840,7 @@ function TrashHistoryModal({ notify, onRestore, onClose, activeTeamId, session, 
       ...(t || []).map((r) => ({ table: "tickets", label: r.subject, ...r })),
       ...(kb || []).map((r) => ({ table: "kb_articles", label: r.title, ...r })),
       ...(gc || []).filter((r) => r.user_id === activeTeamId).map((r) => ({ table: "group_classes", label: r.name, ...r })),
+      ...(att || []).filter((r) => r.user_id === activeTeamId).map((r) => ({ table: "attachments", label: r.file_name, ...r })),
     ];
 
     const groups = {};
@@ -4111,6 +4208,7 @@ export default function App() {
   const [companyExpenses, setCompanyExpenses] = useState([]);
   const [channelCredentials, setChannelCredentials] = useState([]);
   const [paymentCredentials, setPaymentCredentials] = useState([]);
+  const [attachments, setAttachments] = useState([]);
   const [channelMessages, setChannelMessages] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [ticketMessages, setTicketMessages] = useState([]);
@@ -4222,7 +4320,7 @@ export default function App() {
   useEffect(() => {
     if (!session) {
       setCustomers([]); setDeals([]); setActivities([]); setPayments([]); setCompanyExpenses([]);
-      setChannelCredentials([]); setPaymentCredentials([]); setChannelMessages([]);
+      setChannelCredentials([]); setPaymentCredentials([]); setAttachments([]); setChannelMessages([]);
       setTickets([]); setTicketMessages([]); setKbArticles([]);
       setCompanySettings(null);
       setCustomFieldDefs([]);
@@ -4244,6 +4342,7 @@ export default function App() {
       supabase.from("company_expenses").select("*").is("deleted_at", null).order("expense_date"),
       supabase.from("channel_credentials").select("id, user_id, channel, external_id, display_name, connected_at"),
       supabase.from("payment_credentials").select("id, user_id, provider, sandbox, connected_at"),
+      supabase.from("attachments").select("*").is("deleted_at", null).order("created_at", { ascending: false }),
       supabase.from("channel_messages").select("*").order("created_at", { ascending: false }).limit(500),
       supabase.from("tickets").select("*").is("deleted_at", null).order("created_at"),
       supabase.from("ticket_messages").select("*").order("created_at"),
@@ -4258,7 +4357,7 @@ export default function App() {
       supabase.from("deal_line_items").select("*").order("sort_order"),
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: bh }, { data: pdft }, { data: dli }, { data: myMembership }, { data: invites }]) => {
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: bh }, { data: pdft }, { data: dli }, { data: myMembership }, { data: invites }]) => {
       // customers/deals/company_settings RLS'i, sahiplik politikasına ek olarak
       // portal kullanıcılarının kendi bağlı oldukları kayıtları görmesine izin
       // veren bir politikayla da "veya" ile birleşiyor (customer_*_view'ların
@@ -4274,6 +4373,7 @@ export default function App() {
       setCompanyExpenses((exp || []).map(rowToCompanyExpense));
       setChannelCredentials((cred || []).map(rowToChannelCredential));
       setPaymentCredentials((payCred || []).map(rowToPaymentCredential));
+      setAttachments((att || []).filter((row) => row.user_id === ownerId).map(rowToAttachment));
       setChannelMessages((chMsg || []).map(rowToChannelMessage));
       setTickets((t || []).map(rowToTicket));
       setTicketMessages((tm || []).map(rowToTicketMessage));
@@ -4607,6 +4707,10 @@ export default function App() {
     // desen — hard delete) — yoksa "hayalet" kayıt kontenjanı işgal etmeye
     // devam eder, ders geri geldiğinde müşteri zaten silinmiş olur.
     await supabase.from("group_class_enrollments").delete().eq("customer_id", id);
+    await supabase.from("attachments").update({ deleted_at: now, deleted_batch_id: batchId }).eq("entity_type", "customers").eq("entity_id", id);
+    if (dealIds.length > 0) {
+      await supabase.from("attachments").update({ deleted_at: now, deleted_batch_id: batchId }).eq("entity_type", "deals").in("entity_id", dealIds);
+    }
 
     const ticketIds = customerTickets.map((t) => t.id);
     setCustomers((prev) => prev.filter((c) => c.id !== id));
@@ -4615,6 +4719,7 @@ export default function App() {
     setTicketMessages((prev) => prev.filter((m) => !ticketIds.includes(m.ticketId)));
     setPayments((prev) => prev.filter((p) => !dealIds.includes(p.dealId)));
     setGroupClassEnrollments((prev) => prev.filter((e) => e.customerId !== id));
+    setAttachments((prev) => prev.filter((att) => !(att.entityType === "customers" && att.entityId === id) && !(att.entityType === "deals" && dealIds.includes(att.entityId))));
 
     logAction("customers", id, "deleted", `${customer?.name || "Müşteri"} çöp kutusuna taşındı`);
     customerDeals.forEach((d) => logAction("deals", d.id, "deleted", `${d.title} (${DEAL_WORD_FORMS[dealWordKind(companySettings?.sector)].bare}) çöp kutusuna taşındı`));
@@ -4763,8 +4868,10 @@ export default function App() {
       .update({ deleted_at: now, deleted_batch_id: batchId })
       .eq("id", id);
     if (error) { notify(`${DEAL_TAB_STRINGS[dealWordKind(companySettings?.sector)].columnHeader} silinemedi: ${error.message}`); return; }
+    await supabase.from("attachments").update({ deleted_at: now, deleted_batch_id: batchId }).eq("entity_type", "deals").eq("entity_id", id);
     setDeals((prev) => prev.filter((d) => d.id !== id));
     setPayments((prev) => prev.filter((p) => p.dealId !== id));
+    setAttachments((prev) => prev.filter((att) => !(att.entityType === "deals" && att.entityId === id)));
     logAction("deals", id, "deleted", `${deal?.title || DEAL_TAB_STRINGS[dealWordKind(companySettings?.sector)].columnHeader} çöp kutusuna taşındı`);
     dealPayments.forEach((p) => logAction("payments", p.id, "deleted", `${formatTL(p.amount)} tahsilat çöp kutusuna taşındı`));
   };
@@ -4952,6 +5059,52 @@ export default function App() {
     const { error } = await supabase.from("payment_credentials").delete().eq("user_id", activeTeamId).eq("provider", provider);
     if (error) { notify(`Bağlantı kaldırılamadı: ${error.message}`); return; }
     setPaymentCredentials((prev) => prev.filter((pc) => pc.provider !== provider));
+  };
+
+  const uploadAttachment = async (entityType, entityId, file) => {
+    if (!file) return;
+    if (file.size > MAX_ATTACHMENT_SIZE) { notify("Dosya en fazla 10 MB olabilir."); return; }
+    const lowerName = file.name.toLowerCase();
+    if (BLOCKED_ATTACHMENT_EXTENSIONS.some((ext) => lowerName.endsWith(ext))) {
+      notify("Bu dosya türü güvenlik nedeniyle yüklenemiyor.");
+      return;
+    }
+    const safeFileName = file.name.replace(/[^\w.\-]+/g, "_");
+    const path = `${activeTeamId}/${entityType}/${entityId}/${uid()}-${safeFileName}`;
+    const { error: uploadError } = await supabase.storage.from("attachments").upload(path, file);
+    if (uploadError) { notify(`Dosya yüklenemedi: ${uploadError.message}`); return; }
+    const row = {
+      user_id: activeTeamId,
+      entity_type: entityType,
+      entity_id: entityId,
+      file_name: file.name,
+      storage_path: path,
+      file_size: file.size,
+      content_type: file.type || "",
+      uploaded_by: session?.user?.email || "",
+    };
+    const { data, error } = await supabase.from("attachments").insert(row).select().single();
+    if (error) { notify(`Dosya kaydedilemedi: ${error.message}`); return; }
+    setAttachments((prev) => [rowToAttachment(data), ...prev]);
+    logAction(entityType, entityId, "updated", `"${file.name}" dosyası eklendi`);
+  };
+
+  const downloadAttachment = async (attachment) => {
+    const { data, error } = await supabase.storage.from("attachments").createSignedUrl(attachment.storagePath, 60);
+    if (error || !data?.signedUrl) { notify(`Dosya indirilemedi: ${error?.message || ""}`); return; }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const deleteAttachment = async (id) => {
+    const attachment = attachments.find((a) => a.id === id);
+    const batchId = uid();
+    const { error } = await supabase
+      .from("attachments")
+      .update({ deleted_at: new Date().toISOString(), deleted_batch_id: batchId })
+      .eq("id", id);
+    if (error) { notify(`Dosya silinemedi: ${error.message}`); return; }
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+    logAction(attachment?.entityType || "customers", attachment?.entityId, "deleted", `"${attachment?.fileName || "Dosya"}" çöp kutusuna taşındı`);
   };
 
   const refreshChannelMessages = async () => {
@@ -5252,6 +5405,7 @@ export default function App() {
       { name: "tickets", setter: setTickets, map: rowToTicket, label: (r) => r.subject },
       { name: "kb_articles", setter: setKbArticles, map: rowToKbArticle, label: (r) => r.title },
       { name: "group_classes", setter: setGroupClasses, map: rowToGroupClass, label: (r) => r.name },
+      { name: "attachments", setter: setAttachments, map: rowToAttachment, label: (r) => r.file_name },
     ];
     let anyError = null;
     let restoredTicketIds = [];
@@ -7381,6 +7535,10 @@ export default function App() {
             initialLineItems={editingDeal ? dealLineItems.filter((li) => li.dealId === editingDeal.id) : []}
             hasPaymentConnection={paymentCredentials.length > 0}
             totalPaid={editingDeal ? totalPaidForDeal(editingDeal.id) : 0}
+            attachments={attachments}
+            onUploadAttachment={uploadAttachment}
+            onDownloadAttachment={downloadAttachment}
+            onDeleteAttachment={deleteAttachment}
             onSave={upsertDeal}
             onCancel={() => { setShowDealForm(false); setEditingDeal(null); }}
           />
@@ -7458,6 +7616,10 @@ export default function App() {
           customFieldDefs={customFieldDefs}
           groupClasses={groupClasses}
           groupClassEnrollments={groupClassEnrollments}
+          attachments={attachments}
+          onUploadAttachment={uploadAttachment}
+          onDownloadAttachment={downloadAttachment}
+          onDeleteAttachment={deleteAttachment}
           onAddActivity={addActivity}
           onClose={() => setViewingCustomer(null)}
         />
