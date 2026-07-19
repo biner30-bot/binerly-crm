@@ -565,6 +565,8 @@ export function NotificationBell({ userId, supabase, dataTour }) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [unreadOnly, setUnreadOnly] = useState(false);
   const containerRef = useRef(null);
 
   const load = async () => {
@@ -594,6 +596,12 @@ export function NotificationBell({ userId, supabase, dataTour }) {
   }, [open]);
 
   const unreadCount = notifications.filter((n) => !n.read_at).length;
+  const query = search.trim().toLowerCase();
+  const filteredNotifications = notifications.filter((n) => {
+    if (unreadOnly && n.read_at) return false;
+    if (query && !n.title?.toLowerCase().includes(query) && !n.body?.toLowerCase().includes(query)) return false;
+    return true;
+  });
 
   const openBell = () => {
     setOpen((prev) => !prev);
@@ -648,12 +656,28 @@ export function NotificationBell({ userId, supabase, dataTour }) {
               </button>
             )}
           </div>
+          {notifications.length > 0 && (
+            <div style={{ display: "flex", gap: 6, alignItems: "center", padding: "8px 12px", borderBottom: "0.5px solid var(--border)" }}>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Bildirimlerde ara..."
+                style={{ flex: 1, fontSize: 12, padding: "5px 8px" }}
+              />
+              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--text-secondary)", cursor: "pointer", whiteSpace: "nowrap" }}>
+                <input type="checkbox" checked={unreadOnly} onChange={(e) => setUnreadOnly(e.target.checked)} />
+                Okunmamış
+              </label>
+            </div>
+          )}
           {loading ? (
             <p style={{ fontSize: 13, color: "var(--text-secondary)", padding: 16, margin: 0 }}>Yükleniyor…</p>
           ) : notifications.length === 0 ? (
             <p style={{ fontSize: 13, color: "var(--text-muted)", padding: 16, margin: 0 }}>Henüz bildiriminiz yok.</p>
+          ) : filteredNotifications.length === 0 ? (
+            <p style={{ fontSize: 13, color: "var(--text-muted)", padding: 16, margin: 0 }}>Aramayla eşleşen bildirim yok.</p>
           ) : (
-            notifications.map((n) => (
+            filteredNotifications.map((n) => (
               <div
                 key={n.id}
                 onClick={() => openNotification(n)}

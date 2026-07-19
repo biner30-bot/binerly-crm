@@ -385,23 +385,67 @@ const SECTOR_DEMO_PRESETS = {
 // hızla değişirken bakım yükü yaratacak kapsamlı bir dokümantasyon merkezi
 // değil, düşük bakımlı bir başvuru kaynağı olmak.
 const HELP_TOPICS = [
-  { q: "Yeni müşteri nasıl eklerim?", a: "Müşteriler sekmesine gidip \"+ Müşteri ekle\" butonuna tıklayın. Ad/firma adı zorunlu, geri kalan alanlar opsiyoneldir." },
-  { q: "Teklif/randevu/üyelik nasıl oluşturulur?", a: "Müşteri Takibi sekmesinden \"+ Ekle\" ile yeni bir kayıt açın; önce bir müşteri seçilmiş olmalı. Aşama değiştikçe kayıt otomatik ilerler." },
-  { q: "Müşteriden online ödeme nasıl alınır?", a: "Ayarlar → Ödeme Bağlantısı'ndan iyzico veya PayTR hesabınızı bağlayın. Sonra bir kaydı düzenlerken \"Müşteri ödemesi\" alanından onay linkine ödeme ekleyebilirsiniz." },
-  { q: "Sektörümü nasıl değiştiririm?", a: "Ayarlar → Sektör & Özel Alanlar'dan istediğiniz zaman değiştirebilirsiniz — aşama isimleri, önerilen etiketler ve özel alanlar otomatik güncellenir." },
-  { q: "Takıma nasıl üye davet ederim?", a: "Ayarlar → Takım'dan e-posta ile davet gönderebilirsiniz. Davet edilen kişi hesabı kabul edince tüm müşteri/kayıt verilerinizi görüp düzenleyebilir." },
-  { q: "Örnek verilerle nasıl başlarım?", a: "Pano boşken görünen \"Örnek verilerle başla\" butonuyla birkaç örnek müşteri ve kayıt oluşturabilirsiniz — istediğiniz zaman silinebilir, gerçek verilerinizi etkilemez." },
-  { q: "Yanlışlıkla sildiğim bir kaydı nasıl geri getiririm?", a: "Ayarlar → Çöp Kutusu ve Geçmiş'ten silinen müşteri/teklif/tahsilat kayıtlarını geri yükleyebilirsiniz." },
-  { q: "Teklif onay linkini müşteriyle nasıl paylaşırım?", a: "İlgili kaydı açıp onay linkini kopyalayın, müşteriye WhatsApp/e-posta ile gönderin. Müşteri linke tıklayıp onaylayabilir, ayarladıysanız ödeme de yapabilir." },
-  { q: "Müşterilerim kendi bilgilerini nasıl görebilir?", a: "Ayarlar → Müşteri Kazanma Linki'nden paylaşacağınız linkle müşteriniz kendi portalına kaydolup tekliflerini/randevularını görebilir." },
+  // Müşteriler & Kayıtlar
+  { category: "Müşteriler & Kayıtlar", q: "Yeni müşteri nasıl eklerim?", a: "Müşteriler sekmesine gidip \"+ Müşteri ekle\" butonuna tıklayın. Ad/firma adı zorunlu, geri kalan alanlar opsiyoneldir." },
+  { category: "Müşteriler & Kayıtlar", q: "Teklif/randevu/üyelik nasıl oluşturulur?", a: "Müşteri Takibi sekmesinden \"+ Ekle\" ile yeni bir kayıt açın; önce bir müşteri seçilmiş olmalı. Aşama değiştikçe kayıt otomatik ilerler." },
+  { category: "Müşteriler & Kayıtlar", q: "Müşteri Kazanma Linki nedir?", a: "Ayarlar → Müşteri Kazanma Linki'nden aldığınız linki (veya QR kodunu) paylaşırsanız, müşteri kendi bilgilerini doldurup sisteminize düşer — elle veri girmenize gerek kalmaz." },
+  { category: "Müşteriler & Kayıtlar", q: "Yanlışlıkla sildiğim bir kaydı nasıl geri getiririm?", a: "Ayarlar → Çöp Kutusu ve Geçmiş'ten silinen müşteri/teklif/tahsilat kayıtlarını geri yükleyebilirsiniz. Hiçbir şey otomatik olarak kalıcı silinmez." },
+  { category: "Müşteriler & Kayıtlar", q: "Müşteri/teklif listemi Excel'e nasıl aktarırım?", a: "İlgili sekmenin üstündeki \"Dışa Aktar\" butonuyla .xlsx dosyası indirebilirsiniz. Aynı ekranlarda \"İçe Aktar\" ile de toplu veri yükleyebilirsiniz (CSV/Excel/vCard)." },
+  { category: "Müşteriler & Kayıtlar", q: "Word tablosundaki veya WhatsApp kişilerimdeki müşterileri nasıl aktarırım?", a: "Word tablonuzu Excel'e kopyalayıp CSV olarak kaydedin, sonra İçe Aktar'dan yükleyin. WhatsApp'ın kendi kişi dışa aktarma özelliği yok — telefonunuzun Kişiler uygulamasından vCard (.vcf) alıp İçe Aktar'a yükleyebilirsiniz." },
+
+  // Ödeme & Faturalama
+  { category: "Ödeme & Faturalama", q: "Müşteriden online ödeme nasıl alınır?", a: "Ayarlar → Ödeme Bağlantısı'ndan iyzico veya PayTR hesabınızı bağlayın. Sonra bir kaydı düzenlerken \"Müşteri ödemesi\" alanından onay linkine ödeme ekleyebilirsiniz." },
+  { category: "Ödeme & Faturalama", q: "Aldığım bir ödemeyi iade etmem gerekirse ne yapmalıyım?", a: "Finans sekmesinden ilgili tahsilatı bulup iade işlemini başlatın — gerçek iyzico/PayTR iade API'si çağrılır, tutar müşterinin kartına geri döner, sisteminizde de otomatik düşülür." },
+  { category: "Ödeme & Faturalama", q: "Paraşüt'e fatura nasıl aktarırım?", a: "Müşteri Takibi'nde \"Kazanıldı\" durumundaki kayıtlardan seçtiklerinizi \"Paraşüt'e Aktar\"dan indirin — Paraşüt'ün toplu fatura şablonuyla birebir uyumlu bir Excel dosyası iner, doğrudan içe aktarabilirsiniz." },
+  { category: "Ödeme & Faturalama", q: "KDV oranını nasıl değiştiririm?", a: "Her teklifte ayrı ayrı seçebilirsiniz; varsayılan oranı Ayarlar → İşletme Bilgileri'nden belirleyebilirsiniz, yeni tekliflerde otomatik gelir." },
+
+  // Finans
+  { category: "Finans", q: "Gelir-Gider Defteri ne işe yarar?", a: "Finans sekmesindeki bu liste, tüm tahsilatlarınızı ve giderlerinizi (kazanılan tekliflerin maliyeti dahil) tek yerde, kategoriye göre gösterir — net kâr/zarar durumunuzu anlık görürsünüz." },
+  { category: "Finans", q: "KDV Özet Raporu nasıl okunur?", a: "Seçtiğiniz ay için Satış KDV'si (tahsil ettiğiniz) ile Alış KDV'si (ödediğiniz giderler) karşılaştırılır, Ödenecek/Devreden KDV otomatik hesaplanır. Muhasebecinize göstermeden önce kendi kayıtlarınızla karşılaştırmanız önerilir." },
+  { category: "Finans", q: "Her ay tekrar eden bir gideri (kira, abonelik) her seferinde elden mi gireceğim?", a: "Hayır — gider eklerken \"Tekrarlayan\" seçip günlük/aylık/yıllık aralığını belirtin, sistem her dönem için otomatik hesaplar, yeniden girmenize gerek kalmaz." },
+
+  // Randevu & Program
+  { category: "Randevu & Program", q: "Randevularım sekmesi ne işe yarar?", a: "Randevu alınabilen sektörlerde, Bugün/Bu Hafta/Bu Ay filtreleriyle tüm randevularınızı saatine göre sıralı tek listede gösterir — arama ve aşama filtresi de var.", visibleIf: (sector) => supportsSelfBooking(sector) },
+  { category: "Randevu & Program", q: "Müşterilerimin portaldan randevu alabileceği saatleri nasıl belirlerim?", a: "Ayarlar → Müsaitlik Saatleri'nden hangi gün hangi saatler arası, kaçar dakikalık aralıklarla randevu verebileceğinizi tanımlarsınız — müşteri portalı sadece bu saatleri boş gösterir.", visibleIf: (sector) => supportsSelfBooking(sector) },
+  { category: "Randevu & Program", q: "Randevu hatırlatması otomatik mi gidiyor?", a: "Evet, randevu saatinden yaklaşık 2 saat önce müşteriye otomatik hatırlatma e-postası gider. Ayarlar → İşletme Bilgileri'nden bu özelliği kapatabilirsiniz.", visibleIf: (sector) => supportsSelfBooking(sector) },
+  { category: "Randevu & Program", q: "Bir randevuyu \"gelmedi\" mi \"iptal\" mi olarak işaretlemeliyim?", a: "Aşamayı \"kaybedildi\"ye çektiğinizde size sorulur — müşteri habersiz gelmediyse \"Randevuya gelmedi\", önceden haber verip iptal ettiyse \"İptal etti\" seçin. Bu ayrım Pano'daki \"Gelmeme oranı\" metriğini doğru hesaplamak için önemlidir.", visibleIf: (sector) => isAppointmentSector(sector) },
+  { category: "Randevu & Program", q: "Grup dersi / haftalık program nasıl oluştururum?", a: "Spor Merkezi ve Eğitim/Kurs Merkezi sektörlerinde \"Dersler\" sekmesinden haftalık program, kapasite ve eğitmen bilgisiyle ders tanımlayabilirsiniz — müşteriler portaldan kendi kaydolup iptal edebilir.", visibleIf: (sector) => supportsGroupClasses(sector) },
+
+  // Destek & Bilgi Bankası
+  { category: "Destek & Bilgi Bankası", q: "Müşteri destek talebini nasıl açar?", a: "Müşteri kendi portalından (Müşteri Kazanma Linki veya davet ettiğiniz portal linkiyle giriş yaparak) yeni talep oluşturur; siz Destek sekmesinden yanıtlarsınız." },
+  { category: "Destek & Bilgi Bankası", q: "SLA (yanıt süresi hedefi) nasıl hesaplanıyor?", a: "Her destek talebinin önceliğine (düşük/orta/yüksek/acil) göre otomatik bir hedef yanıt süresi belirlenir, süre yaklaşınca/aşılınca talep listesinde ve Pano'da uyarı çıkar." },
+  { category: "Destek & Bilgi Bankası", q: "Destek talebine müşterinin görmemesi gereken bir not nasıl eklerim?", a: "Yanıt yazarken \"Dahili not\" kutucuğunu işaretleyin — bu not sadece siz ve takımınız tarafından görülür, müşteri portalında hiç görünmez." },
+  { category: "Destek & Bilgi Bankası", q: "Bilgi Bankası'na nasıl makale eklerim?", a: "Destek → Bilgi Bankası'ndan \"+ Makale ekle\" ile kendi yazınızı ekleyebilir, ya da \"Örnek şablonlar\"dan (Kargo, Fatura, İade, Destek takibi vb.) hazır bir taslağı tek tıkla açıp düzenleyebilirsiniz." },
+
+  // Takım
+  { category: "Takım", q: "Takıma nasıl üye davet ederim?", a: "Ayarlar → Takım'dan e-posta ile davet gönderebilirsiniz. Davet edilen kişi hesabı kabul edince tüm müşteri/kayıt verilerinizi görüp düzenleyebilir." },
+  { category: "Takım", q: "Takım üyesinin yetkilerini sınırlayabilir miyim?", a: "Şu an tek ayrım var: bir üyeye İşletme Bilgileri/Sektör gibi ayarları düzenleme izni verip vermeyeceğinizi Takım ekranından belirleyebilirsiniz. Müşteri/teklif verisi tüm üyelere paylaşılı görünür." },
+
+  // Bildirimler & İletişim
+  { category: "Bildirimler & İletişim", q: "Müşterilerim kendi bilgilerini/randevularını nasıl görebilir?", a: "Ayarlar → Müşteri Kazanma Linki'nden paylaşacağınız linkle müşteriniz kendi portalına kaydolup tekliflerini/randevularını görebilir, destek talebi açabilir." },
+  { category: "Bildirimler & İletişim", q: "Anlık bildirim (push) nasıl açarım?", a: "Ayarlar → Görünüm, Bildirimler & Hesap'tan bildirimleri açabilirsiniz. iPhone'da bildirim alabilmek için önce siteyi Ana Ekrana eklemeniz gerekir (Safari paylaş menüsü → Ana Ekrana Ekle)." },
+  { category: "Bildirimler & İletişim", q: "Müşterilerime toplu kampanya e-postası nasıl gönderirim?", a: "Müşteriler sekmesindeki \"Kampanya Gönder\" butonundan alıcıları seçip mesajınızı yazabilirsiniz. Türkiye'de ticari elektronik ileti göndermek için müşterilerinizden İYS/açık onay almış olmanız yasal olarak sizin sorumluluğunuzdadır — göndermeden önce onay kutusunu işaretlemeniz istenir." },
+
+  // Ayarlar & Hesap
+  { category: "Ayarlar & Hesap", q: "Sektörümü nasıl değiştiririm?", a: "Ayarlar → Sektör & Özel Alanlar'dan istediğiniz zaman değiştirebilirsiniz — aşama isimleri, önerilen etiketler ve özel alanlar otomatik güncellenir. Daha önce girilmiş değerler kaybolmaz, sadece görünürlükleri değişir." },
+  { category: "Ayarlar & Hesap", q: "Açık/koyu temayı nasıl değiştiririm?", a: "Ayarlar → Görünüm, Bildirimler & Hesap'tan \"Açık\"/\"Koyu\" arasında seçim yapabilirsiniz." },
+  { category: "Ayarlar & Hesap", q: "Şifremi nasıl değiştiririm?", a: "Ayarlar → Görünüm, Bildirimler & Hesap'tan, mevcut şifrenizi doğrulayarak yenisini belirleyebilirsiniz. Şifrenizi unuttuysanız giriş ekranındaki \"Şifremi unuttum\" linkini kullanın." },
+  { category: "Ayarlar & Hesap", q: "Hesabımı tamamen silebilir miyim?", a: "Ayarlar → Görünüm, Bildirimler & Hesap'taki \"Hesabımı silmek istiyorum\" seçeneği destek ekibine e-posta gönderir — takım sahipliği gibi durumlar elle kontrol gerektirdiği için bu işlem otomatik yapılmıyor." },
+  { category: "Ayarlar & Hesap", q: "Teklif onay linkini müşteriyle nasıl paylaşırım?", a: "İlgili kaydı açıp onay linkini kopyalayın, müşteriye WhatsApp/e-posta ile gönderin. Müşteri linke tıklayıp onaylayabilir, ayarladıysanız ödeme de yapabilir." },
+  { category: "Ayarlar & Hesap", q: "Örnek verilerle nasıl başlarım?", a: "Pano boşken görünen \"Örnek verilerle başla\" butonuyla birkaç örnek müşteri ve kayıt oluşturabilirsiniz — istediğiniz zaman silinebilir, gerçek verilerinizi etkilemez." },
 ];
 
-function HelpPanel({ onClose }) {
+function HelpPanel({ onClose, sector }) {
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
-  const filtered = q ? HELP_TOPICS.filter((t) => t.q.toLowerCase().includes(q) || t.a.toLowerCase().includes(q)) : HELP_TOPICS;
+  // İşletmenin sektörüyle ilgisi olmayan konular (örn. Perakende'de randevu
+  // konuları) hiç gösterilmez — visibleIf tanımlanmamış konular her sektörde
+  // gösterilir.
+  const relevant = HELP_TOPICS.filter((t) => !t.visibleIf || t.visibleIf(sector));
+  const filtered = q ? relevant.filter((t) => t.q.toLowerCase().includes(q) || t.a.toLowerCase().includes(q)) : relevant;
+  const categories = [...new Set(filtered.map((t) => t.category))];
   return (
-    <Modal title="Yardım" onClose={onClose}>
+    <Modal title="Yardım" onClose={onClose} wide>
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -412,11 +456,18 @@ function HelpPanel({ onClose }) {
       {filtered.length === 0 ? (
         <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Eşleşen bir konu bulunamadı.</p>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, maxHeight: 400, overflowY: "auto" }}>
-          {filtered.map((t) => (
-            <div key={t.q}>
-              <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 500 }}>{t.q}</p>
-              <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{t.a}</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20, maxHeight: 460, overflowY: "auto" }}>
+          {categories.map((cat) => (
+            <div key={cat}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5, margin: "0 0 10px" }}>{cat}</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {filtered.filter((t) => t.category === cat).map((t) => (
+                  <div key={t.q}>
+                    <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 500 }}>{t.q}</p>
+                    <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{t.a}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>
@@ -2288,12 +2339,17 @@ function parseAppointmentDateTime(raw) {
 
 function AppointmentsTab({ deals, customers, dateTimeKey, sector, onOpenDeal }) {
   const [period, setPeriod] = useState("bugun");
+  const [search, setSearch] = useState("");
+  const [stageFilter, setStageFilter] = useState("all");
   const bounds = appointmentPeriodBounds(period);
   const customerName = (id) => customers.find((c) => c.id === id)?.name || "Bilinmeyen müşteri";
+  const query = search.trim().toLowerCase();
 
   const appointments = dateTimeKey
     ? deals
         .filter((d) => d.stage !== "kaybedildi")
+        .filter((d) => stageFilter === "all" || d.stage === stageFilter)
+        .filter((d) => !query || d.title.toLowerCase().includes(query) || customerName(d.customerId).toLowerCase().includes(query))
         .map((d) => ({ deal: d, date: parseAppointmentDateTime(d.customFields?.[dateTimeKey]) }))
         .filter(({ date }) => date && date >= bounds.start && date <= bounds.end)
         .sort((a, b) => a.date - b.date)
@@ -2316,12 +2372,26 @@ function AppointmentsTab({ deals, customers, dateTimeKey, sector, onOpenDeal }) 
           </button>
         ))}
       </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: "1rem" }}>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Randevu ara (başlık, müşteri)..."
+          style={{ flex: 1, minWidth: 160 }}
+        />
+        <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)} style={{ fontSize: 13 }}>
+          <option value="all">Tüm aşamalar</option>
+          {STAGES.filter((s) => s.id !== "kaybedildi").map((s) => (
+            <option key={s.id} value={s.id}>{stageLabel(s.id, "bireysel", sector)}</option>
+          ))}
+        </select>
+      </div>
       {!dateTimeKey ? (
         <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
           Bu sektör için aktif bir "Tarih &amp; Saat" özel alanı bulunamadı. Ayarlar → Sektör &amp; Özel Alanlar'dan kontrol edin.
         </p>
       ) : appointments.length === 0 ? (
-        <p style={{ fontSize: 14, color: "var(--text-muted)" }}>Bu dönemde randevu yok.</p>
+        <p style={{ fontSize: 14, color: "var(--text-muted)" }}>{query || stageFilter !== "all" ? "Aramayla eşleşen randevu yok." : "Bu dönemde randevu yok."}</p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {appointments.map(({ deal, date }) => (
@@ -5781,7 +5851,7 @@ export default function App() {
   })).filter((r) => r.count > 0);
 
   return (
-    <div style={{ maxWidth: 980, margin: "0 auto", padding: "24px 16px 64px" }}>
+    <div style={{ padding: "24px 16px 64px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
@@ -5876,7 +5946,8 @@ export default function App() {
 
       <h2 className="sr-only">KOBİ satış takip uygulaması: pano, müşteriler ve iş takibi sekmeleri</h2>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: "1.5rem" }}>
+      <div style={{ display: "flex", gap: 32, alignItems: "flex-start", maxWidth: 1300 }}>
+      <nav style={{ width: 200, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4, position: "sticky", top: 24 }}>
         {[
           { id: "pano", label: "Pano", icon: "ti-layout-dashboard" },
           { id: "musteri", label: "Müşteri Kayıtları", icon: "ti-building" },
@@ -5892,24 +5963,26 @@ export default function App() {
             onClick={() => setTab(t.id)}
             data-tour={`tab-${t.id}`}
             style={{
-              flex: 1,
-              border: tab === t.id ? "0.5px solid var(--border-strong)" : "0.5px solid var(--border)",
+              border: tab === t.id ? "0.5px solid var(--border-strong)" : "0.5px solid transparent",
               background: tab === t.id ? "var(--surface-1)" : "transparent",
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
+              justifyContent: "flex-start",
+              gap: 8,
               position: "relative",
+              padding: "8px 10px",
+              width: "100%",
+              textAlign: "left",
             }}
           >
-            <i className={`ti ${t.icon}`} style={{ fontSize: 16 }} aria-hidden="true"></i>
-            {t.label}
+            <i className={`ti ${t.icon}`} style={{ fontSize: 16, flexShrink: 0 }} aria-hidden="true"></i>
+            <span style={{ flex: 1 }}>{t.label}</span>
             {t.id === "destek" && unreadMessagesCount > 0 && (
               <span
                 style={{
-                  position: "absolute", top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 9,
+                  minWidth: 18, height: 18, borderRadius: 9,
                   background: "var(--text-danger)", color: "var(--on-accent)", fontSize: 11, fontWeight: 700,
-                  display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px",
+                  display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", flexShrink: 0,
                 }}
               >
                 {unreadMessagesCount}
@@ -5917,7 +5990,9 @@ export default function App() {
             )}
           </button>
         ))}
-      </div>
+      </nav>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
 
       {tab === "pano" && (
         <div>
@@ -6316,8 +6391,8 @@ export default function App() {
 
               <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem" }}>
                 <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 4px", display: "flex", alignItems: "center", gap: 4 }}>
-                  Aşama huni
-                  <InfoTip text={`Şu an açık olan (kapanmamış) ${DEAL_WORD_FORMS[dealKind].plural}, aşamalarına göre dağılımı.`} />
+                  Aşama Hunisi
+                  <InfoTip text={`Şu an açık olan (kapanmamış) ${DEAL_WORD_FORMS[dealKind].plural}, aşamalarına göre dağılımı — hangi aşamada ne kadar kayıt birikmiş, "tıkanma" olan yeri gösterir.`} />
                 </p>
                 {openDeals.length === 0 ? (
                   <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 10 }}>Şu an açık {DEAL_WORD_FORMS[dealKind].plural} yok.</p>
@@ -6917,6 +6992,9 @@ export default function App() {
         />
       )}
 
+      </div>
+      </div>
+
       {showCustomerForm && (
         <Modal title={editingCustomer?.id ? "Müşteriyi düzenle" : "Yeni müşteri"} onClose={() => { setShowCustomerForm(false); setEditingCustomer(null); }}>
           <CustomerForm
@@ -6931,7 +7009,7 @@ export default function App() {
         </Modal>
       )}
 
-      {showHelpPanel && <HelpPanel onClose={() => setShowHelpPanel(false)} />}
+      {showHelpPanel && <HelpPanel onClose={() => setShowHelpPanel(false)} sector={companySettings?.sector} />}
 
       {showSettingsHub && (
         <Modal title="Ayarlar" onClose={() => setShowSettingsHub(false)} wide>

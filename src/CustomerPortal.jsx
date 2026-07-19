@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { Badge, Modal, Toast, ConfirmDialog, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, WEEKDAYS, nextWeeklyOccurrence, NotificationBell } from "./shared";
-import { stageLabel, dealWordKind, isAppointmentSector, supportsSelfBooking, supportsGroupClasses, groupClassWords, supportExamples, appointmentNoteExample, SECTOR_PRESETS } from "./Sectors";
+import { STAGES, stageLabel, dealWordKind, isAppointmentSector, supportsSelfBooking, supportsGroupClasses, groupClassWords, supportExamples, appointmentNoteExample, SECTOR_PRESETS } from "./Sectors";
 
 const PORTAL_DEAL_WORDS = {
   teklif: { emptyList: "Henüz bir teklifiniz yok.", possAcc: "tekliflerinizi", tabLabel: "Tekliflerim" },
@@ -329,13 +329,67 @@ function PortalTicketDetail({ ticket, messages, onAddMessage, onClose }) {
   );
 }
 
-function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, showCompany, dealKind, onCancelAppointment }) {
+function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, sector, showCompany, dealKind, onCancelAppointment }) {
+  const [search, setSearch] = useState("");
+  const [stageFilter, setStageFilter] = useState("all");
+  const [paymentFilter, setPaymentFilter] = useState("all");
+  // Randevu sektörlerinde "geçmiş/gelecek" ayrımı en çok aranan filtre —
+  // teklif/üyelikte bunun bir karşılığı yok (randevu tarihi taşımıyorlar).
+  const [periodFilter, setPeriodFilter] = useState(dealKind === "randevu" ? "gelecek" : "all");
+
   if (deals.length === 0) {
     return <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>{PORTAL_DEAL_WORDS[dealKind].emptyList}</p>;
   }
-  const sorted = [...deals].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const query = search.trim().toLowerCase();
+  const now = Date.now();
+  const filtered = deals.filter((d) => {
+    if (query && !d.title.toLowerCase().includes(query)) return false;
+    if (stageFilter === "acik" && (d.stage === "kazanildi" || d.stage === "kaybedildi")) return false;
+    if (stageFilter !== "all" && stageFilter !== "acik" && d.stage !== stageFilter) return false;
+    if (paymentFilter === "odendi" && d.paymentStatus !== "paid") return false;
+    if (paymentFilter === "odenmedi" && (d.paymentMode === "none" || d.paymentStatus === "paid")) return false;
+    if (dealKind === "randevu" && periodFilter !== "all") {
+      const dt = d.customFields?.portal_randevu_zamani;
+      const isFuture = dt && new Date(dt).getTime() >= now;
+      if (periodFilter === "gelecek" && !isFuture) return false;
+      if (periodFilter === "gecmis" && isFuture) return false;
+    }
+    return true;
+  });
+  const sorted = [...filtered].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={`${PORTAL_DEAL_WORDS[dealKind].tabLabel} ara...`}
+          style={{ flex: 1, minWidth: 140, fontSize: 13 }}
+        />
+        <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)} style={{ fontSize: 13 }}>
+          <option value="all">Tüm aşamalar</option>
+          <option value="acik">Açık olanlar</option>
+          {STAGES.map((s) => <option key={s.id} value={s.id}>{stageLabel(s.id, "bireysel", sector)}</option>)}
+        </select>
+        <select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} style={{ fontSize: 13 }}>
+          <option value="all">Tüm ödeme durumları</option>
+          <option value="odendi">Ödendi</option>
+          <option value="odenmedi">Ödenmedi</option>
+        </select>
+        {dealKind === "randevu" && (
+          <select value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value)} style={{ fontSize: 13 }}>
+            <option value="all">Tüm zamanlar</option>
+            <option value="gelecek">Gelecek randevular</option>
+            <option value="gecmis">Geçmiş randevular</option>
+          </select>
+        )}
+      </div>
+      {sorted.length === 0 ? (
+        <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Aramayla eşleşen kayıt yok.</p>
+      ) : (
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {sorted.map((d) => {
         const stageText = stageLabel(d.stage, "bireysel", sectorByCustomerId[d.customerId]);
         const tone = d.stage === "kazanildi" ? "success" : d.stage === "kaybedildi" ? "default" : d.stage === "muzakere" ? "warning" : "accent";
@@ -387,6 +441,8 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, sh
           </div>
         );
       })}
+      </div>
+      )}
     </div>
   );
 }
@@ -1073,7 +1129,7 @@ export default function CustomerPortal() {
   const showDersler = supportsGroupClasses(activeCustomerRow?.companySector) && visibleGroupClasses.length > 0;
 
   return (
-    <div style={{ maxWidth: 980, margin: "0 auto", padding: "24px 16px 64px" }}>
+    <div style={{ padding: "24px 16px 64px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
@@ -1084,6 +1140,14 @@ export default function CustomerPortal() {
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <NotificationBell userId={session.user.id} supabase={supabase} />
+          <button
+            onClick={() => setPortalTab("ayarlar")}
+            style={{ fontSize: 12, color: "var(--text-secondary)", background: "none", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 4 }}
+            title="Ayarlar"
+          >
+            <i className="ti ti-adjustments" style={{ fontSize: 14 }} aria-hidden="true"></i>
+            Ayarlar
+          </button>
           {customerRows.length > 1 && activeCustomerRow && (
             <button
               onClick={() => setSelectedCompanyId(null)}
@@ -1105,6 +1169,7 @@ export default function CustomerPortal() {
         </div>
       </div>
 
+      <div style={{ maxWidth: 1300 }}>
       {loadError ? (
         <p style={{ fontSize: 14, color: "var(--text-danger)" }}>
           Verileriniz yüklenirken bir hata oluştu. Lütfen sayfayı yenileyip tekrar deneyin.
@@ -1148,35 +1213,37 @@ export default function CustomerPortal() {
         </div>
       ) : (
         <>
-          <div style={{ display: "flex", gap: 8, marginBottom: "1.5rem" }}>
+          <div style={{ display: "flex", gap: 32, alignItems: "flex-start" }}>
+          <nav style={{ width: 200, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4, position: "sticky", top: 24 }}>
             {[
               { id: "talepler", label: "Taleplerim", icon: "ti-ticket" },
               { id: "teklifler", label: PORTAL_DEAL_WORDS[dealKind].tabLabel, icon: "ti-file-text" },
               ...(showDersler ? [{ id: "dersler", label: "Derslerim", icon: "ti-calendar-time" }] : []),
-              { id: "ayarlar", label: "Ayarlar", icon: "ti-adjustments" },
             ].map((t) => (
               <button
                 key={t.id}
                 onClick={() => setPortalTab(t.id)}
                 style={{
-                  flex: 1,
-                  border: portalTab === t.id ? "0.5px solid var(--border-strong)" : "0.5px solid var(--border)",
+                  border: portalTab === t.id ? "0.5px solid var(--border-strong)" : "0.5px solid transparent",
                   background: portalTab === t.id ? "var(--surface-1)" : "transparent",
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
+                  justifyContent: "flex-start",
+                  gap: 8,
                   position: "relative",
+                  padding: "8px 10px",
+                  width: "100%",
+                  textAlign: "left",
                 }}
               >
-                <i className={`ti ${t.icon}`} style={{ fontSize: 16 }} aria-hidden="true"></i>
-                {t.label}
+                <i className={`ti ${t.icon}`} style={{ fontSize: 16, flexShrink: 0 }} aria-hidden="true"></i>
+                <span style={{ flex: 1 }}>{t.label}</span>
                 {t.id === "talepler" && totalUnreadTickets > 0 && (
                   <span
                     style={{
-                      position: "absolute", top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 9,
+                      minWidth: 18, height: 18, borderRadius: 9,
                       background: "var(--text-danger)", color: "var(--on-accent)", fontSize: 11, fontWeight: 700,
-                      display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px",
+                      display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", flexShrink: 0,
                     }}
                   >
                     {totalUnreadTickets}
@@ -1184,7 +1251,9 @@ export default function CustomerPortal() {
                 )}
               </button>
             ))}
-          </div>
+          </nav>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
 
           {portalTab === "talepler" && (
             <div>
@@ -1223,7 +1292,7 @@ export default function CustomerPortal() {
                   ))}
                 </div>
               )}
-              <PortalDealList deals={visibleDeals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} showCompany={false} dealKind={dealKind} onCancelAppointment={(id) => setConfirmCancel({ type: "appointment", id })} />
+              <PortalDealList deals={visibleDeals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} sector={activeCustomerRow?.companySector} showCompany={false} dealKind={dealKind} onCancelAppointment={(id) => setConfirmCancel({ type: "appointment", id })} />
             </div>
           )}
 
@@ -1250,8 +1319,11 @@ export default function CustomerPortal() {
               notify={notify}
             />
           )}
+          </div>
+          </div>
         </>
       )}
+      </div>
 
       {showNewTicketForm && (
         <Modal title="Yeni destek talebi" onClose={() => setShowNewTicketForm(false)}>
