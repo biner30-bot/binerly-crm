@@ -21,11 +21,17 @@ function hmacSha256Base64(str, key) {
 // satırının O ANKİ payment_status'u hâlâ 'paid' değilse tek bir istek
 // başarılı olur, diğerleri claimed=false alıp sessizce çıkar.
 async function claimDealPayment(supabaseAdmin, dealId) {
+  // İlk ödemesini alan bir teklifte payment_status genelde NULL'dır (henüz hiç
+  // set edilmemiş) — Postgres'te "payment_status <> 'paid'" koşulu NULL
+  // satırları EŞLEŞMİYOR sayar (üç değerli mantık), bu yüzden .neq() tek
+  // başına NULL olan (yani en yaygın, ilk ödeme) durumda hiçbir satır
+  // bulamayıp claim'i sessizce başarısız gösteriyordu — ödeme iyzico'da
+  // başarılı olsa bile sitede hiç işlenmiyordu. .or() ile NULL de kapsanıyor.
   const { data, error } = await supabaseAdmin
     .from("deals")
     .update({ payment_status: "paid" })
     .eq("id", dealId)
-    .neq("payment_status", "paid")
+    .or("payment_status.is.null,payment_status.neq.paid")
     .select("id");
   if (error) {
     console.error("claimDealPayment error:", error.message, "deal.id:", dealId);
