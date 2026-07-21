@@ -1,7 +1,16 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { TrackingScripts } from "./analytics";
 
 function LegalLayout({ title, updatedAt, children }) {
+  // Bu sayfalar index.html'deki genel başlığı miras alıyordu — arama
+  // sonuçlarında hepsi "Binerly — KOBİ CRM Yazılımı..." olarak görünüyordu,
+  // kendi içeriklerini yansıtmıyordu.
+  useEffect(() => {
+    document.title = `${title} — Binerly`;
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta) meta.setAttribute("content", `Binerly ${title.toLowerCase()} — son güncelleme: ${updatedAt}.`);
+  }, [title, updatedAt]);
+
   return (
     <div style={{ minHeight: "100vh", background: "#f5f8fc" }}>
       <TrackingScripts />

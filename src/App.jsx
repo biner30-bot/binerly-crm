@@ -7403,6 +7403,7 @@ function LandingPage() {
             <a href="#sektorler" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Sektörler</a>
             <a href="#neden-binerly" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Neden Binerly?</a>
             <a href="#hakkimizda" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Hakkımızda</a>
+            <a href="/blog" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Blog</a>
           </div>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
             <button onClick={() => setEntryChoiceIntent("login")} style={{ background: "none", border: "none", color: "#185fa5", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "8px 12px" }}>
@@ -7762,6 +7763,7 @@ function LandingPage() {
               <a href="/" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Ana Sayfa</a>
               <a href="#sektorler" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Sektörler</a>
               <a href="#hakkimizda" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Hakkımızda</a>
+              <a href="/blog" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Blog</a>
               <a href="mailto:info@binerly.com" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>İletişim</a>
             </div>
           </div>

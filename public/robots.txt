@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /panel-4k9x
+Disallow: /onay/
+Disallow: /lead/
+
+Sitemap: https://binerly.com/sitemap.xml
