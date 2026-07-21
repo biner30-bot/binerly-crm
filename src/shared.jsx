@@ -714,7 +714,7 @@ const TOUR_STEPS = [
   { target: '[data-tour="notification-bell"]', title: "Bildirimler", body: "Müşteri portaldan bir işlem yaptığında (randevu alma, mesaj vb.) burada anında görürsünüz." },
   { target: '[data-tour="tab-destek"]', title: "Destek", body: "Müşteri destek taleplerini buradan yönetirsiniz." },
   { target: '[data-tour="tab-finans"]', title: "Finans", body: "Gelir-Gider Defteri, tahsilatlar ve KDV Özet Raporu'nu burada görürsünüz." },
-  { target: '[data-tour="help-icon"]', title: "Yardım", body: "İstediğiniz zaman buradan arama yapıp kısa \"nasıl yapılır\" rehberlerine bakabilirsiniz." },
+  { target: '[data-tour="ask-bubble"]', title: "Soru Sor", body: "Sağ alttaki baloncuktan istediğiniz zaman sorabilirsiniz — kendi verileriniz, \"nasıl yapılır\" rehberleri veya genel işletme tavsiyesi, hepsi tek arama kutusunda." },
   { target: null, title: "Hepsi bu kadar!", body: "İstediğiniz zaman Ayarlar'dan turu tekrar başlatabilirsiniz." },
 ];
 

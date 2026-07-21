@@ -459,12 +459,116 @@ const HELP_TOPICS = [
   { category: "Ayarlar & Hesap", q: "Hesabımı tamamen silebilir miyim?", a: "Ayarlar → Görünüm, Bildirimler & Hesap'taki \"Hesabımı silmek istiyorum\" seçeneği destek ekibine e-posta gönderir — takım sahipliği gibi durumlar elle kontrol gerektirdiği için bu işlem otomatik yapılmıyor." },
   { category: "Ayarlar & Hesap", q: "Teklif onay linkini müşteriyle nasıl paylaşırım?", a: "İlgili kaydı açıp onay linkini kopyalayın, müşteriye WhatsApp/e-posta ile gönderin. Müşteri linke tıklayıp onaylayabilir, ayarladıysanız ödeme de yapabilir." },
   { category: "Ayarlar & Hesap", q: "Örnek verilerle nasıl başlarım?", a: "Pano boşken görünen \"Örnek verilerle başla\" butonuyla birkaç örnek müşteri ve kayıt oluşturabilirsiniz — istediğiniz zaman silinebilir, gerçek verilerinizi etkilemez." },
+
+  { category: "Müşteriler & Kayıtlar", q: "Müşteri kartına görüşme/telefon notu nasıl eklerim?", a: "Müşteri kartını açıp \"İletişim geçmişi\" bölümünden Not/Telefon görüşmesi/Toplantı/E-posta türünü seçip kısa bir açıklama yazabilirsiniz — bu kayıtlar zaman sırasına göre listelenir." },
+  { category: "Müşteriler & Kayıtlar", q: "Müşteri veya teklif kaydına dosya (sözleşme, fotoğraf vb.) nasıl eklerim?", a: "Müşteri kartını veya teklif formunu açıp \"Dosyalar\" bölümündeki \"+ Dosya Ekle\"ye tıklayın — dosya en fazla 10 MB olabilir, istediğiniz zaman indirebilir veya silebilirsiniz (silinen dosya da çöp kutusuna düşer)." },
+  { category: "Müşteriler & Kayıtlar", q: "Bir teklife birden fazla ürün/hizmet kalemi (kalem kalem fiyat) nasıl eklerim?", a: "Teklif formundaki \"Kalemler\" bölümünden \"+ Kalem ekle\" ile istediğiniz kadar açıklama/adet/birim fiyat satırı ekleyebilirsiniz — Tutar alanı bunların toplamına göre otomatik hesaplanır, hiç kalem eklemezseniz Tutar'ı yine elle girebilirsiniz." },
+  { category: "Müşteriler & Kayıtlar", q: "Teklif kalemlerini Fiyat Listesi'nden nasıl hızlıca eklerim?", a: "Kalemler bölümündeki \"Fiyat listesinden kalem ekle…\" menüsünden bir ürün/hizmet seçtiğinizde açıklama ve birim fiyat otomatik dolan yeni bir satır eklenir; Ayarlar → Ürün & Hizmet Fiyat Listesi'nde kayıtlı olmanız yeterli." },
+  { category: "Müşteriler & Kayıtlar", q: "Teklif formundaki \"Sorumlu\" ataması ne işe yarar?", a: "Bir takım üyesi seçebilirsiniz — kapanan (kazanılan veya kaybedilen) kayıtlar Pano'daki \"Personel Performansı\" bölümünde o kişinin altında ve kazanma oranına dahil olarak sayılır; atama yapılmazsa \"Atanmamış\" grubuna düşer." },
+  { category: "Müşteriler & Kayıtlar", q: "Müşteri listemi nasıl filtreleyip ararım?", a: "Müşteri Kayıtları sekmesindeki arama kutusu ad/sektör/bölge/telefon/e-postada arar; ayrıca Kurumsal/Bireysel, sektör, en yeni/en eski sıralama ve tarih aralığı filtrelerini de kullanabilirsiniz." },
+  { category: "Müşteriler & Kayıtlar", q: "Not veya hatırlatmaları sesle nasıl yazabilirim?", a: "Not/hatırlatma gibi metin alanlarının yanındaki mikrofon simgesine tıklayıp konuşarak yazdırabilirsiniz — bu özellik Chrome/Edge'de çalışır, Firefox/Safari'de görünmez." },
+  { category: "Müşteriler & Kayıtlar", q: "Müşteriyi \"Kurumsal\" veya \"Bireysel\" olarak işaretlemek neyi değiştirir?", a: "Formda hangi alanların (örn. firma unvanı) göründüğünü ve teklif/randevu aşamalarının hangi dille gösterileceğini belirler; bazı özel alanlar da \"Kime\" ayarına göre sadece kurumsal veya sadece bireysel müşterilerde görünür." },
+  { category: "Müşteriler & Kayıtlar", q: "Cari Hesap Ekstresi müşteri kartında ne gösterir?", a: "Kazanılmış tekliflerden doğan toplam borcu, toplam tahsilatı ve güncel bakiyeyi; altında da her borç/tahsilat hareketini tarih sırasıyla ve o andaki bakiyeyle listeler." },
+  { category: "Müşteriler & Kayıtlar", q: "Teklif formundaki \"Gider\" alanı ne işe yarar?", a: "O teklifin size maliyetini (örn. malzeme, alt yüklenici) girmenizi sağlar — kayıt kazanıldığında bu tutar Finans → Gelir-Gider Defteri'nde otomatik gider olarak sayılır, ayrıca Finans sekmesinden de düzenlenebilir." },
+  { category: "Müşteriler & Kayıtlar", q: "Kazanılmış bir teklifin tutarını veya KDV oranını sonradan değiştirirsem ne olur?", a: "Değişiklik geriye dönük işler — o teklifin kazanıldığı ayın KDV Özet Raporu'nu da (o ay için zaten beyanname vermiş olsanız bile) yeniden hesaplar; formda bu durumda bir uyarı gösterilir." },
+  { category: "Müşteriler & Kayıtlar", q: "Müşteri kartındaki WhatsApp simgesi ne yapar?", a: "Müşterinin kayıtlı telefon numarasıyla doğrudan WhatsApp Web/uygulamasında yeni bir sohbet penceresi açar, numarayı elle aramanıza gerek kalmaz." },
+
+  { category: "Ödeme & Faturalama", q: "iyzico/PayTR bağlarken hangi bilgileri girmem gerekiyor?", a: "iyzico için API Key ve Secret Key; PayTR için Mağaza No (Merchant ID), Merchant Key ve Merchant Salt gerekir — bu bilgileri sağlayıcının kendi panelinden alıp Ayarlar → Ödeme Bağlantısı'na girersiniz." },
+  { category: "Ödeme & Faturalama", q: "Aynı anda hem iyzico hem PayTR'yi aktif edebilir miyim?", a: "Hayır, aynı anda yalnızca bir sağlayıcı aktif olabilir — yeni birini bağlarsanız öncekinin yerini alır." },
+  { category: "Ödeme & Faturalama", q: "Ödeme bağlantımı canlıya almadan önce nasıl test ederim?", a: "Ödeme Bağlantısı formundaki \"Test modu (Sandbox)\" kutusunu işaretleyip sağlayıcınızın test API bilgileriyle bağlayın; hazır olduğunuzda aynı formdan gerçek anahtarlarla güncelleyip kutuyu kaldırabilirsiniz." },
+  { category: "Ödeme & Faturalama", q: "Taksitli ödeme nasıl açarım?", a: "Ödeme Bağlantısı formundaki \"Taksit\" alanından azami taksit sayısını (2, 3, 6, 9 veya 12) seçin — bu sadece bir üst sınırdır, taksitin gerçekten sunulması sağlayıcı hesabınızda taksitli satışın açık olmasına ve müşterinin kartına bağlıdır." },
+  { category: "Ödeme & Faturalama", q: "PayTR bağlarken ekstra bir ayar yapmam gerekiyor mu?", a: "Evet — PayTR panelinizde \"Bildirim URL'i\" olarak Binerly'nin size gösterdiği adresi bir kez girmeniz gerekir, aksi halde ödemeler onaylanmaz." },
+  { category: "Ödeme & Faturalama", q: "Onay linkindeki \"Sadece onaylasın\", \"Onaylasın + isterse ödesin\" ve \"Onaylamak için ödemesi şart\" seçenekleri ne fark eder?", a: "Bu üç seçenek müşterinin onay ve ödeme adımlarını nasıl yaşayacağını belirler: birincisinde ödeme adımı hiç yok, ikincisinde ikisi bağımsız sunulur, üçüncüsünde ödeme tamamlanmadan onay da gerçekleşmez." },
+  { category: "Ödeme & Faturalama", q: "Müşterinin kart bilgileri Binerly sunucularından geçiyor mu?", a: "Hayır — kart bilgisi hiçbir zaman Binerly sunucularından geçmez, müşteri doğrudan iyzico/PayTR'nin kendi güvenli ödeme sayfasına yönlendirilir." },
+  { category: "Ödeme & Faturalama", q: "Online alınan bir ödemeyi iade edersem sistemimde ne değişir?", a: "Finans → Gelir-Gider Defteri'nde ilgili tahsilatın yanındaki \"İade Et\"e tıkladığınızda gerçek iyzico/PayTR iade API'si çağrılır, tutar müşterinin bakiyesinden otomatik düşülür ve deftere iade olarak işlenir." },
+  { category: "Ödeme & Faturalama", q: "Paraşüt'e aktarırken tüm kazanılan teklifleri mi seçmem gerekiyor?", a: "Hayır — \"Paraşüt'e Aktar\" ekranında müşteri/başlık arama, min/max tutar, ödeme durumu ve tarih aralığı filtreleriyle sadece istediğiniz teklifleri seçip aktarabilirsiniz." },
+  { category: "Ödeme & Faturalama", q: "Varsayılan KDV oranını değiştirdim, daha önce oluşturduğum tekliflerin oranı da değişir mi?", a: "Hayır — Ayarlar → İşletme Bilgileri'ndeki varsayılan KDV oranı sadece o andan sonra oluşturacağınız yeni tekliflere uygulanır, mevcut tekliflerin kendi kaydettiği oran aynen kalır." },
+  { category: "Ödeme & Faturalama", q: "Onay linkinden ödeme tercihini her teklifte ayrı mı seçmem gerekiyor?", a: "Onay linkini her kopyaladığınızda son seçtiğiniz ödeme tercihi otomatik ön işaretli gelir, isterseniz o teklife özel değiştirebilirsiniz." },
+
+  { category: "Finans", q: "KDV Özet Raporu resmi beyanname yerine geçer mi?", a: "Hayır — bu rapor sadece kendi ön hazırlığınız içindir, muhasebecinizin/SMMM'nizin resmi beyanname veya e-defterinin yerini tutmaz; göndermeden önce kendi kayıtlarınızla karşılaştırmanız önerilir." },
+  { category: "Finans", q: "Giderime KDV oranı girmezsem ne olur?", a: "O gider, KDV Özet Raporu'ndaki \"Alış KDV'si\" hesabına dahil edilmez — rapor ekranında kaç giderin bu şekilde dışarıda kaldığı ayrıca gösterilir." },
+  { category: "Finans", q: "Tekrarlayan bir gideri silersem geçmiş aylardaki kayıtlar da silinir mi?", a: "Evet — tekrarlayan gider tek bir kayıttır, gördüğünüz her tekrar aynı kaydın otomatik kopyasıdır; birini sildiğinizde geçmiş ve gelecekteki TÜM tekrarlar birlikte çöp kutusuna taşınır." },
+  { category: "Finans", q: "Toplam Gider ile \"Kategoriye göre gider\" listesi neden birbirini tutmuyor?", a: "\"Kategoriye göre gider\" sadece elle eklediğiniz işletme giderlerini toplar; Toplam Gider'e ayrıca kazanılan tekliflerin \"Gider\" tutarları da eklendiği için iki rakam farklı çıkabilir." },
+  { category: "Finans", q: "Gelir-Gider Defteri'nde bir tahsilatı düzenleyebilir miyim?", a: "Elle girilmiş (online olmayan) tahsilatların tutarını, tarihini ve notunu düzenleyebilir veya silebilirsiniz; online (iyzico/PayTR) tahsilatlarda düzenleme yerine \"İade Et\" seçeneği çıkar." },
+  { category: "Finans", q: "Finans sekmesindeki \"Tahsilat / Cari Hesap\" görünümü ne işe yarar?", a: "Kazanılmış teklifi olan her müşterinin toplam borcunu, tahsil edilenini ve kalan bakiyesini listeler; bir müşteriyi genişletip üzerindeki tekliften doğrudan yeni tahsilat ekleyebilirsiniz." },
+  { category: "Finans", q: "Yeni bir tahsilatı hangi teklife/müşteriye ekleyeceğimi nasıl seçerim?", a: "Finans → Tahsilat / Cari Hesap'taki \"Yeni Tahsilat\" kutusundan önce müşteriyi, sonra o müşterinin kazanılmış tekliflerinden birini seçip \"Devam\"a basarsınız — tahsilat formu o teklif için açılır." },
+  { category: "Finans", q: "Gider eklerken saat de girebilir miyim?", a: "Evet, tarih zorunlu olmakla birlikte saat alanı opsiyoneldir — saat girerseniz gider listesinde tarih yanında saat de gösterilir." },
+  { category: "Finans", q: "KDV Özet Raporu'nda görüntülediğim ayı nasıl değiştiririm?", a: "Rapor ekranının üstündeki ay seçiciden istediğiniz ay/yıl kombinasyonunu seçebilirsiniz, rapor her zaman o anki güncel verilerle yeniden hesaplanır." },
+  { category: "Finans", q: "Gider kategorisi listede yoksa ne yapmalıyım?", a: "Kategori olarak \"Diğer\"i seçip açılan kutuya kendi kategori adınızı yazabilirsiniz, bu isim o gider için kaydedilir ve kategori listelerinde görünür." },
+  { category: "Finans", q: "Bir teklifin \"Gider\"ini doğrudan Finans sekmesinden düzenleyebilir miyim?", a: "Evet — Gelir-Gider Defteri'nde o kaydın yanındaki kalem işaretine tıklayıp tutarı doğrudan güncelleyebilirsiniz; bu, teklif formundaki Gider alanıyla aynı değeri paylaşır." },
+
+  { category: "Randevu & Program", q: "Ajanda sekmesi ne işe yarar?", a: "Tüm sektörlerde hatırlatmalarınızı, randevu alanı olan kayıtlarınızı ve grup derslerinizi tek bir ay/hafta takviminde birleştirir — bir güne tıklayınca o günün tüm etkinlikleri altta listelenir." },
+  { category: "Randevu & Program", q: "Ajanda'da bir güne tıklayınca ne görürüm?", a: "O tarihteki hatırlatmaları, randevuları ve (varsa) grup derslerini saatine göre sıralı bir liste hâlinde görürsünüz; bir hatırlatma/randevuya tıklarsanız ilgili kayıt açılır, bir derse tıklarsanız o günün yoklama listesi açılır." },
+  { category: "Randevu & Program", q: "Yoklama (Geldi/Gelmedi) nasıl alınır?", a: "Ajanda'da geçmiş veya bugüne ait bir ders gününe tıklayıp açılan listede her öğrenci/üye için Geldi ya da Gelmedi işaretlersiniz; henüz gerçekleşmemiş bir ders günü için yoklama alınamaz.", visibleIf: (sector) => supportsGroupClasses(sector) },
+  { category: "Randevu & Program", q: "Müşteri randevusunu kendisi iptal ederse bu \"Gelmedi\" olarak mı sayılır?", a: "Hayır — müşterinin kendi portalından yaptığı iptal her zaman \"İptal etti\" olarak işaretlenir, \"Randevuya gelmedi\" sadece siz elle işaretlediğinizde (habersiz gelmeme durumunda) kullanılır.", visibleIf: (sector) => isAppointmentSector(sector) },
+  { category: "Randevu & Program", q: "Müşteri randevusunu/ders kaydını portaldan iptal ederken bir süre sınırı var mı?", a: "Evet, randevu/ders saatine en az 2 saat kala portaldan iptal edilebilir; 2 saatten az kaldıysa \"İptal edilemez\" yazısı çıkar ve iptal butonu devre dışı kalır.", visibleIf: (sector) => supportsSelfBooking(sector) || supportsGroupClasses(sector) },
+  { category: "Randevu & Program", q: "Müşteri portaldan randevu alırken hizmet/fiyat seçebilir mi?", a: "Evet, Ayarlar → Ürün & Hizmet Fiyat Listesi'nde kayıtlı kalemleriniz varsa müşteri randevu formunda listeden seçebilir, açıklama ve tutar otomatik dolar; isterse yine elle de yazabilir.", visibleIf: (sector) => supportsSelfBooking(sector) },
+  { category: "Randevu & Program", q: "Bir grup dersine kaç kişi kaydolabilir, bunu nasıl sınırlarım?", a: "Ders oluştururken girdiğiniz \"Kapasite\" değeri sınırı belirler; kapasite dolunca portalda ders \"dolu\" görünür ve yeni kayıt alınamaz. Kapasiteyi zaten kayıtlı kişi sayısının altına düşüremezsiniz.", visibleIf: (sector) => supportsGroupClasses(sector) },
+  { category: "Randevu & Program", q: "Müşterinin bir derse kaydolabilmesi için aktif üyeliği/kaydı olması gerekir mi?", a: "Evet — sadece kazanılmış ve süresi (varsa) dolmamış bir kaydı olan müşteriler derse kaydolabilir; uygun olmayan müşteriler için portalda kısa bir uyarı metni gösterilir.", visibleIf: (sector) => supportsGroupClasses(sector) },
+  { category: "Randevu & Program", q: "Randevu/görüşme tarihi alanı nereden geliyor, ben mi ekliyorum?", a: "Bu, Sektör & Özel Alanlar'da \"Tarih & Saat\" tipinde tanımlanan bir özel alandır — randevu sektörlerinde hazır gelir, diğer sektörlerde isterseniz kendiniz ekleyebilirsiniz.", visibleIf: (sector) => supportsSelfBooking(sector) },
+  { category: "Randevu & Program", q: "Aynı saate iki randevu/görüşme girersem uyarı alır mıyım?", a: "Evet — Tarih & Saat özel alanınız varsa ve aynı tarih/saatte başka bir aktif kayıt bulunursa kaydetmeden önce bir çakışma uyarısı çıkar; isterseniz yine de bu şekilde kaydedebilirsiniz, sistem sizi engellemez.", visibleIf: (sector) => supportsSelfBooking(sector) },
+  { category: "Randevu & Program", q: "Haftalık ders programını nasıl kurarım?", a: "Dersler sekmesinden her ders için gün, saat, süre, eğitmen ve kapasite girip kaydedersiniz — program haftadan haftaya aynı şekilde tekrarlar, tarihe özel tek seferlik ders oluşturma yoktur.", visibleIf: (sector) => supportsGroupClasses(sector) },
+  { category: "Randevu & Program", q: "Müsaitlik Saatleri'nde öğle arası gibi bir boşluk tanımlayabilir miyim?", a: "Evet — her gün için başlangıç/bitiş saati ile kaçar dakikalık aralıklarla randevu verileceğini belirlersiniz; \"Öğle arası var\" kutusunu işaretleyip ara saatlerini girerseniz sistem günü otomatik olarak iki ayrı müsaitlik bloğuna böler.", visibleIf: (sector) => supportsSelfBooking(sector) },
+  { category: "Randevu & Program", q: "Randevu hatırlatma e-postasının içeriğini değiştirebilir miyim?", a: "Hayır, hatırlatma sabit bir şablonla otomatik gönderilir, içeriği uygulama içinden özelleştirilemez — sadece Ayarlar → İşletme Bilgileri'nden tamamen açıp kapatabilirsiniz.", visibleIf: (sector) => supportsSelfBooking(sector) },
+
+  { category: "Destek & Bilgi Bankası", q: "SLA süresi dolmak üzereyken bunu nasıl anlarım?", a: "Talep listesinde ve talep detayında SLA rozeti \"Süre yaklaşıyor\" olur — bu, kalan sürenin hedefin son %20'lik dilimine girdiği andır (örn. Acil'de son 48 dakika, Yüksek'te son ~5 saat)." },
+  { category: "Destek & Bilgi Bankası", q: "Bir talebi \"Çözüldü\" mü \"Kapatıldı\" mı yapmalıyım?", a: "Fark tamamen size kalmış — \"Çözüldü\" sorunun giderildiğini, \"Kapatıldı\" konunun artık takip edilmeyeceğini belirtmek için kullanılabilir; ikisi de SLA süresini durdurur ve e-posta bildirimleri açıksa müşteriye otomatik bilgilendirme gönderir." },
+  { category: "Destek & Bilgi Bankası", q: "Destek talebine yazdığım \"Giden (müşteriye)\" mesaj müşteriye e-posta olarak gider mi?", a: "Hayır — bu sadece mesajı kaydeder, müşteri kendi hesabıyla Müşteri Portalı'na girdiğinde görür. Müşteriye gerçekten e-posta göndermek isterseniz, talep durumu değiştiğinde veya yanıt yazdığınızda zaten otomatik bir bilgilendirme e-postası gider." },
+  { category: "Destek & Bilgi Bankası", q: "Bilgi Bankası makalelerini müşterilerim görebilir mi?", a: "Hayır, Bilgi Bankası tamamen iç kaynak niteliğindedir — sadece siz ve ekibiniz görür, müşteri portalında hiç görünmez." },
+  { category: "Destek & Bilgi Bankası", q: "Destek taleplerimi/Bilgi Bankası makalelerimi Excel'e aktarabilir miyim?", a: "Evet, her iki listenin üstündeki \"Dışa aktar\" butonuyla .xlsx dosyası indirebilir, \"İçe aktar\" ile de toplu talep/makale yükleyebilirsiniz." },
+  { category: "Destek & Bilgi Bankası", q: "Örnek Bilgi Bankası şablonları sektörüme göre mi geliyor?", a: "Evet — Destek → Bilgi Bankası'ndaki \"Örnek şablonlar\" listesi, Ayarlar'da seçtiğiniz sektöre göre (örn. Emlak'ta tapu/depozito, Spor Merkezi'nde üyelik dondurma) farklı hazır taslaklar gösterir." },
+  { category: "Destek & Bilgi Bankası", q: "Destek talebi mesaj geçmişindeki okunmamış mesaj rozeti nasıl temizlenir?", a: "Müşteriden gelen bir mesaja yanıt yazdığınızda o talebin okunmamış rozeti otomatik temizlenir; talebi sadece açıp bakmak rozeti kaldırmaz, yanıt vermeniz gerekir." },
+  { category: "Destek & Bilgi Bankası", q: "Öncelik (Acil/Yüksek/Orta/Düşük) hedef çözüm süresini nasıl belirliyor?", a: "Her öncelik seviyesinin sabit bir hedef süresi vardır: Acil 4 saat, Yüksek 24 saat, Orta 48 saat, Düşük 72 saat — süre talebin oluşturulduğu andan itibaren işler." },
+  { category: "Destek & Bilgi Bankası", q: "Talep listesini SLA durumuna göre filtreleyebilir miyim?", a: "Evet, talep listesindeki SLA filtresinden \"Gecikti\", \"Yaklaşıyor\" veya \"Zamanında\" durumundaki talepleri ayrı ayrı görebilirsiniz; ayrıca durum, öncelik, arama ve tarih aralığı filtreleri de var." },
+  { category: "Destek & Bilgi Bankası", q: "Bir destek talebini silersem mesaj geçmişi de silinir mi?", a: "Talep çöp kutusuna taşınır ama mesaj geçmişi korunur — geri yüklediğinizde tüm mesajlar aynen yerinde durur." },
+  { category: "Destek & Bilgi Bankası", q: "Müşteri yeni bir destek talebi açtığında bunu nereden fark ederim?", a: "Pano'daki \"Bugün ne yapmalıyım\" listesinde SLA durumuna göre öne çıkar, ayrıca sol menüdeki Destek sekmesi üzerinde okunmamış mesaj sayısı rozet olarak görünür." },
+
+  { category: "Takım", q: "Takıma davet ettiğim bir kişiyi henüz kabul etmeden iptal edebilir miyim?", a: "Evet, Ayarlar → Takım'daki \"Bekleyen davetler\" listesinden ilgili davetin yanındaki \"İptal et\"e tıklayabilirsiniz — kişi daha sonra aynı e-postayla tekrar davet edilebilir." },
+  { category: "Takım", q: "Bir takım üyesini nasıl çıkarırım?", a: "Ayarlar → Takım'da ilgili üyenin yanındaki \"Kaldır\"a tıklarsınız — üye, müşteri/teklif/destek verilerinize erişimini anında kaybeder, tekrar erişmesi için yeniden davet edilmesi gerekir." },
+  { category: "Takım", q: "Bir takıma üye olarak eklendiğimde ne görürüm?", a: "Davet eden işletmenin tüm müşteri, teklif ve destek verisini görüp düzenleyebilirsiniz; isterseniz Ayarlar → Takım'dan o takımdan ayrılabilirsiniz." },
+  { category: "Takım", q: "Takım sahibi değilsem Ayarlar'da neler görürüm?", a: "İşletme Bilgileri, Sektör & Özel Alanlar gibi ayarlar sadece \"İşletme/sektör ayarlarını düzenleyebilir\" izni size verilmişse görünür; Takım ekranında ise sadece hangi işletmenin üyesi olduğunuzu ve \"Takımdan ayrıl\" seçeneğini görürsünüz." },
+  { category: "Takım", q: "Bir takım üyesine sadece belirli sekmeleri mi açabilirim?", a: "Hayır, sekme bazlı bir kısıtlama yok — tek ayrım İşletme Bilgileri/Sektör gibi ayarları düzenleme izni; verilen izin dışında tüm müşteri/teklif/destek verisi her üyeye aynı şekilde açıktır." },
+  { category: "Takım", q: "Davet e-postası karşı tarafa otomatik mi gönderiliyor?", a: "Davet kaydını oluşturduğunuzda sistem otomatik bir bilgilendirme e-postası göndermeyi dener; e-posta gönderimi başarısız olsa bile davet geçerli kalır, kişi giriş yaptığında bekleyen daveti Binerly içinde görür." },
+  { category: "Takım", q: "Takım üyesi sayısında bir sınır var mı?", a: "Şu an için pratik bir üst sınır yok; bekleyen davetleriniz de Takım ekranında listelenir, dilerseniz kabul edilmeden önce iptal edebilirsiniz." },
+
+  { category: "Bildirimler & İletişim", q: "Bildirim çanı (üstteki zil simgesi) nasıl çalışır?", a: "Okunmamış bildirim sayısını rozet olarak gösterir; zile tıklayınca açılan panelde bildirimlerde arama yapabilir, sadece okunmamışları filtreleyebilir ve bir bildirime tıkladığınızda hem okundu işaretlenir hem de ilgili kayda yönlendirilirsiniz." },
+
+  { category: "Ayarlar & Hesap", q: "Sistemin nasıl çalıştığını gösteren kısa turu tekrar izleyebilir miyim?", a: "Evet, Ayarlar → \"Turu Tekrar Başlat\"a tıklayarak ilk girişte gördüğünüz kısa tanıtım turunu istediğiniz zaman baştan izleyebilirsiniz." },
+  { category: "Ayarlar & Hesap", q: "Pano'daki \"Kuruluma başlayın\" kutusunu nasıl kapatırım?", a: "Kutunun sağ üstündeki \"Gizle\"ye tıklarsınız — bu tercih saklanır, adımları tamamlamasanız bile bir daha görünmez." },
+  { category: "Ayarlar & Hesap", q: "Bir özel alanı silersem, o alana daha önce girilmiş veriler ne olur?", a: "Hiçbir veri silinmez — alan sadece formlardan kaldırılır (gizlenir), müşteri/teklif kayıtlarındaki mevcut değerler veritabanında saklı kalmaya devam eder." },
+  { category: "Ayarlar & Hesap", q: "Özel alan eklerken sistemin kendi kullandığı bir isim girersem ne olur?", a: "Sistemin iç kullandığı birkaç anahtar (örn. \"Kaynak\") özel alan adı olarak kullanılamaz — böyle bir isim girip kaydetmeye çalıştığınızda alan sessizce eklenmez; farklı bir isim kullanmanız yeterli." },
+  { category: "Ayarlar & Hesap", q: "Aynı isimde iki özel alan tanımlayabilir miyim?", a: "Hayır, aynı \"Nerede\" (Müşteri Kayıtları/Müşteri Takibi) için aynı isimden ikinci bir alan eklenemez — farklı bir isim seçmeniz veya mevcut alanı düzenlemeniz gerekir." },
+  { category: "Ayarlar & Hesap", q: "Oturumum neden belirli bir süre sonra kendiliğinden kapanıyor?", a: "Güvenlik için oturumlar, hiç hareketsiz kalmasanız bile girişten itibaren en fazla 24 saat sonra otomatik sonlanır; süre dolduğunda tekrar giriş yapmanız istenir." },
+  { category: "Ayarlar & Hesap", q: "Uygulamayı telefonuma nasıl kurarım (PWA)?", a: "Tarayıcınızın paylaş/menü seçeneğinden \"Ana Ekrana Ekle\"yi seçerek Binerly'i normal bir uygulama gibi ana ekranınıza ekleyebilirsiniz — özellikle iPhone'da anlık bildirim alabilmek için bu adım gereklidir." },
+  { category: "Ayarlar & Hesap", q: "Google hesabımla giriş yapabilir miyim?", a: "Evet, giriş ekranındaki Google seçeneğiyle e-posta/şifre girmeden tek tıkla giriş yapabilir veya kayıt olabilirsiniz — bu hem ana uygulamada hem Müşteri Portalı'nda mevcuttur." },
+  { category: "Ayarlar & Hesap", q: "Şirket logomu teklif PDF'lerinde nasıl gösteririm?", a: "Ayarlar → İşletme Bilgileri'nden logonuzu yükleyin — Teklif Şablonları'ndaki hazır tasarımlar ve oluşturacağınız özel şablonlar logo alanında otomatik olarak bu görseli kullanır." },
+  { category: "Ayarlar & Hesap", q: "Vergi numaramı nereye giriyorum, teklif PDF'inde otomatik çıkar mı?", a: "Ayarlar → İşletme Bilgileri'ne girdiğiniz vergi numarası, teklif PDF şablonlarındaki \"Vergi no\" satırında otomatik olarak görünür." },
+  { category: "Ayarlar & Hesap", q: "Ayarlar menüsünden hangi ekranlara ulaşabilirim?", a: "İşletme Bilgileri, Sektör & Özel Alanlar, Ürün & Hizmet Fiyat Listesi, Teklif Şablonları, Ödeme Bağlantısı, (randevu alınabilen sektörlerde) Müsaitlik Saatleri, Görünüm/Bildirimler/Hesap, Takım, Çöp Kutusu ve Geçmiş, Müşteri Kazanma Linki ve Turu Tekrar Başlat — hepsi tek bir Ayarlar penceresinden açılır." },
+
+  { category: "İçe/Dışa Aktarma", q: "İçe aktarırken dosyamdaki sütunları Binerly alanlarıyla nasıl eşleştiririm?", a: "Dosyanızı yükledikten sonra açılan eşleştirme ekranında her Binerly alanı için dosyanızdaki hangi sütunun kullanılacağını seçersiniz — sistem sütun başlıklarına bakarak bu eşleşmeyi olabildiğince otomatik önerir, siz kontrol edip düzeltirsiniz." },
+  { category: "İçe/Dışa Aktarma", q: "İçe aktarmadan önce hangi satırların hatalı olduğunu görebilir miyim?", a: "Evet, önizleme ekranında her satır tek tek gösterilir; hatalı (örn. eşleşen müşteri bulunamayan) satırlar işaretlenip seçilemez hâle gelir, olası yinelenen kayıtlar ise ayrı bir uyarıyla belirtilir." },
+  { category: "İçe/Dışa Aktarma", q: "İçe aktarırken bazı satırları hariç tutabilir miyim?", a: "Evet, önizleme ekranındaki kutucuğu işaretleyerek her satırı ayrı ayrı içe aktarıma dahil edebilir veya çıkarabilirsiniz; hatalı satırların kutucuğu zaten devre dışı gelir." },
+  { category: "İçe/Dışa Aktarma", q: "Destek taleplerini veya Bilgi Bankası makalelerini de toplu içe aktarabilir miyim?", a: "Evet, Destek sekmesindeki Talepler ve Bilgi Bankası listelerinin her ikisinde de ayrı \"İçe aktar\" seçeneği vardır, aynı CSV/Excel akışını kullanır." },
+  { category: "İçe/Dışa Aktarma", q: "Teklif/talep içe aktarırken müşteri sütununda tam adı mı yazmalıyım?", a: "Evet, müşteri sütunundaki isim sistemdeki müşteri adıyla (büyük/küçük harf hariç) birebir eşleşmelidir; eşleşme bulunamazsa veya birden fazla müşteri aynı isme sahipse o satır hatalı sayılır." },
+  { category: "İçe/Dışa Aktarma", q: "CSV dosyamda noktalı virgül mü virgül mü kullanmalıyım?", a: "İkisi de desteklenir — dosyanızın ilk satırına bakılarak hangi ayırıcının kullanıldığı otomatik tespit edilir, ayrıca bir ayar yapmanıza gerek yoktur." },
+  { category: "İçe/Dışa Aktarma", q: "vCard (.vcf) içe aktarırken hangi bilgiler okunur?", a: "Kişinin adı, telefonu ve e-postası (varsa) okunur — adı olmayan kartlar listeye hiç dahil edilmez, diğer vCard alanları (adres, doğum günü vb.) içe aktarılmaz." },
+
+  { category: "Teklif Şablonları", q: "Kendi teklif PDF şablonumu nasıl tasarlarım?", a: "Ayarlar → Teklif Şablonları'ndaki galeriden \"+ Yeni Şablon (boş)\" ile boş bir sayfa açar ya da mevcut bir şablonu \"Düzenle\"yle kopyalayıp üzerinde değişiklik yaparsınız; editörde metin, logo, dikdörtgen, çizgi ve tablo blokları ekleyip konumlandırabilirsiniz." },
+  { category: "Teklif Şablonları", q: "Şablon editöründe bir bloğu nasıl hassas taşırım?", a: "Bloğu seçtikten sonra ok tuşlarıyla 1 piksel, Shift'e basılı tutarak 10 piksel adımlarla kaydırabilirsiniz — fareyle sürüklemek yerine ince ayar yapmak için kullanışlıdır." },
+  { category: "Teklif Şablonları", q: "Şablonuma hangi bilgileri otomatik doldurtabilirim?", a: "Firma adı/adres/telefon/e-posta/vergi no, müşteri adı/telefon/e-posta, belge başlığı, tarih, ara toplam/KDV/genel toplam, geçerlilik metni ve ek not gibi hazır alanları metin bloklarına ekleyip otomatik doldurulmasını sağlayabilirsiniz." },
+  { category: "Teklif Şablonları", q: "Bir teklif şablonunu silersem ne olur?", a: "Şablon kalıcı olarak silinir (geri alınamaz); o an seçili şablonsa otomatik olarak \"Klasik\" hazır şablona geri dönülür, daha önce o şablonla oluşturulmuş PDF'ler etkilenmez." },
+  { category: "Teklif Şablonları", q: "Teklif PDF'inde kalem sayısı arttıkça tasarım bozulur mu?", a: "Hayır — kalem sayısı arttıkça tablo bloğunun altındaki bloklar (geçerlilik metni, ek not vb.) otomatik olarak aşağı kayar, tasarımınız bozulmadan birden fazla kalemli teklifler de düzgün görünür." },
+  { category: "Teklif Şablonları", q: "Hazır \"Klasik\" ve \"Modern\" şablonlarını değiştirebilir miyim?", a: "Hazır şablonları doğrudan düzenleyemezsiniz ama \"Düzenle\"ye bastığınızda adının sonuna \"(Kopya)\" eklenmiş bir kopyası açılır, üzerinde değişiklik yapıp kendi şablonunuz olarak kaydedebilirsiniz." },
+  { category: "Teklif Şablonları", q: "Teklif PDF'inde hangi şablonun kullanılacağını nasıl seçerim?", a: "Ayarlar → Teklif Şablonları galerisinde istediğiniz şablonun yanındaki \"Seç\"e tıklarsınız — o andan sonra oluşturduğunuz tüm teklif PDF'leri bu şablonla üretilir." },
+  { category: "Teklif Şablonları", q: "Şablon editöründe bir metin bloğunun rengini/hizasını değiştirebilir miyim?", a: "Evet, seçili metin bloğu için yazı boyutu, kalınlık, renk, hizalama (sol/orta/sağ) ve büyük/küçük harf dönüşümü gibi özellikleri ayrı ayrı ayarlayabilirsiniz." },
+  { category: "Teklif Şablonları", q: "Boş şablondan başlarsam varsayılan sayfa boyutu ne olur?", a: "Boş şablon 700×900 piksellik bir sayfa olarak açılır, istediğiniz blokları sıfırdan ekleyip konumlandırırsınız — hazır şablonlardaki gibi önceden yerleştirilmiş hiçbir blok gelmez." },
 ];
 
 // "Soru Sor" — gerçek bir AI/LLM çağrısı YOK, önceden tanımlı sorulara canlı
 // veriden hesaplanan cevaplar veren deterministik bir kütüphane (maliyet
-// sıfır, veri hiç dışarı çıkmıyor). HelpPanel'deki statik soru/cevap
-// deseninin aynısı, tek fark cevabın compute(ctx) ile canlı hesaplanması.
+// sıfır, veri hiç dışarı çıkmıyor). HELP_TOPICS'teki statik soru/cevap
+// deseninin aynısı, tek fark cevabın compute(ctx) ile canlı hesaplanması —
+// aşağıda HELP_TOPICS/ADVISOR_TIPS ile birlikte tek kütüphanede (UNIFIED_LIBRARY) birleşiyor.
 // Bazı Pano metrikleri (winRate, rangeRevenue vb.) Pano'da seçili tarih
 // aralığına bağlı olduğu için burada KASITLI OLARAK yeniden kullanılmıyor —
 // bu panel her yerden açılabildiğinden cevap Pano'daki filtreye göre sessizce
@@ -474,6 +578,20 @@ function topEntry(totals) {
   if (entries.length === 0) return null;
   return entries.sort((a, b) => b[1] - a[1])[0];
 }
+
+// "Analiz" kategorisindeki teşhis soruları (aşağıda) tek bir sayı yerine
+// birkaç sinyali birleştirip bir yorum/öneri üretiyor — kayıp nedenine göre
+// somut bir tavsiyeye eşleşen sabit bir sözlük. Hem teklif sektörlerindeki
+// LOST_REASONS'ı hem randevu sektörlerindeki APPOINTMENT_LOST_REASONS'ı kapsar.
+const REASON_ADVICE = {
+  "Yüksek fiyat": "Fiyatlandırmanızı ve sunduğunuz değeri gözden geçirmeyi düşünebilirsiniz — doğrudan indirim yerine paketleme veya ek hizmet eklemek genelde daha sürdürülebilir bir çözümdür.",
+  "Rakip tercih edildi": "Rakiplerinizi analiz edip kendi farklılaşma noktalarınızı (hız, kalite, kişisel ilgi, garanti) tekliflerinizde daha net vurgulamayı deneyin.",
+  "Bütçe yok": "Daha küçük/esnek bir paket veya taksitli ödeme seçeneği sunmak bütçe engelini aşmanıza yardımcı olabilir.",
+  "Zamanlama uymadı": "Bu kayıtlar için bir hatırlatma bırakıp uygun zaman geldiğinde tekrar iletişime geçmeyi unutmayın.",
+  "Vazgeçti": "İlk temas sonrası takip hızınızı gözden geçirin — yanıt gecikmesi genelde ilginin soğumasına yol açar.",
+  "Randevuya gelmedi": "Randevu hatırlatmalarınızın açık olduğundan emin olun, randevuya yakın ek bir hatırlatma da gelmeme oranını azaltabilir.",
+  "İptal etti": "İptal nedenini not almayı sürdürün — tekrarlayan bir kalıp (örn. hep aynı gün/saat) varsa program/müsaitlik saatlerinizi gözden geçirebilirsiniz.",
+};
 
 const ANSWER_LIBRARY = [
   {
@@ -1121,95 +1239,2694 @@ const ANSWER_LIBRARY = [
     keywords: ["fiyat listesi kaç ürün", "kaç hizmetim var listede"],
     compute: (ctx) => `Fiyat listenizde ${ctx.priceListItems.length} ürün/hizmet var.`,
   },
+  // ---- Satış ----
+  {
+    id: "revenue_this_quarter",
+    category: "Satış",
+    label: "Bu çeyrek toplam ne kadar kazandım?",
+    keywords: ["bu çeyrek gelir", "bu çeyrek ne kadar kazandım", "çeyreklik gelir"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ceyrek");
+      const total = ctx.deals.filter((d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, bounds)).reduce((sum, d) => sum + (d.value || 0), 0);
+      return `Bu çeyrek toplam ${formatTL(total)} kazandınız.`;
+    },
+  },
+  {
+    id: "revenue_last_quarter",
+    category: "Satış",
+    label: "Geçen çeyrek ne kadar kazandım?",
+    keywords: ["geçen çeyrek gelir", "önceki çeyrek gelir"],
+    compute: (ctx) => {
+      const now = new Date();
+      const qStartMonth = Math.floor(now.getMonth() / 3) * 3;
+      const thisQStart = new Date(now.getFullYear(), qStartMonth, 1);
+      const lastQStart = new Date(now.getFullYear(), qStartMonth - 3, 1);
+      const lastQEnd = new Date(thisQStart.getTime() - 1);
+      const total = ctx.deals.filter((d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, { start: lastQStart, end: lastQEnd })).reduce((sum, d) => sum + (d.value || 0), 0);
+      return `Geçen çeyrek toplam ${formatTL(total)} kazandınız.`;
+    },
+  },
+  {
+    id: "win_rate_this_quarter",
+    category: "Satış",
+    label: "Bu çeyrek kazanma oranım nedir?",
+    keywords: ["bu çeyrek kazanma oranı", "çeyreklik başarı oranı"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ceyrek");
+      const closed = ctx.deals.filter((d) => (d.stage === "kazanildi" || d.stage === "kaybedildi") && inRange(d.closedAt || d.createdAt, bounds));
+      const won = closed.filter((d) => d.stage === "kazanildi");
+      if (closed.length === 0) return "Bu çeyrek henüz sonuçlanmış bir kaydınız yok.";
+      return `Bu çeyrek kazanma oranınız %${Math.round((won.length / closed.length) * 100)} (${won.length}/${closed.length}).`;
+    },
+  },
+  {
+    id: "win_rate_last_quarter",
+    category: "Satış",
+    label: "Geçen çeyrek kazanma oranım neydi?",
+    keywords: ["geçen çeyrek kazanma oranı", "önceki çeyrek başarı oranı"],
+    compute: (ctx) => {
+      const now = new Date();
+      const qStartMonth = Math.floor(now.getMonth() / 3) * 3;
+      const thisQStart = new Date(now.getFullYear(), qStartMonth, 1);
+      const lastQStart = new Date(now.getFullYear(), qStartMonth - 3, 1);
+      const lastQEnd = new Date(thisQStart.getTime() - 1);
+      const closed = ctx.deals.filter((d) => (d.stage === "kazanildi" || d.stage === "kaybedildi") && inRange(d.closedAt || d.createdAt, { start: lastQStart, end: lastQEnd }));
+      const won = closed.filter((d) => d.stage === "kazanildi");
+      if (closed.length === 0) return "Geçen çeyrek sonuçlanmış bir kaydınız yoktu.";
+      return `Geçen çeyrek kazanma oranınız %${Math.round((won.length / closed.length) * 100)} (${won.length}/${closed.length}) idi.`;
+    },
+  },
+  {
+    id: "win_rate_this_year",
+    category: "Satış",
+    label: "Bu yıl kazanma oranım nedir?",
+    keywords: ["bu yıl kazanma oranı", "yıllık başarı oranı"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_yil");
+      const closed = ctx.deals.filter((d) => (d.stage === "kazanildi" || d.stage === "kaybedildi") && inRange(d.closedAt || d.createdAt, bounds));
+      const won = closed.filter((d) => d.stage === "kazanildi");
+      if (closed.length === 0) return "Bu yıl henüz sonuçlanmış bir kaydınız yok.";
+      return `Bu yıl kazanma oranınız %${Math.round((won.length / closed.length) * 100)} (${won.length}/${closed.length}).`;
+    },
+  },
+  {
+    id: "yoy_revenue_comparison",
+    category: "Satış",
+    label: "Bu yıl geçen yıla göre ne kadar kazandım?",
+    keywords: ["geçen yılla karşılaştırma", "yıllık kıyaslama", "geçen yıla göre gelir"],
+    compute: (ctx) => {
+      const now = new Date();
+      const thisBounds = getRangeBounds("bu_yil");
+      const lastBounds = { start: new Date(now.getFullYear() - 1, 0, 1), end: new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999) };
+      const thisYear = ctx.deals.filter((d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, thisBounds)).reduce((sum, d) => sum + (d.value || 0), 0);
+      const lastYear = ctx.deals.filter((d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, lastBounds)).reduce((sum, d) => sum + (d.value || 0), 0);
+      if (lastYear === 0) return `Geçen yıl kazancınız yoktu, bu yıl ${formatTL(thisYear)} kazandınız.`;
+      const change = Math.round(((thisYear - lastYear) / lastYear) * 100);
+      return `Bu yıl ${formatTL(thisYear)}, geçen yıl ${formatTL(lastYear)} kazandınız (%${change > 0 ? "+" : ""}${change} değişim).`;
+    },
+  },
+  {
+    id: "mom_revenue_comparison",
+    category: "Satış",
+    label: "Bu ay geçen aya göre ne kadar kazandım?",
+    keywords: ["geçen aya göre gelir", "aylık kıyaslama", "bir önceki aya göre"],
+    compute: (ctx) => {
+      const now = new Date();
+      const thisBounds = getRangeBounds("bu_ay");
+      const lastStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      const thisMonth = ctx.deals.filter((d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, thisBounds)).reduce((sum, d) => sum + (d.value || 0), 0);
+      const lastMonth = ctx.deals.filter((d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, { start: lastStart, end: lastEnd })).reduce((sum, d) => sum + (d.value || 0), 0);
+      if (lastMonth === 0) return `Geçen ay kazancınız yoktu, bu ay ${formatTL(thisMonth)} kazandınız.`;
+      const change = Math.round(((thisMonth - lastMonth) / lastMonth) * 100);
+      return `Bu ay ${formatTL(thisMonth)}, geçen ay ${formatTL(lastMonth)} kazandınız (%${change > 0 ? "+" : ""}${change} değişim).`;
+    },
+  },
+  {
+    id: "open_deals_value_total",
+    category: "Satış",
+    label: (sector) => `Açık ${DEAL_WORD_FORMS[dealWordKind(sector)].genPlural} toplam değeri ne kadar?`,
+    keywords: ["açık teklif toplam değeri", "açık fırsat değeri", "bekleyen kayıt tutarı"],
+    compute: (ctx) => {
+      const open = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi");
+      const words = DEAL_WORD_FORMS[dealWordKind(ctx.companySettings?.sector)];
+      if (open.length === 0) return "Şu anda açık bir kaydınız yok.";
+      const total = open.reduce((sum, d) => sum + (d.value || 0), 0);
+      return `Açık ${words.genPlural} toplam değeri ${formatTL(total)} (${open.length} kayıt).`;
+    },
+  },
+  {
+    id: "avg_deal_size_all_time",
+    category: "Satış",
+    label: "Tüm zamanlar ortalama kazanılan kayıt değeri ne kadar?",
+    keywords: ["tüm zamanlar ortalama teklif", "genel ortalama kayıt değeri"],
+    compute: (ctx) => {
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi");
+      if (won.length === 0) return "Henüz kazanılmış bir kaydınız yok.";
+      const avg = won.reduce((sum, d) => sum + (d.value || 0), 0) / won.length;
+      return `Tüm zamanlar ortalama kazanılan kayıt değeriniz ${formatTL(avg)}.`;
+    },
+  },
+  {
+    id: "avg_deal_size_open",
+    category: "Satış",
+    label: "Açık kayıtlarımın ortalama değeri ne kadar?",
+    keywords: ["açık kayıt ortalama değeri", "ortalama açık teklif"],
+    compute: (ctx) => {
+      const open = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi");
+      if (open.length === 0) return "Şu anda açık bir kaydınız yok.";
+      const avg = open.reduce((sum, d) => sum + (d.value || 0), 0) / open.length;
+      return `Açık kayıtlarınızın ortalama değeri ${formatTL(avg)}.`;
+    },
+  },
+  {
+    id: "deals_by_stage_value",
+    category: "Satış",
+    label: "Hangi aşamada toplam ne kadar değer var?",
+    keywords: ["aşama bazında değer", "aşamalara göre tutar"],
+    compute: (ctx) => {
+      const openDeals = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi");
+      if (openDeals.length === 0) return "Şu anda açık bir kaydınız yok.";
+      return STAGES.filter((s) => s.id !== "kazanildi" && s.id !== "kaybedildi")
+        .map((s) => `${stageLabel(s.id, "kurumsal", ctx.companySettings?.sector)}: ${formatTL(openDeals.filter((d) => d.stage === s.id).reduce((sum, d) => sum + (d.value || 0), 0))}`)
+        .join(", ");
+    },
+  },
+  {
+    id: "deals_won_this_week",
+    category: "Satış",
+    label: "Bu hafta kaç kayıt kazandım?",
+    keywords: ["bu hafta kazanılan", "bu hafta kaç teklif kazandım"],
+    compute: (ctx) => {
+      const now = new Date();
+      const start = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
+      start.setHours(0, 0, 0, 0);
+      const count = ctx.deals.filter((d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, { start, end: now })).length;
+      return `Son 7 günde ${count} kayıt kazandınız.`;
+    },
+  },
+  {
+    id: "deals_created_this_week",
+    category: "Satış",
+    label: "Bu hafta kaç yeni kayıt oluşturdum?",
+    keywords: ["bu hafta yeni kayıt", "bu haftaki yeni teklifler"],
+    compute: (ctx) => {
+      const now = new Date();
+      const start = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
+      start.setHours(0, 0, 0, 0);
+      const count = ctx.deals.filter((d) => inRange(d.createdAt, { start, end: now })).length;
+      return `Son 7 günde ${count} yeni kayıt oluşturdunuz.`;
+    },
+  },
+  {
+    id: "deals_created_last_month",
+    category: "Satış",
+    label: "Geçen ay kaç yeni kayıt oluşturdum?",
+    keywords: ["geçen ay yeni kayıt", "geçen ayki yeni teklifler"],
+    compute: (ctx) => {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      const count = ctx.deals.filter((d) => inRange(d.createdAt, { start, end })).length;
+      return `Geçen ay ${count} yeni kayıt oluşturdunuz.`;
+    },
+  },
+  {
+    id: "deals_lost_this_month",
+    category: "Satış",
+    label: "Bu ay kaç kayıt kaybettim?",
+    keywords: ["bu ay kaybedilen", "bu ay kaç teklif kaybettim"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ay");
+      const count = ctx.deals.filter((d) => d.stage === "kaybedildi" && inRange(d.closedAt || d.createdAt, bounds)).length;
+      return count > 0 ? `Bu ay ${count} kayıt kaybettiniz.` : "Bu ay henüz kaybedilmiş bir kaydınız yok.";
+    },
+  },
+  {
+    id: "deals_lost_this_quarter",
+    category: "Satış",
+    label: "Bu çeyrek kaç kayıt kaybettim?",
+    keywords: ["bu çeyrek kaybedilen", "çeyreklik kayıp sayısı"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ceyrek");
+      const count = ctx.deals.filter((d) => d.stage === "kaybedildi" && inRange(d.closedAt || d.createdAt, bounds)).length;
+      return count > 0 ? `Bu çeyrek ${count} kayıt kaybettiniz.` : "Bu çeyrek henüz kaybedilmiş bir kaydınız yok.";
+    },
+  },
+  {
+    id: "top_lost_reason_month",
+    category: "Satış",
+    label: "Bu ay en çok hangi nedenle kaybettim?",
+    keywords: ["bu ay kayıp nedeni", "bu ay en çok kaybettiğim neden"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ay");
+      const lost = ctx.deals.filter((d) => d.stage === "kaybedildi" && d.lostReason && inRange(d.closedAt || d.createdAt, bounds));
+      if (lost.length === 0) return "Bu ay nedeni belirtilmiş kayıp bir kaydınız yok.";
+      const totals = {};
+      lost.forEach((d) => { totals[d.lostReason] = (totals[d.lostReason] || 0) + 1; });
+      const top = topEntry(totals);
+      return `Bu ay en sık kayıp nedeniniz "${top[0]}" (${top[1]} kayıt).`;
+    },
+  },
+  {
+    id: "no_show_rate_quarter",
+    category: "Satış",
+    label: "Bu çeyrek gelmeme oranım nedir?",
+    keywords: ["bu çeyrek gelmeme oranı", "çeyreklik no-show"],
+    visibleIf: (sector) => isAppointmentSector(sector),
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ceyrek");
+      const closed = ctx.deals.filter((d) => (d.stage === "kazanildi" || d.stage === "kaybedildi") && inRange(d.closedAt || d.createdAt, bounds));
+      const noShow = closed.filter((d) => d.stage === "kaybedildi" && d.lostReason === "Randevuya gelmedi");
+      if (closed.length === 0) return "Bu çeyrek henüz sonuçlanmış bir randevunuz yok.";
+      return `Bu çeyrek gelmeme oranınız %${Math.round((noShow.length / closed.length) * 100)} (${noShow.length}/${closed.length}).`;
+    },
+  },
+  {
+    id: "no_show_rate_all_time",
+    category: "Satış",
+    label: "Tüm zamanlar gelmeme oranım nedir?",
+    keywords: ["tüm zamanlar gelmeme oranı", "genel no-show oranı"],
+    visibleIf: (sector) => isAppointmentSector(sector),
+    compute: (ctx) => {
+      const closed = ctx.deals.filter((d) => d.stage === "kazanildi" || d.stage === "kaybedildi");
+      const noShow = closed.filter((d) => d.stage === "kaybedildi" && d.lostReason === "Randevuya gelmedi");
+      if (closed.length === 0) return "Henüz sonuçlanmış bir randevunuz yok.";
+      return `Tüm zamanlar gelmeme oranınız %${Math.round((noShow.length / closed.length) * 100)} (${noShow.length}/${closed.length}).`;
+    },
+  },
+  {
+    id: "cancellation_rate",
+    category: "Satış",
+    label: "İptal oranım nedir?",
+    keywords: ["iptal oranı", "randevu iptal oranı"],
+    visibleIf: (sector) => isAppointmentSector(sector),
+    compute: (ctx) => {
+      const closed = ctx.deals.filter((d) => d.stage === "kazanildi" || d.stage === "kaybedildi");
+      const cancelled = closed.filter((d) => d.stage === "kaybedildi" && d.lostReason === "İptal etti");
+      if (closed.length === 0) return "Henüz sonuçlanmış bir randevunuz yok.";
+      return `Tüm zamanlar iptal oranınız %${Math.round((cancelled.length / closed.length) * 100)} (${cancelled.length}/${closed.length}).`;
+    },
+  },
+  {
+    id: "top_customer_all_time",
+    category: "Satış",
+    label: "Tüm zamanlar en çok kazandıran müşterim kim?",
+    keywords: ["tüm zamanlar en iyi müşteri", "genel en çok kazandıran müşteri"],
+    compute: (ctx) => {
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi");
+      if (won.length === 0) return "Henüz kazanılmış bir kaydınız yok.";
+      const totals = {};
+      won.forEach((d) => { totals[d.customerId] = (totals[d.customerId] || 0) + (d.value || 0); });
+      const top = topEntry(totals);
+      const customer = ctx.customers.find((c) => c.id === top[0]);
+      return `${customer?.name || "Bilinmeyen müşteri"} — tüm zamanlar ${formatTL(top[1])} ile en çok kazandıran müşteriniz.`;
+    },
+  },
+  {
+    id: "top_customer_quarter",
+    category: "Satış",
+    label: "Bu çeyrek en çok kazandıran müşterim kim?",
+    keywords: ["bu çeyrek en iyi müşteri", "çeyreklik en çok kazandıran"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ceyrek");
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, bounds));
+      if (won.length === 0) return "Bu çeyrek henüz kazanılmış bir kaydınız yok.";
+      const totals = {};
+      won.forEach((d) => { totals[d.customerId] = (totals[d.customerId] || 0) + (d.value || 0); });
+      const top = topEntry(totals);
+      const customer = ctx.customers.find((c) => c.id === top[0]);
+      return `${customer?.name || "Bilinmeyen müşteri"} — bu çeyrek ${formatTL(top[1])} ile en çok kazandıran müşteriniz.`;
+    },
+  },
+  {
+    id: "top_customer_year",
+    category: "Satış",
+    label: "Bu yıl en çok kazandıran müşterim kim?",
+    keywords: ["bu yıl en iyi müşteri", "yıllık en çok kazandıran"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_yil");
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, bounds));
+      if (won.length === 0) return "Bu yıl henüz kazanılmış bir kaydınız yok.";
+      const totals = {};
+      won.forEach((d) => { totals[d.customerId] = (totals[d.customerId] || 0) + (d.value || 0); });
+      const top = topEntry(totals);
+      const customer = ctx.customers.find((c) => c.id === top[0]);
+      return `${customer?.name || "Bilinmeyen müşteri"} — bu yıl ${formatTL(top[1])} ile en çok kazandıran müşteriniz.`;
+    },
+  },
+  {
+    id: "biggest_single_deal_ever",
+    category: "Satış",
+    label: "En büyük tek kazanılan kaydım hangisi?",
+    keywords: ["en büyük kazanılan kayıt", "en yüksek tekli teklif", "rekor teklif"],
+    compute: (ctx) => {
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi");
+      if (won.length === 0) return "Henüz kazanılmış bir kaydınız yok.";
+      const top = [...won].sort((a, b) => (b.value || 0) - (a.value || 0))[0];
+      const customer = ctx.customers.find((c) => c.id === top.customerId);
+      return `"${top.title}" (${customer?.name || "müşteri silinmiş"}) — ${formatTL(top.value)} ile en büyük kazanılan kaydınız.`;
+    },
+  },
+  {
+    id: "highest_value_customer_lifetime",
+    category: "Satış",
+    label: "En değerli müşterim kim (tüm zamanlar toplam)?",
+    keywords: ["en değerli müşteri", "yaşam boyu değer", "en kârlı müşteri"],
+    compute: (ctx) => {
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi");
+      if (won.length === 0) return "Henüz kazanılmış bir kaydınız yok.";
+      const totals = {};
+      won.forEach((d) => { totals[d.customerId] = (totals[d.customerId] || 0) + (d.value || 0); });
+      const top = topEntry(totals);
+      const customer = ctx.customers.find((c) => c.id === top[0]);
+      const count = won.filter((d) => d.customerId === top[0]).length;
+      return `${customer?.name || "Bilinmeyen müşteri"} — bugüne kadar ${count} kayıtla toplam ${formatTL(top[1])} kazandırdı.`;
+    },
+  },
+  {
+    id: "deals_without_tag_count",
+    category: "Satış",
+    label: "Etiketi olmayan kaç kaydım var?",
+    keywords: ["etiketsiz kayıt", "etiketi olmayan teklif"],
+    compute: (ctx) => {
+      const count = ctx.deals.filter((d) => !(d.tags && d.tags.length > 0)).length;
+      return `Etiketi olmayan ${count} kaydınız var.`;
+    },
+  },
+  {
+    id: "deals_without_reminder_count",
+    category: "Satış",
+    label: "Hatırlatması olmayan kaç açık kaydım var?",
+    keywords: ["hatırlatmasız kayıt", "hatırlatması olmayan teklif"],
+    compute: (ctx) => {
+      const open = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi");
+      const count = open.filter((d) => !d.reminderDate).length;
+      return open.length === 0 ? "Şu anda açık bir kaydınız yok." : `Açık kayıtlarınızdan ${count} tanesinde hatırlatma tarihi girilmemiş.`;
+    },
+  },
+  {
+    id: "top_tag_won_deals",
+    category: "Satış",
+    label: "Kazanılan kayıtlarda en çok kullanılan etiket hangisi?",
+    keywords: ["kazanılan kayıt etiketi", "kazanılan tekliflerin etiketi"],
+    compute: (ctx) => {
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi");
+      const totals = {};
+      won.forEach((d) => (d.tags || []).forEach((t) => { totals[t] = (totals[t] || 0) + 1; }));
+      const top = topEntry(totals);
+      return top ? `Kazanılan kayıtlarda en çok kullanılan etiket "${top[0]}" (${top[1]} kayıtta).` : "Kazanılan kayıtlarınıza henüz etiket eklenmemiş.";
+    },
+  },
+  {
+    id: "session_package_count",
+    category: "Satış",
+    label: "Seansı devam eden kaç paketim var?",
+    keywords: ["devam eden paket", "seansı bitmeyen paket", "kalan seans"],
+    visibleIf: (sector) => supportsSessionPackages(sector),
+    compute: (ctx) => {
+      const packages = ctx.deals.filter((d) => d.stage === "kazanildi" && d.sessionTotal != null && (d.sessionUsed || 0) < d.sessionTotal);
+      return packages.length > 0 ? `Seansı bitmemiş ${packages.length} paketiniz var.` : "Seansı devam eden bir paketiniz şu anda yok.";
+    },
+  },
+  {
+    id: "avg_session_usage_rate",
+    category: "Satış",
+    label: "Seans paketlerimde ortalama kullanım oranı nedir?",
+    keywords: ["ortalama seans kullanımı", "paket kullanım oranı"],
+    visibleIf: (sector) => supportsSessionPackages(sector),
+    compute: (ctx) => {
+      const packages = ctx.deals.filter((d) => d.sessionTotal != null && d.sessionTotal > 0);
+      if (packages.length === 0) return "Henüz seans paketi tanımlı bir kaydınız yok.";
+      const avg = packages.reduce((sum, d) => sum + (d.sessionUsed || 0) / d.sessionTotal, 0) / packages.length;
+      return `Seans paketlerinizde ortalama kullanım oranı %${Math.round(avg * 100)}.`;
+    },
+  },
+  {
+    id: "session_packages_near_completion",
+    category: "Satış",
+    label: "Son seansına gelmiş kaç paketim var?",
+    keywords: ["son seans", "bitmek üzere olan paket", "yenileme fırsatı"],
+    visibleIf: (sector) => supportsSessionPackages(sector),
+    compute: (ctx) => {
+      const near = ctx.deals.filter((d) => d.stage === "kazanildi" && d.sessionTotal != null && d.sessionTotal - (d.sessionUsed || 0) === 1);
+      return near.length > 0 ? `Son seansına gelmiş ${near.length} paketiniz var — yenileme teklifi için iyi bir fırsat.` : "Son seansına gelmiş bir paketiniz şu anda yok.";
+    },
+  },
+  {
+    id: "unassigned_deals_count",
+    category: "Satış",
+    label: "Sorumlusu atanmamış kaç açık kaydım var?",
+    keywords: ["sorumlusu olmayan kayıt", "atanmamış teklif"],
+    compute: (ctx) => {
+      const open = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi");
+      const count = open.filter((d) => !d.assignedTo).length;
+      return open.length === 0 ? "Şu anda açık bir kaydınız yok." : `Sorumlusu atanmamış ${count} açık kaydınız var.`;
+    },
+  },
+  {
+    id: "deals_missing_value_count",
+    category: "Satış",
+    label: "Tutarı girilmemiş kaç açık kaydım var?",
+    keywords: ["tutarsız kayıt", "değeri girilmemiş teklif", "0 tl teklif"],
+    compute: (ctx) => {
+      const open = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi");
+      const count = open.filter((d) => !d.value || d.value === 0).length;
+      return open.length === 0 ? "Şu anda açık bir kaydınız yok." : `Tutarı girilmemiş (0 TL) ${count} açık kaydınız var.`;
+    },
+  },
+  {
+    id: "this_quarter_new_deals",
+    category: "Satış",
+    label: "Bu çeyrek kaç yeni kayıt oluşturdum?",
+    keywords: ["bu çeyrek yeni kayıt", "çeyreklik yeni teklif sayısı"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ceyrek");
+      const count = ctx.deals.filter((d) => inRange(d.createdAt, bounds)).length;
+      return `Bu çeyrek ${count} yeni kayıt oluşturdunuz.`;
+    },
+  },
+  {
+    id: "this_year_new_deals",
+    category: "Satış",
+    label: "Bu yıl kaç yeni kayıt oluşturdum?",
+    keywords: ["bu yıl yeni kayıt", "yıllık yeni teklif sayısı"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_yil");
+      const count = ctx.deals.filter((d) => inRange(d.createdAt, bounds)).length;
+      return `Bu yıl ${count} yeni kayıt oluşturdunuz.`;
+    },
+  },
+  {
+    id: "last_year_revenue",
+    category: "Satış",
+    label: "Geçen yıl toplam ne kadar kazandım?",
+    keywords: ["geçen yıl gelir", "geçen yılki toplam kazanç"],
+    compute: (ctx) => {
+      const now = new Date();
+      const start = new Date(now.getFullYear() - 1, 0, 1);
+      const end = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+      const total = ctx.deals.filter((d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, { start, end })).reduce((sum, d) => sum + (d.value || 0), 0);
+      return `Geçen yıl toplam ${formatTL(total)} kazandınız.`;
+    },
+  },
+  {
+    id: "best_month_this_year",
+    category: "Satış",
+    label: "Bu yıl en iyi ayım hangisiydi?",
+    keywords: ["en iyi ay", "yılın en iyi ayı", "en çok kazandığım ay"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_yil");
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, bounds));
+      if (won.length === 0) return "Bu yıl henüz kazanılmış bir kaydınız yok.";
+      const totals = {};
+      won.forEach((d) => {
+        const date = new Date(d.closedAt || d.createdAt);
+        const key = date.getMonth();
+        totals[key] = (totals[key] || 0) + (d.value || 0);
+      });
+      const top = topEntry(totals);
+      const monthNames = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+      return `Bu yılın en iyi ayı ${monthNames[Number(top[0])]} — ${formatTL(top[1])} kazandınız.`;
+    },
+  },
+  {
+    id: "avg_deal_cost_ratio",
+    category: "Satış",
+    label: "Kazanılan kayıtlarımda ortalama maliyet oranı nedir?",
+    keywords: ["ortalama maliyet oranı", "maliyet yüzdesi"],
+    compute: (ctx) => {
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi" && (d.value || 0) > 0);
+      if (won.length === 0) return "Henüz kazanılmış bir kaydınız yok.";
+      const avg = won.reduce((sum, d) => sum + (d.cost || 0) / d.value, 0) / won.length;
+      return `Kazanılan kayıtlarınızda ortalama maliyet oranınız %${Math.round(avg * 100)}.`;
+    },
+  },
+  {
+    id: "deals_with_cost_count",
+    category: "Satış",
+    label: "Maliyeti girilmiş kaç kazanılan kaydım var?",
+    keywords: ["maliyetli kayıt", "maliyeti olan teklif sayısı"],
+    compute: (ctx) => {
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi");
+      const withCost = won.filter((d) => (d.cost || 0) > 0).length;
+      return won.length === 0 ? "Henüz kazanılmış bir kaydınız yok." : `Kazanılan ${won.length} kaydınızdan ${withCost} tanesinde maliyet girilmiş.`;
+    },
+  },
+  {
+    id: "quarter_over_quarter_change",
+    category: "Satış",
+    label: "Bu çeyrek geçen çeyreğe göre nasıl gidiyorum?",
+    keywords: ["çeyrek karşılaştırması", "çeyrekten çeyreğe değişim"],
+    compute: (ctx) => {
+      const now = new Date();
+      const qStartMonth = Math.floor(now.getMonth() / 3) * 3;
+      const thisQStart = new Date(now.getFullYear(), qStartMonth, 1);
+      const lastQStart = new Date(now.getFullYear(), qStartMonth - 3, 1);
+      const lastQEnd = new Date(thisQStart.getTime() - 1);
+      const thisQ = ctx.deals.filter((d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, { start: thisQStart, end: getRangeBounds("bu_ceyrek").end })).reduce((sum, d) => sum + (d.value || 0), 0);
+      const lastQ = ctx.deals.filter((d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, { start: lastQStart, end: lastQEnd })).reduce((sum, d) => sum + (d.value || 0), 0);
+      if (lastQ === 0) return `Geçen çeyrek kazancınız yoktu, bu çeyrek ${formatTL(thisQ)} kazandınız.`;
+      const change = Math.round(((thisQ - lastQ) / lastQ) * 100);
+      return `Bu çeyrek ${formatTL(thisQ)}, geçen çeyrek ${formatTL(lastQ)} kazandınız (%${change > 0 ? "+" : ""}${change} değişim).`;
+    },
+  },
+  {
+    id: "deals_open_over_30_days_count",
+    category: "Satış",
+    label: "30 günden uzun süredir açık kaç kaydım var?",
+    keywords: ["30 günden eski açık kayıt", "uzun süredir açık teklifler"],
+    compute: (ctx) => {
+      const open = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi");
+      const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const count = open.filter((d) => new Date(d.createdAt).getTime() < cutoff).length;
+      return open.length === 0 ? "Şu anda açık bir kaydınız yok." : `30 günden uzun süredir açık ${count} kaydınız var.`;
+    },
+  },
+  {
+    id: "deals_stalled_in_negotiation_count",
+    category: "Satış",
+    label: "Müzakere aşamasında kaç kaydım var?",
+    keywords: ["müzakerede kaç kayıt", "pazarlık aşamasındaki kayıtlar"],
+    compute: (ctx) => {
+      const count = ctx.deals.filter((d) => d.stage === "muzakere").length;
+      return `${stageLabel("muzakere", "kurumsal", ctx.companySettings?.sector)} aşamasında ${count} kaydınız var.`;
+    },
+  },
+
+  // ---- Müşteri ----
+  {
+    id: "customers_by_region_breakdown",
+    category: "Müşteri",
+    label: "Bölgelere göre müşteri dağılımım nasıl?",
+    keywords: ["bölge dağılımı tam liste", "bölgelere göre müşteri sayısı"],
+    compute: (ctx) => {
+      const totals = {};
+      ctx.customers.forEach((c) => { if (c.region) totals[c.region] = (totals[c.region] || 0) + 1; });
+      const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+      return entries.length > 0 ? entries.map(([k, v]) => `${k}: ${v}`).join(", ") : "Müşterilerinizde henüz bölge bilgisi girilmemiş.";
+    },
+  },
+  {
+    id: "customers_by_sector_breakdown",
+    category: "Müşteri",
+    label: "Sektörlere göre müşteri dağılımım nasıl?",
+    keywords: ["sektör dağılımı tam liste", "sektörlere göre müşteri sayısı"],
+    compute: (ctx) => {
+      const totals = {};
+      ctx.customers.forEach((c) => { if (c.sector) totals[c.sector] = (totals[c.sector] || 0) + 1; });
+      const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+      return entries.length > 0 ? entries.map(([k, v]) => `${k}: ${v}`).join(", ") : "Müşterilerinizde henüz sektör bilgisi girilmemiş.";
+    },
+  },
+  {
+    id: "customers_with_open_deal_count",
+    category: "Müşteri",
+    label: "Açık kaydı olan kaç müşterim var?",
+    keywords: ["açık kaydı olan müşteri", "bekleyen teklifi olan müşteri sayısı"],
+    compute: (ctx) => {
+      const open = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi");
+      const ids = new Set(open.map((d) => d.customerId));
+      return `${ids.size} müşterinizin açık bir kaydı var.`;
+    },
+  },
+  {
+    id: "customers_without_any_deal",
+    category: "Müşteri",
+    label: "Hiç kaydı olmayan kaç müşterim var?",
+    keywords: ["kaydı olmayan müşteri", "hiç teklifi olmayan müşteri"],
+    compute: (ctx) => {
+      const withDeal = new Set(ctx.deals.map((d) => d.customerId));
+      const count = ctx.customers.filter((c) => !withDeal.has(c.id)).length;
+      return count > 0 ? `${count} müşterinizin hiç kaydı yok.` : "Tüm müşterilerinizin en az bir kaydı var.";
+    },
+  },
+  {
+    id: "customers_added_this_quarter",
+    category: "Müşteri",
+    label: "Bu çeyrek kaç yeni müşteri kazandım?",
+    keywords: ["bu çeyrek yeni müşteri", "çeyreklik yeni müşteri sayısı"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ceyrek");
+      return `Bu çeyrek ${ctx.customers.filter((c) => inRange(c.createdAt, bounds)).length} yeni müşteri kazandınız.`;
+    },
+  },
+  {
+    id: "customers_added_this_year",
+    category: "Müşteri",
+    label: "Bu yıl kaç yeni müşteri kazandım?",
+    keywords: ["bu yıl yeni müşteri", "yıllık yeni müşteri sayısı"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_yil");
+      return `Bu yıl ${ctx.customers.filter((c) => inRange(c.createdAt, bounds)).length} yeni müşteri kazandınız.`;
+    },
+  },
+  {
+    id: "customers_added_last_month",
+    category: "Müşteri",
+    label: "Geçen ay kaç yeni müşteri kazandım?",
+    keywords: ["geçen ay yeni müşteri", "geçen ayki yeni müşteri sayısı"],
+    compute: (ctx) => {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      return `Geçen ay ${ctx.customers.filter((c) => inRange(c.createdAt, { start, end })).length} yeni müşteri kazandınız.`;
+    },
+  },
+  {
+    id: "customers_added_this_week",
+    category: "Müşteri",
+    label: "Bu hafta kaç yeni müşteri kazandım?",
+    keywords: ["bu hafta yeni müşteri", "haftalık yeni müşteri sayısı"],
+    compute: (ctx) => {
+      const now = new Date();
+      const start = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
+      start.setHours(0, 0, 0, 0);
+      return `Son 7 günde ${ctx.customers.filter((c) => inRange(c.createdAt, { start, end: now })).length} yeni müşteri kazandınız.`;
+    },
+  },
+  {
+    id: "avg_customer_age_days",
+    category: "Müşteri",
+    label: "Müşterilerim ortalama ne kadar süredir kayıtlı?",
+    keywords: ["ortalama müşteri yaşı", "müşteri kayıt süresi"],
+    compute: (ctx) => {
+      if (ctx.customers.length === 0) return "Henüz müşteriniz yok.";
+      const avgDays = ctx.customers.reduce((sum, c) => sum + (Date.now() - new Date(c.createdAt).getTime()) / (24 * 60 * 60 * 1000), 0) / ctx.customers.length;
+      return `Müşterileriniz ortalama ${Math.round(avgDays)} gündür sisteminizde kayıtlı.`;
+    },
+  },
+  {
+    id: "customer_with_most_deals",
+    category: "Müşteri",
+    label: "En çok kaydı olan müşterim kim?",
+    keywords: ["en çok kayıt olan müşteri", "en fazla teklifi olan müşteri"],
+    compute: (ctx) => {
+      if (ctx.deals.length === 0) return "Henüz bir kaydınız yok.";
+      const totals = {};
+      ctx.deals.forEach((d) => { totals[d.customerId] = (totals[d.customerId] || 0) + 1; });
+      const top = topEntry(totals);
+      const customer = ctx.customers.find((c) => c.id === top[0]);
+      return `${customer?.name || "Bilinmeyen müşteri"} — ${top[1]} kayıtla en çok kaydı olan müşteriniz.`;
+    },
+  },
+  {
+    id: "customer_with_highest_single_deal",
+    category: "Müşteri",
+    label: "Hangi müşterimle en yüksek tutarlı tek kayıt yaptım?",
+    keywords: ["en yüksek tutarlı müşteri kaydı", "tekli en büyük kayıt hangi müşteri"],
+    compute: (ctx) => {
+      if (ctx.deals.length === 0) return "Henüz bir kaydınız yok.";
+      const top = [...ctx.deals].sort((a, b) => (b.value || 0) - (a.value || 0))[0];
+      const customer = ctx.customers.find((c) => c.id === top.customerId);
+      return `${customer?.name || "Bilinmeyen müşteri"} — "${top.title}" kaydı ${formatTL(top.value)} ile en yüksek tutarlı tekli kaydınız.`;
+    },
+  },
+  {
+    id: "customers_missing_region",
+    category: "Müşteri",
+    label: "Bölgesi girilmemiş kaç müşterim var?",
+    keywords: ["bölgesi olmayan müşteri", "bölge bilgisi eksik"],
+    compute: (ctx) => `Bölgesi girilmemiş ${ctx.customers.filter((c) => !c.region).length} müşteriniz var.`,
+  },
+  {
+    id: "customers_missing_notes",
+    category: "Müşteri",
+    label: "Notu girilmemiş kaç müşterim var?",
+    keywords: ["notu olmayan müşteri", "not eksik müşteri"],
+    compute: (ctx) => `Notu girilmemiş ${ctx.customers.filter((c) => !c.notes).length} müşteriniz var.`,
+  },
+  {
+    id: "customers_with_portal_access",
+    category: "Müşteri",
+    label: "Kaç müşterim portala kayıt olmuş?",
+    keywords: ["portala kayıtlı müşteri", "müşteri portalı kullanan"],
+    compute: (ctx) => {
+      const count = ctx.customers.filter((c) => c.portalUserId).length;
+      return count > 0 ? `${count} müşteriniz kendi portal hesabını oluşturmuş.` : "Henüz portala kayıt olan bir müşteriniz yok.";
+    },
+  },
+  {
+    id: "customers_without_portal_access",
+    category: "Müşteri",
+    label: "Kaç müşterim henüz portala kayıt olmamış?",
+    keywords: ["portala kayıt olmamış müşteri", "portalsız müşteri"],
+    compute: (ctx) => {
+      if (ctx.customers.length === 0) return "Henüz müşteriniz yok.";
+      const count = ctx.customers.filter((c) => !c.portalUserId).length;
+      return `${count} müşteriniz henüz portala kayıt olmamış.`;
+    },
+  },
+  {
+    id: "customer_tags_breakdown",
+    category: "Müşteri",
+    label: "Müşteri etiketlerimin tam dağılımı nasıl?",
+    keywords: ["müşteri etiket dağılımı tam liste", "tüm müşteri etiketleri"],
+    compute: (ctx) => {
+      const totals = {};
+      ctx.customers.forEach((c) => (c.tags || []).forEach((t) => { totals[t] = (totals[t] || 0) + 1; }));
+      const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+      return entries.length > 0 ? entries.map(([k, v]) => `${k}: ${v}`).join(", ") : "Henüz hiçbir müşterinize etiket eklenmemiş.";
+    },
+  },
+  {
+    id: "customers_without_tags_count",
+    category: "Müşteri",
+    label: "Etiketi olmayan kaç müşterim var?",
+    keywords: ["etiketsiz müşteri", "etiketi olmayan müşteri sayısı"],
+    compute: (ctx) => `Etiketi olmayan ${ctx.customers.filter((c) => !(c.tags && c.tags.length > 0)).length} müşteriniz var.`,
+  },
+  {
+    id: "longest_inactive_customer",
+    category: "Müşteri",
+    label: "En uzun süredir temas etmediğim müşterim kim?",
+    keywords: ["en uzun süredir temas edilmeyen", "en soğuk müşteri"],
+    compute: (ctx) => {
+      const withContact = ctx.customers.filter((c) => c.lastContact);
+      if (withContact.length === 0) return "Henüz temas tarihi girilmiş bir müşteriniz yok.";
+      const oldest = [...withContact].sort((a, b) => new Date(a.lastContact) - new Date(b.lastContact))[0];
+      const days = Math.floor((Date.now() - new Date(oldest.lastContact).getTime()) / (24 * 60 * 60 * 1000));
+      return `${oldest.name} — ${days} gündür temas edilmemiş.`;
+    },
+  },
+  {
+    id: "customers_contacted_this_week",
+    category: "Müşteri",
+    label: "Bu hafta kaç müşteriyle temas ettim?",
+    keywords: ["bu hafta temas edilen müşteri", "haftalık temas sayısı"],
+    compute: (ctx) => {
+      const now = new Date();
+      const start = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
+      start.setHours(0, 0, 0, 0);
+      const count = ctx.customers.filter((c) => inRange(c.lastContact, { start, end: now })).length;
+      return `Son 7 günde ${count} müşteriyle temas ettiniz.`;
+    },
+  },
+  {
+    id: "customers_never_contacted",
+    category: "Müşteri",
+    label: "Hiç temas kaydı olmayan kaç müşterim var?",
+    keywords: ["hiç temas edilmemiş müşteri", "temas kaydı olmayan"],
+    compute: (ctx) => {
+      const count = ctx.customers.filter((c) => !c.lastContact).length;
+      return count > 0 ? `${count} müşterinizde hiç son temas tarihi girilmemiş.` : "Tüm müşterilerinizde son temas tarihi girilmiş.";
+    },
+  },
+  {
+    id: "individual_vs_corporate_revenue",
+    category: "Müşteri",
+    label: "Kurumsal mı bireysel müşterilerden mi daha çok kazanıyorum?",
+    keywords: ["kurumsal bireysel gelir karşılaştırması", "müşteri türüne göre gelir"],
+    compute: (ctx) => {
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi");
+      if (won.length === 0) return "Henüz kazanılmış bir kaydınız yok.";
+      let kurumsal = 0, bireysel = 0;
+      won.forEach((d) => {
+        const customer = ctx.customers.find((c) => c.id === d.customerId);
+        if (customer?.customerType === "bireysel") bireysel += (d.value || 0);
+        else kurumsal += (d.value || 0);
+      });
+      return `Kurumsal müşterilerden ${formatTL(kurumsal)}, bireysel müşterilerden ${formatTL(bireysel)} kazandınız.`;
+    },
+  },
+  {
+    id: "top_region_revenue",
+    category: "Müşteri",
+    label: "En çok gelir getiren bölge hangisi?",
+    keywords: ["en çok kazandıran bölge", "bölgeye göre gelir"],
+    compute: (ctx) => {
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi");
+      if (won.length === 0) return "Henüz kazanılmış bir kaydınız yok.";
+      const totals = {};
+      won.forEach((d) => {
+        const customer = ctx.customers.find((c) => c.id === d.customerId);
+        if (customer?.region) totals[customer.region] = (totals[customer.region] || 0) + (d.value || 0);
+      });
+      const top = topEntry(totals);
+      return top ? `En çok gelir getiren bölgeniz "${top[0]}" (${formatTL(top[1])}).` : "Kazanılan kayıtlarınızdaki müşterilerde henüz bölge bilgisi girilmemiş.";
+    },
+  },
+  {
+    id: "top_customer_sector_revenue",
+    category: "Müşteri",
+    label: "En çok gelir getiren müşteri sektörü hangisi?",
+    keywords: ["en çok kazandıran müşteri sektörü", "müşteri sektörüne göre gelir"],
+    compute: (ctx) => {
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi");
+      if (won.length === 0) return "Henüz kazanılmış bir kaydınız yok.";
+      const totals = {};
+      won.forEach((d) => {
+        const customer = ctx.customers.find((c) => c.id === d.customerId);
+        if (customer?.sector) totals[customer.sector] = (totals[customer.sector] || 0) + (d.value || 0);
+      });
+      const top = topEntry(totals);
+      return top ? `En çok gelir getiren müşteri sektörünüz "${top[0]}" (${formatTL(top[1])}).` : "Kazanılan kayıtlarınızdaki müşterilerde henüz sektör bilgisi girilmemiş.";
+    },
+  },
+  {
+    id: "customers_complete_profile_count",
+    category: "Müşteri",
+    label: "Hem telefonu hem e-postası olan kaç müşterim var?",
+    keywords: ["tam dolu müşteri profili", "eksiksiz müşteri bilgisi"],
+    compute: (ctx) => {
+      if (ctx.customers.length === 0) return "Henüz müşteriniz yok.";
+      const count = ctx.customers.filter((c) => c.phone && c.email).length;
+      return `${count} müşterinizin hem telefonu hem e-postası kayıtlı (toplam ${ctx.customers.length} müşteriden).`;
+    },
+  },
+  {
+    id: "customer_growth_rate_mom",
+    category: "Müşteri",
+    label: "Müşteri kazanma hızım geçen aya göre nasıl değişti?",
+    keywords: ["müşteri büyüme oranı", "geçen aya göre yeni müşteri değişimi"],
+    compute: (ctx) => {
+      const now = new Date();
+      const thisBounds = getRangeBounds("bu_ay");
+      const lastStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      const thisMonth = ctx.customers.filter((c) => inRange(c.createdAt, thisBounds)).length;
+      const lastMonth = ctx.customers.filter((c) => inRange(c.createdAt, { start: lastStart, end: lastEnd })).length;
+      if (lastMonth === 0) return `Geçen ay yeni müşteriniz yoktu, bu ay ${thisMonth} yeni müşteri kazandınız.`;
+      const change = Math.round(((thisMonth - lastMonth) / lastMonth) * 100);
+      return `Bu ay ${thisMonth}, geçen ay ${lastMonth} yeni müşteri kazandınız (%${change > 0 ? "+" : ""}${change} değişim).`;
+    },
+  },
+  {
+    id: "top_customer_by_deal_count_quarter",
+    category: "Müşteri",
+    label: "Bu çeyrek en çok kayıt açtığım müşteri kim?",
+    keywords: ["bu çeyrek en çok kayıt açılan müşteri", "çeyreklik en aktif müşteri"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ceyrek");
+      const deals = ctx.deals.filter((d) => inRange(d.createdAt, bounds));
+      if (deals.length === 0) return "Bu çeyrek henüz yeni bir kaydınız yok.";
+      const totals = {};
+      deals.forEach((d) => { totals[d.customerId] = (totals[d.customerId] || 0) + 1; });
+      const top = topEntry(totals);
+      const customer = ctx.customers.find((c) => c.id === top[0]);
+      return `${customer?.name || "Bilinmeyen müşteri"} — bu çeyrek ${top[1]} yeni kayıtla en çok kayıt açtığınız müşteri.`;
+    },
+  },
+  {
+    id: "customers_inactive_180_days",
+    category: "Müşteri",
+    label: "180 gündür işlem yapmayan kaç müşterim var?",
+    keywords: ["180 gün işlem yapmayan müşteri", "6 aydır alışverişi olmayan müşteri"],
+    compute: (ctx) => {
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi");
+      const everWonCustomerIds = new Set(won.map((d) => d.customerId));
+      if (everWonCustomerIds.size === 0) return "Henüz kazanılmış bir kaydınız yok.";
+      const cutoff = Date.now() - 180 * 24 * 60 * 60 * 1000;
+      const recentCustomerIds = new Set(won.filter((d) => new Date(d.closedAt || d.createdAt).getTime() >= cutoff).map((d) => d.customerId));
+      const inactiveCount = [...everWonCustomerIds].filter((id) => !recentCustomerIds.has(id)).length;
+      return `${inactiveCount} müşteriniz son 180 gündür işlem yapmadı (toplam ${everWonCustomerIds.size} müşteriden).`;
+    },
+  },
+  {
+    id: "repeat_customers_count",
+    category: "Müşteri",
+    label: "Birden fazla kazanılan kaydı olan kaç müşterim var?",
+    keywords: ["tekrar eden müşteri", "birden fazla kez satın alan müşteri"],
+    compute: (ctx) => {
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi");
+      if (won.length === 0) return "Henüz kazanılmış bir kaydınız yok.";
+      const totals = {};
+      won.forEach((d) => { totals[d.customerId] = (totals[d.customerId] || 0) + 1; });
+      const repeatCount = Object.values(totals).filter((v) => v > 1).length;
+      return `${repeatCount} müşteriniz birden fazla kez sizden satın aldı.`;
+    },
+  },
+  {
+    id: "one_time_customers_count",
+    category: "Müşteri",
+    label: "Sadece bir kez satın alan kaç müşterim var?",
+    keywords: ["tek seferlik müşteri", "bir kez satın alan müşteri"],
+    compute: (ctx) => {
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi");
+      if (won.length === 0) return "Henüz kazanılmış bir kaydınız yok.";
+      const totals = {};
+      won.forEach((d) => { totals[d.customerId] = (totals[d.customerId] || 0) + 1; });
+      const oneTimeCount = Object.values(totals).filter((v) => v === 1).length;
+      return `${oneTimeCount} müşteriniz sizden yalnızca bir kez satın aldı.`;
+    },
+  },
+  {
+    id: "avg_deals_per_customer",
+    category: "Müşteri",
+    label: "Müşteri başına ortalama kaç kaydım var?",
+    keywords: ["müşteri başına ortalama kayıt", "müşteri başına teklif sayısı"],
+    compute: (ctx) => {
+      if (ctx.customers.length === 0) return "Henüz müşteriniz yok.";
+      return `Müşteri başına ortalama ${(ctx.deals.length / ctx.customers.length).toFixed(1)} kaydınız var.`;
+    },
+  },
+
+  // ---- Finans ----
+  {
+    id: "collected_this_quarter",
+    category: "Finans",
+    label: "Bu çeyrek ne kadar tahsilat aldım?",
+    keywords: ["bu çeyrek tahsilat", "çeyreklik tahsilat"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ceyrek");
+      const total = ctx.payments.filter((p) => inRange(p.paidAt, bounds)).reduce((sum, p) => sum + (p.amount || 0), 0);
+      return `Bu çeyrek toplam ${formatTL(total)} tahsilat aldınız.`;
+    },
+  },
+  {
+    id: "collected_this_year",
+    category: "Finans",
+    label: "Bu yıl ne kadar tahsilat aldım?",
+    keywords: ["bu yıl tahsilat", "yıllık tahsilat"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_yil");
+      const total = ctx.payments.filter((p) => inRange(p.paidAt, bounds)).reduce((sum, p) => sum + (p.amount || 0), 0);
+      return `Bu yıl toplam ${formatTL(total)} tahsilat aldınız.`;
+    },
+  },
+  {
+    id: "collected_last_year",
+    category: "Finans",
+    label: "Geçen yıl ne kadar tahsilat aldım?",
+    keywords: ["geçen yıl tahsilat", "geçen yılki toplam tahsilat"],
+    compute: (ctx) => {
+      const now = new Date();
+      const start = new Date(now.getFullYear() - 1, 0, 1);
+      const end = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+      const total = ctx.payments.filter((p) => inRange(p.paidAt, { start, end })).reduce((sum, p) => sum + (p.amount || 0), 0);
+      return `Geçen yıl toplam ${formatTL(total)} tahsilat aldınız.`;
+    },
+  },
+  {
+    id: "weekly_collection_this_week",
+    category: "Finans",
+    label: "Son 7 günde ne kadar tahsilat aldım?",
+    keywords: ["son 7 gün tahsilat", "haftalık tahsilat"],
+    compute: (ctx) => {
+      const now = new Date();
+      const start = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
+      start.setHours(0, 0, 0, 0);
+      const total = ctx.payments.filter((p) => inRange(p.paidAt, { start, end: now })).reduce((sum, p) => sum + (p.amount || 0), 0);
+      return `Son 7 günde toplam ${formatTL(total)} tahsilat aldınız.`;
+    },
+  },
+  {
+    id: "mom_collection_change",
+    category: "Finans",
+    label: "Tahsilatım geçen aya göre nasıl değişti?",
+    keywords: ["geçen aya göre tahsilat değişimi", "tahsilat kıyaslama"],
+    compute: (ctx) => {
+      const now = new Date();
+      const thisMonthBounds = getRangeBounds("bu_ay");
+      const lastStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      const thisTotal = ctx.payments.filter((p) => inRange(p.paidAt, thisMonthBounds)).reduce((sum, p) => sum + (p.amount || 0), 0);
+      const lastTotal = ctx.payments.filter((p) => inRange(p.paidAt, { start: lastStart, end: lastEnd })).reduce((sum, p) => sum + (p.amount || 0), 0);
+      if (lastTotal === 0) return thisTotal > 0 ? `Geçen ay tahsilatınız yoktu, bu ay ${formatTL(thisTotal)} tahsilat aldınız.` : "Bu ay ve geçen ay tahsilatınız yok.";
+      const change = Math.round(((thisTotal - lastTotal) / lastTotal) * 100);
+      return `Bu ayki tahsilatınız geçen aya göre %${change > 0 ? "+" : ""}${change} değişti (${formatTL(thisTotal)} / ${formatTL(lastTotal)}).`;
+    },
+  },
+  {
+    id: "net_remaining_quarter",
+    category: "Finans",
+    label: "Bu çeyrek net kârım ne kadar?",
+    keywords: ["bu çeyrek net kâr", "çeyreklik net kalan"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ceyrek");
+      const income = ctx.payments.filter((p) => inRange(p.paidAt, bounds)).reduce((sum, p) => sum + (p.amount || 0), 0);
+      const expense = ctx.companyExpenses.flatMap((e) => expandExpenseOccurrences(e, bounds)).reduce((sum, e) => sum + (e.amount || 0), 0);
+      const dealCost = ctx.deals.filter((d) => d.stage === "kazanildi" && (d.cost || 0) > 0 && inRange(d.closedAt || d.createdAt, bounds)).reduce((sum, d) => sum + (d.cost || 0), 0);
+      const net = income - expense - dealCost;
+      return `Bu çeyrek net kalanınız ${formatTL(net)} (${formatTL(income)} gelir − ${formatTL(expense + dealCost)} gider).`;
+    },
+  },
+  {
+    id: "net_remaining_year",
+    category: "Finans",
+    label: "Bu yıl net kârım ne kadar?",
+    keywords: ["bu yıl net kâr", "yıllık net kalan"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_yil");
+      const income = ctx.payments.filter((p) => inRange(p.paidAt, bounds)).reduce((sum, p) => sum + (p.amount || 0), 0);
+      const expense = ctx.companyExpenses.flatMap((e) => expandExpenseOccurrences(e, bounds)).reduce((sum, e) => sum + (e.amount || 0), 0);
+      const dealCost = ctx.deals.filter((d) => d.stage === "kazanildi" && (d.cost || 0) > 0 && inRange(d.closedAt || d.createdAt, bounds)).reduce((sum, d) => sum + (d.cost || 0), 0);
+      const net = income - expense - dealCost;
+      return `Bu yıl net kalanınız ${formatTL(net)} (${formatTL(income)} gelir − ${formatTL(expense + dealCost)} gider).`;
+    },
+  },
+  {
+    id: "net_remaining_all_time",
+    category: "Finans",
+    label: "Tüm zamanlar net kârım ne kadar?",
+    keywords: ["tüm zamanlar net kâr", "genel net kalan"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("tum_zamanlar");
+      const income = ctx.payments.filter((p) => inRange(p.paidAt, bounds)).reduce((sum, p) => sum + (p.amount || 0), 0);
+      const expense = ctx.companyExpenses.flatMap((e) => expandExpenseOccurrences(e, bounds)).reduce((sum, e) => sum + (e.amount || 0), 0);
+      const dealCost = ctx.deals.filter((d) => d.stage === "kazanildi" && (d.cost || 0) > 0 && inRange(d.closedAt || d.createdAt, bounds)).reduce((sum, d) => sum + (d.cost || 0), 0);
+      const net = income - expense - dealCost;
+      return `Tüm zamanlar net kalanınız ${formatTL(net)} (${formatTL(income)} gelir − ${formatTL(expense + dealCost)} gider).`;
+    },
+  },
+  {
+    id: "total_expense_all_time",
+    category: "Finans",
+    label: "Tüm zamanlar toplam giderim ne kadar?",
+    keywords: ["tüm zamanlar gider", "genel toplam gider"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("tum_zamanlar");
+      const expense = ctx.companyExpenses.flatMap((e) => expandExpenseOccurrences(e, bounds)).reduce((sum, e) => sum + (e.amount || 0), 0);
+      const dealCost = ctx.deals.filter((d) => d.stage === "kazanildi" && (d.cost || 0) > 0).reduce((sum, d) => sum + (d.cost || 0), 0);
+      return `Tüm zamanlar toplam gideriniz ${formatTL(expense + dealCost)}.`;
+    },
+  },
+  {
+    id: "total_expense_this_quarter",
+    category: "Finans",
+    label: "Bu çeyrek toplam giderim ne kadar?",
+    keywords: ["bu çeyrek gider", "çeyreklik toplam gider"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ceyrek");
+      const expense = ctx.companyExpenses.flatMap((e) => expandExpenseOccurrences(e, bounds)).reduce((sum, e) => sum + (e.amount || 0), 0);
+      const dealCost = ctx.deals.filter((d) => d.stage === "kazanildi" && (d.cost || 0) > 0 && inRange(d.closedAt || d.createdAt, bounds)).reduce((sum, d) => sum + (d.cost || 0), 0);
+      return `Bu çeyrek toplam gideriniz ${formatTL(expense + dealCost)}.`;
+    },
+  },
+  {
+    id: "avg_monthly_expense_6m",
+    category: "Finans",
+    label: "Son 6 ayda aylık ortalama giderim ne kadar?",
+    keywords: ["aylık ortalama gider", "son 6 ay ortalama gider"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("son_6_ay");
+      const total = ctx.companyExpenses.flatMap((e) => expandExpenseOccurrences(e, bounds)).reduce((sum, e) => sum + (e.amount || 0), 0);
+      return `Son 6 ayda aylık ortalama gideriniz ${formatTL(total / 6)}.`;
+    },
+  },
+  {
+    id: "yearly_fixed_expense",
+    category: "Finans",
+    label: "Yıllık sabit (tekrarlayan) gider toplamım ne kadar?",
+    keywords: ["yıllık sabit gider", "yıllık tekrarlayan gider"],
+    compute: (ctx) => {
+      const total = ctx.companyExpenses.filter((e) => e.isRecurring && e.recurrenceInterval === "yearly").reduce((sum, e) => sum + (e.amount || 0), 0);
+      return `Yıllık tekrarlayan gider toplamınız ${formatTL(total)}.`;
+    },
+  },
+  {
+    id: "daily_recurring_expense_count",
+    category: "Finans",
+    label: "Kaç tane günlük tekrarlayan giderim var?",
+    keywords: ["günlük tekrarlayan gider", "kaç günlük gider"],
+    compute: (ctx) => `${ctx.companyExpenses.filter((e) => e.isRecurring && e.recurrenceInterval === "daily").length} günlük tekrarlayan gideriniz var.`,
+  },
+  {
+    id: "expense_count_total",
+    category: "Finans",
+    label: "Toplam kaç gider kaydım var?",
+    keywords: ["toplam gider kaydı sayısı", "kaç gider girdim"],
+    compute: (ctx) => `Toplam ${ctx.companyExpenses.length} gider kaydınız var (tekrarlayanlar tek kayıt sayılır).`,
+  },
+  {
+    id: "expense_categories_breakdown_month",
+    category: "Finans",
+    label: "Bu ay tüm gider kategorilerim nasıl dağılıyor?",
+    keywords: ["gider kategorisi tam liste bu ay", "bu ay kategori dağılımı"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ay");
+      const occurrences = ctx.companyExpenses.flatMap((e) => expandExpenseOccurrences(e, bounds));
+      if (occurrences.length === 0) return "Bu ay henüz kayıtlı bir gideriniz yok.";
+      const totals = {};
+      occurrences.forEach((e) => { totals[e.category] = (totals[e.category] || 0) + (e.amount || 0); });
+      return Object.entries(totals).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}: ${formatTL(v)}`).join(", ");
+    },
+  },
+  {
+    id: "expense_categories_breakdown_year",
+    category: "Finans",
+    label: "Bu yıl tüm gider kategorilerim nasıl dağılıyor?",
+    keywords: ["gider kategorisi tam liste yıl", "bu yıl kategori dağılımı"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_yil");
+      const occurrences = ctx.companyExpenses.flatMap((e) => expandExpenseOccurrences(e, bounds));
+      if (occurrences.length === 0) return "Bu yıl henüz kayıtlı bir gideriniz yok.";
+      const totals = {};
+      occurrences.forEach((e) => { totals[e.category] = (totals[e.category] || 0) + (e.amount || 0); });
+      return Object.entries(totals).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}: ${formatTL(v)}`).join(", ");
+    },
+  },
+  {
+    id: "biggest_expense_category_year",
+    category: "Finans",
+    label: "Bu yıl en çok hangi kategoriye gider yaptım?",
+    keywords: ["bu yıl en çok gider kategorisi", "yıllık en büyük gider kategorisi"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_yil");
+      const occurrences = ctx.companyExpenses.flatMap((e) => expandExpenseOccurrences(e, bounds));
+      if (occurrences.length === 0) return "Bu yıl henüz kayıtlı bir gideriniz yok.";
+      const totals = {};
+      occurrences.forEach((e) => { totals[e.category] = (totals[e.category] || 0) + (e.amount || 0); });
+      const top = topEntry(totals);
+      return `Bu yıl en çok "${top[0]}" kategorisine gider yaptınız (${formatTL(top[1])}).`;
+    },
+  },
+  {
+    id: "biggest_single_expense",
+    category: "Finans",
+    label: "En büyük tek giderim hangisi?",
+    keywords: ["en büyük tek gider", "en yüksek gider kaydı"],
+    compute: (ctx) => {
+      if (ctx.companyExpenses.length === 0) return "Henüz kayıtlı bir gideriniz yok.";
+      const top = [...ctx.companyExpenses].sort((a, b) => (b.amount || 0) - (a.amount || 0))[0];
+      return `En büyük tek gider kaydınız "${top.title}" — ${formatTL(top.amount)}.`;
+    },
+  },
+  {
+    id: "payments_count_this_month",
+    category: "Finans",
+    label: "Bu ay kaç tahsilat işlemi yaptım?",
+    keywords: ["bu ay tahsilat sayısı", "bu ay kaç ödeme aldım"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ay");
+      const count = ctx.payments.filter((p) => inRange(p.paidAt, bounds)).length;
+      return `Bu ay ${count} tahsilat işlemi yaptınız.`;
+    },
+  },
+  {
+    id: "payments_count_all_time",
+    category: "Finans",
+    label: "Tüm zamanlar kaç tahsilat işlemi yaptım?",
+    keywords: ["tüm zamanlar tahsilat sayısı", "toplam ödeme işlemi sayısı"],
+    compute: (ctx) => `Şimdiye kadar toplam ${ctx.payments.length} tahsilat işlemi yapılmış.`,
+  },
+  {
+    id: "refunded_payments_count",
+    category: "Finans",
+    label: "Kaç tahsilatım iade edildi?",
+    keywords: ["iade edilen tahsilat sayısı", "kaç ödeme iade edildi"],
+    compute: (ctx) => {
+      const refunds = ctx.payments.filter((p) => p.refundOfPaymentId);
+      return refunds.length > 0 ? `${refunds.length} tahsilatınız iade edilmiş.` : "Henüz iade edilmiş bir tahsilatınız yok.";
+    },
+  },
+  {
+    id: "total_refunded_amount",
+    category: "Finans",
+    label: "Toplam ne kadar iade yaptım?",
+    keywords: ["toplam iade tutarı", "ne kadar para iade ettim"],
+    compute: (ctx) => {
+      const refunds = ctx.payments.filter((p) => p.refundOfPaymentId);
+      if (refunds.length === 0) return "Henüz iade edilmiş bir tahsilatınız yok.";
+      const total = refunds.reduce((sum, p) => sum + Math.abs(p.amount || 0), 0);
+      return `Toplam iade tutarınız ${formatTL(total)}.`;
+    },
+  },
+  {
+    id: "avg_refund_rate",
+    category: "Finans",
+    label: "İade oranım nedir?",
+    keywords: ["iade oranı", "ne kadar iade oranı"],
+    compute: (ctx) => {
+      const positive = ctx.payments.filter((p) => (p.amount || 0) > 0 && !p.refundOfPaymentId).length;
+      const refunds = ctx.payments.filter((p) => p.refundOfPaymentId).length;
+      if (positive === 0) return "Henüz bir tahsilatınız yok.";
+      return `Tahsilatlarınızın %${Math.round((refunds / positive) * 100)}'i iade edilmiş (${refunds}/${positive}).`;
+    },
+  },
+  {
+    id: "payment_provider_sandbox_status",
+    category: "Finans",
+    label: "Ödeme bağlantım test modunda mı, canlı mı?",
+    keywords: ["sandbox modunda mı", "test modunda mı ödeme", "canlı ödeme modu"],
+    compute: (ctx) => {
+      if (ctx.paymentCredentials.length === 0) return "Henüz bir ödeme sağlayıcısı bağlamadınız.";
+      const cred = ctx.paymentCredentials[0];
+      return `${cred.provider === "paytr" ? "PayTR" : "iyzico"} bağlantınız ${cred.sandbox ? "test (sandbox) modunda" : "canlı modda"}.`;
+    },
+  },
+  {
+    id: "max_installment_allowed",
+    category: "Finans",
+    label: "Müşterilerim kaç taksitle ödeyebiliyor?",
+    keywords: ["kaç taksit", "taksit sayısı", "maksimum taksit"],
+    compute: (ctx) => {
+      if (ctx.paymentCredentials.length === 0) return "Henüz bir ödeme sağlayıcısı bağlamadınız.";
+      const max = ctx.paymentCredentials[0].maxInstallment || 1;
+      return max > 1 ? `Müşterileriniz en fazla ${max} taksitle ödeme yapabiliyor.` : "Taksit seçeneğiniz açık değil, sadece tek çekim kabul ediyorsunuz.";
+    },
+  },
+  {
+    id: "customers_with_outstanding_balance_count",
+    category: "Finans",
+    label: "Kaç müşterimin bekleyen bakiyesi var?",
+    keywords: ["bekleyen bakiyesi olan müşteri sayısı", "borçlu müşteri sayısı"],
+    compute: (ctx) => {
+      const balances = {};
+      ctx.deals.filter((d) => d.stage === "kazanildi").forEach((d) => { balances[d.customerId] = (balances[d.customerId] || 0) + (d.value || 0); });
+      ctx.payments.forEach((p) => {
+        const deal = ctx.deals.find((d) => d.id === p.dealId);
+        if (deal && balances[deal.customerId] != null) balances[deal.customerId] -= (p.amount || 0);
+      });
+      const count = Object.values(balances).filter((v) => v > 0).length;
+      return count > 0 ? `${count} müşterinizin bekleyen bakiyesi var.` : "Şu anda bakiyesi olan bir müşteriniz yok.";
+    },
+  },
+  {
+    id: "fully_paid_deals_rate",
+    category: "Finans",
+    label: "Kazanılan kayıtlarımın yüzde kaçı tamamen tahsil edildi?",
+    keywords: ["tamamen tahsil edilen kayıt oranı", "tam tahsilat oranı"],
+    compute: (ctx) => {
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi");
+      if (won.length === 0) return "Henüz kazanılmış bir kaydınız yok.";
+      const paidTotals = {};
+      ctx.payments.forEach((p) => { paidTotals[p.dealId] = (paidTotals[p.dealId] || 0) + (p.amount || 0); });
+      const fullyPaid = won.filter((d) => (paidTotals[d.id] || 0) >= (d.value || 0) && (d.value || 0) > 0).length;
+      return `Kazanılan kayıtlarınızın %${Math.round((fullyPaid / won.length) * 100)}'i tamamen tahsil edilmiş (${fullyPaid}/${won.length}).`;
+    },
+  },
+  {
+    id: "avg_days_to_first_payment",
+    category: "Finans",
+    label: "Kazandıktan sonra ortalama kaç günde ilk ödemeyi alıyorum?",
+    keywords: ["ilk ödeme süresi", "kazanınca ne kadar sürede ödeme alıyorum"],
+    compute: (ctx) => {
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi" && d.closedAt);
+      const withFirstPayment = won
+        .map((d) => {
+          const dealPayments = ctx.payments.filter((p) => p.dealId === d.id).sort((a, b) => new Date(a.paidAt) - new Date(b.paidAt));
+          return dealPayments.length > 0 ? { d, first: dealPayments[0] } : null;
+        })
+        .filter(Boolean);
+      if (withFirstPayment.length === 0) return "Henüz ödemesi alınmış, kazanılmış bir kaydınız yok.";
+      const avgDays = withFirstPayment.reduce((sum, x) => sum + Math.max(0, (new Date(x.first.paidAt) - new Date(x.d.closedAt)) / (24 * 60 * 60 * 1000)), 0) / withFirstPayment.length;
+      return `Bir kayıt kazanıldıktan sonra ortalama ${Math.round(avgDays)} günde ilk ödemeyi alıyorsunuz.`;
+    },
+  },
+  {
+    id: "avg_kdv_rate_open_deals",
+    category: "Finans",
+    label: "Açık kayıtlarımda ortalama KDV oranı nedir?",
+    keywords: ["ortalama kdv oranı", "açık tekliflerde kdv"],
+    compute: (ctx) => {
+      const open = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi");
+      if (open.length === 0) return "Şu anda açık bir kaydınız yok.";
+      const avg = open.reduce((sum, d) => sum + (d.kdvRate ?? 20), 0) / open.length;
+      return `Açık kayıtlarınızda ortalama KDV oranınız %${Math.round(avg)}.`;
+    },
+  },
+  {
+    id: "deals_with_partial_payment_count",
+    category: "Finans",
+    label: "Kısmi ödemesi olan kaç kazanılan kaydım var?",
+    keywords: ["kısmi ödeme yapılan kayıt", "kısmen tahsil edilen teklif"],
+    compute: (ctx) => {
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi" && (d.value || 0) > 0);
+      const paidTotals = {};
+      ctx.payments.forEach((p) => { paidTotals[p.dealId] = (paidTotals[p.dealId] || 0) + (p.amount || 0); });
+      const partial = won.filter((d) => {
+        const paid = paidTotals[d.id] || 0;
+        return paid > 0 && paid < d.value;
+      }).length;
+      return partial > 0 ? `${partial} kaydınızda kısmi ödeme alınmış, tamamı tahsil edilmemiş.` : "Kısmi ödemesi olan bir kaydınız yok.";
+    },
+  },
+  {
+    id: "avg_payment_per_customer",
+    category: "Finans",
+    label: "Tahsilat yapılan müşteri başına ortalama ne kadar aldım?",
+    keywords: ["müşteri başına ortalama tahsilat", "müşteri başına ödeme"],
+    compute: (ctx) => {
+      const positive = ctx.payments.filter((p) => (p.amount || 0) > 0);
+      if (positive.length === 0) return "Henüz bir tahsilatınız yok.";
+      const byCustomer = {};
+      positive.forEach((p) => {
+        const deal = ctx.deals.find((d) => d.id === p.dealId);
+        if (deal) byCustomer[deal.customerId] = (byCustomer[deal.customerId] || 0) + p.amount;
+      });
+      const customerCount = Object.keys(byCustomer).length;
+      if (customerCount === 0) return "Henüz bir tahsilatınız yok.";
+      const total = Object.values(byCustomer).reduce((sum, v) => sum + v, 0);
+      return `Tahsilat yapılan müşteri başına ortalama ${formatTL(total / customerCount)} almışsınız.`;
+    },
+  },
+  {
+    id: "this_year_vs_last_year_expense",
+    category: "Finans",
+    label: "Bu yılki giderim geçen yıla göre nasıl?",
+    keywords: ["geçen yıla göre gider", "yıllık gider kıyaslaması"],
+    compute: (ctx) => {
+      const now = new Date();
+      const thisBounds = getRangeBounds("bu_yil");
+      const lastBounds = { start: new Date(now.getFullYear() - 1, 0, 1), end: new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999) };
+      const thisExpense = ctx.companyExpenses.flatMap((e) => expandExpenseOccurrences(e, thisBounds)).reduce((sum, e) => sum + (e.amount || 0), 0);
+      const lastExpense = ctx.companyExpenses.flatMap((e) => expandExpenseOccurrences(e, lastBounds)).reduce((sum, e) => sum + (e.amount || 0), 0);
+      return `Bu yılki gideriniz ${formatTL(thisExpense)}, geçen yıl ${formatTL(lastExpense)} idi.`;
+    },
+  },
+  {
+    id: "recurring_vs_onetime_expense_ratio",
+    category: "Finans",
+    label: "Kaç tekrarlayan, kaç tek seferlik giderim var?",
+    keywords: ["tekrarlayan tek seferlik gider oranı", "gider türü dağılımı"],
+    compute: (ctx) => {
+      if (ctx.companyExpenses.length === 0) return "Henüz kayıtlı bir gideriniz yok.";
+      const recurring = ctx.companyExpenses.filter((e) => e.isRecurring).length;
+      const onetime = ctx.companyExpenses.length - recurring;
+      return `${recurring} tekrarlayan, ${onetime} tek seferlik gider kaydınız var.`;
+    },
+  },
+  {
+    id: "deals_cost_total_month",
+    category: "Finans",
+    label: "Bu ay kazanılan kayıtların toplam maliyeti ne kadar?",
+    keywords: ["bu ay maliyet toplamı", "kazanılan kayıtların maliyeti"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ay");
+      const total = ctx.deals.filter((d) => d.stage === "kazanildi" && (d.cost || 0) > 0 && inRange(d.closedAt || d.createdAt, bounds)).reduce((sum, d) => sum + d.cost, 0);
+      return `Bu ay kazanılan kayıtların toplam maliyeti ${formatTL(total)}.`;
+    },
+  },
+  {
+    id: "gross_margin_rate_month",
+    category: "Finans",
+    label: "Bu ay brüt kâr marjım nedir?",
+    keywords: ["brüt kâr marjı", "bu ay kâr marjı yüzdesi"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ay");
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, bounds));
+      const income = won.reduce((sum, d) => sum + (d.value || 0), 0);
+      if (income === 0) return "Bu ay henüz kazanılmış bir kaydınız yok.";
+      const cost = won.reduce((sum, d) => sum + (d.cost || 0), 0);
+      return `Bu ay brüt kâr marjınız %${Math.round(((income - cost) / income) * 100)}.`;
+    },
+  },
+
+  // ---- Destek ----
+  {
+    id: "tickets_by_status_breakdown",
+    category: "Destek",
+    label: "Durum bazında destek talebi dağılımım nasıl?",
+    keywords: ["durum dağılımı", "talep durumu", "açık işlemde çözüldü dağılımı"],
+    compute: (ctx) => {
+      if (ctx.tickets.length === 0) return "Henüz bir destek talebiniz yok.";
+      return STATUSES.map((s) => `${s.label}: ${ctx.tickets.filter((t) => t.status === s.id).length}`).join(", ");
+    },
+  },
+  {
+    id: "open_tickets_by_priority",
+    category: "Destek",
+    label: "Açık taleplerimin önceliğe göre dağılımı nasıl?",
+    keywords: ["açık talep önceliği", "açık taleplerin öncelik dağılımı"],
+    compute: (ctx) => {
+      const open = ctx.tickets.filter((t) => !TERMINAL_STATUSES.includes(t.status));
+      if (open.length === 0) return "Açık bir destek talebiniz yok.";
+      const labels = { acil: "Acil", yuksek: "Yüksek", orta: "Orta", dusuk: "Düşük" };
+      const totals = {};
+      open.forEach((t) => { totals[t.priority] = (totals[t.priority] || 0) + 1; });
+      return Object.entries(totals).map(([k, v]) => `${labels[k] || k}: ${v}`).join(", ");
+    },
+  },
+  {
+    id: "tickets_this_month_count",
+    category: "Destek",
+    label: "Bu ay kaç destek talebi geldi?",
+    keywords: ["bu ay kaç talep", "bu ayki destek talepleri"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ay");
+      return `Bu ay ${ctx.tickets.filter((t) => inRange(t.createdAt, bounds)).length} destek talebi aldınız.`;
+    },
+  },
+  {
+    id: "tickets_this_week_count",
+    category: "Destek",
+    label: "Bu hafta kaç destek talebi geldi?",
+    keywords: ["bu hafta kaç talep", "haftalık destek talebi sayısı"],
+    compute: (ctx) => {
+      const now = new Date();
+      const start = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
+      start.setHours(0, 0, 0, 0);
+      return `Son 7 günde ${ctx.tickets.filter((t) => inRange(t.createdAt, { start, end: now })).length} destek talebi aldınız.`;
+    },
+  },
+  {
+    id: "resolved_this_month_count",
+    category: "Destek",
+    label: "Bu ay kaç talep çözdüm?",
+    keywords: ["bu ay çözülen talep", "bu ayki çözülen talep sayısı"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ay");
+      const count = ctx.tickets.filter((t) => t.resolvedAt && inRange(t.resolvedAt, bounds)).length;
+      return count > 0 ? `Bu ay ${count} talep çözdünüz.` : "Bu ay henüz çözülmüş bir talebiniz yok.";
+    },
+  },
+  {
+    id: "tickets_resolved_this_week",
+    category: "Destek",
+    label: "Bu hafta kaç talep çözdüm?",
+    keywords: ["bu hafta çözülen talep", "haftalık çözülen talep sayısı"],
+    compute: (ctx) => {
+      const now = new Date();
+      const start = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
+      start.setHours(0, 0, 0, 0);
+      const count = ctx.tickets.filter((t) => t.resolvedAt && inRange(t.resolvedAt, { start, end: now })).length;
+      return count > 0 ? `Son 7 günde ${count} talep çözdünüz.` : "Son 7 günde çözülmüş bir talebiniz yok.";
+    },
+  },
+  {
+    id: "acil_ticket_avg_resolution_days",
+    category: "Destek",
+    label: "Acil önceliği çözme süresi ortalama ne kadar?",
+    keywords: ["acil talep çözüm süresi", "acil öncelik ortalama süre"],
+    compute: (ctx) => {
+      const resolved = ctx.tickets.filter((t) => t.priority === "acil" && t.resolvedAt);
+      if (resolved.length === 0) return "Henüz çözülmüş acil öncelikli bir talebiniz yok.";
+      const avgHours = resolved.reduce((sum, t) => sum + (new Date(t.resolvedAt) - new Date(t.createdAt)) / (60 * 60 * 1000), 0) / resolved.length;
+      return `Acil öncelikli taleplerinizi ortalama ${Math.round(avgHours)} saatte çözüyorsunuz.`;
+    },
+  },
+  {
+    id: "top_customer_by_ticket_count",
+    category: "Destek",
+    label: "En çok destek talebi açan müşterim kim?",
+    keywords: ["en çok talep açan müşteri", "en çok destek talebi olan müşteri"],
+    compute: (ctx) => {
+      if (ctx.tickets.length === 0) return "Henüz bir destek talebiniz yok.";
+      const totals = {};
+      ctx.tickets.forEach((t) => { totals[t.customerId] = (totals[t.customerId] || 0) + 1; });
+      const top = topEntry(totals);
+      const customer = ctx.customers.find((c) => c.id === top[0]);
+      return `${customer?.name || "Bilinmeyen müşteri"} — ${top[1]} destek talebiyle en çok talep açan müşteriniz.`;
+    },
+  },
+  {
+    id: "customers_with_open_ticket_count",
+    category: "Destek",
+    label: "Açık talebi olan kaç müşterim var?",
+    keywords: ["açık talebi olan müşteri sayısı", "bekleyen desteği olan müşteri"],
+    compute: (ctx) => {
+      const open = ctx.tickets.filter((t) => !TERMINAL_STATUSES.includes(t.status));
+      const ids = new Set(open.map((t) => t.customerId));
+      return ids.size > 0 ? `${ids.size} müşterinizin açık bir destek talebi var.` : "Açık destek talebi olan bir müşteriniz yok.";
+    },
+  },
+  {
+    id: "kb_article_recently_added",
+    category: "Destek",
+    label: "En son ne zaman Bilgi Bankası makalesi ekledim?",
+    keywords: ["en son eklenen makale", "son makale ne zaman"],
+    compute: (ctx) => {
+      if (ctx.kbArticles.length === 0) return "Henüz bir Bilgi Bankası makaleniz yok.";
+      const sorted = [...ctx.kbArticles].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      return `En son "${sorted[0].title}" makalesini ${new Date(sorted[0].createdAt).toLocaleDateString("tr-TR")} tarihinde eklediniz.`;
+    },
+  },
+  {
+    id: "kb_articles_without_category_count",
+    category: "Destek",
+    label: "Kategorisi girilmemiş kaç makalem var?",
+    keywords: ["kategorisiz makale", "kategorisi olmayan makale"],
+    compute: (ctx) => {
+      if (ctx.kbArticles.length === 0) return "Henüz bir Bilgi Bankası makaleniz yok.";
+      const count = ctx.kbArticles.filter((a) => !a.category).length;
+      return count > 0 ? `${count} makalenizde kategori girilmemiş.` : "Tüm makalelerinizde kategori girilmiş.";
+    },
+  },
+  {
+    id: "kb_category_count_distinct",
+    category: "Destek",
+    label: "Kaç farklı Bilgi Bankası kategorim var?",
+    keywords: ["farklı makale kategorisi sayısı", "kaç kategori var"],
+    compute: (ctx) => {
+      const categories = new Set(ctx.kbArticles.filter((a) => a.category).map((a) => a.category));
+      return categories.size > 0 ? `${categories.size} farklı Bilgi Bankası kategoriniz var.` : "Henüz kategorili bir makaleniz yok.";
+    },
+  },
+  {
+    id: "tickets_avg_age_open",
+    category: "Destek",
+    label: "Açık taleplerim ortalama kaç gündür bekliyor?",
+    keywords: ["açık talep ortalama bekleme", "açık talebin yaşı"],
+    compute: (ctx) => {
+      const open = ctx.tickets.filter((t) => !TERMINAL_STATUSES.includes(t.status));
+      if (open.length === 0) return "Açık bir destek talebiniz yok.";
+      const avgDays = open.reduce((sum, t) => sum + (Date.now() - new Date(t.createdAt).getTime()) / (24 * 60 * 60 * 1000), 0) / open.length;
+      return `Açık talepleriniz ortalama ${Math.round(avgDays)} gündür bekliyor.`;
+    },
+  },
+  {
+    id: "oldest_open_ticket",
+    category: "Destek",
+    label: "En uzun süredir açık kalan talebim hangisi?",
+    keywords: ["en eski açık talep", "en uzun süredir bekleyen talep"],
+    compute: (ctx) => {
+      const open = ctx.tickets.filter((t) => !TERMINAL_STATUSES.includes(t.status));
+      if (open.length === 0) return "Açık bir destek talebiniz yok.";
+      const oldest = [...open].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))[0];
+      const days = Math.floor((Date.now() - new Date(oldest.createdAt).getTime()) / (24 * 60 * 60 * 1000));
+      const customer = ctx.customers.find((c) => c.id === oldest.customerId);
+      return `"${oldest.subject}" (${customer?.name || "müşteri silinmiş"}) — ${days} gündür açık.`;
+    },
+  },
+  {
+    id: "resolved_rate_all_time",
+    category: "Destek",
+    label: "Taleplerimin yüzde kaçı çözüldü?",
+    keywords: ["çözülme oranı", "toplam çözülen talep yüzdesi"],
+    compute: (ctx) => {
+      if (ctx.tickets.length === 0) return "Henüz bir destek talebiniz yok.";
+      const resolved = ctx.tickets.filter((t) => TERMINAL_STATUSES.includes(t.status)).length;
+      return `Destek taleplerinizin %${Math.round((resolved / ctx.tickets.length) * 100)}'i çözüldü/kapatıldı (${resolved}/${ctx.tickets.length}).`;
+    },
+  },
+  {
+    id: "tickets_created_vs_resolved_this_month",
+    category: "Destek",
+    label: "Bu ay kaç talep açıldı, kaçı çözüldü?",
+    keywords: ["bu ay açılan çözülen talep karşılaştırması", "bu ay talep dengesi"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ay");
+      const created = ctx.tickets.filter((t) => inRange(t.createdAt, bounds)).length;
+      const resolved = ctx.tickets.filter((t) => t.resolvedAt && inRange(t.resolvedAt, bounds)).length;
+      return `Bu ay ${created} talep açıldı, ${resolved} talep çözüldü.`;
+    },
+  },
+  {
+    id: "urgent_tickets_open_count",
+    category: "Destek",
+    label: "Acil öncelikli kaç açık talebim var?",
+    keywords: ["acil açık talep", "acil öncelikli talep sayısı"],
+    compute: (ctx) => {
+      const count = ctx.tickets.filter((t) => t.priority === "acil" && !TERMINAL_STATUSES.includes(t.status)).length;
+      return count > 0 ? `Acil öncelikli ${count} açık talebiniz var.` : "Acil öncelikli açık bir talebiniz yok.";
+    },
+  },
+  {
+    id: "low_priority_tickets_open_count",
+    category: "Destek",
+    label: "Düşük öncelikli kaç açık talebim var?",
+    keywords: ["düşük öncelikli açık talep", "düşük öncelik talep sayısı"],
+    compute: (ctx) => {
+      const count = ctx.tickets.filter((t) => t.priority === "dusuk" && !TERMINAL_STATUSES.includes(t.status)).length;
+      return `Düşük öncelikli ${count} açık talebiniz var.`;
+    },
+  },
+  {
+    id: "tickets_without_description_count",
+    category: "Destek",
+    label: "Açıklaması girilmemiş kaç talebim var?",
+    keywords: ["açıklamasız talep", "açıklaması eksik destek talebi"],
+    compute: (ctx) => {
+      if (ctx.tickets.length === 0) return "Henüz bir destek talebiniz yok.";
+      const count = ctx.tickets.filter((t) => !t.description).length;
+      return `${count} talebinizde açıklama girilmemiş.`;
+    },
+  },
+  {
+    id: "avg_tickets_per_customer",
+    category: "Destek",
+    label: "Müşteri başına ortalama kaç destek talebim var?",
+    keywords: ["müşteri başına ortalama talep", "müşteri başına destek sayısı"],
+    compute: (ctx) => {
+      if (ctx.customers.length === 0) return "Henüz müşteriniz yok.";
+      return `Müşteri başına ortalama ${(ctx.tickets.length / ctx.customers.length).toFixed(2)} destek talebiniz var.`;
+    },
+  },
+
+  // ---- Randevu & Program ----
+  {
+    id: "appointments_this_week",
+    category: "Randevu & Program",
+    label: "Önümüzdeki 7 günde kaç randevum var?",
+    keywords: ["bu hafta randevu", "önümüzdeki 7 gün randevu"],
+    visibleIf: (sector) => supportsSelfBooking(sector) || isAppointmentSector(sector),
+    compute: (ctx) => {
+      if (!ctx.appointmentDateTimeKey) return "Randevu tarihi alanı henüz tanımlı değil.";
+      const now = new Date();
+      const weekEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const count = ctx.deals.filter((d) => d.stage !== "kaybedildi" && inRange(d.customFields?.[ctx.appointmentDateTimeKey], { start: now, end: weekEnd })).length;
+      return `Önümüzdeki 7 gün içinde ${count} randevunuz var.`;
+    },
+  },
+  {
+    id: "appointments_tomorrow",
+    category: "Randevu & Program",
+    label: "Yarın kaç randevum var?",
+    keywords: ["yarınki randevular", "yarın kaç randevu"],
+    visibleIf: (sector) => supportsSelfBooking(sector) || isAppointmentSector(sector),
+    compute: (ctx) => {
+      if (!ctx.appointmentDateTimeKey) return "Randevu tarihi alanı henüz tanımlı değil.";
+      const tomorrowStr = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const count = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi" && (d.customFields?.[ctx.appointmentDateTimeKey] || "").slice(0, 10) === tomorrowStr).length;
+      return `Yarın ${count} randevunuz var.`;
+    },
+  },
+  {
+    id: "next_appointment",
+    category: "Randevu & Program",
+    label: "Bir sonraki randevum ne zaman?",
+    keywords: ["sıradaki randevu", "bir sonraki randevu"],
+    visibleIf: (sector) => supportsSelfBooking(sector) || isAppointmentSector(sector),
+    compute: (ctx) => {
+      if (!ctx.appointmentDateTimeKey) return "Randevu tarihi alanı henüz tanımlı değil.";
+      const nowStr = new Date().toISOString().slice(0, 16);
+      const upcoming = ctx.deals
+        .filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi" && (d.customFields?.[ctx.appointmentDateTimeKey] || "") >= nowStr)
+        .sort((a, b) => (a.customFields[ctx.appointmentDateTimeKey] || "").localeCompare(b.customFields[ctx.appointmentDateTimeKey] || ""));
+      if (upcoming.length === 0) return "Yaklaşan bir randevunuz görünmüyor.";
+      const next = upcoming[0];
+      const customer = ctx.customers.find((c) => c.id === next.customerId);
+      const dt = next.customFields[ctx.appointmentDateTimeKey];
+      return `Bir sonraki randevunuz ${new Date(dt).toLocaleDateString("tr-TR")} tarihinde, saat ${dt.slice(11, 16)} — ${customer?.name || "müşteri silinmiş"}.`;
+    },
+  },
+  {
+    id: "avg_appointments_per_day_this_month",
+    category: "Randevu & Program",
+    label: "Bu ay günde ortalama kaç randevum var?",
+    keywords: ["günlük ortalama randevu", "bu ay ortalama randevu sayısı"],
+    visibleIf: (sector) => supportsSelfBooking(sector) || isAppointmentSector(sector),
+    compute: (ctx) => {
+      if (!ctx.appointmentDateTimeKey) return "Randevu tarihi alanı henüz tanımlı değil.";
+      const bounds = getRangeBounds("bu_ay");
+      const count = ctx.deals.filter((d) => d.stage !== "kaybedildi" && inRange(d.customFields?.[ctx.appointmentDateTimeKey], bounds)).length;
+      const daysElapsed = new Date().getDate();
+      return `Bu ay güne kadar günde ortalama ${(count / daysElapsed).toFixed(1)} randevunuz var (toplam ${count}).`;
+    },
+  },
+  {
+    id: "group_class_enrollment_total",
+    category: "Randevu & Program",
+    label: "Tüm derslerimde toplam kaç kayıt var?",
+    keywords: ["toplam ders kaydı", "tüm derslerdeki kayıt sayısı"],
+    visibleIf: (sector) => supportsGroupClasses(sector),
+    compute: (ctx) => `Tüm derslerinizde toplam ${ctx.groupClassEnrollments.length} kayıt var.`,
+  },
+  {
+    id: "emptiest_group_class",
+    category: "Randevu & Program",
+    label: "Hangi dersimde en az kayıt var?",
+    keywords: ["en az kayıtlı ders", "en boş ders"],
+    visibleIf: (sector) => supportsGroupClasses(sector),
+    compute: (ctx) => {
+      if (ctx.groupClasses.length === 0) return "Henüz bir dersiniz yok.";
+      const totals = {};
+      ctx.groupClassEnrollments.forEach((e) => { totals[e.groupClassId] = (totals[e.groupClassId] || 0) + 1; });
+      const sorted = [...ctx.groupClasses].sort((a, b) => (totals[a.id] || 0) - (totals[b.id] || 0));
+      const emptiest = sorted[0];
+      return `En az kayıtlı dersiniz "${emptiest.name}" — ${totals[emptiest.id] || 0}/${emptiest.capacity ?? "?"} kayıt.`;
+    },
+  },
+  {
+    id: "group_class_capacity_utilization",
+    category: "Randevu & Program",
+    label: "Derslerimin genel doluluk oranı nedir?",
+    keywords: ["genel doluluk oranı", "derslerin doluluk yüzdesi"],
+    visibleIf: (sector) => supportsGroupClasses(sector),
+    compute: (ctx) => {
+      const totalCapacity = ctx.groupClasses.reduce((sum, g) => sum + (g.capacity || 0), 0);
+      if (totalCapacity === 0) return "Henüz kapasitesi tanımlı bir dersiniz yok.";
+      const totalEnrolled = ctx.groupClassEnrollments.length;
+      return `Derslerinizin genel doluluk oranı %${Math.round((totalEnrolled / totalCapacity) * 100)} (${totalEnrolled}/${totalCapacity}).`;
+    },
+  },
+  {
+    id: "group_classes_by_weekday_count",
+    category: "Randevu & Program",
+    label: "Haftanın hangi günü kaç dersim var?",
+    keywords: ["güne göre ders sayısı", "haftalık ders dağılımı"],
+    visibleIf: (sector) => supportsGroupClasses(sector),
+    compute: (ctx) => {
+      if (ctx.groupClasses.length === 0) return "Henüz bir dersiniz yok.";
+      return WEEKDAYS.map((name, idx) => `${name}: ${ctx.groupClasses.filter((g) => g.weekday === idx + 1).length}`).join(", ");
+    },
+  },
+  {
+    id: "group_class_instructor_count",
+    category: "Randevu & Program",
+    label: "Kaç farklı eğitmenim/antrenörüm var?",
+    keywords: ["eğitmen sayısı", "antrenör sayısı"],
+    visibleIf: (sector) => supportsGroupClasses(sector),
+    compute: (ctx) => {
+      const instructors = new Set(ctx.groupClasses.filter((g) => g.instructorName).map((g) => g.instructorName));
+      return instructors.size > 0 ? `${instructors.size} farklı eğitmen/antrenörünüz var.` : "Derslerinize henüz eğitmen bilgisi girilmemiş.";
+    },
+  },
+  {
+    id: "group_class_avg_capacity",
+    category: "Randevu & Program",
+    label: "Derslerimin ortalama kapasitesi ne kadar?",
+    keywords: ["ortalama ders kapasitesi", "ders başına kapasite"],
+    visibleIf: (sector) => supportsGroupClasses(sector),
+    compute: (ctx) => {
+      if (ctx.groupClasses.length === 0) return "Henüz bir dersiniz yok.";
+      const avg = ctx.groupClasses.reduce((sum, g) => sum + (g.capacity || 0), 0) / ctx.groupClasses.length;
+      return `Derslerinizin ortalama kapasitesi ${Math.round(avg)} kişi.`;
+    },
+  },
+  {
+    id: "group_class_total_capacity",
+    category: "Randevu & Program",
+    label: "Tüm derslerimin toplam kapasitesi ne kadar?",
+    keywords: ["toplam kapasite", "tüm derslerin kapasitesi"],
+    visibleIf: (sector) => supportsGroupClasses(sector),
+    compute: (ctx) => `Tüm derslerinizin toplam kapasitesi ${ctx.groupClasses.reduce((sum, g) => sum + (g.capacity || 0), 0)} kişi.`,
+  },
+  {
+    id: "avg_class_duration_minutes",
+    category: "Randevu & Program",
+    label: "Derslerimin ortalama süresi ne kadar?",
+    keywords: ["ortalama ders süresi", "ders kaç dakika"],
+    visibleIf: (sector) => supportsGroupClasses(sector),
+    compute: (ctx) => {
+      if (ctx.groupClasses.length === 0) return "Henüz bir dersiniz yok.";
+      const avg = ctx.groupClasses.reduce((sum, g) => sum + (g.durationMinutes || 0), 0) / ctx.groupClasses.length;
+      return `Derslerinizin ortalama süresi ${Math.round(avg)} dakika.`;
+    },
+  },
+  {
+    id: "class_attendance_rate_overall",
+    category: "Randevu & Program",
+    label: "Derslerime genel katılım oranım nedir?",
+    keywords: ["genel katılım oranı", "derse gelme oranı"],
+    visibleIf: (sector) => supportsGroupClasses(sector),
+    compute: (ctx) => {
+      const attendance = ctx.classAttendance || [];
+      if (attendance.length === 0) return "Henüz yoklama kaydı girilmemiş.";
+      const came = attendance.filter((a) => a.status === "geldi").length;
+      return `Genel derse katılım oranınız %${Math.round((came / attendance.length) * 100)} (${came}/${attendance.length}).`;
+    },
+  },
+  {
+    id: "class_attendance_rate_this_month",
+    category: "Randevu & Program",
+    label: "Bu ay derslerime katılım oranı nedir?",
+    keywords: ["bu ay katılım oranı", "bu ayki derse gelme oranı"],
+    visibleIf: (sector) => supportsGroupClasses(sector),
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ay");
+      const attendance = (ctx.classAttendance || []).filter((a) => inRange(a.occurrenceDate, bounds));
+      if (attendance.length === 0) return "Bu ay henüz yoklama kaydı girilmemiş.";
+      const came = attendance.filter((a) => a.status === "geldi").length;
+      return `Bu ay derse katılım oranınız %${Math.round((came / attendance.length) * 100)} (${came}/${attendance.length}).`;
+    },
+  },
+  {
+    id: "best_attended_class",
+    category: "Randevu & Program",
+    label: "En yüksek katılım oranına sahip dersim hangisi?",
+    keywords: ["en yüksek katılımlı ders", "en çok gelinen ders"],
+    visibleIf: (sector) => supportsGroupClasses(sector),
+    compute: (ctx) => {
+      if (ctx.groupClasses.length === 0) return "Henüz bir dersiniz yok.";
+      const attendance = ctx.classAttendance || [];
+      const rates = ctx.groupClasses
+        .map((g) => {
+          const recs = attendance.filter((a) => a.groupClassId === g.id);
+          if (recs.length === 0) return null;
+          const came = recs.filter((a) => a.status === "geldi").length;
+          return { name: g.name, rate: came / recs.length, total: recs.length };
+        })
+        .filter(Boolean);
+      if (rates.length === 0) return "Henüz hiçbir dersiniz için yoklama girilmemiş.";
+      const best = [...rates].sort((a, b) => b.rate - a.rate)[0];
+      return `En yüksek katılım oranına sahip dersiniz "${best.name}" — %${Math.round(best.rate * 100)} (${best.total} yoklama kaydı).`;
+    },
+  },
+  {
+    id: "worst_attended_class",
+    category: "Randevu & Program",
+    label: "En düşük katılım oranına sahip dersim hangisi?",
+    keywords: ["en düşük katılımlı ders", "en çok gelinmeyen ders"],
+    visibleIf: (sector) => supportsGroupClasses(sector),
+    compute: (ctx) => {
+      if (ctx.groupClasses.length === 0) return "Henüz bir dersiniz yok.";
+      const attendance = ctx.classAttendance || [];
+      const rates = ctx.groupClasses
+        .map((g) => {
+          const recs = attendance.filter((a) => a.groupClassId === g.id);
+          if (recs.length === 0) return null;
+          const came = recs.filter((a) => a.status === "geldi").length;
+          return { name: g.name, rate: came / recs.length, total: recs.length };
+        })
+        .filter(Boolean);
+      if (rates.length === 0) return "Henüz hiçbir dersiniz için yoklama girilmemiş.";
+      const worst = [...rates].sort((a, b) => a.rate - b.rate)[0];
+      return `En düşük katılım oranına sahip dersiniz "${worst.name}" — %${Math.round(worst.rate * 100)} (${worst.total} yoklama kaydı).`;
+    },
+  },
+  {
+    id: "customer_with_most_class_attendance",
+    category: "Randevu & Program",
+    label: "En çok derse gelen müşterim/üyem kim?",
+    keywords: ["en çok derse katılan", "en düzenli gelen üye"],
+    visibleIf: (sector) => supportsGroupClasses(sector),
+    compute: (ctx) => {
+      const attendance = (ctx.classAttendance || []).filter((a) => a.status === "geldi");
+      if (attendance.length === 0) return "Henüz katılım kaydı girilmemiş.";
+      const totals = {};
+      attendance.forEach((a) => { totals[a.customerId] = (totals[a.customerId] || 0) + 1; });
+      const top = topEntry(totals);
+      const customer = ctx.customers.find((c) => c.id === top[0]);
+      return `${customer?.name || "Bilinmeyen müşteri"} — ${top[1]} derse katılarak en çok derse gelen müşteriniz.`;
+    },
+  },
+  {
+    id: "total_attendance_marked_count",
+    category: "Randevu & Program",
+    label: "Kaç yoklama kaydı girmişim?",
+    keywords: ["toplam yoklama sayısı", "girilen yoklama kaydı"],
+    visibleIf: (sector) => supportsGroupClasses(sector),
+    compute: (ctx) => `${(ctx.classAttendance || []).length} yoklama kaydı girilmiş.`,
+  },
+  {
+    id: "business_hours_days_count",
+    category: "Randevu & Program",
+    label: "Kaç gün için müsaitlik saati tanımlamışım?",
+    keywords: ["müsaitlik günleri", "kaç gün müsait"],
+    visibleIf: (sector) => supportsSelfBooking(sector),
+    compute: (ctx) => {
+      if (ctx.businessHours.length === 0) return "Henüz müsaitlik saati tanımlamadınız.";
+      const days = ctx.businessHours.map((b) => WEEKDAYS[b.weekday - 1]).filter(Boolean);
+      return `${days.length} gün için müsaitlik saati tanımlı: ${days.join(", ")}.`;
+    },
+  },
+  {
+    id: "business_hours_missing_days",
+    category: "Randevu & Program",
+    label: "Hangi günler için müsaitlik saatim tanımlı değil?",
+    keywords: ["müsaitlik tanımlanmamış günler", "eksik müsaitlik günü"],
+    visibleIf: (sector) => supportsSelfBooking(sector),
+    compute: (ctx) => {
+      const defined = new Set(ctx.businessHours.map((b) => b.weekday));
+      const missing = WEEKDAYS.map((name, idx) => (defined.has(idx + 1) ? null : name)).filter(Boolean);
+      if (missing.length === 0) return "Haftanın tüm günleri için müsaitlik saati tanımlı.";
+      return `Şu günler için henüz müsaitlik saati tanımlamadınız: ${missing.join(", ")}.`;
+    },
+  },
+  {
+    id: "business_hours_total_weekly_hours",
+    category: "Randevu & Program",
+    label: "Haftalık toplam müsaitlik saatim ne kadar?",
+    keywords: ["haftalık toplam müsaitlik", "toplam müsait saat"],
+    visibleIf: (sector) => supportsSelfBooking(sector),
+    compute: (ctx) => {
+      if (ctx.businessHours.length === 0) return "Henüz müsaitlik saati tanımlamadınız.";
+      const totalMinutes = ctx.businessHours.reduce((sum, b) => {
+        const [sh, sm] = (b.startTime || "0:0").split(":").map(Number);
+        const [eh, em] = (b.endTime || "0:0").split(":").map(Number);
+        return sum + Math.max(0, eh * 60 + em - (sh * 60 + sm));
+      }, 0);
+      return `Haftalık toplam müsaitlik süreniz yaklaşık ${Math.round(totalMinutes / 60)} saat.`;
+    },
+  },
+  {
+    id: "avg_appointment_slot_minutes",
+    category: "Randevu & Program",
+    label: "Randevu aralıklarım ortalama kaç dakika?",
+    keywords: ["ortalama randevu aralığı", "randevu slotu kaç dakika"],
+    visibleIf: (sector) => supportsSelfBooking(sector),
+    compute: (ctx) => {
+      if (ctx.businessHours.length === 0) return "Henüz müsaitlik saati tanımlamadınız.";
+      const avg = ctx.businessHours.reduce((sum, b) => sum + (b.slotDurationMinutes || 0), 0) / ctx.businessHours.length;
+      return `Randevu aralıklarınız ortalama ${Math.round(avg)} dakika.`;
+    },
+  },
+
+  // ---- Takım ----
+  {
+    id: "team_members_with_settings_access",
+    category: "Takım",
+    label: "Kaç takım üyemin ayarları düzenleme izni var?",
+    keywords: ["ayar düzenleme izni olan üye", "yetkili takım üyesi sayısı"],
+    compute: (ctx) => {
+      if (ctx.teamMembers.length === 0) return "Henüz takım üyeniz yok.";
+      const count = ctx.teamMembers.filter((m) => m.canEditSettings).length;
+      return count > 0 ? `${count} takım üyenizin ayarları düzenleme izni var.` : "Şu anda ayarları düzenleme izni olan bir takım üyeniz yok.";
+    },
+  },
+  {
+    id: "per_member_open_deal_count",
+    category: "Takım",
+    label: "Üye başına kaç açık kaydım var?",
+    keywords: ["üye başına açık kayıt", "kişi başına bekleyen teklif"],
+    compute: (ctx) => {
+      if (ctx.teamMembers.length === 0) return "Henüz takım üyeniz yok.";
+      const open = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi" && d.assignedTo);
+      const totals = {};
+      open.forEach((d) => { totals[d.assignedTo] = (totals[d.assignedTo] || 0) + 1; });
+      const names = [ctx.currentUserId, ...ctx.teamMembers.map((m) => m.id)];
+      return names
+        .map((id) => {
+          const name = id === ctx.currentUserId ? "Siz" : (ctx.teamMembers.find((m) => m.id === id)?.name || ctx.teamMembers.find((m) => m.id === id)?.email || "Bilinmeyen üye");
+          return `${name}: ${totals[id] || 0}`;
+        })
+        .join(", ");
+    },
+  },
+  {
+    id: "per_member_win_rate",
+    category: "Takım",
+    label: "Üye başına kazanma oranım nedir?",
+    keywords: ["üye başına kazanma oranı", "kişi başına başarı oranı"],
+    compute: (ctx) => {
+      if (ctx.teamMembers.length === 0) return "Henüz takım üyeniz yok.";
+      const closed = ctx.deals.filter((d) => (d.stage === "kazanildi" || d.stage === "kaybedildi") && d.assignedTo);
+      if (closed.length === 0) return "Henüz sorumlu atanmış, sonuçlanmış bir kaydınız yok.";
+      const names = [ctx.currentUserId, ...ctx.teamMembers.map((m) => m.id)];
+      return names
+        .map((id) => {
+          const memberClosed = closed.filter((d) => d.assignedTo === id);
+          if (memberClosed.length === 0) return null;
+          const won = memberClosed.filter((d) => d.stage === "kazanildi").length;
+          const name = id === ctx.currentUserId ? "Siz" : (ctx.teamMembers.find((m) => m.id === id)?.name || ctx.teamMembers.find((m) => m.id === id)?.email || "Bilinmeyen üye");
+          return `${name}: %${Math.round((won / memberClosed.length) * 100)}`;
+        })
+        .filter(Boolean)
+        .join(", ");
+    },
+  },
+  {
+    id: "per_member_revenue_month",
+    category: "Takım",
+    label: "Bu ay üye başına ne kadar ciro var?",
+    keywords: ["üye başına bu ay ciro", "kişi başına bu ayki gelir"],
+    compute: (ctx) => {
+      if (ctx.teamMembers.length === 0) return "Henüz takım üyeniz yok.";
+      const bounds = getRangeBounds("bu_ay");
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi" && d.assignedTo && inRange(d.closedAt || d.createdAt, bounds));
+      if (won.length === 0) return "Bu ay henüz sorumlu atanmış, kazanılmış bir kaydınız yok.";
+      const totals = {};
+      won.forEach((d) => { totals[d.assignedTo] = (totals[d.assignedTo] || 0) + (d.value || 0); });
+      return Object.entries(totals)
+        .map(([id, total]) => {
+          const name = id === ctx.currentUserId ? "Siz" : (ctx.teamMembers.find((m) => m.id === id)?.name || ctx.teamMembers.find((m) => m.id === id)?.email || "Bilinmeyen üye");
+          return `${name}: ${formatTL(total)}`;
+        })
+        .join(", ");
+    },
+  },
+  {
+    id: "members_with_zero_deals",
+    category: "Takım",
+    label: "Hiç kaydı olmayan takım üyem var mı?",
+    keywords: ["kaydı olmayan üye", "atanmış kaydı olmayan takım üyesi"],
+    compute: (ctx) => {
+      if (ctx.teamMembers.length === 0) return "Henüz takım üyeniz yok.";
+      const assignedIds = new Set(ctx.deals.filter((d) => d.assignedTo).map((d) => d.assignedTo));
+      const zeroMembers = ctx.teamMembers.filter((m) => !assignedIds.has(m.id));
+      if (zeroMembers.length === 0) return "Tüm takım üyelerinize en az bir kayıt atanmış.";
+      return `${zeroMembers.length} takım üyenize hiç kayıt atanmamış: ${zeroMembers.map((m) => m.name || m.email).join(", ")}.`;
+    },
+  },
+  {
+    id: "avg_deals_per_member",
+    category: "Takım",
+    label: "Üye başına ortalama kaç kayıt atanmış?",
+    keywords: ["üye başına ortalama kayıt", "kişi başına ortalama teklif"],
+    compute: (ctx) => {
+      if (ctx.teamMembers.length === 0) return "Henüz takım üyeniz yok.";
+      const assigned = ctx.deals.filter((d) => d.assignedTo).length;
+      const memberCount = ctx.teamMembers.length + 1;
+      return `Sorumlu atanmış ${assigned} kaydınız var, kişi başına ortalama ${(assigned / memberCount).toFixed(1)} kayıt düşüyor.`;
+    },
+  },
+  {
+    id: "members_without_name",
+    category: "Takım",
+    label: "İsmi girilmemiş kaç takım üyem var?",
+    keywords: ["ismi olmayan üye", "isimsiz takım üyesi"],
+    compute: (ctx) => {
+      if (ctx.teamMembers.length === 0) return "Henüz takım üyeniz yok.";
+      const count = ctx.teamMembers.filter((m) => !m.name).length;
+      return count > 0 ? `${count} takım üyenizde henüz isim girilmemiş, sadece e-posta görünüyor.` : "Tüm takım üyelerinizde isim girilmiş.";
+    },
+  },
+  {
+    id: "team_open_deals_total_value_by_member",
+    category: "Takım",
+    label: "Açık kayıtlarda en yüksek değere sahip üye kim?",
+    keywords: ["en yüksek açık değer üye", "en çok açık kaydı olan üye değeri"],
+    compute: (ctx) => {
+      if (ctx.teamMembers.length === 0) return "Henüz takım üyeniz yok.";
+      const open = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi" && d.assignedTo);
+      if (open.length === 0) return "Şu anda sorumlu atanmış açık bir kaydınız yok.";
+      const totals = {};
+      open.forEach((d) => { totals[d.assignedTo] = (totals[d.assignedTo] || 0) + (d.value || 0); });
+      const top = topEntry(totals);
+      const name = top[0] === ctx.currentUserId ? "Siz" : (ctx.teamMembers.find((m) => m.id === top[0])?.name || ctx.teamMembers.find((m) => m.id === top[0])?.email || "Bilinmeyen üye");
+      return `${name} — açık kayıtlarında ${formatTL(top[1])} değerle en yüksek açık portföye sahip.`;
+    },
+  },
+  {
+    id: "top_assignee_by_deal_count",
+    category: "Takım",
+    label: "En çok kayıt sorumlusu (sayıca) kim?",
+    keywords: ["en çok kayıt sayısı olan kişi", "en çok teklifi olan takım üyesi"],
+    compute: (ctx) => {
+      if (ctx.teamMembers.length === 0) return "Henüz takım üyeniz yok.";
+      const assigned = ctx.deals.filter((d) => d.assignedTo);
+      if (assigned.length === 0) return "Henüz sorumlu atanmış bir kaydınız yok.";
+      const totals = {};
+      assigned.forEach((d) => { totals[d.assignedTo] = (totals[d.assignedTo] || 0) + 1; });
+      const top = topEntry(totals);
+      const name = top[0] === ctx.currentUserId ? "Siz" : (ctx.teamMembers.find((m) => m.id === top[0])?.name || ctx.teamMembers.find((m) => m.id === top[0])?.email || "Bilinmeyen üye");
+      return `${name} — ${top[1]} kayıtla en çok kayıt sorumlusu olan kişi.`;
+    },
+  },
+  {
+    id: "top_uploader",
+    category: "Takım",
+    label: "En çok dosya yükleyen kim?",
+    keywords: ["en çok dosya yükleyen", "en çok ek ekleyen kişi"],
+    compute: (ctx) => {
+      const withUploader = ctx.attachments.filter((a) => a.uploadedBy);
+      if (withUploader.length === 0) return "Henüz bir dosya yüklenmemiş.";
+      const totals = {};
+      withUploader.forEach((a) => { totals[a.uploadedBy] = (totals[a.uploadedBy] || 0) + 1; });
+      const top = topEntry(totals);
+      const member = ctx.teamMembers.find((m) => m.email === top[0]);
+      return `${member?.name || top[0]} — ${top[1]} dosya ile en çok dosya yükleyen kişi.`;
+    },
+  },
+  {
+    id: "avg_open_deal_value_per_member",
+    category: "Takım",
+    label: "Üye başına ortalama açık kayıt değeri ne kadar?",
+    keywords: ["üye başına açık değer", "kişi başına açık kayıt tutarı"],
+    compute: (ctx) => {
+      if (ctx.teamMembers.length === 0) return "Henüz takım üyeniz yok.";
+      const open = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi" && d.assignedTo);
+      if (open.length === 0) return "Şu anda sorumlu atanmış açık bir kaydınız yok.";
+      const totals = {};
+      open.forEach((d) => { totals[d.assignedTo] = (totals[d.assignedTo] || 0) + (d.value || 0); });
+      const memberCount = Object.keys(totals).length;
+      const total = Object.values(totals).reduce((sum, v) => sum + v, 0);
+      return `Sorumlu atanmış açık kayıtlarda üye başına ortalama ${formatTL(total / memberCount)} değer var.`;
+    },
+  },
+
+  // ---- Sistem ----
+  {
+    id: "custom_field_count_by_entity",
+    category: "Sistem",
+    label: "Müşteri mi teklif mi, hangi tarafta daha çok özel alanım var?",
+    keywords: ["özel alan müşteri teklif dağılımı", "entity bazında özel alan sayısı"],
+    compute: (ctx) => {
+      const active = ctx.customFieldDefs.filter((d) => d.active);
+      if (active.length === 0) return "Henüz aktif bir özel alanınız yok.";
+      const customerCount = active.filter((d) => d.entity === "customer").length;
+      const dealCount = active.filter((d) => d.entity === "deal").length;
+      return `Müşteri tarafında ${customerCount}, kayıt (teklif/randevu/üyelik) tarafında ${dealCount} aktif özel alanınız var.`;
+    },
+  },
+  {
+    id: "custom_field_inactive_count",
+    category: "Sistem",
+    label: "Kaç pasif özel alanım var?",
+    keywords: ["pasif özel alan", "devre dışı özel alan sayısı"],
+    compute: (ctx) => {
+      const count = ctx.customFieldDefs.filter((d) => !d.active).length;
+      return count > 0 ? `${count} pasif (devre dışı) özel alanınız var.` : "Pasif özel alanınız yok, tüm özel alanlarınız aktif.";
+    },
+  },
+  {
+    id: "custom_field_fill_rate_top",
+    category: "Sistem",
+    label: "En az doldurulan özel alanım hangisi?",
+    keywords: ["en az doldurulan özel alan", "boş kalan özel alan"],
+    compute: (ctx) => {
+      const active = ctx.customFieldDefs.filter((d) => d.active);
+      if (active.length === 0) return "Henüz aktif bir özel alanınız yok.";
+      const rates = active.map((def) => {
+        const records = def.entity === "customer" ? ctx.customers : ctx.deals;
+        if (records.length === 0) return { label: def.label, rate: 0 };
+        const filled = records.filter((r) => r.customFields?.[def.key] != null && r.customFields?.[def.key] !== "").length;
+        return { label: def.label, rate: filled / records.length };
+      });
+      const lowest = [...rates].sort((a, b) => a.rate - b.rate)[0];
+      return `En az doldurulan özel alanınız "${lowest.label}" — %${Math.round(lowest.rate * 100)} doluluk.`;
+    },
+  },
+  {
+    id: "attachments_by_entity_type",
+    category: "Sistem",
+    label: "Dosyalarım daha çok müşteri kaydında mı, teklif kaydında mı?",
+    keywords: ["dosya entity dağılımı", "hangi kayıtta daha çok dosya var"],
+    compute: (ctx) => {
+      if (ctx.attachments.length === 0) return "Henüz bir dosya yüklenmemiş.";
+      const customerCount = ctx.attachments.filter((a) => a.entityType === "customers").length;
+      const dealCount = ctx.attachments.filter((a) => a.entityType === "deals").length;
+      return `Müşteri kayıtlarında ${customerCount}, teklif/randevu/üyelik kayıtlarında ${dealCount} dosyanız var.`;
+    },
+  },
+  {
+    id: "attachments_this_month_count",
+    category: "Sistem",
+    label: "Bu ay kaç dosya eklemişim?",
+    keywords: ["bu ay eklenen dosya", "bu ayki dosya sayısı"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ay");
+      const count = ctx.attachments.filter((a) => inRange(a.createdAt, bounds)).length;
+      return `Bu ay ${count} dosya eklediniz.`;
+    },
+  },
+  {
+    id: "recently_added_attachment",
+    category: "Sistem",
+    label: "En son ne zaman dosya eklemişim?",
+    keywords: ["en son eklenen dosya", "son yüklenen dosya"],
+    compute: (ctx) => {
+      if (ctx.attachments.length === 0) return "Henüz bir dosya yüklenmemiş.";
+      const sorted = [...ctx.attachments].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      return `En son "${sorted[0].fileName}" dosyasını ${new Date(sorted[0].createdAt).toLocaleDateString("tr-TR")} tarihinde eklediniz.`;
+    },
+  },
+  {
+    id: "attachment_total_size",
+    category: "Sistem",
+    label: "Yüklediğim dosyaların toplam boyutu ne kadar?",
+    keywords: ["toplam dosya boyutu", "kaç mb dosya yükledim"],
+    compute: (ctx) => {
+      if (ctx.attachments.length === 0) return "Henüz bir dosya yüklenmemiş.";
+      const total = ctx.attachments.reduce((sum, a) => sum + (a.fileSize || 0), 0);
+      return `Yüklediğiniz dosyaların toplam boyutu ${formatFileSize(total)}.`;
+    },
+  },
+  {
+    id: "price_list_extremes",
+    category: "Sistem",
+    label: "Fiyat listemdeki en pahalı ve en ucuz ürün hangisi?",
+    keywords: ["en pahalı ürün", "en ucuz ürün", "fiyat listesi aralığı"],
+    compute: (ctx) => {
+      if (ctx.priceListItems.length === 0) return "Fiyat listenizde henüz bir ürün/hizmet yok.";
+      const sorted = [...ctx.priceListItems].sort((a, b) => (a.price || 0) - (b.price || 0));
+      const cheapest = sorted[0];
+      const priciest = sorted[sorted.length - 1];
+      return `En ucuz "${cheapest.name}" (${formatTL(cheapest.price)}), en pahalı "${priciest.name}" (${formatTL(priciest.price)}).`;
+    },
+  },
+  {
+    id: "price_list_avg_price",
+    category: "Sistem",
+    label: "Fiyat listemdeki ortalama fiyat ne kadar?",
+    keywords: ["fiyat listesi ortalama fiyat", "ortalama ürün fiyatı"],
+    compute: (ctx) => {
+      if (ctx.priceListItems.length === 0) return "Fiyat listenizde henüz bir ürün/hizmet yok.";
+      const avg = ctx.priceListItems.reduce((sum, p) => sum + (p.price || 0), 0) / ctx.priceListItems.length;
+      return `Fiyat listenizdeki ortalama fiyat ${formatTL(avg)}.`;
+    },
+  },
+  {
+    id: "company_settings_completeness",
+    category: "Sistem",
+    label: "İşletme bilgilerim ne kadar dolu?",
+    keywords: ["işletme bilgisi doluluk", "işletme bilgileri eksik mi"],
+    compute: (ctx) => {
+      const fields = [ctx.companySettings?.companyName, ctx.companySettings?.address, ctx.companySettings?.phone, ctx.companySettings?.email, ctx.companySettings?.taxNumber];
+      const filled = fields.filter(Boolean).length;
+      return `İşletme bilgilerinizin ${filled}/${fields.length} alanı dolu.`;
+    },
+  },
+  {
+    id: "logo_uploaded",
+    category: "Sistem",
+    label: "Logom yüklü mü?",
+    keywords: ["logo yüklü mü", "firma logosu var mı"],
+    compute: (ctx) => (ctx.companySettings?.logoUrl ? "Evet, logonuz yüklü." : "Henüz bir logo yüklemediniz — teklif PDF'lerinizde ve portalda daha profesyonel görünmesi için ekleyebilirsiniz."),
+  },
+  {
+    id: "lead_capture_link_active",
+    category: "Sistem",
+    label: "Müşteri Kazanma Linkim aktif mi?",
+    keywords: ["müşteri kazanma linki aktif mi", "lead capture link"],
+    compute: (ctx) => (ctx.companySettings?.leadCaptureToken ? "Evet, Müşteri Kazanma Linkiniz aktif — Ayarlar'dan paylaşabilirsiniz." : "Müşteri Kazanma Linkiniz henüz oluşturulmamış görünüyor."),
+  },
+  {
+    id: "default_kdv_rate_value",
+    category: "Sistem",
+    label: "Varsayılan KDV oranım kaç?",
+    keywords: ["varsayılan kdv oranı", "default kdv"],
+    compute: (ctx) => `Varsayılan KDV oranınız %${ctx.companySettings?.defaultKdvRate ?? 20}.`,
+  },
+  {
+    id: "customer_notifications_enabled_status",
+    category: "Sistem",
+    label: "Müşteri bildirimleri açık mı?",
+    keywords: ["müşteri bildirimleri açık mı", "customer notification durumu"],
+    compute: (ctx) => (ctx.companySettings?.customerNotificationsEnabled !== false ? "Evet, müşteri bildirimleri açık." : "Hayır, müşteri bildirimlerini kapatmışsınız."),
+  },
+  {
+    id: "appointment_reminders_enabled_status",
+    category: "Sistem",
+    label: "Randevu hatırlatmaları açık mı?",
+    keywords: ["randevu hatırlatması açık mı", "otomatik hatırlatma durumu"],
+    visibleIf: (sector) => supportsSelfBooking(sector),
+    compute: (ctx) => (ctx.companySettings?.appointmentRemindersEnabled !== false ? "Evet, otomatik randevu hatırlatma e-postaları açık." : "Hayır, otomatik randevu hatırlatmalarını kapatmışsınız."),
+  },
+  {
+    id: "pdf_template_count",
+    category: "Sistem",
+    label: "Kaç özel PDF şablonum var?",
+    keywords: ["pdf şablon sayısı", "kaç teklif şablonum var"],
+    compute: (ctx) => {
+      const count = (ctx.pdfTemplates || []).length;
+      return count > 0 ? `${count} özel PDF şablonunuz var.` : "Henüz özel bir PDF şablonu oluşturmadınız, hazır şablonlardan birini kullanıyorsunuz.";
+    },
+  },
+  {
+    id: "using_custom_pdf_template",
+    category: "Sistem",
+    label: "Şu anda özel bir PDF şablonu mu kullanıyorum?",
+    keywords: ["özel şablon kullanıyor muyum", "seçili pdf şablonu"],
+    compute: (ctx) => {
+      const isCustom = ctx.companySettings?.pdfTemplateKey && (ctx.pdfTemplates || []).some((t) => t.id === ctx.companySettings.pdfTemplateKey);
+      return isCustom ? "Evet, kendi oluşturduğunuz özel bir PDF şablonunu kullanıyorsunuz." : "Hayır, hazır (galeri) şablonlardan birini kullanıyorsunuz.";
+    },
+  },
+  {
+    id: "deal_line_items_usage_count",
+    category: "Sistem",
+    label: "Kaç kaydımda kalem bazlı ürün/hizmet listesi kullanılmış?",
+    keywords: ["kalem bazlı kayıt sayısı", "çoklu kalem kullanan teklif"],
+    compute: (ctx) => {
+      const dealIds = new Set((ctx.dealLineItems || []).map((li) => li.dealId));
+      return dealIds.size > 0 ? `${dealIds.size} kaydınızda kalem bazlı ürün/hizmet listesi kullanılmış.` : "Henüz kalem bazlı ürün/hizmet listesi kullanan bir kaydınız yok.";
+    },
+  },
+  {
+    id: "avg_line_items_per_deal",
+    category: "Sistem",
+    label: "Kalem kullanan kayıtlarda ortalama kaç kalem var?",
+    keywords: ["ortalama kalem sayısı", "kayıt başına kalem sayısı"],
+    compute: (ctx) => {
+      const lineItems = ctx.dealLineItems || [];
+      if (lineItems.length === 0) return "Henüz kalem bazlı ürün/hizmet listesi kullanan bir kaydınız yok.";
+      const dealIds = new Set(lineItems.map((li) => li.dealId));
+      return `Kalem kullanan kayıtlarınızda ortalama ${(lineItems.length / dealIds.size).toFixed(1)} kalem var.`;
+    },
+  },
+
+  // ---- Analiz (teşhis — birden fazla sinyali birleştirip yorum/öneri üretir) ----
+  {
+    id: "diagnosis_why_losing",
+    category: "Analiz",
+    label: "Neden satışlarımı/kayıtlarımı kaybediyorum?",
+    keywords: ["neden kaybediyorum", "satış kaybı analizi", "neden satamıyorum", "kayıp analizi teşhis", "neyi değiştirmem lazım"],
+    compute: (ctx) => {
+      const lost = ctx.deals.filter((d) => d.stage === "kaybedildi" && d.lostReason);
+      if (lost.length < 3) return "Nedeni belirtilmiş yeterli kayıp kaydınız yok (en az birkaç kayıt gerekiyor) — kayıp nedenini not etmeye devam edin, zamanla burada net bir örüntü görebiliriz.";
+      const totals = {};
+      lost.forEach((d) => { totals[d.lostReason] = (totals[d.lostReason] || 0) + 1; });
+      const [topReason, topCount] = topEntry(totals);
+      const share = Math.round((topCount / lost.length) * 100);
+      const advice = REASON_ADVICE[topReason] || "Bu nedeni daha yakından incelemek için ilgili kayıtların notlarına tekrar göz atmanızda fayda var.";
+      if (share >= 40) return `Kayıplarınızın %${share}'i "${topReason}" nedeniyle (${topCount}/${lost.length}) — baskın bir örüntü var. ${advice}`;
+      return `Kayıplarınız birçok farklı nedene dağılmış, tek bir baskın neden yok (en sık: "${topReason}", %${share}). Genel bir sorundan çok kayıt bazlı özel durumlar öne çıkıyor gibi görünüyor.`;
+    },
+  },
+  {
+    id: "diagnosis_win_rate_trend",
+    category: "Analiz",
+    label: "Satış performansım iyileşiyor mu kötüleşiyor mu?",
+    keywords: ["performansım nasıl gidiyor", "satış trendi", "iyileşiyor muyum kötüleşiyor muyum"],
+    compute: (ctx) => {
+      const now = new Date();
+      const thisBounds = getRangeBounds("bu_ay");
+      const lastStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      const closedThis = ctx.deals.filter((d) => (d.stage === "kazanildi" || d.stage === "kaybedildi") && inRange(d.closedAt || d.createdAt, thisBounds));
+      const closedLast = ctx.deals.filter((d) => (d.stage === "kazanildi" || d.stage === "kaybedildi") && inRange(d.closedAt || d.createdAt, { start: lastStart, end: lastEnd }));
+      if (closedThis.length < 3 || closedLast.length < 3) return "Sağlıklı bir trend karşılaştırması için bu ay ve geçen ay yeterli sayıda sonuçlanmış kaydınız yok.";
+      const winRateThis = closedThis.filter((d) => d.stage === "kazanildi").length / closedThis.length;
+      const winRateLast = closedLast.filter((d) => d.stage === "kazanildi").length / closedLast.length;
+      const diff = Math.round((winRateThis - winRateLast) * 100);
+      if (diff <= -10) return `Kazanma oranınız geçen aya göre ${Math.abs(diff)} puan düştü (%${Math.round(winRateLast * 100)} → %${Math.round(winRateThis * 100)}) — kayıp nedenlerinize bakmanızda fayda var, "neden kaybediyorum" diye de sorabilirsiniz.`;
+      if (diff >= 10) return `Kazanma oranınız geçen aya göre ${diff} puan arttı (%${Math.round(winRateLast * 100)} → %${Math.round(winRateThis * 100)}) — iyi gidiyor, bu ay ne farklı yaptığınızı not etmeye değer.`;
+      return `Kazanma oranınız geçen aya göre görece stabil (%${Math.round(winRateLast * 100)} → %${Math.round(winRateThis * 100)}).`;
+    },
+  },
+  {
+    id: "diagnosis_follow_up_habits",
+    category: "Analiz",
+    label: "Takip alışkanlıklarımda bir sorun var mı?",
+    keywords: ["takip alışkanlığım nasıl", "hatırlatma eksikliği teşhis", "takibimi nasıl iyileştiririm"],
+    compute: (ctx) => {
+      const open = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi");
+      if (open.length === 0) return "Şu anda açık bir kaydınız yok.";
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const missing = open.filter((d) => !d.reminderDate).length;
+      const overdue = open.filter((d) => d.reminderDate && d.reminderDate < todayStr).length;
+      const missingShare = Math.round((missing / open.length) * 100);
+      if (missingShare >= 40 || overdue >= 5) {
+        return `Açık kayıtlarınızın %${missingShare}'inde hiç hatırlatma tarihi yok, ${overdue} tanesinin hatırlatması da geçmiş — bu, takibi kaçırıp kayıt kaybetmenin yaygın bir nedenidir. Her açık kayda bir sonraki adım için hatırlatma tarihi eklemeyi alışkanlık hâline getirin.`;
+      }
+      return `Takip alışkanlıklarınız iyi görünüyor — açık kayıtlarınızın çoğunda hatırlatma tarihi var, geciken hatırlatma sayınız (${overdue}) düşük.`;
+    },
+  },
+  {
+    id: "diagnosis_retention_risk",
+    category: "Analiz",
+    label: "Müşteri kaybetme riskim var mı?",
+    keywords: ["müşteri kaybetme riski", "churn riski teşhis", "müşterilerim uzaklaşıyor mu"],
+    compute: (ctx) => {
+      if (ctx.passiveCustomerRate == null) return "Bu analiz için henüz yeterli müşteri/kayıt verisi yok.";
+      const rate = Math.round(ctx.passiveCustomerRate);
+      if (rate >= 40) return `Müşterilerinizin %${rate}'i 90 gündür işlem yapmıyor — bu yüksek bir oran, kaybetme riski taşıyorsunuz. Bu müşterilere kişisel bir hatırlatma mesajı veya küçük bir kampanya göndermeyi değerlendirin.`;
+      if (rate >= 20) return `Müşterilerinizin %${rate}'i pasif durumda — takip edilmeye değer ama henüz alarm verici değil.`;
+      return `Pasif müşteri oranınız düşük (%${rate}) — müşteri bağlılığınız şu an sağlıklı görünüyor.`;
+    },
+  },
+  {
+    id: "diagnosis_pricing_signal",
+    category: "Analiz",
+    label: "Fiyatımı gözden geçirmeli miyim?",
+    keywords: ["fiyatımı değiştirmeli miyim", "fiyat sorunu var mı", "fiyat gözden geçirme sinyali"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("son_6_ay");
+      const lost = ctx.deals.filter((d) => d.stage === "kaybedildi" && d.lostReason && inRange(d.closedAt || d.createdAt, bounds));
+      if (lost.length < 3) return "Son 6 ayda nedeni belirtilmiş yeterli kayıp kaydınız yok, güvenilir bir sinyal veremiyorum.";
+      const priceLost = lost.filter((d) => d.lostReason === "Yüksek fiyat").length;
+      const share = Math.round((priceLost / lost.length) * 100);
+      if (share >= 35) return `Son 6 aydaki kayıplarınızın %${share}'i "Yüksek fiyat" nedeniyle — bu, fiyatlandırmanızı gözden geçirmeniz için makul bir sinyal. İndirim yerine paketleme veya ek değer eklemeyi deneyebilirsiniz.`;
+      return `Son 6 ayda "Yüksek fiyat" kayıplarınızın payı %${share} — fiyat, kayıplarınızda baskın bir neden gibi görünmüyor.`;
+    },
+  },
+  {
+    id: "diagnosis_stalled_deals",
+    category: "Analiz",
+    label: "Kayıtlarım neden takılı kalıyor?",
+    keywords: ["kayıtlarım neden ilerlemiyor", "teklif takılı kaldı teşhis", "açık kayıt sorunu"],
+    compute: (ctx) => {
+      const open = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi");
+      if (open.length === 0) return "Şu anda açık bir kaydınız yok.";
+      const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const stalled = open.filter((d) => new Date(d.createdAt).getTime() < cutoff).length;
+      const share = Math.round((stalled / open.length) * 100);
+      if (share >= 40) return `Açık kayıtlarınızın %${share}'i 30 günden uzun süredir açık — bu kayıtlarda net bir "evet/hayır" cevabı almak için daha proaktif bir takip deneyin; uzayan belirsizlik genelde kayba dönüşür.`;
+      return `Açık kayıtlarınızın çoğu makul bir sürede ilerliyor (%${share}'i 30 günden eski) — takılı kalma şu an büyük bir sorun gibi görünmüyor.`;
+    },
+  },
+  {
+    id: "diagnosis_sla_health",
+    category: "Analiz",
+    label: "Destek sürecim satışlarımı etkiliyor olabilir mi?",
+    keywords: ["destek satışı etkiliyor mu", "sla satış ilişkisi", "destek kalitesi teşhis"],
+    compute: (ctx) => {
+      if (ctx.tickets.length === 0) return "Henüz destek talebi verisi yok, bu analiz için erken.";
+      const resolved = ctx.tickets.filter((t) => TERMINAL_STATUSES.includes(t.status));
+      const rate = Math.round((resolved.length / ctx.tickets.length) * 100);
+      if (ctx.breachedTicketsCount >= 3 || rate < 50) {
+        return `${ctx.breachedTicketsCount} talebiniz SLA'yı aşmış ve çözülme oranınız %${rate} — yavaş/eksik destek genelde müşteri güvenini ve tekrar satın almayı olumsuz etkiler. Önce bekleyen talepleri kapatmaya odaklanın.`;
+      }
+      return `Destek sürecinizde (SLA aşımı ${ctx.breachedTicketsCount}, çözülme oranı %${rate}) belirgin bir sorun görünmüyor — bu şu an satışlarınızı olumsuz etkileyen bir faktör gibi durmuyor.`;
+    },
+  },
+  {
+    id: "diagnosis_top_priority",
+    category: "Analiz",
+    label: "Şu an en çok neye odaklanmalıyım?",
+    keywords: ["neyi değiştirmem lazım genel", "en öncelikli sorunum ne", "şimdi ne yapmalıyım", "genel teşhis"],
+    compute: (ctx) => {
+      const candidates = [];
+      if (ctx.breachedTicketsCount > 0) {
+        candidates.push({ score: ctx.breachedTicketsCount * 3, text: `${ctx.breachedTicketsCount} destek talebinizin SLA süresi geçmiş — müşteri güvenini doğrudan etkiler, önce bunlara bakın.` });
+      }
+      const open = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi");
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const overdueReminders = open.filter((d) => d.reminderDate && d.reminderDate < todayStr).length;
+      if (overdueReminders > 0) {
+        candidates.push({ score: overdueReminders * 2, text: `${overdueReminders} kaydınızın hatırlatma tarihi geçmiş — bunları güncelleyip takip etmek muhtemelen en hızlı kazanımı sağlar.` });
+      }
+      if (ctx.passiveCustomerRate != null && ctx.passiveCustomerRate >= 40) {
+        candidates.push({ score: ctx.passiveCustomerRate, text: `Müşterilerinizin %${Math.round(ctx.passiveCustomerRate)}'i pasif durumda — bir yeniden etkileşim kampanyası düşünmelisiniz.` });
+      }
+      const bounds6m = getRangeBounds("son_6_ay");
+      const lost6m = ctx.deals.filter((d) => d.stage === "kaybedildi" && d.lostReason && inRange(d.closedAt || d.createdAt, bounds6m));
+      if (lost6m.length >= 3) {
+        const priceLost = lost6m.filter((d) => d.lostReason === "Yüksek fiyat").length;
+        if (priceLost / lost6m.length >= 0.35) {
+          candidates.push({ score: (priceLost / lost6m.length) * 50, text: "Son 6 ayda kayıplarınızın önemli bir kısmı \"Yüksek fiyat\" nedeniyle — fiyatlandırmanızı gözden geçirmeyi düşünün." });
+        }
+      }
+      if (candidates.length === 0) return "Şu an belirgin bir alarm sinyali görünmüyor — genel durumunuz istikrarlı, düzenli takibe devam edin.";
+      return candidates.sort((a, b) => b.score - a.score)[0].text;
+    },
+  },
 ];
 
-function AskPanel({ onClose, sector, ctx }) {
-  const [query, setQuery] = useState("");
-  const q = query.trim().toLowerCase();
-  const relevant = ANSWER_LIBRARY.filter((e) => !e.visibleIf || e.visibleIf(sector)).map((e) => ({
-    ...e,
-    resolvedLabel: typeof e.label === "function" ? e.label(sector) : e.label,
-  }));
-  const filtered = q
-    ? relevant.filter((e) => e.resolvedLabel.toLowerCase().includes(q) || e.keywords.some((k) => k.includes(q) || q.includes(k)))
-    : relevant;
-  const categories = [...new Set(filtered.map((e) => e.category))];
+// HELP_TOPICS ("Binerly nasıl kullanılır") ve ADVISOR_TIPS (genel KOBİ
+// tavsiyesi, veriden bağımsız) aynı {category,q,a,visibleIf} şeklini
+// paylaşıyor — ikisini de ANSWER_LIBRARY ile aynı {id,category,label,
+// keywords,visibleIf,compute} şekline çevirip tek bir arama kutusunda
+// birleştiriyoruz. keywords'e hem soruyu hem cevabı koymak, eski HelpPanel'in
+// "soruda veya cevapta ara" davranışını birebir koruyor.
+function staticToLibraryEntry(item, idx, idPrefix, categoryPrefix) {
+  return {
+    id: `${idPrefix}_${idx}`,
+    category: `${categoryPrefix}: ${item.category}`,
+    label: item.q,
+    // item.keywords opsiyonel — yazım varyasyonu ("artırmak" / "arttırmak"
+    // gibi) veya eş anlamlı ifade eklemek için, soru/cevap metninden başka
+    // bir eşleşme yolu daha açar.
+    keywords: [item.q.toLowerCase(), item.a.toLowerCase(), ...(item.keywords || [])],
+    visibleIf: item.visibleIf,
+    compute: () => item.a,
+  };
+}
+
+const ADVISOR_TIPS = [
+  { category: "Satış", q: "Satışlarımı nasıl artırabilirim?", keywords: ["satışlarımı nasıl arttırabilirim", "arttırmak", "ciro artırmak", "satış artırma", "daha çok satış"], a: "Tek bir taktiğe değil üç alana birden bakın: yeni müşteri kazanmak (pazarlama, referans), mevcut müşteriye daha fazla satmak (çapraz satış, yeniden alım hatırlatması) ve kayıp oranını azaltmak (kaybedilen tekliflerin nedenini analiz etmek). Genelde en hızlı sonuç, elinizdeki açık kayıtların takibini sıkılaştırmaktan (hatırlatma tarihleri, zamanında yanıt) gelir — yeni müşteri bulmaktan daha ucuzdur." },
+  { category: "Nakit Akışı", q: "Nakit akışımı nasıl iyileştiririm?", a: "Kâr ile nakit farklıdır — kârlı olsanız bile tahsilat gecikirse nakit sıkışabilir. Vadeli satışlarda kısmi peşinat almak, tahsilat takibini düzenli yapmak (Finans → Bekleyen Alacak) ve tekrarlayan giderlerinizi önceden bilmek nakit akışını daha öngörülebilir kılar." },
+  { category: "Fiyatlandırma", q: "Fiyatımı nasıl belirlemeliyim?", a: "Sadece maliyeti değil, rakiplerinizin fiyatını ve müşterinin algıladığı değeri de hesaba katın. Çok düşük fiyat kâr bırakmaz, çok yüksek fiyat müşteri kaybettirir — küçük bir müşteri grubuyla test ederek ayarlamak risksiz bir yöntemdir." },
+  { category: "Müşteri Sadakati", q: "Mevcut müşterilerimi nasıl elde tutarım?", a: "Yeni müşteri kazanmak, mevcut müşteriyi elde tutmaktan genelde daha pahalıdır. Düzenli iletişim, hızlı destek yanıtı ve küçük jestler (doğum günü, sadakat indirimi) uzun vadede en çok geri dönüşü sağlar." },
+  { category: "Pazarlama", q: "Sınırlı bütçeyle nasıl pazarlama yaparım?", a: "Önce mevcut müşterilerinizden referans isteyin — en ucuz ve en güvenilir pazarlama budur. Sosyal medyada düzenli ama az sayıda paylaşım, tek seferlik büyük kampanyadan daha sürdürülebilirdir." },
+  { category: "Satış", q: "Kaybettiğim satışlardan nasıl ders çıkarırım?", a: "Kayıp nedenini her zaman not edin (Binerly'de otomatik istenir) — belirli bir dönemde aynı neden tekrar ediyorsa (örn. \"yüksek fiyat\") bu, fiyatlandırma veya değer anlatımınızda sistemli bir sorun olduğunun işaretidir." },
+  { category: "Ekip Yönetimi", q: "Küçük ekibimi nasıl daha verimli yönetirim?", a: "Herkesin net bir sorumluluk alanı olsun, aynı işi iki kişi paralel yapmasın. Haftalık kısa bir değerlendirme (neler bitti, neler bekliyor) büyük toplantılardan daha etkilidir." },
+  { category: "Zaman Yönetimi", q: "Günlük işlerime nasıl öncelik veririm?", a: "Güne başlarken \"bugün gerçekten yapılması gerekenler\" listesi (Pano'daki \"Bugün ne yapmalıyım\") 3-5 maddeyi geçmesin. Acil ama önemsiz işler (bildirimler, küçük sorular) genelde beklettirilebilir." },
+  { category: "Marka", q: "Küçük işletmem nasıl daha güvenilir görünür?", a: "Tutarlı iletişim (aynı logo, aynı ton), zamanında yanıt ve net bir iade/iptal politikası büyük bütçeli reklamdan daha fazla güven yaratır. Müşteri yorumları/referanslar varsa görünür kılın." },
+  { category: "Sosyal Medya", q: "Sosyal medyada ne paylaşmalıyım?", a: "Sadece ürün tanıtımı değil, işin arkasındaki süreci (üretim, ekip, müşteri hikayeleri) de gösterin — insanlar markalardan değil insanlardan alışveriş yapmayı sever." },
+  { category: "Müzakere", q: "Müşteriyle fiyat pazarlığında nasıl davranmalıyım?", a: "Doğrudan indirim yerine değer ekleyin (ek hizmet, daha hızlı teslim) — bu, fiyatınızı düşürmeden müşteriyi tatmin edebilir. Sürekli indirim vermek, gelecekte \"normal fiyatın\" pazarlık payı olduğu algısı yaratır." },
+  { category: "Rekabet", q: "Rakiplerimi nasıl takip etmeliyim?", a: "Fiyatlarını kopyalamak yerine neyi farklı/daha iyi yaptıklarını anlayın. Kendi güçlü yönünüze (hız, kişisel ilgi, uzmanlık) odaklanmak, sürekli fiyat savaşından daha sürdürülebilir bir stratejidir." },
+  { category: "Girişimcilik", q: "Tükenmişlik hissediyorum, ne yapmalıyım?", a: "Küçük işletme sahipliğinde her şeyi tek başına yapma isteği yaygın bir tükenmişlik nedenidir. Tekrar eden işleri (hatırlatma, raporlama) sistemlere bırakmak gerçek bir zaman kazancı sağlar." },
+  { category: "Yeni İşletme", q: "İşimin ilk aylarında nelere odaklanmalıyım?", a: "İlk aylarda çok kanal/çok ürün denemek yerine, tek bir müşteri segmentinde gerçekten iyi olmaya odaklanın. İlk 10-20 gerçek müşterinizden aldığınız geri bildirim, herhangi bir pazar araştırmasından daha değerlidir." },
+  { category: "Networking", q: "İş bağlantılarımı nasıl genişletirim?", a: "Sektör etkinlikleri/odalar dışında, mevcut müşterilerinizin tanıdıkları da güçlü bir ağdır — memnun bir müşteriden doğrudan tavsiye istemek genelde soğuk bir tanıtımdan daha etkilidir." },
+  { category: "Şikayet Yönetimi", q: "Müşteri şikayetlerini nasıl ele almalıyım?", a: "Hızlı yanıt (SLA takibi bunun için var) ve savunmaya geçmeden dinlemek en önemli iki adımdır. İyi çözülmüş bir şikayet, memnun bir müşteriden bile daha güçlü bir sadakat yaratabilir." },
+  { category: "Büyüme", q: "İşimi ne zaman büyütmeliyim (yeni çalışan, yeni ürün)?", a: "Talep sürekli kapasitenizi aşıyorsa ve bu geçici bir dönem değilse büyüme sinyali olabilir. Aceleyle büyümek yerine, mevcut süreçlerinizin yeni hacmi kaldırıp kaldıramayacağını önce test edin." },
+  { category: "İşe Alım", q: "Doğru elemanı nasıl bulurum?", keywords: ["eleman bulma", "personel bulma", "çalışan arama", "doğru çalışanı bulma"], a: "İlanı sadece görev tanımıyla değil, ilk 90 günde başaracağı somut 2-3 hedefle yazın — bu, doğru adayları çeker ve yanlış beklentiyle gelenleri elemenizi sağlar. Mülakatta geçmişte gerçekten yaptığı bir işi detaylıca anlatmasını isteyin (\"anlat\" yerine \"nasıl yaptın\"), genel cevaplar genelde deneyim eksikliğinin işaretidir." },
+  { category: "İşe Alım", q: "Yeni çalışanı işe nasıl daha hızlı adapte ederim (oryantasyon)?", a: "İlk haftada net bir kontrol listesi (kimden ne öğrenecek, hangi sistemlere erişimi olacak, ilk göreve ne zaman başlayacak) belirsizlikten doğan yavaşlamayı önler. Sık yapılan hatalardan biri yeni çalışanı hemen tam yüke koymaktır — ilk 2 haftada deneyimli biriyle birlikte gölge çalışma, daha az hataya yol açar." },
+  { category: "Sözleşmeler", q: "Müşteri sözleşmelerimde nelere dikkat etmeliyim?", a: "Kapsam (tam olarak ne yapılacak, ne yapılmayacak), ödeme takvimi ve gecikme durumunda ne olacağı, iptal/erteleme koşulları en sık ihtilaf çıkan üç maddedir — bunları net yazmak sonradan tartışmayı büyük ölçüde azaltır. Standart bir şablon oluşturup her müşteride küçük değişikliklerle kullanmak sıfırdan yazmaktan hızlıdır; bağlayıcı maddeler için şablona bir kez avukat onayı aldırmak uzun vadede ucuza gelir." },
+  { category: "Sözleşmeler", q: "Sözlü anlaşmalarla mı çalışmalıyım yoksa yazılı mı?", a: "İş büyüdükçe hafıza ve iyi niyete güvenmek risklidir — en azından teklif/onay yazışmasını (e-posta, WhatsApp mesajı, PDF teklif) saklamak asgari bir kayıttır. Tutarı, tarihi ve kapsamı içeren tek sayfalık basit bir onay formu bile, ilerideki \"böyle anlaşmamıştık\" tartışmalarının çoğunu önler." },
+  { category: "Stok Yönetimi", q: "Stok seviyemi nasıl doğru tutarım?", a: "ABC analizi denen basit bir yöntem işe yarar: ürünlerinizi cirodaki paya göre sıralayın, en çok kazandıran %20'lik dilimi (A grubu) sıkı takip edin, geri kalanı daha gevşek kontrol edin. Aşırı stok nakdinizi kilitler, yetersiz stok satış kaybettirir — dengeyi geçmiş 2-3 ayın satış hızına göre ayarlamak tahminden daha güvenilirdir." },
+  { category: "Stok Yönetimi", q: "Ölü stoktan (satılmayan üründen) nasıl kurtulurum?", a: "Belirli bir süredir (örn. 90 gün) hiç hareket etmeyen kalemleri düzenli olarak listeleyip ayrı değerlendirin — biriktirmek yerine erken fark etmek kayıp tutarını küçük tutar. Kampanya/paket satışıyla eritmek tamamen zarar yazmaktan genelde daha iyidir; ama o ürünü neden fazla aldığınızı not edin ki hata tekrarlanmasın." },
+  { category: "E-ticaret", q: "Online satışa yeni başlıyorum, nelere dikkat etmeliyim?", keywords: ["e-ticarete başlamak", "online mağaza açmak", "internetten satış"], a: "Önce tek bir kanalda (kendi site veya tek bir pazaryeri) düzgün çalışmayı öğrenin, aynı anda beş platformda birden başlamak stok ve sipariş takibini karmaşıklaştırır. Kargo/iade sürecini netleştirmeden reklam vermek memnuniyetsiz ilk müşteri deneyimleri yaratır — süreç oturduktan sonra büyütün." },
+  { category: "E-ticaret", q: "Online mağazamda terk edilmiş sepetleri nasıl azaltırım?", a: "En sık neden beklenmedik ek maliyettir (kargo ücretinin son adımda çıkması gibi) — bunu en baştan göstermek terk oranını düşürür. Ödeme adımını mümkün olduğunca kısaltmak (gereksiz form alanlarını kaldırmak) ve tamamlanmayan siparişe kısa bir hatırlatma göndermek de işe yarayan basit adımlardır." },
+  { category: "Mevsimsellik", q: "Sezonluk talep dalgalanmasına nasıl hazırlanmalıyım?", a: "Geçmiş yılların aynı dönemine ait satış verisi en güvenilir tahmin kaynağınızdır — sezon başlamadan stok/personel kararını buna göre verin, sezon ortasında toparlamak genelde geç kalır. Düşük sezonda nakit sıkışmasına karşı önceden bir tampon ayırmak (tekrarlayan giderlerinizi bilerek), yüksek sezon kârını düşük sezona taşımanızı sağlar." },
+  { category: "Franchise", q: "İşimi franchise/bayilik modeliyle büyütmeyi düşünüyorum, nereden başlamalıyım?", a: "Franchise vermeden önce kendi tek şubenizde süreçlerinizin (eğitim, tedarik, kalite standardı) yazılı ve tekrarlanabilir olduğundan emin olun — belgelenmemiş bir iş modeli başka birine devredilemez. İlk bayiyi mümkünse güvendiğiniz, yakından takip edebileceğiniz biriyle pilot olarak başlatmak, hatanın büyümeden görülmesini sağlar." },
+  { category: "Kriz Yönetimi", q: "Beklenmedik bir kriz anında (talep düşüşü, tedarik sorunu) ilk ne yapmalıyım?", a: "Panikle karar vermek yerine önce net bir tablo çıkarın: elinizdeki nakit kaç ay yeter, hangi giderler ertelenebilir/kesilebilir, hangi müşteriler/gelirler en risksiz. Durumu müşterilerinize şeffaf ama sakin bir dille erken bildirmek, sessiz kalıp güven kaybetmekten çok daha iyidir." },
+  { category: "Kriz Yönetimi", q: "Krizde çalışanlarımı nasıl bilgilendirmeliyim?", a: "Belirsizlik kötü haberden daha fazla kaygı yaratır — durum netleşmemiş olsa bile ne bildiğinizi ve ne zaman güncelleme vereceğinizi paylaşmak ekibi sakinleştirir. Kararları (kesinti, öncelik değişikliği) toplu duyurmadan önce mümkünse doğrudan etkilenenlerle önce konuşun." },
+  { category: "Rekabet", q: "Rakip analizini nasıl daha sistemli yaparım?", a: "Ayda bir düzenli olarak rakiplerin fiyat, kampanya ve müşteri yorumlarına (Google/sosyal medya) bakıp kısa not tutmak, hafızaya güvenmekten daha güvenilirdir. Sadece ne yaptıklarını değil müşteri yorumlarında neyi eleştirdiklerini de takip edin — rakibin zayıf noktası sizin fırsatınız olabilir." },
+  { category: "Fiyatlandırma", q: "Fiyat artışını müşterilerime nasıl duyurmalıyım?", a: "Artışı son ana bırakmadan (en az 2-4 hafta önceden) ve nedenini kısaca açıklayarak (maliyet artışı, kalite iyileştirme) duyurmak tepkiyi azaltır. Sadık/uzun süreli müşterilere geçiş dönemi için küçük bir esneklik (eski fiyatla son sipariş hakkı gibi) tanımak, ilişkiyi korurken artışı kabul edilebilir kılar." },
+  { category: "Müşteri Kaybı Analizi", q: "Müşteri kaybımı (churn) nasıl analiz etmeliyim?", keywords: ["churn analizi", "müşteri kaybı analizi", "müşteri neden ayrılıyor"], a: "Tek tek kaybedilen müşteriye üzülmek yerine belirli bir dönemdeki kayıpları bir arada listeleyip ortak nedeni arayın — fiyat mı, hizmet gecikmesi mi, rakip mi tekrar ediyor? Kaybeden müşteriyle mümkünse kısa bir \"neden ayrıldınız\" görüşmesi yapmak, iç varsayımlarınızdan çok daha doğru bilgi verir." },
+  { category: "Muhasebe", q: "Küçük işletme sahibi olarak muhasebe konusunda nelere dikkat etmeliyim?", a: "Gelir-gider kayıtlarını gerçek zamanlı tutmak (ay sonuna bırakmamak) hem nakit durumunuzu net görmenizi sağlar hem de yıl sonunda sürpriz yaşamamanızı. Fatura/gider belgelerini düzenli arşivlemek ve mevzuat takibini bir mali müşavire bırakmak, kendi vaktinizi işin büyümesine ayırmanızı sağlar — bu bir hukuki/mali tavsiye değildir, kendi durumunuz için mutlaka bir uzmana danışın." },
+  { category: "Vergi", q: "Vergi yükümlülüklerimi nasıl takip etmeliyim?", a: "Beyanname/ödeme tarihlerini kendi takviminize hatırlatma olarak işlemek, son güne kalıp cezai gecikmeye düşmekten daha güvenlidir. Bu alan sık değişen mevzuata tabidir — güncel oran ve yükümlülükler için mutlaka bir mali müşavirle çalışın, burada verilen bilgi genel farkındalık amaçlıdır." },
+  { category: "Yatırım", q: "İşimi büyütmek için dışarıdan finansman almalı mıyım?", a: "Önce borç mu (kredi) yoksa ortaklık mı (yatırımcı) istediğinizi netleştirin — borç kontrolü sizde bırakır ama geri ödeme yükümlülüğü getirir, ortaklık yükü paylaştırır ama karar gücünüzü paylaştırır. Finansmanı almadan önce parayı tam olarak neye harcayacağınızı ve ne kadar ek gelir getireceğini yazılı netleştirmek, \"büyürüz nasılsa\" iyimserliğinden daha sağlıklıdır." },
+  { category: "Yatırım", q: "Kredi kullanmadan önce nelere dikkat etmeliyim?", a: "Aylık geri ödemenin işletmenizin ortalama nakit akışına oranını hesaplayın — düşük sezonda bile ödemeyi karşılayıp karşılayamayacağınızı görmeden kredi almak risklidir. Farklı bankaların koşullarını (faiz, erken kapama, ek masraf) karşılaştırmak ve nihai kararı bir mali danışmanla teyit etmek, sadece en düşük görünen faize bakmaktan daha güvenlidir." },
+  { category: "Dijital Pazarlama", q: "Google reklamlarına nasıl başlamalıyım?", keywords: ["google ads", "google reklam", "arama reklamı"], a: "Geniş bir bütçeyle her şeyi denemek yerine, en çok kâr getiren tek bir ürün/hizmet ve dar bir hedef kitle (bölge, arama terimi) ile küçük bütçeli test başlatın. İlk haftalarda hangi aramaların tıklama getirdiğini değil hangisinin gerçek satışa dönüştüğünü izleyin — tıklama ucuz, dönüşüm değerlidir." },
+  { category: "Dijital Pazarlama", q: "Meta (Facebook/Instagram) reklamlarında bütçemi nasıl verimli kullanırım?", keywords: ["facebook reklamı", "instagram reklamı", "meta ads"], a: "Yeni başlarken geniş kitleye tek reklam yerine 2-3 farklı görsel/mesaj varyasyonunu küçük bütçeyle test edip en iyi performans göstereni büyütün. Soğuk kitleye satış reklamı yerine önce marka farkındalığı, sonra sizi ziyaret edenlere yeniden hedefleme genelde daha az maliyetle daha çok dönüşüm getirir." },
+  { category: "Dijital Pazarlama", q: "SEO (Google'da üst sıralarda çıkma) için ne yapmalıyım?", keywords: ["seo nasıl yapılır", "google'da üst sıraya çıkmak", "arama motoru optimizasyonu"], a: "Küçük işletme için en yüksek getiri genelde genel anahtar kelimelerde değil, bölge + hizmet kombinasyonunda (\"Kadıköy klima servisi\" gibi) rekabettir — burada üst sıraya çıkmak çok daha kolaydır. Site içeriğinizde bu ifadeleri doğal şekilde kullanmak ve ayda 1-2 yeni içerik eklemek, tek seferlik teknik ayardan daha kalıcı sonuç verir." },
+  { category: "E-posta Pazarlaması", q: "E-posta pazarlamasına nasıl başlamalıyım?", a: "Elinizdeki izinli müşteri listesine ayda 1-2 kez, satış baskısı yapmayan gerçek değer (ipucu, kampanya, yenilik) içeren kısa bir e-posta göndermek, sık ve agresif göndermekten daha az abonelikten çıkma yaratır. Konu başlığı e-postanın açılıp açılmayacağını belirleyen en önemli faktördür — birkaç farklı başlık deneyip hangisinin daha çok açıldığına bakmak zamanla işe yarar bir sezgi kazandırır." },
+  { category: "Müzakere", q: "Müşteri \"rakip daha ucuza yapıyor\" derse ne yanıt vermeliyim?", a: "Hemen fiyat kırmak yerine önce aynı kapsamda olup olmadığını sorun — çoğu zaman rakip teklifi farklı bir kapsam/kalitededir, bu farkı net anlatmak fiyatı savunmaktan daha etkilidir. Gerçekten aynı kapsamdaysa indirim yerine ek değer (garanti süresi, öncelikli destek) önermek kâr marjınızı korur." },
+  { category: "Delegasyon", q: "İşleri ekibime nasıl devredebilirim (delegasyon)?", a: "\"Nasıl yapacağını\" değil \"ne sonucu istediğinizi\" tarif edin — mikro yönetim hem sizin zamanınızı hem çalışanın özgüvenini tüketir. İlk birkaç seferde küçük, geri dönüşü kolay işlerle başlayıp güven oluşturmak, doğrudan kritik bir işi devretmekten daha güvenlidir." },
+  { category: "İş-Yaşam Dengesi", q: "İş ile özel hayatımı nasıl dengelerim?", a: "Net bir \"kapanış\" rutini olmadan (belirli saatten sonra bildirim bakmamak gibi) küçük işletme sahipliği kolayca 7/24 işe dönüşür. Tekrar eden soruları/işleri sisteme veya ekibe bırakmak, sürekli \"acil\" hissi yaratan işleri azaltır." },
+  { category: "Ortaklık", q: "İş ortağımla anlaşmazlıkları nasıl yönetmeliyim?", a: "Kararların kim tarafından, nasıl alınacağı (eşit oy mu, alan bazlı yetki mi) baştan yazılı netleşmediyse her anlaşmazlık güç mücadelesine dönüşür — bunu erken, sorun çıkmadan konuşun. Ciddi ortaklıklarda ayrılık senaryosunu da (biri çekilirse ne olacak) yazılı hale getirmek ileride büyük anlaşmazlıkları önler; bunun için bir avukattan destek almak faydalı olur." },
+  { category: "Tedarikçi İlişkileri", q: "Tedarikçilerimle ilişkimi nasıl güçlendirmeliyim?", a: "Sadece sorun çıktığında değil düzenli iletişimde kalmak ve ödemeleri zamanında yapmak, kriz anında (kıtlık, öncelik) size öncelik tanınmasını sağlar. Tek tedarikçiye tamamen bağımlı olmak risklidir — kritik ürünlerde en az bir alternatif kaynağı önceden belirlemiş olmak size pazarlık gücü de verir." },
+  { category: "Tedarikçi İlişkileri", q: "Tedarikçi seçerken/değiştirirken nelere dikkat etmeliyim?", a: "Sadece fiyata değil, teslim süresinin tutarlılığına ve sorun çıktığında ne kadar hızlı çözüm ürettiğine bakın — ucuz ama gecikmeli tedarikçi, size müşteri kaybettirerek daha pahalıya gelebilir. Yeni bir tedarikçiye tüm siparişi birden kaydırmak yerine küçük bir siparişle önce güvenilirliğini test etmek daha güvenlidir." },
+  { category: "Kalite Kontrol", q: "Ürün/hizmet kalitesini nasıl tutarlı tutarım?", a: "Kalitenin \"göze bakarak\" değil yazılı bir kontrol listesiyle (teslimden önce kontrol edilecek 5-10 madde) sağlanması, ekip büyüdükçe tutarlılığı korur. Müşteri şikayetlerini tek tek unutmak yerine kategori bazında takip etmek, kalite sorununun kaynağını (tedarik mi, süreç mi, eğitim mi) gösterir." },
+  { category: "Müşteri Segmentasyonu", q: "Müşterilerimi nasıl segmentlere ayırmalıyım?", a: "En basit ve etkili yöntem RFM'dir: müşteri ne zaman son alışveriş yaptı (Recency), ne sıklıkla alıyor (Frequency), ne kadar harcıyor (Monetary) — bu üçüne göre gruplamak kimi öncelikli takip edeceğinizi gösterir. Müşteri etiketlerini bu segmentleri (\"VIP\", \"riskli\", \"pasif\" gibi) işaretlemek için kullanmak, herkese aynı mesajı göndermek yerine segmente göre farklı yaklaşmanızı ve dönüşümü artırmanızı sağlar." },
+  { category: "Büyüme", q: "İkinci şube/lokasyon açmadan önce neye bakmalıyım?", a: "Mevcut şubenizin kârlı olması tek başına yeterli değildir — o kârın sizin kişisel çabanıza mı yoksa tekrarlanabilir bir sisteme mi bağlı olduğuna bakın, birinci şubede siz olmadan ikincisi aynı performansı gösteremeyebilir. Yeni lokasyonu açmadan önce o bölgede gerçek talep olduğunu (rakip yoğunluğu, nüfus/demografi) doğrulamak, \"iyi gidiyoruz, bir tane daha açalım\" iyimserliğinden daha güvenlidir." },
+  { category: "Ekip Yönetimi", q: "Uzaktan/hibrit çalışan ekibimi nasıl yönetmeliyim?", a: "Fiziksel gözetim olmadan güven, net teslim tarihleri ve görünür sonuçlarla kurulur — \"ne kadar çalıştı\" yerine \"ne teslim etti\"ye odaklanmak daha sağlıklı bir ölçüttür. Önemli kararları anlık mesajla değil yazılı (e-posta, ortak not) kaydetmek, dağınık ekipte bilgi kaybını önler." },
+  { category: "Fiyatlandırma", q: "Fiyat listemi hazırlarken çapa etkisinden nasıl faydalanırım?", a: "Üç seçenek sunduğunuzda (temel/standart/premium) müşterilerin çoğu ortadakini seçer — en çok satmasını istediğiniz paketi ortada konumlandırmak, tek fiyat sunmaktan daha yüksek ortalama sepet getirir. En üstteki pahalı seçenek az satılsa bile, ortadaki paketi \"makul\" gösteren bir çapa görevi görür, tamamen kaldırmayın." },
+  { category: "Abonelik Modeli", q: "İşimi tekrarlayan gelir (abonelik) modeline nasıl geçiririm?", keywords: ["tekrarlayan gelir", "abonelik modeli", "recurring revenue"], a: "Tek seferlik satışın yanına aynı müşteriye düzenli değer sunan bir bakım/yenileme/üyelik paketi eklemek gelirinizi öngörülebilir kılar — tüm işi birden abonmanlığa çevirmek yerine önce en istekli müşteri grubunda pilot yapın. Tekrarlayan giderlerinizi izlediğiniz gibi tekrarlayan gelirinizi de düzenli izlemek nakit planlamanızı kolaylaştırır." },
+  { category: "Mevsimlik Personel", q: "Sezonluk/geçici personeli nasıl yönetmeliyim?", a: "Kısa süreli çalışacak birine bile temel işleyişi (en sık sorulan 5-10 soru, hangi durumda kime sorulacağı) yazılı bir kısa kılavuzla anlatmak, her seferinde sıfırdan eğitim vermekten çok daha hızlıdır. İyi performans gösteren mevsimlik çalışanları not edin — bir sonraki sezon yeniden işe almak sıfırdan ilan vermekten hem hızlı hem güvenilirdir." },
+  { category: "Müşteri Geri Bildirimi", q: "Müşterilerimden düzenli geri bildirim nasıl toplarım?", keywords: ["nps", "müşteri anketi", "geri bildirim toplama"], a: "Uzun anketler genelde cevaplanmaz — tek soruluk basit bir \"bizi 0-10 arası tavsiye eder misiniz\" sorusu (NPS) bile, zamanla takip edildiğinde memnuniyet trendini görmenizi sağlar. Olumsuz cevap verenlere kısa süre içinde dönüp nedenini sormak hem sorunu çözer hem müşteride \"gerçekten dinleniyorum\" hissi yaratır." },
+  { category: "Yerel SEO", q: "Google İşletme Profilimi (Google Haritalar) nasıl etkili kullanırım?", keywords: ["google my business", "google işletmem", "harita kaydı"], a: "Profili eksiksiz doldurmak (çalışma saatleri, fotoğraflar, hizmet listesi) ve düzenli müşteri yorumu istemek yerel aramalarda görünürlüğü doğrudan artırır — çoğu küçük işletme bu profili bir kere doldurup unutur. Gelen yorumlara kısa bir yanıt yazmak, hem yorumu okuyanlara hem Google'ın sıralama algoritmasına aktif olduğunuzu gösterir." },
+  { category: "İtibar Yönetimi", q: "Olumsuz online yorumlara nasıl karşılık vermeliyim?", a: "Savunmaya geçmeden, sorunu anladığınızı gösteren sakin bir yanıt yazıp çözümü mümkünse özelden devam ettirin — herkese açık bir tartışma yorumu okuyan diğer müşterileri de etkiler. Yorumu silmeye/görmezden gelmeye çalışmak genelde daha kötü sonuç verir; iyi yönetilmiş bir olumsuz yorum bile markanızın hesap verebilir olduğunu gösterebilir." },
+  { category: "B2B / B2C", q: "Kurumsal (B2B) müşteriye satış, bireysel (B2C) müşteriden nasıl farklıdır?", a: "Kurumsalda genelde tek kişi değil birden fazla kişi (kullanıcı, satın alma, yönetici) karar sürecine dahildir ve karar süresi daha uzundur — sabırsız takip yerine düzenli, profesyonel hatırlatma daha etkilidir. Bireyselde ise duygusal/anlık karar daha belirleyicidir, hız ve kolaylık genelde fiyattan bile önemli olabilir." },
+  { category: "Satış Ekibi", q: "Satış ekibime nasıl bir prim/komisyon sistemi kurmalıyım?", keywords: ["komisyon sistemi", "satış primi", "prim sistemi kurma"], a: "Sadece ciroya değil, kâr marjına veya tahsilata bağlı prim vermek, ekibi indirimle satış kapatmaya değil kârlı ve tahsil edilebilir satışa yönlendirir. Prim hesabını basit ve şeffaf tutun — karmaşık formüller güven kaybettirir, kimse anlamadığı bir sisteme motive olmaz." },
+  { category: "Freelancer/Taşeron", q: "Freelancer/taşeronla çalışırken nelere dikkat etmeliyim?", a: "İşi devretmeden önce teslim tarihini, kapsamı ve revizyon hakkını (kaç revizyon dahil) net yazın — sözlü \"anlaşırız\" ifadeleri en sık gecikme ve ek ücret tartışmasına yol açar. İlk işte küçük bir görevle güvenilirliğini test etmeden büyük/kritik bir işi doğrudan vermek risklidir." },
+  { category: "Nakit Akışı", q: "Kriz anında (talep düşüşü) nakdimi nasıl korurum?", a: "Önce zorunlu olmayan giderleri (yeni yatırım, ek kiralama, birikmiş stok alımı) askıya alın, sabit giderlerinizi yeniden müzakere edin (kira, abonelikler) — kesinti kararını erken almak, nakit tükenene kadar beklemekten daha güvenlidir. Mevcut alacaklarınızı (Finans → Bekleyen Alacak) bu dönemde her zamankinden daha sıkı takip etmek, elinizdeki en hızlı nakit kaynağıdır." },
+  { category: "Girişimcilik", q: "Yeni bir iş fikrini uygulamaya koymadan önce nasıl test etmeliyim?", a: "Büyük yatırım yapmadan önce, fikri en küçük haliyle (basit bir sayfa, sınırlı sayıda müşteri, elle yürütülen bir hizmet) gerçek insanlarla test edin — \"bence tutar\" varsayımı gerçek para ödeyip ödemeyecekleri sorusunun yerini tutmaz. İlk 5-10 gerçek müşteriden çıkan tepki, uzun bir pazar araştırması raporundan daha güvenilir bir sinyaldir." },
+  { category: "Pazarlama", q: "İçerik pazarlaması veya influencer işbirliği işime katkı sağlar mı?", a: "Takipçi sayısına değil, o kişinin kitlesinin sizin hedef müşterinizle ne kadar örtüştüğüne bakın — küçük ama ilgili bir kitleye sahip biri, büyük ama alakasız bir kitleden daha fazla dönüşüm getirebilir. Tek seferlik bir gönderi yerine, sonucu (kod, link, indirim) ölçülebilir yapılandırılmış bir işbirliği, harcamanın karşılığını görmenizi sağlar." },
+  { category: "Satış", q: "Mevcut müşteriye ek satış (upsell/çapraz satış) nasıl yaparım?", a: "En doğru an, müşteri zaten memnunken (bir işi başarıyla tamamladıktan hemen sonra) ek bir ihtiyacını çözecek teklif sunmaktır — memnuniyetsiz bir müşteriye ek satış denemek güveni daha da zedeler. Rastgele değil, müşterinin geçmiş taleplerine/kayıtlarına bakarak hangi ürünü/hizmeti almamış ama ihtiyacı olabilir diye hedefli öneri sunmak dönüşümü artırır." },
+  { category: "Nakit Akışı", q: "Geç ödeyen müşterilerle nasıl başa çıkarım?", a: "Vade dolmadan kısa bir hatırlatma (vade gününde değil, birkaç gün önce) göndermek, vade geçtikten sonra sert bir uyarı yazmaktan daha az sürtüşme yaratır ve daha erken sonuç verir. Kronik geç ödeyen müşterilerde bir sonraki işte kısmi peşinat şartı koymak, ilişkiyi bitirmeden riski azaltan makul bir adımdır." },
+  { category: "Fiyatlandırma", q: "Hizmetlerimi paket (bundle) halinde satmalı mıyım?", a: "Ayrı ayrı satıldığında düşük görünen küçük hizmetleri bir pakette birleştirmek, hem müşteriye \"daha değerli\" bir teklif gibi görünür hem de ortalama sepet tutarınızı yükseltir. Fiyat listenizde 2-3 net paket seçeneği sunmak, müşteriyi çok fazla seçenekle boğmaktan daha hızlı karar verdirir." },
+  { category: "Ekip Yönetimi", q: "Çalışanlarımı nasıl adil bir şekilde değerlendirmeliyim?", a: "Yıl sonunu beklemeden, kısa aralıklarla (3 ayda bir gibi) somut örneklere dayalı geri bildirim vermek hem çalışanın gelişimini hızlandırır hem yıl sonu değerlendirmesini sürpriz olmaktan çıkarır. \"Genel olarak iyisin\" gibi belirsiz yorumlar yerine belirli bir olayı (\"şu talebi hızlı çözdün\") örnek göstermek, geri bildirimi daha inandırıcı ve uygulanabilir kılar." },
+  { category: "Marka", q: "Kurumsal kimliğimi (logo, renkler, ton) nasıl oluşturmalıyım?", a: "Pahalı bir marka ajansı olmadan da, tüm materyallerinizde (fatura, sosyal medya, tabela) aynı logo/renk/yazı tipini tutarlı kullanmak profesyonel bir izlenim yaratır — tutarsızlık, kalitesizlikten çok güvensizlik hissi verir. Marka tonunuzu (resmi mi samimi mi) bir kere netleştirip tüm iletişiminizde aynı tonu korumak, büyük bütçeli tasarımdan daha etkili bir tutarlılık sağlar." },
+  { category: "Müşteri Sadakati", q: "Sadakat programı nasıl kurmalıyım?", a: "Karmaşık puan sistemleri yerine basit bir kural (örneğin belirli sayıda alışveriş sonrası bir avantaj) hem sizin takip etmenizi hem müşterinin anlamasını kolaylaştırır. Programı geniş kitleye açmadan önce en sadık mevcut müşterilerinizde (en çok işlem yapan müşteri etiketi/listesi) test etmek, ayarlamaları erken yapmanızı sağlar." },
+];
+
+const UNIFIED_LIBRARY = [
+  ...ANSWER_LIBRARY,
+  ...HELP_TOPICS.map((t, i) => staticToLibraryEntry(t, i, "help", "Nasıl Yapılır")),
+  ...ADVISOR_TIPS.map((t, i) => staticToLibraryEntry(t, i, "advisor", "Danışman")),
+];
+
+function AskBubble({ open, onToggle }) {
   return (
-    <Modal title="Soru Sor" onClose={onClose} wide>
-      <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 12px" }}>
-        Verilerinizden anlık hesaplanan cevaplar — hiçbir veri dışarı gönderilmez.
-      </p>
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Bir şey sorun... örn. bu ay en çok kazandıran müşterim kim?"
-        style={{ width: "100%", marginBottom: 14 }}
-        autoFocus
-      />
-      {filtered.length === 0 ? (
-        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Eşleşen bir soru bulunamadı. Farklı bir ifadeyle deneyin.</p>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20, maxHeight: 460, overflowY: "auto" }}>
-          {categories.map((cat) => (
-            <div key={cat}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5, margin: "0 0 10px" }}>{cat}</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                {filtered.filter((e) => e.category === cat).map((e) => (
-                  <div key={e.id}>
-                    <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 500 }}>{e.resolvedLabel}</p>
-                    <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{e.compute(ctx)}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
-        <button onClick={onClose}>Kapat</button>
-      </div>
-    </Modal>
+    <button
+      onClick={onToggle}
+      title="Soru Sor"
+      aria-label="Soru Sor"
+      data-tour="ask-bubble"
+      style={{
+        position: "fixed", bottom: 24, right: 24, width: 56, height: 56, borderRadius: "50%",
+        background: "var(--fill-accent)", color: "var(--on-accent)", border: "none",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.25)", zIndex: 950, cursor: "pointer", fontSize: 24,
+      }}
+    >
+      <i className={`ti ${open ? "ti-x" : "ti-message-circle-2"}`} aria-hidden="true"></i>
+    </button>
   );
 }
 
-function HelpPanel({ onClose, sector }) {
+// Soru tam olarak yazılmadıkça hiç eşleşmemesi ("kaç alan tanımlamışım" gibi
+// gevşek bir ifade hiçbir sonuç vermiyordu) kullanıcı tarafından bulunan
+// gerçek bir hata — tam alt dize eşleşmesi yerine kelime bazlı puanlama
+// kullanıyoruz: sorudaki her kelime (yaygın soru kalıpları hariç) bir girişin
+// soru+anahtar kelime metninde geçiyorsa puan kazanır, en çok puan alan en
+// üstte çıkar. Bu, Türkçe çekim eklerini tam çözmez (kök analizi yok) ama alt
+// dize içerme kontrolü ("alanım" içinde "alan" geçer) çoğu pratik durumu
+// karşılıyor.
+const ASK_STOPWORDS = new Set(["kaç", "ne", "nedir", "mı", "mi", "mu", "mü", "var", "nasıl", "hangi", "olur", "kadar", "benim", "bir", "şey", "için", "ile", "de", "da", "musunuz", "yapmalıyım", "yapıyorum", "ediyorum", "m"]);
+
+function tokenizeAskQuery(str) {
+  return str.toLowerCase().replace(/[?.,!:;]/g, "").split(/\s+/).filter(Boolean);
+}
+
+// Türkçe çekim ekleri ("artır-abilirim", "sat-ışlarımı") ve küçük yazım
+// hataları yüzünden bir kelimenin tamamının metinde birebir geçmesini
+// beklemek çok kırılgan oluyordu ("satışarımı" gibi bir yazım hatası hiçbir
+// şeyle eşleşmiyordu). Kelimenin ilk 5 harfine ("kök"e yakın bir kısaltma)
+// bakmak, hem ek varyasyonlarını hem çoğu yazım hatasını (kelimenin
+// sonundaki harfler karışsa bile) tolere ediyor.
+function askStem(word) {
+  return word.length <= 5 ? word : word.slice(0, 5);
+}
+
+function askTokenMatches(token, blobWords) {
+  const stem = askStem(token);
+  return blobWords.some((w) => askStem(w) === stem || w.includes(token) || token.includes(w));
+}
+
+// Başlangıçta sohbete örnek olsun diye üç farklı türden (veri/nasıl
+// yapılır/danışman) birer soru öneriliyor — kütüphane büyüdükçe bu id'lerin
+// var olduğundan emin olmak için ihtiyaç halinde güncellenmeli.
+const ASK_STARTER_IDS = ["top_customer_month", "help_0", "advisor_0"];
+
+function AskDock({ onClose, sector, ctx }) {
   const [query, setQuery] = useState("");
-  const q = query.trim().toLowerCase();
-  // İşletmenin sektörüyle ilgisi olmayan konular (örn. Perakende'de randevu
-  // konuları) hiç gösterilmez — visibleIf tanımlanmamış konular her sektörde
-  // gösterilir.
-  const relevant = HELP_TOPICS.filter((t) => !t.visibleIf || t.visibleIf(sector));
-  const filtered = q ? relevant.filter((t) => t.q.toLowerCase().includes(q) || t.a.toLowerCase().includes(q)) : relevant;
-  const categories = [...new Set(filtered.map((t) => t.category))];
+  const [messages, setMessages] = useState([]);
+  const threadRef = useRef(null);
+  const relevant = UNIFIED_LIBRARY.filter((e) => !e.visibleIf || e.visibleIf(sector)).map((e) => ({
+    ...e,
+    resolvedLabel: typeof e.label === "function" ? e.label(sector) : e.label,
+  }));
+  const starters = ASK_STARTER_IDS.map((id) => relevant.find((e) => e.id === id)).filter(Boolean);
+
+  useEffect(() => {
+    threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages]);
+
+  const ask = (text) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    const rawTokens = tokenizeAskQuery(trimmed);
+    const meaningfulTokens = rawTokens.filter((t) => !ASK_STOPWORDS.has(t));
+    const tokens = meaningfulTokens.length > 0 ? meaningfulTokens : rawTokens;
+    const scored = relevant
+      .map((e) => {
+        const blobWords = `${e.resolvedLabel} ${e.keywords.join(" ")}`.toLowerCase().replace(/[?.,!:;]/g, "").split(/\s+/).filter(Boolean);
+        const score = tokens.reduce((sum, t) => sum + (askTokenMatches(t, blobWords) ? 1 : 0), 0);
+        return { ...e, score };
+      })
+      .filter((e) => e.score > 0)
+      .sort((a, b) => b.score - a.score);
+
+    const userMsg = { id: uid(), role: "user", text: trimmed };
+    const assistantMsg = scored.length === 0
+      ? { id: uid(), role: "assistant", text: "Bunu şu an bilmiyorum — farklı bir ifadeyle sorabilir ya da aşağıdaki örneklerden birini deneyebilirsiniz.", suggestions: starters.map((e) => e.resolvedLabel) }
+      : { id: uid(), role: "assistant", category: scored[0].category, text: scored[0].compute(ctx), suggestions: scored.slice(1, 4).map((e) => e.resolvedLabel) };
+    setMessages((prev) => [...prev, userMsg, assistantMsg]);
+    setQuery("");
+  };
+
   return (
-    <Modal title="Yardım" onClose={onClose} wide>
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Ne yapmak istiyorsunuz?"
-        style={{ width: "100%", marginBottom: 14 }}
-        autoFocus
-      />
-      {filtered.length === 0 ? (
-        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Eşleşen bir konu bulunamadı.</p>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20, maxHeight: 460, overflowY: "auto" }}>
-          {categories.map((cat) => (
-            <div key={cat}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5, margin: "0 0 10px" }}>{cat}</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                {filtered.filter((t) => t.category === cat).map((t) => (
-                  <div key={t.q}>
-                    <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 500 }}>{t.q}</p>
-                    <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{t.a}</p>
-                  </div>
-                ))}
+    <div
+      style={{
+        position: "fixed", bottom: 90, right: 24, width: "min(380px, calc(100vw - 32px))", height: "min(560px, 70vh)",
+        background: "var(--surface-2)", border: "0.5px solid var(--border)", borderRadius: 12,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.3)", zIndex: 950, display: "flex", flexDirection: "column", overflow: "hidden",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderBottom: "0.5px solid var(--border)", flexShrink: 0 }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: 15 }}>Soru Sor</h3>
+          <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--text-muted)" }}>Hiçbir soru/veri dışarı gönderilmez</p>
+        </div>
+        <button onClick={onClose} aria-label="Kapat" style={{ width: 28, height: 28, padding: 0, flexShrink: 0 }}>
+          <i className="ti ti-x" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div ref={threadRef} style={{ flex: 1, overflowY: "auto", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+        {messages.length === 0 && (
+          <div style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "4px 12px 12px 12px", padding: "10px 12px", maxWidth: "88%", alignSelf: "flex-start" }}>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>Merhaba! Satışlarınız/müşterileriniz hakkında, Binerly'nin nasıl kullanıldığı veya genel işletme tavsiyesi — istediğinizi sorabilirsiniz.</p>
+          </div>
+        )}
+        {messages.length === 0 && starters.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, alignSelf: "flex-start", maxWidth: "88%" }}>
+            {starters.map((e) => (
+              <button
+                key={e.id}
+                type="button"
+                onClick={() => ask(e.resolvedLabel)}
+                style={{ textAlign: "left", background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: 8, padding: "6px 10px", fontSize: 12.5, color: "var(--text-accent)", cursor: "pointer" }}
+              >
+                {e.resolvedLabel}
+              </button>
+            ))}
+          </div>
+        )}
+        {messages.map((m) =>
+          m.role === "user" ? (
+            <div key={m.id} style={{ alignSelf: "flex-end", maxWidth: "85%" }}>
+              <div style={{ background: "var(--fill-accent)", color: "var(--on-accent)", borderRadius: "12px 4px 12px 12px", padding: "9px 12px" }}>
+                <p style={{ margin: 0, fontSize: 13.5 }}>{m.text}</p>
               </div>
             </div>
-          ))}
-        </div>
-      )}
-    </Modal>
+          ) : (
+            <div key={m.id} style={{ alignSelf: "flex-start", maxWidth: "88%", display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "4px 12px 12px 12px", padding: "10px 12px" }}>
+                {m.category && <p style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5, margin: "0 0 4px" }}>{m.category}</p>}
+                <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{m.text}</p>
+              </div>
+              {m.suggestions?.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {m.suggestions.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => ask(s)}
+                      style={{ textAlign: "left", background: "none", border: "0.5px solid var(--border)", borderRadius: 8, padding: "5px 10px", fontSize: 12, color: "var(--text-accent)", cursor: "pointer" }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        )}
+      </div>
+      <form
+        onSubmit={(e) => { e.preventDefault(); ask(query); }}
+        style={{ display: "flex", gap: 8, padding: "10px 12px", borderTop: "0.5px solid var(--border)", flexShrink: 0 }}
+      >
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Bir şey sorun..."
+          style={{ flex: 1 }}
+          autoFocus
+        />
+        <button type="submit" disabled={!query.trim()} aria-label="Gönder" style={{ width: 36, height: 36, padding: 0, background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", borderRadius: 8, flexShrink: 0, opacity: query.trim() ? 1 : 0.5 }}>
+          <i className="ti ti-send" aria-hidden="true"></i>
+        </button>
+      </form>
+    </div>
   );
 }
 
@@ -1364,6 +4081,10 @@ function rowToGroupClass(r) {
 
 function rowToGroupClassEnrollment(r) {
   return { id: r.id, groupClassId: r.group_class_id, customerId: r.customer_id, enrolledAt: r.enrolled_at };
+}
+
+function rowToClassAttendance(r) {
+  return { id: r.id, groupClassId: r.group_class_id, customerId: r.customer_id, occurrenceDate: r.occurrence_date, status: r.status };
 }
 
 function rowToBusinessHours(r) {
@@ -2923,13 +5644,15 @@ function GroupClassForm({ initial, currentEnrollment = 0, onSave, onCancel }) {
   );
 }
 
-function GroupClassRoster({ group, enrollments, customers, activeCustomerIds, sector, onEdit, onDelete, onEnroll, onRemove }) {
+function GroupClassRoster({ group, enrollments, customers, activeCustomerIds, sector, occurrenceDate, attendance = [], onSetAttendance, onEdit, onDelete, onEnroll, onRemove }) {
   const words = groupClassWords(sector);
   const [search, setSearch] = useState("");
   const [confirmRemove, setConfirmRemove] = useState(null);
   const enrolledIds = new Set(enrollments.map((e) => e.customerId));
   const full = enrollments.length >= group.capacity;
   const query = search.trim().toLowerCase();
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const showAttendance = !!occurrenceDate && occurrenceDate <= todayStr;
   const matches = query
     ? customers
         .filter((c) => !enrolledIds.has(c.id) && activeCustomerIds.has(c.id) && (c.name.toLowerCase().includes(query) || (c.phone || "").includes(query) || (c.email || "").toLowerCase().includes(query)))
@@ -2949,20 +5672,64 @@ function GroupClassRoster({ group, enrollments, customers, activeCustomerIds, se
         {WEEKDAYS[group.weekday - 1]} {group.startTime}{group.instructorName ? ` · ${group.instructorName}` : ""}
       </p>
 
-      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>{words.rosterTitle}</p>
+      {occurrenceDate && !showAttendance && (
+        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 12px" }}>Bu ders henüz gerçekleşmedi, yoklama alınamaz.</p>
+      )}
+
+      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>
+        {showAttendance ? `Yoklama — ${new Date(occurrenceDate).toLocaleDateString("tr-TR", { day: "numeric", month: "long" })}` : words.rosterTitle}
+      </p>
       {enrollments.length === 0 ? (
         <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>{words.emptyRoster}</p>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
-          {enrollments.map((e) => {
-            const c = customers.find((cust) => cust.id === e.customerId);
-            return (
-              <div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "6px 10px" }}>
-                <span style={{ fontSize: 13 }}>{c?.name || "Bilinmeyen müşteri"}</span>
-                <IconButton icon="ti-x" title="Dersten çıkar" size="sm" onClick={() => setConfirmRemove(e)} />
-              </div>
-            );
-          })}
+        <div style={{ marginBottom: 16 }}>
+          {showAttendance && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 52px 52px 30px", gap: 4, padding: "0 10px", marginBottom: 4 }}>
+              <span></span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--text-muted)", textAlign: "center", textTransform: "uppercase" }}>Geldi</span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--text-muted)", textAlign: "center", textTransform: "uppercase" }}>Gelmedi</span>
+              <span></span>
+            </div>
+          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {enrollments.map((e) => {
+              const c = customers.find((cust) => cust.id === e.customerId);
+              const att = showAttendance ? attendance.find((a) => a.customerId === e.customerId) : null;
+              return (
+                <div
+                  key={e.id}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: showAttendance ? "1fr 52px 52px 30px" : "1fr auto",
+                    alignItems: "center", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "6px 10px",
+                  }}
+                >
+                  <span style={{ fontSize: 13 }}>{c?.name || "Bilinmeyen müşteri"}</span>
+                  {showAttendance && (
+                    <>
+                      <button
+                        type="button"
+                        title="Geldi olarak işaretle"
+                        onClick={() => onSetAttendance(e.customerId, "geldi")}
+                        style={{ justifySelf: "center", width: 28, height: 28, padding: 0, borderRadius: 6, border: att?.status === "geldi" ? "1.5px solid #15803d" : "0.5px solid var(--border)", background: att?.status === "geldi" ? "#15803d" : "var(--surface-2)", color: att?.status === "geldi" ? "#fff" : "transparent" }}
+                      >
+                        <i className="ti ti-check" aria-hidden="true"></i>
+                      </button>
+                      <button
+                        type="button"
+                        title="Gelmedi olarak işaretle"
+                        onClick={() => onSetAttendance(e.customerId, "gelmedi")}
+                        style={{ justifySelf: "center", width: 28, height: 28, padding: 0, borderRadius: 6, border: att?.status === "gelmedi" ? "1.5px solid #b91c1c" : "0.5px solid var(--border)", background: att?.status === "gelmedi" ? "#b91c1c" : "var(--surface-2)", color: att?.status === "gelmedi" ? "#fff" : "transparent" }}
+                      >
+                        <i className="ti ti-check" aria-hidden="true"></i>
+                      </button>
+                    </>
+                  )}
+                  <IconButton icon="ti-x" title="Dersten çıkar" size="sm" onClick={() => setConfirmRemove(e)} />
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -3102,37 +5869,6 @@ function GroupClassesTab({ groupClasses, groupClassEnrollments, customers, activ
   );
 }
 
-// Randevu ile çalışan sektörlerde (supportsSelfBooking) günün/haftanın/ayın
-// randevularını tek yerde, kronolojik sırayla gösteren ayrı bir sekme —
-// Kanban/Liste görünümleri aşama bazlı olduğu için "bugün kimim var" sorusuna
-// hızlı cevap vermiyordu. dateTimeKey null ise (bu sektör için aktif "Tarih &
-// Saat" alanı tanımlı değilse) durum açıkça belirtilir, boş liste yerine.
-const APPOINTMENT_PERIODS = [
-  { id: "bugun", label: "Bugün" },
-  { id: "hafta", label: "Bu Hafta" },
-  { id: "ay", label: "Bu Ay" },
-];
-
-function appointmentPeriodBounds(periodId) {
-  const now = new Date();
-  if (periodId === "bugun") {
-    return {
-      start: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
-      end: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999),
-    };
-  }
-  if (periodId === "hafta") {
-    const day = now.getDay(); // 0=Pazar..6=Cumartesi
-    const diffToMonday = day === 0 ? -6 : 1 - day;
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday);
-    return { start, end: new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6, 23, 59, 59, 999) };
-  }
-  return {
-    start: new Date(now.getFullYear(), now.getMonth(), 1),
-    end: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999),
-  };
-}
-
 // deals.custom_fields'teki datetime-local değeri saat dilimi bilgisi taşımaz
 // (örn. "2026-07-20T14:00") — bu proje sadece Türkiye için, +03:00 olarak
 // yorumlanır (api/send-appointment-reminders.js'teki aynı yaklaşım).
@@ -3142,87 +5878,228 @@ function parseAppointmentDateTime(raw) {
   return isNaN(d.getTime()) ? null : d;
 }
 
-function AppointmentsTab({ deals, customers, dateTimeKey, sector, onOpenDeal }) {
-  const [period, setPeriod] = useState("bugun");
-  const [search, setSearch] = useState("");
-  const [stageFilter, setStageFilter] = useState("all");
-  const bounds = appointmentPeriodBounds(period);
-  const customerName = (id) => customers.find((c) => c.id === id)?.name || "Bilinmeyen müşteri";
-  const query = search.trim().toLowerCase();
+function agendaDateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
-  const appointments = dateTimeKey
-    ? deals
-        .filter((d) => d.stage !== "kaybedildi")
-        .filter((d) => stageFilter === "all" || d.stage === stageFilter)
-        .filter((d) => !query || d.title.toLowerCase().includes(query) || customerName(d.customerId).toLowerCase().includes(query))
-        .map((d) => ({ deal: d, date: parseAppointmentDateTime(d.customFields?.[dateTimeKey]) }))
-        .filter(({ date }) => date && date >= bounds.start && date <= bounds.end)
-        .sort((a, b) => a.date - b.date)
-    : [];
+// group_classes'ın belirli bir tarihi yok, sadece haftalık tekrarı (weekday +
+// startTime) var — Finance.jsx'teki expandExpenseOccurrences'ın aynı fikri:
+// verilen tarih aralığında (bounds) bu derse denk gelen her günü sanal bir
+// "occurrence"a çeviriyor.
+function expandGroupClassOccurrences(groupClass, bounds) {
+  const occurrences = [];
+  const [hh, mm] = (groupClass.startTime || "00:00").split(":").map(Number);
+  let cursor = new Date(bounds.start.getFullYear(), bounds.start.getMonth(), bounds.start.getDate());
+  while (cursor <= bounds.end) {
+    const isoWeekday = cursor.getDay() === 0 ? 7 : cursor.getDay();
+    if (isoWeekday === groupClass.weekday) {
+      occurrences.push({ ...groupClass, occurrenceDate: new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), hh, mm) });
+    }
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1);
+  }
+  return occurrences;
+}
+
+// Hatırlatma (tüm sektörler), randevu (sektöre özel "Tarih & Saat" alanı
+// varsa) ve grup dersi (haftalık tekrar) — üçünü tek bir {dateKey: [olay,...]}
+// sözlüğüne topluyor, AgendaTab bunu güne göre okuyup ızgaraya döküyor.
+function buildAgendaEvents(bounds, { deals, groupClasses, groupClassEnrollments, appointmentDateTimeKey }) {
+  const eventsByDate = {};
+  const push = (dateKey, item) => {
+    if (!eventsByDate[dateKey]) eventsByDate[dateKey] = [];
+    eventsByDate[dateKey].push(item);
+  };
+
+  deals.filter((d) => d.reminderDate && d.stage !== "kazanildi" && d.stage !== "kaybedildi").forEach((d) => {
+    push(d.reminderDate, { type: "reminder", id: `r-${d.id}`, deal: d, time: null, label: d.title });
+  });
+
+  if (appointmentDateTimeKey) {
+    deals.filter((d) => d.stage !== "kaybedildi").forEach((d) => {
+      const date = parseAppointmentDateTime(d.customFields?.[appointmentDateTimeKey]);
+      if (date && date >= bounds.start && date <= bounds.end) {
+        push(agendaDateKey(date), { type: "appointment", id: `a-${d.id}`, deal: d, time: date, label: d.title });
+      }
+    });
+  }
+
+  groupClasses.forEach((g) => {
+    expandGroupClassOccurrences(g, bounds).forEach((occ) => {
+      const enrolledCount = groupClassEnrollments.filter((e) => e.groupClassId === g.id).length;
+      push(agendaDateKey(occ.occurrenceDate), { type: "class", id: `c-${g.id}-${agendaDateKey(occ.occurrenceDate)}`, groupClass: g, time: occ.occurrenceDate, label: g.name, enrolledCount });
+    });
+  });
+
+  return eventsByDate;
+}
+
+const AGENDA_EVENT_COLORS = { reminder: "#b45309", appointment: "#185fa5", class: "#15803d" };
+const AGENDA_EVENT_ICONS = { reminder: "ti-bell", appointment: "ti-calendar-event", class: "ti-users" };
+
+function getMonthGridDays(anchorDate) {
+  const year = anchorDate.getFullYear();
+  const month = anchorDate.getMonth();
+  const startWeekday = (new Date(year, month, 1).getDay() + 6) % 7; // 0=Pazartesi
+  const gridStart = new Date(year, month, 1 - startWeekday);
+  return Array.from({ length: 42 }, (_, i) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i));
+}
+
+function getWeekDays(anchorDate) {
+  const startWeekday = (anchorDate.getDay() + 6) % 7;
+  const monday = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), anchorDate.getDate() - startWeekday);
+  return Array.from({ length: 7 }, (_, i) => new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i));
+}
+
+// Hatırlatma+randevu+grup dersini tek bir ay/hafta ızgarasında, tüm
+// sektörlerde birleştiren "Ajanda" sekmesi (eski, sadece randevu
+// sektörlerinde görünen kronolojik liste "Randevularım"ın yerine geçti).
+function AgendaTab({ deals, customers, groupClasses, groupClassEnrollments, classAttendance, activeCustomerIds, sector, dateTimeKey, onOpenDeal, onOpenClasses, onEnrollClass, onRemoveFromClass, onSetAttendance }) {
+  const [rosterClass, setRosterClass] = useState(null);
+  const [rosterOccurrenceDate, setRosterOccurrenceDate] = useState(null);
+  const rosterClassLive = rosterClass ? groupClasses.find((g) => g.id === rosterClass.id) || null : null;
+  const today = new Date();
+  const [viewMode, setViewMode] = useState("ay");
+  const [anchorDate, setAnchorDate] = useState(today);
+  const [selectedDateKey, setSelectedDateKey] = useState(agendaDateKey(today));
+  const todayKey = agendaDateKey(today);
+
+  const gridDays = viewMode === "ay" ? getMonthGridDays(anchorDate) : getWeekDays(anchorDate);
+  const bounds = {
+    start: new Date(gridDays[0].getFullYear(), gridDays[0].getMonth(), gridDays[0].getDate()),
+    end: new Date(gridDays[gridDays.length - 1].getFullYear(), gridDays[gridDays.length - 1].getMonth(), gridDays[gridDays.length - 1].getDate(), 23, 59, 59, 999),
+  };
+  const eventsByDate = buildAgendaEvents(bounds, { deals, groupClasses, groupClassEnrollments, appointmentDateTimeKey: dateTimeKey });
+  const customerName = (id) => customers.find((c) => c.id === id)?.name || "Bilinmeyen müşteri";
+
+  const navigate = (dir) => {
+    if (viewMode === "ay") setAnchorDate((d) => new Date(d.getFullYear(), d.getMonth() + dir, 1));
+    else setAnchorDate((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + dir * 7));
+  };
+  const goToday = () => { setAnchorDate(today); setSelectedDateKey(todayKey); };
+
+  const selectedItems = eventsByDate[selectedDateKey] || [];
+  const selectedItemsSorted = [...selectedItems].sort((a, b) => (a.time && b.time ? a.time - b.time : a.time ? -1 : b.time ? 1 : 0));
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 8, marginBottom: "1rem" }}>
-        {APPOINTMENT_PERIODS.map((p) => (
-          <button
-            key={p.id}
-            onClick={() => setPeriod(p.id)}
-            style={{
-              background: period === p.id ? "var(--fill-accent)" : "var(--surface-1)",
-              color: period === p.id ? "var(--on-accent)" : "var(--text-primary)",
-              border: "0.5px solid var(--border)",
-            }}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: "1rem" }}>
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Randevu ara (başlık, müşteri)..."
-          style={{ flex: 1, minWidth: 160 }}
-        />
-        <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)} style={{ fontSize: 13 }}>
-          <option value="all">Tüm aşamalar</option>
-          {STAGES.filter((s) => s.id !== "kaybedildi").map((s) => (
-            <option key={s.id} value={s.id}>{stageLabel(s.id, "bireysel", sector)}</option>
-          ))}
-        </select>
-      </div>
-      {!dateTimeKey ? (
-        <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
-          Bu sektör için aktif bir "Tarih &amp; Saat" özel alanı bulunamadı. Ayarlar → Sektör &amp; Özel Alanlar'dan kontrol edin.
-        </p>
-      ) : appointments.length === 0 ? (
-        <p style={{ fontSize: 14, color: "var(--text-muted)" }}>{query || stageFilter !== "all" ? "Aramayla eşleşen randevu yok." : "Bu dönemde randevu yok."}</p>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {appointments.map(({ deal, date }) => (
-            <div
-              key={deal.id}
-              onClick={() => onOpenDeal(deal)}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: "1rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button onClick={() => navigate(-1)} aria-label="Önceki" style={{ width: 32, height: 32, padding: 0 }}><i className="ti ti-chevron-left" aria-hidden="true"></i></button>
+          <button onClick={goToday} style={{ fontSize: 13 }}>Bugün</button>
+          <button onClick={() => navigate(1)} aria-label="Sonraki" style={{ width: 32, height: 32, padding: 0 }}><i className="ti ti-chevron-right" aria-hidden="true"></i></button>
+          <span style={{ fontSize: 14, fontWeight: 600, marginLeft: 4 }}>
+            {viewMode === "ay"
+              ? anchorDate.toLocaleDateString("tr-TR", { month: "long", year: "numeric" })
+              : `${getWeekDays(anchorDate)[0].toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} – ${getWeekDays(anchorDate)[6].toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}`}
+          </span>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {[{ id: "ay", label: "Ay" }, { id: "hafta", label: "Hafta" }].map((m) => (
+            <button
+              key={m.id}
+              onClick={() => setViewMode(m.id)}
               style={{
-                background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem",
-                display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, cursor: "pointer",
+                background: viewMode === m.id ? "var(--fill-accent)" : "var(--surface-1)",
+                color: viewMode === m.id ? "var(--on-accent)" : "var(--text-primary)",
+                border: "0.5px solid var(--border)", fontSize: 13,
               }}
             >
-              <div>
-                <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{deal.title}</p>
-                <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{customerName(deal.customerId)}</p>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>
-                  {date.toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} · {date.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
-                </p>
-                <Badge tone={deal.stage === "kazanildi" ? "success" : deal.stage === "muzakere" ? "warning" : "accent"}>
-                  {stageLabel(deal.stage, customers.find((c) => c.id === deal.customerId)?.customerType || "kurumsal", sector)}
-                </Badge>
-              </div>
-            </div>
+              {m.label}
+            </button>
           ))}
         </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
+        {WEEKDAYS.map((w) => (
+          <p key={w} style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textAlign: "center", textTransform: "uppercase" }}>{w.slice(0, 3)}</p>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: "1rem" }}>
+        {gridDays.map((day) => {
+          const dateKey = agendaDateKey(day);
+          const items = eventsByDate[dateKey] || [];
+          const isOtherMonth = viewMode === "ay" && day.getMonth() !== anchorDate.getMonth();
+          const isToday = dateKey === todayKey;
+          const isSelected = dateKey === selectedDateKey;
+          return (
+            <button
+              key={dateKey}
+              type="button"
+              onClick={() => setSelectedDateKey(dateKey)}
+              style={{
+                textAlign: "left", minHeight: viewMode === "ay" ? 72 : 110, padding: "6px 6px",
+                background: isSelected ? "var(--surface-accent, var(--surface-1))" : "var(--surface-1)",
+                border: isSelected ? "1.5px solid var(--fill-accent)" : isToday ? "1.5px solid var(--text-accent)" : "0.5px solid var(--border)",
+                borderRadius: 8, opacity: isOtherMonth ? 0.45 : 1, display: "flex", flexDirection: "column", gap: 3, cursor: "pointer",
+              }}
+            >
+              <span style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isToday ? "var(--text-accent)" : "var(--text-primary)" }}>{day.getDate()}</span>
+              {items.slice(0, 3).map((it) => (
+                <span key={it.id} style={{ fontSize: 10.5, color: "#fff", background: AGENDA_EVENT_COLORS[it.type], borderRadius: 4, padding: "1px 5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {it.label}
+                </span>
+              ))}
+              {items.length > 3 && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>+{items.length - 3} daha</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "1rem" }}>
+        <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 600 }}>
+          {new Date(selectedDateKey).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric", weekday: "long" })}
+        </p>
+        {selectedItemsSorted.length === 0 ? (
+          <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)" }}>Bu günde bir şey yok.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {selectedItemsSorted.map((it) => (
+              <div
+                key={it.id}
+                onClick={() => {
+                  if (it.type === "class") { setRosterClass(it.groupClass); setRosterOccurrenceDate(selectedDateKey); }
+                  else onOpenDeal(it.deal);
+                }}
+                style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "6px 8px", borderRadius: 8, background: "var(--surface-2)" }}
+              >
+                <i className={`ti ${AGENDA_EVENT_ICONS[it.type]}`} style={{ color: AGENDA_EVENT_COLORS[it.type], fontSize: 16 }} aria-hidden="true"></i>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 500 }}>{it.label}</p>
+                  <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
+                    {it.type === "reminder" ? `Hatırlatma · ${customerName(it.deal.customerId)}` : null}
+                    {it.type === "appointment" ? `${it.time.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} · ${customerName(it.deal.customerId)}` : null}
+                    {it.type === "class" ? (() => {
+                      const dayAttendance = classAttendance.filter((a) => a.groupClassId === it.groupClass.id && a.occurrenceDate === selectedDateKey);
+                      const came = dayAttendance.filter((a) => a.status === "geldi").length;
+                      const notCame = dayAttendance.filter((a) => a.status === "gelmedi").length;
+                      const summary = dayAttendance.length > 0 ? `${came} geldi, ${notCame} gelmedi` : `${it.enrolledCount}/${it.groupClass.capacity} kayıtlı`;
+                      return `${it.time.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} · ${summary}`;
+                    })() : null}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {rosterClassLive && (
+        <Modal title={rosterClassLive.name} onClose={() => { setRosterClass(null); setRosterOccurrenceDate(null); }}>
+          <GroupClassRoster
+            group={rosterClassLive}
+            enrollments={groupClassEnrollments.filter((e) => e.groupClassId === rosterClassLive.id)}
+            customers={customers}
+            activeCustomerIds={activeCustomerIds}
+            sector={sector}
+            occurrenceDate={rosterOccurrenceDate}
+            attendance={classAttendance.filter((a) => a.groupClassId === rosterClassLive.id && a.occurrenceDate === rosterOccurrenceDate)}
+            onSetAttendance={(customerId, status) => onSetAttendance(rosterClassLive.id, customerId, rosterOccurrenceDate, status)}
+            onEdit={() => { setRosterClass(null); setRosterOccurrenceDate(null); onOpenClasses(); }}
+            onDelete={() => { setRosterClass(null); setRosterOccurrenceDate(null); onOpenClasses(); }}
+            onEnroll={(customerId) => onEnrollClass({ groupClassId: rosterClassLive.id, customerId })}
+            onRemove={onRemoveFromClass}
+          />
+        </Modal>
       )}
     </div>
   );
@@ -4931,13 +7808,13 @@ export default function App() {
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [groupClasses, setGroupClasses] = useState([]);
   const [groupClassEnrollments, setGroupClassEnrollments] = useState([]);
+  const [classAttendance, setClassAttendanceState] = useState([]);
   const [businessHours, setBusinessHours] = useState([]);
   const [showSectorOnboarding, setShowSectorOnboarding] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [tourStep, setTourStep] = useState(0);
   const [activationChecklistDismissedClick, setActivationChecklistDismissedClick] = useState(false);
-  const [showHelpPanel, setShowHelpPanel] = useState(false);
-  const [showAskPanel, setShowAskPanel] = useState(false);
+  const [showAskDock, setShowAskDock] = useState(false);
   // v1: üye sayısı kod tarafında henüz sınırlanmıyor, henüz billing yok.
   // Hedef fiyatlandırma "10 kullanıcıya kadar sabit ücret" olarak siteye
   // yazıldı (App.jsx LandingPage, "Neden Binerly" bölümü) — billing
@@ -5037,7 +7914,7 @@ export default function App() {
       setCompanySettings(null);
       setCustomFieldDefs([]);
       setPriceListItems([]);
-      setGroupClasses([]); setGroupClassEnrollments([]);
+      setGroupClasses([]); setGroupClassEnrollments([]); setClassAttendanceState([]);
       setBusinessHours([]);
       setDealLineItems([]);
       setActiveTeamId(undefined);
@@ -5064,12 +7941,13 @@ export default function App() {
       supabase.from("price_list_items").select("*").order("name"),
       supabase.from("group_classes").select("*").is("deleted_at", null).order("weekday").order("start_time"),
       supabase.from("group_class_enrollments").select("*"),
+      supabase.from("class_attendance").select("*"),
       supabase.from("business_hours").select("*").order("weekday").order("start_time"),
       supabase.from("deal_pdf_templates").select("*").order("created_at"),
       supabase.from("deal_line_items").select("*").order("sort_order"),
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: bh }, { data: pdft }, { data: dli }, { data: myMembership }, { data: invites }]) => {
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: pdft }, { data: dli }, { data: myMembership }, { data: invites }]) => {
       // customers/deals/company_settings RLS'i, sahiplik politikasına ek olarak
       // portal kullanıcılarının kendi bağlı oldukları kayıtları görmesine izin
       // veren bir politikayla da "veya" ile birleşiyor (customer_*_view'ların
@@ -5096,6 +7974,7 @@ export default function App() {
       setPriceListItems((pli || []).filter((row) => row.user_id === ownerId).map(rowToPriceListItem));
       setGroupClasses((gc || []).filter((row) => row.user_id === ownerId).map(rowToGroupClass));
       setGroupClassEnrollments((gce || []).filter((row) => row.user_id === ownerId).map(rowToGroupClassEnrollment));
+      setClassAttendanceState((catt || []).filter((row) => row.user_id === ownerId).map(rowToClassAttendance));
       setBusinessHours((bh || []).filter((row) => row.user_id === ownerId).map(rowToBusinessHours));
       setPdfTemplates((pdft || []).filter((row) => row.user_id === ownerId).map(rowToPdfTemplate));
       setActiveTeamId(ownerId);
@@ -6420,6 +9299,21 @@ export default function App() {
     setGroupClassEnrollments((prev) => prev.filter((e) => e.id !== enrollmentId));
   };
 
+  // Yoklama alma sık tekrarlanan (bir derste 10 öğrenci = 10 çağrı) bir
+  // işlem — audit log'a yazılmıyor, mesajı "okundu" işaretlemenin loglanmaması
+  // gibi aynı gerekçe.
+  const setClassAttendance = async (groupClassId, customerId, occurrenceDate, status) => {
+    const row = { user_id: activeTeamId, group_class_id: groupClassId, customer_id: customerId, occurrence_date: occurrenceDate, status, updated_at: new Date().toISOString() };
+    const { data, error } = await supabase
+      .from("class_attendance")
+      .upsert(row, { onConflict: "group_class_id,customer_id,occurrence_date" })
+      .select()
+      .single();
+    if (error) { notify(`Yoklama kaydedilemedi: ${error.message}`); return; }
+    const record = rowToClassAttendance(data);
+    setClassAttendanceState((prev) => [...prev.filter((a) => !(a.groupClassId === groupClassId && a.customerId === customerId && a.occurrenceDate === occurrenceDate)), record]);
+  };
+
   const addBusinessHours = async ({ weekday, startTime, endTime, slotDurationMinutes }) => {
     const row = { id: uid(), user_id: activeTeamId, weekday, start_time: startTime, end_time: endTime, slot_duration_minutes: slotDurationMinutes };
     const { data, error } = await supabase.from("business_hours").insert(row).select().single();
@@ -6666,6 +9560,7 @@ export default function App() {
     kbArticles, teamMembers, attachments, customFieldDefs, priceListItems,
     groupClasses, groupClassEnrollments, businessHours, paymentCredentials,
     appointmentDateTimeKey, currentUserId: session.user.id,
+    classAttendance, dealLineItems, pdfTemplates,
   };
 
   const todayEnd = new Date();
@@ -6763,8 +9658,6 @@ export default function App() {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <NotificationBell userId={session.user.id} supabase={supabase} dataTour="notification-bell" />
-          <IconButton icon="ti-bulb" onClick={() => setShowAskPanel(true)} title="Soru Sor" />
-          <IconButton icon="ti-help-circle" onClick={() => setShowHelpPanel(true)} title="Yardım" data-tour="help-icon" />
           <IconButton icon="ti-settings" onClick={() => setShowSettingsHub(true)} title="Ayarlar" data-tour="settings-gear" />
           <IconButton icon="ti-logout" label="Çıkış" onClick={() => supabase.auth.signOut()} title="Çıkış yap" />
         </div>
@@ -6838,7 +9731,7 @@ export default function App() {
           { id: "pano", label: "Pano", icon: "ti-layout-dashboard" },
           { id: "musteri", label: "Müşteri Kayıtları", icon: "ti-building" },
           { id: "firsat", label: "Müşteri Takibi", icon: "ti-target-arrow" },
-          ...(supportsSelfBooking(companySettings?.sector) ? [{ id: "randevular", label: "Randevularım", icon: "ti-calendar-event" }] : []),
+          { id: "ajanda", label: "Ajanda", icon: "ti-calendar-event" },
           { id: "finans", label: "Finans", icon: "ti-chart-line" },
           { id: "mesajlar", label: "Mesajlar", icon: "ti-message-2" },
           ...(supportsGroupClasses(companySettings?.sector) ? [{ id: "dersler", label: "Dersler", icon: "ti-calendar-time" }] : []),
@@ -7853,13 +10746,21 @@ export default function App() {
         />
       )}
 
-      {tab === "randevular" && supportsSelfBooking(companySettings?.sector) && (
-        <AppointmentsTab
+      {tab === "ajanda" && (
+        <AgendaTab
           deals={deals}
           customers={customers}
-          dateTimeKey={appointmentDateTimeKey}
+          groupClasses={groupClasses}
+          groupClassEnrollments={groupClassEnrollments}
+          classAttendance={classAttendance}
+          activeCustomerIds={new Set(activeMemberships.map((d) => d.customerId))}
           sector={companySettings?.sector}
+          dateTimeKey={appointmentDateTimeKey}
           onOpenDeal={(deal) => openDealOrList([deal], deal.title)}
+          onOpenClasses={() => setTab("dersler")}
+          onEnrollClass={enrollMember}
+          onRemoveFromClass={removeMember}
+          onSetAttendance={setClassAttendance}
         />
       )}
 
@@ -7895,8 +10796,8 @@ export default function App() {
         </Modal>
       )}
 
-      {showHelpPanel && <HelpPanel onClose={() => setShowHelpPanel(false)} sector={companySettings?.sector} />}
-      {showAskPanel && <AskPanel onClose={() => setShowAskPanel(false)} sector={companySettings?.sector} ctx={askCtx} />}
+      <AskBubble open={showAskDock} onToggle={() => setShowAskDock((v) => !v)} />
+      {showAskDock && <AskDock onClose={() => setShowAskDock(false)} sector={companySettings?.sector} ctx={askCtx} />}
 
       {showSettingsHub && (
         <Modal title="Ayarlar" onClose={() => setShowSettingsHub(false)} wide>
