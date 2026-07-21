@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
 import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, nextWeeklyOccurrence, NotificationBell, OnboardingTour } from "./shared";
-import Finance, { rowToCompanyExpense } from "./Finance";
+import Finance, { rowToCompanyExpense, expandExpenseOccurrences } from "./Finance";
 import { rowToChannelCredential, rowToChannelMessage } from "./Messages";
 import Support, {
   rowToTicket,
@@ -460,6 +460,717 @@ const HELP_TOPICS = [
   { category: "Ayarlar & Hesap", q: "Teklif onay linkini müşteriyle nasıl paylaşırım?", a: "İlgili kaydı açıp onay linkini kopyalayın, müşteriye WhatsApp/e-posta ile gönderin. Müşteri linke tıklayıp onaylayabilir, ayarladıysanız ödeme de yapabilir." },
   { category: "Ayarlar & Hesap", q: "Örnek verilerle nasıl başlarım?", a: "Pano boşken görünen \"Örnek verilerle başla\" butonuyla birkaç örnek müşteri ve kayıt oluşturabilirsiniz — istediğiniz zaman silinebilir, gerçek verilerinizi etkilemez." },
 ];
+
+// "Soru Sor" — gerçek bir AI/LLM çağrısı YOK, önceden tanımlı sorulara canlı
+// veriden hesaplanan cevaplar veren deterministik bir kütüphane (maliyet
+// sıfır, veri hiç dışarı çıkmıyor). HelpPanel'deki statik soru/cevap
+// deseninin aynısı, tek fark cevabın compute(ctx) ile canlı hesaplanması.
+// Bazı Pano metrikleri (winRate, rangeRevenue vb.) Pano'da seçili tarih
+// aralığına bağlı olduğu için burada KASITLI OLARAK yeniden kullanılmıyor —
+// bu panel her yerden açılabildiğinden cevap Pano'daki filtreye göre sessizce
+// değişmesin diye kendi sabit dönemini (bu ay / tüm zamanlar) taze hesaplar.
+function topEntry(totals) {
+  const entries = Object.entries(totals);
+  if (entries.length === 0) return null;
+  return entries.sort((a, b) => b[1] - a[1])[0];
+}
+
+const ANSWER_LIBRARY = [
+  {
+    id: "top_customer_month",
+    category: "Satış",
+    label: "Bu ay en çok kazandıran müşterim kim?",
+    keywords: ["en çok kazandıran", "en iyi müşteri", "en çok gelir getiren müşteri"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ay");
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, bounds));
+      if (won.length === 0) return "Bu ay henüz kazanılmış bir kaydınız yok.";
+      const totals = {};
+      won.forEach((d) => { totals[d.customerId] = (totals[d.customerId] || 0) + (d.value || 0); });
+      const top = topEntry(totals);
+      const customer = ctx.customers.find((c) => c.id === top[0]);
+      return `${customer?.name || "Bilinmeyen müşteri"} — bu ay ${formatTL(top[1])} ile en çok kazandıran müşteriniz.`;
+    },
+  },
+  {
+    id: "win_rate_month",
+    category: "Satış",
+    label: "Bu ay kazanma oranım nedir?",
+    keywords: ["bu ay kazanma oranı", "bu ay başarı oranı"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ay");
+      const closed = ctx.deals.filter((d) => (d.stage === "kazanildi" || d.stage === "kaybedildi") && inRange(d.closedAt || d.createdAt, bounds));
+      const won = closed.filter((d) => d.stage === "kazanildi");
+      if (closed.length === 0) return "Bu ay henüz sonuçlanmış (kazanılmış/kaybedilmiş) bir kaydınız yok.";
+      return `Bu ay kazanma oranınız %${Math.round((won.length / closed.length) * 100)} (${won.length}/${closed.length}).`;
+    },
+  },
+  {
+    id: "win_rate_all_time",
+    category: "Satış",
+    label: "Genel (tüm zamanlar) kazanma oranım nedir?",
+    keywords: ["genel kazanma oranı", "tüm zamanlar kazanma oranı", "toplam kazanma oranı"],
+    compute: (ctx) => {
+      const closed = ctx.deals.filter((d) => d.stage === "kazanildi" || d.stage === "kaybedildi");
+      const won = closed.filter((d) => d.stage === "kazanildi");
+      if (closed.length === 0) return "Henüz sonuçlanmış bir kaydınız yok.";
+      return `Tüm zamanlar kazanma oranınız %${Math.round((won.length / closed.length) * 100)} (${won.length}/${closed.length}).`;
+    },
+  },
+  {
+    id: "loss_rate_all_time",
+    category: "Satış",
+    label: "Kayıp oranım nedir?",
+    keywords: ["kayıp oranı", "kaybetme oranı"],
+    compute: (ctx) => {
+      const closed = ctx.deals.filter((d) => d.stage === "kazanildi" || d.stage === "kaybedildi");
+      const lost = closed.filter((d) => d.stage === "kaybedildi");
+      if (closed.length === 0) return "Henüz sonuçlanmış bir kaydınız yok.";
+      return `Tüm zamanlar kayıp oranınız %${Math.round((lost.length / closed.length) * 100)} (${lost.length}/${closed.length}).`;
+    },
+  },
+  {
+    id: "top_lost_reason",
+    category: "Satış",
+    label: "En çok hangi nedenle kaybediyorum?",
+    keywords: ["kayıp nedeni", "neden kaybediyorum", "en çok kaybettiğim neden"],
+    compute: (ctx) => {
+      const lost = ctx.deals.filter((d) => d.stage === "kaybedildi" && d.lostReason);
+      if (lost.length === 0) return "Henüz nedeni belirtilmiş kayıp bir kaydınız yok.";
+      const totals = {};
+      lost.forEach((d) => { totals[d.lostReason] = (totals[d.lostReason] || 0) + 1; });
+      const top = topEntry(totals);
+      return `En sık kayıp nedeniniz "${top[0]}" (${top[1]} kayıt).`;
+    },
+  },
+  {
+    id: "open_deals_count",
+    category: "Satış",
+    label: (sector) => {
+      const words = DEAL_WORD_FORMS[dealWordKind(sector)];
+      return words.bare === "teklif" ? "Kaç açık teklifim var?" : `Kaç bekleyen ${words.bare === "randevu" ? "randevum" : "üyeliğim"} var?`;
+    },
+    keywords: ["açık teklif", "açık fırsat", "açık kayıt", "bekleyen teklif", "bekleyen randevu", "bekleyen üyelik"],
+    compute: (ctx) => {
+      const words = DEAL_WORD_FORMS[dealWordKind(ctx.companySettings?.sector)];
+      const open = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi");
+      return `${open.length} açık ${words.bare === "teklif" ? "teklifiniz" : words.bare === "randevu" ? "randevunuz" : "üyeliğiniz"} var.`;
+    },
+  },
+  {
+    id: "avg_deal_size_month",
+    category: "Satış",
+    label: (sector) => `Bu ay ortalama kazanılan ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} değeri ne kadar?`,
+    keywords: ["ortalama teklif büyüklüğü", "ortalama fırsat büyüklüğü", "ortalama kayıt tutarı", "ortalama randevu değeri", "ortalama üyelik değeri"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ay");
+      const words = DEAL_WORD_FORMS[dealWordKind(ctx.companySettings?.sector)];
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, bounds));
+      if (won.length === 0) return "Bu ay henüz kazanılmış bir kaydınız yok.";
+      const avg = won.reduce((sum, d) => sum + (d.value || 0), 0) / won.length;
+      return `Bu ay ortalama kazanılan ${words.bare} değeriniz ${formatTL(avg)}.`;
+    },
+  },
+  {
+    id: "funnel",
+    category: "Satış",
+    label: "Hangi aşamada kaç kaydım var?",
+    keywords: ["aşama hunisi", "hangi aşamada", "huni"],
+    compute: (ctx) => {
+      const openDeals = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi");
+      return STAGES.filter((s) => s.id !== "kazanildi" && s.id !== "kaybedildi")
+        .map((s) => `${stageLabel(s.id, "kurumsal", ctx.companySettings?.sector)}: ${openDeals.filter((d) => d.stage === s.id).length}`)
+        .join(", ");
+    },
+  },
+  {
+    id: "forecast",
+    category: "Satış",
+    label: "Gelecek ay ne kadar kazanırım?",
+    keywords: ["gelecek ay tahmin", "önümüzdeki ay tahmin", "gelecek ay ne kadar"],
+    compute: (ctx) => (ctx.nextMonthForecast != null ? `Gelecek ay tahmini geliriniz yaklaşık ${formatTL(ctx.nextMonthForecast)}.` : "Tahmin için henüz yeterli geçmiş veri yok (son 3 ayda kazanılmış kayıt gerekiyor)."),
+  },
+  {
+    id: "customer_count",
+    category: "Müşteri",
+    label: "Kaç müşterim var?",
+    keywords: ["kaç müşteri", "müşteri sayım"],
+    compute: (ctx) => `Toplam ${ctx.customers.length} müşteriniz var.`,
+  },
+  {
+    id: "passive_rate",
+    category: "Müşteri",
+    label: "Pasif müşteri oranım nedir?",
+    keywords: ["pasif müşteri", "uyuyan müşteri"],
+    compute: (ctx) => (ctx.passiveCustomerRate != null ? `Pasif (90 gündür alışverişi olmayan) müşteri oranınız %${Math.round(ctx.passiveCustomerRate)}.` : "Henüz bu oranı hesaplamak için yeterli veri yok."),
+  },
+  {
+    id: "top_debtor",
+    category: "Müşteri",
+    label: "En çok borçlu müşterim kim?",
+    keywords: ["en çok borçlu", "borcu en yüksek", "en çok alacağım"],
+    compute: (ctx) => {
+      const balances = {};
+      ctx.deals.filter((d) => d.stage === "kazanildi").forEach((d) => { balances[d.customerId] = (balances[d.customerId] || 0) + (d.value || 0); });
+      ctx.payments.forEach((p) => {
+        const deal = ctx.deals.find((d) => d.id === p.dealId);
+        if (deal && balances[deal.customerId] != null) balances[deal.customerId] -= (p.amount || 0);
+      });
+      const top = Object.entries(balances).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1])[0];
+      if (!top) return "Şu anda borcu olan bir müşteriniz görünmüyor.";
+      const customer = ctx.customers.find((c) => c.id === top[0]);
+      return `${customer?.name || "Bilinmeyen müşteri"} — ${formatTL(top[1])} bakiye ile en çok borçlu müşteriniz.`;
+    },
+  },
+  {
+    id: "top_sector",
+    category: "Müşteri",
+    label: "Hangi sektörden en çok müşterim var?",
+    keywords: ["hangi sektörden en çok", "en çok sektör", "müşteri sektör dağılımı"],
+    compute: (ctx) => {
+      const totals = {};
+      ctx.customers.forEach((c) => { if (c.sector) totals[c.sector] = (totals[c.sector] || 0) + 1; });
+      const top = topEntry(totals);
+      if (!top) return "Müşterilerinizde henüz sektör bilgisi girilmemiş.";
+      return `En çok müşteriniz "${top[0]}" sektöründen (${top[1]} müşteri).`;
+    },
+  },
+  {
+    id: "collected_this_month",
+    category: "Finans",
+    label: "Bu ay ne kadar tahsilat aldım?",
+    keywords: ["bu ay tahsilat", "bu ay ne kadar aldım", "bu ay tahsil ettim"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ay");
+      const total = ctx.payments.filter((p) => inRange(p.paidAt, bounds)).reduce((sum, p) => sum + (p.amount || 0), 0);
+      return `Bu ay toplam ${formatTL(total)} tahsilat aldınız.`;
+    },
+  },
+  {
+    id: "outstanding",
+    category: "Finans",
+    label: "Bekleyen alacağım ne kadar?",
+    keywords: ["bekleyen alacak", "tahsil edilmemiş alacak", "alacağım ne kadar"],
+    compute: (ctx) => `Şu anda bekleyen (tahsil edilmemiş) alacağınız ${formatTL(ctx.totalOutstanding || 0)}.`,
+  },
+  {
+    id: "net_remaining_month",
+    category: "Finans",
+    label: "Bu ay net kârım ne kadar?",
+    keywords: ["net kâr", "net kalan", "bu ay kârım"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ay");
+      const income = ctx.payments.filter((p) => inRange(p.paidAt, bounds)).reduce((sum, p) => sum + (p.amount || 0), 0);
+      const expense = ctx.companyExpenses.flatMap((e) => expandExpenseOccurrences(e, bounds)).reduce((sum, e) => sum + (e.amount || 0), 0);
+      const dealCost = ctx.deals.filter((d) => d.stage === "kazanildi" && (d.cost || 0) > 0 && inRange(d.closedAt || d.createdAt, bounds)).reduce((sum, d) => sum + (d.cost || 0), 0);
+      const net = income - expense - dealCost;
+      return `Bu ay net kalanınız ${formatTL(net)} (${formatTL(income)} gelir − ${formatTL(expense + dealCost)} gider).`;
+    },
+  },
+  {
+    id: "top_expense_category_month",
+    category: "Finans",
+    label: "Bu ay en çok hangi kategoriye gider yapıyorum?",
+    keywords: ["en çok gider", "gider kategorisi", "nereye harcıyorum"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ay");
+      const totals = {};
+      ctx.companyExpenses.flatMap((e) => expandExpenseOccurrences(e, bounds)).forEach((e) => { totals[e.category] = (totals[e.category] || 0) + (e.amount || 0); });
+      const top = topEntry(totals);
+      if (!top) return "Bu ay henüz kayıtlı bir gideriniz yok.";
+      return `Bu ay en çok "${top[0]}" kategorisine gider yaptınız (${formatTL(top[1])}).`;
+    },
+  },
+  {
+    id: "sla_breached",
+    category: "Destek",
+    label: "SLA'sı geçen kaç talebim var?",
+    keywords: ["sla geçen", "süresi geçen talep", "gecikmiş talep"],
+    compute: (ctx) => (ctx.breachedTicketsCount > 0 ? `SLA süresi geçmiş ${ctx.breachedTicketsCount} talebiniz var.` : "SLA süresi geçmiş bir talebiniz yok."),
+  },
+  {
+    id: "unread_messages",
+    category: "Destek",
+    label: "Kaç okunmamış mesajım var?",
+    keywords: ["okunmamış mesaj", "yanıtlanmamış mesaj"],
+    compute: (ctx) => (ctx.unreadMessagesCount > 0 ? `${ctx.unreadMessagesCount} talepte okunmamış mesajınız var.` : "Okunmamış mesajınız yok."),
+  },
+  {
+    id: "open_tickets_count",
+    category: "Destek",
+    label: "Açık kaç destek talebim var?",
+    keywords: ["açık talep", "kaç destek talebi", "çözülmemiş talep"],
+    compute: (ctx) => {
+      const open = ctx.tickets.filter((t) => !TERMINAL_STATUSES.includes(t.status));
+      return `${open.length} açık (çözülmemiş) destek talebiniz var.`;
+    },
+  },
+  {
+    id: "no_show_rate_month",
+    category: "Satış",
+    label: "Bu ay gelmeme oranım nedir?",
+    keywords: ["gelmeme oranı", "no-show", "randevuya gelmeyen"],
+    visibleIf: (sector) => isAppointmentSector(sector),
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ay");
+      const closed = ctx.deals.filter((d) => (d.stage === "kazanildi" || d.stage === "kaybedildi") && inRange(d.closedAt || d.createdAt, bounds));
+      const noShow = closed.filter((d) => d.stage === "kaybedildi" && d.lostReason === "Randevuya gelmedi");
+      if (closed.length === 0) return "Bu ay henüz sonuçlanmış bir randevunuz yok.";
+      return `Bu ay gelmeme oranınız %${Math.round((noShow.length / closed.length) * 100)} (${noShow.length}/${closed.length}).`;
+    },
+  },
+  {
+    id: "new_deals_this_month",
+    category: "Satış",
+    label: "Bu ay kaç yeni kayıt oluşturdum?",
+    keywords: ["bu ay kaç yeni kayıt", "bu ay kaç teklif oluşturdum", "yeni kayıt sayısı"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ay");
+      const words = DEAL_WORD_FORMS[dealWordKind(ctx.companySettings?.sector)];
+      const count = ctx.deals.filter((d) => inRange(d.createdAt, bounds)).length;
+      return `Bu ay ${count} yeni ${words.bare} oluşturdunuz.`;
+    },
+  },
+  {
+    id: "due_reminders_this_week",
+    category: "Satış",
+    label: "Bu hafta hatırlatması olan kaç kaydım var?",
+    keywords: ["bu hafta hatırlatma", "hatırlatmalarım", "bu haftaki hatırlatma"],
+    compute: (ctx) => {
+      const today = new Date(); const todayStr = today.toISOString().slice(0, 10);
+      const weekEnd = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const count = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi" && d.reminderDate && d.reminderDate >= todayStr && d.reminderDate <= weekEnd).length;
+      return `Bu hafta hatırlatması olan ${count} kaydınız var.`;
+    },
+  },
+  {
+    id: "overdue_reminders",
+    category: "Satış",
+    label: "Hatırlatma tarihi geçmiş kaç kaydım var?",
+    keywords: ["hatırlatma tarihi geçmiş", "geciken hatırlatma", "süresi geçen hatırlatma"],
+    compute: (ctx) => {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const count = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi" && d.reminderDate && d.reminderDate < todayStr).length;
+      return count > 0 ? `Hatırlatma tarihi geçmiş ${count} kaydınız var.` : "Hatırlatma tarihi geçmiş bir kaydınız yok.";
+    },
+  },
+  {
+    id: "most_expensive_open_deal",
+    category: "Satış",
+    label: "En değerli açık kaydım hangisi?",
+    keywords: ["en değerli açık", "en pahalı açık teklif", "en büyük açık kayıt"],
+    compute: (ctx) => {
+      const open = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi").sort((a, b) => (b.value || 0) - (a.value || 0));
+      if (open.length === 0) return "Şu anda açık bir kaydınız yok.";
+      const top = open[0];
+      const customer = ctx.customers.find((c) => c.id === top.customerId);
+      return `"${top.title}" (${customer?.name || "müşteri silinmiş"}) — ${formatTL(top.value)} ile en değerli açık kaydınız.`;
+    },
+  },
+  {
+    id: "oldest_open_deal",
+    category: "Satış",
+    label: "En uzun süredir açık kalan kaydım hangisi?",
+    keywords: ["en eski açık", "en uzun süredir açık", "en eski teklif"],
+    compute: (ctx) => {
+      const open = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi").sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      if (open.length === 0) return "Şu anda açık bir kaydınız yok.";
+      const top = open[0];
+      const customer = ctx.customers.find((c) => c.id === top.customerId);
+      const days = Math.floor((Date.now() - new Date(top.createdAt).getTime()) / (24 * 60 * 60 * 1000));
+      return `"${top.title}" (${customer?.name || "müşteri silinmiş"}) — ${days} gündür açık.`;
+    },
+  },
+  {
+    id: "avg_sales_cycle",
+    category: "Satış",
+    label: "Ortalama satış süresi (gün) ne kadar?",
+    keywords: ["ortalama satış süresi", "satış döngüsü", "kaç günde kazanıyorum"],
+    compute: (ctx) => {
+      const won = ctx.deals.filter((d) => d.stage === "kazanildi" && d.closedAt);
+      if (won.length === 0) return "Henüz kazanılmış bir kaydınız yok.";
+      const avgDays = won.reduce((sum, d) => sum + (new Date(d.closedAt) - new Date(d.createdAt)) / (24 * 60 * 60 * 1000), 0) / won.length;
+      return `Ortalama satış süreniz (kayıt açılıştan kazanılana kadar) ${Math.round(avgDays)} gün.`;
+    },
+  },
+  {
+    id: "this_year_revenue",
+    category: "Satış",
+    label: "Bu yıl toplam ne kadar kazandım?",
+    keywords: ["bu yıl ne kadar kazandım", "bu yıl toplam gelir", "yıllık gelir"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_yil");
+      const total = ctx.deals.filter((d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, bounds)).reduce((sum, d) => sum + (d.value || 0), 0);
+      return `Bu yıl toplam ${formatTL(total)} kazandınız.`;
+    },
+  },
+  {
+    id: "last_month_revenue",
+    category: "Satış",
+    label: "Geçen ay ne kadar kazandım?",
+    keywords: ["geçen ay ne kadar kazandım", "geçen ayki gelir", "önceki ay gelir"],
+    compute: (ctx) => {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      const total = ctx.deals.filter((d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, { start, end })).reduce((sum, d) => sum + (d.value || 0), 0);
+      return `Geçen ay toplam ${formatTL(total)} kazandınız.`;
+    },
+  },
+  {
+    id: "top_tag_deals",
+    category: "Satış",
+    label: "En çok kullandığım kayıt etiketi hangisi?",
+    keywords: ["en çok kullanılan etiket", "kayıt etiketi", "teklif etiketleri"],
+    compute: (ctx) => {
+      const totals = {};
+      ctx.deals.forEach((d) => (d.tags || []).forEach((t) => { totals[t] = (totals[t] || 0) + 1; }));
+      const top = topEntry(totals);
+      return top ? `En çok kullandığınız etiket "${top[0]}" (${top[1]} kayıtta).` : "Henüz hiçbir kaydınıza etiket eklenmemiş.";
+    },
+  },
+  {
+    id: "top_assignee_by_win",
+    category: "Satış",
+    label: "Takımda en çok kim kazandırıyor?",
+    keywords: ["en çok kim kazandırıyor", "takımda en iyi", "kimin performansı iyi"],
+    compute: (ctx) => {
+      if (ctx.teamMembers.length === 0) return "Henüz takım üyeniz yok.";
+      const totals = {};
+      ctx.deals.filter((d) => d.stage === "kazanildi" && d.assignedTo).forEach((d) => { totals[d.assignedTo] = (totals[d.assignedTo] || 0) + (d.value || 0); });
+      const top = topEntry(totals);
+      if (!top) return "Henüz sorumlu atanmış kazanılan bir kaydınız yok.";
+      const name = top[0] === ctx.currentUserId ? "Siz" : (ctx.teamMembers.find((m) => m.id === top[0])?.name || ctx.teamMembers.find((m) => m.id === top[0])?.email || "Bilinmeyen üye");
+      return `${name} — ${formatTL(top[1])} ile en çok kazandıran kişi.`;
+    },
+  },
+  {
+    id: "newest_customer",
+    category: "Müşteri",
+    label: "En son eklenen müşterim kim?",
+    keywords: ["en son eklenen müşteri", "son eklenen müşteri", "yeni müşterim"],
+    compute: (ctx) => {
+      if (ctx.customers.length === 0) return "Henüz müşteriniz yok.";
+      const sorted = [...ctx.customers].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      return `${sorted[0].name} — ${new Date(sorted[0].createdAt).toLocaleDateString("tr-TR")} tarihinde eklendi.`;
+    },
+  },
+  {
+    id: "new_customers_this_month",
+    category: "Müşteri",
+    label: "Bu ay kaç yeni müşteri kazandım?",
+    keywords: ["bu ay kaç yeni müşteri", "bu ay yeni müşteri sayısı"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_ay");
+      return `Bu ay ${ctx.customers.filter((c) => inRange(c.createdAt, bounds)).length} yeni müşteri kazandınız.`;
+    },
+  },
+  {
+    id: "customer_type_split",
+    category: "Müşteri",
+    label: "Kurumsal mı bireysel mi daha çok müşterim var?",
+    keywords: ["kurumsal bireysel", "müşteri türü dağılımı"],
+    compute: (ctx) => {
+      const kurumsal = ctx.customers.filter((c) => c.customerType === "kurumsal").length;
+      const bireysel = ctx.customers.filter((c) => c.customerType === "bireysel").length;
+      return `${kurumsal} kurumsal, ${bireysel} bireysel müşteriniz var.`;
+    },
+  },
+  {
+    id: "customers_missing_phone",
+    category: "Müşteri",
+    label: "Telefonu olmayan kaç müşterim var?",
+    keywords: ["telefonu olmayan müşteri", "telefon eksik"],
+    compute: (ctx) => `Telefonu kayıtlı olmayan ${ctx.customers.filter((c) => !c.phone).length} müşteriniz var.`,
+  },
+  {
+    id: "customers_missing_email",
+    category: "Müşteri",
+    label: "E-postası olmayan kaç müşterim var?",
+    keywords: ["e-postası olmayan müşteri", "email eksik"],
+    compute: (ctx) => `E-postası kayıtlı olmayan ${ctx.customers.filter((c) => !c.email).length} müşteriniz var.`,
+  },
+  {
+    id: "top_customer_tag",
+    category: "Müşteri",
+    label: "En çok kullandığım müşteri etiketi hangisi?",
+    keywords: ["en çok kullanılan müşteri etiketi", "müşteri etiketleri"],
+    compute: (ctx) => {
+      const totals = {};
+      ctx.customers.forEach((c) => (c.tags || []).forEach((t) => { totals[t] = (totals[t] || 0) + 1; }));
+      const top = topEntry(totals);
+      return top ? `En çok kullandığınız müşteri etiketi "${top[0]}" (${top[1]} müşteride).` : "Henüz hiçbir müşterinize etiket eklenmemiş.";
+    },
+  },
+  {
+    id: "top_region",
+    category: "Müşteri",
+    label: "En çok hangi bölgeden müşterim var?",
+    keywords: ["hangi bölgeden", "bölge dağılımı", "en çok bölge"],
+    compute: (ctx) => {
+      const totals = {};
+      ctx.customers.forEach((c) => { if (c.region) totals[c.region] = (totals[c.region] || 0) + 1; });
+      const top = topEntry(totals);
+      return top ? `En çok müşteriniz "${top[0]}" bölgesinden (${top[1]} müşteri).` : "Müşterilerinizde henüz bölge bilgisi girilmemiş.";
+    },
+  },
+  {
+    id: "total_collected_all_time",
+    category: "Finans",
+    label: "Tüm zamanlar toplam tahsilatım ne kadar?",
+    keywords: ["toplam tahsilat", "tüm zamanlar tahsilat", "şimdiye kadar ne kadar tahsil ettim"],
+    compute: (ctx) => `Şimdiye kadar toplam ${formatTL(ctx.payments.reduce((sum, p) => sum + (p.amount || 0), 0))} tahsilat aldınız.`,
+  },
+  {
+    id: "biggest_payment",
+    category: "Finans",
+    label: "En büyük tek tahsilatım ne kadar oldu?",
+    keywords: ["en büyük tahsilat", "en yüksek ödeme"],
+    compute: (ctx) => {
+      const positive = ctx.payments.filter((p) => (p.amount || 0) > 0);
+      if (positive.length === 0) return "Henüz bir tahsilatınız yok.";
+      return `En büyük tek tahsilatınız ${formatTL(Math.max(...positive.map((p) => p.amount)))}.`;
+    },
+  },
+  {
+    id: "last_payment_date",
+    category: "Finans",
+    label: "En son ne zaman tahsilat aldım?",
+    keywords: ["en son tahsilat", "son ödeme ne zaman"],
+    compute: (ctx) => {
+      if (ctx.payments.length === 0) return "Henüz bir tahsilatınız yok.";
+      const sorted = [...ctx.payments].sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt));
+      return `En son ${new Date(sorted[0].paidAt).toLocaleDateString("tr-TR")} tarihinde tahsilat aldınız.`;
+    },
+  },
+  {
+    id: "recurring_expense_count",
+    category: "Finans",
+    label: "Kaç tane tekrarlayan giderim var?",
+    keywords: ["tekrarlayan gider sayısı", "kaç tekrarlayan gider"],
+    compute: (ctx) => `${ctx.companyExpenses.filter((e) => e.isRecurring).length} tekrarlayan gideriniz var.`,
+  },
+  {
+    id: "monthly_fixed_expense",
+    category: "Finans",
+    label: "Aylık sabit gider toplamım ne kadar?",
+    keywords: ["aylık sabit gider", "aylık giderim ne kadar"],
+    compute: (ctx) => {
+      const total = ctx.companyExpenses.filter((e) => e.isRecurring && e.recurrenceInterval === "monthly").reduce((sum, e) => sum + (e.amount || 0), 0);
+      return `Aylık tekrarlayan (sabit) gider toplamınız ${formatTL(total)}.`;
+    },
+  },
+  {
+    id: "this_year_expense",
+    category: "Finans",
+    label: "Bu yıl toplam giderim ne kadar?",
+    keywords: ["bu yıl toplam gider", "yıllık gider"],
+    compute: (ctx) => {
+      const bounds = getRangeBounds("bu_yil");
+      const expense = ctx.companyExpenses.flatMap((e) => expandExpenseOccurrences(e, bounds)).reduce((sum, e) => sum + (e.amount || 0), 0);
+      const dealCost = ctx.deals.filter((d) => d.stage === "kazanildi" && (d.cost || 0) > 0 && inRange(d.closedAt || d.createdAt, bounds)).reduce((sum, d) => sum + (d.cost || 0), 0);
+      return `Bu yıl toplam gideriniz ${formatTL(expense + dealCost)}.`;
+    },
+  },
+  {
+    id: "payment_connection_status",
+    category: "Finans",
+    label: "Online ödeme bağlantım var mı?",
+    keywords: ["ödeme bağlantım var mı", "iyzico bağlı mı", "paytr bağlı mı"],
+    compute: (ctx) => (ctx.paymentCredentials.length > 0 ? `Evet, ${ctx.paymentCredentials[0].provider === "paytr" ? "PayTR" : "iyzico"} bağlı.` : "Henüz bir ödeme sağlayıcısı bağlamadınız."),
+  },
+  {
+    id: "avg_payment_amount",
+    category: "Finans",
+    label: "Ortalama tahsilat tutarım ne kadar?",
+    keywords: ["ortalama tahsilat", "ortalama ödeme tutarı"],
+    compute: (ctx) => {
+      const positive = ctx.payments.filter((p) => (p.amount || 0) > 0);
+      if (positive.length === 0) return "Henüz bir tahsilatınız yok.";
+      return `Ortalama tahsilat tutarınız ${formatTL(positive.reduce((sum, p) => sum + p.amount, 0) / positive.length)}.`;
+    },
+  },
+  {
+    id: "total_tickets",
+    category: "Destek",
+    label: "Toplam kaç destek talebim var?",
+    keywords: ["toplam destek talebi", "kaç talebim var"],
+    compute: (ctx) => `Toplam ${ctx.tickets.length} destek talebiniz var.`,
+  },
+  {
+    id: "tickets_by_priority",
+    category: "Destek",
+    label: "Önceliğe göre talep dağılımım nasıl?",
+    keywords: ["öncelik dağılımı", "talep önceliği"],
+    compute: (ctx) => {
+      if (ctx.tickets.length === 0) return "Henüz bir destek talebiniz yok.";
+      const labels = { acil: "Acil", yuksek: "Yüksek", orta: "Orta", dusuk: "Düşük" };
+      const totals = {};
+      ctx.tickets.forEach((t) => { totals[t.priority] = (totals[t.priority] || 0) + 1; });
+      return Object.entries(totals).map(([k, v]) => `${labels[k] || k}: ${v}`).join(", ");
+    },
+  },
+  {
+    id: "resolved_tickets_count",
+    category: "Destek",
+    label: "Kaç talebim çözüldü?",
+    keywords: ["kaç talep çözüldü", "çözülen talep sayısı"],
+    compute: (ctx) => `${ctx.tickets.filter((t) => TERMINAL_STATUSES.includes(t.status)).length} talebiniz çözüldü/kapatıldı.`,
+  },
+  {
+    id: "kb_article_count",
+    category: "Destek",
+    label: "Kaç Bilgi Bankası makalem var?",
+    keywords: ["kaç makale", "bilgi bankası makale sayısı"],
+    compute: (ctx) => `${ctx.kbArticles.length} Bilgi Bankası makaleniz var.`,
+  },
+  {
+    id: "top_kb_category",
+    category: "Destek",
+    label: "Hangi kategoride en çok makalem var?",
+    keywords: ["en çok makale kategorisi", "makale kategorileri"],
+    compute: (ctx) => {
+      const totals = {};
+      ctx.kbArticles.forEach((a) => { if (a.category) totals[a.category] = (totals[a.category] || 0) + 1; });
+      const top = topEntry(totals);
+      return top ? `En çok makaleniz "${top[0]}" kategorisinde (${top[1]} makale).` : "Henüz kategorili bir makaleniz yok.";
+    },
+  },
+  {
+    id: "avg_resolution_days",
+    category: "Destek",
+    label: "Ortalama kaç günde talep çözüyorum?",
+    keywords: ["ortalama çözüm süresi", "kaç günde çözüyorum"],
+    compute: (ctx) => {
+      const resolved = ctx.tickets.filter((t) => t.resolvedAt);
+      if (resolved.length === 0) return "Henüz çözülmüş bir talebiniz yok.";
+      const avgDays = resolved.reduce((sum, t) => sum + (new Date(t.resolvedAt) - new Date(t.createdAt)) / (24 * 60 * 60 * 1000), 0) / resolved.length;
+      return `Ortalama talep çözüm süreniz ${Math.round(avgDays * 10) / 10} gün.`;
+    },
+  },
+  {
+    id: "appointments_today",
+    category: "Randevu & Program",
+    label: "Bugün kaç randevum var?",
+    keywords: ["bugün kaç randevum", "bugünkü randevular"],
+    visibleIf: (sector) => supportsSelfBooking(sector) || isAppointmentSector(sector),
+    compute: (ctx) => {
+      if (!ctx.appointmentDateTimeKey) return "Randevu tarihi alanı henüz tanımlı değil.";
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const count = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi" && (d.customFields?.[ctx.appointmentDateTimeKey] || "").slice(0, 10) === todayStr).length;
+      return `Bugün ${count} randevunuz var.`;
+    },
+  },
+  {
+    id: "group_class_count",
+    category: "Randevu & Program",
+    label: "Kaç grup dersim var?",
+    keywords: ["kaç grup dersi", "ders sayım"],
+    visibleIf: (sector) => supportsGroupClasses(sector),
+    compute: (ctx) => `${ctx.groupClasses.length} grup dersiniz var.`,
+  },
+  {
+    id: "fullest_group_class",
+    category: "Randevu & Program",
+    label: "Hangi dersimde en çok kayıt var?",
+    keywords: ["en dolu ders", "en çok kayıtlı ders"],
+    visibleIf: (sector) => supportsGroupClasses(sector),
+    compute: (ctx) => {
+      if (ctx.groupClasses.length === 0) return "Henüz bir dersiniz yok.";
+      const totals = {};
+      ctx.groupClassEnrollments.forEach((e) => { totals[e.groupClassId] = (totals[e.groupClassId] || 0) + 1; });
+      const top = topEntry(totals);
+      if (!top) return "Henüz hiçbir dersinize kayıt yok.";
+      const cls = ctx.groupClasses.find((g) => g.id === top[0]);
+      return `En dolu dersiniz "${cls?.name || "silinmiş ders"}" — ${top[1]}/${cls?.capacity ?? "?"} kayıt.`;
+    },
+  },
+  {
+    id: "business_hours_defined",
+    category: "Randevu & Program",
+    label: "Müsaitlik saatlerimi tanımladım mı?",
+    keywords: ["müsaitlik saatleri tanımlı mı", "randevu saatlerim"],
+    visibleIf: (sector) => supportsSelfBooking(sector),
+    compute: (ctx) => (ctx.businessHours.length > 0 ? `Evet, ${ctx.businessHours.length} gün için müsaitlik saati tanımlı.` : "Henüz müsaitlik saati tanımlamadınız."),
+  },
+  {
+    id: "team_member_count",
+    category: "Takım",
+    label: "Kaç takım üyem var?",
+    keywords: ["kaç takım üyem var", "takım büyüklüğü"],
+    compute: (ctx) => (ctx.teamMembers.length > 0 ? `Siz dahil ${ctx.teamMembers.length + 1} kişisiniz.` : "Henüz takım üyeniz yok, tek başınızasınız."),
+  },
+  {
+    id: "attachment_count",
+    category: "Sistem",
+    label: "Kaç dosya (ek) yüklemişim?",
+    keywords: ["kaç dosya yükledim", "dosya sayım", "eklerim"],
+    compute: (ctx) => `Müşteri/teklif kayıtlarınıza toplam ${ctx.attachments.length} dosya eklenmiş.`,
+  },
+  {
+    id: "custom_field_count",
+    category: "Sistem",
+    label: "Kaç özel alan tanımlamışım?",
+    keywords: ["özel alan sayısı", "kaç özel alanım var"],
+    compute: (ctx) => `${ctx.customFieldDefs.filter((d) => d.active).length} aktif özel alanınız var.`,
+  },
+  {
+    id: "price_list_count",
+    category: "Sistem",
+    label: "Fiyat listemde kaç ürün/hizmet var?",
+    keywords: ["fiyat listesi kaç ürün", "kaç hizmetim var listede"],
+    compute: (ctx) => `Fiyat listenizde ${ctx.priceListItems.length} ürün/hizmet var.`,
+  },
+];
+
+function AskPanel({ onClose, sector, ctx }) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const relevant = ANSWER_LIBRARY.filter((e) => !e.visibleIf || e.visibleIf(sector)).map((e) => ({
+    ...e,
+    resolvedLabel: typeof e.label === "function" ? e.label(sector) : e.label,
+  }));
+  const filtered = q
+    ? relevant.filter((e) => e.resolvedLabel.toLowerCase().includes(q) || e.keywords.some((k) => k.includes(q) || q.includes(k)))
+    : relevant;
+  const categories = [...new Set(filtered.map((e) => e.category))];
+  return (
+    <Modal title="Soru Sor" onClose={onClose} wide>
+      <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 12px" }}>
+        Verilerinizden anlık hesaplanan cevaplar — hiçbir veri dışarı gönderilmez.
+      </p>
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Bir şey sorun... örn. bu ay en çok kazandıran müşterim kim?"
+        style={{ width: "100%", marginBottom: 14 }}
+        autoFocus
+      />
+      {filtered.length === 0 ? (
+        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Eşleşen bir soru bulunamadı. Farklı bir ifadeyle deneyin.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 20, maxHeight: 460, overflowY: "auto" }}>
+          {categories.map((cat) => (
+            <div key={cat}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5, margin: "0 0 10px" }}>{cat}</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {filtered.filter((e) => e.category === cat).map((e) => (
+                  <div key={e.id}>
+                    <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 500 }}>{e.resolvedLabel}</p>
+                    <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{e.compute(ctx)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+        <button onClick={onClose}>Kapat</button>
+      </div>
+    </Modal>
+  );
+}
 
 function HelpPanel({ onClose, sector }) {
   const [query, setQuery] = useState("");
@@ -4226,6 +4937,7 @@ export default function App() {
   const [tourStep, setTourStep] = useState(0);
   const [activationChecklistDismissedClick, setActivationChecklistDismissedClick] = useState(false);
   const [showHelpPanel, setShowHelpPanel] = useState(false);
+  const [showAskPanel, setShowAskPanel] = useState(false);
   // v1: üye sayısı kod tarafında henüz sınırlanmıyor, henüz billing yok.
   // Hedef fiyatlandırma "10 kullanıcıya kadar sabit ücret" olarak siteye
   // yazıldı (App.jsx LandingPage, "Neden Binerly" bölümü) — billing
@@ -5948,6 +6660,14 @@ export default function App() {
   // deleted_at'i yok). Rozet sayısı bu yüzden hâlâ var olan taleplerle sınırlanmalı.
   const unreadMessagesCount = ticketsWithUnread.length;
 
+  const askCtx = {
+    customers, deals, payments, tickets, companyExpenses, companySettings,
+    nextMonthForecast, passiveCustomerRate, totalOutstanding, breachedTicketsCount, unreadMessagesCount,
+    kbArticles, teamMembers, attachments, customFieldDefs, priceListItems,
+    groupClasses, groupClassEnrollments, businessHours, paymentCredentials,
+    appointmentDateTimeKey, currentUserId: session.user.id,
+  };
+
   const todayEnd = new Date();
   todayEnd.setHours(23, 59, 59, 999);
   const dueReminderDeals = deals.filter(
@@ -6043,6 +6763,7 @@ export default function App() {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <NotificationBell userId={session.user.id} supabase={supabase} dataTour="notification-bell" />
+          <IconButton icon="ti-bulb" onClick={() => setShowAskPanel(true)} title="Soru Sor" />
           <IconButton icon="ti-help-circle" onClick={() => setShowHelpPanel(true)} title="Yardım" data-tour="help-icon" />
           <IconButton icon="ti-settings" onClick={() => setShowSettingsHub(true)} title="Ayarlar" data-tour="settings-gear" />
           <IconButton icon="ti-logout" label="Çıkış" onClick={() => supabase.auth.signOut()} title="Çıkış yap" />
@@ -7175,6 +7896,7 @@ export default function App() {
       )}
 
       {showHelpPanel && <HelpPanel onClose={() => setShowHelpPanel(false)} sector={companySettings?.sector} />}
+      {showAskPanel && <AskPanel onClose={() => setShowAskPanel(false)} sector={companySettings?.sector} ctx={askCtx} />}
 
       {showSettingsHub && (
         <Modal title="Ayarlar" onClose={() => setShowSettingsHub(false)} wide>
