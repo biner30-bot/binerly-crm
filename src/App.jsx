@@ -3798,7 +3798,12 @@ function askStem(word) {
 
 function askTokenMatches(token, blobWords) {
   const stem = askStem(token);
-  return blobWords.some((w) => askStem(w) === stem || w.includes(token) || token.includes(w));
+  // Alt-dize kontrolünü (token.includes(w) / w.includes(token)) en az 4
+  // karakterle sınırlıyoruz — sınır olmadan "en", "ay", "bu" gibi çok kısa/yaygın
+  // kelimeler neredeyse her uzun kelimenin içinde tesadüfen geçtiği için (örn.
+  // "kaybediyorum" içinde "ay" geçiyor) alakasız girişlerin puanını yapay olarak
+  // şişirip yanlış cevabın öne çıkmasına yol açıyordu (kullanıcı tarafından bulundu).
+  return blobWords.some((w) => askStem(w) === stem || (w.length >= 4 && token.includes(w)) || (token.length >= 4 && w.includes(token)));
 }
 
 // Başlangıçta sohbete örnek olsun diye üç farklı türden (veri/nasıl
@@ -3806,7 +3811,7 @@ function askTokenMatches(token, blobWords) {
 // var olduğundan emin olmak için ihtiyaç halinde güncellenmeli.
 const ASK_STARTER_IDS = ["top_customer_month", "help_0", "advisor_0"];
 
-function AskDock({ onClose, sector, ctx }) {
+function AskDock({ open, onClose, sector, ctx }) {
   const [query, setQuery] = useState("");
   const [messages, setMessages] = useState([]);
   const threadRef = useRef(null);
@@ -3848,7 +3853,7 @@ function AskDock({ onClose, sector, ctx }) {
       style={{
         position: "fixed", bottom: 90, right: 24, width: "min(380px, calc(100vw - 32px))", height: "min(560px, 70vh)",
         background: "var(--surface-2)", border: "0.5px solid var(--border)", borderRadius: 12,
-        boxShadow: "0 8px 32px rgba(0,0,0,0.3)", zIndex: 950, display: "flex", flexDirection: "column", overflow: "hidden",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.3)", zIndex: 950, display: open ? "flex" : "none", flexDirection: "column", overflow: "hidden",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderBottom: "0.5px solid var(--border)", flexShrink: 0 }}>
@@ -10840,7 +10845,7 @@ export default function App() {
       )}
 
       <AskBubble open={showAskDock} onToggle={() => setShowAskDock((v) => !v)} />
-      {showAskDock && <AskDock onClose={() => setShowAskDock(false)} sector={companySettings?.sector} ctx={askCtx} />}
+      <AskDock open={showAskDock} onClose={() => setShowAskDock(false)} sector={companySettings?.sector} ctx={askCtx} />
 
       {showSettingsHub && (
         <Modal title="Ayarlar" onClose={() => setShowSettingsHub(false)} wide>
