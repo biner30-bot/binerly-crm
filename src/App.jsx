@@ -506,7 +506,7 @@ const HELP_TOPICS = [
   { category: "Randevu & Program", q: "Bir grup dersine kaç kişi kaydolabilir, bunu nasıl sınırlarım?", a: "Ders oluştururken girdiğiniz \"Kapasite\" değeri sınırı belirler; kapasite dolunca portalda ders \"dolu\" görünür ve yeni kayıt alınamaz. Kapasiteyi zaten kayıtlı kişi sayısının altına düşüremezsiniz.", visibleIf: (sector) => supportsGroupClasses(sector) },
   { category: "Randevu & Program", q: "Müşterinin bir derse kaydolabilmesi için aktif üyeliği/kaydı olması gerekir mi?", a: "Evet — sadece kazanılmış ve süresi (varsa) dolmamış bir kaydı olan müşteriler derse kaydolabilir; uygun olmayan müşteriler için portalda kısa bir uyarı metni gösterilir.", visibleIf: (sector) => supportsGroupClasses(sector) },
   { category: "Randevu & Program", q: "Randevu/görüşme tarihi alanı nereden geliyor, ben mi ekliyorum?", a: "Bu, Sektör & Özel Alanlar'da \"Tarih & Saat\" tipinde tanımlanan bir özel alandır — randevu sektörlerinde hazır gelir, diğer sektörlerde isterseniz kendiniz ekleyebilirsiniz.", visibleIf: (sector) => supportsSelfBooking(sector) },
-  { category: "Randevu & Program", q: "Aynı saate iki randevu/görüşme girersem uyarı alır mıyım?", a: "Evet — Tarih & Saat özel alanınız varsa ve aynı tarih/saatte başka bir aktif kayıt bulunursa kaydetmeden önce bir çakışma uyarısı çıkar; isterseniz yine de bu şekilde kaydedebilirsiniz, sistem sizi engellemez.", visibleIf: (sector) => supportsSelfBooking(sector) },
+  { category: "Randevu & Program", q: "Aynı saate iki randevu/görüşme girebilir miyim?", a: "Hayır — Tarih & Saat özel alanınız varsa ve aynı tarih/saatte başka bir aktif kayıt bulunursa, sistem kaydı engeller ve önce bu çakışmayı çözmeniz gerekir.", visibleIf: (sector) => supportsSelfBooking(sector) },
   { category: "Randevu & Program", q: "Haftalık ders programını nasıl kurarım?", a: "Dersler sekmesinden her ders için gün, saat, süre, eğitmen ve kapasite girip kaydedersiniz — program haftadan haftaya aynı şekilde tekrarlar, tarihe özel tek seferlik ders oluşturma yoktur.", visibleIf: (sector) => supportsGroupClasses(sector) },
   { category: "Randevu & Program", q: "Müsaitlik Saatleri'nde öğle arası gibi bir boşluk tanımlayabilir miyim?", a: "Evet — her gün için başlangıç/bitiş saati ile kaçar dakikalık aralıklarla randevu verileceğini belirlersiniz; \"Öğle arası var\" kutusunu işaretleyip ara saatlerini girerseniz sistem günü otomatik olarak iki ayrı müsaitlik bloğuna böler.", visibleIf: (sector) => supportsSelfBooking(sector) },
   { category: "Randevu & Program", q: "Randevu hatırlatma e-postasının içeriğini değiştirebilir miyim?", a: "Hayır, hatırlatma sabit bir şablonla otomatik gönderilir, içeriği uygulama içinden özelleştirilemez — sadece Ayarlar → İşletme Bilgileri'nden tamamen açıp kapatabilirsiniz.", visibleIf: (sector) => supportsSelfBooking(sector) },
@@ -4114,7 +4114,7 @@ function rowToCompanySettings(r) {
   };
 }
 
-function CustomerForm({ initial, customFieldDefs = [], sectorTags = [], preferredCustomerType, onSave, onCancel, onPreferredTypeChange }) {
+function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTags = [], preferredCustomerType, onSave, onCancel, onPreferredTypeChange }) {
   const initialIsCustomSector = initial?.sector && !SECTORS.includes(initial.sector);
   const [customerType, setCustomerType] = useState(initial?.customerType || preferredCustomerType || "kurumsal");
   const [name, setName] = useState(initial?.name || "");
@@ -4126,8 +4126,23 @@ function CustomerForm({ initial, customFieldDefs = [], sectorTags = [], preferre
   const [notes, setNotes] = useState(initial?.notes || "");
   const [tags, setTags] = useState(initial?.tags || []);
   const [customFields, setCustomFields] = useState(initial?.customFields || {});
+  const [duplicateError, setDuplicateError] = useState("");
   const isKurumsal = customerType === "kurumsal";
   const defsForEntity = customFieldDefs.filter((d) => d.entity === "customer" && (!d.audience || d.audience === customerType));
+
+  // Aynı e-posta/telefonla ikinci bir müşteri kaydı oluşturulursa (genelde
+  // yanlışlıkla), müşteri portalı bu iki kaydı da aynı hesaba bağlar ve aynı
+  // işletme iki kez görünür (bkz. proje geçmişi) — aynı telefonu/e-postayı
+  // gerçekten farklı iki kişinin kullanması gerçekçi olmadığı için bu artık
+  // gerçek bir engel, uyarıyla geçilebilen bir onay değil.
+  const findDuplicateCustomer = (trimmedEmail, trimmedPhone) => {
+    const match = customers.find((c) =>
+      c.id !== initial?.id &&
+      ((trimmedEmail && c.email?.trim().toLowerCase() === trimmedEmail.toLowerCase()) ||
+        (trimmedPhone && c.phone?.trim() === trimmedPhone))
+    );
+    return match || null;
+  };
 
   return (
     <form
@@ -4135,7 +4150,7 @@ function CustomerForm({ initial, customFieldDefs = [], sectorTags = [], preferre
         e.preventDefault();
         if (!name.trim()) return;
         if (isKurumsal && sector === "Diğer" && !customSector.trim()) return;
-        onSave({
+        const payload = {
           id: initial?.id || uid(),
           customerType,
           name: name.trim(),
@@ -4148,7 +4163,14 @@ function CustomerForm({ initial, customFieldDefs = [], sectorTags = [], preferre
           customFields,
           lastContact: initial?.lastContact || new Date().toISOString(),
           createdAt: initial?.createdAt || new Date().toISOString(),
-        });
+        };
+        const duplicateWith = findDuplicateCustomer(payload.email, payload.phone);
+        if (duplicateWith) {
+          setDuplicateError(`"${duplicateWith.name}" adlı müşteride aynı e-posta veya telefon zaten kayıtlı — aynı telefon/e-posta ile ikinci bir müşteri eklenemez.`);
+          return;
+        }
+        setDuplicateError("");
+        onSave(payload);
       }}
     >
       <div style={{ marginBottom: 12 }}>
@@ -4211,6 +4233,7 @@ function CustomerForm({ initial, customFieldDefs = [], sectorTags = [], preferre
         <TagInput tags={tags} onChange={setTags} suggestions={sectorTags} />
       </div>
       <CustomFieldsSection defs={defsForEntity} values={customFields} onChange={setCustomFields} />
+      {duplicateError && <p style={{ fontSize: 12.5, color: "var(--text-danger)", margin: "0 0 8px" }}>{duplicateError}</p>}
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button type="button" onClick={onCancel}>Vazgeç</button>
         <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
@@ -4400,15 +4423,16 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   const [customFields, setCustomFields] = useState(initial?.customFields || {});
   const [assignedTo, setAssignedTo] = useState(initial?.assignedTo || currentUserId || "");
   const [notifyCustomer, setNotifyCustomer] = useState(initial?.notifyCustomer || false);
-  const [pendingConflictSave, setPendingConflictSave] = useState(null); // { payload, conflictTitle }
+  const [conflictError, setConflictError] = useState("");
   const defsForEntity = customFieldDefs.filter((d) => d.entity === "deal" && (!d.audience || d.audience === selectedCustomerType));
   const selectedCustomerEmail = customers.find((c) => c.id === customerId)?.email || "";
 
   // Aynı tarih/saate iki aktif randevu düşerse (örn. biri iptal edilip slot
   // boşaldıktan sonra başkası aynı saati aldı, sonra ilk randevu yeniden
-  // "planlandı"ya çekildi) sessizce çift rezervasyon oluşurdu — kısıtlamak
-  // yerine (proje felsefesi: görünürlük, kısıtlama değil) kaydetmeden önce
-  // açıkça uyarıyoruz, KOBİ isterse yine de kaydedebilir.
+  // "planlandı"ya çekildi) sessizce çift rezervasyon oluşurdu. Tek bir
+  // randevu saati aynı anda gerçekten iki farklı kişiye verilemeyeceği için
+  // (kullanıcı isteğiyle) bu artık uyarıyla geçilebilen bir onay değil,
+  // gerçek bir engel — çakışma varken kayıt yapılamaz.
   const findAppointmentConflict = (candidateStage, candidateCustomFields) => {
     if (!appointmentDateTimeKey || !supportsSelfBooking(sector) || candidateStage === "kaybedildi") return null;
     const dt = candidateCustomFields?.[appointmentDateTimeKey];
@@ -4426,7 +4450,6 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   }, [lineItemsTotal, lineItems.length]);
 
   return (
-    <>
     <form
       onSubmit={(e) => {
         e.preventDefault();
@@ -4485,9 +4508,10 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
         };
         const conflictWith = findAppointmentConflict(stage, customFields);
         if (conflictWith) {
-          setPendingConflictSave({ payload, conflictWith });
+          setConflictError(`Bu tarih/saatte ${conflictWith} için de aktif bir randevu var — aynı saate iki randevu girilemez.`);
           return;
         }
+        setConflictError("");
         onSave(payload);
       }}
     >
@@ -4809,21 +4833,12 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           onDelete={onDeleteAttachment}
         />
       )}
+      {conflictError && <p style={{ fontSize: 12.5, color: "var(--text-danger)", margin: "0 0 8px" }}>{conflictError}</p>}
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button type="button" onClick={onCancel}>Vazgeç</button>
         <button type="submit" disabled={customers.length === 0} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
       </div>
     </form>
-    {pendingConflictSave && (
-      <ConfirmDialog
-        title="Randevu çakışması"
-        message={`Bu tarih/saatte ${pendingConflictSave.conflictWith} için de aktif bir randevu var. Yine de bu şekilde kaydetmek istiyor musunuz?`}
-        confirmLabel="Yine de kaydet"
-        onConfirm={() => { onSave(pendingConflictSave.payload); setPendingConflictSave(null); }}
-        onClose={() => setPendingConflictSave(null)}
-      />
-    )}
-    </>
   );
 }
 
@@ -7882,7 +7897,6 @@ export default function App() {
   const [panoRange, setPanoRange] = useState("tum_zamanlar");
   const [dragDealId, setDragDealId] = useState(null);
   const [pendingLostReasonMove, setPendingLostReasonMove] = useState(null); // { dealId }
-  const [pendingAppointmentConflict, setPendingAppointmentConflict] = useState(null); // { dealId, targetStage, conflictWith }
   const [showCampaignModal, setShowCampaignModal] = useState(false);
   const [confirmDeleteCustomer, setConfirmDeleteCustomer] = useState(null);
   const [confirmDeleteDeal, setConfirmDeleteDeal] = useState(null);
@@ -10515,19 +10529,16 @@ export default function App() {
                       } else {
                         // "Kaybedildi"den (iptal/gelmedi) tekrar aktif bir aşamaya
                         // çekiliyorsa — o saat bu arada başka birine verilmiş
-                        // olabilir (slot iptalle boşalmıştı) — sessizce çift
-                        // rezervasyon oluşturmadan önce uyar.
+                        // olabilir (slot iptalle boşalmıştı). Aynı saate iki
+                        // randevu gerçekten var olamayacağı için bu artık gerçek
+                        // bir engel — çakışma varsa taşıma yapılmaz.
                         const draggedDeal = deals.find((d) => d.id === dragDealId);
                         const dt = appointmentDateTimeKey && draggedDeal?.customFields?.[appointmentDateTimeKey];
                         const conflict = draggedDeal?.stage === "kaybedildi" && dt
                           ? deals.find((d) => d.id !== dragDealId && d.stage !== "kaybedildi" && d.customFields?.[appointmentDateTimeKey] === dt)
                           : null;
                         if (conflict) {
-                          setPendingAppointmentConflict({
-                            dealId: dragDealId,
-                            targetStage: stage.id,
-                            conflictWith: customers.find((c) => c.id === conflict.customerId)?.name || "başka bir kayıt",
-                          });
+                          notify(`Bu tarih/saatte ${customers.find((c) => c.id === conflict.customerId)?.name || "başka bir kayıt"} için de aktif bir randevu var — aynı saate iki randevu girilemez.`);
                         } else {
                           moveDealStage(dragDealId, stage.id);
                         }
@@ -10817,6 +10828,7 @@ export default function App() {
         <Modal title={editingCustomer?.id ? "Müşteriyi düzenle" : "Yeni müşteri"} onClose={() => { setShowCustomerForm(false); setEditingCustomer(null); }}>
           <CustomerForm
             initial={editingCustomer}
+            customers={customers}
             customFieldDefs={customFieldDefs}
             sectorTags={SECTOR_PRESETS.find((p) => p.id === companySettings?.sector)?.tags || []}
             preferredCustomerType={companySettings?.preferredCustomerType}
@@ -11248,16 +11260,6 @@ export default function App() {
             ))}
           </div>
         </Modal>
-      )}
-
-      {pendingAppointmentConflict && (
-        <ConfirmDialog
-          title="Randevu çakışması"
-          message={`Bu tarih/saatte ${pendingAppointmentConflict.conflictWith} için de aktif bir randevu var. Yine de bu şekilde taşımak istiyor musunuz?`}
-          confirmLabel="Yine de taşı"
-          onConfirm={() => { moveDealStage(pendingAppointmentConflict.dealId, pendingAppointmentConflict.targetStage); setPendingAppointmentConflict(null); }}
-          onClose={() => setPendingAppointmentConflict(null)}
-        />
       )}
 
       {viewingCustomer && (
