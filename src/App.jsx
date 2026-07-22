@@ -5440,7 +5440,14 @@ function TeklifPrint({ deal, customer, companySettings, pdfTemplates, dealLineIt
         document.body.removeChild(clone);
       }
       const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ unit: "px", format: [canvas.width, canvas.height] });
+      // Asıl kırpılma sebebi buradaymış: orientation belirtilmezse jsPDF
+      // varsayılan "portrait"i (dikey) zorluyor ve bizim yatay (genişlik >
+      // yükseklik) format dizimizi SESSİZCE ters çeviriyor (MediaBox'ta
+      // genişlik/yükseklik yer değiştiriyor) — ama görsel eski, ters
+      // çevrilmemiş boyutlarıyla yerleştirildiği için sayfa ile uyuşmuyor ve
+      // sağ/alt taraf kırpılmış görünüyordu. Gerçek en-boy oranına göre
+      // orientation'ı açıkça belirtmek bunu tamamen ortadan kaldırıyor.
+      const pdf = new jsPDF({ unit: "px", orientation: canvas.width >= canvas.height ? "l" : "p", format: [canvas.width, canvas.height] });
       pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
       pdf.save(`${dealWordKind(companySettings?.sector) === "uyelik" ? "Üyelik Özeti" : dealWordKind(companySettings?.sector) === "randevu" ? "Randevu Özeti" : "Teklif"} - ${customer?.name || "Musteri"} - ${deal.title}.pdf`);
     } catch (err) {
@@ -6391,9 +6398,22 @@ function RoomInventoryManager({ items, roomTypeOptions, onAdd, onUpdate, onDelet
 
   const availableOptions = roomTypeOptions.filter((o) => !items.some((i) => i.roomType === o));
 
+  // Bir oda tipi eklenince o tip availableOptions'tan düşüyor, ama seçim
+  // kutusunun kendi state'i (roomType) buna göre otomatik güncellenmiyordu —
+  // eski (artık listede olmayan) değerde takılı kalabiliyordu. Kullanıcı fark
+  // etmeden tekrar "+ Ekle"ye basarsa aynı oda tipi ikinci kez eklenmeye
+  // çalışılıp veritabanı "mükerrer kayıt" hatası veriyordu. Seçili değer
+  // artık mevcut listede yoksa otomatik olarak ilk müsait seçeneğe döner.
+  useEffect(() => {
+    if (roomType && !availableOptions.includes(roomType)) {
+      setRoomType(availableOptions[0] || "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableOptions.join("|")]);
+
   const submit = (e) => {
     e.preventDefault();
-    if (!roomType || Number(quantity) < 1) return;
+    if (!roomType || !availableOptions.includes(roomType) || Number(quantity) < 1) return;
     onAdd({ roomType, quantity: Number(quantity) });
     setQuantity(1);
   };

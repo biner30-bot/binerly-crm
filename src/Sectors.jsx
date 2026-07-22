@@ -285,13 +285,13 @@ export const SECTOR_PRESETS = [
       { entity: "deal", key: "cikis_tarihi", label: "Çıkış Tarihi", type: "date" },
       { entity: "deal", key: "kisi_sayisi", label: "Kişi Sayısı", type: "number" },
       { entity: "deal", key: "kapora_durumu", label: "Kapora Durumu", type: "select", options: ["Alınmadı", "Kısmi alındı", "Tamamı alındı"] },
-      { entity: "customer", key: "ozel_istek", label: "Özel İstek (manzara, kat, alerji vb.)", type: "text" },
+      { entity: "customer", key: "ozel_istek", label: "Özel İstek (alerji, diyet, kutlama vb.)", type: "text" },
     ],
     stageGuides: {
       ilk_gorusme: "Giriş/çıkış tarihini ve kişi sayısını netleştirip uygun oda tipini kontrol edin.",
       teklif: "Oda fiyatını ve varsa kahvaltı/ekstra hizmetleri net belirtin.",
       muzakere: "Rezervasyonu kesinleştirmek için kapora/ön ödeme isteyin.",
-      kazanildi: "Giriş günü öncesi hatırlatma yapın, özel isteği (manzara, kat vb.) resepsiyona iletin.",
+      kazanildi: "Giriş günü öncesi hatırlatma yapın, varsa özel isteği resepsiyona iletin.",
       kaybedildi: "Vazgeçme nedenini not alın (fiyat, müsaitlik, tarih değişikliği vb.).",
     },
   },
@@ -442,7 +442,8 @@ const APPOINTMENT_NOTE_EXAMPLES = {
   emlak: "Mülk gösterimi, kira sözleşmesi görüşmesi...",
   dijital_ajans: "Keşif görüşmesi, reklam kampanyası planlaması...",
   hizmet_danismanlik: "Danışmanlık görüşmesi, proje kapsamı...",
-  otel: "2 kişilik deluxe oda, balkon manzaralı...",
+  // otel burada yok — Otel'in RoomBookingModal'ı artık "ne için" diye sebep
+  // sormuyor, sade bir opsiyonel not alanı kullanıyor (bkz. CustomerPortal.jsx).
 };
 export const appointmentNoteExample = (sector) => APPOINTMENT_NOTE_EXAMPLES[sector] || "Randevu sebebinizi kısaca yazın...";
 

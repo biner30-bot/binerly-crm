@@ -87,14 +87,22 @@ export function renderTemplateBlocks(blocks, mergeData, lineItems = []) {
         const desc = qty !== 1 ? `${it.description} (×${qty})` : it.description;
         return (
           <tr key={idx} style={{ borderBottom: "1px solid #e1e8f0", background: b.accentColor ? "#f5f8fc" : "transparent" }}>
-            <td style={{ padding: "9px 8px 9px 0", fontSize: 14, color: "#0c2540" }}>{desc}</td>
+            <td style={{ padding: "9px 8px 9px 0", fontSize: 14, color: "#0c2540", overflowWrap: "break-word" }}>{desc}</td>
             <td style={{ padding: "9px 0", fontSize: 14, textAlign: "right", color: "#0c2540" }}>{formatTL(net)}</td>
           </tr>
         );
       });
       const kdvSum = grossSum - netSum;
       return (
-        <table key={b.id} style={{ position: "absolute", left: b.x, top: yOf(b), width: b.w, borderCollapse: "collapse" }}>
+        // tableLayout:"fixed" + <colgroup> olmadan, bir <table> CSS width'i içerik
+        // uzunsa yalnızca bir alt sınır gibi davranıyor — tablo, sağdaki Tutar
+        // sütununu (ve dolayısıyla PDF sayfasının kenarını) aşacak kadar genişleyebiliyordu,
+        // bu da yakalanan canvas'ın dışında kalıp PDF'te "kırpılmış" görünüyordu.
+        <table key={b.id} style={{ position: "absolute", left: b.x, top: yOf(b), width: b.w, borderCollapse: "collapse", tableLayout: "fixed" }}>
+          <colgroup>
+            <col />
+            <col style={{ width: 110 }} />
+          </colgroup>
           <thead>
             <tr style={{ borderBottom: `2px solid ${accent}` }}>
               <th style={{ textAlign: "left", padding: "8px 0", fontSize: 12, textTransform: "uppercase", color: "#0c2540" }}>Açıklama</th>

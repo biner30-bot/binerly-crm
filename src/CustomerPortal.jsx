@@ -690,7 +690,7 @@ function RoomBookingModal({ customerRow, onBook, onClose }) {
   }, [checkIn, checkOut, customerRow.userId]);
 
   const confirm = async () => {
-    if (!selectedRoomType || !note.trim()) return;
+    if (!selectedRoomType) return;
     setBooking(true);
     const ok = await onBook({
       customerId: customerRow.id,
@@ -757,14 +757,14 @@ function RoomBookingModal({ customerRow, onBook, onClose }) {
         )}
       </div>
       <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ne için rezervasyon yapmak istiyorsunuz?</label>
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={`Örn. ${appointmentNoteExample(customerRow.companySector)}`} style={{ width: "100%" }} />
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Not <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span></label>
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Eklemek istediğiniz bir not varsa yazın" style={{ width: "100%" }} />
       </div>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button type="button" onClick={onClose}>Vazgeç</button>
         <button
           type="button"
-          disabled={!selectedRoomType || !note.trim() || booking}
+          disabled={!selectedRoomType || booking}
           onClick={confirm}
           style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
         >
