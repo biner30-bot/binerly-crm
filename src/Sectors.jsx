@@ -742,6 +742,39 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
   );
 }
 
+// Tek parça datetime-local widget'ı yerine ayrı tarih (üstte) + saat (altta)
+// alanları — tarih tarayıcının kendi yerel biçimiyle (tr-TR'de gün.ay.yıl)
+// gösteriliyor, birleşik widget'tan daha net/kullanışlı. Hem CustomFieldsSection
+// (genel özel alan render'ı) hem App.jsx'teki DealForm (randevu tarihi önemli
+// bir alan olduğu için forma özel olarak üstte, price-list seçiminin yanında
+// gösteriliyor) bunu kullanıyor — tek yerde tanımlı.
+export function DateTimeSplitInput({ value, onChange }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <input
+        type="date"
+        value={(value || "").slice(0, 10)}
+        onChange={(e) => {
+          const time = (value || "").slice(11, 16) || "09:00";
+          onChange(e.target.value ? `${e.target.value}T${time}` : "");
+        }}
+        style={{ width: "100%" }}
+      />
+      <input
+        type="time"
+        value={(value || "").slice(11, 16)}
+        disabled={!(value || "").slice(0, 10)}
+        onChange={(e) => {
+          const date = (value || "").slice(0, 10);
+          if (!date) return;
+          onChange(`${date}T${e.target.value}`);
+        }}
+        style={{ width: "100%" }}
+      />
+    </div>
+  );
+}
+
 // Bir varlığa (müşteri/teklif) ait aktif özel alan tanımlarını, formda dinamik
 // input render etmek için kullanılır — CustomerForm/DealForm bu bileşeni kullanır.
 export function CustomFieldsSection({ defs, values, onChange }) {
@@ -763,31 +796,7 @@ export function CustomFieldsSection({ defs, values, onChange }) {
                 {(d.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
             ) : d.type === "datetime" ? (
-              // Tek parça datetime-local widget'ı yerine ayrı tarih (üstte) + saat
-              // (altta) alanları — tarih tarayıcının kendi yerel biçimiyle (tr-TR'de
-              // gün.ay.yıl) gösteriliyor, birleşik widget'tan daha net/kullanışlı.
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <input
-                  type="date"
-                  value={(values[d.key] || "").slice(0, 10)}
-                  onChange={(e) => {
-                    const time = (values[d.key] || "").slice(11, 16) || "09:00";
-                    onChange({ ...values, [d.key]: e.target.value ? `${e.target.value}T${time}` : "" });
-                  }}
-                  style={{ width: "100%" }}
-                />
-                <input
-                  type="time"
-                  value={(values[d.key] || "").slice(11, 16)}
-                  disabled={!(values[d.key] || "").slice(0, 10)}
-                  onChange={(e) => {
-                    const date = (values[d.key] || "").slice(0, 10);
-                    if (!date) return;
-                    onChange({ ...values, [d.key]: `${date}T${e.target.value}` });
-                  }}
-                  style={{ width: "100%" }}
-                />
-              </div>
+              <DateTimeSplitInput value={values[d.key]} onChange={(v) => onChange({ ...values, [d.key]: v })} />
             ) : (
               <input
                 type={d.type === "number" ? "number" : d.type === "date" ? "date" : "text"}

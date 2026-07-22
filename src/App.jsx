@@ -32,6 +32,7 @@ import {
   SectorOnboardingModal,
   CustomFieldDefsManager,
   CustomFieldsSection,
+  DateTimeSplitInput,
   TagBadges,
 } from "./Sectors";
 
@@ -4581,6 +4582,14 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   const [notifyCustomer, setNotifyCustomer] = useState(initial?.notifyCustomer || false);
   const [conflictError, setConflictError] = useState("");
   const defsForEntity = customFieldDefs.filter((d) => d.entity === "deal" && (!d.audience || d.audience === selectedCustomerType));
+  // Randevu tarihi alanı forma özel olarak yukarıda (Ürün/Hizmet'in yanında)
+  // gösteriliyorsa, Özel alanlar listesinde mükerrer çıkmasın diye çıkarılır —
+  // sadece bookingModel "slot" olan sektörlerde geçerli (Otel'in giriş tarihi
+  // gibi "inventory" modelindeki alanlar Özel alanlar'da kalmaya devam eder).
+  const otherDefsForEntity =
+    bookingModel(sector) === "slot" && appointmentDateTimeKey
+      ? defsForEntity.filter((d) => d.key !== appointmentDateTimeKey)
+      : defsForEntity;
   const selectedCustomerEmail = customers.find((c) => c.id === customerId)?.email || "";
 
   // Aynı tarih/saate iki aktif randevu düşerse (örn. biri iptal edilip slot
@@ -4711,26 +4720,50 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           {initial?.paymentStatus === "paid" && <Badge tone="success">✓ Online ödendi</Badge>}
         </div>
       )}
-      {priceListItems.length > 0 && (
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
-            Ürün/Hizmet
-            <InfoTip text="Listeden seçmek başlığı ve tutarı otomatik doldurur, sonrasında yine de değiştirebilirsiniz. Ayarlar → Ürün & Hizmet Fiyat Listesi'nden yönetilir." />
-          </label>
-          <select
-            value={selectedPriceItemId}
-            onChange={(e) => {
-              const item = priceListItems.find((p) => p.id === e.target.value);
-              setSelectedPriceItemId(e.target.value);
-              if (item) { setTitle(item.name); setValue(String(item.price)); }
-              else { setTitle(""); setValue(""); }
-            }}
-            style={{ width: "100%" }}
-          >
-            <option value="">Elle doldur / listeden seç</option>
-            {priceListItems.map((p) => <option key={p.id} value={p.id}>{p.name} — {formatTL(p.price)}</option>)}
-          </select>
+      {(priceListItems.length > 0 || (bookingModel(sector) === "slot" && appointmentDateTimeKey)) && (
+        <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+          {priceListItems.length > 0 && (
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+                Ürün/Hizmet
+                <InfoTip text="Listeden seçmek başlığı ve tutarı otomatik doldurur, sonrasında yine de değiştirebilirsiniz. Ayarlar → Ürün & Hizmet Fiyat Listesi'nden yönetilir." />
+              </label>
+              <select
+                value={selectedPriceItemId}
+                onChange={(e) => {
+                  const item = priceListItems.find((p) => p.id === e.target.value);
+                  setSelectedPriceItemId(e.target.value);
+                  if (item) { setTitle(item.name); setValue(String(item.price)); }
+                  else { setTitle(""); setValue(""); }
+                }}
+                style={{ width: "100%" }}
+              >
+                <option value="">Elle doldur / listeden seç</option>
+                {priceListItems.map((p) => <option key={p.id} value={p.id}>{p.name} — {formatTL(p.price)}</option>)}
+              </select>
+            </div>
+          )}
+          {bookingModel(sector) === "slot" && appointmentDateTimeKey && (
+            // Randevu tarihi önemli bir alan — Özel alanlar'ın altında gömülü
+            // kalmasın diye Ürün/Hizmet'in yanına, formun üstüne taşındı.
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
+                {customFieldDefs.find((d) => d.entity === "deal" && d.key === appointmentDateTimeKey)?.label || "Randevu Tarihi"}
+              </label>
+              <DateTimeSplitInput
+                value={customFields[appointmentDateTimeKey]}
+                onChange={(v) => setCustomFields({ ...customFields, [appointmentDateTimeKey]: v })}
+              />
+            </div>
+          )}
         </div>
+      )}
+      {bookingModel(sector) === "slot" && appointmentDateTimeKey && (
+        <AppointmentAvailabilityHint
+          businessUserId={businessUserId}
+          dateTimeValue={customFields[appointmentDateTimeKey]}
+          onPick={(dt) => setCustomFields({ ...customFields, [appointmentDateTimeKey]: dt })}
+        />
       )}
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
@@ -5003,14 +5036,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Etiketler <InfoTip text={TAGS_INFO_TEXT} /></label>
         <TagInput tags={tags} onChange={setTags} suggestions={sectorTags} />
       </div>
-      {bookingModel(sector) === "slot" && appointmentDateTimeKey && (
-        <AppointmentAvailabilityHint
-          businessUserId={businessUserId}
-          dateTimeValue={customFields[appointmentDateTimeKey]}
-          onPick={(dt) => setCustomFields({ ...customFields, [appointmentDateTimeKey]: dt })}
-        />
-      )}
-      <CustomFieldsSection defs={defsForEntity} values={customFields} onChange={setCustomFields} />
+      <CustomFieldsSection defs={otherDefsForEntity} values={customFields} onChange={setCustomFields} />
       {initial?.id && (
         <AttachmentList
           entityType="deals"
