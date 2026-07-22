@@ -461,10 +461,10 @@ const GROUP_CLASS_WORDS = {
     emptyRoster: "Henüz öğrenci yok.",
     fullMessage: "Ders dolu — yeni öğrenci eklemek için önce birini çıkarın.",
     addMemberLabel: "+ Öğrenci ekle",
-    addMemberInfoTip: "Sadece aktif kaydı olan müşteriler listelenir — kaydı olmayan bir öğrenciyi eklemek için önce Müşteri Takibi'nden kayıt oluşturun.",
+    addMemberInfoTip: "Sadece aktif kaydı olan müşteriler listelenir — kaydı olmayan bir öğrenciyi eklemek için önce Teklifler'den kayıt oluşturun.",
     removeMemberTitle: "Öğrenciyi dersten çıkar",
     deleteClassMessage: "silinecek. Bu dersteki öğrencilerin listesi de silinir; dersi geri yüklerseniz öğrencileri tekrar eklemeniz gerekir.",
-    noMembershipToast: "Bu müşterinin aktif bir kaydı yok — önce Müşteri Takibi'nden kayıt oluşturun.",
+    noMembershipToast: "Bu müşterinin aktif bir kaydı yok — önce Teklifler'den kayıt oluşturun.",
     addErrorPrefix: "Öğrenci eklenemedi",
     removeErrorPrefix: "Öğrenci çıkarılamadı",
     portalEligibility: "Katılmak için aktif kaydınız olması gerekiyor.",
@@ -477,7 +477,7 @@ const GROUP_CLASS_WORDS = {
     emptyRoster: "Henüz üye yok.",
     fullMessage: "Ders dolu — yeni üye eklemek için önce birini çıkarın.",
     addMemberLabel: "+ Üye ekle",
-    addMemberInfoTip: "Sadece aktif üyeliği olan müşteriler listelenir — üyeliği olmayan bir müşteriyi eklemek için önce Müşteri Takibi'nden üyelik kaydı oluşturun.",
+    addMemberInfoTip: "Sadece aktif üyeliği olan müşteriler listelenir — üyeliği olmayan bir müşteriyi eklemek için önce Üyelikler'den üyelik kaydı oluşturun.",
     removeMemberTitle: "Üyeyi dersten çıkar",
     deleteClassMessage: "silinecek. Bu dersteki üyelerin listesi de silinir; dersi geri yüklerseniz üyeleri tekrar eklemeniz gerekir.",
     noMembershipToast: "Bu müşterinin aktif bir üyeliği yok — önce üyelik kaydı oluşturun.",
@@ -583,7 +583,12 @@ const CUSTOM_FIELD_NAME_EXAMPLES = {
   otel: "Oda Tipi",
 };
 
+// App.jsx'teki DEAL_TAB_STRINGS.navLabel ile aynı değerler — Sectors.jsx App.jsx'i
+// import edemediği için (bağımlılık yönü ters) burada küçük bir kopyası tutuluyor.
+const DEAL_ENTITY_NAV_LABELS = { teklif: "Teklifler", randevu: "Randevular", uyelik: "Üyelikler", rezervasyon: "Rezervasyonlar" };
+
 export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDelete, sector }) {
+  const dealEntityLabel = DEAL_ENTITY_NAV_LABELS[dealWordKind(sector)];
   const [entity, setEntity] = useState("customer");
   const [label, setLabel] = useState("");
   const [type, setType] = useState("text");
@@ -671,18 +676,18 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
         Sektör değiştirdiğinizde başka sektöre ait alanlar burada gizlenir (silinmez) — daha önce kaydedilmiş değerler korunur, aynı sektöre dönerseniz alanlar geri gelir.
       </p>
       {renderGroup("Müşteri alanları", customerDefs)}
-      {renderGroup("Müşteri Takibi alanları", dealDefs)}
+      {renderGroup(`${dealEntityLabel} alanları`, dealDefs)}
 
       <p style={{ fontSize: 13, fontWeight: 500, margin: "12px 0 4px", display: "flex", alignItems: "center", gap: 4 }}>
         {editingDef ? "Alanı düzenle" : "Yeni alan ekle"}
-        <InfoTip text={'Standart alanların (isim, telefon, tutar vb.) dışında, işinize özel ekstra bilgi alanları tanımlayabilirsiniz — örn. "Mülk Tipi", "Tercih Edilen Uzman", "Alerji Notu". "Nerede": bu bilgi müşteri kartında mı yoksa teklif/müşteri takibi kaydında mı görünsün. "Tip": ne tür veri gireceksiniz (metin, sayı, tarih, tarih & saat veya hazır seçim listesi) — "Tarih & Saat" tipiyle teklif/müşteri takibi kaydına eklenen alanlar için, o saatten 2 saat önce müşteriye otomatik hatırlatma e-postası gönderilir (randevu takibi için). "Kime": bu alanı sadece kurumsal, sadece bireysel müşterilerde mi yoksa herkeste mi göstermek istiyorsunuz.'} />
+        <InfoTip text={`Standart alanların (isim, telefon, tutar vb.) dışında, işinize özel ekstra bilgi alanları tanımlayabilirsiniz — örn. "Mülk Tipi", "Tercih Edilen Uzman", "Alerji Notu". "Nerede": bu bilgi müşteri kartında mı yoksa ${dealEntityLabel} kaydında mı görünsün. "Tip": ne tür veri gireceksiniz (metin, sayı, tarih, tarih & saat veya hazır seçim listesi) — "Tarih & Saat" tipiyle ${dealEntityLabel} kaydına eklenen alanlar için, o saatten 2 saat önce müşteriye otomatik hatırlatma e-postası gönderilir (randevu takibi için). "Kime": bu alanı sadece kurumsal, sadece bireysel müşterilerde mi yoksa herkeste mi göstermek istiyorsunuz.`} />
       </p>
       <form onSubmit={submit} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end", marginTop: 8 }}>
         <div>
           <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Nerede</label>
           <select value={entity} onChange={(e) => setEntity(e.target.value)} disabled={!!editingDef} style={{ fontSize: 13 }}>
-            <option value="customer">Müşteri Kayıtları</option>
-            <option value="deal">Müşteri Takibi</option>
+            <option value="customer">Müşteriler</option>
+            <option value="deal">{dealEntityLabel}</option>
           </select>
         </div>
         <div style={{ flex: 1, minWidth: 120 }}>

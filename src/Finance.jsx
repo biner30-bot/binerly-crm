@@ -274,7 +274,8 @@ function CompanyExpenseForm({ initial, onSave, onCancel }) {
 // Teklifin "Gider" alanını (Teklifi düzenle formundakiyle AYNI sütun) tek bir
 // tutar alanıyla hızlıca düzenlemek için — Kalemler/KDV gibi diğer alanları
 // değiştirmeye gerek olmadığından tüm teklif formunu açmaya gerek yok.
-function DealCostEditForm({ deal, onSave, onCancel }) {
+function DealCostEditForm({ deal, sector, onSave, onCancel }) {
+  const words = FINANCE_DEAL_WORDS[dealWordKind(sector)];
   const [amount, setAmount] = useState(String(deal.cost ?? 0));
   const [saving, setSaving] = useState(false);
 
@@ -294,7 +295,7 @@ function DealCostEditForm({ deal, onSave, onCancel }) {
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Gider (TL)</label>
           <input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: "100%" }} autoFocus />
           <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0" }}>
-            Bu, Müşteri Takibi'ndeki teklifin "Gider" alanıyla aynıdır — burada değiştirirseniz orada da yansır.
+            Bu, {words.locativePlural} kaydın "Gider" alanıyla aynıdır — burada değiştirirseniz orada da yansır.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -767,6 +768,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
       {editingDealCost && (
         <DealCostEditForm
           deal={editingDealCost}
+          sector={sector}
           onSave={async (cost) => { await onUpdateDealCost(editingDealCost.id, cost); setEditingDealCost(null); }}
           onCancel={() => setEditingDealCost(null)}
         />
@@ -775,7 +777,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
       {confirmClearDealCost && (
         <ConfirmDialog
           title="Gider kaldırılsın mı?"
-          message={`${confirmClearDealCost.label.split(" — ")[0]} müşterisinin bu tekliften kaynaklanan Gider tutarı 0'a çekilecek — bu, Müşteri Takibi'ndeki teklifte de aynı şekilde yansır.`}
+          message={`${confirmClearDealCost.label.split(" — ")[0]} müşterisinin bu kayıttan kaynaklanan Gider tutarı 0'a çekilecek — bu, ${FINANCE_DEAL_WORDS[dealWordKind(sector)].locativePlural} kayıtta da aynı şekilde yansır.`}
           onConfirm={() => { onUpdateDealCost(confirmClearDealCost.dealCostId, 0); setConfirmClearDealCost(null); }}
           onClose={() => setConfirmClearDealCost(null)}
         />

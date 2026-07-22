@@ -357,7 +357,9 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, se
     if (paymentFilter === "odenmedi" && (d.paymentMode === "none" || d.paymentStatus === "paid")) return false;
     if (hasPeriodFilter && periodFilter !== "all") {
       const dt = d.customFields?.portal_randevu_zamani;
-      const isFuture = dt && new Date(dt).getTime() >= now;
+      // Tarihi bilinmeyen (örn. henüz aynalanmamış eski) bir kayıt "geçmiş"e
+      // gizlenip kaybolmasın diye varsayılan olarak "gelecek" sayılır.
+      const isFuture = !dt || new Date(dt).getTime() >= now;
       if (periodFilter === "gelecek" && !isFuture) return false;
       if (periodFilter === "gecmis" && isFuture) return false;
     }

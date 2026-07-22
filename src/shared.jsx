@@ -708,7 +708,7 @@ export function NotificationBell({ userId, supabase, dataTour }) {
 const TOUR_STEPS = [
   { target: null, title: "Binerly'ye hoş geldiniz!", body: "Sistemi hızlıca tanıtalım, sadece birkaç adım sürecek." },
   { target: '[data-tour="tab-pano"]', title: "Pano", body: "Günlük özet, bugün yapılacaklar ve gelir/kâr grafiğinizi burada görürsünüz." },
-  { target: '[data-tour="tab-musteri"]', title: "Müşteri Kayıtları", body: "Müşterilerinizi buradan ekleyip yönetirsiniz." },
+  { target: '[data-tour="tab-musteri"]', title: "Müşteriler", body: "Müşterilerinizi buradan ekleyip yönetirsiniz." },
   { target: '[data-tour="tab-firsat"]', title: "Müşteri Takibi", body: "Teklif, randevu veya üyelik süreçlerinizi buradan takip edersiniz." },
   { target: '[data-tour="settings-gear"]', title: "Ayarlar", body: "Sektörünüzü, özel alanlarınızı, fiyat listenizi ve müsaitlik saatlerinizi buradan yönetirsiniz." },
   { target: '[data-tour="notification-bell"]', title: "Bildirimler", body: "Müşteri portaldan bir işlem yaptığında (randevu alma, mesaj vb.) burada anında görürsünüz." },
@@ -718,9 +718,13 @@ const TOUR_STEPS = [
   { target: null, title: "Hepsi bu kadar!", body: "İstediğiniz zaman Ayarlar'dan turu tekrar başlatabilirsiniz." },
 ];
 
-export function OnboardingTour({ step, onStepChange, onClose }) {
+export function OnboardingTour({ step, dealNavLabel, onStepChange, onClose }) {
   const [rect, setRect] = useState(null);
-  const current = TOUR_STEPS[step];
+  // "Müşteri Takibi" sekmesi artık sektöre göre Teklifler/Randevular/Üyelikler/
+  // Rezervasyonlar olarak adlanıyor — shared.jsx döngüsel import olmadan Sectors.jsx'i
+  // (dealWordKind) kullanamadığı için, gerçek adı App.jsx zaten hesaplayıp prop olarak
+  // geçiyor (bkz. dealWords.navLabel).
+  const current = step === 3 && dealNavLabel ? { ...TOUR_STEPS[step], title: dealNavLabel } : TOUR_STEPS[step];
 
   useEffect(() => {
     const measure = () => {

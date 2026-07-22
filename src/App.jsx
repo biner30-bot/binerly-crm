@@ -82,6 +82,7 @@ const DEAL_WORD_FORMS = {
 // tablo başlığı, dışa aktar/düzenle modal başlıkları) için hazır metinler.
 const DEAL_TAB_STRINGS = {
   teklif: {
+    navLabel: "Teklifler",
     addLabel: "Teklif ekle",
     searchPlaceholder: "Teklif ara (başlık, müşteri)...",
     openFilterLabel: "Açık teklifler",
@@ -97,6 +98,7 @@ const DEAL_TAB_STRINGS = {
     exportFilename: "teklifler.xlsx",
   },
   randevu: {
+    navLabel: "Randevular",
     addLabel: "Randevu ekle",
     searchPlaceholder: "Randevu ara (başlık, müşteri)...",
     openFilterLabel: "Bekleyen randevular",
@@ -112,6 +114,7 @@ const DEAL_TAB_STRINGS = {
     exportFilename: "randevular.xlsx",
   },
   uyelik: {
+    navLabel: "Üyelikler",
     addLabel: "Üyelik ekle",
     searchPlaceholder: "Üyelik ara (başlık, müşteri)...",
     openFilterLabel: "Bekleyen üyelikler",
@@ -127,6 +130,7 @@ const DEAL_TAB_STRINGS = {
     exportFilename: "uyelikler.xlsx",
   },
   rezervasyon: {
+    navLabel: "Rezervasyonlar",
     addLabel: "Rezervasyon ekle",
     searchPlaceholder: "Rezervasyon ara (başlık, müşteri)...",
     openFilterLabel: "Bekleyen rezervasyonlar",
@@ -431,7 +435,7 @@ const SECTOR_DEMO_PRESETS = {
 const HELP_TOPICS = [
   // Müşteriler & Kayıtlar
   { category: "Müşteriler & Kayıtlar", q: "Yeni müşteri nasıl eklerim?", a: "Müşteriler sekmesine gidip \"+ Müşteri ekle\" butonuna tıklayın. Ad/firma adı zorunlu, geri kalan alanlar opsiyoneldir." },
-  { category: "Müşteriler & Kayıtlar", q: "Teklif/randevu/üyelik nasıl oluşturulur?", a: "Müşteri Takibi sekmesinden \"+ Ekle\" ile yeni bir kayıt açın; önce bir müşteri seçilmiş olmalı. Aşama değiştikçe kayıt otomatik ilerler." },
+  { category: "Müşteriler & Kayıtlar", q: "Teklif/randevu/üyelik nasıl oluşturulur?", a: "Sol menüdeki Teklifler/Randevular/Üyelikler/Rezervasyonlar sekmesinden (sektörünüze göre adı değişir) \"+ Ekle\" ile yeni bir kayıt açın; önce bir müşteri seçilmiş olmalı. Aşama değiştikçe kayıt otomatik ilerler." },
   { category: "Müşteriler & Kayıtlar", q: "Müşteri Kazanma Linki nedir?", a: "Ayarlar → Müşteri Kazanma Linki'nden aldığınız linki (veya QR kodunu) paylaşırsanız, müşteri kendi bilgilerini doldurup sisteminize düşer — elle veri girmenize gerek kalmaz." },
   { category: "Müşteriler & Kayıtlar", q: "Yanlışlıkla sildiğim bir kaydı nasıl geri getiririm?", a: "Ayarlar → Çöp Kutusu ve Geçmiş'ten silinen müşteri/teklif/tahsilat kayıtlarını geri yükleyebilirsiniz. Hiçbir şey otomatik olarak kalıcı silinmez." },
   { category: "Müşteriler & Kayıtlar", q: "Müşteri/teklif listemi Excel'e nasıl aktarırım?", a: "İlgili sekmenin üstündeki \"Dışa Aktar\" butonuyla .xlsx dosyası indirebilirsiniz. Aynı ekranlarda \"İçe Aktar\" ile de toplu veri yükleyebilirsiniz (CSV/Excel/vCard)." },
@@ -440,7 +444,7 @@ const HELP_TOPICS = [
   // Ödeme & Faturalama
   { category: "Ödeme & Faturalama", q: "Müşteriden online ödeme nasıl alınır?", a: "Ayarlar → Ödeme Bağlantısı'ndan iyzico veya PayTR hesabınızı bağlayın. Sonra bir kaydı düzenlerken \"Müşteri ödemesi\" alanından onay linkine ödeme ekleyebilirsiniz." },
   { category: "Ödeme & Faturalama", q: "Aldığım bir ödemeyi iade etmem gerekirse ne yapmalıyım?", a: "Finans sekmesinden ilgili tahsilatı bulup iade işlemini başlatın — gerçek iyzico/PayTR iade API'si çağrılır, tutar müşterinin kartına geri döner, sisteminizde de otomatik düşülür." },
-  { category: "Ödeme & Faturalama", q: "Paraşüt'e fatura nasıl aktarırım?", a: "Müşteri Takibi'nde \"Kazanıldı\" durumundaki kayıtlardan seçtiklerinizi \"Paraşüt'e Aktar\"dan indirin — Paraşüt'ün toplu fatura şablonuyla birebir uyumlu bir Excel dosyası iner, doğrudan içe aktarabilirsiniz." },
+  { category: "Ödeme & Faturalama", q: "Paraşüt'e fatura nasıl aktarırım?", a: "Teklifler/Randevular/Üyelikler/Rezervasyonlar sekmesinde \"Kazanıldı\" durumundaki kayıtlardan seçtiklerinizi \"Paraşüt'e Aktar\"dan indirin — Paraşüt'ün toplu fatura şablonuyla birebir uyumlu bir Excel dosyası iner, doğrudan içe aktarabilirsiniz." },
   { category: "Ödeme & Faturalama", q: "KDV oranını nasıl değiştiririm?", a: "Her teklifte ayrı ayrı seçebilirsiniz; varsayılan oranı Ayarlar → İşletme Bilgileri'nden belirleyebilirsiniz, yeni tekliflerde otomatik gelir." },
 
   // Finans
@@ -485,7 +489,7 @@ const HELP_TOPICS = [
   { category: "Müşteriler & Kayıtlar", q: "Bir teklife birden fazla ürün/hizmet kalemi (kalem kalem fiyat) nasıl eklerim?", a: "Teklif formundaki \"Kalemler\" bölümünden \"+ Kalem ekle\" ile istediğiniz kadar açıklama/adet/birim fiyat satırı ekleyebilirsiniz — Tutar alanı bunların toplamına göre otomatik hesaplanır, hiç kalem eklemezseniz Tutar'ı yine elle girebilirsiniz." },
   { category: "Müşteriler & Kayıtlar", q: "Teklif kalemlerini Fiyat Listesi'nden nasıl hızlıca eklerim?", a: "Kalemler bölümündeki \"Fiyat listesinden kalem ekle…\" menüsünden bir ürün/hizmet seçtiğinizde açıklama ve birim fiyat otomatik dolan yeni bir satır eklenir; Ayarlar → Ürün & Hizmet Fiyat Listesi'nde kayıtlı olmanız yeterli." },
   { category: "Müşteriler & Kayıtlar", q: "Teklif formundaki \"Sorumlu\" ataması ne işe yarar?", a: "Bir takım üyesi seçebilirsiniz — kapanan (kazanılan veya kaybedilen) kayıtlar Pano'daki \"Personel Performansı\" bölümünde o kişinin altında ve kazanma oranına dahil olarak sayılır; atama yapılmazsa \"Atanmamış\" grubuna düşer." },
-  { category: "Müşteriler & Kayıtlar", q: "Müşteri listemi nasıl filtreleyip ararım?", a: "Müşteri Kayıtları sekmesindeki arama kutusu ad/sektör/bölge/telefon/e-postada arar; ayrıca Kurumsal/Bireysel, sektör, en yeni/en eski sıralama ve tarih aralığı filtrelerini de kullanabilirsiniz." },
+  { category: "Müşteriler & Kayıtlar", q: "Müşteri listemi nasıl filtreleyip ararım?", a: "Müşteriler sekmesindeki arama kutusu ad/sektör/bölge/adres/telefon/e-postada arar; ayrıca Kurumsal/Bireysel, sektör, en yeni/en eski sıralama ve tarih aralığı filtrelerini de kullanabilirsiniz." },
   { category: "Müşteriler & Kayıtlar", q: "Not veya hatırlatmaları sesle nasıl yazabilirim?", a: "Not/hatırlatma gibi metin alanlarının yanındaki mikrofon simgesine tıklayıp konuşarak yazdırabilirsiniz — bu özellik Chrome/Edge'de çalışır, Firefox/Safari'de görünmez." },
   { category: "Müşteriler & Kayıtlar", q: "Müşteriyi \"Kurumsal\" veya \"Bireysel\" olarak işaretlemek neyi değiştirir?", a: "Formda hangi alanların (örn. firma unvanı) göründüğünü ve teklif/randevu aşamalarının hangi dille gösterileceğini belirler; bazı özel alanlar da \"Kime\" ayarına göre sadece kurumsal veya sadece bireysel müşterilerde görünür." },
   { category: "Müşteriler & Kayıtlar", q: "Cari Hesap Ekstresi müşteri kartında ne gösterir?", a: "Kazanılmış tekliflerden doğan toplam borcu, toplam tahsilatı ve güncel bakiyeyi; altında da her borç/tahsilat hareketini tarih sırasıyla ve o andaki bakiyeyle listeler." },
@@ -557,7 +561,7 @@ const HELP_TOPICS = [
   { category: "Ayarlar & Hesap", q: "Pano'daki \"Kuruluma başlayın\" kutusunu nasıl kapatırım?", a: "Kutunun sağ üstündeki \"Gizle\"ye tıklarsınız — bu tercih saklanır, adımları tamamlamasanız bile bir daha görünmez." },
   { category: "Ayarlar & Hesap", q: "Bir özel alanı silersem, o alana daha önce girilmiş veriler ne olur?", a: "Hiçbir veri silinmez — alan sadece formlardan kaldırılır (gizlenir), müşteri/teklif kayıtlarındaki mevcut değerler veritabanında saklı kalmaya devam eder." },
   { category: "Ayarlar & Hesap", q: "Özel alan eklerken sistemin kendi kullandığı bir isim girersem ne olur?", a: "Sistemin iç kullandığı birkaç anahtar (örn. \"Kaynak\") özel alan adı olarak kullanılamaz — böyle bir isim girip kaydetmeye çalıştığınızda alan sessizce eklenmez; farklı bir isim kullanmanız yeterli." },
-  { category: "Ayarlar & Hesap", q: "Aynı isimde iki özel alan tanımlayabilir miyim?", a: "Hayır, aynı \"Nerede\" (Müşteri Kayıtları/Müşteri Takibi) için aynı isimden ikinci bir alan eklenemez — farklı bir isim seçmeniz veya mevcut alanı düzenlemeniz gerekir." },
+  { category: "Ayarlar & Hesap", q: "Aynı isimde iki özel alan tanımlayabilir miyim?", a: "Hayır, aynı \"Nerede\" (Müşteriler/Teklifler-Randevular-Üyelikler-Rezervasyonlar) için aynı isimden ikinci bir alan eklenemez — farklı bir isim seçmeniz veya mevcut alanı düzenlemeniz gerekir." },
   { category: "Ayarlar & Hesap", q: "Oturumum neden belirli bir süre sonra kendiliğinden kapanıyor?", a: "Güvenlik için oturumlar, hiç hareketsiz kalmasanız bile girişten itibaren en fazla 24 saat sonra otomatik sonlanır; süre dolduğunda tekrar giriş yapmanız istenir." },
   { category: "Ayarlar & Hesap", q: "Uygulamayı telefonuma nasıl kurarım (PWA)?", a: "Tarayıcınızın paylaş/menü seçeneğinden \"Ana Ekrana Ekle\"yi seçerek Binerly'i normal bir uygulama gibi ana ekranınıza ekleyebilirsiniz — özellikle iPhone'da anlık bildirim alabilmek için bu adım gereklidir." },
   { category: "Ayarlar & Hesap", q: "Google hesabımla giriş yapabilir miyim?", a: "Evet, giriş ekranındaki Google seçeneğiyle e-posta/şifre girmeden tek tıkla giriş yapabilir veya kayıt olabilirsiniz — bu hem ana uygulamada hem Müşteri Portalı'nda mevcuttur." },
@@ -4470,7 +4474,60 @@ function roomTypeConflict({ excludeDealId, roomType, checkIn, checkOut }, deals,
   return { quantity: inventory.quantity, occupied: overlapping.length };
 }
 
-function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], appointmentDateTimeKey = null, roomInventory = [], customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onSave, onCancel }) {
+// Randevu sektörlerinde müşteri portaldan randevu alırken müsait saatleri
+// gördüğü halde, KOBİ aynı randevuyu elle girerken hiçbir müsaitlik bilgisi
+// görmüyor, tarih/saati kör kör yazıyordu — çakışma ancak kaydetmeye
+// çalışınca (findAppointmentConflict) fark ediliyordu. Bu, müşteri portalının
+// zaten kullandığı /api/appointment-availability'den aynı müsait saatleri
+// çekip öneri olarak gösterir — kısıtlama değil görünürlük: KOBİ isterse
+// yine de aşağıdaki alana elle farklı bir saat girebilir.
+function AppointmentAvailabilityHint({ businessUserId, dateTimeValue, onPick }) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const date = (dateTimeValue || "").slice(0, 10) || todayStr;
+  const [slots, setSlots] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!businessUserId || !date) return;
+    setLoading(true);
+    setError("");
+    fetch(`/api/appointment-availability?businessUserId=${businessUserId}&date=${date}`)
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data?.error || "Müsaitlik alınamadı.");
+        setSlots(data.slots || []);
+      })
+      .catch((err) => { setSlots([]); setError(err.message || "Müsaitlik alınamadı."); })
+      .finally(() => setLoading(false));
+  }, [businessUserId, date]);
+
+  return (
+    <div style={{ marginBottom: 16, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem" }}>
+      <p style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)", margin: "0 0 8px", display: "flex", alignItems: "center", gap: 4 }}>
+        {date} için müsait saatler
+        <InfoTip text="Müşteri portalından görünen müsaitlikle aynı — bir saate tıklarsanız aşağıdaki tarih/saat alanına yazılır. İstediğiniz saat listede yoksa yine de aşağıdan elle girebilirsiniz, burası sadece bir öneri." />
+      </p>
+      {loading ? (
+        <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: 0 }}>Yükleniyor…</p>
+      ) : error ? (
+        <p style={{ fontSize: 12.5, color: "var(--text-danger)", margin: 0 }}>{error}</p>
+      ) : slots.length === 0 ? (
+        <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: 0 }}>Bu tarihte müsait saat görünmüyor (Müsaitlik Saatleri tanımlı değil ya da tüm saatler dolu) — yine de aşağıdan elle girebilirsiniz.</p>
+      ) : (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {slots.map((s) => (
+            <button key={s} type="button" onClick={() => onPick(`${date}T${s}:00`)} style={{ fontSize: 12.5, padding: "5px 10px" }}>
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], appointmentDateTimeKey = null, roomInventory = [], customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, businessUserId, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(
     initial?.customerId || customers.find((c) => c.customerType === preferredCustomerType)?.id || customers[0]?.id || ""
   );
@@ -4941,6 +4998,13 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Etiketler <InfoTip text={TAGS_INFO_TEXT} /></label>
         <TagInput tags={tags} onChange={setTags} suggestions={sectorTags} />
       </div>
+      {bookingModel(sector) === "slot" && appointmentDateTimeKey && (
+        <AppointmentAvailabilityHint
+          businessUserId={businessUserId}
+          dateTimeValue={customFields[appointmentDateTimeKey]}
+          onPick={(dt) => setCustomFields({ ...customFields, [appointmentDateTimeKey]: dt })}
+        />
+      )}
       <CustomFieldsSection defs={defsForEntity} values={customFields} onChange={setCustomFields} />
       {initial?.id && (
         <AttachmentList
@@ -8687,6 +8751,19 @@ export default function App() {
     const isNew = !deals.some((x) => x.id === d.id);
     const previousDeal = deals.find((x) => x.id === d.id);
     const previousStage = previousDeal?.stage;
+    // portal_randevu_zamani, sektörün gerçek "Tarih & Saat" alanından (örn.
+    // randevu_tarihi) bağımsız, sabit bir anahtar — müşteri portalındaki
+    // gelecek/geçmiş filtresi, iptal butonu ve tarih gösterimi SADECE bunu
+    // okuyor. Önceden sadece müşteri kendi randevusunu portaldan alınca
+    // set ediliyordu; KOBİ'nin elle oluşturduğu randevular bu alan hiç
+    // yazılmadığı için müşteri portalında (varsayılan "Gelecek randevular"
+    // filtresi altında) hiç görünmüyordu — burada da aynalanarak düzeltildi.
+    const customFields = { ...(d.customFields || {}) };
+    if (appointmentDateTimeKey) {
+      const dt = customFields[appointmentDateTimeKey];
+      if (dt) customFields.portal_randevu_zamani = dt;
+      else delete customFields.portal_randevu_zamani;
+    }
     const row = {
       id: d.id,
       user_id: activeTeamId,
@@ -8702,7 +8779,7 @@ export default function App() {
       session_total: d.isPackageDeal ? (Number(d.sessionTotal) || 0) : null,
       session_used: d.isPackageDeal ? (Number(d.sessionUsed) || 0) : 0,
       tags: d.tags || [],
-      custom_fields: d.customFields || {},
+      custom_fields: customFields,
       notify_customer: d.notifyCustomer || false,
       assigned_to: d.assignedTo || null,
       payment_mode: d.paymentMode || "none",
@@ -10120,8 +10197,8 @@ export default function App() {
       <nav style={{ width: 200, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4, position: "sticky", top: 24 }}>
         {[
           { id: "pano", label: "Pano", icon: "ti-layout-dashboard" },
-          { id: "musteri", label: "Müşteri Kayıtları", icon: "ti-building" },
-          { id: "firsat", label: "Müşteri Takibi", icon: "ti-target-arrow" },
+          { id: "musteri", label: "Müşteriler", icon: "ti-building" },
+          { id: "firsat", label: dealWords.navLabel, icon: "ti-target-arrow" },
           { id: "ajanda", label: "Ajanda", icon: "ti-calendar-event" },
           { id: "finans", label: "Finans", icon: "ti-chart-line" },
           { id: "mesajlar", label: "Mesajlar", icon: "ti-message-2" },
@@ -11453,6 +11530,7 @@ export default function App() {
       {showTour && (
         <OnboardingTour
           step={tourStep}
+          dealNavLabel={dealWords.navLabel}
           onStepChange={setTourStep}
           onClose={() => {
             if (activeTeamId) localStorage.setItem(`binerly_tour_dismissed_${activeTeamId}`, "1");
@@ -11495,7 +11573,7 @@ export default function App() {
       {showImportCustomers && (
         <ImportModal
           entityType="customers"
-          entityLabel="Müşteri Kayıtları"
+          entityLabel="Müşteriler"
           fieldDefs={CUSTOMER_IMPORT_FIELDS}
           allowVcf
           checkDuplicate={(r) => customers.some((c) => c.name.trim().toLowerCase() === (r.name || "").trim().toLowerCase())}
@@ -11507,7 +11585,7 @@ export default function App() {
       {showImportDeals && (
         <ImportModal
           entityType="deals"
-          entityLabel="Müşteri Takibi"
+          entityLabel={dealWords.navLabel}
           fieldDefs={dealImportFields(companySettings?.sector)}
           customers={customers}
           onImport={bulkImportDeals}
@@ -11620,6 +11698,7 @@ export default function App() {
             teamMembers={teamMembers}
             currentUserId={session.user.id}
             currentUserEmail={session.user.email}
+            businessUserId={activeTeamId}
             titleSuggestions={[...new Set(deals.map((d) => d.title).filter(Boolean))]}
             priceListItems={priceListItems}
             initialLineItems={editingDeal ? dealLineItems.filter((li) => li.dealId === editingDeal.id) : []}
