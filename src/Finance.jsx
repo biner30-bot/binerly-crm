@@ -6,6 +6,7 @@ const FINANCE_DEAL_WORDS = {
   teklif: { bare: "Teklif", locativePlural: "tekliflerdeki", genPlural: "tekliflerin", noWonEmpty: "Henüz kazanılmış bir teklifiniz yok." },
   randevu: { bare: "Randevu", locativePlural: "randevulardaki", genPlural: "randevuların", noWonEmpty: "Henüz tamamlanmış bir randevunuz yok." },
   uyelik: { bare: "Üyelik", locativePlural: "üyeliklerdeki", genPlural: "üyeliklerin", noWonEmpty: "Henüz kazanılmış bir üyeliğiniz yok." },
+  rezervasyon: { bare: "Rezervasyon", locativePlural: "rezervasyonlardaki", genPlural: "rezervasyonların", noWonEmpty: "Henüz tamamlanmış bir rezervasyonunuz yok." },
 };
 
 const RECURRING_INFO_TEXT =

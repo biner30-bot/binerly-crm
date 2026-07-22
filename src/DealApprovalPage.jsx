@@ -7,6 +7,7 @@ const APPROVAL_DEAL_WORDS = {
   teklif: { acc: "teklifi", dateLabel: "Teklif tarihi" },
   randevu: { acc: "randevuyu", dateLabel: "Randevu tarihi" },
   uyelik: { acc: "üyeliği", dateLabel: "Üyelik tarihi" },
+  rezervasyon: { acc: "rezervasyonu", dateLabel: "Rezervasyon tarihi" },
 };
 
 function formatTL(n) {
