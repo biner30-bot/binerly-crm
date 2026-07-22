@@ -32,7 +32,6 @@ import {
   SectorOnboardingModal,
   CustomFieldDefsManager,
   CustomFieldsSection,
-  DateTimeSplitInput,
   TagBadges,
 } from "./Sectors";
 
@@ -4482,13 +4481,15 @@ function roomTypeConflict({ excludeDealId, roomType, checkIn, checkOut }, deals,
 // zaten kullandığı /api/appointment-availability'den aynı müsait saatleri
 // çekip öneri olarak gösterir — kısıtlama değil görünürlük: KOBİ isterse
 // yine de aşağıdaki alana elle farklı bir saat girebilir.
-function AppointmentAvailabilityHint({ businessUserId, dateTimeValue, onPick }) {
+// Önceden ayrı bir "Randevu Tarihi" alanı + altında ayrı bir "Müsait saatler"
+// kutusu vardı — ikisinin de kendi tarih seçicisi olması "iki tane randevu
+// tarihi var" gibi görünüyordu (2026-07-23). Artık TEK alan: tarih değişince
+// o güne ait müsait saatler otomatik listeleniyor, birine tıklamak saat
+// kutusunu dolduruyor — kısıtlama değil öneri, saat kutusuna elle de yazılabilir.
+function AppointmentDateTimeField({ businessUserId, label, value, onChange }) {
   const todayStr = new Date().toISOString().slice(0, 10);
-  // Kendi tarih seçicisi — sadece dateTimeValue'nun tarihine bağlı kalırsa KOBİ
-  // başka bir günü göz atamıyordu (aşağıdaki alan boşken hep "bugün" gösteriliyordu).
-  // Müşteri portalının aksine geçmiş/60 gün sonrası gibi bir sınır yok — KOBİ
-  // geçmişe kayıt düşmek veya çok ileri tarihli randevu bakmak isteyebilir.
-  const [date, setDate] = useState((dateTimeValue || "").slice(0, 10) || todayStr);
+  const date = (value || "").slice(0, 10) || todayStr;
+  const time = (value || "").slice(11, 16);
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -4508,22 +4509,43 @@ function AppointmentAvailabilityHint({ businessUserId, dateTimeValue, onPick }) 
   }, [businessUserId, date]);
 
   return (
-    <div style={{ marginBottom: 16, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem" }}>
-      <p style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)", margin: "0 0 8px", display: "flex", alignItems: "center", gap: 4 }}>
-        Müsait saatler
-        <InfoTip text="Müşteri portalından görünen müsaitlikle aynı — bir saate tıklarsanız aşağıdaki tarih/saat alanına yazılır. İstediğiniz saat listede yoksa yine de aşağıdan elle girebilirsiniz, burası sadece bir öneri." />
-      </p>
-      <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ fontSize: 13, marginBottom: 8 }} />
+    <div>
+      <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+        {label}
+        <InfoTip text="Tarihi seçince o güne ait müsait saatler otomatik listelenir — birine tıklamak saati doldurur. İstediğiniz saat listede yoksa saat kutusuna elle de yazabilirsiniz." />
+      </label>
+      <input
+        type="date"
+        value={date}
+        onChange={(e) => onChange(e.target.value ? `${e.target.value}T${time || "09:00"}` : "")}
+        style={{ width: "100%", marginBottom: 6 }}
+      />
+      <input
+        type="time"
+        value={time}
+        onChange={(e) => onChange(`${date}T${e.target.value}`)}
+        style={{ width: "100%", marginBottom: 8 }}
+      />
       {loading ? (
-        <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: 0 }}>Yükleniyor…</p>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>Müsaitlik yükleniyor…</p>
       ) : error ? (
-        <p style={{ fontSize: 12.5, color: "var(--text-danger)", margin: 0 }}>{error}</p>
+        <p style={{ fontSize: 12, color: "var(--text-danger)", margin: 0 }}>{error}</p>
       ) : slots.length === 0 ? (
-        <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: 0 }}>Bu tarihte müsait saat görünmüyor (Müsaitlik Saatleri tanımlı değil ya da tüm saatler dolu) — yine de aşağıdan elle girebilirsiniz.</p>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>Bu tarihte müsait saat görünmüyor (Müsaitlik Saatleri tanımlı değil ya da tüm saatler dolu).</p>
       ) : (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {slots.map((s) => (
-            <button key={s} type="button" onClick={() => onPick(`${date}T${s}:00`)} style={{ fontSize: 12.5, padding: "5px 10px" }}>
+            <button
+              key={s}
+              type="button"
+              onClick={() => onChange(`${date}T${s}:00`)}
+              style={{
+                fontSize: 12.5, padding: "5px 10px",
+                background: time === s ? "var(--fill-accent)" : "var(--surface-1)",
+                color: time === s ? "var(--on-accent)" : "var(--text-primary)",
+                border: "0.5px solid var(--border)",
+              }}
+            >
               {s}
             </button>
           ))}
@@ -4745,25 +4767,18 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           )}
           {bookingModel(sector) === "slot" && appointmentDateTimeKey && (
             // Randevu tarihi önemli bir alan — Özel alanlar'ın altında gömülü
-            // kalmasın diye Ürün/Hizmet'in yanına, formun üstüne taşındı.
-            <div style={{ flex: 1, minWidth: 160 }}>
-              <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
-                {customFieldDefs.find((d) => d.entity === "deal" && d.key === appointmentDateTimeKey)?.label || "Randevu Tarihi"}
-              </label>
-              <DateTimeSplitInput
+            // kalmasın diye Ürün/Hizmet'in yanına, formun üstüne taşındı. Müsaitlik
+            // önerisi ayrı bir kutu değil, alanın kendisinin bir parçası (aşağıya bkz.).
+            <div style={{ flex: 1.4, minWidth: 240 }}>
+              <AppointmentDateTimeField
+                businessUserId={businessUserId}
+                label={customFieldDefs.find((d) => d.entity === "deal" && d.key === appointmentDateTimeKey)?.label || "Randevu Tarihi"}
                 value={customFields[appointmentDateTimeKey]}
                 onChange={(v) => setCustomFields({ ...customFields, [appointmentDateTimeKey]: v })}
               />
             </div>
           )}
         </div>
-      )}
-      {bookingModel(sector) === "slot" && appointmentDateTimeKey && (
-        <AppointmentAvailabilityHint
-          businessUserId={businessUserId}
-          dateTimeValue={customFields[appointmentDateTimeKey]}
-          onPick={(dt) => setCustomFields({ ...customFields, [appointmentDateTimeKey]: dt })}
-        />
       )}
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
@@ -11714,7 +11729,7 @@ export default function App() {
       )}
 
       {showDealForm && (
-        <Modal title={editingDeal?.id ? dealWords.editTitle : dealWords.newTitle} onClose={() => { setShowDealForm(false); setEditingDeal(null); }}>
+        <Modal wide title={editingDeal?.id ? dealWords.editTitle : dealWords.newTitle} onClose={() => { setShowDealForm(false); setEditingDeal(null); }}>
           <DealForm
             customers={customers}
             initial={editingDeal}
