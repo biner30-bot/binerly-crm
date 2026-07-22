@@ -4119,7 +4119,21 @@ function rowToCompanySettings(r) {
   };
 }
 
-function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTags = [], preferredCustomerType, onSave, onCancel, onPreferredTypeChange }) {
+const CUSTOMER_NOTE_EXAMPLES_KURUMSAL = {
+  emlak: "Yatırım amaçlı birden fazla portföyle ilgileniyor",
+  dijital_ajans: "Yıl sonu bütçesini Aralık'ta yeniliyor",
+  saglik_klinik: "Kontrolleri genelde hafta içi öğleden sonra",
+  uretim_satis: "Yaz aylarında sipariş hacmi artıyor",
+  hizmet_danismanlik: "Üç ayda bir durum değerlendirmesi istiyor",
+  perakende: "Kampanya dönemlerinde toplu sipariş veriyor",
+  guzellik_bakim: "Hafta sonları randevu tercih ediyor",
+  spor_merkezi: "Kurumsal/toplu üyelik görüşmesi yapılıyor",
+  egitim_kurs: "Personeline toplu eğitim almak istiyor",
+  sanayi_esnaf: "Filo bakımını düzenli olarak burada yaptırıyor",
+  otel: "Yıl boyunca düzenli iş seyahati rezervasyonu yapıyor",
+};
+
+function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTags = [], preferredCustomerType, companySector, onSave, onCancel, onPreferredTypeChange }) {
   const initialIsCustomSector = initial?.sector && !SECTORS.includes(initial.sector);
   const [customerType, setCustomerType] = useState(initial?.customerType || preferredCustomerType || "kurumsal");
   const [name, setName] = useState(initial?.name || "");
@@ -4229,7 +4243,7 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Not</label>
         <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={isKurumsal ? "Örn. yaz aylarında sipariş hacmi artıyor" : "Örn. genelde akşamları ulaşmak daha kolay"} style={{ flex: 1, minHeight: 70, resize: "vertical" }} />
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={isKurumsal ? `Örn. ${CUSTOMER_NOTE_EXAMPLES_KURUMSAL[companySector] || "yaz aylarında sipariş hacmi artıyor"}` : "Örn. genelde akşamları ulaşmak daha kolay"} style={{ flex: 1, minHeight: 70, resize: "vertical" }} />
           <VoiceInputButton onResult={(text) => setNotes((prev) => (prev ? `${prev} ${text}` : text))} />
         </div>
       </div>
@@ -4246,6 +4260,20 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
     </form>
   );
 }
+
+const COMPANY_NAME_EXAMPLES = {
+  emlak: "Akın Emlak",
+  dijital_ajans: "Akın Dijital Ajans",
+  saglik_klinik: "Akın Diş Kliniği",
+  uretim_satis: "Akın Tekstil",
+  hizmet_danismanlik: "Akın Danışmanlık",
+  perakende: "Akın Mağazacılık",
+  guzellik_bakim: "Akın Güzellik Salonu",
+  spor_merkezi: "Akın Spor Merkezi",
+  egitim_kurs: "Akın Eğitim Kurumları",
+  sanayi_esnaf: "Akın Oto Servis",
+  otel: "Akın Otel",
+};
 
 function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, activeTeamId, notify }) {
   const hasDatetimeField = customFieldDefs.some((d) => d.entity === "deal" && d.type === "datetime" && d.active);
@@ -4296,7 +4324,7 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
     >
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>İşletme adı</label>
-        <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Akın Diş Kliniği" style={{ width: "100%" }} />
+        <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder={COMPANY_NAME_EXAMPLES[initial?.sector] || "Akın Diş Kliniği"} style={{ width: "100%" }} />
       </div>
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Adres</label>
@@ -4574,7 +4602,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
                     <input
                       value={li.description}
                       onChange={(e) => setLineItems((prev) => prev.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))}
-                      placeholder="Örn. Muayene"
+                      placeholder={`Örn. ${PRICE_ITEM_NAME_EXAMPLES[sector] || "Danışmanlık"}`}
                       style={{ width: "100%", fontSize: 13 }}
                     />
                   </div>
@@ -4648,7 +4676,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
       </div>
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Başlık</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={sector === "spor_merkezi" ? "Salon üyeliği / Reformer Pilates" : selectedCustomerType === "bireysel" ? "İlk randevu / danışmanlık" : "Yıllık tedarik anlaşması"} list="deal-title-suggestions" style={{ width: "100%" }} />
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={DEAL_TITLE_EXAMPLES[sector] || (selectedCustomerType === "bireysel" ? "İlk randevu / danışmanlık" : "Yıllık tedarik anlaşması")} list="deal-title-suggestions" style={{ width: "100%" }} />
         <datalist id="deal-title-suggestions">
           {titleSuggestions.map((t) => <option key={t} value={t} />)}
         </datalist>
@@ -5313,7 +5341,7 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
   );
 }
 
-function TeklifPrint({ deal, customer, companySettings, pdfTemplates, dealLineItems, onClose }) {
+function TeklifPrint({ deal, customer, companySettings, pdfTemplates, dealLineItems, notify, onClose }) {
   const kdvRate = deal.kdvRate ?? 20;
   const netAmount = kdvRate > 0 ? deal.value / (1 + kdvRate / 100) : deal.value;
   const kdvAmount = deal.value - netAmount;
@@ -5336,14 +5364,23 @@ function TeklifPrint({ deal, customer, companySettings, pdfTemplates, dealLineIt
 
   const download = async () => {
     setDownloading(true);
-    const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([import("jspdf"), import("html2canvas")]);
-    const node = document.getElementById("teklif-print");
-    const canvas = await html2canvas(node, { scale: 2, backgroundColor: "#ffffff" });
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({ unit: "px", format: [canvas.width, canvas.height] });
-    pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
-    pdf.save(`${dealWordKind(companySettings?.sector) === "uyelik" ? "Üyelik Özeti" : dealWordKind(companySettings?.sector) === "randevu" ? "Randevu Özeti" : "Teklif"} - ${customer?.name || "Musteri"} - ${deal.title}.pdf`);
-    setDownloading(false);
+    try {
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([import("jspdf"), import("html2canvas")]);
+      const node = document.getElementById("teklif-print");
+      // useCORS olmadan, şirket logosu gibi farklı origin'den (Supabase Storage)
+      // gelen bir <img> canvas'ı "kirletiyor" — sonraki toDataURL() bunun
+      // üzerine bir SecurityError fırlatıyordu (logo yüklemiş her hesapta PDF
+      // indirme sessizce "Hazırlanıyor" durumunda takılı kalıyordu).
+      const canvas = await html2canvas(node, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ unit: "px", format: [canvas.width, canvas.height] });
+      pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+      pdf.save(`${dealWordKind(companySettings?.sector) === "uyelik" ? "Üyelik Özeti" : dealWordKind(companySettings?.sector) === "randevu" ? "Randevu Özeti" : "Teklif"} - ${customer?.name || "Musteri"} - ${deal.title}.pdf`);
+    } catch (err) {
+      notify?.(`PDF hazırlanamadı: ${err.message || "beklenmeyen bir hata oluştu"}. Lütfen tekrar deneyin.`);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
@@ -5503,6 +5540,25 @@ const PRICE_ITEM_NAME_EXAMPLES = {
   spor_merkezi: "Aylık Üyelik",
   egitim_kurs: "Aylık Yabancı Dil Paketi",
   sanayi_esnaf: "Yağ Bakımı",
+  otel: "Standart Oda (Gecelik)",
+};
+
+// Yeni teklif/kayıt formundaki "Başlık" alanı için sektöre göre örnek —
+// kullanıcı fark etti: sektör ne olursa olsun sadece bireysel/kurumsal ayrımına
+// göre iki sabit örnek (biri sağlık diline yakın "İlk randevu / danışmanlık")
+// gösteriliyordu, Emlak/Otel/Üretim gibi sektörlerde alakasız kalıyordu.
+const DEAL_TITLE_EXAMPLES = {
+  emlak: "3+1 daire satışı / Kadıköy'de kiralık ofis",
+  dijital_ajans: "Sosyal medya yönetimi paketi",
+  saglik_klinik: "Diş kontrolü / kanal tedavisi",
+  uretim_satis: "500 adet toptan sipariş",
+  hizmet_danismanlik: "Aylık danışmanlık anlaşması",
+  perakende: "Kampanya kapsamında toplu satış",
+  guzellik_bakim: "Saç kesimi + fön randevusu",
+  spor_merkezi: "Salon üyeliği / Reformer Pilates",
+  egitim_kurs: "Yabancı dil kursu kaydı",
+  sanayi_esnaf: "Motor bakımı / yağ değişimi",
+  otel: "Hafta sonu 2 kişilik rezervasyon",
 };
 
 function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
@@ -5594,7 +5650,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
   );
 }
 
-function GroupClassForm({ initial, currentEnrollment = 0, onSave, onCancel }) {
+function GroupClassForm({ initial, sector, currentEnrollment = 0, onSave, onCancel }) {
   const [name, setName] = useState(initial?.name || "");
   const [instructorName, setInstructorName] = useState(initial?.instructorName || "");
   const [weekday, setWeekday] = useState(initial?.weekday || 1);
@@ -5622,11 +5678,11 @@ function GroupClassForm({ initial, currentEnrollment = 0, onSave, onCancel }) {
     <form onSubmit={submit}>
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ders adı</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Örn. Pilates" style={{ width: "100%" }} />
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={sector === "egitim_kurs" ? "Örn. Yabancı Dil Kursu" : "Örn. Pilates"} style={{ width: "100%" }} />
       </div>
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Eğitmen <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span></label>
-        <input value={instructorName} onChange={(e) => setInstructorName(e.target.value)} placeholder="Örn. Ayşe Hoca" style={{ width: "100%" }} />
+        <input value={instructorName} onChange={(e) => setInstructorName(e.target.value)} placeholder={sector === "egitim_kurs" ? "Örn. Ahmet Öğretmen" : "Örn. Ayşe Hoca"} style={{ width: "100%" }} />
       </div>
       <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
         <div style={{ flex: 1, minWidth: 130 }}>
@@ -5854,6 +5910,7 @@ function GroupClassesTab({ groupClasses, groupClassEnrollments, customers, activ
         <Modal title={editingClass ? "Dersi düzenle" : "Yeni ders"} onClose={() => setShowForm(false)}>
           <GroupClassForm
             initial={editingClass}
+            sector={sector}
             currentEnrollment={editingClass ? enrollCountFor(editingClass.id) : 0}
             onSave={(vals) => { editingClass ? onUpdate({ id: editingClass.id, ...vals }) : onAdd(vals); setShowForm(false); }}
             onCancel={() => setShowForm(false)}
@@ -10837,6 +10894,7 @@ export default function App() {
             customFieldDefs={customFieldDefs}
             sectorTags={SECTOR_PRESETS.find((p) => p.id === companySettings?.sector)?.tags || []}
             preferredCustomerType={companySettings?.preferredCustomerType}
+            companySector={companySettings?.sector}
             onSave={upsertCustomer}
             onCancel={() => { setShowCustomerForm(false); setEditingCustomer(null); }}
             onPreferredTypeChange={updatePreferredCustomerType}
@@ -11155,6 +11213,7 @@ export default function App() {
           companySettings={companySettings}
           pdfTemplates={pdfTemplates}
           dealLineItems={dealLineItems}
+          notify={notify}
           onClose={() => setTeklifDeal(null)}
         />
       )}
