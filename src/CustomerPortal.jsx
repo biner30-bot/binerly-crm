@@ -4,10 +4,15 @@ import { Badge, Modal, Toast, ConfirmDialog, formatTL, useSessionTimeout, useThe
 import { STAGES, stageLabel, dealWordKind, isAppointmentSector, supportsSelfBooking, bookingModel, supportsGroupClasses, groupClassWords, supportExamples, appointmentNoteExample, SECTOR_PRESETS } from "./Sectors";
 
 const PORTAL_DEAL_WORDS = {
-  teklif: { emptyList: "Henüz bir teklifiniz yok.", possAcc: "tekliflerinizi", tabLabel: "Tekliflerim" },
-  randevu: { emptyList: "Henüz bir randevunuz yok.", possAcc: "randevularınızı", tabLabel: "Randevularım" },
-  uyelik: { emptyList: "Henüz bir üyeliğiniz yok.", possAcc: "üyeliklerinizi", tabLabel: "Üyeliklerim" },
+  teklif: { emptyList: "Henüz bir teklifiniz yok.", possAcc: "tekliflerinizi", tabLabel: "Tekliflerim", plural: "teklifler" },
+  randevu: { emptyList: "Henüz bir randevunuz yok.", possAcc: "randevularınızı", tabLabel: "Randevularım", plural: "randevular" },
+  uyelik: { emptyList: "Henüz bir üyeliğiniz yok.", possAcc: "üyeliklerinizi", tabLabel: "Üyeliklerim", plural: "üyelikler" },
+  rezervasyon: { emptyList: "Henüz bir rezervasyonunuz yok.", possAcc: "rezervasyonlarınızı", tabLabel: "Rezervasyonlarım", plural: "rezervasyonlar" },
 };
+// "Gelecek/geçmiş" filtresi randevu ve rezervasyon (Otel) için anlamlı — ikisi
+// de somut bir tarih/saat taşıyor (portal_randevu_zamani); teklif/üyelikte
+// bunun karşılığı yok.
+const PORTAL_DEAL_KINDS_WITH_PERIOD_FILTER = new Set(["randevu", "rezervasyon"]);
 
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -333,9 +338,10 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, se
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
-  // Randevu sektörlerinde "geçmiş/gelecek" ayrımı en çok aranan filtre —
-  // teklif/üyelikte bunun bir karşılığı yok (randevu tarihi taşımıyorlar).
-  const [periodFilter, setPeriodFilter] = useState(dealKind === "randevu" ? "gelecek" : "all");
+  // Randevu/rezervasyon sektörlerinde "geçmiş/gelecek" ayrımı en çok aranan
+  // filtre — teklif/üyelikte bunun bir karşılığı yok (tarih taşımıyorlar).
+  const hasPeriodFilter = PORTAL_DEAL_KINDS_WITH_PERIOD_FILTER.has(dealKind);
+  const [periodFilter, setPeriodFilter] = useState(hasPeriodFilter ? "gelecek" : "all");
 
   if (deals.length === 0) {
     return <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>{PORTAL_DEAL_WORDS[dealKind].emptyList}</p>;
@@ -349,7 +355,7 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, se
     if (stageFilter !== "all" && stageFilter !== "acik" && d.stage !== stageFilter) return false;
     if (paymentFilter === "odendi" && d.paymentStatus !== "paid") return false;
     if (paymentFilter === "odenmedi" && (d.paymentMode === "none" || d.paymentStatus === "paid")) return false;
-    if (dealKind === "randevu" && periodFilter !== "all") {
+    if (hasPeriodFilter && periodFilter !== "all") {
       const dt = d.customFields?.portal_randevu_zamani;
       const isFuture = dt && new Date(dt).getTime() >= now;
       if (periodFilter === "gelecek" && !isFuture) return false;
@@ -378,11 +384,11 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, se
           <option value="odendi">Ödendi</option>
           <option value="odenmedi">Ödenmedi</option>
         </select>
-        {dealKind === "randevu" && (
+        {hasPeriodFilter && (
           <select value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value)} style={{ fontSize: 13 }}>
             <option value="all">Tüm zamanlar</option>
-            <option value="gelecek">Gelecek randevular</option>
-            <option value="gecmis">Geçmiş randevular</option>
+            <option value="gelecek">{`Gelecek ${PORTAL_DEAL_WORDS[dealKind].plural}`}</option>
+            <option value="gecmis">{`Geçmiş ${PORTAL_DEAL_WORDS[dealKind].plural}`}</option>
           </select>
         )}
       </div>
@@ -435,7 +441,7 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, se
               {cancellable && (canCancel ? (
                 <button type="button" onClick={() => onCancelAppointment(d.id)} style={{ fontSize: 13 }}>İptal Et</button>
               ) : (
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }} title="Randevu saatine 2 saatten az kaldığı için iptal edilemez">İptal edilemez</span>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }} title="Planlanan saate 2 saatten az kaldığı için iptal edilemez">İptal edilemez</span>
               ))}
             </div>
           </div>
@@ -750,7 +756,7 @@ function RoomBookingModal({ customerRow, onBook, onClose }) {
                   border: "0.5px solid var(--border)", fontSize: 13, padding: "6px 10px",
                 }}
               >
-                {r.roomType} — {r.remaining} müsait
+                {r.roomType} — {r.remaining}/{r.quantity} müsait
               </button>
             ))}
           </div>

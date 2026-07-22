@@ -75,6 +75,7 @@ const DEAL_WORD_FORMS = {
   teklif: { bare: "teklif", pdfLabel: "Teklif PDF", acc: "teklifi", dat: "teklife", plural: "teklifler", pluralAcc: "teklifleri", gen: "teklifin", genPlural: "tekliflerin", loc: "teklifte", pluralLoc: "tekliflerde", ctaLabel: "Teklifi Görüntüle", possYours: "Teklifiniz", possYoursAcc: "teklifinizi" },
   randevu: { bare: "randevu", pdfLabel: "Randevu Özeti PDF", acc: "randevuyu", dat: "randevuya", plural: "randevular", pluralAcc: "randevuları", gen: "randevunun", genPlural: "randevuların", loc: "randevuda", pluralLoc: "randevularda", ctaLabel: "Randevuyu Görüntüle", possYours: "Randevunuz", possYoursAcc: "randevunuzu" },
   uyelik: { bare: "üyelik", pdfLabel: "Üyelik Özeti PDF", acc: "üyeliği", dat: "üyeliğe", plural: "üyelikler", pluralAcc: "üyelikleri", gen: "üyeliğin", genPlural: "üyeliklerin", loc: "üyelikte", pluralLoc: "üyeliklerde", ctaLabel: "Üyeliği Görüntüle", possYours: "Üyeliğiniz", possYoursAcc: "üyeliğinizi" },
+  rezervasyon: { bare: "rezervasyon", pdfLabel: "Rezervasyon Özeti PDF", acc: "rezervasyonu", dat: "rezervasyona", plural: "rezervasyonlar", pluralAcc: "rezervasyonları", gen: "rezervasyonun", genPlural: "rezervasyonların", loc: "rezervasyonda", pluralLoc: "rezervasyonlarda", ctaLabel: "Rezervasyonu Görüntüle", possYours: "Rezervasyonunuz", possYoursAcc: "rezervasyonunuzu" },
 };
 
 // Müşteri Takibi sekmesindeki liste UI'ı (ekle butonu, arama, boş durumlar,
@@ -125,6 +126,21 @@ const DEAL_TAB_STRINGS = {
     newTitle: "Yeni üyelik",
     exportFilename: "uyelikler.xlsx",
   },
+  rezervasyon: {
+    addLabel: "Rezervasyon ekle",
+    searchPlaceholder: "Rezervasyon ara (başlık, müşteri)...",
+    openFilterLabel: "Bekleyen rezervasyonlar",
+    openValueLabel: "Bekleyen rezervasyon değeri",
+    openGenPluralPhrase: "Bekleyen rezervasyonların",
+    emptyDefault: "Henüz rezervasyon eklenmedi.",
+    emptySearch: "Aramayla eşleşen rezervasyon yok.",
+    columnHeader: "Rezervasyon",
+    exportTitle: "Rezervasyonları Dışa Aktar",
+    editTitle: "Rezervasyonu düzenle",
+    deleteTitle: "Rezervasyonu sil",
+    newTitle: "Yeni rezervasyon",
+    exportFilename: "rezervasyonlar.xlsx",
+  },
 };
 
 const dealActionsInfoText = (sector) => {
@@ -165,7 +181,7 @@ const SESSION_PACKAGE_INFO_TEXT =
 
 const kdvRateInfoText = (sector) => {
   const kind = dealWordKind(sector);
-  const label = kind === "uyelik" ? "Üyelik Özeti PDF'inde" : kind === "randevu" ? "Randevu Özeti PDF'inde" : "yazdırılan teklif PDF'inde";
+  const label = kind === "uyelik" ? "Üyelik Özeti PDF'inde" : kind === "randevu" ? "Randevu Özeti PDF'inde" : kind === "rezervasyon" ? "Rezervasyon Özeti PDF'inde" : "yazdırılan teklif PDF'inde";
   return (
     `Yukarıdaki Tutar zaten KDV dahil, müşteriden alınan toplam tutarı DEĞİŞTİRMEZ — sadece ${label} ` +
     "\"Ara Toplam / KDV / Genel Toplam\" satırlarının nasıl bölüneceğini belirler."
@@ -177,7 +193,7 @@ const ASSIGNEE_INFO_TEXT =
 
 const cariBakiyeInfoText = (sector) => {
   const kind = dealWordKind(sector);
-  const noun = kind === "uyelik" ? "üyeliklerinin" : kind === "randevu" ? "randevularının" : "tekliflerinin";
+  const noun = kind === "uyelik" ? "üyeliklerinin" : kind === "randevu" ? "randevularının" : kind === "rezervasyon" ? "rezervasyonlarının" : "tekliflerinin";
   return (
     `Bu bakiye, müşterinin "${stageLabel("kazanildi", "kurumsal", sector)}" durumundaki ${noun} toplam tutarından tahsil edilen ödemelerin düşülmesiyle bulunur. ` +
     "Resmi bir cari hesap kaydı değildir, sadece kendi takibiniz içindir."
@@ -669,13 +685,13 @@ const ANSWER_LIBRARY = [
     category: "Satış",
     label: (sector) => {
       const words = DEAL_WORD_FORMS[dealWordKind(sector)];
-      return words.bare === "teklif" ? "Kaç açık teklifim var?" : `Kaç bekleyen ${words.bare === "randevu" ? "randevum" : "üyeliğim"} var?`;
+      return words.bare === "teklif" ? "Kaç açık teklifim var?" : `Kaç bekleyen ${words.bare === "randevu" ? "randevum" : words.bare === "rezervasyon" ? "rezervasyonum" : "üyeliğim"} var?`;
     },
     keywords: ["açık teklif", "açık fırsat", "açık kayıt", "bekleyen teklif", "bekleyen randevu", "bekleyen üyelik"],
     compute: (ctx) => {
       const words = DEAL_WORD_FORMS[dealWordKind(ctx.companySettings?.sector)];
       const open = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi");
-      return `${open.length} açık ${words.bare === "teklif" ? "teklifiniz" : words.bare === "randevu" ? "randevunuz" : "üyeliğiniz"} var.`;
+      return `${open.length} açık ${words.bare === "teklif" ? "teklifiniz" : words.bare === "randevu" ? "randevunuz" : words.bare === "rezervasyon" ? "rezervasyonunuz" : "üyeliğiniz"} var.`;
     },
   },
   {
@@ -4782,7 +4798,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
             {supportsSelfBooking(sector) ? "Kayıt Tarihi" : "Tarih"}
             {supportsSelfBooking(sector) && (
-              <InfoTip text={`Bu, kaydın oluşturulma/güncellenme tarihidir — ${DEAL_WORD_FORMS[dealWordKind(sector)].bare === "randevu" ? "randevunun" : "görüşmenin"} kendi tarih/saati için aşağıdaki özel alanlar bölümündeki "${customFieldDefs.find((d) => d.entity === "deal" && d.key === appointmentDateTimeKey)?.label || "Randevu/Görüşme Tarihi"}" alanını kullanın.`} />
+              <InfoTip text={`Bu, kaydın oluşturulma/güncellenme tarihidir — ${DEAL_WORD_FORMS[dealWordKind(sector)].bare === "randevu" ? "randevunun" : DEAL_WORD_FORMS[dealWordKind(sector)].bare === "rezervasyon" ? "rezervasyonun" : "görüşmenin"} kendi tarih/saati için aşağıdaki özel alanlar bölümündeki "${customFieldDefs.find((d) => d.entity === "deal" && d.key === appointmentDateTimeKey)?.label || "Randevu/Görüşme Tarihi"}" alanını kullanın.`} />
             )}
           </label>
           <input type="date" value={dealDate} onChange={(e) => setDealDate(e.target.value)} style={{ width: "100%" }} />
@@ -5301,7 +5317,7 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
 
       {customerDeals.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>{dealWordKind(sector) === "uyelik" ? "Üyelikler" : dealWordKind(sector) === "randevu" ? "Randevular" : "Teklifler"}</p>
+          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>{dealWordKind(sector) === "uyelik" ? "Üyelikler" : dealWordKind(sector) === "randevu" ? "Randevular" : dealWordKind(sector) === "rezervasyon" ? "Rezervasyonlar" : "Teklifler"}</p>
           {customerDeals.map((d) => {
             const randevuTarihi = d.customFields?.portal_randevu_zamani;
             return (
@@ -5363,7 +5379,7 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
           <select value={type} onChange={(e) => setType(e.target.value)} style={{ width: 160 }}>
             {ACTIVITY_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
           </select>
-          <input value={content} onChange={(e) => setContent(e.target.value)} placeholder={dealWordKind(sector) === "uyelik" ? "Örn. üyelik paketi görüşüldü" : dealWordKind(sector) === "randevu" ? "Örn. randevu detayları görüşüldü" : "Örn. fiyat teklifi görüşüldü"} style={{ flex: 1 }} />
+          <input value={content} onChange={(e) => setContent(e.target.value)} placeholder={dealWordKind(sector) === "uyelik" ? "Örn. üyelik paketi görüşüldü" : dealWordKind(sector) === "randevu" ? "Örn. randevu detayları görüşüldü" : dealWordKind(sector) === "rezervasyon" ? "Örn. rezervasyon detayları görüşüldü" : "Örn. fiyat teklifi görüşüldü"} style={{ flex: 1 }} />
         </div>
         <button type="submit" disabled={saving || !content.trim()} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
           Ekle
@@ -5401,7 +5417,7 @@ function TeklifPrint({ deal, customer, companySettings, pdfTemplates, dealLineIt
   const [noExpiry, setNoExpiry] = useState(false);
   const [extraNote, setExtraNote] = useState("");
   const noun = isIndividualFocusedSector(companySettings?.sector) ? "fiyat" : "teklif";
-  const belgeBasligi = dealWordKind(companySettings?.sector) === "uyelik" ? "ÜYELİK ÖZETİ" : dealWordKind(companySettings?.sector) === "randevu" ? "RANDEVU ÖZETİ" : "TEKLİF";
+  const belgeBasligi = dealWordKind(companySettings?.sector) === "uyelik" ? "ÜYELİK ÖZETİ" : dealWordKind(companySettings?.sector) === "randevu" ? "RANDEVU ÖZETİ" : dealWordKind(companySettings?.sector) === "rezervasyon" ? "REZERVASYON ÖZETİ" : "TEKLİF";
   const customTemplate = (pdfTemplates || []).find((t) => t.id === companySettings?.pdfTemplateKey);
   const template = customTemplate || PDF_TEMPLATES[companySettings?.pdfTemplateKey] || PDF_TEMPLATES.klasik;
   const mergeData = buildMergeData({ deal, customer, companySettings, netAmount, kdvAmount, kdvRate, noExpiry, validityDays, extraNote, belgeBasligi, noun });
@@ -5449,7 +5465,7 @@ function TeklifPrint({ deal, customer, companySettings, pdfTemplates, dealLineIt
       // orientation'ı açıkça belirtmek bunu tamamen ortadan kaldırıyor.
       const pdf = new jsPDF({ unit: "px", orientation: canvas.width >= canvas.height ? "l" : "p", format: [canvas.width, canvas.height] });
       pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
-      pdf.save(`${dealWordKind(companySettings?.sector) === "uyelik" ? "Üyelik Özeti" : dealWordKind(companySettings?.sector) === "randevu" ? "Randevu Özeti" : "Teklif"} - ${customer?.name || "Musteri"} - ${deal.title}.pdf`);
+      pdf.save(`${dealWordKind(companySettings?.sector) === "uyelik" ? "Üyelik Özeti" : dealWordKind(companySettings?.sector) === "randevu" ? "Randevu Özeti" : dealWordKind(companySettings?.sector) === "rezervasyon" ? "Rezervasyon Özeti" : "Teklif"} - ${customer?.name || "Musteri"} - ${deal.title}.pdf`);
     } catch (err) {
       notify?.(`PDF hazırlanamadı: ${err.message || "beklenmeyen bir hata oluştu"}. Lütfen tekrar deneyin.`);
     } finally {
@@ -10360,7 +10376,7 @@ export default function App() {
             </div>
           ) : (
             <div>
-              <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 8px" }}>{dealWordKind(companySettings?.sector) === "uyelik" ? "Üyelik aşamaları" : dealWordKind(companySettings?.sector) === "randevu" ? "Randevu aşamaları" : "Teklif aşamaları"}</p>
+              <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 8px" }}>{dealWordKind(companySettings?.sector) === "uyelik" ? "Üyelik aşamaları" : dealWordKind(companySettings?.sector) === "randevu" ? "Randevu aşamaları" : dealWordKind(companySettings?.sector) === "rezervasyon" ? "Rezervasyon aşamaları" : "Teklif aşamaları"}</p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 8 }}>
                 {STAGES.filter((s) => s.id !== "kaybedildi").map((stage) => {
                   const stageDeals = deals.filter((d) => d.stage === stage.id);
