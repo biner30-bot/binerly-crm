@@ -312,6 +312,8 @@ function DealCostEditForm({ deal, sector, onSave, onCancel }) {
 export default function Finance({ deals, payments, companyExpenses, customers, onAddExpense, onUpdateExpense, onDeleteExpense, onUpdatePayment, onDeletePayment, onUpdateDealCost, onOpenPayments, sector }) {
   const [financeView, setFinanceView] = useState("tahsilat");
   const [financeRange, setFinanceRange] = useState("bu_ay");
+  const [ledgerTypeFilter, setLedgerTypeFilter] = useState("all");
+  const [ledgerSearch, setLedgerSearch] = useState("");
   const [kdvMonth, setKdvMonth] = useState(new Date().toISOString().slice(0, 7));
   const [expandedCustomerId, setExpandedCustomerId] = useState(null);
   const [newPaymentCustomerId, setNewPaymentCustomerId] = useState("");
@@ -359,6 +361,12 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
         id: `payment-${p.id}`,
         type: isRefund ? "gider" : "gelir",
         date: p.paidAt,
+        // paid_at sadece GÜN taşıyor (saat yok) — aynı gün birden fazla ödeme
+        // olduğunda hangisinin gerçekten daha yeni olduğunu ayırt edemiyordu,
+        // "en son ödemeler en üstte" beklentisini bozuyordu. created_at (tam
+        // zaman damgası) sıralama için ayrı tutuluyor, gösterilen tarih (date)
+        // yine paid_at — kullanıcı elle girdiği tarihi görmeye devam ediyor.
+        sortAt: p.createdAt || p.paidAt,
         hasTime: false,
         label: `${customer?.name || "Bilinmeyen müşteri"} — ${deal?.title || "Tahsilat"}${isRefund ? " (iade)" : ""}`,
         amount: Math.abs(p.amount),
@@ -372,6 +380,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
       id: `expense-${e.id}-${e.occurrenceDate}`,
       type: "gider",
       date: e.occurrenceDate,
+      sortAt: e.occurrenceDate,
       hasTime: true,
       label: `${e.title} · ${e.category}`,
       isRecurring: e.isRecurring,
@@ -383,12 +392,20 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
       id: `dealcost-${d.id}`,
       type: "gider",
       date: d.closedAt || d.createdAt,
+      sortAt: d.closedAt || d.createdAt,
       hasTime: false,
       label: `${customerById(d.customerId)?.name || "Bilinmeyen müşteri"} — ${d.title} maliyeti`,
       amount: d.cost,
       dealCostId: d.id,
     })),
-  ].sort((a, b) => new Date(b.date) - new Date(a.date));
+  ].sort((a, b) => new Date(b.sortAt) - new Date(a.sortAt));
+
+  const ledgerQuery = ledgerSearch.trim().toLowerCase();
+  const filteredLedger = ledger.filter((item) => {
+    if (ledgerTypeFilter !== "all" && item.type !== ledgerTypeFilter) return false;
+    if (ledgerQuery && !item.label.toLowerCase().includes(ledgerQuery)) return false;
+    return true;
+  });
 
   const kdvBounds = monthBounds(kdvMonth);
   const kdvWonDeals = deals.filter((d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, kdvBounds));
@@ -577,11 +594,26 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
               Gider ekle
             </button>
           </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+            <input
+              value={ledgerSearch}
+              onChange={(e) => setLedgerSearch(e.target.value)}
+              placeholder="Kayıt ara (müşteri, başlık, kategori)..."
+              style={{ flex: 1, minWidth: 140, fontSize: 13 }}
+            />
+            <select value={ledgerTypeFilter} onChange={(e) => setLedgerTypeFilter(e.target.value)} style={{ fontSize: 13 }}>
+              <option value="all">Tümü</option>
+              <option value="gelir">Sadece Gelir</option>
+              <option value="gider">Sadece Gider</option>
+            </select>
+          </div>
           {ledger.length === 0 ? (
             <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Bu aralıkta hiç kayıt yok.</p>
+          ) : filteredLedger.length === 0 ? (
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Aramayla eşleşen kayıt yok.</p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 420, overflowY: "auto" }}>
-              {ledger.map((item) => (
+              {filteredLedger.map((item) => (
                 <div
                   key={item.id}
                   style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, padding: "6px 0", borderBottom: "0.5px solid var(--border)" }}

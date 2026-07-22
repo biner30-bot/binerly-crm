@@ -198,7 +198,8 @@ export const SECTOR_PRESETS = [
     },
     tags: ["Yeni randevu", "Sadık müşteri", "Hatırlatma gerekiyor", "Geldi", "Gelmedi"],
     customFields: [
-      { entity: "deal", key: "hizmet_turu", label: "Hizmet Türü", type: "select", options: ["Manikür/Pedikür", "Saç Kesimi/Boyama", "Lazer Epilasyon", "Cilt Bakımı", "Makyaj", "Diğer"] },
+      // "Hizmet Türü" bilerek yok — fiyat listesinden hizmet seçilince başlık zaten
+      // hizmet adını taşıyor, ayrı bir alan mükerrer oluyordu (2026-07-22).
       { entity: "deal", key: "randevu_tarihi", label: "Randevu Tarihi", type: "datetime" },
       { entity: "deal", key: "seans_no", label: "Seans No (paket hizmetlerde)", type: "number" },
       { entity: "customer", key: "tercih_edilen_uzman", label: "Tercih Edilen Uzman/Personel", type: "text", audience: "bireysel" },
@@ -285,6 +286,7 @@ export const SECTOR_PRESETS = [
       { entity: "deal", key: "cikis_tarihi", label: "Çıkış Tarihi", type: "date" },
       { entity: "deal", key: "kisi_sayisi", label: "Kişi Sayısı", type: "number" },
       { entity: "deal", key: "kapora_durumu", label: "Kapora Durumu", type: "select", options: ["Alınmadı", "Kısmi alındı", "Tamamı alındı"] },
+      { entity: "deal", key: "ziyaret_amaci", label: "Ziyaret Amacı / Özel Gün", type: "select", options: ["Belirtilmedi", "Tatil", "İş seyahati", "Balayı", "Evlilik yıldönümü", "Doğum günü", "Evlilik teklifi", "Toplantı/Organizasyon", "Diğer"] },
       { entity: "customer", key: "ozel_istek", label: "Özel İstek (alerji, diyet, kutlama vb.)", type: "text" },
     ],
     stageGuides: {
@@ -760,9 +762,35 @@ export function CustomFieldsSection({ defs, values, onChange }) {
                 <option value="">Seçiniz</option>
                 {(d.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
+            ) : d.type === "datetime" ? (
+              // Tek parça datetime-local widget'ı yerine ayrı tarih (üstte) + saat
+              // (altta) alanları — tarih tarayıcının kendi yerel biçimiyle (tr-TR'de
+              // gün.ay.yıl) gösteriliyor, birleşik widget'tan daha net/kullanışlı.
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <input
+                  type="date"
+                  value={(values[d.key] || "").slice(0, 10)}
+                  onChange={(e) => {
+                    const time = (values[d.key] || "").slice(11, 16) || "09:00";
+                    onChange({ ...values, [d.key]: e.target.value ? `${e.target.value}T${time}` : "" });
+                  }}
+                  style={{ width: "100%" }}
+                />
+                <input
+                  type="time"
+                  value={(values[d.key] || "").slice(11, 16)}
+                  disabled={!(values[d.key] || "").slice(0, 10)}
+                  onChange={(e) => {
+                    const date = (values[d.key] || "").slice(0, 10);
+                    if (!date) return;
+                    onChange({ ...values, [d.key]: `${date}T${e.target.value}` });
+                  }}
+                  style={{ width: "100%" }}
+                />
+              </div>
             ) : (
               <input
-                type={d.type === "number" ? "number" : d.type === "date" ? "date" : d.type === "datetime" ? "datetime-local" : "text"}
+                type={d.type === "number" ? "number" : d.type === "date" ? "date" : "text"}
                 value={values[d.key] || ""}
                 onChange={(e) => onChange({ ...values, [d.key]: e.target.value })}
                 style={{ width: "100%" }}

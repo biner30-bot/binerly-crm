@@ -108,7 +108,16 @@ async function markApproved(supabaseAdmin, deal, customer, note, contentSuffix) 
 // payments kaydı, bildirim, (varsa) komisyon gideri, payment_status/stage
 // güncellemesi, gerekirse otomatik onay. Hem handlePaymentCallback (iyzico)
 // hem handlePayTRCallback buraya çağrı yapar — kod tekrarı yok.
-async function recordSuccessfulPayment(supabaseAdmin, deal, { provider, iyzicoPaymentId, iyzicoPaymentTransactionId, paytrMerchantOid, commissionAmount }) {
+// Sectors.jsx'teki isAppointmentSector ile aynı liste — api/*.js JSX içeren
+// Sectors.jsx'i import edemediği için burada küçük bir kopyası tutuluyor.
+const APPOINTMENT_SECTORS = new Set(["guzellik_bakim", "saglik_klinik"]);
+
+async function fetchSector(supabaseAdmin, userId) {
+  const { data } = await supabaseAdmin.from("company_settings").select("sector").eq("user_id", userId).maybeSingle();
+  return data?.sector || null;
+}
+
+async function recordSuccessfulPayment(supabaseAdmin, deal, { provider, iyzicoPaymentId, iyzicoPaymentTransactionId, paytrMerchantOid, commissionAmount, sector }) {
   const { error: paymentInsertError } = await supabaseAdmin.from("payments").insert({
     id: crypto.randomUUID(),
     user_id: deal.user_id,
@@ -139,9 +148,8 @@ async function recordSuccessfulPayment(supabaseAdmin, deal, { provider, iyzicoPa
   // ayrı işlem — kdv_rate bilinçli olarak boş bırakılıyor. (PayTR'nin
   // bildirim callback'i komisyon tutarını vermiyor — bu yüzden commissionAmount
   // sadece iyzico'da doluyor, v1 sınırı.)
-  console.error("commission insert about to run:", "deal.id:", deal.id, "commissionAmount:", commissionAmount, "user_id:", deal.user_id);
   if (commissionAmount > 0) {
-    const { data: expenseData, error: expenseError } = await supabaseAdmin.from("company_expenses").insert({
+    const { error: expenseError } = await supabaseAdmin.from("company_expenses").insert({
       id: crypto.randomUUID(),
       user_id: deal.user_id,
       title: provider === "paytr" ? "PayTR komisyonu" : "iyzico komisyonu",
@@ -152,21 +160,23 @@ async function recordSuccessfulPayment(supabaseAdmin, deal, { provider, iyzicoPa
       is_recurring: false,
       recurrence_interval: "monthly",
       kdv_rate: null,
-    }).select();
-    console.error("commission insert result:", "deal.id:", deal.id, "data:", JSON.stringify(expenseData), "error:", JSON.stringify(expenseError));
+    });
+    if (expenseError) console.error("commission expense insert error:", expenseError.message, "deal.id:", deal.id);
   }
 
   // Gerçek para tahsil edildiği için (payment_mode ne olursa olsun) teklif
   // kazanılmış sayılır — zaten kapanmış (kazanıldı/kaybedildi) bir aşamaya dokunulmaz.
-  // İSTİSNA: müşteri portalından kendi aldığı randevu/üyelik (custom_fields.kaynak
-  // === "portal") için bu geçerli DEĞİL — önceden ödeme yapılmış olması hizmetin
-  // fiilen verildiği anlamına gelmez (randevu tarihi hâlâ ileride olabilir).
-  // Bu kayıtlarda sadece payment_status güncellenir, aşamayı KOBİ (hizmeti verince)
-  // kendi değiştirir.
-  const isSelfBookedAppointment = deal.custom_fields?.kaynak === "portal";
+  // İSTİSNA: randevu sektörlerinde (Güzellik & Bakım, Sağlık/Klinik) "kazanıldı"
+  // = "Hizmet/Tedavi tamamlandı" demek — önceden ödeme alınmış olması hizmetin
+  // FİİLEN verildiği anlamına gelmez (randevu tarihi hâlâ ileride olabilir).
+  // Diğer sektörlerde (teklif/üyelik/rezervasyon) "kazanıldı" onay/kazanma/
+  // rezervasyon-onayı anlamına geliyor — ödeme (kapora dahil) bunu doğrudan
+  // tetikler, o yüzden SADECE randevu sektörlerinde bu adım atlanır. Kim
+  // oluşturduğu (KOBİ mi müşteri mi) fark etmez, sadece sektöre bakılır.
+  const isAppointmentSector = APPOINTMENT_SECTORS.has(sector);
   const isAlreadyClosed = deal.stage === "kazanildi" || deal.stage === "kaybedildi";
   const dealUpdate = { payment_status: "paid" };
-  if (!isAlreadyClosed && !isSelfBookedAppointment) {
+  if (!isAlreadyClosed && !isAppointmentSector) {
     dealUpdate.stage = "kazanildi";
     dealUpdate.closed_at = deal.closed_at || new Date().toISOString();
   }
@@ -178,7 +188,8 @@ async function recordSuccessfulPayment(supabaseAdmin, deal, { provider, iyzicoPa
   // onu hiç kullanmadan direkt öderse bu da onay yerine geçer. Portaldan
   // kendi alınan randevu/üyelik/rezervasyonlarda ise onay diye bir kavram
   // hiç yok — approved_at bilerek hiç set edilmiyor, tek sinyal payment_status.
-  if (!deal.approved_at && !isSelfBookedAppointment) {
+  const isSelfBooked = deal.custom_fields?.kaynak === "portal";
+  if (!deal.approved_at && !isSelfBooked) {
     const { data: customer } = await supabaseAdmin.from("customers").select("name").eq("id", deal.customer_id).maybeSingle();
     await markApproved(supabaseAdmin, deal, customer, null, "ödeyerek onayladı").catch((e) => console.error("auto-approve error:", e.message));
   }
@@ -378,16 +389,14 @@ async function handlePaymentCallback(req, res, supabaseAdmin, url) {
 
   const item = result.itemTransactions?.[0];
   const commissionAmount = item ? Number(item.iyziCommissionRateAmount || 0) + Number(item.iyziCommissionFee || 0) : 0;
-  // Komisyon gideri sessizce oluşmuyor şikayeti araştırılırken eklendi (2026-07-22) —
-  // itemTransactions[0]'ın gerçek alan adlarını/tiplerini üretimde göremediğimiz için
-  // ham veriyi loglayıp bir sonraki test ödemesinde Vercel loglarından okuyoruz.
-  console.error("payment-callback commission debug:", "deal.id:", deal.id, "item:", JSON.stringify(item), "commissionAmount:", commissionAmount);
+  const sector = await fetchSector(supabaseAdmin, deal.user_id);
 
   await recordSuccessfulPayment(supabaseAdmin, deal, {
     provider: "iyzico",
     iyzicoPaymentId: result.paymentId || null,
     iyzicoPaymentTransactionId: item?.paymentTransactionId || null,
     commissionAmount,
+    sector,
   });
 
   return redirect(`${target}?paid=1`);
@@ -429,7 +438,8 @@ async function handlePayTRCallback(req, res, supabaseAdmin) {
 
   if (status === "success") {
     if (await claimDealPayment(supabaseAdmin, deal.id)) {
-      await recordSuccessfulPayment(supabaseAdmin, deal, { provider: "paytr", paytrMerchantOid: merchantOid });
+      const sector = await fetchSector(supabaseAdmin, deal.user_id);
+      await recordSuccessfulPayment(supabaseAdmin, deal, { provider: "paytr", paytrMerchantOid: merchantOid, sector });
     } // false ise: PayTR'nin "OK" almadan yaptığı tekrar denemesi, zaten işlendi
   }
 

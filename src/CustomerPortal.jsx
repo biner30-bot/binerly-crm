@@ -670,6 +670,12 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose }) {
   );
 }
 
+// Sectors.jsx'teki "otel" preset'inin ziyaret_amaci alanıyla AYNI liste — KOBİ
+// tarafında CustomFieldsSection ile otomatik gelirken, portalda genel özel alan
+// render'ı olmadığı (custom_field_defs portala hiç açılmıyor) için burada elle
+// tutuluyor. İkisi birden değişirse ikisini de güncellemeyi unutma.
+const VISIT_PURPOSE_OPTIONS = ["Belirtilmedi", "Tatil", "İş seyahati", "Balayı", "Evlilik yıldönümü", "Doğum günü", "Evlilik teklifi", "Toplantı/Organizasyon", "Diğer"];
+
 function RoomBookingModal({ customerRow, onBook, onClose }) {
   const todayStr = istanbulDateStr(new Date());
   const tomorrowStr = istanbulDateStr(new Date(Date.now() + 24 * 60 * 60 * 1000));
@@ -683,6 +689,7 @@ function RoomBookingModal({ customerRow, onBook, onClose }) {
   const [roomsError, setRoomsError] = useState("");
   const [selectedRoomType, setSelectedRoomType] = useState("");
   const [note, setNote] = useState("");
+  const [visitPurpose, setVisitPurpose] = useState("");
   const [booking, setBooking] = useState(false);
 
   // Giriş tarihi çıkıştan sonraya çekilirse çıkışı da otomatik bir gün ileri
@@ -720,6 +727,7 @@ function RoomBookingModal({ customerRow, onBook, onClose }) {
       roomType: selectedRoomType,
       partySize: Number(partySize) || 1,
       note,
+      visitPurpose,
     });
     setBooking(false);
     if (ok) onClose();
@@ -791,6 +799,13 @@ function RoomBookingModal({ customerRow, onBook, onClose }) {
             </p>
           );
         })()}
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ziyaret Amacı / Özel Gün <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span></label>
+        <select value={visitPurpose} onChange={(e) => setVisitPurpose(e.target.value)} style={{ width: "100%" }}>
+          <option value="">Seçiniz</option>
+          {VISIT_PURPOSE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
       </div>
       <div style={{ marginBottom: 16 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Not <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span></label>
@@ -1171,7 +1186,7 @@ export default function CustomerPortal() {
     notify("Kaydınız iptal edildi.", "success");
   };
 
-  const bookAppointment = async ({ customerId, businessUserId, dateTime, dateTimeKey, note, value, hasPaymentProvider, checkIn, checkOut, roomType, partySize }) => {
+  const bookAppointment = async ({ customerId, businessUserId, dateTime, dateTimeKey, note, value, hasPaymentProvider, checkIn, checkOut, roomType, partySize, visitPurpose }) => {
     // Otel gibi oda-stoklu (bookingModel === "inventory") sektörlerde RoomBookingModal
     // dateTime/dateTimeKey yerine checkIn/checkOut/roomType gönderiyor — saat slotu
     // yerine giriş/çıkış tarih aralığı + oda tipi yazılıyor.
@@ -1183,7 +1198,11 @@ export default function CustomerPortal() {
       const row = {
         id: uid(), user_id: businessUserId, customer_id: customerId,
         title: (note || "").trim() || "Rezervasyon talebi", value: 0, stage: "ilk_gorusme",
-        custom_fields: { giris_tarihi: checkIn, cikis_tarihi: checkOut, oda_tipi: roomType, kisi_sayisi: partySize, portal_randevu_zamani: checkIn, kaynak: "portal" },
+        custom_fields: {
+          giris_tarihi: checkIn, cikis_tarihi: checkOut, oda_tipi: roomType, kisi_sayisi: partySize,
+          ...(visitPurpose ? { ziyaret_amaci: visitPurpose } : {}),
+          portal_randevu_zamani: checkIn, kaynak: "portal",
+        },
       };
       const { data, error } = await supabase.from("deals").insert(row).select().single();
       if (error) { notify(`Rezervasyon alınamadı: ${error.message}`); return false; }
