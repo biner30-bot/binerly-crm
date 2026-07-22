@@ -437,7 +437,9 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, se
               {showAction && (
                 <a href={`/onay/${d.approvalToken}`} style={{ fontSize: 13, fontWeight: 600, color: "var(--fill-accent)" }}>{actionLabel}</a>
               )}
-              <span style={{ fontSize: 13, fontWeight: 600, minWidth: 90, textAlign: "right" }}>{formatTL(d.value)}</span>
+              {d.value > 0 && (
+                <span style={{ fontSize: 13, fontWeight: 600, minWidth: 90, textAlign: "right" }}>{formatTL(d.value)}</span>
+              )}
               {cancellable && (canCancel ? (
                 <button type="button" onClick={() => onCancelAppointment(d.id)} style={{ fontSize: 13 }}>İptal Et</button>
               ) : (
@@ -561,6 +563,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose }) {
   const [value, setValue] = useState("");
   const [booking, setBooking] = useState(false);
   const [dateTimeKey, setDateTimeKey] = useState(null);
+  const [hasPaymentProvider, setHasPaymentProvider] = useState(false);
 
   useEffect(() => {
     if (!date || !customerRow.userId) { setSlotsError("İşletme bilgisi eksik, müsaitlik sorgulanamadı."); return; }
@@ -573,6 +576,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose }) {
         if (!r.ok) throw new Error(data?.error || "Müsaitlik alınamadı.");
         setSlots(data.slots || []);
         setDateTimeKey(data.dateTimeKey || null);
+        setHasPaymentProvider(!!data.hasPaymentProvider);
       })
       .catch((err) => { setSlots([]); setSlotsError(err.message || "Müsaitlik alınamadı."); })
       .finally(() => setLoadingSlots(false));
@@ -581,7 +585,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose }) {
   const confirm = async () => {
     if (!selectedTime || !note.trim() || !dateTimeKey) return;
     setBooking(true);
-    const ok = await onBook({ customerId: customerRow.id, businessUserId: customerRow.userId, dateTime: `${date}T${selectedTime}:00`, dateTimeKey, note, value: Number(value) || 0 });
+    const ok = await onBook({ customerId: customerRow.id, businessUserId: customerRow.userId, dateTime: `${date}T${selectedTime}:00`, dateTimeKey, note, value: Number(value) || 0, hasPaymentProvider });
     setBooking(false);
     if (ok) onClose();
   };
@@ -635,6 +639,11 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose }) {
               <option key={p.id} value={p.id}>{p.name} — {formatTL(p.price)}</option>
             ))}
           </select>
+          {Number(value) > 0 && hasPaymentProvider && (
+            <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0 0" }}>
+              Randevunuzu aldıktan sonra dilerseniz kartla online ödeme yapabilirsiniz.
+            </p>
+          )}
         </div>
       )}
       <div style={{ marginBottom: 16 }}>
@@ -1157,7 +1166,7 @@ export default function CustomerPortal() {
     notify("Kaydınız iptal edildi.", "success");
   };
 
-  const bookAppointment = async ({ customerId, businessUserId, dateTime, dateTimeKey, note, value, checkIn, checkOut, roomType, partySize }) => {
+  const bookAppointment = async ({ customerId, businessUserId, dateTime, dateTimeKey, note, value, hasPaymentProvider, checkIn, checkOut, roomType, partySize }) => {
     // Otel gibi oda-stoklu (bookingModel === "inventory") sektörlerde RoomBookingModal
     // dateTime/dateTimeKey yerine checkIn/checkOut/roomType gönderiyor — saat slotu
     // yerine giriş/çıkış tarih aralığı + oda tipi yazılıyor.
@@ -1185,14 +1194,26 @@ export default function CustomerPortal() {
       notify("Geçmiş bir tarih/saat için randevu alınamaz.");
       return false;
     }
+    const dealValue = Number(value) || 0;
     const row = {
       id: uid(), user_id: businessUserId, customer_id: customerId,
-      title: (note || "").trim() || "Randevu talebi", value: Number(value) || 0, stage: "ilk_gorusme",
+      title: (note || "").trim() || "Randevu talebi", value: dealValue, stage: "ilk_gorusme",
       // dateTimeKey, işletmenin gerçek sektör alanı (örn. randevu_tarihi/gorusme_tarihi)
       // — normal DealForm/PDF/hatırlatma akışında görünsün diye. portal_randevu_zamani
       // ise sektörden bağımsız sabit anahtar — iptal/bildirim/gösterim mantığı bunu okur.
       custom_fields: { [dateTimeKey]: dateTime, portal_randevu_zamani: dateTime, kaynak: "portal" },
     };
+    // Fiyat fiyat listesinden seçildiği (yani belirli olduğu) ve işletmenin
+    // bağlı bir ödeme sağlayıcısı (iyzico/PayTR) olduğu durumda, müşteri
+    // randevusunu aldıktan hemen sonra kendi listesinden "Öde"ye basıp kartla
+    // ödeyebilsin diye onay linki ve isteğe bağlı ödeme modu baştan kuruluyor.
+    // approved_at de aynı anda set edilir — müşteri kendi randevusunu zaten
+    // kendi almış, ayrıca "Onaylıyorum" demesini istemek gereksiz bir adım olur.
+    if (dealValue > 0 && hasPaymentProvider) {
+      row.approval_token = uid();
+      row.payment_mode = "optional";
+      row.approved_at = new Date().toISOString();
+    }
     const { data, error } = await supabase.from("deals").insert(row).select().single();
     if (error) { notify(`Randevu alınamadı: ${error.message}`); return false; }
     setDeals((prev) => [...prev, rowToDeal(data)]);

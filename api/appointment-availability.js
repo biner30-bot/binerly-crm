@@ -47,11 +47,12 @@ export default async function handler(req, res) {
     // müsait dönülmez.
     if (checkIn < todayIstanbul) return res.status(200).json({ rooms: [] });
 
-    const [{ data: inventory, error: inventoryError }, { data: deals, error: dealsError }] = await Promise.all([
+    const [{ data: inventory, error: inventoryError }, { data: deals, error: dealsError }, { data: cred, error: credError }] = await Promise.all([
       supabaseAdmin.from("room_inventory").select("room_type, quantity, capacity, description").eq("user_id", businessUserId),
       supabaseAdmin.from("deals").select("custom_fields, stage").eq("user_id", businessUserId).is("deleted_at", null).neq("stage", "kaybedildi"),
+      supabaseAdmin.from("payment_credentials").select("id").eq("user_id", businessUserId).maybeSingle(),
     ]);
-    if (inventoryError || dealsError) return res.status(500).json({ error: (inventoryError || dealsError).message });
+    if (inventoryError || dealsError || credError) return res.status(500).json({ error: (inventoryError || dealsError || credError).message });
 
     const rooms = (inventory || []).map((inv) => {
       const occupied = (deals || []).filter((d) => {
@@ -68,7 +69,7 @@ export default async function handler(req, res) {
       return { roomType: inv.room_type, quantity: inv.quantity, available: remaining > 0, remaining, capacity: inv.capacity || null, description: inv.description || "" };
     });
 
-    return res.status(200).json({ rooms });
+    return res.status(200).json({ rooms, hasPaymentProvider: !!cred });
   }
 
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -89,13 +90,15 @@ export default async function handler(req, res) {
   // Bakım/Sağlık-Klinik'te randevu_tarihi, Emlak/Dijital Ajans/Danışmanlık'ta
   // gorusme_tarihi) — send-appointment-reminders.js'in zaten yaptığı gibi, sabit
   // kodlamak yerine bu işletmenin aktif "Tarih & Saat" alanı dinamik bulunuyor.
-  const [{ data: fieldDefs, error: fieldDefsError }, { data: hours, error: hoursError }, { data: deals, error: dealsError }] = await Promise.all([
+  const [{ data: fieldDefs, error: fieldDefsError }, { data: hours, error: hoursError }, { data: deals, error: dealsError }, { data: cred, error: credError }] = await Promise.all([
     supabaseAdmin.from("custom_field_defs").select("key").eq("user_id", businessUserId).eq("entity", "deal").eq("field_type", "datetime").eq("active", true).limit(1),
     supabaseAdmin.from("business_hours").select("start_time, end_time, slot_duration_minutes").eq("user_id", businessUserId).eq("weekday", isoWeekday),
     supabaseAdmin.from("deals").select("custom_fields").eq("user_id", businessUserId).is("deleted_at", null).neq("stage", "kaybedildi"),
+    supabaseAdmin.from("payment_credentials").select("id").eq("user_id", businessUserId).maybeSingle(),
   ]);
 
-  if (fieldDefsError || hoursError || dealsError) return res.status(500).json({ error: (fieldDefsError || hoursError || dealsError).message });
+  if (fieldDefsError || hoursError || dealsError || credError) return res.status(500).json({ error: (fieldDefsError || hoursError || dealsError || credError).message });
+  const hasPaymentProvider = !!cred;
 
   const dateTimeKey = fieldDefs?.[0]?.key || null;
   const takenTimes = new Set(
@@ -114,11 +117,11 @@ export default async function handler(req, res) {
   // şekilde bypass edilirse) o günün tüm mesai saatleri "müsait" görünüyordu —
   // sadece "bugün ise geçmiş saat" filtreleniyordu, "tarihin kendisi geçmiş mi"
   // hiç kontrol edilmiyordu. Geçmiş tarihler için her zaman boş liste dön.
-  if (date < todayIstanbul) return res.status(200).json({ slots: [], dateTimeKey: null });
+  if (date < todayIstanbul) return res.status(200).json({ slots: [], dateTimeKey: null, hasPaymentProvider });
 
   // Aktif randevu tarihi alanı yoksa (işletme devre dışı bırakmış vb.) alınacak
   // randevunun nereye yazılacağı belirsiz olur — güvenli tarafta kalıp boş dönülür.
-  if (!dateTimeKey) return res.status(200).json({ slots: [], dateTimeKey: null });
+  if (!dateTimeKey) return res.status(200).json({ slots: [], dateTimeKey: null, hasPaymentProvider });
 
   const slots = [];
   for (const window of hours || []) {
@@ -134,5 +137,5 @@ export default async function handler(req, res) {
   }
   slots.sort();
 
-  return res.status(200).json({ slots, dateTimeKey });
+  return res.status(200).json({ slots, dateTimeKey, hasPaymentProvider });
 }

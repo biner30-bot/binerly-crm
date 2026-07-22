@@ -7894,8 +7894,8 @@ function LandingPage() {
               id: "satis-firsat",
               icon: "ti-target-arrow",
               title: "Satış & Teklif Yönetimi",
-              desc: "İster iş teklifi ister randevu ya da üyelik satışı olsun, ilk temastan kapanışa kadar tüm süreci Kanban tahtasında takip edin. Tek tıkla markalı PDF oluşturun, onay linkiyle müşteriden tek tıkla onay alın, sık sattığınız ürün/hizmetleri fiyat listenize kaydedip saniyeler içinde seçin.",
-              tags: ["Kanban Pipeline", "PDF Çıktısı", "Onay Linki", "Fiyat Listesi", "Seans/Paket Takibi"],
+              desc: "İster iş teklifi ister randevu ya da üyelik satışı olsun, ilk temastan kapanışa kadar tüm süreci Kanban tahtasında takip edin. Hazır şablon galerisinden seçip markalı PDF oluşturun, onay linkiyle müşteriden tek tıkla onay ve isterseniz kartla online ödeme alın, sık sattığınız ürün/hizmetleri fiyat listenize kaydedip saniyeler içinde seçin.",
+              tags: ["Kanban Pipeline", "PDF Şablon Galerisi", "Onay Linki", "Online Tahsilat", "Fiyat Listesi", "Seans/Paket Takibi"],
             },
             {
               id: "pazarlama",
@@ -7922,8 +7922,8 @@ function LandingPage() {
               id: "raporlama",
               icon: "ti-chart-bar",
               title: "Raporlama & Analitik",
-              desc: "Kazanma oranı, aylık kazanılan gelir grafiği ve kayıp nedeni analizleriyle stratejik kararlar alın. Cari hesap ve KDV özet raporuyla kimin ne kadar borcu olduğunu, aylık KDV yükünüzü tek bakışta görün.",
-              tags: ["Dashboard", "Kayıp Analizi", "Cari Hesap", "KDV Özeti"],
+              desc: "Kazanma oranı, aşama hunisi, gelecek ay gelir tahmini ve kayıp nedeni analizleriyle stratejik kararlar alın. Pasif müşteri oranıyla kimi aramanız gerektiğini görün. Cari hesap ve KDV özet raporuyla kimin ne kadar borcu olduğunu, aylık KDV yükünüzü tek bakışta görün.",
+              tags: ["Dashboard", "Aşama Hunisi", "Gelir Tahmini", "Pasif Müşteri Oranı", "Kayıp Analizi", "Cari Hesap", "KDV Özeti"],
             },
             {
               id: "entegrasyonlar",
