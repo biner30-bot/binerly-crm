@@ -736,7 +736,7 @@ function RoomBookingModal({ customerRow, onBook, onClose }) {
         </div>
       </div>
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Oda Tipi</label>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>Oda Tipi</label>
         {loadingRooms ? (
           <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Yükleniyor…</p>
         ) : roomsError ? (
@@ -744,23 +744,39 @@ function RoomBookingModal({ customerRow, onBook, onClose }) {
         ) : availableRooms.length === 0 ? (
           <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Bu tarihler için müsait oda yok.</p>
         ) : (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {availableRooms.map((r) => (
               <button
                 key={r.roomType}
                 type="button"
                 onClick={() => setSelectedRoomType(r.roomType)}
                 style={{
+                  textAlign: "left",
                   background: selectedRoomType === r.roomType ? "var(--fill-accent)" : "var(--surface-1)",
                   color: selectedRoomType === r.roomType ? "var(--on-accent)" : "var(--text-primary)",
-                  border: "0.5px solid var(--border)", fontSize: 13, padding: "6px 10px",
+                  border: "0.5px solid var(--border)", fontSize: 13, padding: "8px 10px", borderRadius: 8,
                 }}
               >
-                {r.roomType} — {r.remaining}/{r.quantity} müsait
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                  <span style={{ fontWeight: 600 }}>{r.roomType}{r.capacity ? ` · ${r.capacity} kişilik` : ""}</span>
+                  <span style={{ fontSize: 12, opacity: 0.85 }}>{r.remaining}/{r.quantity} müsait</span>
+                </div>
+                {r.description && (
+                  <p style={{ margin: "3px 0 0", fontSize: 12, opacity: 0.85 }}>{r.description}</p>
+                )}
               </button>
             ))}
           </div>
         )}
+        {selectedRoomType && (() => {
+          const room = availableRooms.find((r) => r.roomType === selectedRoomType);
+          if (!room?.capacity || Number(partySize) <= room.capacity) return null;
+          return (
+            <p style={{ fontSize: 12, color: "var(--text-warning, #b45309)", margin: "6px 0 0" }}>
+              Seçtiğiniz oda {room.capacity} kişilik — kişi sayınız bunu aşıyor, işletmeyle iletişime geçmeniz gerekebilir.
+            </p>
+          );
+        })()}
       </div>
       <div style={{ marginBottom: 16 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Not <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span></label>

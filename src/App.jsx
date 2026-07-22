@@ -568,6 +568,7 @@ const HELP_TOPICS = [
   { category: "İçe/Dışa Aktarma", q: "İçe aktarmadan önce hangi satırların hatalı olduğunu görebilir miyim?", a: "Evet, önizleme ekranında her satır tek tek gösterilir; hatalı (örn. eşleşen müşteri bulunamayan) satırlar işaretlenip seçilemez hâle gelir, olası yinelenen kayıtlar ise ayrı bir uyarıyla belirtilir." },
   { category: "İçe/Dışa Aktarma", q: "İçe aktarırken bazı satırları hariç tutabilir miyim?", a: "Evet, önizleme ekranındaki kutucuğu işaretleyerek her satırı ayrı ayrı içe aktarıma dahil edebilir veya çıkarabilirsiniz; hatalı satırların kutucuğu zaten devre dışı gelir." },
   { category: "İçe/Dışa Aktarma", q: "Destek taleplerini veya Bilgi Bankası makalelerini de toplu içe aktarabilir miyim?", a: "Evet, Destek sekmesindeki Talepler ve Bilgi Bankası listelerinin her ikisinde de ayrı \"İçe aktar\" seçeneği vardır, aynı CSV/Excel akışını kullanır." },
+  { category: "İçe/Dışa Aktarma", q: "Ürün & Hizmet Fiyat Listemi toplu olarak yükleyebilir/indirebilir miyim?", a: "Evet, Ayarlar → Ürün & Hizmet Fiyat Listesi'nde de ayrı \"İçe aktar\"/\"Dışa aktar\" butonları var — ürün/hizmet adı ve fiyat sütunlarıyla aynı CSV/Excel akışını kullanır." },
   { category: "İçe/Dışa Aktarma", q: "Teklif/talep içe aktarırken müşteri sütununda tam adı mı yazmalıyım?", a: "Evet, müşteri sütunundaki isim sistemdeki müşteri adıyla (büyük/küçük harf hariç) birebir eşleşmelidir; eşleşme bulunamazsa veya birden fazla müşteri aynı isme sahipse o satır hatalı sayılır." },
   { category: "İçe/Dışa Aktarma", q: "CSV dosyamda noktalı virgül mü virgül mü kullanmalıyım?", a: "İkisi de desteklenir — dosyanızın ilk satırına bakılarak hangi ayırıcının kullanıldığı otomatik tespit edilir, ayrıca bir ayar yapmanıza gerek yoktur." },
   { category: "İçe/Dışa Aktarma", q: "vCard (.vcf) içe aktarırken hangi bilgiler okunur?", a: "Kişinin adı, telefonu ve e-postası (varsa) okunur — adı olmayan kartlar listeye hiç dahil edilmez, diğer vCard alanları (adres, doğum günü vb.) içe aktarılmaz." },
@@ -3973,6 +3974,11 @@ const CUSTOMER_IMPORT_FIELDS = [
   { key: "notes", label: "Not", hideInPreview: true },
 ];
 
+const PRICE_LIST_IMPORT_FIELDS = [
+  { key: "name", label: "Ürün/Hizmet Adı", required: true },
+  { key: "price", label: "Fiyat (TL)", type: "number", required: true },
+];
+
 const dealImportFields = (sector) => [
   { key: "customerName", label: "Müşteri adı", required: true, resolveCustomer: true },
   { key: "title", label: "Başlık", required: true },
@@ -4121,7 +4127,7 @@ function rowToBusinessHours(r) {
 }
 
 function rowToRoomInventory(r) {
-  return { id: r.id, roomType: r.room_type, quantity: r.quantity };
+  return { id: r.id, roomType: r.room_type, quantity: r.quantity, capacity: r.capacity || null, description: r.description || "" };
 }
 
 function rowToCompanySettings(r) {
@@ -4859,14 +4865,17 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
       )}
       <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
         <div style={{ flex: 2 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Hatırlatma notu</label>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+            Not
+            <InfoTip text="İsterseniz sadece bir not olarak kullanın (tarih boş kalabilir), isterseniz sağdaki tarihi de doldurup gerçek bir hatırlatmaya çevirin — tarih girilirse Pano'da ve 'Bugün ne yapmalıyım' listesinde çıkar." />
+          </label>
           <div style={{ display: "flex", gap: 6 }}>
             <input value={reminder} onChange={(e) => setReminder(e.target.value)} placeholder="Yarın takip araması yap" style={{ flex: 1 }} />
             <VoiceInputButton onResult={(text) => setReminder((prev) => (prev ? `${prev} ${text}` : text))} />
           </div>
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Hatırlatma tarihi</label>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Hatırlatma tarihi <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span></label>
           <input type="date" value={reminderDate} onChange={(e) => setReminderDate(e.target.value)} style={{ width: "100%" }} />
           <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
             {[["Bugün", 0], ["Yarın", 1], ["1 hafta sonra", 7]].map(([label, days]) => (
@@ -6409,7 +6418,9 @@ function BusinessHoursManager({ items, onAdd, onDelete }) {
 function RoomInventoryManager({ items, roomTypeOptions, onAdd, onUpdate, onDelete }) {
   const [roomType, setRoomType] = useState(roomTypeOptions[0] || "");
   const [quantity, setQuantity] = useState(1);
-  const [editingQuantities, setEditingQuantities] = useState({});
+  const [capacity, setCapacity] = useState("");
+  const [description, setDescription] = useState("");
+  const [editingItem, setEditingItem] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   const availableOptions = roomTypeOptions.filter((o) => !items.some((i) => i.roomType === o));
@@ -6421,24 +6432,48 @@ function RoomInventoryManager({ items, roomTypeOptions, onAdd, onUpdate, onDelet
   // çalışılıp veritabanı "mükerrer kayıt" hatası veriyordu. Seçili değer
   // artık mevcut listede yoksa otomatik olarak ilk müsait seçeneğe döner.
   useEffect(() => {
-    if (roomType && !availableOptions.includes(roomType)) {
+    if (!editingItem && roomType && !availableOptions.includes(roomType)) {
       setRoomType(availableOptions[0] || "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availableOptions.join("|")]);
+  }, [availableOptions.join("|"), editingItem]);
+
+  const startEdit = (item) => {
+    setEditingItem(item);
+    setRoomType(item.roomType);
+    setQuantity(item.quantity);
+    setCapacity(item.capacity ? String(item.capacity) : "");
+    setDescription(item.description || "");
+  };
+
+  const cancelEdit = () => {
+    setEditingItem(null);
+    setRoomType(availableOptions[0] || "");
+    setQuantity(1);
+    setCapacity("");
+    setDescription("");
+  };
 
   const submit = (e) => {
     e.preventDefault();
-    if (!roomType || !availableOptions.includes(roomType) || Number(quantity) < 1) return;
-    onAdd({ roomType, quantity: Number(quantity) });
+    if (Number(quantity) < 1) return;
+    if (editingItem) {
+      onUpdate({ id: editingItem.id, quantity: Number(quantity), capacity: capacity ? Number(capacity) : null, description: description.trim() });
+      cancelEdit();
+      return;
+    }
+    if (!roomType || !availableOptions.includes(roomType)) return;
+    onAdd({ roomType, quantity: Number(quantity), capacity: capacity ? Number(capacity) : null, description: description.trim() });
     setQuantity(1);
+    setCapacity("");
+    setDescription("");
   };
 
   return (
     <div>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px", display: "flex", alignItems: "center", gap: 4 }}>
-        Her oda tipinden kaç adet olduğunu belirleyin
-        <InfoTip text={`Bir oda tipinden kaç tane varsa müşteri portalı, seçilen giriş/çıkış tarihi aralığında o tipte zaten o kadar rezervasyon varsa "müsait değil" gösterir. Oda tipi seçenekleri Sektör & Özel Alanlar'daki "Oda Tipi" alanından geliyor.`} />
+        Her oda tipinden kaç adet olduğunu, kaç kişilik olduğunu ve varsa açıklamasını belirleyin
+        <InfoTip text={`Adet: bu tipte kaç oda varsa, seçilen giriş/çıkış tarihi aralığında zaten o kadar rezervasyon oluşmuşsa müşteri portalı "müsait değil" gösterir. Kapasite ve açıklama rezervasyon sırasında misafire gösterilir. Oda tipi seçenekleri Sektör & Özel Alanlar'daki "Oda Tipi" alanından geliyor.`} />
       </p>
 
       {items.length === 0 ? (
@@ -6446,19 +6481,14 @@ function RoomInventoryManager({ items, roomTypeOptions, onAdd, onUpdate, onDelet
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
           {items.map((r) => (
-            <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "6px 10px" }}>
-              <span style={{ fontSize: 13 }}>{r.roomType}</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <input
-                  type="number" min="1" style={{ width: 64, fontSize: 13 }}
-                  value={editingQuantities[r.id] ?? r.quantity}
-                  onChange={(e) => setEditingQuantities((prev) => ({ ...prev, [r.id]: e.target.value }))}
-                  onBlur={() => {
-                    const val = Number(editingQuantities[r.id]);
-                    if (val && val !== r.quantity) onUpdate(r.id, val);
-                  }}
-                />
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>adet</span>
+            <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "8px 10px" }}>
+              <div style={{ minWidth: 0 }}>
+                <span style={{ fontSize: 13, fontWeight: 500 }}>{r.roomType}</span>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}> · {r.quantity} adet{r.capacity ? ` · ${r.capacity} kişilik` : ""}</span>
+                {r.description && <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>{r.description}</p>}
+              </div>
+              <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => startEdit(r)} />
                 <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(r)} />
               </div>
             </div>
@@ -6466,26 +6496,42 @@ function RoomInventoryManager({ items, roomTypeOptions, onAdd, onUpdate, onDelet
         </div>
       )}
 
-      {availableOptions.length === 0 ? (
+      {availableOptions.length === 0 && !editingItem ? (
         <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
           {roomTypeOptions.length === 0
             ? 'Önce Sektör & Özel Alanlar\'da "Oda Tipi" alanına en az bir seçenek eklemelisiniz.'
             : "Tanımlı tüm oda tipleri zaten eklendi."}
         </p>
       ) : (
-        <form onSubmit={submit} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end" }}>
-          <div style={{ minWidth: 160 }}>
-            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Oda Tipi</label>
-            <select value={roomType} onChange={(e) => setRoomType(e.target.value)} style={{ fontSize: 13, width: "100%" }}>
-              {availableOptions.map((o) => <option key={o} value={o}>{o}</option>)}
-            </select>
-          </div>
-          <div style={{ width: 90 }}>
-            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Adet</label>
-            <input type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} style={{ fontSize: 13, width: "100%" }} />
-          </div>
-          <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>+ Ekle</button>
-        </form>
+        <>
+          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>{editingItem ? "Oda tipini düzenle" : "Yeni oda tipi ekle"}</p>
+          <form onSubmit={submit} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end" }}>
+            <div style={{ minWidth: 160 }}>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Oda Tipi</label>
+              <select value={roomType} onChange={(e) => setRoomType(e.target.value)} disabled={!!editingItem} style={{ fontSize: 13, width: "100%" }}>
+                {(editingItem ? [editingItem.roomType] : availableOptions).map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+            <div style={{ width: 80 }}>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Adet</label>
+              <input type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} style={{ fontSize: 13, width: "100%" }} />
+            </div>
+            <div style={{ width: 100 }}>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kapasite <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(kişi)</span></label>
+              <input type="number" min="1" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="2" style={{ fontSize: 13, width: "100%" }} />
+            </div>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Açıklama <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span></label>
+              <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Kahvaltı dahil, klima, WiFi..." style={{ fontSize: 13, width: "100%" }} />
+            </div>
+            <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
+              {editingItem ? "Güncelle" : "+ Ekle"}
+            </button>
+            {editingItem && (
+              <button type="button" onClick={cancelEdit} style={{ fontSize: 13 }}>Vazgeç</button>
+            )}
+          </form>
+        </>
       )}
 
       {confirmDelete && (
@@ -8126,6 +8172,8 @@ export default function App() {
   const [showSettingsForm, setShowSettingsForm] = useState(false);
   const [showSectorFields, setShowSectorFields] = useState(false);
   const [showPriceList, setShowPriceList] = useState(false);
+  const [showImportPriceList, setShowImportPriceList] = useState(false);
+  const [showPriceListExport, setShowPriceListExport] = useState(false);
   const [showBusinessHours, setShowBusinessHours] = useState(false);
   const [showRoomInventory, setShowRoomInventory] = useState(false);
   const [showPdfTemplates, setShowPdfTemplates] = useState(false);
@@ -9350,6 +9398,13 @@ export default function App() {
     return { insertedCount, errors };
   };
 
+  const bulkImportPriceListItems = async (records, onProgress) => {
+    const rows = records.map((r) => ({ id: uid(), user_id: activeTeamId, name: r.name, price: Number(r.price) || 0 }));
+    const outcome = await bulkInsertChunked("price_list_items", rows, rowToPriceListItem, setPriceListItems, onProgress);
+    if (outcome.insertedCount > 0) logAction("price_list_items", uid(), "created", `${outcome.insertedCount} ürün/hizmet içe aktarıldı`);
+    return outcome;
+  };
+
   const bulkImportCustomers = async (records, onProgress) => {
     const now = new Date().toISOString();
     const rows = records.map((r) => ({
@@ -9629,15 +9684,15 @@ export default function App() {
     setBusinessHours((prev) => prev.filter((b) => b.id !== id));
   };
 
-  const addRoomInventory = async ({ roomType, quantity }) => {
-    const row = { id: uid(), user_id: activeTeamId, room_type: roomType, quantity };
+  const addRoomInventory = async ({ roomType, quantity, capacity, description }) => {
+    const row = { id: uid(), user_id: activeTeamId, room_type: roomType, quantity, capacity: capacity || null, description: description || "" };
     const { data, error } = await supabase.from("room_inventory").insert(row).select().single();
     if (error) { notify(`Oda tipi eklenemedi: ${error.message}`); return; }
     setRoomInventory((prev) => [...prev, rowToRoomInventory(data)]);
   };
 
-  const updateRoomInventory = async (id, quantity) => {
-    const { data, error } = await supabase.from("room_inventory").update({ quantity }).eq("id", id).select().single();
+  const updateRoomInventory = async ({ id, quantity, capacity, description }) => {
+    const { data, error } = await supabase.from("room_inventory").update({ quantity, capacity: capacity || null, description: description || "" }).eq("id", id).select().single();
     if (error) { notify(`Oda tipi güncellenemedi: ${error.message}`); return; }
     setRoomInventory((prev) => prev.map((r) => (r.id === id ? rowToRoomInventory(data) : r)));
   };
@@ -11282,8 +11337,48 @@ export default function App() {
 
       {showPriceList && (
         <Modal title="Ürün & Hizmet Fiyat Listesi" onClose={() => setShowPriceList(false)}>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+            <button
+              onClick={() => setShowPriceListExport(true)}
+              disabled={priceListItems.length === 0}
+              style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+            >
+              <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
+              Dışa aktar
+            </button>
+            <button
+              onClick={() => setShowImportPriceList(true)}
+              style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+            >
+              <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
+              İçe aktar
+            </button>
+          </div>
           <PriceListManager items={priceListItems} onAdd={addPriceListItem} onUpdate={updatePriceListItem} onDelete={deletePriceListItem} sector={companySettings?.sector} />
         </Modal>
+      )}
+
+      {showImportPriceList && (
+        <ImportModal
+          entityType="price_list_items"
+          entityLabel="Ürün & Hizmet Fiyat Listesi"
+          fieldDefs={PRICE_LIST_IMPORT_FIELDS}
+          checkDuplicate={(r) => priceListItems.some((p) => p.name.trim().toLowerCase() === (r.name || "").trim().toLowerCase())}
+          onImport={bulkImportPriceListItems}
+          onClose={() => setShowImportPriceList(false)}
+        />
+      )}
+
+      {showPriceListExport && (
+        <ExportSelectionModal
+          title="Ürün & Hizmet Fiyat Listesini Dışa Aktar"
+          items={priceListItems}
+          filename="fiyat-listesi.xlsx"
+          columns={["Ürün/Hizmet Adı", "Fiyat"]}
+          getLabel={(p) => p.name}
+          getRow={(p) => [p.name, p.price]}
+          onClose={() => setShowPriceListExport(false)}
+        />
       )}
 
       {showPdfTemplates && (
@@ -11434,7 +11529,7 @@ export default function App() {
           title={dealWords.exportTitle}
           items={filteredDeals}
           filename={DEAL_TAB_STRINGS[dealKind].exportFilename}
-          columns={["Müşteri", "Başlık", "Tutar", "Gider", "Aşama", "Hatırlatma notu", "Oluşturulma tarihi"]}
+          columns={["Müşteri", "Başlık", "Tutar", "Gider", "Aşama", "Not", "Oluşturulma tarihi"]}
           getLabel={(d) => `${customerById(d.customerId)?.name || "Bilinmeyen müşteri"} — ${d.title}`}
           getRow={(d) => [
             customerById(d.customerId)?.name || "",

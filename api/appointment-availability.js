@@ -48,7 +48,7 @@ export default async function handler(req, res) {
     if (checkIn < todayIstanbul) return res.status(200).json({ rooms: [] });
 
     const [{ data: inventory, error: inventoryError }, { data: deals, error: dealsError }] = await Promise.all([
-      supabaseAdmin.from("room_inventory").select("room_type, quantity").eq("user_id", businessUserId),
+      supabaseAdmin.from("room_inventory").select("room_type, quantity, capacity, description").eq("user_id", businessUserId),
       supabaseAdmin.from("deals").select("custom_fields, stage").eq("user_id", businessUserId).is("deleted_at", null).neq("stage", "kaybedildi"),
     ]);
     if (inventoryError || dealsError) return res.status(500).json({ error: (inventoryError || dealsError).message });
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
         return checkIn < end && start < checkOut;
       }).length;
       const remaining = Math.max(0, inv.quantity - occupied);
-      return { roomType: inv.room_type, quantity: inv.quantity, available: remaining > 0, remaining };
+      return { roomType: inv.room_type, quantity: inv.quantity, available: remaining > 0, remaining, capacity: inv.capacity || null, description: inv.description || "" };
     });
 
     return res.status(200).json({ rooms });
