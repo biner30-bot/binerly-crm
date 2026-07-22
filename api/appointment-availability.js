@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 // görebilir — başka müşterilerin randevu saatlerini görüp "bu saat dolu mu"
 // diye client-side hesaplayamaz (haklı bir gizlilik kısıtı). Bu yüzden
 // doluluk hesabı burada, servis anahtarıyla, hiçbir müşteri/randevu detayı
-// döndürmeden (sadece müsait saat listesi) sunucu tarafında yapılır.
+// döndürmeden (sadece müsait saat/oda listesi) sunucu tarafında yapılır.
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).end();
 
@@ -14,16 +14,66 @@ export default async function handler(req, res) {
   // kullanabiliyordu (Network sekmesinde gözlemlendi).
   res.setHeader("Cache-Control", "no-store");
 
-  const { businessUserId, date } = req.query;
-  if (!businessUserId || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    return res.status(400).json({ error: "businessUserId ve date (YYYY-MM-DD) gerekli." });
-  }
+  const { businessUserId, date, checkIn, checkOut } = req.query;
+  if (!businessUserId) return res.status(400).json({ error: "businessUserId gerekli." });
 
   const supabaseAdmin = createClient(
     process.env.VITE_SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY,
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
+
+  // Sunucunun kendi çalışma saat dilimine güvenmeyen, doğrudan Europe/Istanbul
+  // için "şu an"ın takvim gününü veren bir yöntem — new Date(...) ile dolaylı
+  // çeviri yapan önceki yöntem, çalışma ortamına göre yanlış sonuç verebiliyordu.
+  const nowParts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Istanbul",
+      year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
+    }).formatToParts(new Date()).map((p) => [p.type, p.value])
+  );
+  const todayIstanbul = `${nowParts.year}-${nowParts.month}-${nowParts.day}`;
+
+  // Otel gibi oda-stoklu (bookingModel === "inventory", bkz. Sectors.jsx) sektörler
+  // için ayrı bir dal — burada müsaitlik bir SAAT SLOTU değil, bir GİRİŞ/ÇIKIŞ TARİH
+  // ARALIĞINDA kaç aynı tipte oda boş olduğudur. Aynı dosyada tutuyoruz çünkü
+  // Vercel Hobby planının 12 fonksiyon sınırı zaten bir kez zorlanmıştı — yeni bir
+  // api/*.js yerine mevcut uç noktaya dallanma eklendi.
+  if (checkIn || checkOut) {
+    if (!checkIn || !checkOut || !/^\d{4}-\d{2}-\d{2}$/.test(checkIn) || !/^\d{4}-\d{2}-\d{2}$/.test(checkOut) || checkOut <= checkIn) {
+      return res.status(400).json({ error: "checkIn ve checkOut (YYYY-MM-DD, checkOut > checkIn) gerekli." });
+    }
+    // Geçmiş bir giriş tarihi seçilirse (bkz. slot moduyla aynı düzeltme) hiç oda
+    // müsait dönülmez.
+    if (checkIn < todayIstanbul) return res.status(200).json({ rooms: [] });
+
+    const [{ data: inventory, error: inventoryError }, { data: deals, error: dealsError }] = await Promise.all([
+      supabaseAdmin.from("room_inventory").select("room_type, quantity").eq("user_id", businessUserId),
+      supabaseAdmin.from("deals").select("custom_fields, stage").eq("user_id", businessUserId).is("deleted_at", null).neq("stage", "kaybedildi"),
+    ]);
+    if (inventoryError || dealsError) return res.status(500).json({ error: (inventoryError || dealsError).message });
+
+    const rooms = (inventory || []).map((inv) => {
+      const occupied = (deals || []).filter((d) => {
+        const cf = d.custom_fields || {};
+        if (cf.oda_tipi !== inv.room_type) return false;
+        const start = typeof cf.giris_tarihi === "string" ? cf.giris_tarihi.slice(0, 10) : null;
+        const end = typeof cf.cikis_tarihi === "string" ? cf.cikis_tarihi : null;
+        if (!start || !end) return false;
+        // Klasik tarih aralığı çakışma testi, çıkış günü hariç (misafir o sabah
+        // ayrılır, aynı gün başka bir giriş için oda tekrar müsaittir).
+        return checkIn < end && start < checkOut;
+      }).length;
+      const remaining = Math.max(0, inv.quantity - occupied);
+      return { roomType: inv.room_type, quantity: inv.quantity, available: remaining > 0, remaining };
+    });
+
+    return res.status(200).json({ rooms });
+  }
+
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ error: "businessUserId ve date (YYYY-MM-DD) gerekli." });
+  }
 
   // Salt takvim günü olarak hesaplanır (saat/saat dilimi karışmasın diye) —
   // date.getDay() burada KULLANILMAZ: "YYYY-MM-DDT00:00:00+03:00" gibi bir
@@ -57,17 +107,6 @@ export default async function handler(req, res) {
       : []
   );
 
-  // Sunucunun kendi çalışma saat dilimine güvenmeyen, doğrudan Europe/Istanbul
-  // için "şu an"ın takvim günü ve saatini veren bir yöntem — new Date(...) ile
-  // dolaylı çeviri yapan önceki yöntem, çalışma ortamına göre yanlış sonuç
-  // verebiliyordu.
-  const nowParts = Object.fromEntries(
-    new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Europe/Istanbul",
-      year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
-    }).formatToParts(new Date()).map((p) => [p.type, p.value])
-  );
-  const todayIstanbul = `${nowParts.year}-${nowParts.month}-${nowParts.day}`;
   const isToday = date === todayIstanbul;
   const nowMinutes = (Number(nowParts.hour) % 24) * 60 + Number(nowParts.minute);
 

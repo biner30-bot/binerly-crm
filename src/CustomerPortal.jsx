@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { Badge, Modal, Toast, ConfirmDialog, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, WEEKDAYS, nextWeeklyOccurrence, NotificationBell } from "./shared";
-import { STAGES, stageLabel, dealWordKind, isAppointmentSector, supportsSelfBooking, supportsGroupClasses, groupClassWords, supportExamples, appointmentNoteExample, SECTOR_PRESETS } from "./Sectors";
+import { STAGES, stageLabel, dealWordKind, isAppointmentSector, supportsSelfBooking, bookingModel, supportsGroupClasses, groupClassWords, supportExamples, appointmentNoteExample, SECTOR_PRESETS } from "./Sectors";
 
 const PORTAL_DEAL_WORDS = {
   teklif: { emptyList: "Henüz bir teklifiniz yok.", possAcc: "tekliflerinizi", tabLabel: "Tekliflerim" },
@@ -530,7 +530,20 @@ function istanbulDateStr(date) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
 
+// Otel gibi oda-stoklu (bookingModel === "inventory") sektörlerde müsaitlik bir
+// SAAT SLOTU değil, GİRİŞ/ÇIKIŞ TARİH ARALIĞI + oda tipi stoku bazlıdır — alanların
+// neredeyse tamamı (tarih/saat slotu yerine tarih aralığı, oda tipi seçimi) farklı
+// olduğu için ayrı bir bileşene ayrıldı. Bu dispatcher'ın kendisi hiç hook
+// çağırmıyor (Rules of Hooks'u ihlal etmeden koşullu dallanabilmek için) —
+// gerçek form mantığı SlotBookingModal/RoomBookingModal'da.
 function AppointmentBookingModal({ customerRow, priceListItems, onBook, onClose }) {
+  if (bookingModel(customerRow.companySector) === "inventory") {
+    return <RoomBookingModal customerRow={customerRow} onBook={onBook} onClose={onClose} />;
+  }
+  return <SlotBookingModal customerRow={customerRow} priceListItems={priceListItems} onBook={onBook} onClose={onClose} />;
+}
+
+function SlotBookingModal({ customerRow, priceListItems, onBook, onClose }) {
   const todayStr = istanbulDateStr(new Date());
   const maxDateStr = istanbulDateStr(new Date(Date.now() + 60 * 24 * 60 * 60 * 1000));
   const [date, setDate] = useState(todayStr);
@@ -631,6 +644,131 @@ function AppointmentBookingModal({ customerRow, priceListItems, onBook, onClose 
           style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
         >
           {booking ? "Alınıyor…" : "Randevuyu Onayla"}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function RoomBookingModal({ customerRow, onBook, onClose }) {
+  const todayStr = istanbulDateStr(new Date());
+  const tomorrowStr = istanbulDateStr(new Date(Date.now() + 24 * 60 * 60 * 1000));
+  const maxDateStr = istanbulDateStr(new Date(Date.now() + 60 * 24 * 60 * 60 * 1000));
+  const [checkIn, setCheckIn] = useState(todayStr);
+  const [checkOut, setCheckOut] = useState(tomorrowStr);
+  const [arrivalTime, setArrivalTime] = useState("14:00");
+  const [partySize, setPartySize] = useState(1);
+  const [rooms, setRooms] = useState([]);
+  const [loadingRooms, setLoadingRooms] = useState(false);
+  const [roomsError, setRoomsError] = useState("");
+  const [selectedRoomType, setSelectedRoomType] = useState("");
+  const [note, setNote] = useState("");
+  const [booking, setBooking] = useState(false);
+
+  // Giriş tarihi çıkıştan sonraya çekilirse çıkışı da otomatik bir gün ileri
+  // alır — kullanıcı elle her seferinde ikisini de güncellemek zorunda kalmasın.
+  useEffect(() => {
+    if (checkOut <= checkIn) {
+      setCheckOut(istanbulDateStr(new Date(new Date(`${checkIn}T00:00:00`).getTime() + 24 * 60 * 60 * 1000)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkIn]);
+
+  useEffect(() => {
+    if (!checkIn || !checkOut || checkOut <= checkIn || !customerRow.userId) { setRooms([]); setSelectedRoomType(""); return; }
+    setLoadingRooms(true);
+    setRoomsError("");
+    setSelectedRoomType("");
+    fetch(`/api/appointment-availability?businessUserId=${customerRow.userId}&checkIn=${checkIn}&checkOut=${checkOut}`)
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data?.error || "Müsaitlik alınamadı.");
+        setRooms(data.rooms || []);
+      })
+      .catch((err) => { setRooms([]); setRoomsError(err.message || "Müsaitlik alınamadı."); })
+      .finally(() => setLoadingRooms(false));
+  }, [checkIn, checkOut, customerRow.userId]);
+
+  const confirm = async () => {
+    if (!selectedRoomType || !note.trim()) return;
+    setBooking(true);
+    const ok = await onBook({
+      customerId: customerRow.id,
+      businessUserId: customerRow.userId,
+      checkIn: `${checkIn}T${arrivalTime}:00`,
+      checkOut,
+      roomType: selectedRoomType,
+      partySize: Number(partySize) || 1,
+      note,
+    });
+    setBooking(false);
+    if (ok) onClose();
+  };
+
+  const availableRooms = rooms.filter((r) => r.available);
+
+  return (
+    <Modal title={`${customerRow.companyName || customerRow.name} — Rezervasyon Yap`} onClose={onClose}>
+      <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Giriş tarihi</label>
+          <input type="date" min={todayStr} max={maxDateStr} value={checkIn} onChange={(e) => setCheckIn(e.target.value)} style={{ width: "100%" }} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Çıkış tarihi</label>
+          <input type="date" min={checkIn} value={checkOut} onChange={(e) => setCheckOut(e.target.value)} style={{ width: "100%" }} />
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tahmini varış saati <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span></label>
+          <input type="time" value={arrivalTime} onChange={(e) => setArrivalTime(e.target.value)} style={{ width: "100%" }} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kişi sayısı</label>
+          <input type="number" min="1" value={partySize} onChange={(e) => setPartySize(e.target.value)} style={{ width: "100%" }} />
+        </div>
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Oda Tipi</label>
+        {loadingRooms ? (
+          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Yükleniyor…</p>
+        ) : roomsError ? (
+          <p style={{ fontSize: 13, color: "var(--text-danger)" }}>{roomsError}</p>
+        ) : availableRooms.length === 0 ? (
+          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Bu tarihler için müsait oda yok.</p>
+        ) : (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {availableRooms.map((r) => (
+              <button
+                key={r.roomType}
+                type="button"
+                onClick={() => setSelectedRoomType(r.roomType)}
+                style={{
+                  background: selectedRoomType === r.roomType ? "var(--fill-accent)" : "var(--surface-1)",
+                  color: selectedRoomType === r.roomType ? "var(--on-accent)" : "var(--text-primary)",
+                  border: "0.5px solid var(--border)", fontSize: 13, padding: "6px 10px",
+                }}
+              >
+                {r.roomType} — {r.remaining} müsait
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ne için rezervasyon yapmak istiyorsunuz?</label>
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={`Örn. ${appointmentNoteExample(customerRow.companySector)}`} style={{ width: "100%" }} />
+      </div>
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <button type="button" onClick={onClose}>Vazgeç</button>
+        <button
+          type="button"
+          disabled={!selectedRoomType || !note.trim() || booking}
+          onClick={confirm}
+          style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+        >
+          {booking ? "Alınıyor…" : "Rezervasyonu Onayla"}
         </button>
       </div>
     </Modal>
@@ -997,7 +1135,26 @@ export default function CustomerPortal() {
     notify("Kaydınız iptal edildi.", "success");
   };
 
-  const bookAppointment = async ({ customerId, businessUserId, dateTime, dateTimeKey, note, value }) => {
+  const bookAppointment = async ({ customerId, businessUserId, dateTime, dateTimeKey, note, value, checkIn, checkOut, roomType, partySize }) => {
+    // Otel gibi oda-stoklu (bookingModel === "inventory") sektörlerde RoomBookingModal
+    // dateTime/dateTimeKey yerine checkIn/checkOut/roomType gönderiyor — saat slotu
+    // yerine giriş/çıkış tarih aralığı + oda tipi yazılıyor.
+    if (checkIn) {
+      if (new Date(checkIn).getTime() < Date.now()) {
+        notify("Geçmiş bir tarih için rezervasyon alınamaz.");
+        return false;
+      }
+      const row = {
+        id: uid(), user_id: businessUserId, customer_id: customerId,
+        title: (note || "").trim() || "Rezervasyon talebi", value: 0, stage: "ilk_gorusme",
+        custom_fields: { giris_tarihi: checkIn, cikis_tarihi: checkOut, oda_tipi: roomType, kisi_sayisi: partySize, portal_randevu_zamani: checkIn, kaynak: "portal" },
+      };
+      const { data, error } = await supabase.from("deals").insert(row).select().single();
+      if (error) { notify(`Rezervasyon alınamadı: ${error.message}`); return false; }
+      setDeals((prev) => [...prev, rowToDeal(data)]);
+      notify("Rezervasyonunuz alındı.", "success");
+      return true;
+    }
     // Müsaitlik uç noktası geçmiş tarihler için zaten boş liste dönüyor, ama bu
     // insert doğrudan istemciden gittiği için (RLS sadece sahiplik kontrol
     // ediyor, tarih mantığını değil) ikinci bir savunma katmanı olarak burada
@@ -1304,7 +1461,10 @@ export default function CustomerPortal() {
                       style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
                     >
                       <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                      {appointmentCompanies.length > 1 ? `${row.companyName || row.name} — Randevu Al` : "Randevu Al"}
+                      {(() => {
+                        const label = bookingModel(row.companySector) === "inventory" ? "Rezervasyon Yap" : "Randevu Al";
+                        return appointmentCompanies.length > 1 ? `${row.companyName || row.name} — ${label}` : label;
+                      })()}
                     </button>
                   ))}
                 </div>

@@ -23,6 +23,7 @@ import {
   isIndividualFocusedSector,
   dealWordKind,
   supportsSelfBooking,
+  bookingModel,
   supportsGroupClasses,
   supportsSessionPackages,
   stageGuide,
@@ -432,8 +433,10 @@ const HELP_TOPICS = [
 
   // Randevu & Program
   { category: "Randevu & Program", q: "Randevularım sekmesi ne işe yarar?", a: "Randevu alınabilen sektörlerde, Bugün/Bu Hafta/Bu Ay filtreleriyle tüm randevularınızı saatine göre sıralı tek listede gösterir — arama ve aşama filtresi de var.", visibleIf: (sector) => supportsSelfBooking(sector) },
-  { category: "Randevu & Program", q: "Müşterilerimin portaldan randevu alabileceği saatleri nasıl belirlerim?", a: "Ayarlar → Müsaitlik Saatleri'nden hangi gün hangi saatler arası, kaçar dakikalık aralıklarla randevu verebileceğinizi tanımlarsınız — müşteri portalı sadece bu saatleri boş gösterir.", visibleIf: (sector) => supportsSelfBooking(sector) },
+  { category: "Randevu & Program", q: "Müşterilerimin portaldan randevu alabileceği saatleri nasıl belirlerim?", a: "Ayarlar → Müsaitlik Saatleri'nden hangi gün hangi saatler arası, kaçar dakikalık aralıklarla randevu verebileceğinizi tanımlarsınız — müşteri portalı sadece bu saatleri boş gösterir.", visibleIf: (sector) => bookingModel(sector) === "slot" },
   { category: "Randevu & Program", q: "Randevu hatırlatması otomatik mi gidiyor?", a: "Evet, randevu saatinden yaklaşık 2 saat önce müşteriye otomatik hatırlatma e-postası gider. Ayarlar → İşletme Bilgileri'nden bu özelliği kapatabilirsiniz.", visibleIf: (sector) => supportsSelfBooking(sector) },
+  { category: "Randevu & Program", q: "Oda Stoku ne işe yarar?", a: "Ayarlar → Oda Stoku'ndan her oda tipinden kaç adet olduğunuzu belirlersiniz — müşteri portalı, seçilen giriş/çıkış tarihi aralığında o tipte zaten stok kadar rezervasyon varsa \"müsait değil\" gösterir. Henüz eklenmemiş bir oda tipinden rezervasyon alınamaz.", visibleIf: (sector) => bookingModel(sector) === "inventory" },
+  { category: "Randevu & Program", q: "Aynı oda tipine aynı tarihler için birden fazla rezervasyon girebilir miyim?", a: "Evet — Oda Stoku'nda tanımladığınız adet kadar, aynı tarih aralığında çakışan rezervasyon kabul edilir; adet dolduğunda yeni bir kayıt eklemeye çalışırsanız net bir uyarıyla engellenir.", visibleIf: (sector) => bookingModel(sector) === "inventory" },
   { category: "Randevu & Program", q: "Bir randevuyu \"gelmedi\" mi \"iptal\" mi olarak işaretlemeliyim?", a: "Aşamayı \"kaybedildi\"ye çektiğinizde size sorulur — müşteri habersiz gelmediyse \"Randevuya gelmedi\", önceden haber verip iptal ettiyse \"İptal etti\" seçin. Bu ayrım Pano'daki \"Gelmeme oranı\" metriğini doğru hesaplamak için önemlidir.", visibleIf: (sector) => isAppointmentSector(sector) },
   { category: "Randevu & Program", q: "Grup dersi / haftalık program nasıl oluştururum?", a: "Spor Merkezi ve Eğitim/Kurs Merkezi sektörlerinde \"Dersler\" sekmesinden haftalık program, kapasite ve eğitmen bilgisiyle ders tanımlayabilirsiniz — müşteriler portaldan kendi kaydolup iptal edebilir.", visibleIf: (sector) => supportsGroupClasses(sector) },
 
@@ -508,7 +511,7 @@ const HELP_TOPICS = [
   { category: "Randevu & Program", q: "Randevu/görüşme tarihi alanı nereden geliyor, ben mi ekliyorum?", a: "Bu, Sektör & Özel Alanlar'da \"Tarih & Saat\" tipinde tanımlanan bir özel alandır — randevu sektörlerinde hazır gelir, diğer sektörlerde isterseniz kendiniz ekleyebilirsiniz.", visibleIf: (sector) => supportsSelfBooking(sector) },
   { category: "Randevu & Program", q: "Aynı saate iki randevu/görüşme girebilir miyim?", a: "Hayır — Tarih & Saat özel alanınız varsa ve aynı tarih/saatte başka bir aktif kayıt bulunursa, sistem kaydı engeller ve önce bu çakışmayı çözmeniz gerekir.", visibleIf: (sector) => supportsSelfBooking(sector) },
   { category: "Randevu & Program", q: "Haftalık ders programını nasıl kurarım?", a: "Dersler sekmesinden her ders için gün, saat, süre, eğitmen ve kapasite girip kaydedersiniz — program haftadan haftaya aynı şekilde tekrarlar, tarihe özel tek seferlik ders oluşturma yoktur.", visibleIf: (sector) => supportsGroupClasses(sector) },
-  { category: "Randevu & Program", q: "Müsaitlik Saatleri'nde öğle arası gibi bir boşluk tanımlayabilir miyim?", a: "Evet — her gün için başlangıç/bitiş saati ile kaçar dakikalık aralıklarla randevu verileceğini belirlersiniz; \"Öğle arası var\" kutusunu işaretleyip ara saatlerini girerseniz sistem günü otomatik olarak iki ayrı müsaitlik bloğuna böler.", visibleIf: (sector) => supportsSelfBooking(sector) },
+  { category: "Randevu & Program", q: "Müsaitlik Saatleri'nde öğle arası gibi bir boşluk tanımlayabilir miyim?", a: "Evet — her gün için başlangıç/bitiş saati ile kaçar dakikalık aralıklarla randevu verileceğini belirlersiniz; \"Öğle arası var\" kutusunu işaretleyip ara saatlerini girerseniz sistem günü otomatik olarak iki ayrı müsaitlik bloğuna böler.", visibleIf: (sector) => bookingModel(sector) === "slot" },
   { category: "Randevu & Program", q: "Randevu hatırlatma e-postasının içeriğini değiştirebilir miyim?", a: "Hayır, hatırlatma sabit bir şablonla otomatik gönderilir, içeriği uygulama içinden özelleştirilemez — sadece Ayarlar → İşletme Bilgileri'nden tamamen açıp kapatabilirsiniz.", visibleIf: (sector) => supportsSelfBooking(sector) },
 
   { category: "Destek & Bilgi Bankası", q: "SLA süresi dolmak üzereyken bunu nasıl anlarım?", a: "Talep listesinde ve talep detayında SLA rozeti \"Süre yaklaşıyor\" olur — bu, kalan sürenin hedefin son %20'lik dilimine girdiği andır (örn. Acil'de son 48 dakika, Yüksek'te son ~5 saat)." },
@@ -1208,7 +1211,7 @@ const ANSWER_LIBRARY = [
     category: "Randevu & Program",
     label: "Müsaitlik saatlerimi tanımladım mı?",
     keywords: ["müsaitlik saatleri tanımlı mı", "randevu saatlerim"],
-    visibleIf: (sector) => supportsSelfBooking(sector),
+    visibleIf: (sector) => bookingModel(sector) === "slot",
     compute: (ctx) => (ctx.businessHours.length > 0 ? `Evet, ${ctx.businessHours.length} gün için müsaitlik saati tanımlı.` : "Henüz müsaitlik saati tanımlamadınız."),
   },
   {
@@ -3085,7 +3088,7 @@ const ANSWER_LIBRARY = [
     category: "Randevu & Program",
     label: "Kaç gün için müsaitlik saati tanımlamışım?",
     keywords: ["müsaitlik günleri", "kaç gün müsait"],
-    visibleIf: (sector) => supportsSelfBooking(sector),
+    visibleIf: (sector) => bookingModel(sector) === "slot",
     compute: (ctx) => {
       if (ctx.businessHours.length === 0) return "Henüz müsaitlik saati tanımlamadınız.";
       const days = ctx.businessHours.map((b) => WEEKDAYS[b.weekday - 1]).filter(Boolean);
@@ -3097,7 +3100,7 @@ const ANSWER_LIBRARY = [
     category: "Randevu & Program",
     label: "Hangi günler için müsaitlik saatim tanımlı değil?",
     keywords: ["müsaitlik tanımlanmamış günler", "eksik müsaitlik günü"],
-    visibleIf: (sector) => supportsSelfBooking(sector),
+    visibleIf: (sector) => bookingModel(sector) === "slot",
     compute: (ctx) => {
       const defined = new Set(ctx.businessHours.map((b) => b.weekday));
       const missing = WEEKDAYS.map((name, idx) => (defined.has(idx + 1) ? null : name)).filter(Boolean);
@@ -3110,7 +3113,7 @@ const ANSWER_LIBRARY = [
     category: "Randevu & Program",
     label: "Haftalık toplam müsaitlik saatim ne kadar?",
     keywords: ["haftalık toplam müsaitlik", "toplam müsait saat"],
-    visibleIf: (sector) => supportsSelfBooking(sector),
+    visibleIf: (sector) => bookingModel(sector) === "slot",
     compute: (ctx) => {
       if (ctx.businessHours.length === 0) return "Henüz müsaitlik saati tanımlamadınız.";
       const totalMinutes = ctx.businessHours.reduce((sum, b) => {
@@ -3126,7 +3129,7 @@ const ANSWER_LIBRARY = [
     category: "Randevu & Program",
     label: "Randevu aralıklarım ortalama kaç dakika?",
     keywords: ["ortalama randevu aralığı", "randevu slotu kaç dakika"],
-    visibleIf: (sector) => supportsSelfBooking(sector),
+    visibleIf: (sector) => bookingModel(sector) === "slot",
     compute: (ctx) => {
       if (ctx.businessHours.length === 0) return "Henüz müsaitlik saati tanımlamadınız.";
       const avg = ctx.businessHours.reduce((sum, b) => sum + (b.slotDurationMinutes || 0), 0) / ctx.businessHours.length;
@@ -4101,6 +4104,10 @@ function rowToBusinessHours(r) {
   };
 }
 
+function rowToRoomInventory(r) {
+  return { id: r.id, roomType: r.room_type, quantity: r.quantity };
+}
+
 function rowToCompanySettings(r) {
   return {
     companyName: r.company_name || "",
@@ -4409,7 +4416,29 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
   );
 }
 
-function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], appointmentDateTimeKey = null, customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onSave, onCancel }) {
+// Otel gibi oda-stoklu sektörlerde (bookingModel === "inventory") aynı oda
+// tipinde, aynı tarih aralığına çakışan aktif rezervasyon sayısı stoktaki
+// adedi aşarsa çakışma bilgisi döner; stok hiç tanımlanmamışsa (owner Oda
+// Stoku'nu henüz kurmadıysa) kısıtlama uygulanmaz. Hem DealForm'un kaydetme
+// kontrolünde hem Kanban sürükle-bırak ile tekrar aktifleştirmede kullanılır.
+function roomTypeConflict({ excludeDealId, roomType, checkIn, checkOut }, deals, roomInventory) {
+  if (!roomType || !checkIn || !checkOut) return null;
+  const inventory = roomInventory.find((r) => r.roomType === roomType);
+  if (!inventory) return null;
+  const candidateStart = checkIn.slice(0, 10);
+  const overlapping = deals.filter((d) => {
+    if (d.id === excludeDealId || d.stage === "kaybedildi") return false;
+    if (d.customFields?.oda_tipi !== roomType) return false;
+    const start = d.customFields?.giris_tarihi?.slice(0, 10);
+    const end = d.customFields?.cikis_tarihi;
+    if (!start || !end) return false;
+    return candidateStart < end && start < checkOut;
+  });
+  if (overlapping.length < inventory.quantity) return null;
+  return { quantity: inventory.quantity, occupied: overlapping.length };
+}
+
+function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], appointmentDateTimeKey = null, roomInventory = [], customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(
     initial?.customerId || customers.find((c) => c.customerType === preferredCustomerType)?.id || customers[0]?.id || ""
   );
@@ -4467,7 +4496,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   // (kullanıcı isteğiyle) bu artık uyarıyla geçilebilen bir onay değil,
   // gerçek bir engel — çakışma varken kayıt yapılamaz.
   const findAppointmentConflict = (candidateStage, candidateCustomFields) => {
-    if (!appointmentDateTimeKey || !supportsSelfBooking(sector) || candidateStage === "kaybedildi") return null;
+    if (!appointmentDateTimeKey || bookingModel(sector) !== "slot" || candidateStage === "kaybedildi") return null;
     const dt = candidateCustomFields?.[appointmentDateTimeKey];
     if (!dt) return null;
     const conflict = deals.find((d) =>
@@ -4475,6 +4504,23 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
     );
     if (!conflict) return null;
     return customers.find((c) => c.id === conflict.customerId)?.name || "başka bir kayıt";
+  };
+
+  // Otel'de (bookingModel === "inventory") tek bir randevu saati yerine oda
+  // tipi + tarih aralığı + stok kontrolü geçerli — bkz. roomTypeConflict.
+  const findRoomConflict = (candidateStage, candidateCustomFields) => {
+    if (bookingModel(sector) !== "inventory" || candidateStage === "kaybedildi") return null;
+    const conflict = roomTypeConflict(
+      {
+        excludeDealId: initial?.id,
+        roomType: candidateCustomFields?.oda_tipi,
+        checkIn: candidateCustomFields?.giris_tarihi,
+        checkOut: candidateCustomFields?.cikis_tarihi,
+      },
+      deals, roomInventory
+    );
+    if (!conflict) return null;
+    return `Bu oda tipinde seçili tarihler için müsait oda kalmadı (${conflict.occupied}/${conflict.quantity} dolu).`;
   };
 
   useEffect(() => {
@@ -4542,6 +4588,11 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
         const conflictWith = findAppointmentConflict(stage, customFields);
         if (conflictWith) {
           setConflictError(`Bu tarih/saatte ${conflictWith} için de aktif bir randevu var — aynı saate iki randevu girilemez.`);
+          return;
+        }
+        const roomConflictMessage = findRoomConflict(stage, customFields);
+        if (roomConflictMessage) {
+          setConflictError(roomConflictMessage);
           return;
         }
         setConflictError("");
@@ -5366,20 +5417,28 @@ function TeklifPrint({ deal, customer, companySettings, pdfTemplates, dealLineIt
     setDownloading(true);
     try {
       const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([import("jspdf"), import("html2canvas")]);
-      const node = document.getElementById("teklif-print");
+      const original = document.getElementById("teklif-print");
       // useCORS olmadan, şirket logosu gibi farklı origin'den (Supabase Storage)
       // gelen bir <img> canvas'ı "kirletiyor" — sonraki toDataURL() bunun
       // üzerine bir SecurityError fırlatıyordu (logo yüklemiş her hesapta PDF
       // indirme sessizce "Hazırlanıyor" durumunda takılı kalıyordu).
-      // windowWidth/windowHeight verilmezse html2canvas varsayılan olarak
-      // CİHAZIN görünür pencere genişliğini kullanıyor — dar ekranlı (mobil)
-      // bir cihazda, şablonun sabit 700px genişliğinin sağında kalan her şey
-      // (tutar sütunu, adresin devamı) sessizce kırpılıyordu. Kırpma olmasın
-      // diye içeriğin gerçek tam boyutunu açıkça veriyoruz.
-      const canvas = await html2canvas(node, {
-        scale: 2, backgroundColor: "#ffffff", useCORS: true,
-        windowWidth: node.scrollWidth, windowHeight: node.scrollHeight,
-      });
+      // Bu düğüm, kendisini saran sabit konumlu/kaydırılabilir bir üst öğenin
+      // içinde olduğu için (windowWidth/windowHeight denemesi yetmedi) sağ
+      // tarafı (tutar sütunu, adresin devamı) hâlâ kırpılıyordu — kesin çözüm,
+      // düğümü hiçbir üst öğe kısıtlaması olmayan ekran dışı bir kopyaya
+      // klonlayıp yakalamayı ORADAN yapmak.
+      const clone = original.cloneNode(true);
+      clone.style.position = "fixed";
+      clone.style.top = "0";
+      clone.style.left = "-99999px";
+      clone.style.margin = "0";
+      document.body.appendChild(clone);
+      let canvas;
+      try {
+        canvas = await html2canvas(clone, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+      } finally {
+        document.body.removeChild(clone);
+      }
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF({ unit: "px", format: [canvas.width, canvas.height] });
       pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
@@ -6048,6 +6107,7 @@ function AgendaTab({ deals, customers, groupClasses, groupClassEnrollments, clas
   const [viewMode, setViewMode] = useState("ay");
   const [anchorDate, setAnchorDate] = useState(today);
   const [selectedDateKey, setSelectedDateKey] = useState(agendaDateKey(today));
+  const [showDayModal, setShowDayModal] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const todayKey = agendaDateKey(today);
   const agendaYearOptions = Array.from({ length: 11 }, (_, i) => today.getFullYear() - 5 + i);
@@ -6140,7 +6200,7 @@ function AgendaTab({ deals, customers, groupClasses, groupClassEnrollments, clas
             <button
               key={dateKey}
               type="button"
-              onClick={() => setSelectedDateKey(dateKey)}
+              onClick={() => { setSelectedDateKey(dateKey); setShowDayModal(true); }}
               style={{
                 textAlign: "left", minHeight: viewMode === "ay" ? 72 : 110, padding: "6px 6px",
                 background: isSelected ? "var(--surface-accent, var(--surface-1))" : "var(--surface-1)",
@@ -6160,43 +6220,42 @@ function AgendaTab({ deals, customers, groupClasses, groupClassEnrollments, clas
         })}
       </div>
 
-      <div style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "1rem" }}>
-        <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 600 }}>
-          {new Date(selectedDateKey).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric", weekday: "long" })}
-        </p>
-        {selectedItemsSorted.length === 0 ? (
-          <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)" }}>Bu günde bir şey yok.</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {selectedItemsSorted.map((it) => (
-              <div
-                key={it.id}
-                onClick={() => {
-                  if (it.type === "class") { setRosterClass(it.groupClass); setRosterOccurrenceDate(selectedDateKey); }
-                  else onOpenDeal(it.deal);
-                }}
-                style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "6px 8px", borderRadius: 8, background: "var(--surface-2)" }}
-              >
-                <i className={`ti ${AGENDA_EVENT_ICONS[it.type]}`} style={{ color: AGENDA_EVENT_COLORS[it.type], fontSize: 16 }} aria-hidden="true"></i>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 500 }}>{it.label}</p>
-                  <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
-                    {it.type === "reminder" ? `Hatırlatma · ${customerName(it.deal.customerId)}` : null}
-                    {it.type === "appointment" ? `${it.time.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} · ${customerName(it.deal.customerId)}` : null}
-                    {it.type === "class" ? (() => {
-                      const dayAttendance = classAttendance.filter((a) => a.groupClassId === it.groupClass.id && a.occurrenceDate === selectedDateKey);
-                      const came = dayAttendance.filter((a) => a.status === "geldi").length;
-                      const notCame = dayAttendance.filter((a) => a.status === "gelmedi").length;
-                      const summary = dayAttendance.length > 0 ? `${came} geldi, ${notCame} gelmedi` : `${it.enrolledCount}/${it.groupClass.capacity} kayıtlı`;
-                      return `${it.time.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} · ${summary}`;
-                    })() : null}
-                  </p>
+      {showDayModal && (
+        <Modal title={new Date(selectedDateKey).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric", weekday: "long" })} onClose={() => setShowDayModal(false)}>
+          {selectedItemsSorted.length === 0 ? (
+            <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)" }}>Bu günde bir şey yok.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {selectedItemsSorted.map((it) => (
+                <div
+                  key={it.id}
+                  onClick={() => {
+                    if (it.type === "class") { setRosterClass(it.groupClass); setRosterOccurrenceDate(selectedDateKey); }
+                    else { setShowDayModal(false); onOpenDeal(it.deal); }
+                  }}
+                  style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "6px 8px", borderRadius: 8, background: "var(--surface-1)" }}
+                >
+                  <i className={`ti ${AGENDA_EVENT_ICONS[it.type]}`} style={{ color: AGENDA_EVENT_COLORS[it.type], fontSize: 16 }} aria-hidden="true"></i>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 500 }}>{it.label}</p>
+                    <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
+                      {it.type === "reminder" ? `Hatırlatma · ${customerName(it.deal.customerId)}` : null}
+                      {it.type === "appointment" ? `${it.time.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} · ${customerName(it.deal.customerId)}` : null}
+                      {it.type === "class" ? (() => {
+                        const dayAttendance = classAttendance.filter((a) => a.groupClassId === it.groupClass.id && a.occurrenceDate === selectedDateKey);
+                        const came = dayAttendance.filter((a) => a.status === "geldi").length;
+                        const notCame = dayAttendance.filter((a) => a.status === "gelmedi").length;
+                        const summary = dayAttendance.length > 0 ? `${came} geldi, ${notCame} gelmedi` : `${it.enrolledCount}/${it.groupClass.capacity} kayıtlı`;
+                        return `${it.time.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} · ${summary}`;
+                      })() : null}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </Modal>
+      )}
       {rosterClassLive && (
         <Modal title={rosterClassLive.name} onClose={() => { setRosterClass(null); setRosterOccurrenceDate(null); }}>
           <GroupClassRoster
@@ -6310,6 +6369,93 @@ function BusinessHoursManager({ items, onAdd, onDelete }) {
         <ConfirmDialog
           title="Müsaitliği sil"
           message={`${WEEKDAYS[confirmDelete.weekday - 1]} ${confirmDelete.startTime}–${confirmDelete.endTime} müsaitliği kaldırılacak. Bu geri alınamaz.`}
+          onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
+          onClose={() => setConfirmDelete(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Otel gibi "randevu saati" değil "oda stoku" mantığıyla çalışan sektörler için —
+// Müsaitlik Saatleri'ndeki gün/saat/slot modeli buraya uymuyor (bkz. bookingModel,
+// Sectors.jsx): burada müsaitlik bir GÜN/SAAT slotu değil, bir TARİH ARALIĞINDA
+// kaç aynı tipte oda boş olduğudur. Oda tipi listesi serbest metin değil, "Sektör &
+// Özel Alanlar"daki aktif "oda_tipi" seçenekli alanının kendi seçeneklerinden
+// geliyor — böylece iki ayrı yerde oda tipi listesi bakımı gerekmiyor.
+function RoomInventoryManager({ items, roomTypeOptions, onAdd, onUpdate, onDelete }) {
+  const [roomType, setRoomType] = useState(roomTypeOptions[0] || "");
+  const [quantity, setQuantity] = useState(1);
+  const [editingQuantities, setEditingQuantities] = useState({});
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const availableOptions = roomTypeOptions.filter((o) => !items.some((i) => i.roomType === o));
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (!roomType || Number(quantity) < 1) return;
+    onAdd({ roomType, quantity: Number(quantity) });
+    setQuantity(1);
+  };
+
+  return (
+    <div>
+      <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px", display: "flex", alignItems: "center", gap: 4 }}>
+        Her oda tipinden kaç adet olduğunu belirleyin
+        <InfoTip text={`Bir oda tipinden kaç tane varsa müşteri portalı, seçilen giriş/çıkış tarihi aralığında o tipte zaten o kadar rezervasyon varsa "müsait değil" gösterir. Oda tipi seçenekleri Sektör & Özel Alanlar'daki "Oda Tipi" alanından geliyor.`} />
+      </p>
+
+      {items.length === 0 ? (
+        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Henüz oda tipi eklenmedi — eklenene kadar müşteri portalından rezervasyon alınamaz.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+          {items.map((r) => (
+            <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "6px 10px" }}>
+              <span style={{ fontSize: 13 }}>{r.roomType}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <input
+                  type="number" min="1" style={{ width: 64, fontSize: 13 }}
+                  value={editingQuantities[r.id] ?? r.quantity}
+                  onChange={(e) => setEditingQuantities((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                  onBlur={() => {
+                    const val = Number(editingQuantities[r.id]);
+                    if (val && val !== r.quantity) onUpdate(r.id, val);
+                  }}
+                />
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>adet</span>
+                <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(r)} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {availableOptions.length === 0 ? (
+        <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
+          {roomTypeOptions.length === 0
+            ? 'Önce Sektör & Özel Alanlar\'da "Oda Tipi" alanına en az bir seçenek eklemelisiniz.'
+            : "Tanımlı tüm oda tipleri zaten eklendi."}
+        </p>
+      ) : (
+        <form onSubmit={submit} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <div style={{ minWidth: 160 }}>
+            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Oda Tipi</label>
+            <select value={roomType} onChange={(e) => setRoomType(e.target.value)} style={{ fontSize: 13, width: "100%" }}>
+              {availableOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div style={{ width: 90 }}>
+            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Adet</label>
+            <input type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} style={{ fontSize: 13, width: "100%" }} />
+          </div>
+          <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>+ Ekle</button>
+        </form>
+      )}
+
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Oda tipini sil"
+          message={`"${confirmDelete.roomType}" kaldırılacak. Bu geri alınamaz.`}
           onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
           onClose={() => setConfirmDelete(null)}
         />
@@ -7926,6 +8072,7 @@ export default function App() {
   const [groupClassEnrollments, setGroupClassEnrollments] = useState([]);
   const [classAttendance, setClassAttendanceState] = useState([]);
   const [businessHours, setBusinessHours] = useState([]);
+  const [roomInventory, setRoomInventory] = useState([]);
   const [showSectorOnboarding, setShowSectorOnboarding] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [tourStep, setTourStep] = useState(0);
@@ -7944,6 +8091,7 @@ export default function App() {
   const [showSectorFields, setShowSectorFields] = useState(false);
   const [showPriceList, setShowPriceList] = useState(false);
   const [showBusinessHours, setShowBusinessHours] = useState(false);
+  const [showRoomInventory, setShowRoomInventory] = useState(false);
   const [showPdfTemplates, setShowPdfTemplates] = useState(false);
   const [showPaymentSettings, setShowPaymentSettings] = useState(false);
   const [showTeamModal, setShowTeamModal] = useState(false);
@@ -8031,6 +8179,7 @@ export default function App() {
       setPriceListItems([]);
       setGroupClasses([]); setGroupClassEnrollments([]); setClassAttendanceState([]);
       setBusinessHours([]);
+      setRoomInventory([]);
       setDealLineItems([]);
       setActiveTeamId(undefined);
       setPendingInvites([]);
@@ -8058,11 +8207,12 @@ export default function App() {
       supabase.from("group_class_enrollments").select("*"),
       supabase.from("class_attendance").select("*"),
       supabase.from("business_hours").select("*").order("weekday").order("start_time"),
+      supabase.from("room_inventory").select("*").order("room_type"),
       supabase.from("deal_pdf_templates").select("*").order("created_at"),
       supabase.from("deal_line_items").select("*").order("sort_order"),
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: pdft }, { data: dli }, { data: myMembership }, { data: invites }]) => {
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ri }, { data: pdft }, { data: dli }, { data: myMembership }, { data: invites }]) => {
       // customers/deals/company_settings RLS'i, sahiplik politikasına ek olarak
       // portal kullanıcılarının kendi bağlı oldukları kayıtları görmesine izin
       // veren bir politikayla da "veya" ile birleşiyor (customer_*_view'ların
@@ -8091,6 +8241,7 @@ export default function App() {
       setGroupClassEnrollments((gce || []).filter((row) => row.user_id === ownerId).map(rowToGroupClassEnrollment));
       setClassAttendanceState((catt || []).filter((row) => row.user_id === ownerId).map(rowToClassAttendance));
       setBusinessHours((bh || []).filter((row) => row.user_id === ownerId).map(rowToBusinessHours));
+      setRoomInventory((ri || []).filter((row) => row.user_id === ownerId).map(rowToRoomInventory));
       setPdfTemplates((pdft || []).filter((row) => row.user_id === ownerId).map(rowToPdfTemplate));
       setActiveTeamId(ownerId);
       // Sadece BANA gelen davetler (kendi gönderdiklerim değil) — RLS iki SELECT
@@ -9442,6 +9593,25 @@ export default function App() {
     setBusinessHours((prev) => prev.filter((b) => b.id !== id));
   };
 
+  const addRoomInventory = async ({ roomType, quantity }) => {
+    const row = { id: uid(), user_id: activeTeamId, room_type: roomType, quantity };
+    const { data, error } = await supabase.from("room_inventory").insert(row).select().single();
+    if (error) { notify(`Oda tipi eklenemedi: ${error.message}`); return; }
+    setRoomInventory((prev) => [...prev, rowToRoomInventory(data)]);
+  };
+
+  const updateRoomInventory = async (id, quantity) => {
+    const { data, error } = await supabase.from("room_inventory").update({ quantity }).eq("id", id).select().single();
+    if (error) { notify(`Oda tipi güncellenemedi: ${error.message}`); return; }
+    setRoomInventory((prev) => prev.map((r) => (r.id === id ? rowToRoomInventory(data) : r)));
+  };
+
+  const deleteRoomInventory = async (id) => {
+    const { error } = await supabase.from("room_inventory").delete().eq("id", id);
+    if (error) { notify(`Oda tipi silinemedi: ${error.message}`); return; }
+    setRoomInventory((prev) => prev.filter((r) => r.id !== id));
+  };
+
   // Sektör değişince formda görünen özel alanlar da değişsin isteniyor — ama
   // müşteri/teklif kayıtlarına daha önce girilmiş değerler kaybolmasın. Bu yüzden
   // başka bir sektöre ait alanlar SİLİNMEZ, sadece "active:false" ile gizlenir
@@ -10598,17 +10768,31 @@ export default function App() {
                         setPendingLostReasonMove({ dealId: dragDealId });
                       } else {
                         // "Kaybedildi"den (iptal/gelmedi) tekrar aktif bir aşamaya
-                        // çekiliyorsa — o saat bu arada başka birine verilmiş
-                        // olabilir (slot iptalle boşalmıştı). Aynı saate iki
-                        // randevu gerçekten var olamayacağı için bu artık gerçek
-                        // bir engel — çakışma varsa taşıma yapılmaz.
+                        // çekiliyorsa — o saat/oda bu arada başka birine verilmiş
+                        // olabilir (slot/oda iptalle boşalmıştı). Sektöre göre iki
+                        // farklı kontrol: "slot" modelinde aynı saate iki randevu,
+                        // "inventory" modelinde (Otel) stoku aşan oda-tipi çakışması.
                         const draggedDeal = deals.find((d) => d.id === dragDealId);
-                        const dt = appointmentDateTimeKey && draggedDeal?.customFields?.[appointmentDateTimeKey];
-                        const conflict = draggedDeal?.stage === "kaybedildi" && dt
+                        const model = bookingModel(companySettings?.sector);
+                        const dt = model === "slot" && appointmentDateTimeKey && draggedDeal?.customFields?.[appointmentDateTimeKey];
+                        const slotConflict = draggedDeal?.stage === "kaybedildi" && dt
                           ? deals.find((d) => d.id !== dragDealId && d.stage !== "kaybedildi" && d.customFields?.[appointmentDateTimeKey] === dt)
                           : null;
-                        if (conflict) {
-                          notify(`Bu tarih/saatte ${customers.find((c) => c.id === conflict.customerId)?.name || "başka bir kayıt"} için de aktif bir randevu var — aynı saate iki randevu girilemez.`);
+                        const roomConflict = model === "inventory" && draggedDeal?.stage === "kaybedildi"
+                          ? roomTypeConflict(
+                              {
+                                excludeDealId: dragDealId,
+                                roomType: draggedDeal?.customFields?.oda_tipi,
+                                checkIn: draggedDeal?.customFields?.giris_tarihi,
+                                checkOut: draggedDeal?.customFields?.cikis_tarihi,
+                              },
+                              deals, roomInventory
+                            )
+                          : null;
+                        if (slotConflict) {
+                          notify(`Bu tarih/saatte ${customers.find((c) => c.id === slotConflict.customerId)?.name || "başka bir kayıt"} için de aktif bir randevu var — aynı saate iki randevu girilemez.`);
+                        } else if (roomConflict) {
+                          notify(`Bu oda tipinde seçili tarihler için müsait oda kalmadı (${roomConflict.occupied}/${roomConflict.quantity} dolu).`);
                         } else {
                           moveDealStage(dragDealId, stage.id);
                         }
@@ -10948,12 +11132,20 @@ export default function App() {
                   description={paymentCredentials.length > 0 ? `Bağlı ✓ (${paymentCredentials[0].provider === "paytr" ? "PayTR" : "iyzico"}) — müşteriler onay linkinden kartla ödeyebilir` : "Onay linkinden kartla tahsilat almak için iyzico veya PayTR bağlayın"}
                   onClick={() => { setShowSettingsHub(false); setShowPaymentSettings(true); }}
                 />
-                {supportsSelfBooking(companySettings?.sector) && (
+                {bookingModel(companySettings?.sector) === "slot" && (
                   <MenuRow
                     icon="ti-clock"
                     label="Müsaitlik Saatleri"
                     description="Müşteri portalından randevu alınabilecek gün/saatleri belirleyin"
                     onClick={() => { setShowSettingsHub(false); setShowBusinessHours(true); }}
+                  />
+                )}
+                {bookingModel(companySettings?.sector) === "inventory" && (
+                  <MenuRow
+                    icon="ti-door"
+                    label="Oda Stoku"
+                    description="Her oda tipinden kaç adet olduğunu belirleyin"
+                    onClick={() => { setShowSettingsHub(false); setShowRoomInventory(true); }}
                   />
                 )}
               </>
@@ -11093,6 +11285,18 @@ export default function App() {
       {showBusinessHours && (
         <Modal title="Müsaitlik Saatleri" onClose={() => setShowBusinessHours(false)}>
           <BusinessHoursManager items={businessHours} onAdd={addBusinessHours} onDelete={deleteBusinessHours} />
+        </Modal>
+      )}
+
+      {showRoomInventory && (
+        <Modal title="Oda Stoku" onClose={() => setShowRoomInventory(false)}>
+          <RoomInventoryManager
+            items={roomInventory}
+            roomTypeOptions={customFieldDefs.find((d) => d.entity === "deal" && d.key === "oda_tipi")?.options || []}
+            onAdd={addRoomInventory}
+            onUpdate={updateRoomInventory}
+            onDelete={deleteRoomInventory}
+          />
         </Modal>
       )}
 
@@ -11263,6 +11467,7 @@ export default function App() {
             sector={companySettings?.sector}
             deals={deals}
             appointmentDateTimeKey={appointmentDateTimeKey}
+            roomInventory={roomInventory}
             customFieldDefs={customFieldDefs}
             sectorTags={SECTOR_PRESETS.find((p) => p.id === companySettings?.sector)?.tags || []}
             teamMembers={teamMembers}

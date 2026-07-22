@@ -363,6 +363,19 @@ export function supportsSelfBooking(sector) {
   return isAppointmentSector(sector) || sector === "emlak" || sector === "dijital_ajans" || sector === "hizmet_danismanlik" || sector === "otel";
 }
 
+// Kendi kendine randevu alma YETENEĞİ tek tip değil — çoğu sektörde "işletme =
+// tek kaynak, aynı anda tek randevu" varsayımı doğru (Müsaitlik Saatleri: gün/saat
+// + slot süresi, "slot" modeli). Otel'de ise doğru model bu değil: bir otelin aynı
+// tipte birden fazla odası olabilir, müsaitlik saat slotuna değil GİRİŞ/ÇIKIŞ TARİH
+// ARALIĞINA ve oda tipi STOKUNA göre hesaplanır ("inventory" modeli). Bu ayrım
+// olmadan Otel'de slot mantığı zorlanırsa, odalar boş olsa bile ikinci bir
+// rezervasyon "çakışma" sayılıp yanlışlıkla engellenir.
+export function bookingModel(sector) {
+  if (sector === "otel") return "inventory";
+  if (supportsSelfBooking(sector)) return "slot";
+  return null;
+}
+
 // Grup Dersleri (haftalık program, kapasite, kendi kendine kayıt/iptal) hem Spor
 // Merkezi'nde (üyeler) hem Eğitim/Kurs Merkezi'nde (öğrenciler) aynı ihtiyaca karşılık
 // geliyor.
