@@ -5371,7 +5371,15 @@ function TeklifPrint({ deal, customer, companySettings, pdfTemplates, dealLineIt
       // gelen bir <img> canvas'ı "kirletiyor" — sonraki toDataURL() bunun
       // üzerine bir SecurityError fırlatıyordu (logo yüklemiş her hesapta PDF
       // indirme sessizce "Hazırlanıyor" durumunda takılı kalıyordu).
-      const canvas = await html2canvas(node, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+      // windowWidth/windowHeight verilmezse html2canvas varsayılan olarak
+      // CİHAZIN görünür pencere genişliğini kullanıyor — dar ekranlı (mobil)
+      // bir cihazda, şablonun sabit 700px genişliğinin sağında kalan her şey
+      // (tutar sütunu, adresin devamı) sessizce kırpılıyordu. Kırpma olmasın
+      // diye içeriğin gerçek tam boyutunu açıkça veriyoruz.
+      const canvas = await html2canvas(node, {
+        scale: 2, backgroundColor: "#ffffff", useCORS: true,
+        windowWidth: node.scrollWidth, windowHeight: node.scrollHeight,
+      });
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF({ unit: "px", format: [canvas.width, canvas.height] });
       pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
