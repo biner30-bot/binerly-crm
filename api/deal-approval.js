@@ -377,6 +377,10 @@ async function handlePaymentCallback(req, res, supabaseAdmin, url) {
 
   const item = result.itemTransactions?.[0];
   const commissionAmount = item ? Number(item.iyziCommissionRateAmount || 0) + Number(item.iyziCommissionFee || 0) : 0;
+  // Komisyon gideri sessizce oluşmuyor şikayeti araştırılırken eklendi (2026-07-22) —
+  // itemTransactions[0]'ın gerçek alan adlarını/tiplerini üretimde göremediğimiz için
+  // ham veriyi loglayıp bir sonraki test ödemesinde Vercel loglarından okuyoruz.
+  console.error("payment-callback commission debug:", "deal.id:", deal.id, "item:", JSON.stringify(item), "commissionAmount:", commissionAmount);
 
   await recordSuccessfulPayment(supabaseAdmin, deal, {
     provider: "iyzico",
