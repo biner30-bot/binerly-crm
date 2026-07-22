@@ -157,9 +157,15 @@ async function recordSuccessfulPayment(supabaseAdmin, deal, { provider, iyzicoPa
 
   // Gerçek para tahsil edildiği için (payment_mode ne olursa olsun) teklif
   // kazanılmış sayılır — zaten kapanmış (kazanıldı/kaybedildi) bir aşamaya dokunulmaz.
+  // İSTİSNA: müşteri portalından kendi aldığı randevu/üyelik (custom_fields.kaynak
+  // === "portal") için bu geçerli DEĞİL — önceden ödeme yapılmış olması hizmetin
+  // fiilen verildiği anlamına gelmez (randevu tarihi hâlâ ileride olabilir).
+  // Bu kayıtlarda sadece payment_status güncellenir, aşamayı KOBİ (hizmeti verince)
+  // kendi değiştirir.
+  const isSelfBookedAppointment = deal.custom_fields?.kaynak === "portal";
   const isAlreadyClosed = deal.stage === "kazanildi" || deal.stage === "kaybedildi";
   const dealUpdate = { payment_status: "paid" };
-  if (!isAlreadyClosed) {
+  if (!isAlreadyClosed && !isSelfBookedAppointment) {
     dealUpdate.stage = "kazanildi";
     dealUpdate.closed_at = deal.closed_at || new Date().toISOString();
   }
@@ -168,8 +174,10 @@ async function recordSuccessfulPayment(supabaseAdmin, deal, { provider, iyzicoPa
 
   // Ödeme, hangi modda olursa olsun onaydan daha güçlü bir sinyal — "isteğe
   // bağlı" modda ayrı bir "Onaylıyorum" adımı hâlâ sunuluyor, ama müşteri
-  // onu hiç kullanmadan direkt öderse bu da onay yerine geçer.
-  if (!deal.approved_at) {
+  // onu hiç kullanmadan direkt öderse bu da onay yerine geçer. Portaldan
+  // kendi alınan randevu/üyelik/rezervasyonlarda ise onay diye bir kavram
+  // hiç yok — approved_at bilerek hiç set edilmiyor, tek sinyal payment_status.
+  if (!deal.approved_at && !isSelfBookedAppointment) {
     const { data: customer } = await supabaseAdmin.from("customers").select("name").eq("id", deal.customer_id).maybeSingle();
     await markApproved(supabaseAdmin, deal, customer, null, "ödeyerek onayladı").catch((e) => console.error("auto-approve error:", e.message));
   }
@@ -319,7 +327,7 @@ async function handlePaymentCallback(req, res, supabaseAdmin, url) {
 
   const { data: deal } = await supabaseAdmin
     .from("deals")
-    .select("id, user_id, customer_id, title, value, stage, closed_at, payment_mode, payment_status, approved_at")
+    .select("id, user_id, customer_id, title, value, stage, closed_at, payment_mode, payment_status, approved_at, custom_fields")
     .eq("approval_token", dealToken)
     .is("deleted_at", null)
     .maybeSingle();
@@ -387,7 +395,7 @@ async function handlePayTRCallback(req, res, supabaseAdmin) {
 
   const { data: deal } = await supabaseAdmin
     .from("deals")
-    .select("id, user_id, customer_id, title, value, stage, closed_at, payment_mode, payment_status, approved_at")
+    .select("id, user_id, customer_id, title, value, stage, closed_at, payment_mode, payment_status, approved_at, custom_fields")
     .eq("paytr_merchant_oid", merchantOid)
     .is("deleted_at", null)
     .maybeSingle();
@@ -596,7 +604,7 @@ export default async function handler(req, res) {
 
   const { data: deal, error: dealError } = await supabaseAdmin
     .from("deals")
-    .select("id, user_id, customer_id, title, value, kdv_rate, approved_at, created_at, stage, payment_mode, payment_status")
+    .select("id, user_id, customer_id, title, value, kdv_rate, approved_at, created_at, stage, payment_mode, payment_status, custom_fields")
     .eq("approval_token", token)
     .is("deleted_at", null)
     .maybeSingle();
@@ -634,6 +642,9 @@ export default async function handler(req, res) {
       customerName: customer?.name || "",
       paymentMode: deal.payment_mode || "none",
       paymentStatus: deal.payment_status || null,
+      // Portaldan kendi alınan randevu/üyelik/rezervasyonlarda onay diye bir
+      // kavram yok — müşteri zaten kendi almış, sayfa sadece "Öde" göstermeli.
+      selfBooked: deal.custom_fields?.kaynak === "portal",
       ...branding,
     });
   }

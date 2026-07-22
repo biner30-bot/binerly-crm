@@ -413,7 +413,10 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, se
         // doğrudan verilmiş demektir. Ödeme hâlâ eksikse yine de gösterilir,
         // ama "Onayla" değil sadece "Öde" olarak.
         const isCompleted = d.stage === "kazanildi";
-        const actionLabel = isCompleted
+        // Portaldan kendi alınan randevu/üyelik/rezervasyonlarda (kaynak: "portal")
+        // onay diye bir kavram yok — müşteri zaten kendi almış, tek eylem ödeme.
+        const isSelfBooked = d.customFields?.kaynak === "portal";
+        const actionLabel = isCompleted || isSelfBooked
           ? "Öde"
           : !isApproved
             ? (d.paymentMode === "required" ? "Onayla ve Öde" : d.paymentMode === "optional" ? "Onayla / Öde" : "Onayla")
@@ -1206,13 +1209,15 @@ export default function CustomerPortal() {
     // Fiyat fiyat listesinden seçildiği (yani belirli olduğu) ve işletmenin
     // bağlı bir ödeme sağlayıcısı (iyzico/PayTR) olduğu durumda, müşteri
     // randevusunu aldıktan hemen sonra kendi listesinden "Öde"ye basıp kartla
-    // ödeyebilsin diye onay linki ve isteğe bağlı ödeme modu baştan kuruluyor.
-    // approved_at de aynı anda set edilir — müşteri kendi randevusunu zaten
-    // kendi almış, ayrıca "Onaylıyorum" demesini istemek gereksiz bir adım olur.
+    // ödeyebilsin diye onay linki baştan kuruluyor. approved_at burada HİÇ
+    // set edilmiyor — kendi randevusunu almış olmak "onay" değildir, bu
+    // KOBİ'nin gönderdiği bir teklifi müşterinin onayladığı anlamına gelen
+    // ayrı bir kavram. "required" modu seçilerek /onay sayfasında ayrı bir
+    // "Onaylıyorum" adımı hiç çıkmıyor — tek işlem ödeme, o da başarılı
+    // olursa approved_at otomatik (ve doğru zamanda) set edilir.
     if (dealValue > 0 && hasPaymentProvider) {
       row.approval_token = uid();
-      row.payment_mode = "optional";
-      row.approved_at = new Date().toISOString();
+      row.payment_mode = "required";
     }
     const { data, error } = await supabase.from("deals").insert(row).select().single();
     if (error) { notify(`Randevu alınamadı: ${error.message}`); return false; }

@@ -246,7 +246,7 @@ export default function DealApprovalPage() {
                       disabled={paying}
                       style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
                     >
-                      {paying ? "Yönlendiriliyor…" : (isCompleted || state.deal.approved) ? "Öde" : "Onayla ve Öde"}
+                      {paying ? "Yönlendiriliyor…" : (isCompleted || state.deal.approved || state.deal.selfBooked) ? "Öde" : "Onayla ve Öde"}
                     </button>
                   )}
                   {showApproveOnly && (
@@ -273,7 +273,7 @@ export default function DealApprovalPage() {
                       disabled={paying}
                       style={{ width: "100%", background: "#fff", color: "#185fa5", border: "1px solid #185fa5", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: "pointer", marginTop: 8 }}
                     >
-                      {paying ? "Yönlendiriliyor…" : (isCompleted || state.deal.approved) ? "💳 Şimdi öde" : "💳 Onayla ve Öde"}
+                      {paying ? "Yönlendiriliyor…" : (isCompleted || state.deal.approved || state.deal.selfBooked) ? "💳 Şimdi öde" : "💳 Onayla ve Öde"}
                     </button>
                   )}
                   {hasPendingAction && (
