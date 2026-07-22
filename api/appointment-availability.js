@@ -67,8 +67,15 @@ export default async function handler(req, res) {
       year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
     }).formatToParts(new Date()).map((p) => [p.type, p.value])
   );
-  const isToday = date === `${nowParts.year}-${nowParts.month}-${nowParts.day}`;
+  const todayIstanbul = `${nowParts.year}-${nowParts.month}-${nowParts.day}`;
+  const isToday = date === todayIstanbul;
   const nowMinutes = (Number(nowParts.hour) % 24) * 60 + Number(nowParts.minute);
+
+  // Geçmiş bir tarih seçilirse (örn. tarayıcının native date input'u bir
+  // şekilde bypass edilirse) o günün tüm mesai saatleri "müsait" görünüyordu —
+  // sadece "bugün ise geçmiş saat" filtreleniyordu, "tarihin kendisi geçmiş mi"
+  // hiç kontrol edilmiyordu. Geçmiş tarihler için her zaman boş liste dön.
+  if (date < todayIstanbul) return res.status(200).json({ slots: [], dateTimeKey: null });
 
   // Aktif randevu tarihi alanı yoksa (işletme devre dışı bırakmış vb.) alınacak
   // randevunun nereye yazılacağı belirsiz olur — güvenli tarafta kalıp boş dönülür.

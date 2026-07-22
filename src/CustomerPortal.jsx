@@ -521,9 +521,18 @@ function PortalGroupClasses({ groupClasses, groupClassEnrollments, customerRows,
   );
 }
 
+// new Date().toISOString() sunucunun/tarayıcının yerel saatini değil UTC'yi
+// baz alır — Türkiye'de gece yarısından sonraki ilk birkaç saatte (UTC+3
+// farkı yüzünden) "bugün"ü bir gün geriye kaydırıp dünün tarihini min/varsayılan
+// olarak veriyordu (aynı sınıf hata api/send-appointment-reminders.js'te de
+// bulunup düzeltilmişti). Europe/Istanbul takvim gününü doğrudan hesaplar.
+function istanbulDateStr(date) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+}
+
 function AppointmentBookingModal({ customerRow, priceListItems, onBook, onClose }) {
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const maxDateStr = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const todayStr = istanbulDateStr(new Date());
+  const maxDateStr = istanbulDateStr(new Date(Date.now() + 60 * 24 * 60 * 60 * 1000));
   const [date, setDate] = useState(todayStr);
   const [slots, setSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -989,6 +998,14 @@ export default function CustomerPortal() {
   };
 
   const bookAppointment = async ({ customerId, businessUserId, dateTime, dateTimeKey, note, value }) => {
+    // Müsaitlik uç noktası geçmiş tarihler için zaten boş liste dönüyor, ama bu
+    // insert doğrudan istemciden gittiği için (RLS sadece sahiplik kontrol
+    // ediyor, tarih mantığını değil) ikinci bir savunma katmanı olarak burada
+    // da geçmişe randevu yazılması engellenir.
+    if (new Date(dateTime).getTime() < Date.now()) {
+      notify("Geçmiş bir tarih/saat için randevu alınamaz.");
+      return false;
+    }
     const row = {
       id: uid(), user_id: businessUserId, customer_id: customerId,
       title: (note || "").trim() || "Randevu talebi", value: Number(value) || 0, stage: "ilk_gorusme",

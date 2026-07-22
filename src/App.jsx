@@ -4674,7 +4674,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
             {supportsSelfBooking(sector) ? "Kayıt Tarihi" : "Tarih"}
             {supportsSelfBooking(sector) && (
-              <InfoTip text={`Bu, kaydın oluşturulma/güncellenme tarihidir — ${DEAL_WORD_FORMS[dealWordKind(sector)].bare === "randevu" ? "randevunun" : "görüşmenin"} kendi tarih/saati için aşağıdaki özel alanlar bölümündeki "${isAppointmentSector(sector) ? "Randevu Tarihi" : "Görüşme Tarihi"}" alanını kullanın.`} />
+              <InfoTip text={`Bu, kaydın oluşturulma/güncellenme tarihidir — ${DEAL_WORD_FORMS[dealWordKind(sector)].bare === "randevu" ? "randevunun" : "görüşmenin"} kendi tarih/saati için aşağıdaki özel alanlar bölümündeki "${customFieldDefs.find((d) => d.entity === "deal" && d.key === appointmentDateTimeKey)?.label || "Randevu/Görüşme Tarihi"}" alanını kullanın.`} />
             )}
           </label>
           <input type="date" value={dealDate} onChange={(e) => setDealDate(e.target.value)} style={{ width: "100%" }} />
@@ -5950,6 +5950,8 @@ function getWeekDays(anchorDate) {
   return Array.from({ length: 7 }, (_, i) => new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i));
 }
 
+const AGENDA_MONTH_NAMES = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+
 // Hatırlatma+randevu+grup dersini tek bir ay/hafta ızgarasında, tüm
 // sektörlerde birleştiren "Ajanda" sekmesi (eski, sadece randevu
 // sektörlerinde görünen kronolojik liste "Randevularım"ın yerine geçti).
@@ -5961,7 +5963,9 @@ function AgendaTab({ deals, customers, groupClasses, groupClassEnrollments, clas
   const [viewMode, setViewMode] = useState("ay");
   const [anchorDate, setAnchorDate] = useState(today);
   const [selectedDateKey, setSelectedDateKey] = useState(agendaDateKey(today));
+  const [pickerOpen, setPickerOpen] = useState(false);
   const todayKey = agendaDateKey(today);
+  const agendaYearOptions = Array.from({ length: 11 }, (_, i) => today.getFullYear() - 5 + i);
 
   const gridDays = viewMode === "ay" ? getMonthGridDays(anchorDate) : getWeekDays(anchorDate);
   const bounds = {
@@ -5987,11 +5991,36 @@ function AgendaTab({ deals, customers, groupClasses, groupClassEnrollments, clas
           <button onClick={() => navigate(-1)} aria-label="Önceki" style={{ width: 32, height: 32, padding: 0 }}><i className="ti ti-chevron-left" aria-hidden="true"></i></button>
           <button onClick={goToday} style={{ fontSize: 13 }}>Bugün</button>
           <button onClick={() => navigate(1)} aria-label="Sonraki" style={{ width: 32, height: 32, padding: 0 }}><i className="ti ti-chevron-right" aria-hidden="true"></i></button>
-          <span style={{ fontSize: 14, fontWeight: 600, marginLeft: 4 }}>
-            {viewMode === "ay"
-              ? anchorDate.toLocaleDateString("tr-TR", { month: "long", year: "numeric" })
-              : `${getWeekDays(anchorDate)[0].toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} – ${getWeekDays(anchorDate)[6].toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}`}
-          </span>
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setPickerOpen((o) => !o)}
+              style={{ fontSize: 14, fontWeight: 600, marginLeft: 4, background: "transparent", border: "none", cursor: "pointer", padding: "4px 6px", display: "flex", alignItems: "center", gap: 4, color: "var(--text-primary)" }}
+            >
+              {viewMode === "ay"
+                ? anchorDate.toLocaleDateString("tr-TR", { month: "long", year: "numeric" })
+                : `${getWeekDays(anchorDate)[0].toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} – ${getWeekDays(anchorDate)[6].toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}`}
+              <i className="ti ti-chevron-down" style={{ fontSize: 12 }} aria-hidden="true"></i>
+            </button>
+            {pickerOpen && (
+              <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: 8, padding: 10, display: "flex", gap: 6, alignItems: "center", zIndex: 20, boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
+                <select
+                  value={anchorDate.getMonth()}
+                  onChange={(e) => setAnchorDate(new Date(anchorDate.getFullYear(), Number(e.target.value), 1))}
+                  style={{ fontSize: 13 }}
+                >
+                  {AGENDA_MONTH_NAMES.map((m, i) => <option key={m} value={i}>{m}</option>)}
+                </select>
+                <select
+                  value={anchorDate.getFullYear()}
+                  onChange={(e) => setAnchorDate(new Date(Number(e.target.value), anchorDate.getMonth(), 1))}
+                  style={{ fontSize: 13 }}
+                >
+                  {agendaYearOptions.map((y) => <option key={y} value={y}>{y}</option>)}
+                </select>
+                <button onClick={() => setPickerOpen(false)} style={{ fontSize: 12, padding: "4px 8px" }}>Kapat</button>
+              </div>
+            )}
+          </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           {[{ id: "ay", label: "Ay" }, { id: "hafta", label: "Hafta" }].map((m) => (

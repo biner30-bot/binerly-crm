@@ -268,6 +268,34 @@ export const SECTOR_PRESETS = [
     },
   },
   {
+    id: "otel",
+    label: "Otel",
+    icon: "ti-bed",
+    stageLabels: {
+      ilk_gorusme: "Rezervasyon talebi",
+      teklif: "Uygunluk/Fiyat bildirildi",
+      muzakere: "Kapora bekleniyor",
+      kazanildi: "Rezervasyon onaylandı",
+      kaybedildi: "İptal / Vazgeçti",
+    },
+    tags: ["Yeni rezervasyon", "Kapora alındı", "Grup rezervasyonu", "Tekrar eden misafir", "Erken giriş/Geç çıkış talebi", "İptal"],
+    customFields: [
+      { entity: "deal", key: "oda_tipi", label: "Oda Tipi", type: "select", options: ["Standart Oda", "Deluxe Oda", "Suit", "Aile Odası"] },
+      { entity: "deal", key: "giris_tarihi", label: "Giriş Tarihi", type: "datetime" },
+      { entity: "deal", key: "cikis_tarihi", label: "Çıkış Tarihi", type: "date" },
+      { entity: "deal", key: "kisi_sayisi", label: "Kişi Sayısı", type: "number" },
+      { entity: "deal", key: "kapora_durumu", label: "Kapora Durumu", type: "select", options: ["Alınmadı", "Kısmi alındı", "Tamamı alındı"] },
+      { entity: "customer", key: "ozel_istek", label: "Özel İstek (manzara, kat, alerji vb.)", type: "text" },
+    ],
+    stageGuides: {
+      ilk_gorusme: "Giriş/çıkış tarihini ve kişi sayısını netleştirip uygun oda tipini kontrol edin.",
+      teklif: "Oda fiyatını ve varsa kahvaltı/ekstra hizmetleri net belirtin.",
+      muzakere: "Rezervasyonu kesinleştirmek için kapora/ön ödeme isteyin.",
+      kazanildi: "Giriş günü öncesi hatırlatma yapın, özel isteği (manzara, kat vb.) resepsiyona iletin.",
+      kaybedildi: "Vazgeçme nedenini not alın (fiyat, müsaitlik, tarih değişikliği vb.).",
+    },
+  },
+  {
     id: "sanayi_esnaf",
     label: "Sanayi Esnafı",
     icon: "ti-tool",
@@ -332,7 +360,7 @@ export function isAppointmentSector(sector) {
 // sektörde asıl kayıt hâlâ bir tekliftir (dealWordKind/isIndividualFocusedSector
 // değişmiyor) — sadece randevu alma YETENEĞİ ekleniyor, "randevu" diline geçilmiyor.
 export function supportsSelfBooking(sector) {
-  return isAppointmentSector(sector) || sector === "emlak" || sector === "dijital_ajans" || sector === "hizmet_danismanlik";
+  return isAppointmentSector(sector) || sector === "emlak" || sector === "dijital_ajans" || sector === "hizmet_danismanlik" || sector === "otel";
 }
 
 // Grup Dersleri (haftalık program, kapasite, kendi kendine kayıt/iptal) hem Spor
@@ -363,7 +391,7 @@ export function stageGuide(stageId, sector) {
 // (istisnai durumlar için, örn. bir firmanın toplu üyelik alması), ama
 // varsayılan müşteri tipi "Bireysel" olur.
 export function isIndividualFocusedSector(sector) {
-  return isAppointmentSector(sector) || sector === "spor_merkezi" || sector === "egitim_kurs";
+  return isAppointmentSector(sector) || sector === "spor_merkezi" || sector === "egitim_kurs" || sector === "otel";
 }
 
 // Kayıt kelimesinin üç hâli: Spor Merkezi'nde kayıt bir üyeliktir (ne randevu
@@ -387,6 +415,7 @@ const SUPPORT_EXAMPLES = {
   spor_merkezi: { subject: "Üyeliğimi dondurmak istiyorum", message: "Üyelik dondurma talebiniz işleme alındı", kbTitle: "Üyeliğimi nasıl dondurabilirim?", kbCategory: "Üyelik, Ödeme, PT" },
   egitim_kurs: { subject: "Ders saatimi değiştirmek istiyorum", message: "Yeni ders saati müşteriye iletildi", kbTitle: "Ders saatimi nasıl değiştirebilirim?", kbCategory: "Ders Programı, Ödeme, Kayıt" },
   sanayi_esnaf: { subject: "Aracım ne zaman teslim edilecek?", message: "Güncel teslim tarihi müşteriye iletildi", kbTitle: "Tahmini teslim süresi ne kadar?", kbCategory: "Servis, Ödeme, Garanti" },
+  otel: { subject: "Rezervasyonumu değiştirmek istiyorum", message: "Yeni giriş/çıkış tarihi misafire iletildi", kbTitle: "Rezervasyonumu nasıl değiştiririm?", kbCategory: "Rezervasyon, Ödeme, İptal Koşulları" },
 };
 const DEFAULT_SUPPORT_EXAMPLE = { subject: "Bir konuda yardım almak istiyorum", message: "Talep hakkında müşteriye bilgi verildi", kbTitle: "Sıkça sorulan bir soru", kbCategory: "Genel, Ödeme, Teknik" };
 export const supportExamples = (sector) => SUPPORT_EXAMPLES[sector] || DEFAULT_SUPPORT_EXAMPLE;
@@ -400,6 +429,7 @@ const APPOINTMENT_NOTE_EXAMPLES = {
   emlak: "Mülk gösterimi, kira sözleşmesi görüşmesi...",
   dijital_ajans: "Keşif görüşmesi, reklam kampanyası planlaması...",
   hizmet_danismanlik: "Danışmanlık görüşmesi, proje kapsamı...",
+  otel: "2 kişilik deluxe oda, balkon manzaralı...",
 };
 export const appointmentNoteExample = (sector) => APPOINTMENT_NOTE_EXAMPLES[sector] || "Randevu sebebinizi kısaca yazın...";
 
@@ -533,6 +563,7 @@ const CUSTOM_FIELD_NAME_EXAMPLES = {
   spor_merkezi: "Üyelik Paketi",
   egitim_kurs: "Kurs Programı",
   sanayi_esnaf: "Servis Türü",
+  otel: "Oda Tipi",
 };
 
 export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDelete, sector }) {
