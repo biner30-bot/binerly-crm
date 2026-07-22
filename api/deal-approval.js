@@ -139,8 +139,9 @@ async function recordSuccessfulPayment(supabaseAdmin, deal, { provider, iyzicoPa
   // ayrı işlem — kdv_rate bilinçli olarak boş bırakılıyor. (PayTR'nin
   // bildirim callback'i komisyon tutarını vermiyor — bu yüzden commissionAmount
   // sadece iyzico'da doluyor, v1 sınırı.)
+  console.error("commission insert about to run:", "deal.id:", deal.id, "commissionAmount:", commissionAmount, "user_id:", deal.user_id);
   if (commissionAmount > 0) {
-    const { error: expenseError } = await supabaseAdmin.from("company_expenses").insert({
+    const { data: expenseData, error: expenseError } = await supabaseAdmin.from("company_expenses").insert({
       id: crypto.randomUUID(),
       user_id: deal.user_id,
       title: provider === "paytr" ? "PayTR komisyonu" : "iyzico komisyonu",
@@ -151,8 +152,8 @@ async function recordSuccessfulPayment(supabaseAdmin, deal, { provider, iyzicoPa
       is_recurring: false,
       recurrence_interval: "monthly",
       kdv_rate: null,
-    });
-    if (expenseError) console.error("commission expense insert error:", expenseError.message, "deal.id:", deal.id);
+    }).select();
+    console.error("commission insert result:", "deal.id:", deal.id, "data:", JSON.stringify(expenseData), "error:", JSON.stringify(expenseError));
   }
 
   // Gerçek para tahsil edildiği için (payment_mode ne olursa olsun) teklif
