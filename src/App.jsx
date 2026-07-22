@@ -4483,7 +4483,11 @@ function roomTypeConflict({ excludeDealId, roomType, checkIn, checkOut }, deals,
 // yine de aşağıdaki alana elle farklı bir saat girebilir.
 function AppointmentAvailabilityHint({ businessUserId, dateTimeValue, onPick }) {
   const todayStr = new Date().toISOString().slice(0, 10);
-  const date = (dateTimeValue || "").slice(0, 10) || todayStr;
+  // Kendi tarih seçicisi — sadece dateTimeValue'nun tarihine bağlı kalırsa KOBİ
+  // başka bir günü göz atamıyordu (aşağıdaki alan boşken hep "bugün" gösteriliyordu).
+  // Müşteri portalının aksine geçmiş/60 gün sonrası gibi bir sınır yok — KOBİ
+  // geçmişe kayıt düşmek veya çok ileri tarihli randevu bakmak isteyebilir.
+  const [date, setDate] = useState((dateTimeValue || "").slice(0, 10) || todayStr);
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -4505,9 +4509,10 @@ function AppointmentAvailabilityHint({ businessUserId, dateTimeValue, onPick }) 
   return (
     <div style={{ marginBottom: 16, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem" }}>
       <p style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)", margin: "0 0 8px", display: "flex", alignItems: "center", gap: 4 }}>
-        {date} için müsait saatler
+        Müsait saatler
         <InfoTip text="Müşteri portalından görünen müsaitlikle aynı — bir saate tıklarsanız aşağıdaki tarih/saat alanına yazılır. İstediğiniz saat listede yoksa yine de aşağıdan elle girebilirsiniz, burası sadece bir öneri." />
       </p>
+      <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ fontSize: 13, marginBottom: 8 }} />
       {loading ? (
         <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: 0 }}>Yükleniyor…</p>
       ) : error ? (
