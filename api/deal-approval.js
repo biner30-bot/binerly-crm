@@ -199,7 +199,11 @@ async function initIyzicoCheckout(deal, customer, token, cred) {
   const surname = nameParts.length > 1 ? nameParts.pop() : nameParts[0];
   const name = nameParts.join(" ") || surname;
   const cityOrFallback = customer?.region || "Belirtilmedi";
-  const address = { address: cityOrFallback, contactName: customer?.name || "Müşteri", city: cityOrFallback, country: "Turkey" };
+  // Açık adres (sokak/mahalle) ile şehir ayrı alanlar — customers.address
+  // boşsa şehirle doldurmak yerine "Belirtilmedi" kullanılır, iyzico'nun
+  // ürettiği faturada şehir adı iki kez tekrarlanmasın diye.
+  const openAddress = customer?.address || "Belirtilmedi";
+  const address = { address: openAddress, contactName: customer?.name || "Müşteri", city: cityOrFallback, country: "Turkey" };
 
   const request = {
     locale: Iyzipay.LOCALE.TR,
@@ -217,7 +221,7 @@ async function initIyzicoCheckout(deal, customer, token, cred) {
       identityNumber: "11111111111",
       email: customer?.email || "musteri@binerly.com",
       gsmNumber: customer?.phone || "+905000000000",
-      registrationAddress: cityOrFallback,
+      registrationAddress: openAddress,
       city: cityOrFallback,
       country: "Turkey",
     },
@@ -282,7 +286,9 @@ async function initPayTRCheckout(req, supabaseAdmin, deal, customer, token, cred
     currency,
     test_mode: String(testMode),
     user_name: customer?.name || "Müşteri",
-    user_address: customer?.region || "Belirtilmedi",
+    // PayTR'de iyzico'dan farklı olarak ayrı bir şehir alanı yok — tek
+    // metin alanına açık adres + şehir birlikte gönderiliyor.
+    user_address: [customer?.address, customer?.region].filter(Boolean).join(", ") || "Belirtilmedi",
     user_phone: customer?.phone || "5000000000",
     merchant_ok_url: `https://binerly.com/onay/${token}?paid=1`,
     merchant_fail_url: `https://binerly.com/onay/${token}?paid=0`,
@@ -612,7 +618,7 @@ export default async function handler(req, res) {
   if (dealError || !deal) return res.status(404).json({ error: "Teklif bulunamadı." });
 
   const [{ data: customer }, { data: settings }] = await Promise.all([
-    supabaseAdmin.from("customers").select("name, email, phone, region, portal_user_id").eq("id", deal.customer_id).maybeSingle(),
+    supabaseAdmin.from("customers").select("name, email, phone, region, address, portal_user_id").eq("id", deal.customer_id).maybeSingle(),
     supabaseAdmin.from("company_settings").select("company_name, logo_url, sector").eq("user_id", deal.user_id).maybeSingle(),
   ]);
 

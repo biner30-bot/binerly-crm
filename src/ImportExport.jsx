@@ -82,6 +82,7 @@ const FIELD_KEYWORDS = {
   name: ["ad", "isim", "müşteri", "firma", "name", "unvan"],
   sector: ["sektör", "sector"],
   region: ["bölge", "şehir", "il", "region", "city"],
+  address: ["adres", "address"],
   phone: ["telefon", "tel", "phone", "gsm", "cep"],
   email: ["eposta", "e-posta", "email", "mail"],
   notes: ["not", "note", "açıklama"],

@@ -215,6 +215,7 @@ function rowToCustomer(r) {
     customerType: r.customer_type || "kurumsal",
     sector: r.sector,
     region: r.region || "",
+    address: r.address || "",
     phone: r.phone || "",
     email: r.email || "",
     notes: r.notes || "",
@@ -3969,6 +3970,7 @@ const CUSTOMER_IMPORT_FIELDS = [
   },
   { key: "sector", label: "Sektör (sadece Kurumsal için)" },
   { key: "region", label: "Bölge / Şehir" },
+  { key: "address", label: "Açık Adres" },
   { key: "phone", label: "Telefon" },
   { key: "email", label: "E-posta" },
   { key: "notes", label: "Not", hideInPreview: true },
@@ -4169,6 +4171,7 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
   const [sector, setSector] = useState(initialIsCustomSector ? "Diğer" : (initial?.sector || SECTORS[0]));
   const [customSector, setCustomSector] = useState(initialIsCustomSector ? initial.sector : "");
   const [region, setRegion] = useState(initial?.region || "");
+  const [address, setAddress] = useState(initial?.address || "");
   const [phone, setPhone] = useState(initial?.phone || "");
   const [email, setEmail] = useState(initial?.email || "");
   const [notes, setNotes] = useState(initial?.notes || "");
@@ -4204,6 +4207,7 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
           name: name.trim(),
           sector: isKurumsal ? (sector === "Diğer" ? customSector.trim() : sector) : "",
           region: region.trim(),
+          address: address.trim(),
           phone: phone.trim(),
           email: email.trim(),
           notes: notes.trim(),
@@ -4252,6 +4256,12 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Bölge / Şehir</label>
           <input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="İstanbul" style={{ width: "100%" }} />
         </div>
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+          Açık Adres <InfoTip text="Online ödeme (iyzico/PayTR) alırken fatura/adres bilgisi olarak kullanılır — boş bırakılırsa sadece Bölge/Şehir gönderilir." />
+        </label>
+        <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Mahalle, cadde/sokak, no, ilçe" style={{ width: "100%" }} />
       </div>
       {isKurumsal && sector === "Diğer" && (
         <div style={{ marginBottom: 12 }}>
@@ -8341,9 +8351,10 @@ export default function App() {
 
   // Müşteri kendi onay linkinden öderse, kayıt KOBİ'nin oturumundan bağımsız
   // (service-role, webhook) bir yoldan yazılıyor — sayfa yenilenmeden bunu
-  // görebilmek için payments/deals'ı canlı dinliyoruz. Sadece bu iki tablo,
-  // sadece bu iki olay (INSERT/UPDATE) — projede ilk Realtime kullanımı,
-  // kapsamı bilerek dar tutuyoruz.
+  // görebilmek için payments/deals'ı canlı dinliyoruz. company_expenses de aynı
+  // webhook'tan (recordSuccessfulPayment, iyzico/PayTR komisyon gideri) yazılıyor —
+  // o da eklenmezse Gelir-Gider Defteri'nde komisyon gideri sayfa yenilenene kadar
+  // görünmüyordu (canlıda fark edildi, 2026-07-22).
   useEffect(() => {
     if (!activeTeamId) return;
     const channel = supabase
@@ -8360,6 +8371,9 @@ export default function App() {
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "deals", filter: `user_id=eq.${activeTeamId}` }, (payload) => {
         setDeals((prev) => prev.map((d) => (d.id === payload.new.id ? rowToDeal(payload.new) : d)));
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "company_expenses", filter: `user_id=eq.${activeTeamId}` }, (payload) => {
+        setCompanyExpenses((prev) => (prev.some((e) => e.id === payload.new.id) ? prev : [...prev, rowToCompanyExpense(payload.new)]));
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -8594,6 +8608,7 @@ export default function App() {
       customer_type: c.customerType || "kurumsal",
       sector: c.sector,
       region: c.region,
+      address: c.address,
       phone: c.phone,
       email: c.email,
       notes: c.notes,
@@ -9410,7 +9425,7 @@ export default function App() {
     const rows = records.map((r) => ({
       id: uid(), user_id: activeTeamId, name: r.name, customer_type: r.customerType || "kurumsal",
       sector: r.customerType === "bireysel" ? "" : (r.sector || ""),
-      region: r.region || "", phone: r.phone || "", email: r.email || "",
+      region: r.region || "", address: r.address || "", phone: r.phone || "", email: r.email || "",
       notes: r.notes || "", last_contact: now, created_at: now,
     }));
     const outcome = await bulkInsertChunked("customers", rows, rowToCustomer, setCustomers, onProgress);
@@ -9874,7 +9889,7 @@ export default function App() {
       if (customerSectorFilter !== "all" && c.sector !== customerSectorFilter) return false;
       if (customerTypeFilter !== "all" && c.customerType !== customerTypeFilter) return false;
       if (!customerQuery) return true;
-      return [c.name, c.sector, c.region, c.phone, c.email].some((f) => (f || "").toLowerCase().includes(customerQuery));
+      return [c.name, c.sector, c.region, c.address, c.phone, c.email].some((f) => (f || "").toLowerCase().includes(customerQuery));
     })
     .sort((a, b) =>
       customerSort === "newest"
@@ -11509,12 +11524,13 @@ export default function App() {
           title="Müşterileri Dışa Aktar"
           items={filteredCustomers}
           filename="musteriler.xlsx"
-          columns={["Firma adı", "Sektör", "Bölge", "Telefon", "E-posta", "Not", "Son temas"]}
+          columns={["Firma adı", "Sektör", "Bölge", "Açık Adres", "Telefon", "E-posta", "Not", "Son temas"]}
           getLabel={(c) => c.name}
           getRow={(c) => [
             c.name,
             c.sector,
             c.region,
+            c.address,
             c.phone,
             c.email,
             c.notes,
