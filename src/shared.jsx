@@ -654,6 +654,7 @@ export function NotificationBell({ userId, supabase, dataTour }) {
 
       {open && (
         <div
+          className="notif-dropdown"
           style={{
             position: "absolute", top: "calc(100% + 6px)", right: 0, width: 320, maxHeight: 400, overflowY: "auto",
             background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)",

@@ -209,6 +209,20 @@
           z-index: 290;
         }
       }
+      /* Bildirim zili paneli sabit 320px genişlikte ve zil ikonunun sağ kenarına
+         hizalı açılıyor — zil ikonu sağdaki ayarlar/çıkış ikonlarının solunda
+         durduğu için dar telefon ekranlarında panel sol kenardan taşıyordu.
+         Dar ekranda tam genişlik, üstte sabit bir panele dönüşür. */
+      @media (max-width: 600px) {
+        .notif-dropdown {
+          position: fixed !important;
+          top: 70px !important;
+          left: 12px !important;
+          right: 12px !important;
+          width: auto !important;
+          max-height: calc(100vh - 90px) !important;
+        }
+      }
     </style>
   </head>
   <body>
