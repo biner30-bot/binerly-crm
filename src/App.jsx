@@ -10251,7 +10251,9 @@ export default function App() {
   return (
     <div style={{ padding: "24px 16px 64px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
-        <div>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <IconButton icon="ti-menu-2" onClick={() => setSidebarOpen(true)} title="Menü" className="app-sidebar-toggle" />
+          <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
             <img src="/favicon.svg" alt="Binerly" style={{ width: 31, height: 31 }} />
             <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Binerly</h1>
@@ -10273,9 +10275,9 @@ export default function App() {
             )}
           </div>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>KOBİ satış takip sistemi</p>
+          </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <IconButton icon="ti-menu-2" onClick={() => setSidebarOpen(true)} title="Menü" className="app-sidebar-toggle" />
           <NotificationBell userId={session.user.id} supabase={supabase} dataTour="notification-bell" />
           <IconButton icon="ti-settings" onClick={() => setShowSettingsHub(true)} title="Ayarlar" data-tour="settings-gear" />
           <IconButton icon="ti-logout" label="Çıkış" onClick={() => supabase.auth.signOut()} title="Çıkış yap" />
