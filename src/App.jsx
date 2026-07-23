@@ -6435,12 +6435,12 @@ function AgendaTab({ deals, customers, groupClasses, groupClassEnrollments, clas
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
+      <div className="agenda-grid" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
         {WEEKDAYS.map((w) => (
           <p key={w} style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textAlign: "center", textTransform: "uppercase" }}>{w.slice(0, 3)}</p>
         ))}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: "1rem" }}>
+      <div className="agenda-grid" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: "1rem" }}>
         {gridDays.map((day) => {
           const dateKey = agendaDateKey(day);
           const items = eventsByDate[dateKey] || [];
@@ -6451,6 +6451,7 @@ function AgendaTab({ deals, customers, groupClasses, groupClassEnrollments, clas
             <button
               key={dateKey}
               type="button"
+              className={`agenda-day-cell agenda-day-cell--${viewMode}`}
               onClick={() => { setSelectedDateKey(dateKey); setShowDayModal(true); }}
               style={{
                 textAlign: "left", minHeight: viewMode === "ay" ? 72 : 110, padding: "6px 6px",
@@ -6459,9 +6460,9 @@ function AgendaTab({ deals, customers, groupClasses, groupClassEnrollments, clas
                 borderRadius: 8, opacity: isOtherMonth ? 0.45 : 1, display: "flex", flexDirection: "column", gap: 3, cursor: "pointer",
               }}
             >
-              <span style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isToday ? "var(--text-accent)" : "var(--text-primary)" }}>{day.getDate()}</span>
+              <span className="agenda-day-number" style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isToday ? "var(--text-accent)" : "var(--text-primary)" }}>{day.getDate()}</span>
               {items.slice(0, 3).map((it) => (
-                <span key={it.id} style={{ fontSize: 10.5, color: "#fff", background: AGENDA_EVENT_COLORS[it.type], borderRadius: 4, padding: "1px 5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <span key={it.id} className="agenda-event-pill" style={{ fontSize: 10.5, color: "#fff", background: AGENDA_EVENT_COLORS[it.type], borderRadius: 4, padding: "1px 5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {it.label}
                 </span>
               ))}
