@@ -535,15 +535,19 @@ export function Modal({ title, onClose, wide, children }) {
           background: "var(--surface-2)",
           border: "0.5px solid var(--border)",
           borderRadius: 12,
-          padding: "1.5rem",
+          padding: "1.25rem",
           width: "100%",
-          maxWidth: wide ? 620 : 420,
+          maxWidth: wide ? 640 : 420,
           margin: "auto",
+          maxHeight: "85vh",
+          display: "flex",
+          flexDirection: "column",
+          overflowY: "auto",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <h3 style={{ margin: 0 }}>{title}</h3>
-          <button onClick={onClose} aria-label="Kapat" style={{ width: 32, height: 32, padding: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexShrink: 0 }}>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{title}</h3>
+          <button onClick={onClose} aria-label="Kapat" style={{ width: 32, height: 32, padding: 0, flexShrink: 0 }}>
             <i className="ti ti-x" aria-hidden="true"></i>
           </button>
         </div>

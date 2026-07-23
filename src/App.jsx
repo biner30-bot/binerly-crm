@@ -4685,6 +4685,11 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   const [assignedTo, setAssignedTo] = useState(initial?.assignedTo || currentUserId || "");
   const [notifyCustomer, setNotifyCustomer] = useState(initial?.notifyCustomer || false);
   const [conflictError, setConflictError] = useState("");
+  // Var olan bir kaydı düzenlerken (Sorumlu/Etiket/Özel Alan/Dosya gibi zaten
+  // doldurulmuş olabilecek alanlar sessizce gizli kalmasın diye) akordeon
+  // açık başlar; yeni kayıtta (henüz hiçbir "ek" alan dolu olamayacağı için)
+  // kapalı başlayıp hızlı girişe odaklanır.
+  const [showAdvanced, setShowAdvanced] = useState(!!initial);
   const defsForEntity = customFieldDefs.filter((d) => d.entity === "deal" && (!d.audience || d.audience === selectedCustomerType));
   // Randevu tarihi alanı forma özel olarak yukarıda (Ürün/Hizmet'in yanında)
   // gösteriliyorsa, Özel alanlar listesinde mükerrer çıkmasın diye çıkarılır —
@@ -4805,11 +4810,14 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
         setConflictError("");
         onSave(payload);
       }}
+      className="compact-form"
+      style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
     >
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: 4 }}>
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Müşteri</label>
         {initial ? (
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>{customers.find((c) => c.id === customerId)?.name || "Bilinmeyen müşteri"}</p>
+          <p style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{customers.find((c) => c.id === customerId)?.name || "Bilinmeyen müşteri"}</p>
         ) : customers.length === 0 ? (
           <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Önce bir müşteri ekleyin.</p>
         ) : (
@@ -4825,7 +4833,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
         </div>
       )}
       {(priceListItems.length > 0 || (bookingModel(sector) === "slot" && appointmentDateTimeKey)) && (
-        <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
           {priceListItems.length > 0 && (
             <div style={{ flex: 1, minWidth: 200 }}>
               <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
@@ -4862,13 +4870,13 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           )}
         </div>
       )}
-      <div style={{ marginBottom: 12 }}>
+      <div style={{ marginBottom: 6 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
           Kalemler (opsiyonel)
           <InfoTip text="Birden fazla ürün/hizmet satırı eklerseniz Tutar bunların toplamına otomatik hesaplanır. Hiç kalem eklemezseniz Tutar'ı yine elle girebilirsiniz." />
         </label>
         {lineItems.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 6 }}>
             {lineItems.map((li, i) => (
               <div key={li.localId ?? i} style={{ border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 8 }}>
                 <div style={{ display: "flex", gap: 6, alignItems: "flex-end", marginBottom: 6 }}>
@@ -4949,15 +4957,15 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           )}
         </div>
       </div>
-      <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Başlık</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={DEAL_TITLE_EXAMPLES[sector] || (selectedCustomerType === "bireysel" ? "İlk randevu / danışmanlık" : "Yıllık tedarik anlaşması")} list="deal-title-suggestions" style={{ width: "100%" }} />
-        <datalist id="deal-title-suggestions">
-          {titleSuggestions.map((t) => <option key={t} value={t} />)}
-        </datalist>
-      </div>
-      <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-        <div style={{ flex: 2 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+        <div style={{ flex: "1.6 1 200px" }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Başlık</label>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={DEAL_TITLE_EXAMPLES[sector] || (selectedCustomerType === "bireysel" ? "İlk randevu / danışmanlık" : "Yıllık tedarik anlaşması")} list="deal-title-suggestions" style={{ width: "100%" }} />
+          <datalist id="deal-title-suggestions">
+            {titleSuggestions.map((t) => <option key={t} value={t} />)}
+          </datalist>
+        </div>
+        <div style={{ flex: "1 1 140px" }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
             Tutar (TL) <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>— KDV dahil{lineItems.length > 0 ? ", kalemlerden otomatik" : ""}</span>
           </label>
@@ -4968,11 +4976,9 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
             </p>
           )}
         </div>
-        <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Gider (TL)</label>
-          <input type="number" min="0" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="0" style={{ width: "100%" }} />
-        </div>
-        <div style={{ flex: 1 }}>
+      </div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        <div style={{ flex: "1 1 120px" }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>KDV oranı <InfoTip text={kdvRateInfoText(sector)} /></label>
           <select value={kdvRate} onChange={(e) => setKdvRate(Number(e.target.value))} style={{ width: "100%" }}>
             <option value={20}>%20</option>
@@ -4981,32 +4987,32 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
             <option value={0}>%0</option>
           </select>
         </div>
+        <div style={{ flex: "1.4 1 180px" }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+            Müşteri ödemesi
+            <InfoTip text="Onay linkinden veya müşteri portalından kartla ödeme alınabilir — iyzico veya PayTR bağlantısı Ayarlar'dan kurulmalı." />
+          </label>
+          <select value={paymentMode} onChange={(e) => { setPaymentMode(e.target.value); localStorage.setItem(PAYMENT_MODE_LAST_CHOICE_KEY, e.target.value); }} style={{ width: "100%" }}>
+            {PAYMENT_MODE_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+          </select>
+          {paymentMode !== "none" && !hasPaymentConnection && (
+            <p style={{ fontSize: 12.5, color: "var(--text-warning, #b45309)", margin: "4px 0 0" }}>
+              Ödeme almak için önce Ayarlar'dan iyzico veya PayTR hesabınızı bağlamanız gerekiyor.
+            </p>
+          )}
+        </div>
       </div>
       {initial?.stage === "kazanildi" && (Number(value) !== initial?.value || Number(kdvRate) !== initial?.kdvRate) && (
-        <p style={{ fontSize: 12.5, color: "var(--text-warning, #b45309)", margin: "-6px 0 12px" }}>
+        <p style={{ fontSize: 12.5, color: "var(--text-warning, #b45309)", margin: "-4px 0 12px" }}>
           Bu {DEAL_WORD_FORMS[dealWordKind(sector)].bare} zaten kazanılmış — Tutar/KDV değişikliği, bu döneme ait KDV Özet Raporu'nu da geriye dönük etkiler.
         </p>
       )}
-      <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
-          Müşteri ödemesi
-          <InfoTip text="Onay linkinden veya müşteri portalından kartla ödeme alınabilir — iyzico veya PayTR bağlantısı Ayarlar'dan kurulmalı." />
-        </label>
-        <select value={paymentMode} onChange={(e) => { setPaymentMode(e.target.value); localStorage.setItem(PAYMENT_MODE_LAST_CHOICE_KEY, e.target.value); }} style={{ width: "100%" }}>
-          {PAYMENT_MODE_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-        </select>
-        {paymentMode !== "none" && !hasPaymentConnection && (
-          <p style={{ fontSize: 12.5, color: "var(--text-warning, #b45309)", margin: "4px 0 0" }}>
-            Ödeme almak için önce Ayarlar'dan iyzico veya PayTR hesabınızı bağlamanız gerekiyor.
-          </p>
-        )}
-      </div>
-      <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
             {supportsSelfBooking(sector) ? "Kayıt Tarihi" : "Tarih"}
             {supportsSelfBooking(sector) && (
-              <InfoTip text={`Bu, kaydın oluşturulma/güncellenme tarihidir — ${DEAL_WORD_FORMS[dealWordKind(sector)].bare === "randevu" ? "randevunun" : DEAL_WORD_FORMS[dealWordKind(sector)].bare === "rezervasyon" ? "rezervasyonun" : "görüşmenin"} kendi tarih/saati için aşağıdaki özel alanlar bölümündeki "${customFieldDefs.find((d) => d.entity === "deal" && d.key === appointmentDateTimeKey)?.label || "Randevu/Görüşme Tarihi"}" alanını kullanın.`} />
+              <InfoTip text={`Bu, kaydın oluşturulma/güncellenme tarihidir — ${DEAL_WORD_FORMS[dealWordKind(sector)].bare === "randevu" ? "randevunun" : DEAL_WORD_FORMS[dealWordKind(sector)].bare === "rezervasyon" ? "rezervasyonun" : "görüşmenin"} kendi tarih/saati için ${bookingModel(sector) === "slot" ? "yukarıdaki" : "aşağıdaki özel alanlar bölümündeki"} "${customFieldDefs.find((d) => d.entity === "deal" && d.key === appointmentDateTimeKey)?.label || "Randevu/Görüşme Tarihi"}" alanını kullanın.`} />
             )}
           </label>
           <input type="date" value={dealDate} onChange={(e) => setDealDate(e.target.value)} style={{ width: "100%" }} />
@@ -5033,119 +5039,148 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
         </div>
       )}
       {isClosingStage && (
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
-            {selectedCustomerType === "bireysel"
-              ? (stage === "kazanildi" ? "Tamamlanma / fatura tarihi" : "İptal tarihi")
-              : (stage === "kazanildi" ? "Kapanma / fatura tarihi" : "Kapanma tarihi")}
-          </label>
-          <input type="date" min={dealDate} value={closedDate} onChange={(e) => setClosedDate(e.target.value)} style={{ width: "100%" }} />
-          {dateError && <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "4px 0 0" }}>{dateError}</p>}
-        </div>
-      )}
-      {supportsSessionPackages(sector) && (
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-secondary)", cursor: "pointer" }}>
-            <input type="checkbox" checked={isPackageDeal} onChange={(e) => setIsPackageDeal(e.target.checked)} />
-            Bu bir seans/paket satışı
-            <InfoTip text={SESSION_PACKAGE_INFO_TEXT} />
-          </label>
-        </div>
-      )}
-      {supportsSessionPackages(sector) && isPackageDeal && (
-        <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-          <div style={{ flex: 1 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Toplam seans sayısı</label>
-            <input type="number" min="1" value={sessionTotal} onChange={(e) => setSessionTotal(e.target.value)} style={{ width: "100%" }} />
+        <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 160 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
+              {selectedCustomerType === "bireysel"
+                ? (stage === "kazanildi" ? "Tamamlanma / fatura tarihi" : "İptal tarihi")
+                : (stage === "kazanildi" ? "Kapanma / fatura tarihi" : "Kapanma tarihi")}
+            </label>
+            <input type="date" min={dealDate} value={closedDate} onChange={(e) => setClosedDate(e.target.value)} style={{ width: "100%" }} />
+            {dateError && <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "4px 0 0" }}>{dateError}</p>}
           </div>
-          <div style={{ flex: 1 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kullanılan seans sayısı</label>
-            <input type="number" min="0" value={sessionUsed} onChange={(e) => setSessionUsed(e.target.value)} style={{ width: "100%" }} />
-          </div>
-          {sessionError && <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "4px 0 0" }}>{sessionError}</p>}
-        </div>
-      )}
-      <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-        <div style={{ flex: 2 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
-            Not
-            <InfoTip text="İsterseniz sadece bir not olarak kullanın (tarih boş kalabilir), isterseniz sağdaki tarihi de doldurup gerçek bir hatırlatmaya çevirin — tarih girilirse Pano'da ve 'Bugün ne yapmalıyım' listesinde çıkar." />
-          </label>
-          <div style={{ display: "flex", gap: 6 }}>
-            <input value={reminder} onChange={(e) => setReminder(e.target.value)} placeholder="Yarın takip araması yap" style={{ flex: 1 }} />
-            <VoiceInputButton onResult={(text) => setReminder((prev) => (prev ? `${prev} ${text}` : text))} />
-          </div>
-        </div>
-        <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Hatırlatma tarihi <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span></label>
-          <input type="date" value={reminderDate} onChange={(e) => setReminderDate(e.target.value)} style={{ width: "100%" }} />
-          <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-            {[["Bugün", 0], ["Yarın", 1], ["1 hafta sonra", 7]].map(([label, days]) => (
-              <button
-                key={label}
-                type="button"
-                onClick={() => setReminderDate(new Date(Date.now() + days * 86400000).toISOString().slice(0, 10))}
-                style={{ fontSize: 11, padding: "3px 8px" }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-      {reminder.trim() && reminderDate && (
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-secondary)", cursor: selectedCustomerEmail ? "pointer" : "not-allowed" }}>
-            <input
-              type="checkbox"
-              checked={notifyCustomer}
-              disabled={!selectedCustomerEmail}
-              onChange={(e) => setNotifyCustomer(e.target.checked)}
-            />
-            Hatırlatma tarihinde müşteriye de e-posta gönder
-          </label>
-          {!selectedCustomerEmail && (
-            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0 24px" }}>Müşterinin e-postası yok, gönderilemez.</p>
+          {stage === "kaybedildi" && (
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>{selectedCustomerType === "bireysel" ? "İptal nedeni" : "Kayıp nedeni"}</label>
+              <select value={lostReason} onChange={(e) => setLostReason(e.target.value)} style={{ width: "100%" }}>
+                {dealLostReasons(sector).map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
           )}
         </div>
       )}
-      {teamMembers.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Sorumlu <InfoTip text={ASSIGNEE_INFO_TEXT} /></label>
-          <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} style={{ width: "100%" }}>
-            {currentUserId && <option value={currentUserId}>Ben ({currentUserEmail})</option>}
-            {teamMembers.filter((m) => m.id !== currentUserId).map((m) => <option key={m.id} value={m.id}>{m.name || m.email}</option>)}
-            {assignedTo && assignedTo !== currentUserId && !teamMembers.some((m) => m.id === assignedTo) && (
-              <option value={assignedTo}>Eski üye (takımdan çıkarılmış)</option>
-            )}
-          </select>
+
+      <button
+        type="button"
+        onClick={() => setShowAdvanced((v) => !v)}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+          background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)",
+          padding: "8px 12px", marginBottom: showAdvanced ? 10 : 12, fontSize: 13, fontWeight: 500, cursor: "pointer",
+        }}
+      >
+        <span>
+          Ek Bilgiler ve Dosyalar{" "}
+          <span style={{ fontWeight: 400, color: "var(--text-muted)", fontSize: 12 }}>
+            (Gider, seans/paket, not, sorumlu, etiket, özel alan, dosya)
+          </span>
+        </span>
+        <i className={`ti ${showAdvanced ? "ti-chevron-up" : "ti-chevron-down"}`} style={{ fontSize: 16, flexShrink: 0 }} aria-hidden="true"></i>
+      </button>
+      {showAdvanced && (
+        <div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Gider (TL)</label>
+            <input type="number" min="0" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="0" style={{ width: "100%" }} />
+          </div>
+          {teamMembers.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Sorumlu <InfoTip text={ASSIGNEE_INFO_TEXT} /></label>
+              <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} style={{ width: "100%" }}>
+                {currentUserId && <option value={currentUserId}>Ben ({currentUserEmail})</option>}
+                {teamMembers.filter((m) => m.id !== currentUserId).map((m) => <option key={m.id} value={m.id}>{m.name || m.email}</option>)}
+                {assignedTo && assignedTo !== currentUserId && !teamMembers.some((m) => m.id === assignedTo) && (
+                  <option value={assignedTo}>Eski üye (takımdan çıkarılmış)</option>
+                )}
+              </select>
+            </div>
+          )}
+          {supportsSessionPackages(sector) && (
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-secondary)", cursor: "pointer" }}>
+                <input type="checkbox" checked={isPackageDeal} onChange={(e) => setIsPackageDeal(e.target.checked)} />
+                Bu bir seans/paket satışı
+                <InfoTip text={SESSION_PACKAGE_INFO_TEXT} />
+              </label>
+            </div>
+          )}
+          {supportsSessionPackages(sector) && isPackageDeal && (
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Toplam seans sayısı</label>
+                <input type="number" min="1" value={sessionTotal} onChange={(e) => setSessionTotal(e.target.value)} style={{ width: "100%" }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kullanılan seans sayısı</label>
+                <input type="number" min="0" value={sessionUsed} onChange={(e) => setSessionUsed(e.target.value)} style={{ width: "100%" }} />
+              </div>
+              {sessionError && <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "4px 0 0" }}>{sessionError}</p>}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <div style={{ flex: 2 }}>
+              <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+                Not
+                <InfoTip text="İsterseniz sadece bir not olarak kullanın (tarih boş kalabilir), isterseniz sağdaki tarihi de doldurup gerçek bir hatırlatmaya çevirin — tarih girilirse Pano'da ve 'Bugün ne yapmalıyım' listesinde çıkar." />
+              </label>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input value={reminder} onChange={(e) => setReminder(e.target.value)} placeholder="Yarın takip araması yap" style={{ flex: 1 }} />
+                <VoiceInputButton onResult={(text) => setReminder((prev) => (prev ? `${prev} ${text}` : text))} />
+              </div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Hatırlatma tarihi <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span></label>
+              <input type="date" value={reminderDate} onChange={(e) => setReminderDate(e.target.value)} style={{ width: "100%" }} />
+              <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+                {[["Bugün", 0], ["Yarın", 1], ["1 hafta sonra", 7]].map(([label, days]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => setReminderDate(new Date(Date.now() + days * 86400000).toISOString().slice(0, 10))}
+                    style={{ fontSize: 11, height: 24, padding: "0 10px", display: "inline-flex", alignItems: "center" }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          {reminder.trim() && reminderDate && (
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-secondary)", cursor: selectedCustomerEmail ? "pointer" : "not-allowed" }}>
+                <input
+                  type="checkbox"
+                  checked={notifyCustomer}
+                  disabled={!selectedCustomerEmail}
+                  onChange={(e) => setNotifyCustomer(e.target.checked)}
+                />
+                Hatırlatma tarihinde müşteriye de e-posta gönder
+              </label>
+              {!selectedCustomerEmail && (
+                <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0 24px" }}>Müşterinin e-postası yok, gönderilemez.</p>
+              )}
+            </div>
+          )}
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Etiketler <InfoTip text={TAGS_INFO_TEXT} /></label>
+            <TagInput tags={tags} onChange={setTags} suggestions={sectorTags} />
+          </div>
+          <CustomFieldsSection defs={otherDefsForEntity} values={customFields} onChange={setCustomFields} />
+          {initial?.id && (
+            <AttachmentList
+              entityType="deals"
+              entityId={initial.id}
+              attachments={attachments}
+              onUpload={onUploadAttachment}
+              onDownload={onDownloadAttachment}
+              onDelete={onDeleteAttachment}
+            />
+          )}
         </div>
-      )}
-      {stage === "kaybedildi" && (
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>{selectedCustomerType === "bireysel" ? "İptal nedeni" : "Kayıp nedeni"}</label>
-          <select value={lostReason} onChange={(e) => setLostReason(e.target.value)} style={{ width: "100%" }}>
-            {dealLostReasons(sector).map((r) => <option key={r} value={r}>{r}</option>)}
-          </select>
-        </div>
-      )}
-      <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Etiketler <InfoTip text={TAGS_INFO_TEXT} /></label>
-        <TagInput tags={tags} onChange={setTags} suggestions={sectorTags} />
-      </div>
-      <CustomFieldsSection defs={otherDefsForEntity} values={customFields} onChange={setCustomFields} />
-      {initial?.id && (
-        <AttachmentList
-          entityType="deals"
-          entityId={initial.id}
-          attachments={attachments}
-          onUpload={onUploadAttachment}
-          onDownload={onDownloadAttachment}
-          onDelete={onDeleteAttachment}
-        />
       )}
       {conflictError && <p style={{ fontSize: 12.5, color: "var(--text-danger)", margin: "0 0 8px" }}>{conflictError}</p>}
-      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+      </div>
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", paddingTop: 12, marginTop: 4, borderTop: "1px solid var(--border)", flexShrink: 0 }}>
         <button type="button" onClick={onCancel}>Vazgeç</button>
         <button type="submit" disabled={customers.length === 0} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
       </div>

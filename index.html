@@ -274,6 +274,19 @@
         .agenda-day-number { font-size: 11px !important; }
         .agenda-event-pill { font-size: 9px !important; padding: 0 3px !important; }
       }
+      /* Teklif/Randevu/Üyelik/Rezervasyon formu — 36-40px input yüksekliği,
+         14px yazı; textarea hariç (o kendi min-height'ını kullanır). Sadece
+         bu forma özel, başka hiçbir yeri etkilemez. */
+      .compact-form input:not([type="checkbox"]):not([type="radio"]),
+      .compact-form select {
+        height: 38px;
+        padding: 0 10px;
+        font-size: 14px;
+      }
+      .compact-form textarea {
+        padding: 8px 10px;
+        font-size: 14px;
+      }
     </style>
   </head>
   <body>
