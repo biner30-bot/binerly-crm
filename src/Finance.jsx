@@ -451,10 +451,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
         item.amount,
       ])
     );
-    const body =
-      "Merhaba,\n\nGelir-Gider Defteri raporumu hazırladım — az önce bilgisayarınıza inen " +
-      '"gelir-gider-defteri.xlsx" dosyasını bu e-postaya eklemeyi unutmayın.\n\nİyi çalışmalar.';
-    openAccountantMail("Gelir-Gider Defteri", body);
+    openAccountantMail("Gelir-Gider Defteri", "Merhaba,\n\nGelir-Gider Defteri raporumu ekte paylaşıyorum.\n\nİyi çalışmalar.");
   };
 
   const customerBalances = customers
@@ -522,12 +519,12 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
             type="button"
             onClick={sendDefterToAccountant}
             disabled={filteredLedger.length === 0}
-            title="Defteri .xlsx olarak indirir ve e-posta taslağı açar — dosyayı elle eklemeniz gerekir"
             style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 4 }}
           >
             <i className="ti ti-send" style={{ fontSize: 14 }} aria-hidden="true"></i>
             Muhasebeciye Gönder
           </button>
+          <InfoTip text={'Defteri .xlsx olarak indirir ve e-posta taslağı açar — mailto: dosyayı otomatik ekleyemediği için, az önce inen "gelir-gider-defteri.xlsx" dosyasını göndermeden önce e-postaya elle eklemeyi unutmayın.'} placement="bottom" />
         </div>
       </div>
       )}
