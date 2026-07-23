@@ -568,7 +568,7 @@ const HELP_TOPICS = [
   { category: "Ayarlar & Hesap", q: "Google hesabımla giriş yapabilir miyim?", a: "Evet, giriş ekranındaki Google seçeneğiyle e-posta/şifre girmeden tek tıkla giriş yapabilir veya kayıt olabilirsiniz — bu hem ana uygulamada hem Müşteri Portalı'nda mevcuttur." },
   { category: "Ayarlar & Hesap", q: "Şirket logomu teklif PDF'lerinde nasıl gösteririm?", a: "Ayarlar → İşletme Bilgileri'nden logonuzu yükleyin — Teklif Şablonları'ndaki hazır tasarımlar ve oluşturacağınız özel şablonlar logo alanında otomatik olarak bu görseli kullanır." },
   { category: "Ayarlar & Hesap", q: "Vergi numaramı nereye giriyorum, teklif PDF'inde otomatik çıkar mı?", a: "Ayarlar → İşletme Bilgileri'ne girdiğiniz vergi numarası, teklif PDF şablonlarındaki \"Vergi no\" satırında otomatik olarak görünür." },
-  { category: "Ayarlar & Hesap", q: "Ayarlar menüsünden hangi ekranlara ulaşabilirim?", a: "İşletme Bilgileri, Sektör & Özel Alanlar, Ürün & Hizmet Fiyat Listesi, Teklif Şablonları, Ödeme Bağlantısı, (randevu alınabilen sektörlerde) Müsaitlik Saatleri, Görünüm/Bildirimler/Hesap, Takım, Çöp Kutusu ve Geçmiş, Müşteri Kazanma Linki ve Turu Tekrar Başlat — hepsi tek bir Ayarlar penceresinden açılır." },
+  { category: "Ayarlar & Hesap", q: "Ayarlar menüsünden hangi ekranlara ulaşabilirim?", a: "İşletme Bilgileri, Sektör & Özel Alanlar, Ürün & Hizmet Fiyat Listesi, Teklif Şablonları, Ödeme Bağlantısı, (randevu alınabilen sektörlerde) Müsaitlik Saatleri, Görünüm/Bildirimler/Hesap, Takım, Çöp Kutusu ve Geçmiş, Müşteri Kazanma Linki, Müşteri Portalı Linki ve Turu Tekrar Başlat — hepsi tek bir Ayarlar penceresinden açılır." },
 
   { category: "İçe/Dışa Aktarma", q: "İçe aktarırken dosyamdaki sütunları Binerly alanlarıyla nasıl eşleştiririm?", a: "Dosyanızı yükledikten sonra açılan eşleştirme ekranında her Binerly alanı için dosyanızdaki hangi sütunun kullanılacağını seçersiniz — sistem sütun başlıklarına bakarak bu eşleşmeyi olabildiğince otomatik önerir, siz kontrol edip düzeltirsiniz." },
   { category: "İçe/Dışa Aktarma", q: "İçe aktarmadan önce hangi satırların hatalı olduğunu görebilir miyim?", a: "Evet, önizleme ekranında her satır tek tek gösterilir; hatalı (örn. eşleşen müşteri bulunamayan) satırlar işaretlenip seçilemez hâle gelir, olası yinelenen kayıtlar ise ayrı bir uyarıyla belirtilir." },
@@ -8404,6 +8404,7 @@ export default function App() {
   const [paymentsDeal, setPaymentsDeal] = useState(null);
   const [paymentModeDeal, setPaymentModeDeal] = useState(null);
   const [leadCaptureLink, setLeadCaptureLink] = useState(null);
+  const [showPortalLinkModal, setShowPortalLinkModal] = useState(false);
   const [quickList, setQuickList] = useState(null);
   const [initialViewTicketId, setInitialViewTicketId] = useState(null);
   const [toast, setToast] = useState(null);
@@ -11391,11 +11392,40 @@ export default function App() {
               }}
             />
             <MenuRow
+              icon="ti-users-group"
+              label="Müşteri Portalı Linki"
+              description="Mevcut müşterileriniz için — kendi hesaplarıyla giriş yapıp takip etsinler"
+              onClick={() => { setShowSettingsHub(false); setShowPortalLinkModal(true); }}
+            />
+            <MenuRow
               icon="ti-map-2"
               label="Turu Tekrar Başlat"
               description="Sistemin nasıl çalıştığını gösteren kısa turu tekrar izleyin"
               onClick={() => { setShowSettingsHub(false); setTourStep(0); setShowTour(true); }}
             />
+          </div>
+        </Modal>
+      )}
+
+      {showPortalLinkModal && (
+        <Modal title="Müşteri Portalı Linki" onClose={() => setShowPortalLinkModal(false)}>
+          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px" }}>
+            Bu linki (veya QR kodu) mevcut müşterilerinizle paylaşın — kayıtlı e-postalarıyla kendi hesaplarını oluşturup teklif/randevu/üyelik durumlarını görebilir, destek talebi açabilirler. Belirli bir müşteriye özel paylaşmak isterseniz Müşteriler listesindeki "Linki paylaş" butonunu da kullanabilirsiniz.
+          </p>
+          <img
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(getPortalUrl())}`}
+            alt="QR kod"
+            style={{ display: "block", margin: "0 auto 16px" }}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <input readOnly value={getPortalUrl()} style={{ flex: 1, fontSize: 13 }} onFocus={(e) => e.target.select()} />
+            <button
+              type="button"
+              onClick={() => { navigator.clipboard.writeText(getPortalUrl()); notify("Link kopyalandı.", "success"); }}
+              style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+            >
+              Kopyala
+            </button>
           </div>
         </Modal>
       )}
