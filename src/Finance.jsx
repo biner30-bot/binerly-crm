@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Badge, Modal, MetricCard, ConfirmDialog, IconButton, InfoTip, formatTL, PANO_RANGES, getRangeBounds, inRange } from "./shared";
+import { Badge, Modal, MetricCard, ConfirmDialog, IconButton, InfoTip, formatTL, PANO_RANGES, getRangeBounds, inRange, downloadXlsx } from "./shared";
 import { stageLabel, dealWordKind } from "./Sectors";
 
 const FINANCE_DEAL_WORDS = {
@@ -111,7 +111,10 @@ export function expandExpenseOccurrences(expense, bounds) {
   return occurrences;
 }
 
-const EXPENSE_CATEGORIES = ["Kira", "Maaş", "Fatura / Abonelik", "Ofis / Sarf Malzemesi", "Pazarlama", "Vergi / SGK", "Ulaşım", "Ödeme Komisyonu", "Diğer"];
+const EXPENSE_CATEGORIES = [
+  "Kira", "Maaş", "Fatura / Abonelik", "Ofis / Sarf Malzemesi", "Pazarlama", "Vergi / SGK", "Ulaşım", "Ödeme Komisyonu",
+  "Eğitim", "Danışmanlık", "Sigorta", "Bakım / Onarım", "Seyahat / Konaklama", "Temsil ve Ağırlama", "Diğer",
+];
 
 function paymentDateLabel(dateStr) {
   return new Date(dateStr).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" });
@@ -314,6 +317,9 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
   const [financeRange, setFinanceRange] = useState("bu_ay");
   const [ledgerTypeFilter, setLedgerTypeFilter] = useState("all");
   const [ledgerSearch, setLedgerSearch] = useState("");
+  // Muhasebeciye gönder — DB'ye/hesaba bağlı bir alan değil, sadece bu tarayıcıda
+  // hatırlanan bir kolaylık (yeni bir sütun/migration gerektirmeden).
+  const [accountantEmail, setAccountantEmail] = useState(() => localStorage.getItem("binerly_accountant_email") || "");
   const [kdvMonth, setKdvMonth] = useState(new Date().toISOString().slice(0, 7));
   const [expandedCustomerId, setExpandedCustomerId] = useState(null);
   const [newPaymentCustomerId, setNewPaymentCustomerId] = useState("");
@@ -416,6 +422,41 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
   const alisKdv = expensesWithKdv.reduce((sum, e) => sum + kdvAmountOf(e.amount || 0, e.kdvRate), 0);
   const odenecekKdv = satisKdv - alisKdv;
 
+  // mailto: kullanılıyor — yeni bir sunucu/e-posta altyapısı gerektirmeden
+  // (Resend zaten var ama bu ikincil bir kolaylık, ayrı bir API'ye değmez)
+  // kullanıcının kendi e-posta istemcisini önceden doldurulmuş halde açar.
+  const openAccountantMail = (subject, body) => {
+    window.location.href = `mailto:${accountantEmail.trim()}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const sendKdvToAccountant = () => {
+    const body =
+      `Merhaba,\n\n${kdvMonth} ayı KDV özetim:\n` +
+      `Satış KDV'si: ${formatTL(satisKdv)}\n` +
+      `Alış KDV'si: ${formatTL(alisKdv)}\n` +
+      `Ödenecek/Devreden KDV: ${formatTL(odenecekKdv)}\n\n` +
+      "Bu rapor Binerly üzerinden alınmıştır, resmi bir beyanname/e-defter değildir.\n\nİyi çalışmalar.";
+    openAccountantMail(`KDV Özet Raporu — ${kdvMonth}`, body);
+  };
+
+  const sendDefterToAccountant = () => {
+    if (filteredLedger.length === 0) return;
+    downloadXlsx(
+      "gelir-gider-defteri.xlsx",
+      ["Tür", "Tarih", "Açıklama", "Tutar"],
+      filteredLedger.map((item) => [
+        item.type === "gelir" ? "Gelir" : "Gider",
+        item.hasTime ? expenseDateTimeLabel(item.date) : paymentDateLabel(item.date),
+        item.label,
+        item.amount,
+      ])
+    );
+    const body =
+      "Merhaba,\n\nGelir-Gider Defteri raporumu hazırladım — az önce bilgisayarınıza inen " +
+      '"gelir-gider-defteri.xlsx" dosyasını bu e-postaya eklemeyi unutmayın.\n\nİyi çalışmalar.';
+    openAccountantMail("Gelir-Gider Defteri", body);
+  };
+
   const customerBalances = customers
     .map((customer) => {
       const wonDeals = deals
@@ -438,40 +479,79 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
       <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: 12, width: "fit-content" }}>
         <button
           onClick={() => setFinanceView("tahsilat")}
-          style={{ border: "none", background: financeView === "tahsilat" ? "var(--surface-2)" : "transparent", fontSize: 13 }}
+          style={{ border: "none", background: financeView === "tahsilat" ? "var(--fill-accent)" : "transparent", color: financeView === "tahsilat" ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: financeView === "tahsilat" ? 600 : 400, fontSize: 13 }}
         >
           Tahsilat / Cari Hesap
         </button>
         <button
           onClick={() => setFinanceView("defter")}
-          style={{ border: "none", background: financeView === "defter" ? "var(--surface-2)" : "transparent", fontSize: 13 }}
+          style={{ border: "none", background: financeView === "defter" ? "var(--fill-accent)" : "transparent", color: financeView === "defter" ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: financeView === "defter" ? 600 : 400, fontSize: 13 }}
         >
           Gelir-Gider Defteri
         </button>
         <button
           onClick={() => setFinanceView("kdv")}
-          style={{ border: "none", background: financeView === "kdv" ? "var(--surface-2)" : "transparent", fontSize: 13 }}
+          style={{ border: "none", background: financeView === "kdv" ? "var(--fill-accent)" : "transparent", color: financeView === "kdv" ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: financeView === "kdv" ? 600 : 400, fontSize: 13 }}
         >
           KDV Özet Raporu
         </button>
       </div>
 
       {financeView === "defter" && (
-      <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: 16, width: "fit-content" }}>
-        {PANO_RANGES.map((r) => (
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, width: "fit-content" }}>
+          {PANO_RANGES.map((r) => (
+            <button
+              key={r.id}
+              onClick={() => setFinanceRange(r.id)}
+              style={{ border: "none", background: financeRange === r.id ? "var(--fill-accent)" : "transparent", color: financeRange === r.id ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: financeRange === r.id ? 600 : 400, fontSize: 13 }}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <input
+            type="email"
+            value={accountantEmail}
+            onChange={(e) => { setAccountantEmail(e.target.value); localStorage.setItem("binerly_accountant_email", e.target.value); }}
+            placeholder="Muhasebeci e-postası"
+            style={{ fontSize: 12.5, width: 190 }}
+          />
           <button
-            key={r.id}
-            onClick={() => setFinanceRange(r.id)}
-            style={{ border: "none", background: financeRange === r.id ? "var(--surface-2)" : "transparent", fontSize: 13 }}
+            type="button"
+            onClick={sendDefterToAccountant}
+            disabled={filteredLedger.length === 0}
+            title="Defteri .xlsx olarak indirir ve e-posta taslağı açar — dosyayı elle eklemeniz gerekir"
+            style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 4 }}
           >
-            {r.label}
+            <i className="ti ti-send" style={{ fontSize: 14 }} aria-hidden="true"></i>
+            Muhasebeciye Gönder
           </button>
-        ))}
+        </div>
       </div>
       )}
       {financeView === "kdv" && (
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 12, flexWrap: "wrap" }}>
           <input type="month" value={kdvMonth} onChange={(e) => setKdvMonth(e.target.value)} style={{ width: 180 }} />
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input
+              type="email"
+              value={accountantEmail}
+              onChange={(e) => { setAccountantEmail(e.target.value); localStorage.setItem("binerly_accountant_email", e.target.value); }}
+              placeholder="Muhasebeci e-postası"
+              style={{ fontSize: 12.5, width: 190 }}
+            />
+            <button
+              type="button"
+              onClick={sendKdvToAccountant}
+              title="Bu ayın KDV özetiyle bir e-posta taslağı açar"
+              style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 4 }}
+            >
+              <i className="ti ti-send" style={{ fontSize: 14 }} aria-hidden="true"></i>
+              Muhasebeciye Gönder
+            </button>
+          </div>
         </div>
       )}
 

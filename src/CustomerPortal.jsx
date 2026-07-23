@@ -901,7 +901,7 @@ function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubsc
           <button
             type="button"
             onClick={() => onThemeChange("light")}
-            style={{ border: "none", background: theme === "light" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+            style={{ border: "none", background: theme === "light" ? "var(--fill-accent)" : "transparent", color: theme === "light" ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: theme === "light" ? 600 : 400, display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
           >
             <i className="ti ti-sun" style={{ fontSize: 15 }} aria-hidden="true"></i>
             Açık
@@ -909,7 +909,7 @@ function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubsc
           <button
             type="button"
             onClick={() => onThemeChange("dark")}
-            style={{ border: "none", background: theme === "dark" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+            style={{ border: "none", background: theme === "dark" ? "var(--fill-accent)" : "transparent", color: theme === "dark" ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: theme === "dark" ? 600 : 400, display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
           >
             <i className="ti ti-moon" style={{ fontSize: 15 }} aria-hidden="true"></i>
             Koyu
