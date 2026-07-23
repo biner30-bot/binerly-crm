@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Binerly — KOBİ CRM Yazılımı | Müşteri Takibi, Satış ve Randevu Yönetimi</title>
     <meta name="theme-color" content="#185fa5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="description" content="Binerly, KOBİ'ler için müşteri takibi, satış/teklif yönetimi, randevu ve destek sürecini tek ekranda birleştiren CRM yazılımıdır. Şu an erken erişimde ve tamamen ücretsiz." />
     <link rel="canonical" href="https://binerly.com/" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
@@ -174,6 +176,38 @@
          kayboluyordu — dar ekranda gizlenir, ilgili bölümlere sayfa kaydırarak zaten ulaşılabilir. */
       @media (max-width: 640px) {
         .landing-nav-links { display: none; }
+      }
+      /* Ana uygulamanın sol sekme menüsü (Pano/Müşteriler/... ) masaüstünde sabit
+         200px'lik bir sidebar — telefon genişliğinde (ve özellikle kurulu PWA'da,
+         tarayıcı çubuğu olmadığı için alan daha da dar) içerikle sıkışıp taşıyordu.
+         Dar ekranda soldan açılan bir çekmeceye dönüşür, hamburger butonuyla açılır. */
+      /* IconButton kendi display:flex'ini inline style olarak set ediyor, class
+         kuralları normalde onu ezemez — bu yüzden burada da !important gerekiyor. */
+      .app-sidebar-toggle { display: none !important; }
+      @media (max-width: 860px) {
+        .app-sidebar-toggle { display: flex !important; }
+        .app-sidebar {
+          /* nav'ın inline style'ındaki position:sticky/top:24'ü ezmek için
+             !important gerekiyor — inline style aksi halde class'ı kazanır. */
+          position: fixed !important;
+          top: 0 !important;
+          left: 0;
+          height: 100vh;
+          z-index: 300;
+          background: var(--surface-1);
+          border-right: 0.5px solid var(--border);
+          padding: 16px 12px;
+          overflow-y: auto;
+          transform: translateX(-100%);
+          transition: transform 0.2s ease;
+        }
+        .app-sidebar.open { transform: translateX(0); }
+        .app-sidebar-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(12, 37, 64, 0.4);
+          z-index: 290;
+        }
       }
     </style>
   </head>

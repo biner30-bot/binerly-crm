@@ -10,6 +10,7 @@ export default function LeadCapturePage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [address, setAddress] = useState("");
   const [note, setNote] = useState("");
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
@@ -38,7 +39,7 @@ export default function LeadCapturePage() {
     const res = await fetch("/api/lead-capture", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, name, phone, email, note }),
+      body: JSON.stringify({ token, name, phone, email, address, note }),
     });
     const data = await res.json();
     if (!res.ok) { setSubmitError(data.error || "Gönderilemedi."); setSending(false); return; }
@@ -70,6 +71,9 @@ export default function LeadCapturePage() {
               </div>
               <div style={{ marginBottom: 10 }}>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-posta" style={{ width: "100%" }} />
+              </div>
+              <div style={{ marginBottom: 10 }}>
+                <textarea value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Açık Adres (opsiyonel)" style={{ width: "100%", minHeight: 50, resize: "vertical" }} />
               </div>
               <div style={{ marginBottom: 16 }}>
                 <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Not (opsiyonel)" style={{ width: "100%", minHeight: 60, resize: "vertical" }} />

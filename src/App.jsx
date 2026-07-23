@@ -8356,6 +8356,7 @@ export default function App() {
   const [dismissedInviteIds, setDismissedInviteIds] = useState([]);
   const [acknowledgedInviteIds, setAcknowledgedInviteIds] = useState([]);
   const [showSettingsHub, setShowSettingsHub] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSettingsForm, setShowSettingsForm] = useState(false);
   const [showSectorFields, setShowSectorFields] = useState(false);
   const [showPriceList, setShowPriceList] = useState(false);
@@ -10274,6 +10275,7 @@ export default function App() {
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>KOBİ satış takip sistemi</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          <IconButton icon="ti-menu-2" onClick={() => setSidebarOpen(true)} title="Menü" className="app-sidebar-toggle" />
           <NotificationBell userId={session.user.id} supabase={supabase} dataTour="notification-bell" />
           <IconButton icon="ti-settings" onClick={() => setShowSettingsHub(true)} title="Ayarlar" data-tour="settings-gear" />
           <IconButton icon="ti-logout" label="Çıkış" onClick={() => supabase.auth.signOut()} title="Çıkış yap" />
@@ -10343,7 +10345,8 @@ export default function App() {
       <h2 className="sr-only">KOBİ satış takip uygulaması: pano, müşteriler ve iş takibi sekmeleri</h2>
 
       <div style={{ display: "flex", gap: 32, alignItems: "flex-start", maxWidth: 1300 }}>
-      <nav style={{ width: 200, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4, position: "sticky", top: 24 }}>
+      {sidebarOpen && <div className="app-sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
+      <nav className={`app-sidebar${sidebarOpen ? " open" : ""}`} style={{ width: 200, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4, position: "sticky", top: 24 }}>
         {[
           { id: "pano", label: "Pano", icon: "ti-layout-dashboard" },
           { id: "musteri", label: "Müşteriler", icon: "ti-building" },
@@ -10356,7 +10359,7 @@ export default function App() {
         ].map((t) => (
           <button
             key={t.id}
-            onClick={() => setTab(t.id)}
+            onClick={() => { setTab(t.id); setSidebarOpen(false); }}
             data-tour={`tab-${t.id}`}
             style={{
               border: tab === t.id ? "0.5px solid var(--border-strong)" : "0.5px solid transparent",
@@ -11440,7 +11443,7 @@ export default function App() {
       {leadCaptureLink && (
         <Modal title="Müşteri Kazanma Linki" onClose={() => setLeadCaptureLink(null)}>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px" }}>
-            Bu linki (veya QR kodu) fuarda, mağazada, kartvizitte paylaşın — müşteri kendi adı/telefonu/e-postasını kendisi girer, sizin elle eklemenize gerek kalmaz.
+            Bu linki (veya QR kodu) fuarda, mağazada, kartvizitte paylaşın — müşteri kendi adı/telefonu/e-postasını/adresini kendisi girer, sizin elle eklemenize gerek kalmaz.
           </p>
           <img
             src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(leadCaptureLink)}`}

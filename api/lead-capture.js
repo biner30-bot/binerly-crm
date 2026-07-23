@@ -32,10 +32,11 @@ export default async function handler(req, res) {
 
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { name, phone, email, note } = req.body || {};
+  const { name, phone, email, address, note } = req.body || {};
   const trimmedName = (name || "").trim();
   const trimmedPhone = (phone || "").trim();
   const trimmedEmail = (email || "").trim();
+  const trimmedAddress = (address || "").trim();
   if (!trimmedName) return res.status(400).json({ error: "İsim gerekli." });
   if (!trimmedPhone && !trimmedEmail) return res.status(400).json({ error: "Telefon veya e-posta gerekli." });
 
@@ -46,6 +47,7 @@ export default async function handler(req, res) {
     customer_type: "kurumsal",
     phone: trimmedPhone,
     email: trimmedEmail,
+    address: trimmedAddress,
     notes: `Web formundan eklendi.${note ? ` Not: ${note.trim()}` : ""}`,
     last_contact: new Date().toISOString(),
     created_at: new Date().toISOString(),
