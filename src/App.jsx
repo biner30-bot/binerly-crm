@@ -10854,6 +10854,13 @@ export default function App() {
               Müşteri Kazanma Linki
             </button>
             <button
+              onClick={() => setShowPortalLinkModal(true)}
+              style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+            >
+              <i className="ti ti-users-group" style={{ fontSize: 16 }} aria-hidden="true"></i>
+              Müşteri Portalı Linki
+            </button>
+            <button
               onClick={() => { setEditingCustomer(null); setShowCustomerForm(true); }}
               style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
             >
