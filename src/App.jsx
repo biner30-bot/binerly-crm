@@ -3805,7 +3805,12 @@ function AskBubble({ open, onToggle }) {
 // üstte çıkar. Bu, Türkçe çekim eklerini tam çözmez (kök analizi yok) ama alt
 // dize içerme kontrolü ("alanım" içinde "alan" geçer) çoğu pratik durumu
 // karşılıyor.
-const ASK_STOPWORDS = new Set(["kaç", "ne", "nedir", "mı", "mi", "mu", "mü", "var", "nasıl", "hangi", "olur", "kadar", "benim", "bir", "şey", "için", "ile", "de", "da", "musunuz", "yapmalıyım", "yapıyorum", "ediyorum", "m"]);
+// "kaç" bilerek stopword DEĞİL — "Kaç müşterim var?" gibi onlarca soru tam
+// olarak bu kelimeyle "sayı" sorduğunu belli ediyor; stopword sayılırsa geriye
+// tek anlamlı token "müşteri" kalıyor, bu da neredeyse HER müşteri-ilgili
+// kaydla eşleşip (örn. "en çok kazandıran müşterim kim") array sırasına göre
+// yanlış (alakasız) ilk eşleşmeyi öne çıkarıyordu (kullanıcı tarafından bulundu, 2026-07-23).
+const ASK_STOPWORDS = new Set(["ne", "nedir", "mı", "mi", "mu", "mü", "var", "nasıl", "hangi", "olur", "kadar", "benim", "bir", "şey", "için", "ile", "de", "da", "musunuz", "yapmalıyım", "yapıyorum", "ediyorum", "m"]);
 
 function tokenizeAskQuery(str) {
   return str.toLowerCase().replace(/[?.,!:;]/g, "").split(/\s+/).filter(Boolean);
@@ -10878,24 +10883,24 @@ export default function App() {
 
       {tab === "firsat" && (
         <div>
-          <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: 12, width: "fit-content" }}>
-            <button
-              onClick={() => { setDealAudience("kurumsal"); updatePreferredCustomerType("kurumsal"); }}
-              style={{ border: "none", background: dealAudience === "kurumsal" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
-            >
-              <i className="ti ti-building" style={{ fontSize: 15 }} aria-hidden="true"></i>
-              Kurumsal
-            </button>
-            <button
-              onClick={() => { setDealAudience("bireysel"); updatePreferredCustomerType("bireysel"); }}
-              style={{ border: "none", background: dealAudience === "bireysel" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
-            >
-              <i className="ti ti-user" style={{ fontSize: 15 }} aria-hidden="true"></i>
-              Bireysel
-            </button>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
-            <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3 }}>
+          <div style={{ display: "flex", gap: 16, marginBottom: 12, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, width: "fit-content" }}>
+              <button
+                onClick={() => { setDealAudience("kurumsal"); updatePreferredCustomerType("kurumsal"); }}
+                style={{ border: "none", background: dealAudience === "kurumsal" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+              >
+                <i className="ti ti-building" style={{ fontSize: 15 }} aria-hidden="true"></i>
+                Kurumsal
+              </button>
+              <button
+                onClick={() => { setDealAudience("bireysel"); updatePreferredCustomerType("bireysel"); }}
+                style={{ border: "none", background: dealAudience === "bireysel" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+              >
+                <i className="ti ti-user" style={{ fontSize: 15 }} aria-hidden="true"></i>
+                Bireysel
+              </button>
+            </div>
+            <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, width: "fit-content" }}>
               <button
                 onClick={() => setDealView("list")}
                 style={{ border: "none", background: dealView === "list" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
@@ -10911,38 +10916,38 @@ export default function App() {
                 Kanban
               </button>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={() => setShowDealExport(true)}
-                disabled={filteredDeals.length === 0}
-                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
-              >
-                <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                Dışa aktar
-              </button>
-              <button
-                onClick={() => setShowParasutExport(true)}
-                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
-              >
-                <i className="ti ti-receipt" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                Paraşüt'e aktar
-              </button>
-              <button
-                onClick={() => setShowImportDeals(true)}
-                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
-              >
-                <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                İçe aktar
-              </button>
-              <button
-                onClick={() => { setEditingDeal(null); setShowDealForm(true); }}
-                disabled={customers.length === 0}
-                style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
-              >
-                <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                {dealWords.addLabel}
-              </button>
-            </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
+            <button
+              onClick={() => setShowDealExport(true)}
+              disabled={filteredDeals.length === 0}
+              style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+            >
+              <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
+              Dışa aktar
+            </button>
+            <button
+              onClick={() => setShowParasutExport(true)}
+              style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+            >
+              <i className="ti ti-receipt" style={{ fontSize: 16 }} aria-hidden="true"></i>
+              Paraşüt'e aktar
+            </button>
+            <button
+              onClick={() => setShowImportDeals(true)}
+              style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+            >
+              <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
+              İçe aktar
+            </button>
+            <button
+              onClick={() => { setEditingDeal(null); setShowDealForm(true); }}
+              disabled={customers.length === 0}
+              style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
+            >
+              <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
+              {dealWords.addLabel}
+            </button>
           </div>
 
           <div style={{ display: "flex", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
