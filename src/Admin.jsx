@@ -45,7 +45,8 @@ export default function AdminPanel({ session }) {
       {accounts.length === 0 ? (
         <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Henüz hesap yok.</p>
       ) : (
-        <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 8px" }}>
+        <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", minWidth: 560, borderCollapse: "separate", borderSpacing: "0 8px" }}>
           <thead>
             <tr>
               <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>Hesap</th>
@@ -98,6 +99,7 @@ export default function AdminPanel({ session }) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

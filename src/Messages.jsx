@@ -296,21 +296,28 @@ export default function Messages({
       ) : conversations.length === 0 ? (
         <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Henüz mesaj yok.</p>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 16, alignItems: "start" }}>
-          <ConversationList conversations={conversations} customerById={customerById} selectedKey={selectedKey} onSelect={setSelectedKey} />
-          {selected ? (
-            <ThreadView
-              conversation={selected}
-              customer={selected.customerId ? customerById(selected.customerId) : null}
-              onSend={(body) => onSendMessage({ channel: selected.channel, to: selected.counterpartId, body, customerId: selected.customerId })}
-              onConvertToCustomer={() => onConvertToCustomer(selected)}
-              onCreateDeal={() => onCreateDeal(selected)}
-            />
-          ) : (
-            <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "2rem", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
-              Bir konuşma seçin
-            </div>
-          )}
+        <div className="messages-grid" data-has-selection={selected ? "true" : "false"} style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 16, alignItems: "start" }}>
+          <div className="msg-list-pane">
+            <ConversationList conversations={conversations} customerById={customerById} selectedKey={selectedKey} onSelect={setSelectedKey} />
+          </div>
+          <div className="msg-thread-pane">
+            <button type="button" className="msg-back-button" onClick={() => setSelectedKey(null)} style={{ display: "none", alignItems: "center", gap: 6, fontSize: 13, marginBottom: 10, background: "none", border: "none", color: "var(--text-accent)", padding: 0, cursor: "pointer" }}>
+              <i className="ti ti-arrow-left" style={{ fontSize: 16 }} aria-hidden="true"></i> Konuşmalara dön
+            </button>
+            {selected ? (
+              <ThreadView
+                conversation={selected}
+                customer={selected.customerId ? customerById(selected.customerId) : null}
+                onSend={(body) => onSendMessage({ channel: selected.channel, to: selected.counterpartId, body, customerId: selected.customerId })}
+                onConvertToCustomer={() => onConvertToCustomer(selected)}
+                onCreateDeal={() => onCreateDeal(selected)}
+              />
+            ) : (
+              <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "2rem", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
+                Bir konuşma seçin
+              </div>
+            )}
+          </div>
         </div>
       )}
 

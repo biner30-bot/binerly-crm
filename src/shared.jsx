@@ -517,6 +517,7 @@ export function Toast({ message, tone = "danger", onClose }) {
 export function Modal({ title, onClose, wide, children }) {
   return (
     <div
+      className="modal-overlay"
       style={{
         position: "fixed",
         inset: 0,
@@ -529,6 +530,7 @@ export function Modal({ title, onClose, wide, children }) {
       }}
     >
       <div
+        className="modal-card"
         style={{
           background: "var(--surface-2)",
           border: "0.5px solid var(--border)",

@@ -24,10 +24,13 @@ const BLOCK_LIBRARY = [
   { type: "table", label: "+ Tablo" },
 ];
 
-// Fare ile sürükleme/yeniden boyutlandırma — bu projede react-dnd/interact.js
-// gibi bir kütüphane eklenmiyor (gereksiz bağımlılık), düz mousedown/move/up
-// yeterli. onMove/onUp aynı çağrı içinde tanımlanıp eklendiği/kaldırıldığı
-// için (kapatma referansı) her sürükleme oturumu kendi içinde tutarlı.
+// Pointer Events (mouse/dokunmatik/kalem hepsi tek API) ile sürükleme/yeniden
+// boyutlandırma — bu projede react-dnd/interact.js gibi bir kütüphane
+// eklenmiyor (gereksiz bağımlılık), düz pointerdown/move/up yeterli. onMove/
+// onUp aynı çağrı içinde tanımlanıp eklendiği/kaldırıldığı için (kapatma
+// referansı) her sürükleme oturumu kendi içinde tutarlı. Dokunmatikte
+// tarayıcının gesture'ı sayfa kaydırmaya yormaması için sürüklenebilir
+// elemanlarda touchAction:"none" şart (bkz. blok/resize-handle style'ları).
 function startDrag(block, mode, setBlocks, e) {
   e.stopPropagation();
   const startX = e.clientX;
@@ -45,11 +48,11 @@ function startDrag(block, mode, setBlocks, e) {
     );
   };
   const onUp = () => {
-    window.removeEventListener("mousemove", onMove);
-    window.removeEventListener("mouseup", onUp);
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
   };
-  window.addEventListener("mousemove", onMove);
-  window.addEventListener("mouseup", onUp);
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
 }
 
 export function TemplateEditor({ initialTemplate, onSave, onClose }) {
@@ -57,6 +60,11 @@ export function TemplateEditor({ initialTemplate, onSave, onClose }) {
   const [blocks, setBlocks] = useState(initialTemplate.blocks);
   const [selectedId, setSelectedId] = useState(null);
   const [saving, setSaving] = useState(false);
+  // Dar ekranda (telefon) sol blok paletiyle sağ özellik paneli ikisi birden
+  // canvas'ı görünmez kılıyordu — bunlar artık kapalı başlayıp gerektiğinde
+  // açılan çekmecelere dönüşüyor (bkz. index.html .pdf-*-panel medya sorgusu).
+  const [showBlockPanel, setShowBlockPanel] = useState(false);
+  const [showInspectorPanel, setShowInspectorPanel] = useState(false);
   const { width, height } = initialTemplate;
 
   const selectedBlock = blocks.find((b) => b.id === selectedId) || null;
@@ -69,6 +77,8 @@ export function TemplateEditor({ initialTemplate, onSave, onClose }) {
     const b = newBlock(type, width);
     setBlocks((prev) => [...prev, b]);
     setSelectedId(b.id);
+    setShowBlockPanel(false);
+    setShowInspectorPanel(true);
   };
 
   const deleteSelected = () => {
@@ -103,14 +113,20 @@ export function TemplateEditor({ initialTemplate, onSave, onClose }) {
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "#f5f8fc", zIndex: 1500, display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 20px", background: "#fff", borderBottom: "1px solid #e1e8f0", flex: "none" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "10px 20px", background: "#fff", borderBottom: "1px solid #e1e8f0", flex: "none", flexWrap: "wrap" }}>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Şablon adı"
-          style={{ fontSize: 14, fontWeight: 600, minWidth: 240 }}
+          style={{ fontSize: 14, fontWeight: 600, minWidth: 160, flex: "1 1 160px" }}
         />
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button type="button" className="pdf-panel-toggle" onClick={() => setShowBlockPanel(true)}>
+            Bloklar
+          </button>
+          <button type="button" className="pdf-panel-toggle" onClick={() => setShowInspectorPanel(true)}>
+            Özellikler
+          </button>
           <button
             type="button"
             onClick={handleSave}
@@ -123,8 +139,11 @@ export function TemplateEditor({ initialTemplate, onSave, onClose }) {
         </div>
       </div>
 
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        <div style={{ width: 150, flex: "none", borderRight: "1px solid #e1e8f0", background: "#fff", padding: 16, overflowY: "auto" }}>
+      <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
+        {(showBlockPanel || showInspectorPanel) && (
+          <div className="app-sidebar-backdrop" onClick={() => { setShowBlockPanel(false); setShowInspectorPanel(false); }} />
+        )}
+        <div className={`pdf-block-panel${showBlockPanel ? " open" : ""}`} style={{ width: 150, flex: "none", borderRight: "1px solid #e1e8f0", background: "#fff", padding: 16, overflowY: "auto" }}>
           <p style={{ fontSize: 11, fontWeight: 700, color: "#5b7088", textTransform: "uppercase", letterSpacing: 0.3, margin: "0 0 10px" }}>Blok Ekle</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {BLOCK_LIBRARY.map((item) => (
@@ -135,27 +154,27 @@ export function TemplateEditor({ initialTemplate, onSave, onClose }) {
           </div>
         </div>
 
-        <div style={{ flex: 1, overflow: "auto", padding: 40, display: "flex", justifyContent: "center" }} onMouseDown={() => setSelectedId(null)}>
+        <div style={{ flex: 1, overflow: "auto", padding: 40, display: "flex", justifyContent: "center" }} onPointerDown={() => setSelectedId(null)}>
           <div
             style={{ width, height, flex: "none", position: "relative", background: "#fff", boxShadow: "0 4px 24px rgba(12,37,64,0.15)" }}
-            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
           >
             {renderTemplateBlocks(blocks, SAMPLE_MERGE_DATA, SAMPLE_LINE_ITEMS)}
             {blocks.map((b) => (
               <div
                 key={b.id}
-                onMouseDown={(e) => { setSelectedId(b.id); startDrag(b, "move", setBlocks, e); }}
+                onPointerDown={(e) => { setSelectedId(b.id); setShowInspectorPanel(true); startDrag(b, "move", setBlocks, e); }}
                 style={{
                   position: "absolute", left: b.x, top: b.y, width: b.w, height: b.h ?? DEFAULT_TEXT_HEIGHT,
-                  cursor: "move",
+                  cursor: "move", touchAction: "none",
                   border: selectedId === b.id ? "1.5px dashed #185fa5" : "1px dashed transparent",
                   boxSizing: "border-box",
                 }}
               >
                 {selectedId === b.id && (
                   <div
-                    onMouseDown={(e) => startDrag(b, "resize", setBlocks, e)}
-                    style={{ position: "absolute", right: -5, bottom: -5, width: 10, height: 10, background: "#185fa5", borderRadius: 2, cursor: "nwse-resize" }}
+                    onPointerDown={(e) => startDrag(b, "resize", setBlocks, e)}
+                    style={{ position: "absolute", right: -5, bottom: -5, width: 10, height: 10, background: "#185fa5", borderRadius: 2, cursor: "nwse-resize", touchAction: "none" }}
                   />
                 )}
               </div>
@@ -163,7 +182,7 @@ export function TemplateEditor({ initialTemplate, onSave, onClose }) {
           </div>
         </div>
 
-        <div style={{ width: 280, flex: "none", borderLeft: "1px solid #e1e8f0", background: "#fff", padding: 16, overflowY: "auto" }}>
+        <div className={`pdf-inspector-panel${showInspectorPanel ? " open" : ""}`} style={{ width: 280, flex: "none", borderLeft: "1px solid #e1e8f0", background: "#fff", padding: 16, overflowY: "auto" }}>
           {!selectedBlock ? (
             <p style={{ fontSize: 13, color: "#5b7088" }}>Düzenlemek için bir blok seçin, veya soldan yeni bir blok ekleyin.</p>
           ) : (

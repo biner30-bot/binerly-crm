@@ -597,8 +597,8 @@ function TicketList({
           <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Aramayla eşleşen talep yok.</p>
         )
       ) : (
-        <div>
-          <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 8px" }}>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", minWidth: 600, borderCollapse: "separate", borderSpacing: "0 8px" }}>
             <thead>
               <tr>
                 <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>Talep</th>

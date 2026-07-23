@@ -223,6 +223,45 @@
           max-height: calc(100vh - 90px) !important;
         }
       }
+      /* Modal'ın sabit 1rem/1.5rem padding'i dar telefon ekranında (ör. 375px)
+         içerik alanından ~110px'i tek başına yiyordu — her form/dialog gereksiz
+         dar görünüyordu. Dar ekranda padding daraltılır, genişlik korunur. */
+      @media (max-width: 420px) {
+        .modal-overlay { padding: 0.5rem !important; }
+        .modal-card { padding: 1rem !important; }
+      }
+      /* Mesajlar sekmesi sabit "300px liste + esnek konuşma" grid'i dar ekranda
+         neredeyse tüm genişliği listeye ayırıp konuşmayı sıkıştırıyordu. Dar
+         ekranda tipik mesajlaşma uygulaması gibi tek seferde ya liste ya da
+         seçili konuşma gösterilir, "Konuşmalara dön" ile geri dönülür. */
+      @media (max-width: 760px) {
+        .messages-grid { grid-template-columns: 1fr !important; }
+        .messages-grid[data-has-selection="true"] .msg-list-pane { display: none; }
+        .messages-grid[data-has-selection="false"] .msg-thread-pane { display: none; }
+        .messages-grid[data-has-selection="true"] .msg-back-button { display: flex !important; }
+      }
+      /* PDF şablon editörü 3 sabit genişlikli panelden oluşuyor (sol 150px
+         blok paleti + orta canvas + sağ 280px özellik paneli) — ikisi toplam
+         430px, telefon ekranının çoğunu/tamamını yiyip canvas'ı erişilemez
+         bırakıyordu. Dar ekranda ikisi de varsayılan kapalı, üstteki
+         "Bloklar"/"Özellikler" butonlarıyla açılan soldan/sağdan çekmecelere
+         dönüşüyor (aynı breakpoint'i kullandığından .app-sidebar-backdrop
+         burada da paylaşılıyor). */
+      .pdf-panel-toggle { display: none; }
+      @media (max-width: 860px) {
+        .pdf-panel-toggle { display: inline-block; }
+        .pdf-block-panel, .pdf-inspector-panel {
+          position: fixed;
+          top: 0;
+          height: 100vh;
+          z-index: 300;
+          transition: transform 0.2s ease;
+        }
+        .pdf-block-panel { left: 0; transform: translateX(-100%); }
+        .pdf-block-panel.open { transform: translateX(0); }
+        .pdf-inspector-panel { right: 0; transform: translateX(100%); }
+        .pdf-inspector-panel.open { transform: translateX(0); }
+      }
     </style>
   </head>
   <body>

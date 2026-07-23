@@ -188,14 +188,14 @@ function CompanyExpenseForm({ initial, onSave, onCancel }) {
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Başlık</label>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ofis kirası" style={{ width: "100%" }} />
         </div>
-        <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-          <div style={{ flex: 1 }}>
+        <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 140 }}>
             <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kategori</label>
             <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ width: "100%" }}>
               {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, minWidth: 140 }}>
             <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tutar (TL)</label>
             <input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" style={{ width: "100%" }} />
           </div>
@@ -221,12 +221,12 @@ function CompanyExpenseForm({ initial, onSave, onCancel }) {
             Girerseniz bu gider, KDV Özet Raporu'ndaki "Alış KDV'si" hesabına dahil edilir.
           </p>
         </div>
-        <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-          <div style={{ flex: 1 }}>
+        <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 140 }}>
             <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tarih</label>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: "100%" }} />
           </div>
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, minWidth: 140 }}>
             <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
               Saat <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span>
             </label>
@@ -861,12 +861,12 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
 
       {editingPayment && (
         <Modal title="Tahsilatı düzenle" onClose={() => setEditingPayment(null)}>
-          <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-            <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 140 }}>
               <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tutar (TL)</label>
               <input type="number" min="0" step="0.01" value={editPaymentAmount} onChange={(e) => setEditPaymentAmount(e.target.value)} style={{ width: "100%" }} />
             </div>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 140 }}>
               <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tarih</label>
               <input type="date" value={editPaymentDate} onChange={(e) => setEditPaymentDate(e.target.value)} style={{ width: "100%" }} />
             </div>

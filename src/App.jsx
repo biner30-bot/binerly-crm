@@ -10915,7 +10915,8 @@ export default function App() {
               <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Aramayla eşleşen müşteri yok.</p>
             )
           ) : (
-            <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 8px" }}>
+            <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", minWidth: 640, borderCollapse: "separate", borderSpacing: "0 8px" }}>
               <thead>
                 <tr>
                   <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>Müşteri</th>
@@ -11006,6 +11007,7 @@ export default function App() {
                 })}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       )}
@@ -11095,7 +11097,8 @@ export default function App() {
               {deals.length === 0 ? dealWords.emptyDefault : dealWords.emptySearch}
             </p>
           ) : (
-            <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 8px" }}>
+            <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", minWidth: 620, borderCollapse: "separate", borderSpacing: "0 8px" }}>
               <thead>
                 <tr>
                   <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>{dealWords.columnHeader}</th>
@@ -11216,6 +11219,7 @@ export default function App() {
                 })}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       )}
