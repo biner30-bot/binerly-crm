@@ -5866,6 +5866,9 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
   const [price, setPrice] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
+  const [search, setSearch] = useState("");
+  const query = search.trim().toLowerCase();
+  const filteredItems = query ? items.filter((item) => item.name.toLowerCase().includes(query)) : items;
 
   const startEdit = (item) => {
     setEditingItem(item);
@@ -5903,8 +5906,20 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
       {items.length === 0 ? (
         <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Henüz ürün/hizmet eklenmedi.</p>
       ) : (
+        <>
+          {items.length > 5 && (
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Ürün/hizmet ara..."
+              style={{ width: "100%", marginBottom: 8, fontSize: 13 }}
+            />
+          )}
+          {filteredItems.length === 0 ? (
+            <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Aramayla eşleşen kayıt yok.</p>
+          ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
-          {items.map((item) => (
+          {filteredItems.map((item) => (
             <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "6px 10px" }}>
               <span style={{ fontSize: 13 }}>
                 {item.name} <span style={{ color: "var(--text-muted)" }}>· {formatTL(item.price)}</span>
@@ -5916,6 +5931,8 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
             </div>
           ))}
         </div>
+          )}
+        </>
       )}
 
       <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>{editingItem ? "Ürün/hizmeti düzenle" : "Yeni ürün/hizmet ekle"}</p>

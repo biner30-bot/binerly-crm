@@ -317,6 +317,8 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
   const [financeRange, setFinanceRange] = useState("bu_ay");
   const [ledgerTypeFilter, setLedgerTypeFilter] = useState("all");
   const [ledgerSearch, setLedgerSearch] = useState("");
+  const [tahsilatSearch, setTahsilatSearch] = useState("");
+  const [tahsilatBalanceFilter, setTahsilatBalanceFilter] = useState("all");
   // Muhasebeciye gönder — DB'ye/hesaba bağlı bir alan değil, sadece bu tarayıcıda
   // hatırlanan bir kolaylık (yeni bir sütun/migration gerektirmeden).
   const [accountantEmail, setAccountantEmail] = useState(() => localStorage.getItem("binerly_accountant_email") || "");
@@ -466,6 +468,14 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
     .filter((cb) => cb.wonDeals.length > 0)
     .sort((a, b) => b.balance - a.balance);
 
+  const tahsilatQuery = tahsilatSearch.trim().toLowerCase();
+  const filteredCustomerBalances = customerBalances.filter((cb) => {
+    if (tahsilatQuery && !cb.customer.name.toLowerCase().includes(tahsilatQuery)) return false;
+    if (tahsilatBalanceFilter === "bekleyen" && cb.balance <= 0) return false;
+    if (tahsilatBalanceFilter === "tahsil_edildi" && cb.balance > 0) return false;
+    return true;
+  });
+
   const newPaymentCustomer = customerById(newPaymentCustomerId);
   const newPaymentDealOptions = newPaymentCustomer
     ? deals.filter((d) => d.customerId === newPaymentCustomer.id && d.stage === "kazanildi")
@@ -599,8 +609,25 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
           {customerBalances.length === 0 ? (
             <p style={{ fontSize: 13, color: "var(--text-muted)" }}>{FINANCE_DEAL_WORDS[dealWordKind(sector)].noWonEmpty}</p>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {customerBalances.map((cb) => (
+            <div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                <input
+                  value={tahsilatSearch}
+                  onChange={(e) => setTahsilatSearch(e.target.value)}
+                  placeholder="Müşteri ara..."
+                  style={{ flex: 1, minWidth: 160, fontSize: 13 }}
+                />
+                <select value={tahsilatBalanceFilter} onChange={(e) => setTahsilatBalanceFilter(e.target.value)} style={{ fontSize: 13 }}>
+                  <option value="all">Tümü</option>
+                  <option value="bekleyen">Bekleyen bakiyesi olanlar</option>
+                  <option value="tahsil_edildi">Tamamı tahsil edilenler</option>
+                </select>
+              </div>
+              {filteredCustomerBalances.length === 0 ? (
+                <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Aramayla eşleşen kayıt yok.</p>
+              ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {filteredCustomerBalances.map((cb) => (
                 <div key={cb.customer.id} style={{ border: "0.5px solid var(--border)", borderRadius: "var(--radius)" }}>
                   <div
                     onClick={() => setExpandedCustomerId(expandedCustomerId === cb.customer.id ? null : cb.customer.id)}
@@ -628,6 +655,8 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
                   )}
                 </div>
               ))}
+              </div>
+              )}
             </div>
           )}
         </div>
