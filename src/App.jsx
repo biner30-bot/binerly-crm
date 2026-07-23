@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, nextWeeklyOccurrence, NotificationBell, OnboardingTour } from "./shared";
+import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl } from "./shared";
 import Finance, { rowToCompanyExpense, expandExpenseOccurrences } from "./Finance";
 import { rowToChannelCredential, rowToChannelMessage } from "./Messages";
 import Support, {
@@ -66,10 +66,11 @@ const LEAD_INFO_TEXT =
 
 const PORTAL_INFO_TEXT =
   "Müşteri Portalı, müşterilerinizin kendi hesaplarıyla giriş yapıp tekliflerinin durumunu görebildiği, " +
-  "destek talebi açabildiği ve sizinle mesajlaşabildiği ayrı bir alan (binerly.com/portal).\n\n" +
+  "destek talebi açabildiği ve sizinle mesajlaşabildiği ayrı bir alan (portal.binerly.com).\n\n" +
   "Var — bu müşteri portala kayıt olup kendi hesabını bu müşteri kaydına bağlamış.\n" +
   "— — bu müşteri henüz portala giriş yapmamış. Müşterinizin, kayıtlı e-posta adresiyle " +
-  "portal üzerinden kendi hesabını oluşturması yeterli, sizin ayrıca bir davet göndermenize gerek yok.";
+  "portal üzerinden kendi hesabını oluşturması yeterli, özel bir davet göndermenize gerek yok — " +
+  "isterseniz \"Linki paylaş\"a tıklayıp portal adresini WhatsApp'tan hatırlatabilirsiniz.";
 
 const DEAL_WORD_FORMS = {
   teklif: { bare: "teklif", pdfLabel: "Teklif PDF", acc: "teklifi", dat: "teklife", plural: "teklifler", pluralAcc: "teklifleri", gen: "teklifin", genPlural: "tekliflerin", loc: "teklifte", pluralLoc: "tekliflerde", ctaLabel: "Teklifi Görüntüle", possYours: "Teklifiniz", possYoursAcc: "teklifinizi" },
@@ -7946,7 +7947,7 @@ function LandingPage() {
       {entryChoiceIntent && (
         <EntryChoiceModal
           onChooseCompany={() => { const mode = entryChoiceIntent; setEntryChoiceIntent(null); setAuthModal(mode); }}
-          onChooseCustomer={() => { window.location.href = entryChoiceIntent === "register" ? "/portal?register=1" : "/portal"; }}
+          onChooseCustomer={() => { window.location.href = getPortalUrl(entryChoiceIntent === "register" ? "?register=1" : ""); }}
           onClose={() => setEntryChoiceIntent(null)}
         />
       )}
@@ -7964,6 +7965,7 @@ function LandingPage() {
             <a href="#neden-binerly" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Neden Binerly?</a>
             <a href="#hakkimizda" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Hakkımızda</a>
             <a href="/blog" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Blog</a>
+            <a href={getPortalUrl()} style={{ color: "#5b7088", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Müşteri misiniz?</a>
           </div>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
             <button onClick={() => setEntryChoiceIntent("login")} style={{ background: "none", border: "none", color: "#185fa5", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "8px 12px" }}>
@@ -8006,7 +8008,7 @@ function LandingPage() {
           </p>
         </div>
 
-        {/* Mockup — tek kart içinde kurumsal/teklif ve bireysel/randevu&üyelik örnekleri bir arada */}
+        {/* Mockup — dört farklı sektörden (inşaat/tekstil/güzellik/spor) örnek satır; her satırda sektör etiketiyle "sisteminiz sektöre göre şekillenir" mesajı verilir, tek işletmenin canlı paneli gibi algılanmasın diye */}
         <div style={{ flex: 1, minWidth: 280 }}>
           <p style={{ textAlign: "center", fontSize: 13, fontWeight: 600, color: "#185fa5", margin: "0 0 10px" }}>
             İster kurumsal, ister bireysel müşteriye hitap edin
@@ -8017,7 +8019,7 @@ function LandingPage() {
               <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#ffbd2e" }} />
               <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#28c840" }} />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
               {[["Açık Teklifler", "12"], ["Toplam Değer", "₺940K"], ["Bekleyen Randevular", "5"], ["Aktif Üyelikler", "37"]].map(([label, val]) => (
                 <div key={label} style={{ background: "#1a3a5c", borderRadius: 8, padding: "8px 10px" }}>
                   <div style={{ fontSize: 9.5, color: "#94a7bb", marginBottom: 3 }}>{label}</div>
@@ -8026,25 +8028,29 @@ function LandingPage() {
               ))}
             </div>
             {[
-              { name: "Akın İnşaat", icon: "ti-building", kind: "Ofis Tadilat Teklifi", stage: "Müzakere", value: "₺180.000" },
-              { name: "Ege Tekstil", icon: "ti-building", kind: "Toptan Kumaş Siparişi", stage: "Kazanıldı", value: "₺220.000" },
-              { name: "Ayşe Yılmaz", icon: "ti-user", kind: "Lazer Epilasyon Randevusu", stage: "Randevu planlandı", value: "₺1.200" },
-              { name: "Mehmet Kaya", icon: "ti-user", kind: "Spor Salonu Üyeliği", stage: "Üye oldu", value: "₺3.500/ay" },
+              { name: "Akın İnşaat", sector: "İnşaat", icon: "ti-building", kind: "Ofis Tadilat Teklifi", stage: "Müzakere", value: "₺180.000" },
+              { name: "Ege Tekstil", sector: "Tekstil", icon: "ti-building", kind: "Toptan Kumaş Siparişi", stage: "Kazanıldı", value: "₺220.000" },
+              { name: "Ayşe Yılmaz", sector: "Güzellik", icon: "ti-user", kind: "Lazer Epilasyon Randevusu", stage: "Randevu planlandı", value: "₺1.200" },
+              { name: "Mehmet Kaya", sector: "Spor", icon: "ti-user", kind: "Spor Salonu Üyeliği", stage: "Üye oldu", value: "₺3.500/ay" },
             ].map((r) => (
-              <div key={r.name} style={{ background: "#1a3a5c", borderRadius: 8, padding: "8px 12px", marginBottom: 7, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+              <div key={r.name} style={{ background: "#1a3a5c", borderRadius: 8, padding: "8px 12px", marginBottom: 7, display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ flex: "none", display: "flex", alignItems: "center", gap: 4, width: 62 }}>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: "#7fb3e8" }}>{r.sector}</span>
+                  <span style={{ fontSize: 12, color: "#5b7088" }} aria-hidden="true">→</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
                   <div style={{ flex: "none", width: 24, height: 24, borderRadius: "50%", background: "#123457", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <i className={`ti ${r.icon}`} style={{ fontSize: 12, color: "#7fb3e8" }} aria-hidden="true"></i>
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                       <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{r.name}</span>
                       <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.3, color: "#0c2540", background: "#378add", padding: "1px 6px", borderRadius: 20, whiteSpace: "nowrap" }}>{r.kind.toLocaleUpperCase("tr")}</span>
                     </div>
                     <div style={{ fontSize: 11, color: "#94a7bb" }}>{r.stage}</div>
                   </div>
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#378add", whiteSpace: "nowrap" }}>{r.value}</div>
+                <div style={{ flex: "none", fontSize: 13, fontWeight: 600, color: "#378add", whiteSpace: "nowrap" }}>{r.value}</div>
               </div>
             ))}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 14px", marginTop: 10, paddingTop: 10, borderTop: "1px solid #1e3a5c" }}>
@@ -9484,7 +9490,7 @@ export default function App() {
       notifyCustomerByEmail(
         customer,
         `Destek talebiniz güncellendi — ${company}`,
-        `Merhaba,\n\n"${ticket.subject}" konulu talebinizin durumu "${statusLabel}" olarak güncellendi.\n\nDetaylar için müşteri portalımızdan giriş yapabilirsiniz: https://binerly.com/portal\n\n${company}`
+        `Merhaba,\n\n"${ticket.subject}" konulu talebinizin durumu "${statusLabel}" olarak güncellendi.\n\nDetaylar için müşteri portalımızdan giriş yapabilirsiniz: https://portal.binerly.com\n\n${company}`
       );
     }
   };
@@ -9523,7 +9529,7 @@ export default function App() {
         notifyCustomerByEmail(
           customer,
           `Destek talebiniz güncellendi — ${company}`,
-          `Merhaba,\n\n"${previous?.subject || "Destek talebiniz"}" konulu talebinizin durumu "${statusLabel}" olarak güncellendi.\n\nDetaylar için müşteri portalımızdan giriş yapabilirsiniz: https://binerly.com/portal\n\n${company}`
+          `Merhaba,\n\n"${previous?.subject || "Destek talebiniz"}" konulu talebinizin durumu "${statusLabel}" olarak güncellendi.\n\nDetaylar için müşteri portalımızdan giriş yapabilirsiniz: https://portal.binerly.com\n\n${company}`
         );
       }
     }
@@ -9555,7 +9561,7 @@ export default function App() {
       notifyCustomerByEmail(
         customer,
         `Yeni bir yanıtınız var — ${company}`,
-        `Merhaba,\n\n"${ticket?.subject || "Destek talebiniz"}" konulu talebinize yeni bir yanıt geldi:\n\n"${content.slice(0, 300)}"\n\nTam görüşme için müşteri portalımıza giriş yapabilirsiniz: https://binerly.com/portal\n\n${company}`
+        `Merhaba,\n\n"${ticket?.subject || "Destek talebiniz"}" konulu talebinize yeni bir yanıt geldi:\n\n"${content.slice(0, 300)}"\n\nTam görüşme için müşteri portalımıza giriş yapabilirsiniz: https://portal.binerly.com\n\n${company}`
       );
     }
   };
@@ -10977,7 +10983,26 @@ export default function App() {
                       </Badge>
                     </td>
                     <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                      {c.portalUserId ? <Badge tone="accent">Var</Badge> : <span style={{ fontSize: 12, color: "var(--text-muted)" }}>—</span>}
+                      {c.portalUserId ? (
+                        <Badge tone="accent">Var</Badge>
+                      ) : (
+                        <button
+                          type="button"
+                          title="Müşteriye portal linkini paylaş"
+                          onClick={() => {
+                            const message = `Merhaba, ${companySettings?.companyName || "işletmemiz"} Müşteri Portalımızdan taleplerinizi/randevularınızı bu kayıtlı e-postanızla takip edebilirsiniz: ${getPortalUrl()}`;
+                            if (c.phone) {
+                              window.open(`https://wa.me/${toWhatsAppNumber(c.phone)}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+                            } else {
+                              navigator.clipboard.writeText(getPortalUrl());
+                              notify("Portal linki kopyalandı.", "success");
+                            }
+                          }}
+                          style={{ fontSize: 12, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
+                        >
+                          Linki paylaş
+                        </button>
+                      )}
                     </td>
                     <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                       {customerBalance > 0 ? <Badge tone="warning">{formatTL(customerBalance)}</Badge> : <span style={{ fontSize: 12, color: "var(--text-muted)" }}>—</span>}

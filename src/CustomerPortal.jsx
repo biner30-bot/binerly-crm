@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, Toast, ConfirmDialog, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, WEEKDAYS, nextWeeklyOccurrence, NotificationBell } from "./shared";
+import { Badge, Modal, Toast, ConfirmDialog, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, WEEKDAYS, nextWeeklyOccurrence, NotificationBell, getPortalUrl } from "./shared";
 import { STAGES, stageLabel, dealWordKind, isAppointmentSector, supportsSelfBooking, bookingModel, supportsGroupClasses, groupClassWords, supportExamples, appointmentNoteExample, SECTOR_PRESETS } from "./Sectors";
 
 const PORTAL_DEAL_WORDS = {
@@ -144,7 +144,7 @@ function CustomerAuthForm() {
     if (!email) { setMessage("Önce e-posta adresinizi yazın."); return; }
     setLoading(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/portal`,
+      redirectTo: getPortalUrl(),
     });
     setLoading(false);
     setMessage(error ? error.message : "E-postanıza bir şifre sıfırlama bağlantısı gönderdik.");

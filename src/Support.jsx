@@ -349,7 +349,7 @@ const KB_TEMPLATES_BY_SECTOR = {
       title: "Destek talebimin durumunu nasıl takip ederim?",
       category: "Destek",
       content:
-        "Bize e-posta adresinizle kayıtlıysanız, Müşteri Bilgi Sistemi üzerinden (binerly.com/portal) " +
+        "Bize e-posta adresinizle kayıtlıysanız, Müşteri Bilgi Sistemi üzerinden (portal.binerly.com) " +
         "kendi hesabınızla giriş yaparak tüm destek taleplerinizin güncel durumunu ve mesaj geçmişini görebilirsiniz.",
     },
   ],
@@ -382,7 +382,7 @@ const STATUS_INFO_TEXT =
 
 const DIRECTION_INFO_TEXT =
   "\"Giden (müşteriye)\" bir e-posta GÖNDERMEZ — sadece bu mesajı kaydeder ve müşteri, kendi hesabıyla " +
-  "Müşteri Portalı'na (binerly.com/portal) giriş yaptığında görebilir. Müşteriye gerçekten e-posta atmak için " +
+  "Müşteri Portalı'na (portal.binerly.com) giriş yaptığında görebilir. Müşteriye gerçekten e-posta atmak için " +
   "WhatsApp/e-posta gibi kendi iletişim kanallarınızı kullanmanız gerekir.";
 
 const KB_INFO_TEXT =

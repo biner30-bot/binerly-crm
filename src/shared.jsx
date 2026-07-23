@@ -171,6 +171,18 @@ export function formatTL(n) {
   return new Intl.NumberFormat("tr-TR").format(Math.round(n || 0)) + " TL";
 }
 
+// portal.binerly.com üretimde ayrı bir alt alan adı; ama binerly.com/portal linki
+// müşterilere zaten gönderilmiş olabileceğinden hâlâ çalışmalı, ve localhost/önizleme
+// dağıtımlarında alt alan adı tanımlı olmadığından eski /portal yoluna düşülür.
+export function getPortalUrl(suffix = "") {
+  const host = window.location.hostname;
+  const onPortalHost = host.split(".")[0] === "portal";
+  const onProdMain = host === "binerly.com" || host === "www.binerly.com";
+  if (onPortalHost) return `${window.location.origin}${suffix || "/"}`;
+  if (onProdMain) return `https://portal.binerly.com${suffix || "/"}`;
+  return `${window.location.origin}/portal${suffix}`;
+}
+
 export function toWhatsAppNumber(phone) {
   const digits = (phone || "").replace(/\D/g, "");
   if (!digits) return null;

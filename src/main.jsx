@@ -14,18 +14,25 @@ const DealApprovalPage = lazy(() => import("./DealApprovalPage.jsx"));
 const LeadCapturePage = lazy(() => import("./LeadCapturePage.jsx"));
 
 const path = window.location.pathname;
+// Üretimde müşteri portalı artık ayrı bir alt alan adında (portal.binerly.com) sunuluyor —
+// aynı Vercel projesine bağlı, ama kendi origin'i olduğu için KOBİ panelinin PWA scope'uyla
+// çakışmıyor. binerly.com/portal ise zaten gönderilmiş linkler için hâlâ çalışmaya devam eder.
+const isPortalHost = window.location.hostname.split(".")[0] === "portal";
+const isPortal = path.startsWith("/portal") || isPortalHost;
 
-// Tek bir SPA index.html hem KOBİ ekranını hem /portal'ı sunuyor, ama PWA kurulum
-// kısayolunun doğru sayfaya açılması için ikisinin ayrı manifest'i (ayrı start_url/scope)
+// Tek bir SPA index.html hem KOBİ ekranını hem portalı sunuyor, ama PWA kurulum
+// kısayolunun doğru sayfaya açılması için ayrı manifest'i (ayrı start_url/scope)
 // olması gerekiyor — vite-plugin-pwa varsayılan olarak sadece "/" için birini enjekte
-// ediyor, /portal'daysak onu portale özel olanla değiştiriyoruz.
-if (path.startsWith("/portal")) {
+// ediyor, portaldaysak onu portale özel olanla değiştiriyoruz. Alt alan adında scope
+// çakışması olmadığından kök ("/") scope'lu ayrı bir manifest kullanılır.
+if (isPortal) {
   const existing = document.querySelector('link[rel="manifest"]');
-  if (existing) existing.href = "/manifest-portal.webmanifest";
+  const manifestHref = isPortalHost ? "/manifest-portal-root.webmanifest" : "/manifest-portal.webmanifest";
+  if (existing) existing.href = manifestHref;
   else {
     const link = document.createElement("link");
     link.rel = "manifest";
-    link.href = "/manifest-portal.webmanifest";
+    link.href = manifestHref;
     document.head.appendChild(link);
   }
 
@@ -38,7 +45,7 @@ if (path.startsWith("/portal")) {
 }
 
 function resolvePage() {
-  if (path.startsWith("/portal")) return <CustomerPortal />;
+  if (isPortal) return <CustomerPortal />;
   if (path.startsWith("/gizlilik")) return <PrivacyPolicyPage />;
   if (path.startsWith("/kvkk")) return <KvkkPage />;
   if (path.startsWith("/kullanim-kosullari")) return <TermsPage />;
