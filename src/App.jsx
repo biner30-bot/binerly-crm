@@ -7907,50 +7907,13 @@ function AuthModal({ initialMode = "login", onClose }) {
   );
 }
 
-function EntryChoiceModal({ onChooseCompany, onChooseCustomer, onClose }) {
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", zIndex: 1000, padding: "1rem", overflowY: "auto" }}>
-      <div style={{ background: "#fff", borderRadius: 16, padding: "2rem", width: "100%", maxWidth: 380, textAlign: "center", position: "relative", margin: "auto" }}>
-        <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#666" }}>✕</button>
-        <img src="/favicon.svg" alt="Binerly" style={{ width: 45, height: 45, marginBottom: 14 }} />
-        <h2 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 6px", color: "#0c2540" }}>Hesap türünü seçin</h2>
-        <p style={{ fontSize: 13, color: "#5b7088", margin: "0 0 20px" }}>
-          Bir işletme hesabı mı işletiyorsunuz, yoksa bir firmanın müşterisi misiniz?
-        </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <button
-            onClick={onChooseCompany}
-            style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "13px", fontSize: 15, fontWeight: 600, cursor: "pointer" }}
-          >
-            İşletme olarak
-          </button>
-          <button
-            onClick={onChooseCustomer}
-            style={{ background: "#fff", color: "#185fa5", border: "1.5px solid #185fa5", borderRadius: 8, padding: "13px", fontSize: 15, fontWeight: 600, cursor: "pointer" }}
-          >
-            Müşteri olarak
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function LandingPage() {
   const [authModal, setAuthModal] = useState(null);
-  const [entryChoiceIntent, setEntryChoiceIntent] = useState(null);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f5f8fc", fontFamily: "system-ui, -apple-system, sans-serif" }}>
       <TrackingScripts />
       {authModal && <AuthModal initialMode={authModal} onClose={() => setAuthModal(null)} />}
-      {entryChoiceIntent && (
-        <EntryChoiceModal
-          onChooseCompany={() => { const mode = entryChoiceIntent; setEntryChoiceIntent(null); setAuthModal(mode); }}
-          onChooseCustomer={() => { window.location.href = getPortalUrl(entryChoiceIntent === "register" ? "?register=1" : ""); }}
-          onClose={() => setEntryChoiceIntent(null)}
-        />
-      )}
 
       {/* Navbar */}
       <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 2rem", height: 64, background: "#fff", borderBottom: "1px solid #e1e8f0", position: "sticky", top: 0, zIndex: 100 }}>
@@ -7965,13 +7928,12 @@ function LandingPage() {
             <a href="#neden-binerly" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Neden Binerly?</a>
             <a href="#hakkimizda" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Hakkımızda</a>
             <a href="/blog" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Blog</a>
-            <a href={getPortalUrl()} style={{ color: "#5b7088", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Müşteri misiniz?</a>
           </div>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <button onClick={() => setEntryChoiceIntent("login")} style={{ background: "none", border: "none", color: "#185fa5", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "8px 12px" }}>
+            <button onClick={() => setAuthModal("login")} style={{ background: "none", border: "none", color: "#185fa5", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "8px 12px" }}>
               Giriş Yap
             </button>
-            <button onClick={() => setEntryChoiceIntent("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
+            <button onClick={() => setAuthModal("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
               Ücretsiz Kullan
             </button>
           </div>
@@ -7993,10 +7955,10 @@ function LandingPage() {
             Müşteri veya danışan takibi, teklif, randevu ya da üyelik süreci, destek ve müşterinizin kendi portalı — hepsi bir arada, sektörünüze göre şekillenen tek bir sistemde.
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <button onClick={() => setEntryChoiceIntent("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "13px 28px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
+            <button onClick={() => setAuthModal("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "13px 28px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
               Ücretsiz Kullanmaya Başla →
             </button>
-            <button onClick={() => setEntryChoiceIntent("login")} style={{ background: "#fff", color: "#185fa5", border: "1.5px solid #185fa5", borderRadius: 8, padding: "13px 28px", fontWeight: 600, fontSize: 15, cursor: "pointer" }}>
+            <button onClick={() => setAuthModal("login")} style={{ background: "#fff", color: "#185fa5", border: "1.5px solid #185fa5", borderRadius: 8, padding: "13px 28px", fontWeight: 600, fontSize: 15, cursor: "pointer" }}>
               Giriş Yap
             </button>
           </div>

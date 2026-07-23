@@ -117,11 +117,59 @@ function canCancelAppointmentDeal(randevuTarihi) {
   return new Date(`${randevuTarihi}+03:00`).getTime() - Date.now() > 2 * 60 * 60 * 1000;
 }
 
-function CustomerAuthForm() {
+function CustomerPortalLanding({ onEnter }) {
+  const features = [
+    { icon: "ti-list-check", text: "Teklif, randevu, üyelik veya rezervasyon durumunuzu görün" },
+    { icon: "ti-message-circle", text: "İşletmeyle mesajlaşın, destek talebi açın" },
+    { icon: "ti-calendar-plus", text: "Uygun işletmelerde kendi randevunuzu alın veya iptal edin" },
+    { icon: "ti-bell", text: "Yeni gelişmelerde anında bildirim alın" },
+  ];
+  return (
+    <div style={{ minHeight: "100vh", background: "#f5f8fc", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
+      <div style={{ maxWidth: 440, width: "100%" }}>
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <img src="/favicon.svg" alt="Binerly" style={{ width: 52, height: 52, marginBottom: 14 }} />
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>Binerly Müşteri Portalı</h1>
+          <p style={{ fontSize: 14, color: "#5b7088", lineHeight: 1.6, margin: 0 }}>
+            Hizmet aldığınız işletmeyle ilgili her şeyi tek yerden takip edin.
+          </p>
+        </div>
+        <div style={{ background: "#fff", borderRadius: 16, padding: "1.5rem", marginBottom: 20 }}>
+          {features.map((f) => (
+            <div key={f.text} style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 14 }}>
+              <i className={`ti ${f.icon}`} style={{ fontSize: 18, color: "#185fa5", marginTop: 1, flex: "none" }} aria-hidden="true"></i>
+              <span style={{ fontSize: 14, color: "#0c2540" }}>{f.text}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <button onClick={() => onEnter("login")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "13px", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
+            Giriş Yap
+          </button>
+          <button onClick={() => onEnter("register")} style={{ background: "#fff", color: "#185fa5", border: "1.5px solid #185fa5", borderRadius: 8, padding: "13px", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
+            Hesap Oluştur
+          </button>
+        </div>
+        <p style={{ fontSize: 12, color: "#94a7bb", textAlign: "center", marginTop: 20 }}>
+          Bir işletme sahibi misiniz? <a href="https://binerly.com" style={{ color: "#185fa5" }}>binerly.com</a>'u ziyaret edin.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function CustomerPortalEntry() {
+  const params = new URLSearchParams(window.location.search);
+  const [mode, setMode] = useState(params.get("register") ? "register" : params.get("login") ? "login" : null);
+  if (!mode) return <CustomerPortalLanding onEnter={setMode} />;
+  return <CustomerAuthForm initialMode={mode} onBack={() => setMode(null)} />;
+}
+
+function CustomerAuthForm({ initialMode = "login", onBack }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState(new URLSearchParams(window.location.search).get("register") ? "register" : "login");
+  const [mode, setMode] = useState(initialMode);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -204,7 +252,7 @@ function CustomerAuthForm() {
           </button>
         </p>
         <p style={{ fontSize: 12, textAlign: "center", marginTop: 20 }}>
-          <a href="/" style={{ color: "#94a7bb" }}>← Binerly ana sayfaya dön</a>
+          <button type="button" onClick={onBack} style={{ background: "none", border: "none", color: "#94a7bb", cursor: "pointer", fontSize: 12, padding: 0 }}>← Geri</button>
         </p>
       </div>
     </div>
@@ -1339,7 +1387,7 @@ export default function CustomerPortal() {
   }, [viewingTicket?.id]);
 
   if (session === undefined) return <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
-  if (!session) return <CustomerAuthForm />;
+  if (!session) return <CustomerPortalEntry />;
   if (loading) return <div style={{ padding: "2rem 0", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
 
   const currentTicket = viewingTicket ? tickets.find((t) => t.id === viewingTicket.id) || viewingTicket : null;
