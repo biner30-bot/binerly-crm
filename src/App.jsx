@@ -8293,6 +8293,7 @@ function LandingPage() {
               <a href="#hakkimizda" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Hakkımızda</a>
               <a href="/blog" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Blog</a>
               <a href="mailto:info@binerly.com" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>İletişim</a>
+              <a href={getPortalUrl()} style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Müşteri Portalı</a>
             </div>
           </div>
           <div>
