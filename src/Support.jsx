@@ -835,15 +835,17 @@ function KbList({
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {filtered.map((a) => (
-            <div key={a.id} style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <div key={a.id} style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               <div style={{ flex: 1, minWidth: 200 }}>
                 <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{a.title}</p>
                 <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
                   {a.category ? `${a.category} · ` : ""}{a.content.slice(0, 80)}{a.content.length > 80 ? "…" : ""}
                 </p>
               </div>
-              <IconButton icon="ti-edit" title="Düzenle" onClick={() => onEdit(a)} />
-              <IconButton icon="ti-trash" title="Sil" onClick={() => setConfirmDelete(a)} />
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => onEdit(a)} />
+                <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(a)} />
+              </div>
             </div>
           ))}
         </div>

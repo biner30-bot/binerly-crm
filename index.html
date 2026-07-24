@@ -109,8 +109,14 @@
         background: var(--surface-1);
         color: var(--text-primary);
         cursor: pointer;
+        transition: filter 0.12s ease, opacity 0.12s ease;
       }
       button:disabled { opacity: 0.5; cursor: not-allowed; }
+      /* Butonların kendi inline background/border'ı olsa bile (ör. dolgulu
+         accent butonlar) filter tıklama/hover geri bildirimini bozmadan üstüne
+         biner — hiçbir yerde önceden hover/active durumu yoktu. */
+      button:hover:not(:disabled) { filter: brightness(0.96); }
+      button:active:not(:disabled) { filter: brightness(0.9); }
       input, select, textarea {
         font-family: inherit;
         font-size: 14px;
@@ -119,6 +125,18 @@
         border: 0.5px solid var(--border);
         background: var(--surface-1);
         color: var(--text-primary);
+        transition: border-color 0.12s ease, box-shadow 0.12s ease;
+      }
+      input:focus, select:focus, textarea:focus {
+        outline: none;
+        border-color: var(--border-strong);
+        box-shadow: 0 0 0 3px var(--bg-accent);
+      }
+      input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1; }
+      input[type="checkbox"], input[type="radio"] {
+        width: auto;
+        padding: 0;
+        accent-color: var(--fill-accent);
       }
       /* #root'a genişlik sınırı KONULMUYOR — landing page/portal/yasal sayfalar/
          yönetici sayfası tam genişlik olmalı. Sadece giriş sonrası panel (App.jsx

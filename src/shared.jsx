@@ -5,6 +5,10 @@ export function uid() {
 }
 
 export const WEEKDAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
+// WEEKDAYS.map(w => w.slice(0,3)) "Cuma"/"Cumartesi" ve "Pazartesi"/"Pazar"
+// için aynı "CUM"/"PAZ" kısaltmasını üretiyordu — ajanda başlığında iki gün
+// aynı etiketle görünüyordu. Kısaltmalar burada sabit tutulur.
+export const WEEKDAYS_SHORT = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
 // Haftalık gün/saatten (1=Pazartesi..7=Pazar), Türkiye saatiyle (+03:00) bir
 // sonraki gerçekleşme zamanını hesaplar — hem grup dersi iptal kesme kuralı

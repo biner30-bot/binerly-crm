@@ -655,11 +655,12 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {defs.map((d) => (
-            <div key={d.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "6px 10px" }}>
-              <span style={{ fontSize: 13 }}>
-                {d.label} <span style={{ color: "var(--text-muted)" }}>· {FIELD_TYPE_LABELS[d.type] || d.type}{d.audience ? ` · Sadece ${AUDIENCE_LABELS[d.audience]}` : ""}</span>
+            <div key={d.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
+              <span style={{ fontSize: 13, fontWeight: 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {d.label}{d.audience ? <span style={{ fontWeight: 400, color: "var(--text-muted)" }}> · Sadece {AUDIENCE_LABELS[d.audience]}</span> : ""}
               </span>
-              <div style={{ display: "flex", gap: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                <Badge tone="accent">{FIELD_TYPE_LABELS[d.type] || d.type}</Badge>
                 <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => startEdit(d)} />
                 <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(d)} />
               </div>

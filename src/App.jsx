@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl } from "./shared";
+import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, WEEKDAYS_SHORT, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl } from "./shared";
 import Finance, { rowToCompanyExpense, expandExpenseOccurrences } from "./Finance";
 import { rowToChannelCredential, rowToChannelMessage } from "./Messages";
 import Support, {
@@ -6472,8 +6472,8 @@ function AgendaTab({ deals, customers, groupClasses, groupClassEnrollments, clas
       </div>
 
       <div className="agenda-grid" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
-        {WEEKDAYS.map((w) => (
-          <p key={w} style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textAlign: "center", textTransform: "uppercase" }}>{w.slice(0, 3)}</p>
+        {WEEKDAYS_SHORT.map((w) => (
+          <p key={w} style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textAlign: "center", textTransform: "uppercase" }}>{w}</p>
         ))}
       </div>
       <div className="agenda-grid" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: "1rem" }}>
@@ -6602,11 +6602,12 @@ function BusinessHoursManager({ items, onAdd, onDelete }) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
           {sorted.map((b) => (
-            <div key={b.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "6px 10px" }}>
-              <span style={{ fontSize: 13 }}>
-                {WEEKDAYS[b.weekday - 1]} <span style={{ color: "var(--text-muted)" }}>· {b.startTime}–{b.endTime} · {b.slotDurationMinutes} dk aralıklarla</span>
-              </span>
-              <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(b)} />
+            <div key={b.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
+              <span style={{ fontSize: 13, fontWeight: 500 }}>{WEEKDAYS[b.weekday - 1]}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                <Badge tone="accent">{b.startTime}–{b.endTime} · {b.slotDurationMinutes} dk aralıklarla</Badge>
+                <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(b)} />
+              </div>
             </div>
           ))}
         </div>
@@ -6737,13 +6738,13 @@ function RoomInventoryManager({ items, roomTypeOptions, onAdd, onUpdate, onDelet
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
           {items.map((r) => (
-            <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "8px 10px" }}>
+            <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
               <div style={{ minWidth: 0 }}>
                 <span style={{ fontSize: 13, fontWeight: 500 }}>{r.roomType}</span>
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }}> · {r.quantity} adet{r.capacity ? ` · ${r.capacity} kişilik` : ""}</span>
                 {r.description && <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>{r.description}</p>}
               </div>
-              <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                <Badge tone="accent">{r.quantity} adet{r.capacity ? ` · ${r.capacity} kişilik` : ""}</Badge>
                 <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => startEdit(r)} />
                 <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(r)} />
               </div>
@@ -6918,22 +6919,24 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
             {members.length === 0 ? (
               <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz takım üyesi yok.</p>
             ) : (
-              members.map((m) => (
-                <div key={m.member_id} style={{ padding: "6px 0", borderBottom: "0.5px solid var(--border)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 13 }}>{m.name || m.email}</span>
-                    <button onClick={() => setConfirmRemoveMember(m)} style={{ fontSize: 12, color: "var(--text-danger)" }}>Kaldır</button>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {members.map((m) => (
+                  <div key={m.member_id} style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 500 }}>{m.name || m.email}</span>
+                      <IconButton icon="ti-trash" title="Kaldır" size="sm" onClick={() => setConfirmRemoveMember(m)} />
+                    </div>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-secondary)", marginTop: 4, cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={!!m.can_edit_settings}
+                        onChange={(e) => toggleEditSettings(m.member_id, e.target.checked)}
+                      />
+                      İşletme/sektör ayarlarını düzenleyebilir
+                    </label>
                   </div>
-                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-secondary)", marginTop: 4, cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={!!m.can_edit_settings}
-                      onChange={(e) => toggleEditSettings(m.member_id, e.target.checked)}
-                    />
-                    İşletme/sektör ayarlarını düzenleyebilir
-                  </label>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
           {confirmRemoveMember && (
@@ -6947,12 +6950,17 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
           {invites.length > 0 && (
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>Bekleyen davetler</label>
-              {invites.map((inv) => (
-                <div key={inv.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "0.5px solid var(--border)" }}>
-                  <span style={{ fontSize: 13 }}>{inv.email} <Badge tone="warning">Bekliyor</Badge></span>
-                  <button onClick={() => cancelInvite(inv.id)} style={{ fontSize: 12 }}>İptal et</button>
-                </div>
-              ))}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {invites.map((inv) => (
+                  <div key={inv.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
+                    <span style={{ fontSize: 13, fontWeight: 500 }}>{inv.email}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                      <Badge tone="warning">Bekliyor</Badge>
+                      <IconButton icon="ti-x" title="İptal et" size="sm" onClick={() => cancelInvite(inv.id)} />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
           <form onSubmit={sendInvite}>
