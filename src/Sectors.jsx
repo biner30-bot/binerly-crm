@@ -201,7 +201,6 @@ export const SECTOR_PRESETS = [
       // "Hizmet Türü" bilerek yok — fiyat listesinden hizmet seçilince başlık zaten
       // hizmet adını taşıyor, ayrı bir alan mükerrer oluyordu (2026-07-22).
       { entity: "deal", key: "randevu_tarihi", label: "Randevu Tarihi", type: "datetime" },
-      { entity: "deal", key: "seans_no", label: "Seans No (paket hizmetlerde)", type: "number" },
       { entity: "customer", key: "tercih_edilen_uzman", label: "Tercih Edilen Uzman/Personel", type: "text", audience: "bireysel" },
       { entity: "customer", key: "alerji_notu", label: "Alerji / Cilt Notu", type: "text", audience: "bireysel" },
       { entity: "deal", key: "hizmet_suresi_dk", label: "Hizmet Süresi (dk)", type: "number" },

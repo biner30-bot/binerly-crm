@@ -322,7 +322,7 @@ const SECTOR_DEMO_PRESETS = {
       { name: "Örnek Müşteri — Zeynep Demir", customerType: "bireysel", phone: "0532 000 00 12" },
     ],
     deals: [
-      { customerIndex: 0, title: "Lazer Epilasyon Paketi", value: 3500, cost: 0, stage: "kazanildi", customFields: { hizmet_turu: "Lazer Epilasyon", seans_no: 3, hizmet_suresi_dk: 45 } },
+      { customerIndex: 0, title: "Lazer Epilasyon Paketi", value: 3500, cost: 0, stage: "kazanildi", customFields: { hizmet_turu: "Lazer Epilasyon", hizmet_suresi_dk: 45 } },
       { customerIndex: 1, title: "Saç Kesimi Randevusu", value: 400, cost: 0, stage: "kaybedildi", tags: ["Gelmedi"], customFields: { hizmet_turu: "Saç Kesimi/Boyama" } },
       { customerIndex: 0, title: "Cilt Bakımı Randevusu", value: 800, cost: 0, stage: "muzakere", reminderToday: true, reminder: "Randevu hatırlatması yap", customFields: { hizmet_turu: "Cilt Bakımı" } },
     ],
