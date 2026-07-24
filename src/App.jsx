@@ -4449,6 +4449,7 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
           />
           Müşterilere önemli gelişmelerde otomatik e-posta gönder
           <InfoTip
+            align="right"
             text={
               `Bir ${DEAL_WORD_FORMS[dealWordKind(initial?.sector)].gen} aşaması her değiştiğinde (${STAGES.map((s) => stageLabel(s.id, "kurumsal", initial?.sector)).join(", ")}) o aşamaya özel bir mail gider — 2. ve 3. aşamalarda onay linki de eklenir. Destek talebi durumu değiştiğinde, yeni bir yanıt yazıldığında ve ödeme alındığında da müşteriye bilgilendirme gider.\n\n` +
               `Yanlışlıkla bir ${DEAL_WORD_FORMS[dealWordKind(initial?.sector)].acc} başka bir aşamaya sürüklerseniz endişelenmeyin: mail hemen gitmez, 45 saniye beklenir — bu süre içinde aşamayı düzeltirseniz mail hiç gitmez, sadece son karar verdiğiniz aşama için gider.`
@@ -4465,7 +4466,7 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
               onChange={(e) => setAppointmentRemindersEnabled(e.target.checked)}
             />
             Randevu hatırlatma e-postası gönder
-            <InfoTip text="Tarih & Saat tipindeki özel alanı olan kayıtlarda, o saatten 2 saat önce müşteriye otomatik bir hatırlatma e-postası gider. Bu kutuyu kapatırsanız hiçbir hatırlatma e-postası gönderilmez — diğer bildirimler (aşama değişikliği, destek talebi, ödeme) bundan etkilenmez." />
+            <InfoTip align="right" text="Tarih & Saat tipindeki özel alanı olan kayıtlarda, o saatten 2 saat önce müşteriye otomatik bir hatırlatma e-postası gider. Bu kutuyu kapatırsanız hiçbir hatırlatma e-postası gönderilmez — diğer bildirimler (aşama değişikliği, destek talebi, ödeme) bundan etkilenmez." />
           </label>
         </div>
       )}
@@ -5936,7 +5937,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
     <div>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px", display: "flex", alignItems: "center", gap: 4 }}>
         Sabit fiyatlı ürün/hizmetlerinizi buraya kaydedin
-        <InfoTip text={`Bu tamamen opsiyonel — kaydettikleriniz, yeni ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} formunda hızlı seçim olarak çıkar; seçince başlık ve tutar otomatik dolar, sonrasında yine de değiştirebilirsiniz. Bir kalemi silmek veya fiyatını güncellemek, daha önce oluşturulmuş ${DEAL_WORD_FORMS[dealWordKind(sector)].pluralAcc} etkilemez — sadece o ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} kaydedildiği andaki başlık/tutarı taşır.`} />
+        <InfoTip placement="bottom" align="right" text={`Bu tamamen opsiyonel — kaydettikleriniz, yeni ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} formunda hızlı seçim olarak çıkar; seçince başlık ve tutar otomatik dolar, sonrasında yine de değiştirebilirsiniz. Bir kalemi silmek veya fiyatını güncellemek, daha önce oluşturulmuş ${DEAL_WORD_FORMS[dealWordKind(sector)].pluralAcc} etkilemez — sadece o ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} kaydedildiği andaki başlık/tutarı taşır.`} />
       </p>
 
       {items.length === 0 ? (
@@ -6594,7 +6595,7 @@ function BusinessHoursManager({ items, onAdd, onDelete }) {
     <div>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px", display: "flex", alignItems: "center", gap: 4 }}>
         Müşterilerinizin portaldan randevu alabileceği çalışma saatleriniz
-        <InfoTip text={'Burada tanımladığınız gün/saat pencereleri, belirlediğiniz süre aralıklarla bölünüp müşteri portalında müsait randevu saatleri olarak gösterilir. Öğle arası varsa "Öğle arası var" kutusunu işaretleyip ara saatlerini girin — sistem günü otomatik olarak iki parçaya böler.'} />
+        <InfoTip placement="bottom" align="right" text={'Burada tanımladığınız gün/saat pencereleri, belirlediğiniz süre aralıklarla bölünüp müşteri portalında müsait randevu saatleri olarak gösterilir. Öğle arası varsa "Öğle arası var" kutusunu işaretleyip ara saatlerini girin — sistem günü otomatik olarak iki parçaya böler.'} />
       </p>
 
       {sorted.length === 0 ? (
@@ -6730,7 +6731,7 @@ function RoomInventoryManager({ items, roomTypeOptions, onAdd, onUpdate, onDelet
     <div>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px", display: "flex", alignItems: "center", gap: 4 }}>
         Her oda tipinden kaç adet olduğunu, kaç kişilik olduğunu ve varsa açıklamasını belirleyin
-        <InfoTip text={`Adet: bu tipte kaç oda varsa, seçilen giriş/çıkış tarihi aralığında zaten o kadar rezervasyon oluşmuşsa müşteri portalı "müsait değil" gösterir. Kapasite ve açıklama rezervasyon sırasında misafire gösterilir. Oda tipi seçenekleri Sektör & Özel Alanlar'daki "Oda Tipi" alanından geliyor.`} />
+        <InfoTip placement="bottom" align="right" text={`Adet: bu tipte kaç oda varsa, seçilen giriş/çıkış tarihi aralığında zaten o kadar rezervasyon oluşmuşsa müşteri portalı "müsait değil" gösterir. Kapasite ve açıklama rezervasyon sırasında misafire gösterilir. Oda tipi seçenekleri Sektör & Özel Alanlar'daki "Oda Tipi" alanından geliyor.`} />
       </p>
 
       {items.length === 0 ? (

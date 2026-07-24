@@ -682,7 +682,7 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
 
       <p style={{ fontSize: 13, fontWeight: 500, margin: "12px 0 4px", display: "flex", alignItems: "center", gap: 4 }}>
         {editingDef ? "Alanı düzenle" : "Yeni alan ekle"}
-        <InfoTip text={`Standart alanların (isim, telefon, tutar vb.) dışında, işinize özel ekstra bilgi alanları tanımlayabilirsiniz — örn. "Mülk Tipi", "Tercih Edilen Uzman", "Alerji Notu". "Nerede": bu bilgi müşteri kartında mı yoksa ${dealEntityLabel} kaydında mı görünsün. "Tip": ne tür veri gireceksiniz (metin, sayı, tarih, tarih & saat veya hazır seçim listesi) — "Tarih & Saat" tipiyle ${dealEntityLabel} kaydına eklenen alanlar için, o saatten 2 saat önce müşteriye otomatik hatırlatma e-postası gönderilir (randevu takibi için). "Kime": bu alanı sadece kurumsal, sadece bireysel müşterilerde mi yoksa herkeste mi göstermek istiyorsunuz.`} />
+        <InfoTip align="left" text={`Standart alanların (isim, telefon, tutar vb.) dışında, işinize özel ekstra bilgi alanları tanımlayabilirsiniz — örn. "Mülk Tipi", "Tercih Edilen Uzman", "Alerji Notu". "Nerede": bu bilgi müşteri kartında mı yoksa ${dealEntityLabel} kaydında mı görünsün. "Tip": ne tür veri gireceksiniz (metin, sayı, tarih, tarih & saat veya hazır seçim listesi) — "Tarih & Saat" tipiyle ${dealEntityLabel} kaydına eklenen alanlar için, o saatten 2 saat önce müşteriye otomatik hatırlatma e-postası gönderilir (randevu takibi için). "Kime": bu alanı sadece kurumsal, sadece bireysel müşterilerde mi yoksa herkeste mi göstermek istiyorsunuz.`} />
       </p>
       <form onSubmit={submit} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end", marginTop: 8 }}>
         <div>

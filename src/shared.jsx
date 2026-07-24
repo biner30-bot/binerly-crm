@@ -459,11 +459,12 @@ export function AuthDivider() {
   );
 }
 
-export function InfoTip({ text, placement = "top" }) {
+export function InfoTip({ text, placement = "top", align = "center" }) {
+  const alignClass = align === "right" ? " info-tip-bubble--align-right" : align === "left" ? " info-tip-bubble--align-left" : "";
   return (
     <span className="info-tip" tabIndex={0}>
       <i className="ti ti-info-circle" style={{ fontSize: 14, color: "var(--text-muted)", cursor: "help" }} aria-hidden="true"></i>
-      <span className={`info-tip-bubble${placement === "bottom" ? " info-tip-bubble--bottom" : ""}`} role="tooltip">{text}</span>
+      <span className={`info-tip-bubble${placement === "bottom" ? " info-tip-bubble--bottom" : ""}${alignClass}`} role="tooltip">{text}</span>
     </span>
   );
 }

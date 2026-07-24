@@ -178,6 +178,19 @@
         bottom: auto;
         top: calc(100% + 7px);
       }
+      /* İkon, geniş bir paragrafın/satırın sonunda (sağ kenara yakın) durunca
+         ortalanmış balon modal'ın sağından taşıp son satırı kırpıyordu —
+         align="right" ikonun sağ kenarına yaslayıp sola doğru açar. Simetrik
+         olarak align="left" sol kenara yakın ikonlarda sağa doğru açar. */
+      .info-tip .info-tip-bubble--align-right {
+        left: auto;
+        right: 0;
+        transform: none;
+      }
+      .info-tip .info-tip-bubble--align-left {
+        left: 0;
+        transform: none;
+      }
       .info-tip:hover .info-tip-bubble,
       .info-tip:focus-visible .info-tip-bubble {
         visibility: visible;
