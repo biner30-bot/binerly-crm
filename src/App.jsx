@@ -5956,11 +5956,12 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
           ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
           {filteredItems.map((item) => (
-            <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "6px 10px" }}>
-              <span style={{ fontSize: 13 }}>
-                {item.name} <span style={{ color: "var(--text-muted)" }}>· {formatTL(item.price)}</span>
+            <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
+              <span style={{ fontSize: 13, fontWeight: 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {item.name}
               </span>
-              <div style={{ display: "flex", gap: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                <Badge tone="accent">{formatTL(item.price)}</Badge>
                 <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => startEdit(item)} />
                 <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(item)} />
               </div>

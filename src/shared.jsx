@@ -543,6 +543,7 @@ export function Modal({ title, onClose, wide, children }) {
           display: "flex",
           flexDirection: "column",
           overflowY: "auto",
+          overflowX: "hidden",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexShrink: 0 }}>
