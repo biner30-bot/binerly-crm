@@ -4875,7 +4875,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
       <div style={{ marginBottom: 6 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
           Kalemler (opsiyonel)
-          <InfoTip text="Birden fazla ürün/hizmet satırı eklerseniz Tutar bunların toplamına otomatik hesaplanır. Hiç kalem eklemezseniz Tutar'ı yine elle girebilirsiniz." />
+          <InfoTip align="left" text="Birden fazla ürün/hizmet satırı eklerseniz Tutar bunların toplamına otomatik hesaplanır. Hiç kalem eklemezseniz Tutar'ı yine elle girebilirsiniz." />
         </label>
         {lineItems.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 6 }}>
