@@ -347,6 +347,22 @@ export function stageLabel(stageId, customerType, sector) {
   return STAGES.find((s) => s.id === stageId)?.label || stageId;
 }
 
+// STAGES id'leri (ilk_gorusme..kaybedildi) her sektörde sabit — sadece
+// stageLabel() ile görünen isim değişir. Bu yüzden tek bir ton haritası tüm
+// sektörlerde otomatik doğru ve hızlı ayırt edilebilir renklere karşılık gelir:
+// nötr (yeni) → mavi (aktif) → sarı (dikkat/karar bekliyor) → yeşil/kırmızı (kapandı).
+export const STAGE_TONES = {
+  ilk_gorusme: "default",
+  teklif: "accent",
+  muzakere: "warning",
+  kazanildi: "success",
+  kaybedildi: "danger",
+};
+
+export function stageTone(stageId) {
+  return STAGE_TONES[stageId] || "default";
+}
+
 // Bazı sektörlerde kayıt gerçekten bir randevu/hizmet slotudur (teklif değil) —
 // bu sektörlerde uygulamanın dört bir yanındaki "teklif" kelimesi "randevu" olur.
 // Diğer sektörlerde (Emlak, Dijital Ajans vb.) görüşme/randevu sadece bir ara adım,

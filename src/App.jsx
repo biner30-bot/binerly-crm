@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, WEEKDAYS_SHORT, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl } from "./shared";
+import { Badge, TONE_COLORS, Modal, MetricCard, InfoTip, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, WEEKDAYS_SHORT, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl } from "./shared";
 import Finance, { rowToCompanyExpense, expandExpenseOccurrences } from "./Finance";
 import { rowToChannelCredential, rowToChannelMessage } from "./Messages";
 import Support, {
@@ -19,6 +19,7 @@ import {
   STAGES,
   SECTOR_PRESETS,
   stageLabel,
+  stageTone,
   isAppointmentSector,
   isIndividualFocusedSector,
   dealWordKind,
@@ -5027,9 +5028,9 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           <select
             value={stage}
             onChange={(e) => setStage(e.target.value)}
-            style={{ width: "100%" }}
+            style={{ width: "100%", fontWeight: 500, ...TONE_COLORS[stageTone(stage)] }}
           >
-            {STAGES.map((s) => <option key={s.id} value={s.id}>{stageLabel(s.id, selectedCustomerType, sector)}</option>)}
+            {STAGES.map((s) => <option key={s.id} value={s.id} style={TONE_COLORS[stageTone(s.id)]}>{stageLabel(s.id, selectedCustomerType, sector)}</option>)}
           </select>
         </div>
       </div>
@@ -10727,26 +10728,27 @@ export default function App() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 8 }}>
                 {STAGES.filter((s) => s.id !== "kaybedildi").map((stage) => {
                   const stageDeals = deals.filter((d) => d.stage === stage.id);
+                  const tone = stageTone(stage.id);
                   return (
                     <div key={stage.id}>
-                      <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>
+                      <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: TONE_COLORS[tone].color, flexShrink: 0 }} />
                         {stageLabel(stage.id, undefined, companySettings?.sector)} · {stageDeals.length}
                       </div>
                       {stageDeals.length === 0 && <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Boş</div>}
                       {stageDeals.map((d) => {
                         const c = customerById(d.customerId);
-                        const tone = stage.id === "kazanildi" ? "success" : stage.id === "muzakere" ? "warning" : "default";
                         return (
                           <div
                             key={d.id}
                             style={{
-                              background: tone === "default" ? "var(--surface-1)" : `var(--bg-${tone})`,
+                              background: tone === "default" ? "var(--surface-1)" : TONE_COLORS[tone].background,
                               border: tone === "default" ? "0.5px solid var(--border)" : "none",
                               borderRadius: "var(--radius)",
                               padding: 8,
                               marginBottom: 6,
                               fontSize: 13,
-                              color: tone === "default" ? "var(--text-primary)" : `var(--text-${tone})`,
+                              color: tone === "default" ? "var(--text-primary)" : TONE_COLORS[tone].color,
                             }}
                           >
                             {c?.name || "Bilinmeyen müşteri"}
@@ -10848,6 +10850,8 @@ export default function App() {
                     {STAGES.filter((s) => s.id !== "kazanildi" && s.id !== "kaybedildi").map((s) => {
                       const count = openDeals.filter((d) => d.stage === s.id).length;
                       const maxStageCount = Math.max(1, ...STAGES.filter((x) => x.id !== "kazanildi" && x.id !== "kaybedildi").map((x) => openDeals.filter((d) => d.stage === x.id).length));
+                      const tone = stageTone(s.id);
+                      const barColor = tone === "default" ? "var(--text-muted)" : TONE_COLORS[tone].color;
                       return (
                         <div key={s.id}>
                           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
@@ -10855,7 +10859,7 @@ export default function App() {
                             <span style={{ color: "var(--text-secondary)" }}>{count}</span>
                           </div>
                           <div style={{ height: 8, borderRadius: 4, background: "var(--surface-2)" }}>
-                            <div title={`${count}`} style={{ height: "100%", width: `${count > 0 ? Math.max(6, (count / maxStageCount) * 100) : 0}%`, borderRadius: 4, background: "var(--fill-accent)" }} />
+                            <div title={`${count}`} style={{ height: "100%", width: `${count > 0 ? Math.max(6, (count / maxStageCount) * 100) : 0}%`, borderRadius: 4, background: barColor }} />
                           </div>
                         </div>
                       );
@@ -11207,10 +11211,10 @@ export default function App() {
                           value={d.stage}
                           onChange={(e) => attemptMoveDealStage(d.id, e.target.value)}
                           onClick={(e) => e.stopPropagation()}
-                          style={{ fontSize: 12.5 }}
+                          style={{ fontSize: 12.5, fontWeight: 500, border: "none", ...TONE_COLORS[stageTone(d.stage)] }}
                         >
                           {STAGES.map((s) => (
-                            <option key={s.id} value={s.id}>{stageLabel(s.id, c?.customerType || "kurumsal", companySettings?.sector)}</option>
+                            <option key={s.id} value={s.id} style={TONE_COLORS[stageTone(s.id)]}>{stageLabel(s.id, c?.customerType || "kurumsal", companySettings?.sector)}</option>
                           ))}
                         </select>
                       </td>

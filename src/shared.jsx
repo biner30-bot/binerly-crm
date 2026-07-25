@@ -212,18 +212,19 @@ export function daysAgo(dateStr) {
   return `${diff} gün önce`;
 }
 
+export const TONE_COLORS = {
+  default: { background: "var(--surface-1)", color: "var(--text-secondary)" },
+  warning: { background: "var(--bg-warning)", color: "var(--text-warning)" },
+  success: { background: "var(--bg-success)", color: "var(--text-success)" },
+  accent: { background: "var(--bg-accent)", color: "var(--text-accent)" },
+  danger: { background: "var(--bg-danger)", color: "var(--text-danger)" },
+};
+
 export function Badge({ children, tone = "default" }) {
-  const tones = {
-    default: { background: "var(--surface-1)", color: "var(--text-secondary)" },
-    warning: { background: "var(--bg-warning)", color: "var(--text-warning)" },
-    success: { background: "var(--bg-success)", color: "var(--text-success)" },
-    accent: { background: "var(--bg-accent)", color: "var(--text-accent)" },
-    danger: { background: "var(--bg-danger)", color: "var(--text-danger)" },
-  };
   return (
     <span
       style={{
-        ...tones[tone],
+        ...TONE_COLORS[tone],
         fontSize: 12,
         fontWeight: 500,
         padding: "3px 10px",
