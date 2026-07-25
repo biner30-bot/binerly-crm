@@ -8456,6 +8456,7 @@ export default function App() {
   const [showPortalLinkModal, setShowPortalLinkModal] = useState(false);
   const [quickList, setQuickList] = useState(null);
   const [initialViewTicketId, setInitialViewTicketId] = useState(null);
+  const [initialChatCustomerId, setInitialChatCustomerId] = useState(null);
   const [toast, setToast] = useState(null);
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
@@ -8600,6 +8601,11 @@ export default function App() {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "company_expenses", filter: `user_id=eq.${activeTeamId}` }, (payload) => {
         setCompanyExpenses((prev) => (prev.some((e) => e.id === payload.new.id) ? prev : [...prev, rowToCompanyExpense(payload.new)]));
       })
+      // Portal "Mesajlar" sohbetinin anlık gelmesi için — müşteri sayfayı
+      // yenilemeden mesaj yazınca admin tarafında da beklemeden görünsün.
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ticket_messages", filter: `user_id=eq.${activeTeamId}` }, (payload) => {
+        setTicketMessages((prev) => (prev.some((m) => m.id === payload.new.id) ? prev : [...prev, rowToTicketMessage(payload.new)]));
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [activeTeamId]);
@@ -8659,9 +8665,11 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const ticketId = params.get("ticket");
     if (!ticketId) return;
-    if (tickets.some((t) => t.id === ticketId)) {
+    const matched = tickets.find((t) => t.id === ticketId);
+    if (matched) {
       setTab("destek");
-      setInitialViewTicketId(ticketId);
+      if (matched.isGeneralChat) setInitialChatCustomerId(matched.customerId);
+      else setInitialViewTicketId(ticketId);
     }
     const url = new URL(window.location.href);
     url.searchParams.delete("ticket");
@@ -10205,23 +10213,34 @@ export default function App() {
     dealSort === "newest" ? new Date(b.createdAt) - new Date(a.createdAt) : new Date(a.createdAt) - new Date(b.createdAt)
   );
 
-  const openTicketsCount = tickets.filter((t) => !TERMINAL_STATUSES.includes(t.status)).length;
-  const breachedTickets = tickets.filter(
+  // "Mesajlar" sohbet talebi (is_general_chat) hiçbir zaman kapanmadığı için
+  // Destek analitiğine (SLA, açık talep sayısı, ortalama yaş vb.) karışmaması
+  // gerekiyor — bunu tek bir noktada, ham `tickets`ten türeterek ayırıyoruz;
+  // aşağıdaki ve Support/askCtx'e giden HER hesap bundan sonra supportTickets
+  // kullanmalı, ham tickets'i değil.
+  const supportTickets = tickets.filter((t) => !t.isGeneralChat);
+  const chatTickets = tickets.filter((t) => t.isGeneralChat);
+  const chatTicketIds = new Set(chatTickets.map((t) => t.id));
+  const supportTicketMessages = ticketMessages.filter((m) => !chatTicketIds.has(m.ticketId));
+  const chatMessages = ticketMessages.filter((m) => chatTicketIds.has(m.ticketId));
+
+  const openTicketsCount = supportTickets.filter((t) => !TERMINAL_STATUSES.includes(t.status)).length;
+  const breachedTickets = supportTickets.filter(
     (t) => !TERMINAL_STATUSES.includes(t.status) && getSlaStatus(t).isBreached
   );
   const breachedTicketsCount = breachedTickets.length;
 
   const unreadMessageTicketIds = [
-    ...new Set(ticketMessages.filter((m) => m.direction === "gelen" && !m.readAt).map((m) => m.ticketId)),
+    ...new Set(supportTicketMessages.filter((m) => m.direction === "gelen" && !m.readAt).map((m) => m.ticketId)),
   ];
-  const ticketsWithUnread = tickets.filter((t) => unreadMessageTicketIds.includes(t.id));
+  const ticketsWithUnread = supportTickets.filter((t) => unreadMessageTicketIds.includes(t.id));
   // unreadMessageTicketIds ham mesaj kayıtlarından geliyor — silinmiş/çöpe taşınmış
   // bir talebin mesajları yerel state'te öylece kalabilir (ticket_messages'ın kendi
   // deleted_at'i yok). Rozet sayısı bu yüzden hâlâ var olan taleplerle sınırlanmalı.
   const unreadMessagesCount = ticketsWithUnread.length;
 
   const askCtx = {
-    customers, deals, payments, tickets, companyExpenses, companySettings,
+    customers, deals, payments, tickets: supportTickets, companyExpenses, companySettings,
     nextMonthForecast, passiveCustomerRate, totalOutstanding, breachedTicketsCount, unreadMessagesCount,
     kbArticles, teamMembers, attachments, customFieldDefs, priceListItems,
     groupClasses, groupClassEnrollments, businessHours, paymentCredentials,
@@ -11306,8 +11325,10 @@ export default function App() {
       {tab === "destek" && (
         <Support
           customers={customers}
-          tickets={tickets}
-          ticketMessages={ticketMessages}
+          tickets={supportTickets}
+          ticketMessages={supportTicketMessages}
+          chatTickets={chatTickets}
+          chatMessages={chatMessages}
           kbArticles={kbArticles}
           onSaveTicket={upsertTicket}
           onDeleteTicket={deleteTicket}
@@ -11320,6 +11341,8 @@ export default function App() {
           sector={companySettings?.sector}
           initialViewTicketId={initialViewTicketId}
           onConsumeInitialViewTicket={() => setInitialViewTicketId(null)}
+          initialChatCustomerId={initialChatCustomerId}
+          onConsumeInitialChatCustomer={() => setInitialChatCustomerId(null)}
         />
       )}
 

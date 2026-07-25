@@ -21,6 +21,14 @@ const totalExpenseInfoText = (sector) => {
   );
 };
 
+const yeniTahsilatInfoText = (sector) => {
+  const noun = FINANCE_DEAL_WORDS[dealWordKind(sector)].genPlural;
+  return (
+    `Müşteri listesinde ve tahsilat eklerken sadece "${stageLabel("kazanildi", "kurumsal", sector)}" durumundaki ${noun} tutarı sayılır — ` +
+    "diğer aşamalardaki (görüşülüyor, kaybedildi vb.) kayıtlar borca dahil edilmez ve bu listede görünmez."
+  );
+};
+
 const kdvReportInfoText = (sector) => {
   const noun = FINANCE_DEAL_WORDS[dealWordKind(sector)].genPlural;
   return (
@@ -565,7 +573,9 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
       {financeView === "tahsilat" ? (
         <div>
           <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", marginBottom: 16 }}>
-            <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 12px" }}>Yeni Tahsilat</p>
+            <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 4 }}>
+              Yeni Tahsilat <InfoTip text={yeniTahsilatInfoText(sector)} />
+            </p>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
               <div style={{ flex: 1, minWidth: 160 }}>
                 <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Müşteri</label>

@@ -433,6 +433,7 @@ export function rowToTicket(r) {
     resolvedAt: r.resolved_at,
     createdAt: r.created_at,
     deletedAt: r.deleted_at || null,
+    isGeneralChat: r.is_general_chat || false,
   };
 }
 
@@ -758,6 +759,90 @@ function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange
   );
 }
 
+// Portal "Mesajlar" sekmesinin admin karşılığı — talep akışının dışında,
+// WhatsApp/Instagram gelen kutusuna (Messages.jsx) benzer sade bir sohbet
+// arayüzü. Konu/durum/öncelik yok; sadece müşteri başlattıysa bir konuşma var.
+function ChatInbox({ conversations, selectedTicketId, onSelect, selectedConversation, onSend }) {
+  const [content, setContent] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!content.trim() || !selectedConversation) return;
+    setSending(true);
+    await onSend(content.trim());
+    setContent("");
+    setSending(false);
+  };
+
+  if (conversations.length === 0) {
+    return <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Henüz müşteriden gelen bir mesaj yok — müşteri portaldaki "Mesajlar" sekmesinden yazınca burada görünecek.</p>;
+  }
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 16, alignItems: "start" }}>
+      <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 8, maxHeight: 560, overflowY: "auto" }}>
+        {conversations.map((c) => (
+          <div
+            key={c.ticket.id}
+            onClick={() => onSelect(c.ticket.id)}
+            style={{
+              display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: "var(--radius)",
+              cursor: "pointer", background: selectedTicketId === c.ticket.id ? "var(--surface-2)" : "transparent",
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {c.customer?.name || "Bilinmeyen müşteri"}
+              </p>
+              <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {c.lastMessage.direction === "giden" ? "Siz: " : ""}{c.lastMessage.content}
+              </p>
+            </div>
+            {c.unread > 0 && <Badge tone="accent">{c.unread}</Badge>}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", display: "flex", flexDirection: "column", height: 560 }}>
+        {!selectedConversation ? (
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 13 }}>
+            Bir konuşma seçin
+          </div>
+        ) : (
+          <>
+            <p style={{ margin: "0 0 12px", fontWeight: 500, fontSize: 14 }}>{selectedConversation.customer?.name || "Bilinmeyen müşteri"}</p>
+            <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+              {selectedConversation.messages.map((m) => (
+                <div key={m.id} style={{ alignSelf: m.direction === "giden" ? "flex-end" : "flex-start", maxWidth: "75%" }}>
+                  <div
+                    style={{
+                      background: m.direction === "giden" ? "var(--fill-accent)" : "var(--surface-2)",
+                      color: m.direction === "giden" ? "var(--on-accent)" : "var(--text-primary)",
+                      borderRadius: "var(--radius)", padding: "6px 10px", fontSize: 13,
+                    }}
+                  >
+                    {m.content}
+                  </div>
+                  <p style={{ margin: "2px 4px 0", fontSize: 10, color: "var(--text-muted)", textAlign: m.direction === "giden" ? "right" : "left" }}>
+                    {new Date(m.createdAt).toLocaleString("tr-TR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <form onSubmit={submit} style={{ display: "flex", gap: 8 }}>
+              <input value={content} onChange={(e) => setContent(e.target.value)} placeholder="Mesaj yazın..." style={{ flex: 1 }} />
+              <button type="submit" disabled={sending || !content.trim()} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+                Gönder
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function KbList({
   articles,
   totalCount,
@@ -906,6 +991,8 @@ export default function Support({
   customers,
   tickets,
   ticketMessages,
+  chatTickets = [],
+  chatMessages = [],
   kbArticles,
   onSaveTicket,
   onDeleteTicket,
@@ -917,9 +1004,12 @@ export default function Support({
   onBulkImportKbArticles,
   initialViewTicketId,
   onConsumeInitialViewTicket,
+  initialChatCustomerId,
+  onConsumeInitialChatCustomer,
   sector,
 }) {
   const [supportView, setSupportView] = useState("talepler");
+  const [selectedChatTicketId, setSelectedChatTicketId] = useState(null);
   const [showImportTickets, setShowImportTickets] = useState(false);
   const [showImportKbArticles, setShowImportKbArticles] = useState(false);
   const [showTicketForm, setShowTicketForm] = useState(false);
@@ -949,6 +1039,16 @@ export default function Support({
     }
     onConsumeInitialViewTicket?.();
   }, [initialViewTicketId]);
+
+  useEffect(() => {
+    if (!initialChatCustomerId) return;
+    const t = chatTickets.find((x) => x.customerId === initialChatCustomerId);
+    if (t) {
+      setSupportView("mesajlar");
+      setSelectedChatTicketId(t.id);
+    }
+    onConsumeInitialChatCustomer?.();
+  }, [initialChatCustomerId]);
 
   const saveTicket = async (t) => {
     await onSaveTicket(t);
@@ -1003,6 +1103,25 @@ export default function Support({
     return a.title.toLowerCase().includes(kbQuery);
   });
 
+  // Portal "Mesajlar" sohbetleri — talep akışının dışında, düz bir gelen kutusu
+  // gibi gösteriliyor (konu/durum/öncelik yok). Sadece müşteri başlattıysa var
+  // olur, o yüzden liste chatTickets'ten (App.jsx'te is_general_chat'e göre
+  // ayrılmış) türetiliyor.
+  const chatConversations = chatTickets
+    .map((t) => {
+      const msgs = [...chatMessages.filter((m) => m.ticketId === t.id)].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      return {
+        ticket: t,
+        customer: customerById(t.customerId),
+        messages: msgs,
+        lastMessage: msgs[msgs.length - 1] || null,
+        unread: msgs.filter((m) => m.direction === "gelen" && !m.readAt).length,
+      };
+    })
+    .filter((c) => c.lastMessage)
+    .sort((a, b) => new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt));
+  const selectedChatConversation = chatConversations.find((c) => c.ticket.id === selectedChatTicketId) || null;
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
@@ -1021,9 +1140,17 @@ export default function Support({
             <i className="ti ti-book" style={{ fontSize: 15 }} aria-hidden="true"></i>
             Bilgi Bankası
           </button>
+          <button
+            onClick={() => setSupportView("mesajlar")}
+            style={{ border: "none", background: supportView === "mesajlar" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+          >
+            <i className="ti ti-message-circle" style={{ fontSize: 15 }} aria-hidden="true"></i>
+            Müşteri Mesajları
+            {chatConversations.some((c) => c.unread > 0) && <Badge tone="accent">{chatConversations.reduce((sum, c) => sum + c.unread, 0)}</Badge>}
+          </button>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          {supportView === "talepler" ? (
+          {supportView === "mesajlar" ? null : supportView === "talepler" ? (
             <>
               <button
                 onClick={() =>
@@ -1122,6 +1249,14 @@ export default function Support({
           onEditTicket={(t) => { setEditingTicket(t); setShowTicketForm(true); }}
           onDeleteTicket={onDeleteTicket}
           onCreateNew={() => { setEditingTicket(null); setShowTicketForm(true); }}
+        />
+      ) : supportView === "mesajlar" ? (
+        <ChatInbox
+          conversations={chatConversations}
+          selectedTicketId={selectedChatTicketId}
+          onSelect={setSelectedChatTicketId}
+          selectedConversation={selectedChatConversation}
+          onSend={(content) => onAddTicketMessage({ ticketId: selectedChatConversation.ticket.id, direction: "giden", content, isInternal: false })}
         />
       ) : (
         <KbList

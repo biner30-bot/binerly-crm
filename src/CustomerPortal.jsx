@@ -46,6 +46,7 @@ function rowToTicket(r) {
     description: r.description || "",
     status: r.status,
     createdAt: r.created_at,
+    isGeneralChat: r.is_general_chat || false,
   };
 }
 
@@ -380,6 +381,55 @@ function PortalTicketDetail({ ticket, messages, onAddMessage, onClose }) {
         </div>
       )}
     </Modal>
+  );
+}
+
+// "Mesajlar" sekmesi — Taleplerim'in aksine konu/durum yok, düz bir sohbet.
+// İlk mesaj gönderildiğinde CustomerPortal'daki sendChatMessage otomatik
+// olarak arkada bir "genel sohbet" talebi açar, burası bunu hiç bilmez.
+function PortalMessagesPanel({ messages, onSend, sending }) {
+  const [content, setContent] = useState("");
+  const sorted = [...messages].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!content.trim() || sending) return;
+    const text = content.trim();
+    setContent("");
+    await onSend(text);
+  };
+
+  return (
+    <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", display: "flex", flexDirection: "column", height: 480 }}>
+      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+        {sorted.length === 0 ? (
+          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz mesaj yok — işletmeye buradan yazabilirsiniz.</p>
+        ) : (
+          sorted.map((m) => (
+            <div key={m.id} style={{ alignSelf: m.direction === "gelen" ? "flex-end" : "flex-start", maxWidth: "75%" }}>
+              <div
+                style={{
+                  background: m.direction === "gelen" ? "var(--fill-accent)" : "var(--surface-2)",
+                  color: m.direction === "gelen" ? "var(--on-accent)" : "var(--text-primary)",
+                  borderRadius: "var(--radius)", padding: "6px 10px", fontSize: 13,
+                }}
+              >
+                {m.content}
+              </div>
+              <p style={{ margin: "2px 4px 0", fontSize: 10, color: "var(--text-muted)", textAlign: m.direction === "gelen" ? "right" : "left" }}>
+                {formatDateTime(m.createdAt)}
+              </p>
+            </div>
+          ))
+        )}
+      </div>
+      <form onSubmit={submit} style={{ display: "flex", gap: 8 }}>
+        <input value={content} onChange={(e) => setContent(e.target.value)} placeholder="Mesajınızı yazın..." style={{ flex: 1 }} />
+        <button type="submit" disabled={sending || !content.trim()} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+          Gönder
+        </button>
+      </form>
+    </div>
   );
 }
 
@@ -1081,7 +1131,10 @@ export default function CustomerPortal() {
     const ticketId = params.get("ticket");
     if (!ticketId) return;
     const t = tickets.find((x) => x.id === ticketId);
-    if (t) setViewingTicket(t);
+    if (t) {
+      if (t.isGeneralChat) setPortalTab("mesajlar");
+      else setViewingTicket(t);
+    }
     const url = new URL(window.location.href);
     url.searchParams.delete("ticket");
     window.history.replaceState({}, "", url);
@@ -1094,6 +1147,22 @@ export default function CustomerPortal() {
       setSelectedCompanyId(customerRows[0].id);
     }
   }, [customerRows]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // "Mesajlar" sohbetinin sayfa yenilenmeden anlık gelmesi için — App.jsx'teki
+  // payments/deals canlı senkronuyla (live-${activeTeamId} kanalı) aynı desen,
+  // burada seçili firmanın user_id'sine göre filtreleniyor. ticket_messages'ın
+  // select RLS'i zaten sadece bu müşterinin kendi taleplerine izin veriyor.
+  useEffect(() => {
+    const row = customerRows.find((r) => r.id === selectedCompanyId);
+    if (!row) return;
+    const channel = supabase
+      .channel(`portal-messages-${row.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ticket_messages", filter: `user_id=eq.${row.userId}` }, (payload) => {
+        setTicketMessages((prev) => (prev.some((m) => m.id === payload.new.id) ? prev : [...prev, rowToTicketMessage(payload.new)]));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [customerRows, selectedCompanyId]);
 
   useEffect(() => {
     if (selectedCompanyId) localStorage.setItem("binerly_portal_company", selectedCompanyId);
@@ -1322,6 +1391,34 @@ export default function CustomerPortal() {
     notify("Randevunuz iptal edildi.", "success");
   };
 
+  // "Mesajlar" sekmesi — talep açmadan düz sohbet. İlk mesajda müşteri başına
+  // kalıcı, gizli bir "genel sohbet" tickets satırı (is_general_chat) otomatik
+  // açılır; sonraki mesajlar mevcut addMessage ile aynı sohbete eklenir.
+  const [creatingChat, setCreatingChat] = useState(false);
+  const sendChatMessage = async (content) => {
+    if (!activeCustomerRow) return;
+    if (chatTicket) {
+      await addMessage({ ticketId: chatTicket.id, content });
+      return;
+    }
+    if (creatingChat) return;
+    setCreatingChat(true);
+    const { data, error } = await supabase
+      .from("tickets")
+      .insert({ user_id: activeCustomerRow.userId, customer_id: activeCustomerRow.id, subject: "Genel Mesajlaşma", description: "", priority: "orta", status: "acik", is_general_chat: true })
+      .select()
+      .single();
+    if (error) { notify(`Mesaj gönderilemedi: ${error.message}`); setCreatingChat(false); return; }
+    setTickets((prev) => [...prev, rowToTicket(data)]);
+    const { data: msgData, error: msgError } = await supabase
+      .from("ticket_messages")
+      .insert({ user_id: activeCustomerRow.userId, ticket_id: data.id, direction: "gelen", is_internal: false, content })
+      .select()
+      .single();
+    if (!msgError) setTicketMessages((prev) => [...prev, rowToTicketMessage(msgData)]);
+    setCreatingChat(false);
+  };
+
   const addMessage = async ({ ticketId, content }) => {
     const ticket = tickets.find((t) => t.id === ticketId);
     if (!ticket) return;
@@ -1403,6 +1500,17 @@ export default function CustomerPortal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewingTicket?.id]);
 
+  // "Mesajlar" sekmesi bir modal değil, doğrudan sekme içeriği olduğu için
+  // yukarıdaki gibi tek bir ticket id'ye değil, sekme açık kaldığı sürece
+  // gelen her yeni yanıta da okundu işareti koymalı.
+  useEffect(() => {
+    if (portalTab !== "mesajlar") return;
+    const row = customerRows.find((r) => r.id === selectedCompanyId);
+    const chat = row ? tickets.find((t) => t.customerId === row.id && t.isGeneralChat) : null;
+    if (chat) markMessagesRead(chat.id, "giden");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [portalTab, tickets, selectedCompanyId]);
+
   if (session === undefined) return <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
   if (!session) return <CustomerPortalEntry />;
   if (loading) return <div style={{ padding: "2rem 0", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
@@ -1419,9 +1527,15 @@ export default function CustomerPortal() {
   const showCompanyPicker = customerRows.length > 1 && !activeCustomerRow;
 
   const visibleCustomerRows = activeCustomerRow ? [activeCustomerRow] : [];
-  const visibleTickets = activeCustomerRow ? tickets.filter((t) => t.customerId === activeCustomerRow.id) : [];
+  // "Mesajlar" sohbeti (is_general_chat) Taleplerim listesinde görünmez — kendi
+  // sekmesinde, konu/durum olmadan düz bir sohbet olarak gösteriliyor.
+  const visibleTickets = activeCustomerRow ? tickets.filter((t) => t.customerId === activeCustomerRow.id && !t.isGeneralChat) : [];
   const visibleDeals = activeCustomerRow ? deals.filter((d) => d.customerId === activeCustomerRow.id) : [];
   const visibleGroupClasses = activeCustomerRow ? groupClasses.filter((g) => g.userId === activeCustomerRow.userId) : [];
+
+  const chatTicket = activeCustomerRow ? tickets.find((t) => t.customerId === activeCustomerRow.id && t.isGeneralChat) || null : null;
+  const chatMessages = chatTicket ? ticketMessages.filter((m) => m.ticketId === chatTicket.id) : [];
+  const chatUnreadCount = chatMessages.filter((m) => m.direction === "giden" && !m.readAt).length;
 
   const unreadCountByTicket = ticketMessages.reduce((acc, m) => {
     if (m.direction === "giden" && !m.readAt) acc[m.ticketId] = (acc[m.ticketId] || 0) + 1;
@@ -1525,6 +1639,7 @@ export default function CustomerPortal() {
           <nav style={{ width: 200, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4, position: "sticky", top: 24 }}>
             {[
               { id: "talepler", label: "Taleplerim", icon: "ti-ticket" },
+              { id: "mesajlar", label: "Mesajlar", icon: "ti-message-circle" },
               { id: "teklifler", label: PORTAL_DEAL_WORDS[dealKind].tabLabel, icon: "ti-file-text" },
               ...(showDersler ? [{ id: "dersler", label: "Derslerim", icon: "ti-calendar-time" }] : []),
             ].map((t) => (
@@ -1546,7 +1661,7 @@ export default function CustomerPortal() {
               >
                 <i className={`ti ${t.icon}`} style={{ fontSize: 16, flexShrink: 0 }} aria-hidden="true"></i>
                 <span style={{ flex: 1 }}>{t.label}</span>
-                {t.id === "talepler" && totalUnreadTickets > 0 && (
+                {((t.id === "talepler" && totalUnreadTickets > 0) || (t.id === "mesajlar" && chatUnreadCount > 0)) && (
                   <span
                     style={{
                       minWidth: 18, height: 18, borderRadius: 9,
@@ -1554,7 +1669,7 @@ export default function CustomerPortal() {
                       display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", flexShrink: 0,
                     }}
                   >
-                    {totalUnreadTickets}
+                    {t.id === "talepler" ? totalUnreadTickets : chatUnreadCount}
                   </span>
                 )}
               </button>
@@ -1582,6 +1697,10 @@ export default function CustomerPortal() {
                 showCompany={false}
               />
             </div>
+          )}
+
+          {portalTab === "mesajlar" && (
+            <PortalMessagesPanel messages={chatMessages} onSend={sendChatMessage} sending={creatingChat} />
           )}
 
           {portalTab === "teklifler" && (
