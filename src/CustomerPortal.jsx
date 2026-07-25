@@ -493,7 +493,18 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, se
               {isApproved && <Badge tone="success">✓ Onaylandı</Badge>}
               {isPaid && <Badge tone="success">✓ Ödendi</Badge>}
               {showAction && (
-                <a href={`/onay/${d.approvalToken}`} style={{ fontSize: 13, fontWeight: 600, color: "var(--fill-accent)" }}>{actionLabel}</a>
+                <a
+                  href={`/onay/${d.approvalToken}`}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    fontSize: 13, fontWeight: 600, color: "var(--on-accent)",
+                    background: "var(--fill-accent)", padding: "7px 14px",
+                    borderRadius: "var(--radius)", textDecoration: "none", whiteSpace: "nowrap",
+                  }}
+                >
+                  <i className="ti ti-credit-card" style={{ fontSize: 15 }} aria-hidden="true"></i>
+                  {actionLabel}
+                </a>
               )}
               {d.value > 0 && (
                 <span style={{ fontSize: 13, fontWeight: 600, minWidth: 90, textAlign: "right" }}>{formatTL(d.value)}</span>
