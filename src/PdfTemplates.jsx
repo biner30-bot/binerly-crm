@@ -225,19 +225,29 @@ export const MERGE_FIELD_OPTIONS = [
   { key: "ek_not", label: "Ek Not" },
 ];
 
-export const SAMPLE_MERGE_DATA = buildMergeData({
-  deal: { title: "Web Sitesi Yenileme", value: 5000 },
-  customer: { name: "Örnek Müşteri", phone: "0555 000 00 00", email: "ornek@musteri.com" },
-  companySettings: { companyName: "Örnek A.Ş.", address: "Mevlana Mah. 1700. Sok. No 42/4 Önder Sitesi E Blok, Konyaaltı/Antalya", phone: "0553 062 43 99", email: "info@ornek.com", taxNumber: "1234567890" },
-  netAmount: 4166.67,
-  kdvAmount: 833.33,
-  kdvRate: 20,
-  noExpiry: false,
-  validityDays: 15,
-  extraNote: "",
-  belgeBasligi: "TEKLİF",
-  noun: "teklif",
-});
+const SAMPLE_COMPANY_SETTINGS = { companyName: "Örnek A.Ş.", address: "Mevlana Mah. 1700. Sok. No 42/4 Önder Sitesi E Blok, Konyaaltı/Antalya", phone: "0553 062 43 99", email: "info@ornek.com", taxNumber: "1234567890" };
+
+// Şablon galerisi/editörü önizlemesi sabit örnek teklif/müşteri verisiyle
+// çalışır (gerçek bir teklif seçili değil) — ama logo bloğu gerçekten KOBİ'nin
+// kendi logosunu gösterebilsin diye, gerçek companySettings verilirse sadece
+// logo_url (ve varsa diğer işletme alanları) onunla ezilir. Verilmezse (ör.
+// galeri henüz companySettings yüklenmeden render olduysa) sessizce örnek
+// veriye düşer — logo bloğu boş görünür, hata vermez.
+export function buildSampleMergeData(companySettings) {
+  return buildMergeData({
+    deal: { title: "Web Sitesi Yenileme", value: 5000 },
+    customer: { name: "Örnek Müşteri", phone: "0555 000 00 00", email: "ornek@musteri.com" },
+    companySettings: { ...SAMPLE_COMPANY_SETTINGS, logoUrl: companySettings?.logoUrl || "" },
+    netAmount: 4166.67,
+    kdvAmount: 833.33,
+    kdvRate: 20,
+    noExpiry: false,
+    validityDays: 15,
+    extraNote: "",
+    belgeBasligi: "TEKLİF",
+    noun: "teklif",
+  });
+}
 
 // Editör/galeri önizlemeleri her zaman TEK örnek kalemle çalışır — bu yüzden
 // tablo-altı kayma orada hiç devreye girmez, tasarladığınız şablon ile normal
@@ -248,8 +258,9 @@ const GALLERY_SCALE = 0.32;
 const BLANK_TEMPLATE_WIDTH = 700;
 const BLANK_TEMPLATE_HEIGHT = 900;
 
-export function TemplateGallery({ activeKey, customTemplates = [], onSelect, onEdit, onDelete, onCreateNew }) {
+export function TemplateGallery({ activeKey, customTemplates = [], companySettings, onSelect, onEdit, onDelete, onCreateNew }) {
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const previewMergeData = buildSampleMergeData(companySettings);
 
   const builtIn = Object.entries(PDF_TEMPLATES).map(([key, tpl]) => ({ key, id: null, label: tpl.label, width: tpl.width, height: tpl.height, blocks: tpl.blocks }));
   const custom = customTemplates.map((t) => ({ key: t.id, id: t.id, label: t.name, width: t.width, height: t.height, blocks: t.blocks }));
@@ -293,7 +304,7 @@ export function TemplateGallery({ activeKey, customTemplates = [], onSelect, onE
             </div>
             <div style={{ width: tpl.width * GALLERY_SCALE, height: tpl.height * GALLERY_SCALE, overflow: "hidden", position: "relative", background: "#fff", border: "0.5px solid var(--border)", borderRadius: 6 }}>
               <div style={{ width: tpl.width, height: tpl.height, position: "relative", transform: `scale(${GALLERY_SCALE})`, transformOrigin: "top left" }}>
-                {renderTemplateBlocks(tpl.blocks, SAMPLE_MERGE_DATA, SAMPLE_LINE_ITEMS)}
+                {renderTemplateBlocks(tpl.blocks, previewMergeData, SAMPLE_LINE_ITEMS)}
               </div>
             </div>
           </div>

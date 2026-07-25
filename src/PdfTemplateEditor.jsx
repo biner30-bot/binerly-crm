@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { uid } from "./shared";
-import { renderTemplateBlocks, MERGE_FIELD_OPTIONS, SAMPLE_MERGE_DATA, SAMPLE_LINE_ITEMS } from "./PdfTemplates";
+import { renderTemplateBlocks, MERGE_FIELD_OPTIONS, buildSampleMergeData, SAMPLE_LINE_ITEMS } from "./PdfTemplates";
 
 const DEFAULT_TEXT_HEIGHT = 24;
 
@@ -55,11 +55,12 @@ function startDrag(block, mode, setBlocks, e) {
   window.addEventListener("pointerup", onUp);
 }
 
-export function TemplateEditor({ initialTemplate, onSave, onClose }) {
+export function TemplateEditor({ initialTemplate, companySettings, onSave, onClose }) {
   const [name, setName] = useState(initialTemplate.name || "");
   const [blocks, setBlocks] = useState(initialTemplate.blocks);
   const [selectedId, setSelectedId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const previewMergeData = buildSampleMergeData(companySettings);
   // Dar ekranda (telefon) sol blok paletiyle sağ özellik paneli ikisi birden
   // canvas'ı görünmez kılıyordu — bunlar artık kapalı başlayıp gerektiğinde
   // açılan çekmecelere dönüşüyor (bkz. index.html .pdf-*-panel medya sorgusu).
@@ -159,7 +160,7 @@ export function TemplateEditor({ initialTemplate, onSave, onClose }) {
             style={{ width, height, flex: "none", position: "relative", background: "#fff", boxShadow: "0 4px 24px rgba(12,37,64,0.15)" }}
             onPointerDown={(e) => e.stopPropagation()}
           >
-            {renderTemplateBlocks(blocks, SAMPLE_MERGE_DATA, SAMPLE_LINE_ITEMS)}
+            {renderTemplateBlocks(blocks, previewMergeData, SAMPLE_LINE_ITEMS)}
             {blocks.map((b) => (
               <div
                 key={b.id}

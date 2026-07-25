@@ -11605,6 +11605,7 @@ export default function App() {
           <TemplateGallery
             activeKey={companySettings?.pdfTemplateKey || "klasik"}
             customTemplates={pdfTemplates}
+            companySettings={companySettings}
             onSelect={(key) => upsertCompanySettings({ ...companySettings, pdfTemplateKey: key })}
             onEdit={(tpl) => { setShowPdfTemplates(false); setEditingTemplate(tpl); }}
             onDelete={deletePdfTemplate}
@@ -11627,6 +11628,7 @@ export default function App() {
       {editingTemplate && (
         <TemplateEditor
           initialTemplate={editingTemplate}
+          companySettings={companySettings}
           onSave={savePdfTemplate}
           onClose={() => { setEditingTemplate(null); setShowPdfTemplates(true); }}
         />
