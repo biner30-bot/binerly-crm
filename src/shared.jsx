@@ -4,6 +4,14 @@ export function uid() {
   return crypto.randomUUID();
 }
 
+// Kayıt formlarında (KOBİ, müşteri portalı, onay sayfası) gerçek kimlik
+// doğrulaması yapamayız (KYC bu aşama için orantısız) — ama en azından
+// bariz tek kelimelik takma adları/rastgele girişleri caydırmak için ad
+// alanının en az iki kelime (ad + soyad) içermesini istiyoruz.
+export function isFullNameValid(name) {
+  return name.trim().split(/\s+/).filter(Boolean).length >= 2;
+}
+
 export const WEEKDAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 // WEEKDAYS.map(w => w.slice(0,3)) "Cuma"/"Cumartesi" ve "Pazartesi"/"Pazar"
 // için aynı "CUM"/"PAZ" kısaltmasını üretiyordu — ajanda başlığında iki gün

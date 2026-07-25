@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { GoogleAuthButton, AuthDivider } from "./shared";
+import { GoogleAuthButton, AuthDivider, isFullNameValid } from "./shared";
 import { dealWordKind } from "./Sectors";
 
 const APPROVAL_DEAL_WORDS = {
@@ -93,6 +93,7 @@ export default function DealApprovalPage() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setAuthMessage(error.message);
     } else {
+      if (!isFullNameValid(name)) { setAuthMessage("Lütfen ad ve soyadınızı girin."); setAuthLoading(false); return; }
       const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name.trim() }, emailRedirectTo: window.location.href } });
       if (error) setAuthMessage(error.message);
       else setAuthMessage("Kayıt başarılı! E-postanıza gelen doğrulama linkine tıklayıp bu sayfaya geri dönün.");

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, Toast, ConfirmDialog, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, WEEKDAYS, nextWeeklyOccurrence, NotificationBell, getPortalUrl } from "./shared";
+import { Badge, Modal, Toast, ConfirmDialog, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, isFullNameValid, WEEKDAYS, nextWeeklyOccurrence, NotificationBell, getPortalUrl } from "./shared";
 import { STAGES, stageLabel, dealWordKind, isAppointmentSector, supportsSelfBooking, bookingModel, supportsGroupClasses, groupClassWords, supportExamples, appointmentNoteExample, SECTOR_PRESETS } from "./Sectors";
 
 const PORTAL_DEAL_WORDS = {
@@ -181,6 +181,7 @@ function CustomerAuthForm({ initialMode = "login", onBack }) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setMessage(error.message);
     } else {
+      if (!isFullNameValid(name)) { setMessage("Lütfen ad ve soyadınızı girin."); setLoading(false); return; }
       const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name.trim() } } });
       if (error) setMessage(error.message);
       else setMessage("Kayıt başarılı! E-postanıza gelen doğrulama linkine tıklayın.");
