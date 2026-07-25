@@ -155,7 +155,11 @@ async function recordSuccessfulPayment(supabaseAdmin, deal, { provider, iyzicoPa
       title: provider === "paytr" ? "PayTR komisyonu" : "iyzico komisyonu",
       category: "Ödeme Komisyonu",
       amount: commissionAmount,
-      expense_date: new Date().toISOString().slice(0, 10),
+      // expense_date bir timestamptz — sadece "YYYY-MM-DD" gönderilirse Postgres
+      // bunu UTC gece yarısı olarak saklar; Türkiye saatinde (+3) görüntülenirken
+      // her zaman 03:00 gibi sahte bir saat gösteriyordu. Tam zaman damgası
+      // (gerçek işlem anı) gönderilir, saat kısmı da doğru görüntülenir.
+      expense_date: new Date().toISOString(),
       note: `"${deal.title}" teklifinin online ödemesi için`,
       is_recurring: false,
       recurrence_interval: "monthly",
