@@ -6315,6 +6315,29 @@ function agendaDateKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+// Kayıtlar sekmesindeki "İlgilenilmesi gereken" hızlı filtresi için pencere —
+// randevu/rezervasyon "ileriye dönük" (bugünden pencere sonuna), reminder/
+// üyelik bitişi ise "o tarihe kadar, geçmiş dahil" karşılaştırması yapıyor;
+// ikinci durumda sadece endStr/end kullanılıyor, start hiç kontrol edilmiyor.
+function quickDateWindow(mode) {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let end;
+  if (mode === "today") {
+    end = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate(), 23, 59, 59, 999);
+  } else if (mode === "week") {
+    const isoWeekday = startOfToday.getDay() === 0 ? 7 : startOfToday.getDay();
+    end = new Date(startOfToday);
+    end.setDate(end.getDate() + (7 - isoWeekday));
+    end.setHours(23, 59, 59, 999);
+  } else if (mode === "month") {
+    end = new Date(startOfToday.getFullYear(), startOfToday.getMonth() + 1, 0, 23, 59, 59, 999);
+  } else {
+    return null;
+  }
+  return { start: startOfToday, end, startStr: agendaDateKey(startOfToday), endStr: agendaDateKey(end) };
+}
+
 // group_classes'ın belirli bir tarihi yok, sadece haftalık tekrarı (weekday +
 // startTime) var — Finance.jsx'teki expandExpenseOccurrences'ın aynı fikri:
 // verilen tarih aralığında (bounds) bu derse denk gelen her günü sanal bir
@@ -8449,6 +8472,12 @@ export default function App() {
   const [dealPaymentFilter, setDealPaymentFilter] = useState("all");
   const [dealSort, setDealSort] = useState("newest");
   const [dealAudience, setDealAudience] = useState("kurumsal");
+  // "İlgilenilmesi gereken" hızlı filtresi — sektörün gerçek yeteneğine göre farklı
+  // bir tarih alanına bakar (randevu/görüşme tarihi, otel giriş-çıkış, hatırlatma),
+  // ders programı olan sektörlerde ise tamamen farklı iki kontrol kullanır.
+  const [dealQuickDateFilter, setDealQuickDateFilter] = useState("all"); // "all" | "today" | "week" | "month"
+  const [dealTodayClassFilter, setDealTodayClassFilter] = useState(false);
+  const [dealMembershipExpiryFilter, setDealMembershipExpiryFilter] = useState("all"); // "all" | "1m" | "3m" | "6m"
   const [teklifDeal, setTeklifDeal] = useState(null);
   const [paymentsDeal, setPaymentsDeal] = useState(null);
   const [paymentModeDeal, setPaymentModeDeal] = useState(null);
@@ -10192,6 +10221,27 @@ export default function App() {
   // reminders.js'in yaptığı gibi, sektöre göre değişen randevu tarihi alanının
   // gerçek anahtarını aktif "Tarih & Saat" tipindeki tanımdan buluyoruz.
   const appointmentDateTimeKey = customFieldDefs.find((d) => d.entity === "deal" && d.type === "datetime" && d.active)?.key || null;
+  // "İlgilenilmesi gereken" filtresi sekme adına (dealKind) göre değil, sektörün
+  // gerçek yeteneğine göre davranır — bkz. plan notu: Emlak/Dijital Ajans gibi
+  // "Teklifler" adlı ama görüşme tarihi olan sektörler appointmentDateTimeKey
+  // doluysa zaten randevu mantığını kullanır.
+  const isInventorySector = bookingModel(companySettings?.sector) === "inventory";
+  const isMembershipSector = supportsGroupClasses(companySettings?.sector);
+  const todaysClassCustomerIds = isMembershipSector
+    ? (() => {
+        const isoWeekday = new Date().getDay() === 0 ? 7 : new Date().getDay();
+        const todaysClassIds = new Set(groupClasses.filter((g) => g.weekday === isoWeekday).map((g) => g.id));
+        return new Set(groupClassEnrollments.filter((e) => todaysClassIds.has(e.groupClassId)).map((e) => e.customerId));
+      })()
+    : null;
+  const membershipExpiryMonths = { "1m": 1, "3m": 3, "6m": 6 }[dealMembershipExpiryFilter] || null;
+  const membershipExpiryLimitStr = membershipExpiryMonths
+    ? (() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() + membershipExpiryMonths);
+        return agendaDateKey(d);
+      })()
+    : null;
   const dealQuery = dealSearch.trim().toLowerCase();
   const filteredDeals = deals.filter((d) => {
     if ((customerById(d.customerId)?.customerType || "kurumsal") !== dealAudience) return false;
@@ -10203,6 +10253,28 @@ export default function App() {
       if (dealPaymentFilter === "odendi" && paid < d.value) return false;
       if (dealPaymentFilter === "kismi" && !(paid > 0 && paid < d.value)) return false;
       if (dealPaymentFilter === "odenmedi" && paid > 0) return false;
+    }
+    if (isMembershipSector) {
+      if (dealTodayClassFilter && !todaysClassCustomerIds.has(d.customerId)) return false;
+      if (membershipExpiryLimitStr) {
+        const endDateStr = d.customFields?.uyelik_bitis_tarihi ?? d.customFields?.kurs_bitis_tarihi;
+        if (!endDateStr || endDateStr > membershipExpiryLimitStr) return false;
+      }
+    } else if (dealQuickDateFilter !== "all") {
+      const win = quickDateWindow(dealQuickDateFilter);
+      if (appointmentDateTimeKey) {
+        const dt = parseAppointmentDateTime(d.customFields?.[appointmentDateTimeKey]);
+        if (!dt || dt < win.start || dt > win.end) return false;
+      } else if (isInventorySector) {
+        const checkin = d.customFields?.giris_tarihi;
+        const checkout = d.customFields?.cikis_tarihi;
+        const inWindow =
+          (checkin && checkin >= win.startStr && checkin <= win.endStr) ||
+          (checkout && checkout >= win.startStr && checkout <= win.endStr);
+        if (!inWindow) return false;
+      } else {
+        if (!d.reminder || !d.reminderDate || new Date(d.reminderDate) > win.end) return false;
+      }
     }
     if (!dealQuery) return true;
     return (
@@ -11101,6 +11173,41 @@ export default function App() {
               Bireysel
             </button>
           </div>
+
+          {isMembershipSector ? (
+            <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
+              <button
+                onClick={() => setDealTodayClassFilter((v) => !v)}
+                style={{ background: dealTodayClassFilter ? "var(--fill-accent)" : "var(--surface-1)", color: dealTodayClassFilter ? "var(--on-accent)" : "var(--text-primary)", border: "0.5px solid var(--border)", fontSize: 13 }}
+              >
+                Bugün dersi olanlar
+              </button>
+              <select value={dealMembershipExpiryFilter} onChange={(e) => setDealMembershipExpiryFilter(e.target.value)} style={{ fontSize: 13 }}>
+                <option value="all">Üyelik bitişi: Tümü</option>
+                <option value="1m">1 ay içinde bitecek</option>
+                <option value="3m">3 ay içinde bitecek</option>
+                <option value="6m">6 ay içinde bitecek</option>
+              </select>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: 12, width: "fit-content" }}>
+              {[
+                { id: "all", label: "Tümü" },
+                { id: "today", label: "Bugün" },
+                { id: "week", label: "Bu Hafta" },
+                { id: "month", label: "Bu Ay" },
+              ].map((o) => (
+                <button
+                  key={o.id}
+                  onClick={() => setDealQuickDateFilter(o.id)}
+                  style={{ border: "none", background: dealQuickDateFilter === o.id ? "var(--fill-accent)" : "transparent", color: dealQuickDateFilter === o.id ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: dealQuickDateFilter === o.id ? 600 : 400, fontSize: 13 }}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
             <button
               onClick={() => setShowDealExport(true)}
