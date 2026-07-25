@@ -10410,6 +10410,7 @@ export default function App() {
             key={t.id}
             onClick={() => { setTab(t.id); setSidebarOpen(false); }}
             data-tour={`tab-${t.id}`}
+            className={tab === t.id ? undefined : "app-sidebar-tab"}
             style={{
               border: tab === t.id ? "0.5px solid var(--border-strong)" : "0.5px solid transparent",
               background: tab === t.id ? "var(--surface-1)" : "transparent",

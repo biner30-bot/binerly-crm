@@ -196,6 +196,12 @@
         visibility: visible;
         opacity: 1;
       }
+      /* Sol menüdeki sekme butonları seçili değilken background:transparent
+         inline stille geliyor — genel button:hover filter'ı koyulaştıracak bir
+         renk bulamadığı için görünmüyordu. Kendi hover rengi gerekiyor. */
+      .app-sidebar-tab:hover {
+        background: var(--surface-1) !important;
+      }
       @media print {
         body * { visibility: hidden; }
         #teklif-print, #teklif-print * { visibility: visible; }
