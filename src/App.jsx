@@ -4539,7 +4539,7 @@ function AppointmentDateTimeField({ businessUserId, label, value, onChange }) {
     <div>
       <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
         {label}
-        <InfoTip text="Tarihi seçince o güne ait müsait saatler otomatik listelenir — birine tıklamak saati doldurur. İstediğiniz saat listede yoksa saat kutusuna elle de yazabilirsiniz." />
+        <InfoTip placement="bottom" align="right" text="Tarihi seçince o güne ait müsait saatler otomatik listelenir — birine tıklamak saati doldurur. İstediğiniz saat listede yoksa saat kutusuna elle de yazabilirsiniz." />
       </label>
       <input
         type="date"
