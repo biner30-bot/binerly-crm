@@ -7,6 +7,12 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      // Plugin'in enjekte ettiği varsayılan registerSW.js sadece register
+      // ediyordu, yeni sürüm bulununca hiç aktifleştirmiyordu — kullanıcılar
+      // tüm sekmeleri kapatıp yeniden açana kadar eski, önbelleğe alınmış
+      // sürümde takılı kalıyordu. Kayıt artık main.jsx'te elle yapılıyor
+      // (bkz. orada skipWaiting/controllerchange mantığı).
+      injectRegister: null,
       strategies: "injectManifest",
       srcDir: "src",
       filename: "sw.js",

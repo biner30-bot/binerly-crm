@@ -94,3 +94,35 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     {!path.startsWith("/panel-4k9x") && !path.startsWith("/onay/") && !path.startsWith("/lead/") && <CookieConsentBanner />}
   </React.StrictMode>
 );
+
+// vite-plugin-pwa'nın ürettiği varsayılan registerSW.js sadece
+// navigator.serviceWorker.register(...) çağırıyordu — yeni bir sürüm deploy
+// edildiğinde indirilen worker "waiting" durumunda takılı kalıyor, kimse ona
+// skipWaiting söylemediği için hiç aktifleşmiyordu. Kullanıcılar bu yüzden
+// tüm sekmeleri kapatıp yeniden açana kadar (tarayıcının kendi doğal
+// devralma anı) eski, önbelleğe alınmış sürümde kalıyordu — deploy ettiğimiz
+// düzeltmeler sayfayı yenileseler bile görünmüyordu. Yeni sürüm kurulur
+// kurulmaz hemen aktifleştirip sayfayı bir kez yeniliyoruz.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js", { scope: "/" }).then((registration) => {
+      registration.addEventListener("updatefound", () => {
+        const newWorker = registration.installing;
+        if (!newWorker) return;
+        newWorker.addEventListener("statechange", () => {
+          // navigator.serviceWorker.controller varsa bu ilk kurulum değil,
+          // gerçek bir güncelleme — ilk kurulumda zaten skipWaiting'e gerek yok.
+          if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+            newWorker.postMessage({ type: "SKIP_WAITING" });
+          }
+        });
+      });
+    });
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (reloaded) return;
+      reloaded = true;
+      window.location.reload();
+    });
+  });
+}
