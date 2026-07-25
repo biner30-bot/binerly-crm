@@ -103,7 +103,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 // devralma anı) eski, önbelleğe alınmış sürümde kalıyordu — deploy ettiğimiz
 // düzeltmeler sayfayı yenileseler bile görünmüyordu. Yeni sürüm kurulur
 // kurulmaz hemen aktifleştirip sayfayı bir kez yeniliyoruz.
-if ("serviceWorker" in navigator) {
+// import.meta.env.PROD: `vite dev`de gerçek bir /sw.js üretilmiyor (sadece
+// build çıktısında var) — geliştirirken bu adres index.html'e düşüp
+// "unsupported MIME type" konsol hatası veriyordu, sadece prod build'de dener.
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js", { scope: "/" }).then((registration) => {
       registration.addEventListener("updatefound", () => {
