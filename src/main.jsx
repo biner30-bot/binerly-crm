@@ -44,6 +44,30 @@ if (isPortal) {
   if (metaDescription) metaDescription.setAttribute("content", "Taleplerinizi ve tekliflerinizi buradan takip edin.");
 }
 
+// Sekme uzun süre arka planda kalıp tarayıcı tarafından "discard" edildiğinde
+// (özellikle mobilde), sekmeye dönüş App.jsx'i sıfırdan yeniden yüklüyor — bu
+// Suspense fallback'i düz "Yükleniyor…" yerine logolu bir yükleme ekranı olsun
+// diye ayrı bir bileşen olarak tutuluyor.
+function LoadingScreen() {
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, background: "var(--bg, #f5f8fc)" }}>
+      <div style={{ position: "relative", width: 60, height: 60, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: "50%",
+            border: "3px solid var(--border, #e1e8f0)",
+            borderTopColor: "var(--fill-accent, #185fa5)",
+            animation: "app-loading-spin 0.8s linear infinite",
+          }}
+        />
+        <img src="/favicon.svg" alt="" style={{ width: 30, height: 30 }} />
+      </div>
+    </div>
+  );
+}
+
 function resolvePage() {
   // Path bazlı özel rotalar (onay/gizlilik/lead vb.) isPortal'dan ÖNCE kontrol
   // edilmeli — isPortal, "portal" alt alan adının TAMAMINI kapsıyor (path'e
@@ -64,7 +88,7 @@ function resolvePage() {
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <Suspense fallback={<div style={{ padding: "2rem", textAlign: "center", color: "#5b7088" }}>Yükleniyor…</div>}>
+    <Suspense fallback={<LoadingScreen />}>
       {resolvePage()}
     </Suspense>
     {!path.startsWith("/panel-4k9x") && !path.startsWith("/onay/") && !path.startsWith("/lead/") && <CookieConsentBanner />}
