@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Badge, Modal, InfoTip, ConfirmDialog, IconButton, uid, matchesDateRange, DateRangeFilter, downloadXlsx } from "./shared";
+import { Badge, Modal, InfoTip, ConfirmDialog, IconButton, uid, matchesDateRange, DateRangeFilter, downloadXlsx, EmojiPickerButton } from "./shared";
 import { ImportModal } from "./ImportExport";
 import { SECTOR_PRESETS, supportExamples } from "./Sectors";
 
@@ -832,6 +832,7 @@ function ChatInbox({ conversations, selectedTicketId, onSelect, selectedConversa
             </div>
             <form onSubmit={submit} style={{ display: "flex", gap: 8 }}>
               <input value={content} onChange={(e) => setContent(e.target.value)} placeholder="Mesaj yazın..." style={{ flex: 1 }} />
+              <EmojiPickerButton onSelect={(emoji) => setContent((c) => c + emoji)} />
               <button type="submit" disabled={sending || !content.trim()} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
                 Gönder
               </button>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, Toast, ConfirmDialog, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, isFullNameValid, WEEKDAYS, nextWeeklyOccurrence, NotificationBell, getPortalUrl } from "./shared";
+import { Badge, Modal, Toast, ConfirmDialog, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, isFullNameValid, WEEKDAYS, nextWeeklyOccurrence, NotificationBell, getPortalUrl, EmojiPickerButton } from "./shared";
 import { STAGES, stageLabel, dealWordKind, isAppointmentSector, supportsSelfBooking, bookingModel, supportsGroupClasses, groupClassWords, supportExamples, appointmentNoteExample, SECTOR_PRESETS } from "./Sectors";
 
 const PORTAL_DEAL_WORDS = {
@@ -425,6 +425,7 @@ function PortalMessagesPanel({ messages, onSend, sending }) {
       </div>
       <form onSubmit={submit} style={{ display: "flex", gap: 8 }}>
         <input value={content} onChange={(e) => setContent(e.target.value)} placeholder="Mesajınızı yazın..." style={{ flex: 1 }} />
+        <EmojiPickerButton onSelect={(emoji) => setContent((c) => c + emoji)} />
         <button type="submit" disabled={sending || !content.trim()} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
           Gönder
         </button>

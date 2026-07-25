@@ -478,6 +478,64 @@ export function InfoTip({ text, placement = "top", align = "center" }) {
   );
 }
 
+const COMMON_EMOJIS = [
+  "😀", "😊", "🙂", "😉", "😂", "🥳", "😍", "😮", "😢", "😅",
+  "👍", "👎", "🙏", "👏", "🙌", "🤝", "💪", "👋", "✅", "❌",
+  "❤️", "🔥", "⭐", "🎉", "📅", "⏰", "📌", "📞", "💬", "👀",
+];
+
+// Mesajlaşma kutularında emoji eklemek için — OS'in kendi emoji panelleri
+// (Win+. / Cmd+Ctrl+Space) zaten çalışır ama bunu bilmeyen kullanıcılar için
+// görünür bir buton/panel. Seçilen emoji parent'a bildirilir, metni parent
+// tutar — bu bileşen kendi state'ini yönetmez.
+export function EmojiPickerButton({ onSelect }) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  return (
+    <div ref={wrapperRef} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Emoji ekle"
+        style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", width: 36, height: 36, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}
+      >
+        🙂
+      </button>
+      {open && (
+        <div
+          style={{
+            position: "absolute", bottom: "100%", right: 0, marginBottom: 6,
+            background: "var(--surface-2)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)",
+            padding: 8, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 2,
+            boxShadow: "0 8px 24px rgba(12,37,64,0.18)", zIndex: 30, width: 216,
+          }}
+        >
+          {COMMON_EMOJIS.map((e) => (
+            <button
+              key={e}
+              type="button"
+              onClick={() => { onSelect(e); setOpen(false); }}
+              style={{ background: "none", border: "none", fontSize: 18, padding: 4, cursor: "pointer", lineHeight: 1 }}
+            >
+              {e}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function MetricCard({ label, value, sub, tone, onClick }) {
   return (
     <div
