@@ -200,14 +200,18 @@ export function TemplateEditor({ initialTemplate, companySettings, onSave, onClo
                     onChange={(e) => updateSelectedBlock({ content: e.target.value })}
                     style={{ width: "100%", minHeight: 60, resize: "vertical" }}
                   />
+                  <label style={labelStyle}>Otomatik alan ekle</label>
                   <select
                     value=""
                     onChange={(e) => { if (e.target.value) updateSelectedBlock({ content: `${selectedBlock.content || ""}{{${e.target.value}}}` }); }}
-                    style={{ width: "100%", marginTop: 6, fontSize: 12 }}
+                    style={{ width: "100%", fontSize: 12 }}
                   >
                     <option value="">+ Alan ekle</option>
                     {MERGE_FIELD_OPTIONS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
                   </select>
+                  <p style={{ fontSize: 11.5, color: "#5b7088", margin: "4px 0 0", lineHeight: 1.4 }}>
+                    Seçtiğiniz alan, metnin sonuna <code style={{ fontSize: 11 }}>{"{{...}}"}</code> şeklinde bir kod olarak eklenir — bu kod, gerçek bir teklif/randevu için PDF oluşturulduğunda o kaydın kendi bilgisiyle (müşteri adı, tutar, tarih vb.) otomatik değişir. Burada sadece örnek veriyle önizleme gösterilir.
+                  </p>
                   <label style={labelStyle}>Yazı boyutu</label>
                   <input type="number" min="8" value={selectedBlock.fontSize || 13} onChange={(e) => updateSelectedBlock({ fontSize: Number(e.target.value) })} style={{ width: "100%" }} />
                   <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, margin: "10px 0" }}>
