@@ -45,7 +45,11 @@ if (isPortal) {
 }
 
 function resolvePage() {
-  if (isPortal) return <CustomerPortal />;
+  // Path bazlı özel rotalar (onay/gizlilik/lead vb.) isPortal'dan ÖNCE kontrol
+  // edilmeli — isPortal, "portal" alt alan adının TAMAMINI kapsıyor (path'e
+  // bakmaksızın). Sıra tersi olsaydı, portal.binerly.com'daki bir müşterinin
+  // tıkladığı /onay/{token} (ödeme/onay linki) her zaman portale düşer, ödeme
+  // sayfası hiç açılmazdı — müşteri portaldan "Öde"ye bastığında yaşanan hata buydu.
   if (path.startsWith("/gizlilik")) return <PrivacyPolicyPage />;
   if (path.startsWith("/kvkk")) return <KvkkPage />;
   if (path.startsWith("/kullanim-kosullari")) return <TermsPage />;
@@ -54,6 +58,7 @@ function resolvePage() {
   if (path.startsWith("/panel-4k9x")) return <AdminPage />;
   if (path.startsWith("/onay/")) return <DealApprovalPage />;
   if (path.startsWith("/lead/")) return <LeadCapturePage />;
+  if (isPortal) return <CustomerPortal />;
   return <App />;
 }
 
