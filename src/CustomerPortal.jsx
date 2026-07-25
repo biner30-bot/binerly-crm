@@ -471,7 +471,12 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, se
           : !isApproved
             ? (d.paymentMode === "required" ? "Onayla ve Öde" : d.paymentMode === "optional" ? "Onayla / Öde" : "Onayla")
             : "Öde";
-        const showAction = d.approvalToken && (isCompleted ? needsPayment : (!isApproved || needsPayment));
+        // isSelfBooked'da isApproved zaten hep false kalır (approved_at hiç set
+        // edilmiyor) — isCompleted gibi ele alınmazsa, ödeme talep edilmeyen
+        // (paymentMode "none") self-booked kayıtlarda bile "!isApproved" true
+        // kalıp anlamsız bir "Öde" butonu çıkıyordu; tıklayınca /onay/ sayfası
+        // da yapacak bir şey bulamayıp boş bir onay ekranı gösteriyordu.
+        const showAction = d.approvalToken && ((isCompleted || isSelfBooked) ? needsPayment : (!isApproved || needsPayment));
         return (
           <div key={d.id} style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <div>

@@ -212,8 +212,16 @@ export default function DealApprovalPage() {
               // demektir. Ödeme hâlâ eksikse o kısım (sadece "Öde", "...ve Onayla"
               // değil) yine de gösterilir — onay değil tahsilat kalan tek şey.
               const isCompleted = state.deal.stage === "kazanildi";
-              const showApproveOnly = !isCompleted && state.deal.paymentMode !== "required" && !state.deal.approved;
-              const hasPendingAction = isCompleted ? needsPayment : (!state.deal.approved || needsPayment);
+              // Portaldan kendi alınan randevu/üyelik/rezervasyonlarda (selfBooked)
+              // onay diye bir kavram yok — müşteri zaten kendi almış. Bu durumu
+              // isCompleted'a dahil etmezsek, ödeme talep edilmeyen (paymentMode
+              // "none") self-booked kayıtlarda anlamsız bir "Onaylıyorum" ekranı
+              // çıkıyordu (müşterinin zaten kendi aldığı bir randevuyu "onaylaması"
+              // istenen bir durum yok) — bu yüzden Öde butonuna basınca sanki
+              // hiçbir şey olmamış gibi bu ekrana düşülüyordu.
+              const isSelfBooked = !!state.deal.selfBooked;
+              const showApproveOnly = !isCompleted && !isSelfBooked && state.deal.paymentMode !== "required" && !state.deal.approved;
+              const hasPendingAction = (isCompleted || isSelfBooked) ? needsPayment : (!state.deal.approved || needsPayment);
               return (
                 <>
                   {state.deal.approved && (
@@ -235,6 +243,12 @@ export default function DealApprovalPage() {
                       {state.deal.companyName} en kısa sürede sizinle iletişime geçecek.
                     </p>
                   )}
+                  {isSelfBooked && !state.deal.approved && !isPaid && !hasPendingAction && (
+                    <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "14px 16px", display: "flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
+                      <i className="ti ti-circle-check" style={{ fontSize: 18, color: "#15803d" }} aria-hidden="true"></i>
+                      <p style={{ color: "#15803d", fontWeight: 600, margin: 0, fontSize: 13.5 }}>Bu kayıt zaten oluşturulmuş, ek bir işlem gerekmiyor.</p>
+                    </div>
+                  )}
                   {paidParam === "0" && (
                     <p style={{ fontSize: 12.5, color: "#b45309", margin: "0 0 12px" }}>Ödeme tamamlanamadı, lütfen tekrar deneyin.</p>
                   )}
@@ -245,9 +259,14 @@ export default function DealApprovalPage() {
                     <button
                       onClick={payNow}
                       disabled={paying}
-                      style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: paying ? "default" : "pointer" }}
                     >
-                      {paying ? "Yönlendiriliyor…" : (isCompleted || state.deal.approved || state.deal.selfBooked) ? "Öde" : "Onayla ve Öde"}
+                      {paying ? "Yönlendiriliyor…" : (
+                        <>
+                          <i className="ti ti-credit-card" style={{ fontSize: 18 }} aria-hidden="true"></i>
+                          {(isCompleted || state.deal.approved || isSelfBooked) ? "Öde" : "Onayla ve Öde"}
+                        </>
+                      )}
                     </button>
                   )}
                   {showApproveOnly && (
@@ -272,9 +291,14 @@ export default function DealApprovalPage() {
                     <button
                       onClick={payNow}
                       disabled={paying}
-                      style={{ width: "100%", background: "#fff", color: "#185fa5", border: "1px solid #185fa5", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: "pointer", marginTop: 8 }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "#fff", color: "#185fa5", border: "1px solid #185fa5", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: paying ? "default" : "pointer", marginTop: 8 }}
                     >
-                      {paying ? "Yönlendiriliyor…" : (isCompleted || state.deal.approved || state.deal.selfBooked) ? "💳 Şimdi öde" : "💳 Onayla ve Öde"}
+                      {paying ? "Yönlendiriliyor…" : (
+                        <>
+                          <i className="ti ti-credit-card" style={{ fontSize: 18 }} aria-hidden="true"></i>
+                          {(isCompleted || state.deal.approved || isSelfBooked) ? "Şimdi öde" : "Onayla ve Öde"}
+                        </>
+                      )}
                     </button>
                   )}
                   {hasPendingAction && (
