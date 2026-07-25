@@ -3,10 +3,15 @@ import { uid } from "./shared";
 import { renderTemplateBlocks, MERGE_FIELD_OPTIONS, buildSampleMergeData, SAMPLE_LINE_ITEMS } from "./PdfTemplates";
 
 const DEFAULT_TEXT_HEIGHT = 24;
+// Yeni eklenen metin bloğunun dolgu yazısı — kullanıcı hemen "Alan ekle"
+// yaparsa bu yazı silinmeden alanın önüne yapışıp kalıyordu (ör.
+// "Yeni metin{{firma_adi}}"). Bu sabit, hem varsayılan içerik hem de
+// "hâlâ hiç düzenlenmemiş mi" kontrolü için kullanılır (bkz. handleAddField).
+const DEFAULT_TEXT_CONTENT = "Metin yazın";
 
 function newBlock(type, canvasWidth) {
   const base = { id: uid(), x: 60, y: 60 };
-  if (type === "text") return { ...base, type, content: "Yeni metin", w: 220, h: DEFAULT_TEXT_HEIGHT, fontSize: 13, fontWeight: 400, color: "#0c2540", align: "left", textTransform: "none" };
+  if (type === "text") return { ...base, type, content: DEFAULT_TEXT_CONTENT, w: 220, h: DEFAULT_TEXT_HEIGHT, fontSize: 13, fontWeight: 400, color: "#0c2540", align: "left", textTransform: "none" };
   if (type === "image") return { ...base, type, src: "{{logo_url}}", w: 120, h: 50 };
   if (type === "rect") return { ...base, type, w: 160, h: 80, color: "#e1e8f0" };
   // h burada gerçek çizgi kalınlığı değil — renderTemplateBlocks çizgiyi hep
@@ -203,14 +208,19 @@ export function TemplateEditor({ initialTemplate, companySettings, onSave, onClo
                   <label style={labelStyle}>Otomatik alan ekle</label>
                   <select
                     value=""
-                    onChange={(e) => { if (e.target.value) updateSelectedBlock({ content: `${selectedBlock.content || ""}{{${e.target.value}}}` }); }}
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      const isUntouched = !selectedBlock.content?.trim() || selectedBlock.content === DEFAULT_TEXT_CONTENT;
+                      const base = isUntouched ? "" : selectedBlock.content;
+                      updateSelectedBlock({ content: `${base}{{${e.target.value}}}` });
+                    }}
                     style={{ width: "100%", fontSize: 12 }}
                   >
                     <option value="">+ Alan ekle</option>
                     {MERGE_FIELD_OPTIONS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
                   </select>
                   <p style={{ fontSize: 11.5, color: "#5b7088", margin: "4px 0 0", lineHeight: 1.4 }}>
-                    Seçtiğiniz alan, metnin sonuna <code style={{ fontSize: 11 }}>{"{{...}}"}</code> şeklinde bir kod olarak eklenir — bu kod, gerçek bir teklif/randevu için PDF oluşturulduğunda o kaydın kendi bilgisiyle (müşteri adı, tutar, tarih vb.) otomatik değişir. Burada sadece örnek veriyle önizleme gösterilir.
+                    Seçtiğiniz alanın yerine, gerçek bir teklif/randevu için oluşturulan PDF'te o kaydın kendi bilgisi otomatik gelir — örneğin "Firma Adı" seçerseniz orada işletmenizin adı yazar. Burada sadece örnek bir veriyle önizleme gösterilir.
                   </p>
                   <label style={labelStyle}>Yazı boyutu</label>
                   <input type="number" min="8" value={selectedBlock.fontSize || 13} onChange={(e) => updateSelectedBlock({ fontSize: Number(e.target.value) })} style={{ width: "100%" }} />
