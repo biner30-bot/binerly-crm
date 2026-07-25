@@ -704,7 +704,7 @@ function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange
           <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>Öncelik: {priorityInfo?.label}</span>
           <Badge tone={sla.tone}>{sla.label}</Badge>
           <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Hedef: {formatDateTime(sla.dueAt)}</span>
-          <InfoTip text={SLA_INFO_TEXT} />
+          <InfoTip placement="bottom" align="right" text={SLA_INFO_TEXT} />
         </div>
       </div>
 
@@ -716,7 +716,7 @@ function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange
       </div>
 
       <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px", display: "flex", alignItems: "center", gap: 4 }}>
-        Mesaj geçmişi <InfoTip text={DIRECTION_INFO_TEXT} />
+        Mesaj geçmişi <InfoTip align="left" text={DIRECTION_INFO_TEXT} />
       </p>
       <form onSubmit={submit} style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>

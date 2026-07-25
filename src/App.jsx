@@ -4256,7 +4256,7 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
       }}
     >
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Müşteri tipi <InfoTip text={CUSTOMER_TYPE_INFO_TEXT} placement="bottom" /></label>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Müşteri tipi <InfoTip text={CUSTOMER_TYPE_INFO_TEXT} placement="bottom" align="left" /></label>
         <select
           value={customerType}
           onChange={(e) => {
@@ -4289,7 +4289,7 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
       </div>
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
-          Açık Adres <InfoTip text="Online ödeme (iyzico/PayTR) alırken fatura/adres bilgisi olarak kullanılır — boş bırakılırsa sadece Bölge/Şehir gönderilir." />
+          Açık Adres <InfoTip align="left" text="Online ödeme (iyzico/PayTR) alırken fatura/adres bilgisi olarak kullanılır — boş bırakılırsa sadece Bölge/Şehir gönderilir." />
         </label>
         <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Mahalle, cadde/sokak, no, ilçe" style={{ width: "100%" }} />
       </div>
@@ -4305,7 +4305,7 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
           <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0532 000 00 00" style={{ width: "100%" }} />
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>E-posta (Önemli) <InfoTip text={CUSTOMER_EMAIL_INFO_TEXT} /></label>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>E-posta (Önemli) <InfoTip align="right" text={CUSTOMER_EMAIL_INFO_TEXT} /></label>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={isKurumsal ? "info@firma.com" : "ayse@gmail.com"} style={{ width: "100%" }} />
         </div>
       </div>
@@ -4317,7 +4317,7 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
         </div>
       </div>
       <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Etiketler <InfoTip text={TAGS_INFO_TEXT} /></label>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Etiketler <InfoTip align="left" text={TAGS_INFO_TEXT} /></label>
         <TagInput tags={tags} onChange={setTags} suggestions={sectorTags} />
       </div>
       <CustomFieldsSection defs={defsForEntity} values={customFields} onChange={setCustomFields} />
@@ -4840,7 +4840,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
             <div style={{ flex: 1, minWidth: 200 }}>
               <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
                 Ürün/Hizmet
-                <InfoTip text="Listeden seçmek başlığı ve tutarı otomatik doldurur, sonrasında yine de değiştirebilirsiniz. Ayarlar → Ürün & Hizmet Fiyat Listesi'nden yönetilir." />
+                <InfoTip placement="bottom" align="left" text="Listeden seçmek başlığı ve tutarı otomatik doldurur, sonrasında yine de değiştirebilirsiniz. Ayarlar → Ürün & Hizmet Fiyat Listesi'nden yönetilir." />
               </label>
               <select
                 value={selectedPriceItemId}
@@ -4981,7 +4981,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
       </div>
       <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 120px" }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>KDV oranı <InfoTip text={kdvRateInfoText(sector)} /></label>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>KDV oranı <InfoTip align="left" text={kdvRateInfoText(sector)} /></label>
           <select value={kdvRate} onChange={(e) => setKdvRate(Number(e.target.value))} style={{ width: "100%" }}>
             <option value={20}>%20</option>
             <option value={10}>%10</option>
@@ -5014,7 +5014,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
             {supportsSelfBooking(sector) ? "Kayıt Tarihi" : "Tarih"}
             {supportsSelfBooking(sector) && (
-              <InfoTip text={`Bu, kaydın oluşturulma/güncellenme tarihidir — ${DEAL_WORD_FORMS[dealWordKind(sector)].bare === "randevu" ? "randevunun" : DEAL_WORD_FORMS[dealWordKind(sector)].bare === "rezervasyon" ? "rezervasyonun" : "görüşmenin"} kendi tarih/saati için ${bookingModel(sector) === "slot" ? "yukarıdaki" : "aşağıdaki özel alanlar bölümündeki"} "${customFieldDefs.find((d) => d.entity === "deal" && d.key === appointmentDateTimeKey)?.label || "Randevu/Görüşme Tarihi"}" alanını kullanın.`} />
+              <InfoTip align="left" text={`Bu, kaydın oluşturulma/güncellenme tarihidir — ${DEAL_WORD_FORMS[dealWordKind(sector)].bare === "randevu" ? "randevunun" : DEAL_WORD_FORMS[dealWordKind(sector)].bare === "rezervasyon" ? "rezervasyonun" : "görüşmenin"} kendi tarih/saati için ${bookingModel(sector) === "slot" ? "yukarıdaki" : "aşağıdaki özel alanlar bölümündeki"} "${customFieldDefs.find((d) => d.entity === "deal" && d.key === appointmentDateTimeKey)?.label || "Randevu/Görüşme Tarihi"}" alanını kullanın.`} />
             )}
           </label>
           <input type="date" value={dealDate} onChange={(e) => setDealDate(e.target.value)} style={{ width: "100%" }} />
@@ -5123,7 +5123,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
             <div style={{ flex: 2 }}>
               <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
                 Not
-                <InfoTip text="İsterseniz sadece bir not olarak kullanın (tarih boş kalabilir), isterseniz sağdaki tarihi de doldurup gerçek bir hatırlatmaya çevirin — tarih girilirse Pano'da ve 'Bugün ne yapmalıyım' listesinde çıkar." />
+                <InfoTip align="left" text="İsterseniz sadece bir not olarak kullanın (tarih boş kalabilir), isterseniz sağdaki tarihi de doldurup gerçek bir hatırlatmaya çevirin — tarih girilirse Pano'da ve 'Bugün ne yapmalıyım' listesinde çıkar." />
               </label>
               <div style={{ display: "flex", gap: 6 }}>
                 <input value={reminder} onChange={(e) => setReminder(e.target.value)} placeholder="Yarın takip araması yap" style={{ flex: 1 }} />
@@ -5164,7 +5164,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
             </div>
           )}
           <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Etiketler <InfoTip text={TAGS_INFO_TEXT} /></label>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Etiketler <InfoTip align="left" text={TAGS_INFO_TEXT} /></label>
             <TagInput tags={tags} onChange={setTags} suggestions={sectorTags} />
           </div>
           <CustomFieldsSection defs={otherDefsForEntity} values={customFields} onChange={setCustomFields} />

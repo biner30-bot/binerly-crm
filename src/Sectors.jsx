@@ -800,7 +800,7 @@ export function CustomFieldsSection({ defs, values, onChange }) {
     <div style={{ marginBottom: 8 }}>
       <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px", display: "flex", alignItems: "center", gap: 4 }}>
         Özel alanlar
-        <InfoTip text="Bu alanlar sabit değil — Ayarlar → Sektör & Özel Alanlar'dan kendiniz ekleyip kaldırabilirsiniz. Sektör seçtiğinizde bazı alanlar otomatik hazır gelir." />
+        <InfoTip align="left" text="Bu alanlar sabit değil — Ayarlar → Sektör & Özel Alanlar'dan kendiniz ekleyip kaldırabilirsiniz. Sektör seçtiğinizde bazı alanlar otomatik hazır gelir." />
       </p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {active.map((d) => (
