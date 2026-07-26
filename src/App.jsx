@@ -6391,9 +6391,6 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
   const [defaultKdvRate, setDefaultKdvRate] = useState(initial?.defaultKdvRate ?? 20);
   const [customerNotificationsEnabled, setCustomerNotificationsEnabled] = useState(initial?.customerNotificationsEnabled === true);
   const [appointmentRemindersEnabled, setAppointmentRemindersEnabled] = useState(initial?.appointmentRemindersEnabled !== false);
-  const [lateCancelHours, setLateCancelHours] = useState(initial?.lateCancelHours ?? "");
-  const [hardBlockHours, setHardBlockHours] = useState(initial?.hardBlockHours ?? "");
-  const [lateCancelStrikeLimit, setLateCancelStrikeLimit] = useState(initial?.lateCancelStrikeLimit ?? "");
 
   const handleLogoFile = async (e) => {
     const file = e.target.files?.[0];
@@ -6426,9 +6423,9 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
           customerNotificationsEnabled,
           appointmentRemindersEnabled,
           sector: initial?.sector || null,
-          lateCancelHours: lateCancelHours === "" ? null : Number(lateCancelHours),
-          hardBlockHours: hardBlockHours === "" ? null : Number(hardBlockHours),
-          lateCancelStrikeLimit: lateCancelStrikeLimit === "" ? null : Number(lateCancelStrikeLimit),
+          lateCancelHours: initial?.lateCancelHours ?? null,
+          hardBlockHours: initial?.hardBlockHours ?? null,
+          lateCancelStrikeLimit: initial?.lateCancelStrikeLimit ?? null,
         });
       }}
     >
@@ -6510,34 +6507,6 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
             Randevu hatırlatma e-postası gönder
             <InfoTip align="right" text="Tarih & Saat tipindeki özel alanı olan kayıtlarda, o saatten 2 saat önce müşteriye otomatik bir hatırlatma e-postası gider. Bu kutuyu kapatırsanız hiçbir hatırlatma e-postası gönderilmez — diğer bildirimler (aşama değişikliği, destek talebi, ödeme) bundan etkilenmez." />
           </label>
-        </div>
-      )}
-      {supportsGroupClasses(initial?.sector) && (
-        <div style={{ marginBottom: 16, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 12 }}>
-          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 10px", display: "flex", alignItems: "center", gap: 4 }}>
-            Grup dersi iptal politikası
-            <InfoTip
-              align="right"
-              text={
-                "Üçü de opsiyonel, hepsi boşsa hiçbir şey değişmez (mevcut sabit 2 saatlik iptal kilidi geçerli olmaya devam eder).\n\n" +
-                "Nasıl işler: ders saatine 'Tamamen kilitle' süresinden az kala üye HİÇ iptal edemez. Bunun ile 'Uyarı/seans yakma başlangıcı' süresi arasında iptal ederse 'geç iptal' sayılır — kaçıncı geç iptalde seansın yanacağını 'Kaçıncı geç iptalde' alanı belirler (örn. 3 girerseniz ilk 2 geç iptal sadece uyarı, 3.'den itibaren her geç iptalde 1 seans düşer). Bu iki eşiğin arasındaki sürede DEĞİLSE (yani yeterince erken iptal ediyorsa) hiçbir ceza uygulanmaz."
-              }
-            />
-          </p>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <div>
-              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tamamen kilitle (saat)</label>
-              <input type="number" min="0" step="0.5" value={hardBlockHours} onChange={(e) => setHardBlockHours(e.target.value)} placeholder="Varsayılan: 2" style={{ width: 150 }} />
-            </div>
-            <div>
-              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Uyarı/seans yakma başlangıcı (saat)</label>
-              <input type="number" min="0" step="0.5" value={lateCancelHours} onChange={(e) => setLateCancelHours(e.target.value)} placeholder="Örn. 4" style={{ width: 150 }} />
-            </div>
-            <div>
-              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kaçıncı geç iptalde seans yansın</label>
-              <input type="number" min="1" step="1" value={lateCancelStrikeLimit} onChange={(e) => setLateCancelStrikeLimit(e.target.value)} placeholder="Varsayılan: 1 (hemen)" style={{ width: 150 }} />
-            </div>
-          </div>
         </div>
       )}
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -8589,7 +8558,87 @@ function GroupClassRoster({ group, enrollments, customers, activeCustomerIds, se
   );
 }
 
-function GroupClassesTab({ groupClasses, groupClassEnrollments, customers, activeCustomerIds, sector, onAdd, onUpdate, onDelete, onEnroll, onRemove }) {
+// Çoğu KOBİ bu politikayı hiç kullanmayacak — İşletme Bilgileri'nde her zaman
+// açık 3 alan olarak dururken hem gereksiz karmaşıklık katıyordu hem de dar
+// (420px) modalde InfoTip balonu taşıyordu. Artık Dersler sekmesinde,
+// varsayılan olarak KAPALI, "Ayarla"/"Düzenle" butonuyla açılan bir kutu —
+// kullanılmıyorsa özet satırı bile göstermiyor, tek satır bilgi yeterli.
+function LateCancelPolicyBox({ companySettings, onSave }) {
+  const configured = companySettings?.hardBlockHours != null || companySettings?.lateCancelHours != null || companySettings?.lateCancelStrikeLimit != null;
+  const [open, setOpen] = useState(false);
+  const [hardBlockHours, setHardBlockHours] = useState(companySettings?.hardBlockHours ?? "");
+  const [lateCancelHours, setLateCancelHours] = useState(companySettings?.lateCancelHours ?? "");
+  const [lateCancelStrikeLimit, setLateCancelStrikeLimit] = useState(companySettings?.lateCancelStrikeLimit ?? "");
+
+  const handleOpen = () => {
+    setHardBlockHours(companySettings?.hardBlockHours ?? "");
+    setLateCancelHours(companySettings?.lateCancelHours ?? "");
+    setLateCancelStrikeLimit(companySettings?.lateCancelStrikeLimit ?? "");
+    setOpen(true);
+  };
+
+  const handleSave = () => {
+    onSave({
+      hardBlockHours: hardBlockHours === "" ? null : Number(hardBlockHours),
+      lateCancelHours: lateCancelHours === "" ? null : Number(lateCancelHours),
+      lateCancelStrikeLimit: lateCancelStrikeLimit === "" ? null : Number(lateCancelStrikeLimit),
+    });
+    setOpen(false);
+  };
+
+  return (
+    <div style={{ marginBottom: 16, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <p style={{ fontSize: 13, fontWeight: 500, margin: 0, display: "flex", alignItems: "center", gap: 4 }}>
+          Geç iptal / seans yakma politikası
+          <InfoTip
+            align="left"
+            text={
+              "Üçü de opsiyonel, hiç ayarlamazsanız hiçbir şey değişmez (sabit 2 saatlik iptal kilidi geçerli olmaya devam eder).\n\n" +
+              "Nasıl işler: ders saatine 'Tamamen kilitle' süresinden az kala üye HİÇ iptal edemez. Bunun ile 'Uyarı/seans yakma başlangıcı' süresi arasında iptal ederse 'geç iptal' sayılır — kaçıncı geç iptalde seansın yanacağını 'Kaçıncı geç iptalde' alanı belirler (örn. 3 girerseniz ilk 2 geç iptal sadece uyarı, 3.'den itibaren her geç iptalde 1 seans düşer). Bu iki eşiğin arasındaki sürede DEĞİLSE (yani yeterince erken iptal ediyorsa) hiçbir ceza uygulanmaz."
+            }
+          />
+        </p>
+        {!open && (
+          <button type="button" onClick={handleOpen} style={{ fontSize: 12, padding: "4px 10px" }}>
+            {configured ? "Düzenle" : "Ayarla"}
+          </button>
+        )}
+      </div>
+      {!open && (
+        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0 0" }}>
+          {configured
+            ? `Aktif: dersten ${companySettings.hardBlockHours ?? 2} saat kalana kadar tamamen kilit${companySettings.lateCancelHours != null ? `, ${companySettings.lateCancelHours} saatten itibaren geç iptal sayılır` : ""}${companySettings.lateCancelStrikeLimit ? `, ${companySettings.lateCancelStrikeLimit}. geç iptalde seans yanmaya başlar` : ""}.`
+            : "Kullanılmıyor — üyeler ders saatine 2 saat kalana kadar serbestçe iptal edebiliyor, geç iptal için özel bir kural/ceza yok."}
+        </p>
+      )}
+      {open && (
+        <>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 10 }}>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tamamen kilitle (saat)</label>
+              <input type="number" min="0" step="0.5" value={hardBlockHours} onChange={(e) => setHardBlockHours(e.target.value)} placeholder="Varsayılan: 2" style={{ width: 150 }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Uyarı/seans yakma başlangıcı (saat)</label>
+              <input type="number" min="0" step="0.5" value={lateCancelHours} onChange={(e) => setLateCancelHours(e.target.value)} placeholder="Örn. 4" style={{ width: 150 }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kaçıncı geç iptalde seans yansın</label>
+              <input type="number" min="1" step="1" value={lateCancelStrikeLimit} onChange={(e) => setLateCancelStrikeLimit(e.target.value)} placeholder="Varsayılan: 1 (hemen)" style={{ width: 150 }} />
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}>
+            <button type="button" onClick={() => setOpen(false)}>Vazgeç</button>
+            <button type="button" onClick={handleSave} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function GroupClassesTab({ groupClasses, groupClassEnrollments, customers, activeCustomerIds, sector, companySettings, onAdd, onUpdate, onDelete, onEnroll, onRemove, onSaveCancelPolicy }) {
   const words = groupClassWords(sector);
   const [showForm, setShowForm] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
@@ -8611,6 +8660,8 @@ function GroupClassesTab({ groupClasses, groupClassEnrollments, customers, activ
           Yeni ders
         </button>
       </div>
+
+      <LateCancelPolicyBox companySettings={companySettings} onSave={onSaveCancelPolicy} />
 
       {groupClasses.length === 0 ? (
         <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Henüz ders eklenmedi.</p>
@@ -14154,11 +14205,13 @@ export default function App() {
           customers={customers}
           activeCustomerIds={new Set(activeMemberships.map((d) => d.customerId))}
           sector={companySettings?.sector}
+          companySettings={companySettings}
           onAdd={addGroupClass}
           onUpdate={updateGroupClass}
           onDelete={deleteGroupClass}
           onEnroll={enrollMember}
           onRemove={removeMember}
+          onSaveCancelPolicy={(patch) => upsertCompanySettings({ ...companySettings, ...patch })}
         />
       )}
 
