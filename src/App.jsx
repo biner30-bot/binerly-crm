@@ -8030,7 +8030,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
         <div style={{ width: 150 }}>
           <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 3, marginBottom: 4 }}>
             Tazeleme (gün)
-            <InfoTip placement="bottom" text="Opsiyonel — girerseniz, bu hizmet 'tamamlandı' olarak işaretlendiğinde bu kadar gün sonrasına otomatik bir hatırlatma kurulur (örn. protez tırnak için 21 gün)." />
+            <InfoTip align="left" text="Opsiyonel — girerseniz, bu hizmet 'tamamlandı' olarak işaretlendiğinde bu kadar gün sonrasına otomatik bir hatırlatma kurulur (örn. protez tırnak için 21 gün)." />
           </label>
           <input type="number" min="0" value={refreshDays} onChange={(e) => setRefreshDays(e.target.value)} placeholder="Opsiyonel" style={{ width: "100%", fontSize: 13 }} />
         </div>
@@ -8161,7 +8161,7 @@ function StockManager({ stockItems, priceListItems, priceItemIngredients, onAddS
             <div style={{ width: 130 }}>
               <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 3, marginBottom: 4 }}>
                 Kritik seviye
-                <InfoTip placement="bottom" text="Bu miktara inince (veya altına düşünce) Pano'da düşük stok uyarısı çıkar. Boş bırakırsanız hiç uyarı verilmez." />
+                <InfoTip placement="bottom" align="right" text="Bu miktara inince (veya altına düşünce) Pano'da düşük stok uyarısı çıkar. Boş bırakırsanız hiç uyarı verilmez." />
               </label>
               <input type="number" value={reorderThreshold} onChange={(e) => setReorderThreshold(e.target.value)} placeholder="Opsiyonel" style={{ width: "100%", fontSize: 13 }} />
             </div>
@@ -9230,7 +9230,7 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
                           style={{ width: 80, fontSize: 12, padding: "2px 6px" }}
                         />
                       </span>
-                      <InfoTip placement="bottom" text="Prim/koltuk kirası girerseniz Pano'daki Personel Performansı kartında bu üyenin net hakedişi otomatik hesaplanır. İkisi de opsiyonel." />
+                      <InfoTip placement="bottom" align="right" text="Prim/koltuk kirası girerseniz Pano'daki Personel Performansı kartında bu üyenin net hakedişi otomatik hesaplanır. İkisi de opsiyonel." />
                     </div>
                   </div>
                 ))}
