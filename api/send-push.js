@@ -33,6 +33,7 @@ export default async function handler(req, res) {
     if (table === "deals") return await handleAppointmentPush(req, res, supabaseAdmin);
     if (table === "payments") return await handlePaymentPush(req, res, supabaseAdmin);
     if (table === "deal_approvals") return await handleDealApprovalPush(req, res, supabaseAdmin);
+    if (table === "deal_viewed") return await handleDealViewedPush(req, res, supabaseAdmin);
     return await handleTicketMessagePush(req, res, supabaseAdmin);
   } catch (err) {
     return res.status(200).json({ error: "Gönderim sırasında hata oluştu.", detail: err?.message });
@@ -192,6 +193,30 @@ async function handleDealApprovalPush(req, res, supabaseAdmin) {
 
   return await sendToRecipients(supabaseAdmin, res, recipientIds, {
     title: "Teklif onaylandı",
+    body: `${record.customer_name || "Bir müşteri"} — ${record.title}`,
+    url: "/?tab=firsat",
+  });
+}
+
+// Müşteri, kendisine gönderilen onay linkini kimliği doğrulanmış olarak İLK
+// kez açtığında — api/deal-approval.js:claimFirstView doğrudan çağırır ("deals"
+// gibi bu da gerçek bir Supabase webhook payload'u değil, sadece bir ayırt
+// edici string). handleDealApprovalPush ile aynı desen, farklı başlık/metin.
+async function handleDealViewedPush(req, res, supabaseAdmin) {
+  const record = req.body?.record;
+  if (!record) return res.status(200).json({ skipped: true });
+
+  const vapidReady = ensureVapid();
+  if (!vapidReady) return res.status(200).json({ skipped: true, reason: "VAPID keys not configured" });
+
+  const { data: members } = await supabaseAdmin
+    .from("team_members")
+    .select("member_id")
+    .eq("team_id", record.user_id);
+  const recipientIds = [record.user_id, ...(members || []).map((m) => m.member_id)];
+
+  return await sendToRecipients(supabaseAdmin, res, recipientIds, {
+    title: "Teklif görüntülendi",
     body: `${record.customer_name || "Bir müşteri"} — ${record.title}`,
     url: "/?tab=firsat",
   });

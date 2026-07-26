@@ -67,7 +67,7 @@ function rowToTicketMessage(r) {
 // SADECE bu listedeki anahtarları taşır. Yeni bir yerde d.customFields?.X
 // okumaya başlarsan X'i buraya da eklemeyi unutma — yoksa (uyelik_bitis_tarihi/
 // kurs_bitis_tarihi'nde olduğu gibi) o alan sessizce undefined gelir.
-const PORTAL_VISIBLE_DEAL_CUSTOM_FIELD_KEYS = ["portal_randevu_zamani", "kaynak", "uyelik_bitis_tarihi", "kurs_bitis_tarihi"];
+const PORTAL_VISIBLE_DEAL_CUSTOM_FIELD_KEYS = ["portal_randevu_zamani", "kaynak", "uyelik_bitis_tarihi", "kurs_bitis_tarihi", "sevkiyat_durumu"];
 
 function rowToDeal(r) {
   const cf = r.custom_fields || {};
@@ -542,6 +542,7 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, se
             </div>
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <Badge tone={tone}>{stageText}</Badge>
+              {d.customFields?.sevkiyat_durumu && <Badge tone="accent">{d.customFields.sevkiyat_durumu}</Badge>}
               {isApproved && <Badge tone="success">✓ Onaylandı</Badge>}
               {isPaid && <Badge tone="success">✓ Ödendi</Badge>}
               {showAction && (

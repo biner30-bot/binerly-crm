@@ -40,6 +40,26 @@ async function claimDealPayment(supabaseAdmin, dealId) {
   return (data || []).length > 0;
 }
 
+// "Teklif okundu" bildirimi için — müşteri onay linkini kimliği doğrulanmış
+// olarak ilk kez açtığı anı yakalar. claimDealPayment'teki gibi atomik: sadece
+// first_viewed_at hâlâ NULL'sa güncelleme bir satır döner, bu isteği "kazanan"
+// (ve dolayısıyla bildirimi tetikleyecek) istek olur — art arda gelen
+// GET'lerde (örn. giriş öncesi/sonrası iki istek, veya müşterinin sayfayı
+// tekrar açması) yalnızca gerçekten ilk seferde bildirim gider.
+async function claimFirstView(supabaseAdmin, dealId) {
+  const { data, error } = await supabaseAdmin
+    .from("deals")
+    .update({ first_viewed_at: new Date().toISOString() })
+    .eq("id", dealId)
+    .is("first_viewed_at", null)
+    .select("id");
+  if (error) {
+    console.error("claimFirstView error:", error.message, "deal.id:", dealId);
+    return false;
+  }
+  return (data || []).length > 0;
+}
+
 function getClientIp(req) {
   const forwarded = req.headers["x-forwarded-for"];
   if (forwarded) return forwarded.split(",")[0].trim();
@@ -629,7 +649,7 @@ export default async function handler(req, res) {
 
   const { data: deal, error: dealError } = await supabaseAdmin
     .from("deals")
-    .select("id, user_id, customer_id, title, value, kdv_rate, approved_at, created_at, stage, payment_mode, payment_status, custom_fields")
+    .select("id, user_id, customer_id, title, value, kdv_rate, approved_at, created_at, stage, payment_mode, payment_status, custom_fields, first_viewed_at, view_duration_seconds")
     .eq("approval_token", token)
     .is("deleted_at", null)
     .maybeSingle();
@@ -657,6 +677,13 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "GET") {
+    if (await claimFirstView(supabaseAdmin, deal.id)) {
+      fetch("https://binerly.com/api/send-push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-push-secret": (process.env.PUSH_WEBHOOK_SECRET || "").trim() },
+        body: JSON.stringify({ table: "deal_viewed", record: { user_id: deal.user_id, title: deal.title, customer_name: customer?.name || null } }),
+      }).catch(() => {});
+    }
     return res.status(200).json({
       title: deal.title,
       value: deal.value,
@@ -680,6 +707,22 @@ export default async function handler(req, res) {
     const result = await initCheckout(req, supabaseAdmin, deal, customer, token);
     if (result.error) return res.status(502).json({ error: result.error });
     return res.status(200).json({ paymentPageUrl: result.paymentPageUrl });
+  }
+
+  // Basit "ısı haritası": gerçek AI/sayfa-bazlı analiz değil, müşterinin onay
+  // sayfasında AKTİF (sekme görünürken) geçirdiği toplam süreyi biriktirir —
+  // sayfa kapanırken/arka plana geçerken tarayıcıdan tek seferlik gönderilir.
+  // "3 dakika baktı ama onaylamadı" gibi bir tereddüt sinyali vermek için yeterli.
+  if (action === "track-view") {
+    const seconds = Math.max(0, Math.round(Number((req.body || {}).seconds) || 0));
+    if (seconds > 0) {
+      const { error: viewError } = await supabaseAdmin
+        .from("deals")
+        .update({ view_duration_seconds: (deal.view_duration_seconds || 0) + seconds })
+        .eq("id", deal.id);
+      if (viewError) console.error("track-view update error:", viewError.message, "deal.id:", deal.id);
+    }
+    return res.status(200).json({ ok: true });
   }
 
   let approvedAt = deal.approved_at;

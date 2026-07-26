@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Badge, Modal, ConfirmDialog, IconButton, InfoTip } from "./shared";
+import { Badge, Modal, ConfirmDialog, IconButton, InfoTip, formatTL } from "./shared";
 
 export const STAGES = [
   { id: "ilk_gorusme", label: "İlk görüşme" },
@@ -17,6 +17,12 @@ export const STAGE_LABELS_BIREYSEL = {
   kaybedildi: "İptal",
 };
 
+// Emlak'ta hem mülkün ("Oda Sayısı") hem müşterinin aradığının ("Aranan Oda
+// Sayısı") aynı seçenek listesini kullanması gerekiyor — matchEmlakListing bu
+// iki alanı birebir string eşitliğiyle karşılaştırıyor, listeler ayrışırsa
+// (örn. biri "2+1" diğeri "2 + 1" yazarsa) hiç eşleşme bulunmaz.
+const ROOM_COUNT_OPTIONS = ["1+0", "1+1", "2+1", "3+1", "4+1", "4+2", "5+1"];
+
 // Şirketin sektörüne göre satış hunisi aşama isimlerini, önerilen etiketleri ve
 // sektöre özel alanları hazır getiren şablonlar. "Genel" bilinçli olarak boş
 // stageLabels/customFields ile varsayılana düşer (no-op).
@@ -33,13 +39,26 @@ export const SECTOR_PRESETS = [
       kaybedildi: "Vazgeçildi",
     },
     tags: ["Sıcak lead", "Alıcı adayı", "Kiracı", "Yatırımcı", "Kredi bekliyor", "Ekspertiz bekleniyor"],
+    // "Bütçe / Kira aralığı" tek serbest metin alanıydı — Gölge Avcı (portföy
+    // eşleştirme) gerçek bir karşılaştırma yapabilmek için yapılandırılmış
+    // (sayısal/seçenekli) veri gerektiriyor, bu yüzden müşteri tarafına
+    // "aranan_*" alanları, teklif (mülk) tarafına da bolge/oda_sayisi eklendi.
+    // Eski butce_araligi kaldırıldı ama daha önce girilmiş değerler DB'de
+    // durur (applySectorCustomFields sadece "active:false" yapar, silmez).
     customFields: [
       { entity: "deal", key: "mulk_tipi", label: "Mülk Tipi", type: "select", options: ["Daire", "Villa", "Arsa", "İşyeri"] },
       { entity: "deal", key: "islem_turu", label: "İşlem Türü", type: "select", options: ["Satış", "Kiralama"] },
       { entity: "deal", key: "metrekare", label: "Metrekare (m²)", type: "number" },
+      { entity: "deal", key: "bolge", label: "Bölge / İlçe", type: "text" },
+      { entity: "deal", key: "oda_sayisi", label: "Oda Sayısı", type: "select", options: ROOM_COUNT_OPTIONS },
       { entity: "deal", key: "gorusme_tarihi", label: "Görüşme/Randevu Tarihi", type: "datetime" },
-      { entity: "customer", key: "butce_araligi", label: "Bütçe / Kira aralığı", type: "text" },
       { entity: "deal", key: "ilan_no", label: "İlan / Referans No", type: "text" },
+      { entity: "customer", key: "aranan_islem", label: "Aranan İşlem", type: "select", options: ["Satış", "Kiralama"] },
+      { entity: "customer", key: "aranan_bolge", label: "Aradığı Bölge / İlçe", type: "text" },
+      { entity: "customer", key: "min_butce", label: "Min. Bütçe (TL)", type: "number" },
+      { entity: "customer", key: "max_butce", label: "Max. Bütçe (TL)", type: "number" },
+      { entity: "customer", key: "aranan_oda_sayisi", label: "Aranan Oda Sayısı", type: "select", options: [...ROOM_COUNT_OPTIONS, "Farketmez"] },
+      { entity: "customer", key: "aranan_mulk_tipi", label: "Aranan Mülk Tipi", type: "select", options: ["Daire", "Villa", "Arsa", "İşyeri", "Farketmez"] },
     ],
     stageGuides: {
       ilk_gorusme: "Müşterinin bütçesini ve tercih ettiği bölgeyi netleştirin.",
@@ -121,8 +140,14 @@ export const SECTOR_PRESETS = [
       { entity: "deal", key: "urun_grubu", label: "Ürün / Ürün Grubu", type: "text" },
       { entity: "deal", key: "siparis_miktari", label: "Sipariş Miktarı", type: "number" },
       { entity: "customer", key: "odeme_vadesi", label: "Ödeme Vadesi", type: "select", options: ["Peşin", "30 gün", "60 gün", "90 gün"], audience: "kurumsal" },
+      // Kredi limiti/vadesi geçmiş bakiye uyarısı BİR ENGEL DEĞİL, sadece
+      // bilgilendirme (bkz. App.jsx:computeCustomerCreditRisk) — hangi
+      // müşteriye yeni teklif verileceği hep KOBİ'nin kararı.
+      { entity: "customer", key: "kredi_limiti", label: "Kredi Limiti (TL)", type: "number", audience: "kurumsal" },
       { entity: "deal", key: "teslimat_tarihi", label: "Teslimat Tarihi", type: "date" },
-      { entity: "deal", key: "sevkiyat_durumu", label: "Sevkiyat Durumu", type: "select", options: ["Hazırlanıyor", "Kargoya verildi", "Teslim edildi"] },
+      // Sadece kargo değil üretim aşamalarını da kapsayacak şekilde genişletildi
+      // ("siparişim nerede" — satışçı fabrikayı aramadan CRM'den cevap versin diye).
+      { entity: "deal", key: "sevkiyat_durumu", label: "Üretim / Sevkiyat Durumu", type: "select", options: ["Hammadde kesiminde", "Üretimde", "Kalite kontrolde", "Sevkiyata hazır", "Kargoya verildi", "Teslim edildi"] },
     ],
     stageGuides: {
       ilk_gorusme: "Ürün ihtiyacını ve tahmini miktarı netleştirin.",
@@ -204,13 +229,18 @@ export const SECTOR_PRESETS = [
       { entity: "customer", key: "tercih_edilen_uzman", label: "Tercih Edilen Uzman/Personel", type: "text", audience: "bireysel" },
       { entity: "customer", key: "alerji_notu", label: "Alerji / Cilt Notu", type: "text", audience: "bireysel" },
       { entity: "deal", key: "hizmet_suresi_dk", label: "Hizmet Süresi (dk)", type: "number" },
+      // "Geçen seferki renk tonu" gibi sorulara cevap verebilmek için — hangi
+      // uzmana giderse gitsin aynı sonuç. Fotoğraf (öncesi/sonrası) için ayrı
+      // bir alan gerekmiyor, teklif kaydındaki mevcut "Ek dosya" yükleme zaten
+      // bunu karşılıyor.
+      { entity: "deal", key: "kullanilan_formul", label: "Kullanılan Formül/Doz", type: "text" },
     ],
     stageGuides: {
       ilk_gorusme: "Hizmet türünü ve tahmini süreyi netleştirip randevu saatini onaylayın.",
       teklif: "Randevu saatini müşteriye tekrar teyit edin.",
       muzakere: "Randevudan bir gün önce hatırlatma mesajı/arama yapın — randevuya gelmeme riskini azaltır.",
-      kazanildi: "Paket hizmetse sonraki seans için hatırlatma ekleyin.",
-      kaybedildi: "Müşteri randevuya gelmediyse \"Gelmedi\" etiketini ekleyin — Pano'daki oran bunu kullanıyor.",
+      kazanildi: "Kullanılan formül/dozu not düşün, paket hizmetse sonraki seans için hatırlatma ekleyin.",
+      kaybedildi: "Müşteri habersiz gelmediyse aşamayı kaydederken kayıp nedeni olarak \"Randevuya gelmedi\"yi seçin — Pano'daki gelmeme oranı ve no-show uyarısı bunu kullanıyor.",
     },
   },
   {
@@ -437,6 +467,134 @@ export function dealWordKind(sector) {
   return "teklif";
 }
 
+// "Gölge Avcı": yeni bir emlak teklifi (gösterilecek/satılacak somut bir mülk)
+// kaydedildiğinde, geçmişteki müşterilerin "aranan_*" alanlarına girdiği
+// talep kriterleriyle bu mülkü karşılaştırıp bir uyum yüzdesi çıkarır.
+// İşlem türü (satış/kiralama) uyuşmuyorsa hiç eşleşme sayılmaz — kiralık
+// arayan birine satılık mülk önermenin bir anlamı yok, bu yüzden ağırlıklı
+// puanlamaya bile girmeden elenir. Diğer üç kriterde (bölge/bütçe/oda
+// sayısı/mülk tipi), iki taraftan biri boşsa o kriter puana da paydaya da
+// eklenmez — yani doldurulmamış bir alan ne lehe ne aleyhe sayılır, yüzde
+// sadece elimizde veri olan kriterlerin oranına göre hesaplanır. Bu yüzden
+// "hiçbir talep kriteri girilmemiş" müşteriler tamamen atlanır (puanlanacak
+// veri yok), tek kriter dolu olanlarda ise o kriterin tam eşleşmesi %100
+// gösterebilir — kartta "uyan kriterler" listesi bunu şeffaf gösterir.
+const MATCH_WEIGHTS = { bolge: 40, butce: 30, oda: 15, mulkTipi: 15 };
+const MATCH_THRESHOLD = 50;
+
+export function matchEmlakListing(deal, customers) {
+  const dealFields = deal.customFields || {};
+  const dealIslemTuru = dealFields.islem_turu;
+  const dealBolge = (dealFields.bolge || "").trim().toLowerCase();
+  const dealOda = dealFields.oda_sayisi;
+  const dealMulkTipi = dealFields.mulk_tipi;
+  const dealFiyat = Number(deal.value) || 0;
+
+  const results = [];
+  for (const c of customers) {
+    if (!c.phone) continue;
+    const cf = c.customFields || {};
+    const araIslem = cf.aranan_islem;
+    const araBolge = (cf.aranan_bolge || "").trim().toLowerCase();
+    const minButce = Number(cf.min_butce) || 0;
+    const maxButce = Number(cf.max_butce) || 0;
+    if (!araIslem && !araBolge && !minButce && !maxButce && !cf.aranan_oda_sayisi && !cf.aranan_mulk_tipi) continue;
+    if (araIslem && dealIslemTuru && araIslem !== dealIslemTuru) continue;
+
+    let earned = 0;
+    let possible = 0;
+    const reasons = [];
+
+    if (dealBolge && araBolge) {
+      possible += MATCH_WEIGHTS.bolge;
+      if (dealBolge === araBolge || dealBolge.includes(araBolge) || araBolge.includes(dealBolge)) {
+        earned += MATCH_WEIGHTS.bolge;
+        reasons.push("Bölge");
+      }
+    }
+
+    if (dealFiyat && (minButce || maxButce)) {
+      possible += MATCH_WEIGHTS.butce;
+      const overMin = minButce ? dealFiyat >= minButce : true;
+      const underMax = maxButce ? dealFiyat <= maxButce : true;
+      if (overMin && underMax) {
+        earned += MATCH_WEIGHTS.butce;
+        reasons.push("Bütçe aralığı");
+      }
+    }
+
+    if (dealOda && cf.aranan_oda_sayisi && cf.aranan_oda_sayisi !== "Farketmez") {
+      possible += MATCH_WEIGHTS.oda;
+      if (dealOda === cf.aranan_oda_sayisi) {
+        earned += MATCH_WEIGHTS.oda;
+        reasons.push("Oda sayısı");
+      }
+    }
+
+    if (dealMulkTipi && cf.aranan_mulk_tipi && cf.aranan_mulk_tipi !== "Farketmez") {
+      possible += MATCH_WEIGHTS.mulkTipi;
+      if (dealMulkTipi === cf.aranan_mulk_tipi) {
+        earned += MATCH_WEIGHTS.mulkTipi;
+        reasons.push("Mülk tipi");
+      }
+    }
+
+    if (possible === 0) continue;
+    const score = Math.round((earned / possible) * 100);
+    if (score >= MATCH_THRESHOLD) results.push({ customer: c, score, reasons });
+  }
+  return results.sort((a, b) => b.score - a.score);
+}
+
+// "İlan Metni Sihirbazı": emlak teklifindeki mevcut yapılandırılmış alanlardan
+// (Mülk Tipi, Bölge, Oda Sayısı, m², Fiyat, İşlem Türü) üç farklı platform için
+// hazır metin üretir. Bilinçli olarak AI KULLANMAZ — fotoğraftan özellik çıkarma
+// veya sıfırdan yaratıcı metin üretme gibi gerçek bir dil modeli gerektiren
+// kısımlar burada YOK (bkz. proje kararı: gelir gelene kadar token bazlı API
+// eklenmiyor); bunun yerine zaten formda dolu olan alanlar üç kalıba dökülüyor.
+export function buildEmlakListingTexts(deal) {
+  const cf = deal.customFields || {};
+  const islemLabel = cf.islem_turu === "Kiralama" ? "Kiralık" : "Satılık";
+  const fiyat = deal.value ? formatTL(deal.value) : "Fiyat için iletişime geçin";
+  const satirBaslik = [islemLabel, cf.mulk_tipi, cf.bolge].filter(Boolean).join(" ");
+  const olcu = [cf.oda_sayisi, cf.metrekare ? `${cf.metrekare} m²` : null].filter(Boolean).join(" · ");
+  const hashtagBolge = (cf.bolge || "").replace(/\s+/g, "");
+  const hashtagMulk = (cf.mulk_tipi || "").replace(/\s+/g, "");
+
+  const sahibinden = [
+    `${satirBaslik || deal.title}`.toLocaleUpperCase("tr"),
+    "",
+    [olcu, fiyat].filter(Boolean).join(" — "),
+    "",
+    `${cf.bolge ? `${cf.bolge} bölgesinde, ` : ""}${cf.oda_sayisi ? `${cf.oda_sayisi} planlı, ` : ""}${cf.metrekare ? `${cf.metrekare} m² ` : ""}${(cf.mulk_tipi || "mülk").toLocaleLowerCase("tr")}. Detaylı bilgi ve randevu için bizimle iletişime geçebilirsiniz.`,
+    "",
+    `İlan No: ${cf.ilan_no || "-"}`,
+  ].join("\n");
+
+  const instagram = [
+    `🏠 ${islemLabel.toLocaleUpperCase("tr")} ${cf.mulk_tipi || ""}${cf.bolge ? ` — ${cf.bolge}` : ""}`,
+    "",
+    [cf.metrekare ? `📐 ${cf.metrekare} m²` : null, cf.oda_sayisi ? `🛏️ ${cf.oda_sayisi}` : null].filter(Boolean).join("  ·  "),
+    deal.value ? `💰 ${fiyat}` : null,
+    "",
+    "Detaylı bilgi için DM! 📩",
+    "",
+    [hashtagBolge && `#${hashtagBolge}Emlak`, hashtagMulk && `#${hashtagMulk}`, "#emlak", islemLabel === "Kiralık" ? "#kiralik" : "#satilik"].filter(Boolean).join(" "),
+  ].filter((line) => line !== null).join("\n");
+
+  const whatsapp = [
+    `Merhaba, yeni bir ${islemLabel.toLocaleLowerCase("tr")} ilanımız var:`,
+    "",
+    `🏠 ${cf.mulk_tipi || deal.title}${cf.bolge ? ` — ${cf.bolge}` : ""}`,
+    [cf.metrekare ? `📐 ${cf.metrekare} m²` : null, cf.oda_sayisi ? `🛏️ ${cf.oda_sayisi}` : null].filter(Boolean).join("  |  "),
+    deal.value ? `💰 ${fiyat}` : null,
+    "",
+    "İlgilenirseniz detaylı bilgi ve fotoğraf gönderebilirim.",
+  ].filter((line) => line !== null).join("\n");
+
+  return { sahibinden, instagram, whatsapp };
+}
+
 const SUPPORT_EXAMPLES = {
   emlak: { subject: "Sözleşmemle ilgili bir sorum var", message: "Kira sözleşmesi taslağı müşteriye iletildi", kbTitle: "Kira sözleşmesi nasıl hazırlanır?", kbCategory: "Sözleşme, Ödeme, Ekspertiz" },
   dijital_ajans: { subject: "Reklam raporunda bir tutarsızlık var", message: "Güncel reklam raporu müşteriye iletildi", kbTitle: "Reklam raporu ne zaman gelir?", kbCategory: "Raporlama, Sözleşme, Teknik" },
@@ -529,7 +687,7 @@ const AUDIENCE_LABELS = { kurumsal: "Kurumsal", bireysel: "Bireysel" };
 // kullanıcı "Kaynak" gibi gayet doğal bir alan adı eklerse slugifyKey aynı
 // anahtarı üretip bu iç işaretle çakışabilir (bkz. proje geçmişindeki "kaynak"
 // çakışma hatası). Elle alan eklerken bu anahtarlar asla üretilmemeli.
-const RESERVED_CUSTOM_FIELD_KEYS = new Set(["kaynak", "portal_randevu_zamani"]);
+const RESERVED_CUSTOM_FIELD_KEYS = new Set(["kaynak", "portal_randevu_zamani", "price_item_id"]);
 
 function slugifyKey(label) {
   const map = { ç: "c", ğ: "g", ı: "i", ö: "o", ş: "s", ü: "u", İ: "i", Ç: "c", Ğ: "g", Ö: "o", Ş: "s", Ü: "u" };

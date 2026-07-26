@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
 import { GoogleAuthButton, AuthDivider, isFullNameValid } from "./shared";
 import { dealWordKind } from "./Sectors";
@@ -66,6 +66,49 @@ export default function DealApprovalPage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
     return () => subscription.unsubscribe();
   }, []);
+
+  // Basit ısı haritası: sayfada aktif (sekme görünürken) geçirilen süreyi
+  // biriktirip sayfadan ayrılırken tek seferlik gönderir. sessionRef kullanılıyor
+  // ki bu efekt token değişmedikçe (yani hemen hiç) yeniden kaydolmasın — giriş
+  // öncesi biriken süre de giriş sonrası doğru şekilde gönderilebilsin.
+  const sessionRef = useRef(session);
+  useEffect(() => { sessionRef.current = session; }, [session]);
+
+  useEffect(() => {
+    if (!token) return;
+    const vt = { activeStart: document.visibilityState === "visible" ? Date.now() : null, accumulatedMs: 0 };
+
+    const flush = () => {
+      if (vt.activeStart) { vt.accumulatedMs += Date.now() - vt.activeStart; vt.activeStart = null; }
+      const seconds = Math.round(vt.accumulatedMs / 1000);
+      vt.accumulatedMs = 0;
+      const s = sessionRef.current;
+      if (seconds > 0 && s?.access_token) {
+        fetch("/api/deal-approval", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${s.access_token}` },
+          body: JSON.stringify({ token, action: "track-view", seconds }),
+          keepalive: true,
+        }).catch(() => {});
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        if (!vt.activeStart) vt.activeStart = Date.now();
+      } else {
+        flush();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, [token]);
 
   useEffect(() => {
     if (!token || session === undefined) return;

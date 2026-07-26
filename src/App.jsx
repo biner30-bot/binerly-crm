@@ -34,6 +34,8 @@ import {
   CustomFieldDefsManager,
   CustomFieldsSection,
   TagBadges,
+  matchEmlakListing,
+  buildEmlakListingTexts,
 } from "./Sectors";
 
 // Beklenen Gelir tahmini için basit, sabit olasılık ağırlıkları — kullanıcı
@@ -57,6 +59,170 @@ function leadScore(lastContact) {
   if (diff <= 7) return { label: "Sıcak", tone: "success" };
   if (diff <= 30) return { label: "Ilık", tone: "warning" };
   return { label: "Soğuk", tone: "default" };
+}
+
+// Gölge Avcı eşleşme kartındaki "WhatsApp'tan gönder" butonu için hazır metin —
+// mevcut wa.me linki deseniyle aynı (bkz. portal linki paylaşma butonu):
+// otomatik gönderim yok, sadece WhatsApp'ı önceden doldurulmuş metinle açar,
+// emlakçı gözden geçirip kendi gönderir.
+function buildEmlakMatchMessage(deal, customer, companySettings) {
+  const cf = deal.customFields || {};
+  const details = [cf.mulk_tipi, cf.bolge, cf.oda_sayisi, cf.metrekare ? `${cf.metrekare} m²` : null].filter(Boolean).join(" · ");
+  const fiyat = deal.value ? formatTL(deal.value) : "";
+  const islem = cf.islem_turu === "Kiralama" ? "kiralık" : "satılık";
+  const firstName = (customer.name || "").split(" ")[0] || customer.name;
+  const firma = companySettings?.companyName ? `${companySettings.companyName} olarak ` : "";
+  return `Merhaba ${firstName}, ${firma}aradığınız kriterlere uygun yeni bir ${islem} ilanımız var: ${details}${fiyat ? ` — ${fiyat}` : ""}. İlgilenirseniz detaylarını ve fotoğrafları hemen paylaşabilirim.`;
+}
+
+function median(nums) {
+  const sorted = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
+// Sipariş ritmi erken uyarısı: bir müşterinin geçmiş kazanılmış tekliflerinin
+// (fiilen tamamlanmış siparişlerinin) tipik olarak kaç günde bir geldiğini
+// öğrenip, bu sürenin belirgin ölçüde aşıldığı durumda erken bir uyarı üretir
+// ("A Firması hep 45 günde bir alıyordu, 60 gün oldu henüz gelmedi"). AI/tahmin
+// modeli DEĞİL — tamamen geçmiş tarihlerden çıkarılan basit bir istatistik.
+// Ortalama yerine medyan kullanılıyor: tek seferlik anormal bir boşluk (örn.
+// yaz tatili) ortalamayı yanıltıcı şekilde yukarı çekip uyarıyı geciktirmesin.
+// En az 3 geçmiş sipariş olmadan güvenilir bir ritim çıkarılamaz, daha azı
+// hiç değerlendirilmez. Günlük/haftalık gibi çok sık tekrarlayan siparişlerde
+// (typicalInterval < 3 gün) doğal gün-gün oynamalar sürekli yanlış alarm
+// üretir, bu yüzden onlar da atlanır.
+const ORDER_RHYTHM_OVERDUE_FACTOR = 1.3;
+
+function computeOrderRhythmAlerts(deals, customers) {
+  const ordersByCustomer = new Map();
+  for (const d of deals) {
+    if (d.stage !== "kazanildi" || !d.customerId) continue;
+    const dateStr = d.closedAt || d.createdAt;
+    if (!dateStr) continue;
+    if (!ordersByCustomer.has(d.customerId)) ordersByCustomer.set(d.customerId, []);
+    ordersByCustomer.get(d.customerId).push(new Date(dateStr).getTime());
+  }
+
+  const now = Date.now();
+  const alerts = [];
+  for (const [customerId, timestamps] of ordersByCustomer) {
+    if (timestamps.length < 3) continue;
+    timestamps.sort((a, b) => a - b);
+    const intervals = [];
+    for (let i = 1; i < timestamps.length; i++) intervals.push((timestamps[i] - timestamps[i - 1]) / 86400000);
+    const typicalInterval = median(intervals);
+    if (typicalInterval < 3) continue;
+    const daysSinceLast = (now - timestamps[timestamps.length - 1]) / 86400000;
+    if (daysSinceLast < typicalInterval * ORDER_RHYTHM_OVERDUE_FACTOR) continue;
+    const customer = customers.find((c) => c.id === customerId);
+    if (!customer) continue;
+    alerts.push({ customer, typicalInterval: Math.round(typicalInterval), daysSinceLast: Math.round(daysSinceLast), orderCount: timestamps.length });
+  }
+  return alerts.sort((a, b) => b.daysSinceLast / b.typicalInterval - a.daysSinceLast / a.typicalInterval);
+}
+
+// Vadesi geçmiş bakiye / kredi limiti uyarısı — GERÇEK BİR ENGEL DEĞİL, sadece
+// bilgilendirme (kullanıcının kararı: "riskli müşteriye teklif vermek KOBİ'nin
+// kendi bileceği iş"). "Ödeme Vadesi" (Peşin/30 gün/60 gün/90 gün) zaten var
+// olan bir müşteri alanı — ayrı bir "vade tarihi" kolonu eklemeden, en eski
+// ödenmemiş kazanılmış teklifin kapanma tarihine bu süre eklenip "vadesi geçti
+// mi" hesaplanıyor. "Peşin" vade 0 gün sayılır (hiç beklememesi gerekirdi).
+const PAYMENT_TERM_DAYS = { "Peşin": 0, "30 gün": 30, "60 gün": 60, "90 gün": 90 };
+
+function computeCustomerCreditRisk(customer, deals, payments) {
+  const creditLimit = Number(customer.customFields?.kredi_limiti) || 0;
+  const paymentTerm = customer.customFields?.odeme_vadesi;
+  const termDays = PAYMENT_TERM_DAYS[paymentTerm];
+  if (!creditLimit && termDays === undefined) return null;
+
+  const unpaidDeals = deals
+    .filter((d) => d.customerId === customer.id && d.stage === "kazanildi")
+    .map((d) => {
+      const paid = payments.filter((p) => p.dealId === d.id).reduce((sum, p) => sum + (p.amount || 0), 0);
+      return { ...d, remaining: (d.value || 0) - paid };
+    })
+    .filter((d) => d.remaining > 0);
+  if (unpaidDeals.length === 0) return null;
+
+  const balance = unpaidDeals.reduce((sum, d) => sum + d.remaining, 0);
+  const overLimit = creditLimit > 0 && balance > creditLimit;
+
+  let overdueBalance = 0;
+  if (termDays !== undefined) {
+    const now = Date.now();
+    for (const d of unpaidDeals) {
+      const dueDate = new Date(d.closedAt || d.createdAt).getTime() + termDays * 86400000;
+      if (now > dueDate) overdueBalance += d.remaining;
+    }
+  }
+
+  if (!overLimit && overdueBalance <= 0) return null;
+  return { balance, creditLimit, overLimit, overdueBalance };
+}
+
+// No-show erken uyarısı — randevu sektörlerinde (Güzellik & Bakım, Sağlık/Klinik)
+// bir müşteri art arda habersiz gelmediyse ("kaybedildi" + lostReason "Randevuya
+// gelmedi"), yeni randevu oluşturulurken kapora/ödeme zorunlu tutmayı önerir.
+// GERÇEK BİR ENGEL DEĞİL — sadece öneri, "Ödemeyi zorunlu yap" butonuna
+// basılmazsa hiçbir şey değişmez.
+const NO_SHOW_RISK_THRESHOLD = 2;
+
+function computeNoShowRisk(customer, deals) {
+  const noShowCount = deals.filter((d) => d.customerId === customer.id && d.stage === "kaybedildi" && d.lostReason === "Randevuya gelmedi").length;
+  if (noShowCount < NO_SHOW_RISK_THRESHOLD) return null;
+  return { noShowCount };
+}
+
+function formatViewDuration(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes === 0) return `${seconds} sn`;
+  return `${minutes} dk ${seconds} sn`;
+}
+
+// Bir hizmet/sipariş "kazanıldı"ya geçtiğinde iki şey otomatik tetiklenebilir:
+// (1) fiyat listesi kaleminin "Tazeleme Süresi"ne göre bir sonraki hatırlatma
+// (sadece üst "Ürün/Hizmet" seçicisinden gelen TEK birincil hizmet için —
+// çoklu kalemli siparişlerde "tazeleme" kavramı belirsizleşir, bilinçli olarak
+// atlanır), (2) kullanılan her fiyat kaleminin reçetesine göre stok düşümü
+// (Kalemler'den price_item_id taşıyan satırlar VARSA onlar, yoksa üst
+// seçiciden gelen tek hizmet, miktar 1 sayılır). Zaten var olan bir
+// reminderDate'in üstüne YAZILMAZ — kullanıcı elle bir şey girdiyse
+// korunur. Stok, ihtiyaçtan fazla tüketilirse BİLEREK negatife düşmesine
+// izin verilir (0'da budanmaz) — bu, "malzeme sayımı tutmuyor" sinyalini
+// gizlemek yerine görünür kılar (bkz. proje geneli "kısıtlama değil
+// görünürlük" felsefesi).
+function computeServiceCompletionEffects({ deal, lineItemsForDeal, priceListItems, priceItemIngredients, stockItems }) {
+  const linkedLineItems = (lineItemsForDeal || []).filter((li) => li.priceItemId);
+  const usages = linkedLineItems.length > 0
+    ? linkedLineItems.map((li) => ({ priceItemId: li.priceItemId, quantity: Number(li.quantity) || 1 }))
+    : (deal.customFields?.price_item_id ? [{ priceItemId: deal.customFields.price_item_id, quantity: 1 }] : []);
+
+  const decrements = new Map();
+  for (const usage of usages) {
+    for (const ing of priceItemIngredients.filter((i) => i.priceItemId === usage.priceItemId)) {
+      decrements.set(ing.stockItemId, (decrements.get(ing.stockItemId) || 0) + ing.quantity * usage.quantity);
+    }
+  }
+  const stockUpdates = [];
+  for (const [stockItemId, amount] of decrements) {
+    const stockItem = stockItems.find((s) => s.id === stockItemId);
+    if (!stockItem) continue;
+    stockUpdates.push({ id: stockItemId, newQuantityOnHand: stockItem.quantityOnHand - amount });
+  }
+
+  let reminderUpdate = null;
+  const primaryPriceItemId = deal.customFields?.price_item_id;
+  if (primaryPriceItemId && !deal.reminderDate) {
+    const priceItem = priceListItems.find((p) => p.id === primaryPriceItemId);
+    if (priceItem?.refreshDays > 0) {
+      const due = new Date(Date.now() + priceItem.refreshDays * 86400000);
+      reminderUpdate = { reminder: `Tazeleme zamanı: ${priceItem.name}`, reminderDate: due.toISOString().slice(0, 10) };
+    }
+  }
+
+  return { stockUpdates, reminderUpdate };
 }
 
 const LEAD_INFO_TEXT =
@@ -155,6 +321,7 @@ const dealActionsInfoText = (sector) => {
     `📄 ${forms.pdfLabel} — markalı, yazdırılabilir ${forms.bare} belgesi oluşturur.\n` +
     `🔗 Onay linki — müşterinin "onaylıyorum" diyebileceği bir link kopyalar, siz WhatsApp/e-posta ile gönderirsiniz. Müşteri, ` +
     `sisteme kayıtlı e-postasıyla giriş yapmadan ${forms.acc} göremez/onaylayamaz — bu yüzden müşterinin e-postası kayıtlı olmalı. ` +
+    `Müşteri linki açıp giriş yaptığı an "👁 Görüntülendi" rozeti ve size bir bildirim düşer — hâlâ onaylamadıysa arayıp hatırlatabilirsiniz. ` +
     `Onaylayınca satırda yeşil "Onaylandı ✓" rozeti otomatik görünür. Bu, resmi/güvenli elektronik imza değildir — ` +
     `sadece takip ve bildirim amaçlıdır, hukuki bağlayıcılığı önemli anlaşmalarda ıslak imza veya nitelikli e-imza kullanın.\n` +
     `💵 Tahsilat — bu ${forms.dat} yapılan ödemeleri kaydedin/görün.\n` +
@@ -256,6 +423,8 @@ function rowToDeal(r) {
     customFields: r.custom_fields || {},
     approvalToken: r.approval_token || null,
     approvedAt: r.approved_at || null,
+    firstViewedAt: r.first_viewed_at || null,
+    viewDurationSeconds: r.view_duration_seconds || 0,
     notifyCustomer: r.notify_customer || false,
     assignedTo: r.assigned_to || null,
     paymentMode: r.payment_mode || "none",
@@ -5869,11 +6038,28 @@ function rowToDealLineItem(r) {
     quantity: r.quantity,
     unitPrice: r.unit_price,
     sortOrder: r.sort_order,
+    priceItemId: r.price_item_id || null,
   };
 }
 
 function rowToPriceListItem(r) {
-  return { id: r.id, name: r.name, price: r.price };
+  return { id: r.id, name: r.name, price: r.price, refreshDays: r.refresh_days || null };
+}
+
+function rowToStockItem(r) {
+  return {
+    id: r.id,
+    name: r.name,
+    unit: r.unit || "adet",
+    quantityOnHand: Number(r.quantity_on_hand) || 0,
+    reorderThreshold: r.reorder_threshold != null ? Number(r.reorder_threshold) : null,
+    supplierName: r.supplier_name || "",
+    deletedAt: r.deleted_at || null,
+  };
+}
+
+function rowToPriceItemIngredient(r) {
+  return { id: r.id, priceItemId: r.price_item_id, stockItemId: r.stock_item_id, quantity: Number(r.quantity) || 0 };
 }
 
 function rowToPdfTemplate(r) {
@@ -6391,20 +6577,32 @@ function RowActionsMenu({ items }) {
   );
 }
 
-function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], appointmentDateTimeKey = null, roomInventory = [], customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, businessUserId, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onSave, onCancel }) {
+function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], payments = [], appointmentDateTimeKey = null, roomInventory = [], customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, businessUserId, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(
     initial?.customerId || customers.find((c) => c.customerType === preferredCustomerType)?.id || customers[0]?.id || ""
   );
-  const selectedCustomerType = customers.find((c) => c.id === customerId)?.customerType || "kurumsal";
+  const selectedCustomer = customers.find((c) => c.id === customerId);
+  const selectedCustomerType = selectedCustomer?.customerType || "kurumsal";
+  // Sadece YENİ teklifte gösterilir — var olan bir teklifi düzenlerken (initial
+  // dolu) müşteri zaten seçilmiş, bu uyarı o an bir işe yaramaz, sadece gürültü olur.
+  const creditRisk = !initial && selectedCustomer ? computeCustomerCreditRisk(selectedCustomer, deals, payments) : null;
+  const noShowRisk = !initial && selectedCustomer && isAppointmentSector(sector) ? computeNoShowRisk(selectedCustomer, deals) : null;
   const [title, setTitle] = useState(initial?.title || "");
   const [value, setValue] = useState(initial?.value ?? "");
   const [selectedPriceItemId, setSelectedPriceItemId] = useState("");
   // Kalemler tamamen opsiyonel — boşsa Tutar bugünkü gibi elle girilir, hiçbir
   // şey değişmez. Dolu ise Tutar bunların toplamına otomatik kilitlenir.
   const [lineItems, setLineItems] = useState(
-    initialLineItems.map((li) => ({ localId: li.id, description: li.description, quantity: li.quantity, unitPrice: li.unitPrice }))
+    initialLineItems.map((li) => ({ localId: li.id, description: li.description, quantity: li.quantity, unitPrice: li.unitPrice, priceItemId: li.priceItemId || null }))
   );
   const lineItemsTotal = lineItems.reduce((sum, li) => sum + (Number(li.quantity) || 0) * (Number(li.unitPrice) || 0), 0);
+  // Basit gümrük/navlun hesaplayıcı — CANLI gümrük/navlun verisi çekmiyor,
+  // sadece kullanıcının kendi (localStorage'da hatırlanan) sabit oranını mevcut
+  // kalem toplamına uygulayıp yeni bir kalem olarak ekliyor.
+  const [showFreightCalc, setShowFreightCalc] = useState(false);
+  const [freightIncoterm, setFreightIncoterm] = useState(() => localStorage.getItem("binerly_freight_incoterm") || "FOB");
+  const [freightPercent, setFreightPercent] = useState(() => localStorage.getItem("binerly_freight_percent") || "");
+  const [freightFlatFee, setFreightFlatFee] = useState(() => localStorage.getItem("binerly_freight_flat_fee") || "");
   const [cost, setCost] = useState(initial?.cost ?? "");
   // Yeni tekliflerde son seçilen ödeme tercihi hatırlanır (localStorage) —
   // kaydetmeden formu kapatıp tekrar açsa bile "Sadece onaylasın"a sıfırlanmasın.
@@ -6534,10 +6732,13 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           sessionTotal: isPackageDeal ? Number(sessionTotal) || 0 : null,
           sessionUsed: isPackageDeal ? Math.min(Number(sessionUsed) || 0, Number(sessionTotal) || 0) : 0,
           tags,
-          customFields,
+          // price_item_id: hangi fiyat listesi kalemi seçildiyse (üst seçici,
+          // Kalemler'den bağımsız tek-hizmetlik durum) — tazeleme hatırlatıcısı
+          // ve stok reçetesi düşümü bunu okuyor (bkz. App.jsx:computeServiceCompletionEffects).
+          customFields: { ...customFields, price_item_id: selectedPriceItemId || null },
           lineItems: lineItems
             .filter((li) => li.description.trim())
-            .map((li) => ({ description: li.description.trim(), quantity: Number(li.quantity) || 1, unitPrice: Number(li.unitPrice) || 0 })),
+            .map((li) => ({ description: li.description.trim(), quantity: Number(li.quantity) || 1, unitPrice: Number(li.unitPrice) || 0, priceItemId: li.priceItemId || null })),
           assignedTo: assignedTo || null,
           notifyCustomer,
           approvalToken: initial?.approvalToken || null,
@@ -6580,6 +6781,39 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           </select>
         )}
       </div>
+      {creditRisk && (
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "var(--bg-warning)", border: "0.5px solid var(--text-warning)", borderRadius: "var(--radius)", padding: "10px 12px", marginBottom: 12, fontSize: 13 }}>
+          <i className="ti ti-alert-triangle" style={{ fontSize: 16, color: "var(--text-warning)", flexShrink: 0, marginTop: 1 }} aria-hidden="true"></i>
+          <div>
+            <p style={{ margin: 0, fontWeight: 500, color: "var(--text-warning)" }}>
+              {selectedCustomer?.name} için ödeme riski
+            </p>
+            <p style={{ margin: "2px 0 0", color: "var(--text-secondary)" }}>
+              {creditRisk.overLimit && `Bakiyesi (${formatTL(creditRisk.balance)}) kredi limitini (${formatTL(creditRisk.creditLimit)}) aşıyor. `}
+              {creditRisk.overdueBalance > 0 && `${formatTL(creditRisk.overdueBalance)} tutarında vadesi geçmiş bakiyesi var. `}
+              Bu sadece bir uyarı — devam edip etmemek size kalmış.
+            </p>
+          </div>
+        </div>
+      )}
+      {noShowRisk && (
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "var(--bg-warning)", border: "0.5px solid var(--text-warning)", borderRadius: "var(--radius)", padding: "10px 12px", marginBottom: 12, fontSize: 13 }}>
+          <i className="ti ti-calendar-off" style={{ fontSize: 16, color: "var(--text-warning)", flexShrink: 0, marginTop: 1 }} aria-hidden="true"></i>
+          <div style={{ flex: 1 }}>
+            <p style={{ margin: 0, fontWeight: 500, color: "var(--text-warning)" }}>
+              {selectedCustomer?.name} daha önce {noShowRisk.noShowCount} kez randevusuna gelmedi
+            </p>
+            <p style={{ margin: "2px 0 0", color: "var(--text-secondary)" }}>
+              Kapora/ödeme zorunlu tutmayı düşünebilirsiniz — Tutar alanına kapora miktarını girip aşağıdan "Ödeme zorunlu" seçin.
+            </p>
+          </div>
+          {paymentMode !== "required" && (
+            <button type="button" onClick={() => setPaymentMode("required")} style={{ fontSize: 12, flexShrink: 0, whiteSpace: "nowrap" }}>
+              Ödemeyi zorunlu yap
+            </button>
+          )}
+        </div>
+      )}
       {(initial?.approvedAt || initial?.paymentStatus === "paid") && (
         <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
           {initial?.approvedAt && <Badge tone="success">✓ Müşteri onayladı</Badge>}
@@ -6696,9 +6930,9 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
                 const item = priceListItems.find((p) => p.id === e.target.value);
                 if (!item) return;
                 setLineItems((prev) => {
-                  const newRow = { localId: uid(), description: item.name, quantity: 1, unitPrice: item.price };
+                  const newRow = { localId: uid(), description: item.name, quantity: 1, unitPrice: item.price, priceItemId: item.id };
                   if (prev.length === 0 && title.trim() && Number(value) > 0) {
-                    return [{ localId: uid(), description: title.trim(), quantity: 1, unitPrice: Number(value) }, newRow];
+                    return [{ localId: uid(), description: title.trim(), quantity: 1, unitPrice: Number(value), priceItemId: null }, newRow];
                   }
                   return [...prev, newRow];
                 });
@@ -6708,6 +6942,58 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
               <option value="">Fiyat listesinden kalem ekle…</option>
               {priceListItems.map((p) => <option key={p.id} value={p.id}>{p.name} — {formatTL(p.price)}</option>)}
             </select>
+          )}
+          {sector === "uretim_satis" && (
+            <div style={{ position: "relative" }}>
+              <button type="button" onClick={() => setShowFreightCalc((v) => !v)} style={{ fontSize: 12 }}>
+                + Navlun/Gümrük ekle
+              </button>
+              {showFreightCalc && (
+                <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 20, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 10, width: 220, boxShadow: "0 8px 24px rgba(0,0,0,0.15)" }}>
+                  <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 2 }}>Teslim Şekli</label>
+                  <select value={freightIncoterm} onChange={(e) => setFreightIncoterm(e.target.value)} style={{ width: "100%", fontSize: 13, marginBottom: 6 }}>
+                    <option value="FOB">FOB</option>
+                    <option value="CIF">CIF</option>
+                    <option value="EXW">EXW</option>
+                    <option value="DAP">DAP</option>
+                  </select>
+                  <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 2 }}>Navlun/Gümrük Oranı (%)</label>
+                  <input type="number" min="0" step="0.1" value={freightPercent} onChange={(e) => setFreightPercent(e.target.value)} placeholder="Örn. 8" style={{ width: "100%", fontSize: 13, marginBottom: 6 }} />
+                  <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 2 }}>Sabit Navlun Ücreti (TL)</label>
+                  <input type="number" min="0" value={freightFlatFee} onChange={(e) => setFreightFlatFee(e.target.value)} placeholder="Opsiyonel" style={{ width: "100%", fontSize: 13, marginBottom: 8 }} />
+                  <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 8px" }}>
+                    Oran, mevcut kalem toplamı üzerinden hesaplanır — bu kendi sabit oranınız, canlı gümrük/navlun verisi değildir.
+                  </p>
+                  <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                    <button type="button" onClick={() => setShowFreightCalc(false)} style={{ fontSize: 12 }}>Vazgeç</button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const percent = Number(freightPercent) || 0;
+                        const flatFee = Number(freightFlatFee) || 0;
+                        const baseTotal = lineItemsTotal || Number(value) || 0;
+                        const amount = Math.round(baseTotal * (percent / 100) + flatFee);
+                        if (amount <= 0) return;
+                        localStorage.setItem("binerly_freight_incoterm", freightIncoterm);
+                        localStorage.setItem("binerly_freight_percent", freightPercent);
+                        localStorage.setItem("binerly_freight_flat_fee", freightFlatFee);
+                        setLineItems((prev) => {
+                          const newRow = { localId: uid(), description: `Navlun/Gümrük (${freightIncoterm}${percent ? `, %${percent}` : ""})`, quantity: 1, unitPrice: amount };
+                          if (prev.length === 0 && title.trim() && Number(value) > 0) {
+                            return [{ localId: uid(), description: title.trim(), quantity: 1, unitPrice: Number(value) }, newRow];
+                          }
+                          return [...prev, newRow];
+                        });
+                        setShowFreightCalc(false);
+                      }}
+                      style={{ fontSize: 12, background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+                    >
+                      Kalem olarak ekle
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -7654,6 +7940,7 @@ const DEAL_TITLE_EXAMPLES = {
 function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
+  const [refreshDays, setRefreshDays] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
   const [search, setSearch] = useState("");
@@ -7664,12 +7951,14 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
     setEditingItem(item);
     setName(item.name);
     setPrice(String(item.price));
+    setRefreshDays(item.refreshDays ? String(item.refreshDays) : "");
   };
 
   const cancelEdit = () => {
     setEditingItem(null);
     setName("");
     setPrice("");
+    setRefreshDays("");
   };
 
   const submit = (e) => {
@@ -7677,13 +7966,14 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
     const trimmedName = name.trim();
     if (!trimmedName || price === "") return;
     if (editingItem) {
-      onUpdate({ id: editingItem.id, name: trimmedName, price: Number(price) });
+      onUpdate({ id: editingItem.id, name: trimmedName, price: Number(price), refreshDays: Number(refreshDays) || null });
       cancelEdit();
       return;
     }
-    onAdd({ name: trimmedName, price: Number(price) });
+    onAdd({ name: trimmedName, price: Number(price), refreshDays: Number(refreshDays) || null });
     setName("");
     setPrice("");
+    setRefreshDays("");
   };
 
   return (
@@ -7716,6 +8006,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
               </span>
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                 <Badge tone="accent">{formatTL(item.price)}</Badge>
+                {item.refreshDays > 0 && <Badge tone="default">{item.refreshDays} günde bir</Badge>}
                 <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => startEdit(item)} />
                 <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(item)} />
               </div>
@@ -7736,6 +8027,13 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
           <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Fiyat (TL)</label>
           <input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" style={{ width: "100%", fontSize: 13 }} />
         </div>
+        <div style={{ width: 150 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 3, marginBottom: 4 }}>
+            Tazeleme (gün)
+            <InfoTip placement="bottom" text="Opsiyonel — girerseniz, bu hizmet 'tamamlandı' olarak işaretlendiğinde bu kadar gün sonrasına otomatik bir hatırlatma kurulur (örn. protez tırnak için 21 gün)." />
+          </label>
+          <input type="number" min="0" value={refreshDays} onChange={(e) => setRefreshDays(e.target.value)} placeholder="Opsiyonel" style={{ width: "100%", fontSize: 13 }} />
+        </div>
         <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
           {editingItem ? "Güncelle" : "+ Ekle"}
         </button>
@@ -7753,6 +8051,200 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
           onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
           onClose={() => setConfirmDelete(null)}
         />
+      )}
+    </div>
+  );
+}
+
+const STOCK_UNITS = ["adet", "ml", "gr", "kg", "lt", "kutu", "paket"];
+
+// Gramaj bazlı stok/reçete yönetimi — sektörden bağımsız, sadece kullanan
+// görür. "Stok" sekmesi malzemeleri (hammadde/sarf) tutar; "Reçete" sekmesi
+// bir fiyat listesi kaleminin (hizmet/ürün) TEK SEFERLİK ne kadar malzeme
+// tükettiğini tanımlar — bir teklif "kazanıldı"ya geçtiğinde bu miktar
+// otomatik düşülür (bkz. App.jsx:computeServiceCompletionEffects).
+function StockManager({ stockItems, priceListItems, priceItemIngredients, onAddStock, onUpdateStock, onDeleteStock, onAddIngredient, onDeleteIngredient }) {
+  const [tab, setTab] = useState("stok");
+  const [name, setName] = useState("");
+  const [unit, setUnit] = useState("adet");
+  const [quantityOnHand, setQuantityOnHand] = useState("");
+  const [reorderThreshold, setReorderThreshold] = useState("");
+  const [supplierName, setSupplierName] = useState("");
+  const [editingItem, setEditingItem] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const [recipePriceItemId, setRecipePriceItemId] = useState(priceListItems[0]?.id || "");
+  const [recipeStockItemId, setRecipeStockItemId] = useState("");
+  const [recipeQuantity, setRecipeQuantity] = useState("");
+
+  const startEdit = (item) => {
+    setEditingItem(item);
+    setName(item.name);
+    setUnit(item.unit);
+    setQuantityOnHand(String(item.quantityOnHand));
+    setReorderThreshold(item.reorderThreshold != null ? String(item.reorderThreshold) : "");
+    setSupplierName(item.supplierName || "");
+  };
+  const cancelEdit = () => {
+    setEditingItem(null);
+    setName(""); setUnit("adet"); setQuantityOnHand(""); setReorderThreshold(""); setSupplierName("");
+  };
+
+  const submitStock = (e) => {
+    e.preventDefault();
+    const trimmedName = name.trim();
+    if (!trimmedName || quantityOnHand === "") return;
+    const payload = {
+      name: trimmedName, unit, quantityOnHand: Number(quantityOnHand),
+      reorderThreshold: reorderThreshold === "" ? null : Number(reorderThreshold),
+      supplierName: supplierName.trim(),
+    };
+    if (editingItem) { onUpdateStock({ id: editingItem.id, ...payload }); cancelEdit(); return; }
+    onAddStock(payload);
+    cancelEdit();
+  };
+
+  const recipeRows = priceItemIngredients.filter((i) => i.priceItemId === recipePriceItemId);
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: 16, width: "fit-content" }}>
+        <button onClick={() => setTab("stok")} style={{ border: "none", background: tab === "stok" ? "var(--fill-accent)" : "transparent", color: tab === "stok" ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: tab === "stok" ? 600 : 400, fontSize: 13 }}>
+          Stok Kalemleri
+        </button>
+        <button onClick={() => setTab("recete")} style={{ border: "none", background: tab === "recete" ? "var(--fill-accent)" : "transparent", color: tab === "recete" ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: tab === "recete" ? 600 : 400, fontSize: 13 }}>
+          Reçeteler
+        </button>
+      </div>
+
+      {tab === "stok" ? (
+        <div>
+          {stockItems.length === 0 ? (
+            <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Henüz stok kalemi eklenmedi.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+              {stockItems.map((item) => {
+                const low = item.reorderThreshold != null && item.quantityOnHand <= item.reorderThreshold;
+                return (
+                  <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 500 }}>{item.name}</p>
+                      {item.supplierName && <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>Tedarikçi: {item.supplierName}</p>}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                      <Badge tone={low ? "danger" : "accent"}>{item.quantityOnHand} {item.unit}</Badge>
+                      <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => startEdit(item)} />
+                      <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(item)} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>{editingItem ? "Stok kalemini düzenle" : "Yeni stok kalemi ekle"}</p>
+          <form onSubmit={submitStock} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end" }}>
+            <div style={{ flex: 1, minWidth: 140 }}>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>İsim</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Örn. Tüp Boya 8.1" style={{ width: "100%", fontSize: 13 }} />
+            </div>
+            <div style={{ width: 90 }}>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Birim</label>
+              <select value={unit} onChange={(e) => setUnit(e.target.value)} style={{ width: "100%", fontSize: 13 }}>
+                {STOCK_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+              </select>
+            </div>
+            <div style={{ width: 110 }}>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Mevcut miktar</label>
+              <input type="number" value={quantityOnHand} onChange={(e) => setQuantityOnHand(e.target.value)} placeholder="0" style={{ width: "100%", fontSize: 13 }} />
+            </div>
+            <div style={{ width: 130 }}>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 3, marginBottom: 4 }}>
+                Kritik seviye
+                <InfoTip placement="bottom" text="Bu miktara inince (veya altına düşünce) Pano'da düşük stok uyarısı çıkar. Boş bırakırsanız hiç uyarı verilmez." />
+              </label>
+              <input type="number" value={reorderThreshold} onChange={(e) => setReorderThreshold(e.target.value)} placeholder="Opsiyonel" style={{ width: "100%", fontSize: 13 }} />
+            </div>
+            <div style={{ flex: 1, minWidth: 140 }}>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tedarikçi</label>
+              <input value={supplierName} onChange={(e) => setSupplierName(e.target.value)} placeholder="Opsiyonel" style={{ width: "100%", fontSize: 13 }} />
+            </div>
+            <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
+              {editingItem ? "Güncelle" : "+ Ekle"}
+            </button>
+            {editingItem && <button type="button" onClick={cancelEdit} style={{ fontSize: 13 }}>Vazgeç</button>}
+          </form>
+
+          {confirmDelete && (
+            <ConfirmDialog
+              title="Stok kalemini sil"
+              message={`"${confirmDelete.name}" kaldırılacak. Bu kalemi kullanan reçete satırları da silinir.`}
+              onConfirm={() => { onDeleteStock(confirmDelete.id); setConfirmDelete(null); }}
+              onClose={() => setConfirmDelete(null)}
+            />
+          )}
+        </div>
+      ) : (
+        <div>
+          {priceListItems.length === 0 || stockItems.length === 0 ? (
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+              Reçete tanımlamak için önce Ürün & Hizmet Fiyat Listesi'nde en az bir kalem ve burada en az bir stok kalemi olmalı.
+            </p>
+          ) : (
+            <>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Hangi ürün/hizmet için reçete tanımlıyorsunuz?</label>
+                <select value={recipePriceItemId} onChange={(e) => setRecipePriceItemId(e.target.value)} style={{ width: "100%", fontSize: 13 }}>
+                  {priceListItems.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+
+              {recipeRows.length === 0 ? (
+                <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>Bu kalem için henüz reçete tanımlanmadı.</p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+                  {recipeRows.map((row) => {
+                    const stockItem = stockItems.find((s) => s.id === row.stockItemId);
+                    return (
+                      <div key={row.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
+                        <span style={{ fontSize: 13 }}>{stockItem?.name || "Silinmiş kalem"}</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <Badge tone="accent">{row.quantity} {stockItem?.unit || ""}</Badge>
+                          <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => onDeleteIngredient(row.id)} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!recipeStockItemId || !recipeQuantity) return;
+                  onAddIngredient({ priceItemId: recipePriceItemId, stockItemId: recipeStockItemId, quantity: Number(recipeQuantity) });
+                  setRecipeStockItemId(""); setRecipeQuantity("");
+                }}
+                style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end" }}
+              >
+                <div style={{ flex: 1, minWidth: 160 }}>
+                  <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Stok kalemi</label>
+                  <select value={recipeStockItemId} onChange={(e) => setRecipeStockItemId(e.target.value)} style={{ width: "100%", fontSize: 13 }}>
+                    <option value="">Seçin</option>
+                    {stockItems.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.unit})</option>)}
+                  </select>
+                </div>
+                <div style={{ width: 110 }}>
+                  <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Miktar</label>
+                  <input type="number" min="0" step="0.01" value={recipeQuantity} onChange={(e) => setRecipeQuantity(e.target.value)} placeholder="0" style={{ width: "100%", fontSize: 13 }} />
+                </div>
+                <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
+                  + Reçeteye ekle
+                </button>
+              </form>
+            </>
+          )}
+        </div>
       )}
     </div>
   );
@@ -8657,6 +9149,12 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
     setMembers((prev) => prev.map((m) => (m.member_id === memberId ? { ...m, can_edit_settings: value } : m)));
   };
 
+  const updateCommission = async (memberId, { commission_percent, chair_rental_fee }) => {
+    const { error } = await supabase.from("team_members").update({ commission_percent, chair_rental_fee }).eq("member_id", memberId);
+    if (error) { notify(`Prim bilgisi güncellenemedi: ${error.message}`); return; }
+    setMembers((prev) => prev.map((m) => (m.member_id === memberId ? { ...m, commission_percent, chair_rental_fee } : m)));
+  };
+
   const leaveTeam = async () => {
     const { error } = await supabase.from("team_members").delete().eq("member_id", session.user.id);
     if (error) { notify(`Takımdan ayrılınamadı: ${error.message}`); return; }
@@ -8711,6 +9209,29 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
                       />
                       İşletme/sektör ayarlarını düzenleyebilir
                     </label>
+                    <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 6, flexWrap: "wrap" }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <label style={{ fontSize: 11, color: "var(--text-muted)" }}>Prim %</label>
+                        <input
+                          type="number" min="0" max="100" step="0.1"
+                          defaultValue={m.commission_percent ?? ""}
+                          onBlur={(e) => updateCommission(m.member_id, { commission_percent: e.target.value === "" ? null : Number(e.target.value), chair_rental_fee: m.chair_rental_fee ?? null })}
+                          placeholder="—"
+                          style={{ width: 60, fontSize: 12, padding: "2px 6px" }}
+                        />
+                      </span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <label style={{ fontSize: 11, color: "var(--text-muted)" }}>Koltuk kirası (aylık, TL)</label>
+                        <input
+                          type="number" min="0" step="1"
+                          defaultValue={m.chair_rental_fee ?? ""}
+                          onBlur={(e) => updateCommission(m.member_id, { commission_percent: m.commission_percent ?? null, chair_rental_fee: e.target.value === "" ? null : Number(e.target.value) })}
+                          placeholder="—"
+                          style={{ width: 80, fontSize: 12, padding: "2px 6px" }}
+                        />
+                      </span>
+                      <InfoTip placement="bottom" text="Prim/koltuk kirası girerseniz Pano'daki Personel Performansı kartında bu üyenin net hakedişi otomatik hesaplanır. İkisi de opsiyonel." />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -10158,6 +10679,9 @@ export default function App() {
   const [companySettings, setCompanySettings] = useState(null);
   const [customFieldDefs, setCustomFieldDefs] = useState([]);
   const [priceListItems, setPriceListItems] = useState([]);
+  const [stockItems, setStockItems] = useState([]);
+  const [priceItemIngredients, setPriceItemIngredients] = useState([]);
+  const [showStockManager, setShowStockManager] = useState(false);
   const [pdfTemplates, setPdfTemplates] = useState([]);
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [groupClasses, setGroupClasses] = useState([]);
@@ -10206,6 +10730,8 @@ export default function App() {
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [editingDeal, setEditingDeal] = useState(null);
   const [viewingCustomer, setViewingCustomer] = useState(null);
+  const [emlakMatches, setEmlakMatches] = useState(null); // { deal, matches } — Gölge Avcı sonuçları
+  const [listingTextDeal, setListingTextDeal] = useState(null); // İlan Metni Sihirbazı için seçili teklif
   const [panoRange, setPanoRange] = useState("tum_zamanlar");
   const [pendingLostReasonMove, setPendingLostReasonMove] = useState(null); // { dealId }
   const [showCampaignModal, setShowCampaignModal] = useState(false);
@@ -10278,6 +10804,7 @@ export default function App() {
       setCompanySettings(null);
       setCustomFieldDefs([]);
       setPriceListItems([]);
+      setStockItems([]); setPriceItemIngredients([]);
       setGroupClasses([]); setGroupClassEnrollments([]); setClassAttendanceState([]);
       setBusinessHours([]);
       setRoomInventory([]);
@@ -10311,9 +10838,11 @@ export default function App() {
       supabase.from("room_inventory").select("*").order("room_type"),
       supabase.from("deal_pdf_templates").select("*").order("created_at"),
       supabase.from("deal_line_items").select("*").order("sort_order"),
+      supabase.from("stock_items").select("*").is("deleted_at", null).order("name"),
+      supabase.from("price_item_ingredients").select("*"),
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ri }, { data: pdft }, { data: dli }, { data: myMembership }, { data: invites }]) => {
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ri }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: myMembership }, { data: invites }]) => {
       // customers/deals/company_settings RLS'i, sahiplik politikasına ek olarak
       // portal kullanıcılarının kendi bağlı oldukları kayıtları görmesine izin
       // veren bir politikayla da "veya" ile birleşiyor (customer_*_view'ların
@@ -10344,6 +10873,8 @@ export default function App() {
       setBusinessHours((bh || []).filter((row) => row.user_id === ownerId).map(rowToBusinessHours));
       setRoomInventory((ri || []).filter((row) => row.user_id === ownerId).map(rowToRoomInventory));
       setPdfTemplates((pdft || []).filter((row) => row.user_id === ownerId).map(rowToPdfTemplate));
+      setStockItems((stk || []).filter((row) => row.user_id === ownerId).map(rowToStockItem));
+      setPriceItemIngredients((pii || []).filter((row) => row.user_id === ownerId).map(rowToPriceItemIngredient));
       setActiveTeamId(ownerId);
       // Sadece BANA gelen davetler (kendi gönderdiklerim değil) — RLS iki SELECT
       // politikasını OR ile birleştirdiği için burada e-postaya göre ek filtre şart.
@@ -10411,10 +10942,24 @@ export default function App() {
   // fetch'in içinde olamaz çünkü activeTeamId o fetch'in SONUCUNDA belli oluyor.
   useEffect(() => {
     if (!activeTeamId) { setTeamMembers([]); return; }
-    supabase.from("team_members").select("member_id, email, name, can_edit_settings").eq("team_id", activeTeamId).then(({ data }) => {
-      setTeamMembers((data || []).map((m) => ({ id: m.member_id, email: m.email, name: m.name || null, canEditSettings: m.can_edit_settings || false })));
+    supabase.from("team_members").select("member_id, email, name, can_edit_settings, commission_percent, chair_rental_fee").eq("team_id", activeTeamId).then(({ data }) => {
+      setTeamMembers((data || []).map((m) => ({
+        id: m.member_id, email: m.email, name: m.name || null, canEditSettings: m.can_edit_settings || false,
+        commissionPercent: m.commission_percent != null ? Number(m.commission_percent) : null,
+        chairRentalFee: m.chair_rental_fee != null ? Number(m.chair_rental_fee) : null,
+      })));
     });
   }, [activeTeamId]);
+
+  const updateTeamMemberCommission = async (memberId, { commissionPercent, chairRentalFee }) => {
+    const { error } = await supabase
+      .from("team_members")
+      .update({ commission_percent: commissionPercent, chair_rental_fee: chairRentalFee })
+      .eq("member_id", memberId)
+      .eq("team_id", activeTeamId);
+    if (error) { notify(`Prim bilgisi güncellenemedi: ${error.message}`); return; }
+    setTeamMembers((prev) => prev.map((m) => (m.id === memberId ? { ...m, commissionPercent, chairRentalFee } : m)));
+  };
 
   // Açılış sayfasındaki "#ozellikler" gibi demir bağlantılardan giriş yapılınca
   // hash URL'de kalıp uygulama içinde sekme değiştirse bile hiç temizlenmiyordu
@@ -10697,6 +11242,21 @@ export default function App() {
     cascadePayments.forEach((p) => logAction("payments", p.id, "deleted", `${formatTL(p.amount)} tahsilat çöp kutusuna taşındı`));
   };
 
+  const applyServiceCompletionEffects = async (deal, lineItemsForDeal) => {
+    const { stockUpdates, reminderUpdate } = computeServiceCompletionEffects({ deal, lineItemsForDeal, priceListItems, priceItemIngredients, stockItems });
+    if (stockUpdates.length > 0) {
+      await Promise.all(stockUpdates.map((u) => supabase.from("stock_items").update({ quantity_on_hand: u.newQuantityOnHand }).eq("id", u.id)));
+      setStockItems((prev) => prev.map((s) => {
+        const u = stockUpdates.find((x) => x.id === s.id);
+        return u ? { ...s, quantityOnHand: u.newQuantityOnHand } : s;
+      }));
+    }
+    if (reminderUpdate) {
+      await supabase.from("deals").update({ reminder: reminderUpdate.reminder, reminder_date: reminderUpdate.reminderDate }).eq("id", deal.id);
+      setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, reminder: reminderUpdate.reminder, reminderDate: reminderUpdate.reminderDate } : d)));
+    }
+  };
+
   const upsertDeal = async (d) => {
     const isNew = !deals.some((x) => x.id === d.id);
     const previousDeal = deals.find((x) => x.id === d.id);
@@ -10754,23 +11314,42 @@ export default function App() {
     // kalemlerden habersiz diğer çağrılar bu alanı hiç göndermiyor, dokunulmuyor)
     // sil-hepsini-baştan-ekle senkronizasyonu yapılır — bu projede diffing yerine
     // hep bu basit desen tercih ediliyor.
+    let lineItemsForDeal = dealLineItems.filter((li) => li.dealId === deal.id);
     if (d.lineItems !== undefined) {
       await supabase.from("deal_line_items").delete().eq("deal_id", deal.id);
       if (d.lineItems.length > 0) {
         const rows = d.lineItems.map((li, i) => ({
           id: uid(), user_id: activeTeamId, deal_id: deal.id,
           description: li.description, quantity: Number(li.quantity) || 1, unit_price: Number(li.unitPrice) || 0, sort_order: i,
+          price_item_id: li.priceItemId || null,
         }));
         const { data: insertedItems, error: liError } = await supabase.from("deal_line_items").insert(rows).select();
         if (liError) notify(`Kalemler kaydedilemedi: ${liError.message}`);
-        setDealLineItems((prev) => [...prev.filter((li) => li.dealId !== deal.id), ...((insertedItems || []).map(rowToDealLineItem))]);
+        lineItemsForDeal = (insertedItems || []).map(rowToDealLineItem);
+        setDealLineItems((prev) => [...prev.filter((li) => li.dealId !== deal.id), ...lineItemsForDeal]);
       } else {
+        lineItemsForDeal = [];
         setDealLineItems((prev) => prev.filter((li) => li.dealId !== deal.id));
       }
     }
 
+    // Hizmet tamamlandı efekti (tazeleme hatırlatıcısı + reçete stok düşümü) —
+    // sadece stage YENİ "kazanıldı"ya geçtiğinde, tekrar tekrar kaydedilince
+    // aynı reçete ikinci kez düşülmesin diye previousStage kontrolü şart.
+    if (deal.stage === "kazanildi" && previousStage !== "kazanildi") {
+      await applyServiceCompletionEffects(deal, lineItemsForDeal);
+    }
+
     setShowDealForm(false);
     setEditingDeal(null);
+    // Gölge Avcı: emlak sektöründe yeni bir teklif (mülk) girildiği an, geçmiş
+    // müşteri taleplerine karşı otomatik taranır. Düzenlemede değil sadece
+    // İLK kayıtta tetiklenir — aksi halde her küçük güncellemede aynı
+    // eşleşmeler tekrar tekrar önüne çıkar.
+    if (isNew && companySettings?.sector === "emlak") {
+      const matches = matchEmlakListing(deal, customers);
+      if (matches.length > 0) setEmlakMatches({ deal, matches });
+    }
     logAction("deals", deal.id, isNew ? "created" : "updated", `${deal.title} ${isNew ? "oluşturuldu" : "güncellendi"}`);
     // Kazanılmış bir teklifin Tutar/KDV'si değiştirilirse bu, geçmiş bir KDV
     // raporunu sessizce etkileyebilir — ayrı, açık bir denetim kaydı bırakıyoruz.
@@ -11197,6 +11776,9 @@ export default function App() {
       const currentStageLabel = stageLabel(stage, customers.find((c) => c.id === current?.customerId)?.customerType || "kurumsal", companySettings?.sector);
       logAction("deals", id, "updated", `${current?.title || DEAL_TAB_STRINGS[dealWordKind(companySettings?.sector)].columnHeader} aşaması "${currentStageLabel}" olarak güncellendi`);
       if (current && stage !== previousStage) sendStageEmail(current, stage);
+      if (current && stage === "kazanildi" && previousStage !== "kazanildi") {
+        await applyServiceCompletionEffects({ ...current, stage }, dealLineItems.filter((li) => li.dealId === id));
+      }
     }
   };
 
@@ -11604,15 +12186,15 @@ export default function App() {
     setCustomFieldDefs((prev) => prev.filter((d) => d.id !== id));
   };
 
-  const addPriceListItem = async ({ name, price }) => {
-    const row = { id: uid(), user_id: activeTeamId, name, price };
+  const addPriceListItem = async ({ name, price, refreshDays }) => {
+    const row = { id: uid(), user_id: activeTeamId, name, price, refresh_days: refreshDays || null };
     const { data, error } = await supabase.from("price_list_items").insert(row).select().single();
     if (error) { notify(`Ürün/hizmet eklenemedi: ${error.message}`); return; }
     setPriceListItems((prev) => [...prev, rowToPriceListItem(data)]);
   };
 
-  const updatePriceListItem = async ({ id, name, price }) => {
-    const { data, error } = await supabase.from("price_list_items").update({ name, price }).eq("id", id).select().single();
+  const updatePriceListItem = async ({ id, name, price, refreshDays }) => {
+    const { data, error } = await supabase.from("price_list_items").update({ name, price, refresh_days: refreshDays || null }).eq("id", id).select().single();
     if (error) { notify(`Ürün/hizmet güncellenemedi: ${error.message}`); return; }
     setPriceListItems((prev) => prev.map((p) => (p.id === id ? rowToPriceListItem(data) : p)));
   };
@@ -11621,6 +12203,41 @@ export default function App() {
     const { error } = await supabase.from("price_list_items").delete().eq("id", id);
     if (error) { notify(`Ürün/hizmet silinemedi: ${error.message}`); return; }
     setPriceListItems((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const addStockItem = async ({ name, unit, quantityOnHand, reorderThreshold, supplierName }) => {
+    const row = { id: uid(), user_id: activeTeamId, name, unit, quantity_on_hand: quantityOnHand || 0, reorder_threshold: reorderThreshold || null, supplier_name: supplierName || null };
+    const { data, error } = await supabase.from("stock_items").insert(row).select().single();
+    if (error) { notify(`Stok kalemi eklenemedi: ${error.message}`); return; }
+    setStockItems((prev) => [...prev, rowToStockItem(data)]);
+  };
+
+  const updateStockItem = async ({ id, name, unit, quantityOnHand, reorderThreshold, supplierName }) => {
+    const { data, error } = await supabase
+      .from("stock_items")
+      .update({ name, unit, quantity_on_hand: quantityOnHand || 0, reorder_threshold: reorderThreshold || null, supplier_name: supplierName || null })
+      .eq("id", id).select().single();
+    if (error) { notify(`Stok kalemi güncellenemedi: ${error.message}`); return; }
+    setStockItems((prev) => prev.map((s) => (s.id === id ? rowToStockItem(data) : s)));
+  };
+
+  const deleteStockItem = async (id) => {
+    const { error } = await supabase.from("stock_items").delete().eq("id", id);
+    if (error) { notify(`Stok kalemi silinemedi: ${error.message}`); return; }
+    setStockItems((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  const addPriceItemIngredient = async ({ priceItemId, stockItemId, quantity }) => {
+    const row = { id: uid(), user_id: activeTeamId, price_item_id: priceItemId, stock_item_id: stockItemId, quantity };
+    const { data, error } = await supabase.from("price_item_ingredients").insert(row).select().single();
+    if (error) { notify(`Reçete satırı eklenemedi: ${error.message}`); return; }
+    setPriceItemIngredients((prev) => [...prev, rowToPriceItemIngredient(data)]);
+  };
+
+  const deletePriceItemIngredient = async (id) => {
+    const { error } = await supabase.from("price_item_ingredients").delete().eq("id", id);
+    if (error) { notify(`Reçete satırı silinemedi: ${error.message}`); return; }
+    setPriceItemIngredients((prev) => prev.filter((i) => i.id !== id));
   };
 
   // Editörden gelen şablon ya mevcut bir DB kaydını günceller (id doluysa) ya
@@ -12088,6 +12705,8 @@ export default function App() {
     const s = getSlaStatus(t);
     return s.isBreached || s.isApproaching;
   });
+  const orderRhythmAlerts = computeOrderRhythmAlerts(deals, customers);
+  const lowStockItems = stockItems.filter((s) => s.reorderThreshold != null && s.quantityOnHand <= s.reorderThreshold);
 
   const openDealOrList = (items, title) => {
     if (items.length === 0) return;
@@ -12334,7 +12953,7 @@ export default function App() {
           })()}
           <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", marginBottom: "1.5rem" }}>
             <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 10px" }}>Bugün ne yapmalıyım</p>
-            {dueReminderDeals.length === 0 && urgentTickets.length === 0 && newPortalAppointments.length === 0 ? (
+            {dueReminderDeals.length === 0 && urgentTickets.length === 0 && newPortalAppointments.length === 0 && orderRhythmAlerts.length === 0 && lowStockItems.length === 0 ? (
               <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>Bugün için acil bir şey yok.</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
@@ -12384,7 +13003,46 @@ export default function App() {
                     </div>
                   );
                 })}
+                {orderRhythmAlerts.map(({ customer, typicalInterval, daysSinceLast, orderCount }) => (
+                  <div
+                    key={`rhythm-${customer.id}`}
+                    onClick={() => setViewingCustomer(customer)}
+                    title={`Geçmiş ${orderCount} siparişine göre tipik olarak ${typicalInterval} günde bir sipariş veriyor`}
+                    style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", padding: "4px 0" }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--fill-warning)", flexShrink: 0 }} />
+                    <span style={{ flex: 1 }}>{customer.name} — genelde {typicalInterval} günde bir sipariş verirdi, {daysSinceLast} gündür yok</span>
+                    <Badge tone="warning">Sipariş ritmi bozuldu</Badge>
+                  </div>
+                ))}
+                {lowStockItems.map((item) => (
+                  <div
+                    key={`stock-${item.id}`}
+                    onClick={() => setShowStockManager(true)}
+                    style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", padding: "4px 0" }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--text-danger)", flexShrink: 0 }} />
+                    <span style={{ flex: 1 }}>{item.name} — {item.quantityOnHand} {item.unit} kaldı (kritik seviye {item.reorderThreshold} {item.unit})</span>
+                    <Badge tone="danger">Stok azaldı</Badge>
+                  </div>
+                ))}
               </div>
+            )}
+            {lowStockItems.length > 0 && (
+              <button
+                type="button"
+                onClick={() =>
+                  downloadXlsx(
+                    "siparis-listesi.xlsx",
+                    ["Malzeme", "Kalan Miktar", "Birim", "Kritik Seviye", "Tedarikçi"],
+                    lowStockItems.map((item) => [item.name, item.quantityOnHand, item.unit, item.reorderThreshold, item.supplierName || ""])
+                  )
+                }
+                style={{ fontSize: 12, marginTop: 8, display: "flex", alignItems: "center", gap: 4 }}
+              >
+                <i className="ti ti-download" style={{ fontSize: 14 }} aria-hidden="true"></i>
+                Sipariş listesini indir ({lowStockItems.length})
+              </button>
             )}
           </div>
 
@@ -12530,20 +13188,28 @@ export default function App() {
                 )
                   .sort((a, b) => b[1].revenue - a[1].revenue)
                   .map(([assigneeId, stats]) => {
+                    const member = teamMembers.find((m) => m.id === assigneeId);
                     const label =
                       assigneeId === "unassigned"
                         ? "Atanmamış"
                         : assigneeId === session.user.id
                         ? `${session.user.user_metadata?.full_name || session.user.email} (Ben)`
-                        : teamMembers.find((m) => m.id === assigneeId)?.name || teamMembers.find((m) => m.id === assigneeId)?.email || "Bilinmeyen";
+                        : member?.name || member?.email || "Bilinmeyen";
                     const total = stats.won + stats.lost;
                     const rate = total > 0 ? Math.round((stats.won / total) * 100) : null;
+                    const hasCommission = member?.commissionPercent != null || member?.chairRentalFee != null;
+                    const payout = hasCommission
+                      ? stats.revenue * ((member.commissionPercent || 0) / 100) - (member.chairRentalFee || 0)
+                      : null;
                     return (
                       <div key={assigneeId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
                         <span style={{ fontSize: 13 }}>{label}</span>
                         <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
                           {stats.won} {DEAL_WORD_FORMS[dealKind].bare} · <strong style={{ color: "var(--text-primary)" }}>{formatTL(stats.revenue)}</strong>
                           {rate !== null && <> · <span style={{ color: "var(--text-success)" }}>%{rate} kazanma oranı</span></>}
+                          {payout !== null && (
+                            <> · <span style={{ color: "var(--text-accent)" }} title={`%${member.commissionPercent || 0} prim${member.chairRentalFee ? ` − ${formatTL(member.chairRentalFee)} koltuk kirası` : ""}`}>Hakediş: {formatTL(payout)}</span></>
+                          )}
                         </span>
                       </div>
                     );
@@ -13080,6 +13746,16 @@ export default function App() {
                             <TagBadges tags={d.tags} />
                           </div>
                         )}
+                        {d.customFields?.sevkiyat_durumu && (
+                          <div style={{ marginTop: 4 }}>
+                            <Badge tone="default">{d.customFields.sevkiyat_durumu}</Badge>
+                          </div>
+                        )}
+                        {d.firstViewedAt && !d.approvedAt && (
+                          <div style={{ marginTop: 4 }} title={d.viewDurationSeconds > 0 ? `Müşteri toplam ${formatViewDuration(d.viewDurationSeconds)} inceledi` : undefined}>
+                            <Badge tone="accent">👁 Görüntülendi{d.viewDurationSeconds > 0 ? ` · ${formatViewDuration(d.viewDurationSeconds)}` : ""}</Badge>
+                          </div>
+                        )}
                         {d.approvedAt && (
                           <div style={{ marginTop: 4 }}>
                             <Badge tone="success">Onaylandı ✓</Badge>
@@ -13107,6 +13783,7 @@ export default function App() {
                           <RowActionsMenu
                             items={[
                               { icon: "ti-file-text", label: dealPdfLabel, onClick: () => setTeklifDeal(d) },
+                              companySettings?.sector === "emlak" && { icon: "ti-wand", label: "İlan Metni Oluştur", onClick: () => setListingTextDeal(d) },
                               {
                                 icon: "ti-link",
                                 label: "Onay Linki",
@@ -13284,6 +13961,12 @@ export default function App() {
                   onClick={() => { setShowSettingsHub(false); setShowPriceList(true); }}
                 />
                 <MenuRow
+                  icon="ti-package"
+                  label="Stok & Malzeme"
+                  description="Malzeme envanteri ve hizmet başına reçete — kullanan sektörler için opsiyonel"
+                  onClick={() => { setShowSettingsHub(false); setShowStockManager(true); }}
+                />
+                <MenuRow
                   icon="ti-layout"
                   label="Teklif Şablonları"
                   description="PDF teklifinizin tasarımını seçin"
@@ -13456,6 +14139,21 @@ export default function App() {
             </button>
           </div>
           <PriceListManager items={priceListItems} onAdd={addPriceListItem} onUpdate={updatePriceListItem} onDelete={deletePriceListItem} sector={companySettings?.sector} />
+        </Modal>
+      )}
+
+      {showStockManager && (
+        <Modal wide title="Stok & Malzeme" onClose={() => setShowStockManager(false)}>
+          <StockManager
+            stockItems={stockItems}
+            priceListItems={priceListItems}
+            priceItemIngredients={priceItemIngredients}
+            onAddStock={addStockItem}
+            onUpdateStock={updateStockItem}
+            onDeleteStock={deleteStockItem}
+            onAddIngredient={addPriceItemIngredient}
+            onDeleteIngredient={deletePriceItemIngredient}
+          />
         </Modal>
       )}
 
@@ -13702,6 +14400,7 @@ export default function App() {
             preferredCustomerType={dealAudience}
             sector={companySettings?.sector}
             deals={deals}
+            payments={payments}
             appointmentDateTimeKey={appointmentDateTimeKey}
             roomInventory={roomInventory}
             customFieldDefs={customFieldDefs}
@@ -13722,6 +14421,72 @@ export default function App() {
             onSave={upsertDeal}
             onCancel={() => { setShowDealForm(false); setEditingDeal(null); }}
           />
+        </Modal>
+      )}
+
+      {emlakMatches && (
+        <Modal title="Gölge Avcı — Uyan alıcı/kiracı adayları" onClose={() => setEmlakMatches(null)}>
+          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 12px" }}>
+            "{emlakMatches.deal.title}" kaydı, müşterilerin daha önce girilmiş taleplerine göre otomatik tarandı.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {emlakMatches.matches.map(({ customer, score, reasons }) => (
+              <div key={customer.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "10px 12px" }}>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
+                    {customer.name}
+                    <Badge tone={score >= 80 ? "success" : score >= 65 ? "accent" : "default"}>%{score} uyum</Badge>
+                  </p>
+                  <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>Uyan kriterler: {reasons.join(", ")}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const message = buildEmlakMatchMessage(emlakMatches.deal, customer, companySettings);
+                    window.open(`https://wa.me/${toWhatsAppNumber(customer.phone)}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+                  }}
+                  style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "6px 10px", fontSize: 13, cursor: "pointer" }}
+                >
+                  <WhatsAppIcon /> WhatsApp'tan gönder
+                </button>
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      {listingTextDeal && (
+        <Modal wide title={`İlan Metni — ${listingTextDeal.title}`} onClose={() => setListingTextDeal(null)}>
+          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 14px" }}>
+            Teklifteki Mülk Tipi/Bölge/Oda Sayısı/Fiyat bilgilerinden üç platforma özel metin hazırlandı. Beğenmediğiniz kısmı kopyaladıktan sonra elle düzenleyebilirsiniz.
+          </p>
+          {(() => {
+            const texts = buildEmlakListingTexts(listingTextDeal);
+            const sections = [
+              { key: "sahibinden", label: "Sahibinden / Hepsiemlak formatı" },
+              { key: "instagram", label: "Instagram gönderi metni" },
+              { key: "whatsapp", label: "WhatsApp sunum metni" },
+            ];
+            return (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {sections.map((s) => (
+                  <div key={s.key}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 500 }}>{s.label}</p>
+                      <button
+                        type="button"
+                        onClick={() => { navigator.clipboard.writeText(texts[s.key]); notify("Metin kopyalandı.", "success"); }}
+                        style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "4px 10px", fontSize: 12.5, cursor: "pointer" }}
+                      >
+                        <i className="ti ti-copy" aria-hidden="true"></i> Kopyala
+                      </button>
+                    </div>
+                    <textarea readOnly value={texts[s.key]} rows={s.key === "sahibinden" ? 8 : 6} style={{ width: "100%", fontSize: 13, fontFamily: "inherit", resize: "vertical" }} />
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </Modal>
       )}
 
