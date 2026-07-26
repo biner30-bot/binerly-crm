@@ -8679,6 +8679,7 @@ function AppointmentCancelLockBox({ companySettings, onSave }) {
         <input type="checkbox" checked={on} onChange={(e) => { setOn(e.target.checked); setDirty(true); }} />
         Randevu iptal kilidini özelleştir
         <InfoTip
+          placement="bottom"
           align="left"
           text={"Kapalıyken müşteri randevu saatine 2 saatten az kala portaldan iptal edemez (sabit, değiştirilemez). Açarsanız bu süreyi kendiniz belirlersiniz — örn. 24 saat girerseniz müşteri randevudan bir gün öncesine kadar iptal edebilir, sonrasında iptal butonu devre dışı kalır."}
         />
