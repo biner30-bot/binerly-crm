@@ -8063,7 +8063,18 @@ const STOCK_UNITS = ["adet", "ml", "gr", "kg", "lt", "kutu", "paket"];
 // bir fiyat listesi kaleminin (hizmet/ürün) TEK SEFERLİK ne kadar malzeme
 // tükettiğini tanımlar — bir teklif "kazanıldı"ya geçtiğinde bu miktar
 // otomatik düşülür (bkz. App.jsx:computeServiceCompletionEffects).
-function StockManager({ stockItems, priceListItems, priceItemIngredients, onAddStock, onUpdateStock, onDeleteStock, onAddIngredient, onDeleteIngredient }) {
+const STOCK_ITEM_NAME_EXAMPLES = {
+  guzellik_bakim: "Tüp Boya 8.1",
+  saglik_klinik: "Lateks Eldiven",
+  uretim_satis: "Çelik Sac 2mm",
+  sanayi_esnaf: "Motor Yağı",
+  perakende: "Karton Kutu (Ambalaj)",
+  otel: "Havlu Seti",
+  spor_merkezi: "Protein Tozu",
+  egitim_kurs: "Ders Kitabı",
+};
+
+function StockManager({ stockItems, priceListItems, priceItemIngredients, sector, onAddStock, onUpdateStock, onDeleteStock, onAddIngredient, onDeleteIngredient }) {
   const [tab, setTab] = useState("stok");
   const [name, setName] = useState("");
   const [unit, setUnit] = useState("adet");
@@ -8146,7 +8157,7 @@ function StockManager({ stockItems, priceListItems, priceItemIngredients, onAddS
           <form onSubmit={submitStock} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end" }}>
             <div style={{ flex: 1, minWidth: 140 }}>
               <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>İsim</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Örn. Tüp Boya 8.1" style={{ width: "100%", fontSize: 13 }} />
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={`Örn. ${STOCK_ITEM_NAME_EXAMPLES[sector] || "Sarf Malzemesi"}`} style={{ width: "100%", fontSize: 13 }} />
             </div>
             <div style={{ width: 90 }}>
               <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Birim</label>
@@ -14148,6 +14159,7 @@ export default function App() {
             stockItems={stockItems}
             priceListItems={priceListItems}
             priceItemIngredients={priceItemIngredients}
+            sector={companySettings?.sector}
             onAddStock={addStockItem}
             onUpdateStock={updateStockItem}
             onDeleteStock={deleteStockItem}
