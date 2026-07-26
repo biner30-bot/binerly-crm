@@ -75,6 +75,27 @@ function buildEmlakMatchMessage(deal, customer, companySettings) {
   return `Merhaba ${firstName}, ${firma}aradığınız kriterlere uygun yeni bir ${islem} ilanımız var: ${details}${fiyat ? ` — ${fiyat}` : ""}. İlgilenirseniz detaylarını ve fotoğrafları hemen paylaşabilirim.`;
 }
 
+// Paket/üyelik yenileme hatırlatması — approvalLink opsiyonel, çağıran taraf
+// (async generateApprovalLink sonucu) hazırsa geçiyor, hazır değilse linksiz
+// gönderilir (yine de kullanışlı bir hatırlatma metni olur).
+function buildRenewalMessage(deal, customer, alert, companySettings, approvalLink) {
+  const firstName = (customer.name || "").split(" ")[0] || customer.name;
+  const firma = companySettings?.companyName ? `${companySettings.companyName} olarak ` : "";
+  const durum = alert.type === "session"
+    ? (alert.remaining <= 0 ? `"${deal.title}" paketinizdeki seanslar bitti` : `"${deal.title}" paketinizin son ${alert.remaining} dersi kaldı`)
+    : (alert.daysLeft < 0 ? `"${deal.title}" üyeliğinizin süresi doldu` : `"${deal.title}" üyeliğinizin bitmesine ${alert.daysLeft} gün kaldı`);
+  const linkPart = approvalLink ? ` Yenilemek için: ${approvalLink}` : "";
+  return `Merhaba ${firstName}, ${firma}${durum}. Devam etmek isterseniz sizi bekleriz!${linkPart}`;
+}
+
+// "Seni özledik" — derse katılım bazlı hareketsizlik tespit edilen üyeye
+// gönderilecek hazır metin.
+function buildWinBackMessage(customer, daysSince, companySettings) {
+  const firstName = (customer.name || "").split(" ")[0] || customer.name;
+  const firma = companySettings?.companyName ? `${companySettings.companyName} olarak ` : "";
+  return `Merhaba ${firstName}, sizi ${daysSince} gündür derslerde göremedik, sizi özledik! ${firma}bir sonraki dersinizde görüşmeyi çok isteriz — uygun bir saat için bize yazabilirsiniz.`;
+}
+
 function median(nums) {
   const sorted = [...nums].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
@@ -223,6 +244,74 @@ function computeServiceCompletionEffects({ deal, lineItemsForDeal, priceListItem
   }
 
   return { stockUpdates, reminderUpdate };
+}
+
+// Paket/kontör + üyelik bitiş uyarısı — Spor Merkezi/Eğitim-Kurs gibi paket
+// satan sektörlerde iki farklı sinyali tek listede toplar: (1) kalan seans
+// sayısı azalmış (session_total/session_used zaten var olan alanlar), (2)
+// "Üyelik Bitiş Tarihi" yaklaşmış/geçmiş (o sektörlerde zaten var olan bir
+// özel alan). Otomatik mesaj GÖNDERMEZ — sadece Pano'da görünür kılar,
+// gönderim hep olduğu gibi tek tık wa.me ile elle yapılır.
+const LOW_SESSION_THRESHOLD = 2;
+const EXPIRY_WARNING_DAYS = 5;
+
+function computeMembershipAlerts(deals, customers) {
+  const alerts = [];
+  const now = Date.now();
+  for (const d of deals) {
+    if (d.stage !== "kazanildi") continue;
+    const customer = customers.find((c) => c.id === d.customerId);
+    if (!customer) continue;
+
+    if (d.sessionTotal > 0) {
+      const remaining = d.sessionTotal - (d.sessionUsed || 0);
+      if (remaining <= LOW_SESSION_THRESHOLD) {
+        alerts.push({ customer, deal: d, type: "session", remaining });
+      }
+    }
+
+    const bitisTarihi = d.customFields?.uyelik_bitis_tarihi;
+    if (bitisTarihi) {
+      const daysLeft = Math.ceil((new Date(bitisTarihi).getTime() - now) / 86400000);
+      if (daysLeft <= EXPIRY_WARNING_DAYS) {
+        alerts.push({ customer, deal: d, type: "expiry", daysLeft });
+      }
+    }
+  }
+  return alerts;
+}
+
+// Derse katılım bazlı hareketsizlik (churn) tespiti — computeOrderRhythmAlerts'ten
+// KASITLI OLARAK AYRI: o "kazanılan teklif" ritmine bakıyor, bu ise Grup Dersleri
+// kullanan sektörlerde (Spor Merkezi vb.) gerçek DERSE GELME sıklığına bakıyor —
+// bir üyeliğin hâlâ aktif ama üyenin haftalardır derse gelmediği durumu yakalar.
+// Hiç ders kaydı (enrollment) veya hiç yoklama geçmişi olmayan üyeler (henüz
+// başlamamış/hiç ders almamış) değerlendirmeye alınmaz — "geri kazanma" ancak
+// bir zamanlar düzenli gelen birine anlamlı.
+const CHURN_INACTIVITY_DAYS = 14;
+
+function computeAttendanceChurnRisk(customers, deals, groupClassEnrollments, classAttendance) {
+  const now = Date.now();
+  const alerts = [];
+  for (const customer of customers) {
+    const activeMembership = deals.find(
+      (d) => d.customerId === customer.id && d.stage === "kazanildi" &&
+        (!d.customFields?.uyelik_bitis_tarihi || new Date(d.customFields.uyelik_bitis_tarihi).getTime() >= now)
+    );
+    if (!activeMembership) continue;
+
+    const hasEnrollment = groupClassEnrollments.some((e) => e.customerId === customer.id);
+    if (!hasEnrollment) continue;
+
+    const attendedTimestamps = classAttendance
+      .filter((a) => a.customerId === customer.id && a.status === "geldi")
+      .map((a) => new Date(a.occurrenceDate).getTime());
+    if (attendedTimestamps.length === 0) continue;
+
+    const daysSince = Math.floor((now - Math.max(...attendedTimestamps)) / 86400000);
+    if (daysSince >= CHURN_INACTIVITY_DAYS) alerts.push({ customer, daysSince });
+  }
+  return alerts.sort((a, b) => b.daysSince - a.daysSince);
 }
 
 const LEAD_INFO_TEXT =
@@ -425,6 +514,7 @@ function rowToDeal(r) {
     approvedAt: r.approved_at || null,
     firstViewedAt: r.first_viewed_at || null,
     viewDurationSeconds: r.view_duration_seconds || 0,
+    lateCancelCount: r.late_cancel_count || 0,
     notifyCustomer: r.notify_customer || false,
     assignedTo: r.assigned_to || null,
     paymentMode: r.payment_mode || "none",
@@ -6083,6 +6173,10 @@ function rowToGroupClassEnrollment(r) {
   return { id: r.id, groupClassId: r.group_class_id, customerId: r.customer_id, enrolledAt: r.enrolled_at };
 }
 
+function rowToWaitlistEntry(r) {
+  return { id: r.id, groupClassId: r.group_class_id, customerId: r.customer_id, createdAt: r.created_at };
+}
+
 function rowToClassAttendance(r) {
   return { id: r.id, groupClassId: r.group_class_id, customerId: r.customer_id, occurrenceDate: r.occurrence_date, status: r.status };
 }
@@ -6115,6 +6209,9 @@ function rowToCompanySettings(r) {
     leadCaptureToken: r.lead_capture_token || null,
     preferredCustomerType: r.preferred_customer_type || "kurumsal",
     pdfTemplateKey: r.pdf_template_key || null,
+    lateCancelHours: r.late_cancel_hours ?? null,
+    hardBlockHours: r.hard_block_hours ?? null,
+    lateCancelStrikeLimit: r.late_cancel_strike_limit ?? null,
   };
 }
 
@@ -6294,6 +6391,9 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
   const [defaultKdvRate, setDefaultKdvRate] = useState(initial?.defaultKdvRate ?? 20);
   const [customerNotificationsEnabled, setCustomerNotificationsEnabled] = useState(initial?.customerNotificationsEnabled === true);
   const [appointmentRemindersEnabled, setAppointmentRemindersEnabled] = useState(initial?.appointmentRemindersEnabled !== false);
+  const [lateCancelHours, setLateCancelHours] = useState(initial?.lateCancelHours ?? "");
+  const [hardBlockHours, setHardBlockHours] = useState(initial?.hardBlockHours ?? "");
+  const [lateCancelStrikeLimit, setLateCancelStrikeLimit] = useState(initial?.lateCancelStrikeLimit ?? "");
 
   const handleLogoFile = async (e) => {
     const file = e.target.files?.[0];
@@ -6326,6 +6426,9 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
           customerNotificationsEnabled,
           appointmentRemindersEnabled,
           sector: initial?.sector || null,
+          lateCancelHours: lateCancelHours === "" ? null : Number(lateCancelHours),
+          hardBlockHours: hardBlockHours === "" ? null : Number(hardBlockHours),
+          lateCancelStrikeLimit: lateCancelStrikeLimit === "" ? null : Number(lateCancelStrikeLimit),
         });
       }}
     >
@@ -6407,6 +6510,34 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
             Randevu hatırlatma e-postası gönder
             <InfoTip align="right" text="Tarih & Saat tipindeki özel alanı olan kayıtlarda, o saatten 2 saat önce müşteriye otomatik bir hatırlatma e-postası gider. Bu kutuyu kapatırsanız hiçbir hatırlatma e-postası gönderilmez — diğer bildirimler (aşama değişikliği, destek talebi, ödeme) bundan etkilenmez." />
           </label>
+        </div>
+      )}
+      {supportsGroupClasses(initial?.sector) && (
+        <div style={{ marginBottom: 16, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 12 }}>
+          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 10px", display: "flex", alignItems: "center", gap: 4 }}>
+            Grup dersi iptal politikası
+            <InfoTip
+              align="right"
+              text={
+                "Üçü de opsiyonel, hepsi boşsa hiçbir şey değişmez (mevcut sabit 2 saatlik iptal kilidi geçerli olmaya devam eder).\n\n" +
+                "Nasıl işler: ders saatine 'Tamamen kilitle' süresinden az kala üye HİÇ iptal edemez. Bunun ile 'Uyarı/seans yakma başlangıcı' süresi arasında iptal ederse 'geç iptal' sayılır — kaçıncı geç iptalde seansın yanacağını 'Kaçıncı geç iptalde' alanı belirler (örn. 3 girerseniz ilk 2 geç iptal sadece uyarı, 3.'den itibaren her geç iptalde 1 seans düşer). Bu iki eşiğin arasındaki sürede DEĞİLSE (yani yeterince erken iptal ediyorsa) hiçbir ceza uygulanmaz."
+              }
+            />
+          </p>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tamamen kilitle (saat)</label>
+              <input type="number" min="0" step="0.5" value={hardBlockHours} onChange={(e) => setHardBlockHours(e.target.value)} placeholder="Varsayılan: 2" style={{ width: 150 }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Uyarı/seans yakma başlangıcı (saat)</label>
+              <input type="number" min="0" step="0.5" value={lateCancelHours} onChange={(e) => setLateCancelHours(e.target.value)} placeholder="Örn. 4" style={{ width: 150 }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kaçıncı geç iptalde seans yansın</label>
+              <input type="number" min="1" step="1" value={lateCancelStrikeLimit} onChange={(e) => setLateCancelStrikeLimit(e.target.value)} placeholder="Varsayılan: 1 (hemen)" style={{ width: 150 }} />
+            </div>
+          </div>
         </div>
       )}
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -10698,6 +10829,7 @@ export default function App() {
   const [groupClasses, setGroupClasses] = useState([]);
   const [groupClassEnrollments, setGroupClassEnrollments] = useState([]);
   const [classAttendance, setClassAttendanceState] = useState([]);
+  const [groupClassWaitlist, setGroupClassWaitlist] = useState([]);
   const [businessHours, setBusinessHours] = useState([]);
   const [roomInventory, setRoomInventory] = useState([]);
   const [showSectorOnboarding, setShowSectorOnboarding] = useState(false);
@@ -10816,7 +10948,7 @@ export default function App() {
       setCustomFieldDefs([]);
       setPriceListItems([]);
       setStockItems([]); setPriceItemIngredients([]);
-      setGroupClasses([]); setGroupClassEnrollments([]); setClassAttendanceState([]);
+      setGroupClasses([]); setGroupClassEnrollments([]); setClassAttendanceState([]); setGroupClassWaitlist([]);
       setBusinessHours([]);
       setRoomInventory([]);
       setDealLineItems([]);
@@ -10851,9 +10983,10 @@ export default function App() {
       supabase.from("deal_line_items").select("*").order("sort_order"),
       supabase.from("stock_items").select("*").is("deleted_at", null).order("name"),
       supabase.from("price_item_ingredients").select("*"),
+      supabase.from("group_class_waitlist").select("*").order("created_at"),
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ri }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: myMembership }, { data: invites }]) => {
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ri }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: gcw }, { data: myMembership }, { data: invites }]) => {
       // customers/deals/company_settings RLS'i, sahiplik politikasına ek olarak
       // portal kullanıcılarının kendi bağlı oldukları kayıtları görmesine izin
       // veren bir politikayla da "veya" ile birleşiyor (customer_*_view'ların
@@ -10886,6 +11019,7 @@ export default function App() {
       setPdfTemplates((pdft || []).filter((row) => row.user_id === ownerId).map(rowToPdfTemplate));
       setStockItems((stk || []).filter((row) => row.user_id === ownerId).map(rowToStockItem));
       setPriceItemIngredients((pii || []).filter((row) => row.user_id === ownerId).map(rowToPriceItemIngredient));
+      setGroupClassWaitlist((gcw || []).filter((row) => row.user_id === ownerId).map(rowToWaitlistEntry));
       setActiveTeamId(ownerId);
       // Sadece BANA gelen davetler (kendi gönderdiklerim değil) — RLS iki SELECT
       // politikasını OR ile birleştirdiği için burada e-postaya göre ek filtre şart.
@@ -12148,6 +12282,9 @@ export default function App() {
       sector: s.sector || null,
       ...(s.preferredCustomerType ? { preferred_customer_type: s.preferredCustomerType } : {}),
       ...(s.pdfTemplateKey ? { pdf_template_key: s.pdfTemplateKey } : {}),
+      late_cancel_hours: s.lateCancelHours || null,
+      hard_block_hours: s.hardBlockHours || null,
+      late_cancel_strike_limit: s.lateCancelStrikeLimit || null,
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase.from("company_settings").upsert(row).select().single();
@@ -12358,9 +12495,35 @@ export default function App() {
   };
 
   const removeMember = async (enrollmentId) => {
+    const enrollment = groupClassEnrollments.find((e) => e.id === enrollmentId);
     const { error } = await supabase.from("group_class_enrollments").delete().eq("id", enrollmentId);
     if (error) { notify(`${groupClassWords(companySettings?.sector).removeErrorPrefix}: ${error.message}`); return; }
     setGroupClassEnrollments((prev) => prev.filter((e) => e.id !== enrollmentId));
+    if (enrollment) await promoteFromWaitlistIfAny(enrollment.groupClassId);
+  };
+
+  // Bir dersten çıkarma/iptal sonrası yer açılınca yedek listedeki İLK kişiyi
+  // (en eski created_at) otomatik derse ekler. Sadece BURADAN (personel
+  // tarafında) çalışır — müşterinin kendi portalından iptali, başka bir
+  // müşteriyi derse eklemek için gereken yetkiye (RLS) sahip değil; o durumda
+  // Pano'daki "yer açıldı" uyarısı üzerinden personel elle doldurur.
+  const promoteFromWaitlistIfAny = async (groupClassId) => {
+    const next = groupClassWaitlist
+      .filter((w) => w.groupClassId === groupClassId)
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))[0];
+    if (!next) return;
+    await enrollMember({ groupClassId, customerId: next.customerId, silent: true });
+    const { error } = await supabase.from("group_class_waitlist").delete().eq("id", next.id);
+    if (!error) setGroupClassWaitlist((prev) => prev.filter((w) => w.id !== next.id));
+    const customer = customers.find((c) => c.id === next.customerId);
+    const group = groupClasses.find((g) => g.id === groupClassId);
+    if (customer) notify(`${customer.name}, yedek listeden "${group?.name || "ders"}" dersine otomatik eklendi.`, "success");
+  };
+
+  const removeFromWaitlist = async (waitlistId) => {
+    const { error } = await supabase.from("group_class_waitlist").delete().eq("id", waitlistId);
+    if (error) { notify(`Yedek listeden çıkarılamadı: ${error.message}`); return; }
+    setGroupClassWaitlist((prev) => prev.filter((w) => w.id !== waitlistId));
   };
 
   // Yoklama alma sık tekrarlanan (bir derste 10 öğrenci = 10 çağrı) bir
@@ -12718,6 +12881,18 @@ export default function App() {
   });
   const orderRhythmAlerts = computeOrderRhythmAlerts(deals, customers);
   const lowStockItems = stockItems.filter((s) => s.reorderThreshold != null && s.quantityOnHand <= s.reorderThreshold);
+  const membershipAlerts = computeMembershipAlerts(deals, customers);
+  const churnAlerts = supportsGroupClasses(companySettings?.sector) ? computeAttendanceChurnRisk(customers, deals, groupClassEnrollments, classAttendance) : [];
+  // Bir üye kendi portalından iptal edip yer açtığında (personel tarafından
+  // değil) otomatik terfi RLS nedeniyle çalışmaz (bkz. promoteFromWaitlistIfAny
+  // yorumu) — bu durumu burada yakalayıp personele tek tık "Doldur" sunuyoruz.
+  const waitlistFillableAlerts = groupClasses
+    .map((g) => {
+      const enrolledCount = groupClassEnrollments.filter((e) => e.groupClassId === g.id).length;
+      const waitCount = groupClassWaitlist.filter((w) => w.groupClassId === g.id).length;
+      return enrolledCount < g.capacity && waitCount > 0 ? { group: g, waitCount } : null;
+    })
+    .filter(Boolean);
 
   const openDealOrList = (items, title) => {
     if (items.length === 0) return;
@@ -12964,7 +13139,7 @@ export default function App() {
           })()}
           <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", marginBottom: "1.5rem" }}>
             <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 10px" }}>Bugün ne yapmalıyım</p>
-            {dueReminderDeals.length === 0 && urgentTickets.length === 0 && newPortalAppointments.length === 0 && orderRhythmAlerts.length === 0 && lowStockItems.length === 0 ? (
+            {dueReminderDeals.length === 0 && urgentTickets.length === 0 && newPortalAppointments.length === 0 && orderRhythmAlerts.length === 0 && lowStockItems.length === 0 && membershipAlerts.length === 0 && churnAlerts.length === 0 && waitlistFillableAlerts.length === 0 ? (
               <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>Bugün için acil bir şey yok.</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
@@ -13035,6 +13210,67 @@ export default function App() {
                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--text-danger)", flexShrink: 0 }} />
                     <span style={{ flex: 1 }}>{item.name} — {item.quantityOnHand} {item.unit} kaldı (kritik seviye {item.reorderThreshold} {item.unit})</span>
                     <Badge tone="danger">Stok azaldı</Badge>
+                  </div>
+                ))}
+                {membershipAlerts.map((alert) => (
+                  <div
+                    key={`membership-${alert.deal.id}-${alert.type}`}
+                    style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "4px 0" }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--fill-warning)", flexShrink: 0 }} />
+                    <span style={{ flex: 1, cursor: "pointer" }} onClick={() => { setEditingDeal(alert.deal); setShowDealForm(true); }}>
+                      {alert.customer.name} — {alert.type === "session" ? `${alert.remaining} seans kaldı` : alert.daysLeft < 0 ? "üyelik süresi doldu" : `üyelik ${alert.daysLeft} gün sonra bitiyor`}
+                    </span>
+                    {alert.customer.phone && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const link = await generateApprovalLink(alert.deal);
+                          const message = buildRenewalMessage(alert.deal, alert.customer, alert, companySettings, link);
+                          window.open(`https://wa.me/${toWhatsAppNumber(alert.customer.phone)}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+                        }}
+                        style={{ fontSize: 12, flexShrink: 0 }}
+                      >
+                        WhatsApp
+                      </button>
+                    )}
+                    <Badge tone="warning">Yenileme</Badge>
+                  </div>
+                ))}
+                {churnAlerts.map((alert) => (
+                  <div
+                    key={`churn-${alert.customer.id}`}
+                    style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "4px 0" }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--text-danger)", flexShrink: 0 }} />
+                    <span style={{ flex: 1, cursor: "pointer" }} onClick={() => setViewingCustomer(alert.customer)}>
+                      {alert.customer.name} — {alert.daysSince} gündür derse gelmedi
+                    </span>
+                    {alert.customer.phone && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const message = buildWinBackMessage(alert.customer, alert.daysSince, companySettings);
+                          window.open(`https://wa.me/${toWhatsAppNumber(alert.customer.phone)}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+                        }}
+                        style={{ fontSize: 12, flexShrink: 0 }}
+                      >
+                        WhatsApp
+                      </button>
+                    )}
+                    <Badge tone="danger">Seni özledik</Badge>
+                  </div>
+                ))}
+                {waitlistFillableAlerts.map(({ group, waitCount }) => (
+                  <div
+                    key={`waitlist-${group.id}`}
+                    style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "4px 0" }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--fill-accent)", flexShrink: 0 }} />
+                    <span style={{ flex: 1 }}>{group.name} dersinde yer açıldı — yedek listede {waitCount} kişi var</span>
+                    <button type="button" onClick={() => promoteFromWaitlistIfAny(group.id)} style={{ fontSize: 12, flexShrink: 0 }}>
+                      Doldur
+                    </button>
                   </div>
                 ))}
               </div>

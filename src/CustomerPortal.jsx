@@ -85,6 +85,9 @@ function rowToDeal(r) {
     paymentMode: r.payment_mode || "none",
     paymentStatus: r.payment_status || null,
     approvedAt: r.approved_at || null,
+    sessionTotal: r.session_total ?? null,
+    sessionUsed: r.session_used ?? 0,
+    lateCancelCount: r.late_cancel_count || 0,
   };
 }
 
@@ -101,6 +104,10 @@ function rowToGroupClass(r) {
 }
 
 function rowToGroupClassEnrollment(r) {
+  return { id: r.id, groupClassId: r.group_class_id, customerId: r.customer_id };
+}
+
+function rowToWaitlistEntry(r) {
   return { id: r.id, groupClassId: r.group_class_id, customerId: r.customer_id };
 }
 
@@ -577,11 +584,12 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, se
   );
 }
 
-function PortalGroupClasses({ groupClasses, groupClassEnrollments, customerRows, showCompany, hasActiveMembership, onEnroll, onCancel }) {
+function PortalGroupClasses({ groupClasses, groupClassEnrollments, groupClassWaitlist, customerRows, showCompany, hasActiveMembership, getMembershipDeal, onEnroll, onCancel, onJoinWaitlist, onLeaveWaitlist }) {
   const words = groupClassWords(customerRows[0]?.companySector);
   const companyNameByUserId = Object.fromEntries(customerRows.map((c) => [c.userId, c.companyName || c.name]));
   const myCustomerIds = new Set(customerRows.map((c) => c.id));
   const myEnrollments = groupClassEnrollments.filter((e) => myCustomerIds.has(e.customerId));
+  const myWaitlistEntries = groupClassWaitlist.filter((w) => myCustomerIds.has(w.customerId));
   const myEnrolledClassIds = new Set(myEnrollments.map((e) => e.groupClassId));
   const enrolled = groupClasses.filter((g) => myEnrolledClassIds.has(g.id));
   const joinable = groupClasses.filter((g) => !myEnrolledClassIds.has(g.id));
@@ -599,7 +607,19 @@ function PortalGroupClasses({ groupClasses, groupClassEnrollments, customerRows,
           {enrolled.map((g) => {
             const myEnrollment = myEnrollments.find((e) => e.groupClassId === g.id);
             const hoursLeft = (nextWeeklyOccurrence(g.weekday, g.startTime).getTime() - Date.now()) / 3600000;
-            const canCancel = hoursLeft >= 2;
+            const ownerRow = customerRows.find((c) => c.userId === g.userId);
+            // Üç ayarı da işletme kendi belirler (İşletme Bilgileri'nde), üçü de
+            // opsiyonel: hardBlockHours boşsa varsayılan 2 saat (eski sabit davranış).
+            // lateCancelHours boşsa "geç iptal" kavramı hiç yok, sadece hardBlockHours
+            // kadar bir tam kilit kalır. strikeLimit boşsa/1 ise geç iptalde HEMEN yanar.
+            const hardBlockHours = ownerRow?.companyHardBlockHours ?? 2;
+            const lateCancelHours = ownerRow?.companyLateCancelHours;
+            const strikeLimit = ownerRow?.companyLateCancelStrikeLimit || 1;
+            const canCancel = hoursLeft >= hardBlockHours;
+            const isLate = canCancel && lateCancelHours != null && hoursLeft < lateCancelHours;
+            const membershipDeal = isLate ? getMembershipDeal(myEnrollment.customerId) : null;
+            const nextStrikeCount = membershipDeal ? (membershipDeal.lateCancelCount || 0) + 1 : null;
+            const willBurnSession = isLate && membershipDeal?.sessionTotal > 0 && nextStrikeCount >= strikeLimit;
             return (
               <div key={g.id} style={rowStyle}>
                 <div>
@@ -607,11 +627,34 @@ function PortalGroupClasses({ groupClasses, groupClassEnrollments, customerRows,
                   <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
                     {WEEKDAYS[g.weekday - 1]} {g.startTime}{g.instructorName ? ` · ${g.instructorName}` : ""}{showCompany ? ` · ${companyNameByUserId[g.userId]}` : ""}
                   </p>
+                  {isLate && (
+                    <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--text-warning)" }}>
+                      {willBurnSession
+                        ? "Bu süreden az kala iptal ederseniz 1 seansınız düşülür"
+                        : membershipDeal?.sessionTotal > 0
+                        ? `Bu süreden az kala iptal ederseniz geç iptal sayınız ${nextStrikeCount}/${strikeLimit} olur, ${strikeLimit}. geç iptalden itibaren seans düşer`
+                        : "Bu süreden az kala iptal ediyorsunuz"}
+                    </p>
+                  )}
                 </div>
                 {canCancel ? (
-                  <button onClick={() => onCancel(myEnrollment.id)} style={{ fontSize: 13 }}>İptal Et</button>
+                  <button
+                    onClick={() => onCancel(
+                      myEnrollment.id,
+                      isLate
+                        ? {
+                            dealId: membershipDeal.id,
+                            newLateCancelCount: nextStrikeCount,
+                            newSessionUsed: willBurnSession ? (membershipDeal.sessionUsed || 0) + 1 : null,
+                          }
+                        : null
+                    )}
+                    style={{ fontSize: 13 }}
+                  >
+                    İptal Et
+                  </button>
                 ) : (
-                  <span style={{ fontSize: 12, color: "var(--text-muted)" }} title="Ders saatine 2 saatten az kaldığı için iptal edilemez">İptal edilemez</span>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)" }} title={`Ders saatine ${hardBlockHours} saatten az kaldığı için iptal edilemez`}>İptal edilemez</span>
                 )}
               </div>
             );
@@ -629,6 +672,7 @@ function PortalGroupClasses({ groupClasses, groupClassEnrollments, customerRows,
             const full = count >= g.capacity;
             const myCustomerId = customerRows.find((c) => c.userId === g.userId)?.id;
             const eligible = myCustomerId && hasActiveMembership(myCustomerId);
+            const myWaitlistEntry = myWaitlistEntries.find((w) => w.groupClassId === g.id);
             return (
               <div key={g.id} style={rowStyle}>
                 <div>
@@ -640,7 +684,18 @@ function PortalGroupClasses({ groupClasses, groupClassEnrollments, customerRows,
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <Badge tone={full ? "danger" : "success"}>{count}/{g.capacity} dolu</Badge>
-                  <button disabled={full || !eligible} onClick={() => onEnroll({ groupClassId: g.id, customerId: myCustomerId })} style={{ fontSize: 13 }}>Katıl</button>
+                  {full && eligible ? (
+                    myWaitlistEntry ? (
+                      <>
+                        <Badge tone="warning">Yedek listedesiniz</Badge>
+                        <button onClick={() => onLeaveWaitlist(myWaitlistEntry.id)} style={{ fontSize: 13 }}>Vazgeç</button>
+                      </>
+                    ) : (
+                      <button onClick={() => onJoinWaitlist({ groupClassId: g.id, customerId: myCustomerId })} style={{ fontSize: 13 }}>Yedek Listeye Katıl</button>
+                    )
+                  ) : (
+                    <button disabled={full || !eligible} onClick={() => onEnroll({ groupClassId: g.id, customerId: myCustomerId })} style={{ fontSize: 13 }}>Katıl</button>
+                  )}
                 </div>
               </div>
             );
@@ -1083,6 +1138,7 @@ export default function CustomerPortal() {
   const [selectedCompanyId, setSelectedCompanyId] = useState(() => localStorage.getItem("binerly_portal_company") || null);
   const [groupClasses, setGroupClasses] = useState([]);
   const [groupClassEnrollments, setGroupClassEnrollments] = useState([]);
+  const [groupClassWaitlist, setGroupClassWaitlist] = useState([]);
   const [priceListItems, setPriceListItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNewTicketForm, setShowNewTicketForm] = useState(false);
@@ -1216,7 +1272,12 @@ export default function CustomerPortal() {
           setLoadError(true);
           return;
         }
-        const rows = (c || []).map((r) => ({ id: r.id, userId: r.user_id, name: r.name, companyName: r.company_name, companySector: r.company_sector }));
+        const rows = (c || []).map((r) => ({
+          id: r.id, userId: r.user_id, name: r.name, companyName: r.company_name, companySector: r.company_sector,
+          companyLateCancelHours: r.company_late_cancel_hours ?? null,
+          companyHardBlockHours: r.company_hard_block_hours ?? null,
+          companyLateCancelStrikeLimit: r.company_late_cancel_strike_limit ?? null,
+        }));
         setCustomerRows(rows);
         const customerIds = rows.map((r) => r.id);
 
@@ -1248,6 +1309,11 @@ export default function CustomerPortal() {
         if (firstError) { console.error("customer portal data load error:", firstError.message); setLoadError(true); }
         setGroupClassEnrollments((gce || []).map(rowToGroupClassEnrollment));
         setGroupClasses((gc || []).map(rowToGroupClass));
+        // Yedek liste — RLS zaten sadece BENİM (portal_user_id=auth.uid()) müşteri
+        // kayıtlarıma ait satırları döndürüyor, .in() burada ek bir gereklilik değil
+        // ama diğer sorgularla aynı savunmacı deseni koruyoruz.
+        const { data: gcw } = await supabase.from("group_class_waitlist").select("*").in("customer_id", customerIds);
+        setGroupClassWaitlist((gcw || []).map(rowToWaitlistEntry));
         setPriceListItems((pli || []).map(rowToPriceListItem));
         const ticketIds = (t || []).map((row) => row.id);
         const { data: tm, error: tmError } = ticketIds.length
@@ -1290,12 +1356,13 @@ export default function CustomerPortal() {
     if (!msgError) setTicketMessages((prev) => [...prev, rowToTicketMessage(msgData)]);
   };
 
-  const hasActiveMembership = (customerId) =>
-    deals.some((d) => {
+  const activeMembershipDeal = (customerId) =>
+    deals.find((d) => {
       if (d.customerId !== customerId || d.stage !== "kazanildi") return false;
       const endDate = d.customFields?.uyelik_bitis_tarihi ?? d.customFields?.kurs_bitis_tarihi;
       return !endDate || endDate >= new Date().toISOString().slice(0, 10);
     });
+  const hasActiveMembership = (customerId) => !!activeMembershipDeal(customerId);
 
   const enrollInClass = async ({ groupClassId, customerId }) => {
     const row = customerRows.find((c) => c.id === customerId);
@@ -1315,11 +1382,44 @@ export default function CustomerPortal() {
     notify("Derse kaydınız yapıldı.", "success");
   };
 
-  const cancelEnrollment = async (enrollmentId) => {
+  // burn: { dealId, newSessionUsed } — işletme "geç iptalde seans yakma" süresini
+  // ayarladıysa ve bu, paketli bir üyeliğin kesim süresinden az kala yapılan bir
+  // iptalse doldurulur (bkz. PortalGroupClasses). Ayarlanmadıysa (varsayılan)
+  // hiçbir şey yanmaz — sadece kayıt silinir, önceki davranışla birebir aynı.
+  const joinWaitlist = async ({ groupClassId, customerId }) => {
+    const row = { id: uid(), user_id: customerRows.find((c) => c.id === customerId)?.userId, group_class_id: groupClassId, customer_id: customerId };
+    const { data, error } = await supabase.from("group_class_waitlist").insert(row).select().single();
+    if (error) { notify(`Yedek listeye eklenemedi: ${error.message}`); return; }
+    setGroupClassWaitlist((prev) => [...prev, rowToWaitlistEntry(data)]);
+    notify("Yedek listeye eklendiniz — yer açılınca otomatik veya işletme tarafından eklenebilirsiniz.", "success");
+  };
+
+  const leaveWaitlist = async (waitlistId) => {
+    const { error } = await supabase.from("group_class_waitlist").delete().eq("id", waitlistId);
+    if (error) { notify(`Yedek listeden çıkılamadı: ${error.message}`); return; }
+    setGroupClassWaitlist((prev) => prev.filter((w) => w.id !== waitlistId));
+  };
+
+  // burn: { dealId, newLateCancelCount, newSessionUsed } — işletme geç iptal
+  // politikasını ayarladıysa ve bu, o politikanın "geç" saydığı süreden az kala
+  // yapılan bir iptalse doldurulur (bkz. PortalGroupClasses). newLateCancelCount
+  // her geç iptalde artar (sayaç); newSessionUsed SADECE strike limitine
+  // ulaşıldıysa dolu gelir (null ise seans düşürülmez, sadece sayaç artar).
+  // Hiçbir politika ayarlanmadıysa (varsayılan) burn hep null — önceki
+  // davranışla birebir aynı.
+  const cancelEnrollment = async (enrollmentId, burn) => {
     const { error } = await supabase.from("group_class_enrollments").delete().eq("id", enrollmentId);
     if (error) { notify(`İptal edilemedi: ${error.message}`); return; }
     setGroupClassEnrollments((prev) => prev.filter((e) => e.id !== enrollmentId));
-    notify("Kaydınız iptal edildi.", "success");
+    if (burn) {
+      const update = { late_cancel_count: burn.newLateCancelCount };
+      if (burn.newSessionUsed != null) update.session_used = burn.newSessionUsed;
+      const { error: burnError } = await supabase.from("deals").update(update).eq("id", burn.dealId);
+      if (!burnError) {
+        setDeals((prev) => prev.map((d) => (d.id === burn.dealId ? { ...d, lateCancelCount: burn.newLateCancelCount, ...(burn.newSessionUsed != null ? { sessionUsed: burn.newSessionUsed } : {}) } : d)));
+      }
+    }
+    notify(burn?.newSessionUsed != null ? "Kaydınız iptal edildi, 1 seansınız düşüldü." : "Kaydınız iptal edildi.", "success");
   };
 
   const bookAppointment = async ({ customerId, businessUserId, dateTime, dateTimeKey, note, value, hasPaymentProvider, checkIn, checkOut, roomType, partySize, visitPurpose }) => {
@@ -1732,11 +1832,15 @@ export default function CustomerPortal() {
             <PortalGroupClasses
               groupClasses={visibleGroupClasses}
               groupClassEnrollments={groupClassEnrollments}
+              groupClassWaitlist={groupClassWaitlist}
               customerRows={visibleCustomerRows}
               showCompany={false}
               hasActiveMembership={hasActiveMembership}
+              getMembershipDeal={activeMembershipDeal}
               onEnroll={enrollInClass}
-              onCancel={(id) => setConfirmCancel({ type: "enrollment", id })}
+              onCancel={(id, burn) => setConfirmCancel({ type: "enrollment", id, burn })}
+              onJoinWaitlist={joinWaitlist}
+              onLeaveWaitlist={leaveWaitlist}
             />
           )}
 
@@ -1788,12 +1892,20 @@ export default function CustomerPortal() {
       {confirmCancel && (
         <ConfirmDialog
           title="İptal edilsin mi?"
-          message={confirmCancel.type === "appointment" ? "Randevunuzu iptal etmek istediğinizden emin misiniz? Bu işlem geri alınamaz." : "Bu derse kaydınızı iptal etmek istediğinizden emin misiniz? Bu işlem geri alınamaz."}
+          message={
+            confirmCancel.type === "appointment"
+              ? "Randevunuzu iptal etmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
+              : confirmCancel.burn?.newSessionUsed != null
+              ? "Bu derse kaydınızı iptal etmek istediğinizden emin misiniz? Bu süreden az kala iptal ettiğiniz için 1 seansınız düşülecek. Bu işlem geri alınamaz."
+              : confirmCancel.burn
+              ? "Bu derse kaydınızı iptal etmek istediğinizden emin misiniz? Bu süreden az kala iptal ediyorsunuz, tekrarlanırsa ileride seans düşebilir. Bu işlem geri alınamaz."
+              : "Bu derse kaydınızı iptal etmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
+          }
           confirmLabel="İptal Et"
           onClose={() => setConfirmCancel(null)}
           onConfirm={async () => {
             if (confirmCancel.type === "appointment") await cancelAppointment(confirmCancel.id);
-            else await cancelEnrollment(confirmCancel.id);
+            else await cancelEnrollment(confirmCancel.id, confirmCancel.burn);
             setConfirmCancel(null);
           }}
         />
