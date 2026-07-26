@@ -182,17 +182,22 @@ function computeCustomerCreditRisk(customer, deals, payments) {
   return { balance, creditLimit, overLimit, overdueBalance };
 }
 
-// No-show erken uyarısı — randevu sektörlerinde (Güzellik & Bakım, Sağlık/Klinik)
-// bir müşteri art arda habersiz gelmediyse ("kaybedildi" + lostReason "Randevuya
-// gelmedi"), yeni randevu oluşturulurken kapora/ödeme zorunlu tutmayı önerir.
-// GERÇEK BİR ENGEL DEĞİL — sadece öneri, "Ödemeyi zorunlu yap" butonuna
-// basılmazsa hiçbir şey değişmez.
-const NO_SHOW_RISK_THRESHOLD = 2;
-
-function computeNoShowRisk(customer, deals) {
-  const noShowCount = deals.filter((d) => d.customerId === customer.id && d.stage === "kaybedildi" && d.lostReason === "Randevuya gelmedi").length;
-  if (noShowCount < NO_SHOW_RISK_THRESHOLD) return null;
-  return { noShowCount };
+// No-show/geç iptal erken uyarısı — randevu sektörlerinde (Güzellik & Bakım,
+// Sağlık/Klinik) bir müşteri habersiz gelmediyse ("Randevuya gelmedi") VEYA
+// geç iptal ettiyse ("Geç iptal etti", bkz. AppointmentCancelPolicyBox) AYNI
+// sayaçta birikir. strikeLimit kobinin Müsaitlik Saatleri'nde ayarladığı
+// company_settings.appointment_penalty_strike_limit — HİÇ ayarlanmadıysa
+// (null) ceza sistemi TAMAMEN KAPALI, bu fonksiyon hep null döner (bazı
+// kobiler "iptal etse de sorun değil" diyor, o tercih tam olarak uygulanır).
+// GERÇEK BİR ENGEL DEĞİL — sadece öneri; DealForm bunu görünce paymentMode'u
+// "required"a ÖNERİR/varsayılan yapar, kobi yine de elle değiştirebilir.
+function computeNoShowRisk(customer, deals, strikeLimit) {
+  if (!strikeLimit) return null;
+  const relevant = deals.filter((d) => d.customerId === customer.id && d.stage === "kaybedildi" && (d.lostReason === "Randevuya gelmedi" || d.lostReason === "Geç iptal etti"));
+  if (relevant.length < strikeLimit) return null;
+  const noShowCount = relevant.filter((d) => d.lostReason === "Randevuya gelmedi").length;
+  const lateCancelCount = relevant.filter((d) => d.lostReason === "Geç iptal etti").length;
+  return { noShowCount, lateCancelCount, totalCount: relevant.length };
 }
 
 function formatViewDuration(totalSeconds) {
@@ -566,7 +571,7 @@ const LOST_REASONS =["Yüksek fiyat", "Rakip tercih edildi", "Bütçe yok", "Zam
 // kalıyordu. "İptal etti" bilinçli olarak İLK sırada: bir kaybı yanlışlıkla
 // "gelmedi" (no-show, müşteri hakkında daha ağır bir iddia) olarak
 // varsayılmasın diye varsayılan seçim daha nötr olan tarafta.
-const APPOINTMENT_LOST_REASONS = ["İptal etti", "Randevuya gelmedi", "Diğer"];
+const APPOINTMENT_LOST_REASONS = ["İptal etti", "Geç iptal etti", "Randevuya gelmedi", "Diğer"];
 function dealLostReasons(sector) {
   return isAppointmentSector(sector) ? APPOINTMENT_LOST_REASONS : LOST_REASONS;
 }
@@ -785,8 +790,9 @@ const HELP_TOPICS = [
   { category: "Randevu & Program", q: "Ajanda sekmesi ne işe yarar?", a: "Tüm sektörlerde hatırlatmalarınızı, randevu alanı olan kayıtlarınızı ve grup derslerinizi tek bir ay/hafta takviminde birleştirir — bir güne tıklayınca o günün tüm etkinlikleri altta listelenir." },
   { category: "Randevu & Program", q: "Ajanda'da bir güne tıklayınca ne görürüm?", a: "O tarihteki hatırlatmaları, randevuları ve (varsa) grup derslerini saatine göre sıralı bir liste hâlinde görürsünüz; bir hatırlatma/randevuya tıklarsanız ilgili kayıt açılır, bir derse tıklarsanız o günün yoklama listesi açılır." },
   { category: "Randevu & Program", q: "Yoklama (Geldi/Gelmedi) nasıl alınır?", a: "Ajanda'da geçmiş veya bugüne ait bir ders gününe tıklayıp açılan listede her öğrenci/üye için Geldi ya da Gelmedi işaretlersiniz; henüz gerçekleşmemiş bir ders günü için yoklama alınamaz.", visibleIf: (sector) => supportsGroupClasses(sector) },
-  { category: "Randevu & Program", q: "Müşteri randevusunu kendisi iptal ederse bu \"Gelmedi\" olarak mı sayılır?", a: "Hayır — müşterinin kendi portalından yaptığı iptal her zaman \"İptal etti\" olarak işaretlenir, \"Randevuya gelmedi\" sadece siz elle işaretlediğinizde (habersiz gelmeme durumunda) kullanılır.", visibleIf: (sector) => isAppointmentSector(sector) },
-  { category: "Randevu & Program", q: "Müşteri randevusunu/ders kaydını portaldan iptal ederken bir süre sınırı var mı?", a: "Evet, randevu/ders saatine en az 2 saat kala portaldan iptal edilebilir; 2 saatten az kaldıysa \"İptal edilemez\" yazısı çıkar ve iptal butonu devre dışı kalır.", visibleIf: (sector) => supportsSelfBooking(sector) || supportsGroupClasses(sector) },
+  { category: "Randevu & Program", q: "Müşteri randevusunu kendisi iptal ederse bu \"Gelmedi\" olarak mı sayılır?", a: "Hayır — müşterinin kendi portalından yaptığı iptal \"İptal etti\" (veya ayarladığınız geç sayılma penceresi içindeyse \"Geç iptal etti\") olarak işaretlenir, \"Randevuya gelmedi\" sadece siz elle işaretlediğinizde (habersiz gelmeme durumunda) kullanılır.", visibleIf: (sector) => isAppointmentSector(sector) },
+  { category: "Randevu & Program", q: "Müşteri randevusunu portaldan iptal ederken bir süre sınırı var mı?", a: "Bunu tamamen siz belirlersiniz — Ayarlar → Müsaitlik Saatleri'ndeki \"Randevu iptal / gelmeme politikası\"ndan hiç kısıtlama uygulamayabilir, belirli bir süreden az kala iptali tamamen kilitleyebilir ve/veya geç iptal + gelmeme sayısı bir eşiği geçince sonraki randevuda ödemeyi otomatik zorunlu hale getirebilirsiniz. Hiçbir şey ayarlamazsanız müşteri istediği an iptal edebilir.", visibleIf: (sector) => supportsSelfBooking(sector) },
+  { category: "Randevu & Program", q: "Müşteri ders kaydını portaldan iptal ederken bir süre sınırı var mı?", a: "Evet, varsayılan olarak ders saatine en az 2 saat kala portaldan iptal edilebilir; bunu Dersler sekmesindeki \"Geç iptal / seans yakma politikası\"ndan tamamen kendiniz özelleştirebilirsiniz (kilitleme süresi, geç iptal penceresi, kaçıncı geç iptalde seansın yanacağı).", visibleIf: (sector) => supportsGroupClasses(sector) },
   { category: "Randevu & Program", q: "Müşteri portaldan randevu alırken hizmet/fiyat seçebilir mi?", a: "Evet, Ayarlar → Ürün & Hizmet Fiyat Listesi'nde kayıtlı kalemleriniz varsa müşteri randevu formunda listeden seçebilir, açıklama ve tutar otomatik dolar; isterse yine elle de yazabilir.", visibleIf: (sector) => supportsSelfBooking(sector) },
   { category: "Randevu & Program", q: "Bir grup dersine kaç kişi kaydolabilir, bunu nasıl sınırlarım?", a: "Ders oluştururken girdiğiniz \"Kapasite\" değeri sınırı belirler; kapasite dolunca portalda ders \"dolu\" görünür ve yeni kayıt alınamaz. Kapasiteyi zaten kayıtlı kişi sayısının altına düşüremezsiniz.", visibleIf: (sector) => supportsGroupClasses(sector) },
   { category: "Randevu & Program", q: "Müşterinin bir derse kaydolabilmesi için aktif üyeliği/kaydı olması gerekir mi?", a: "Evet — sadece kazanılmış ve süresi (varsa) dolmamış bir kaydı olan müşteriler derse kaydolabilir; uygun olmayan müşteriler için portalda kısa bir uyarı metni gösterilir.", visibleIf: (sector) => supportsGroupClasses(sector) },
@@ -910,6 +916,7 @@ const REASON_ADVICE = {
   "Vazgeçti": "İlk temas sonrası takip hızınızı gözden geçirin — yanıt gecikmesi genelde ilginin soğumasına yol açar.",
   "Randevuya gelmedi": "Randevu hatırlatmalarınızın açık olduğundan emin olun, randevuya yakın ek bir hatırlatma da gelmeme oranını azaltabilir.",
   "İptal etti": "İptal nedenini not almayı sürdürün — tekrarlayan bir kalıp (örn. hep aynı gün/saat) varsa program/müsaitlik saatlerinizi gözden geçirebilirsiniz.",
+  "Geç iptal etti": "Bu müşteriler randevuya çok yakın iptal ediyor — Müsaitlik Saatleri'ndeki geç iptal/gelmeme cezası ayarını kullanarak tekrarlayanlarda sonraki randevuda ödeme zorunlu tutabilirsiniz.",
 };
 
 const ANSWER_LIBRARY = [
@@ -1837,7 +1844,7 @@ const ANSWER_LIBRARY = [
     visibleIf: (sector) => isAppointmentSector(sector),
     compute: (ctx) => {
       const closed = ctx.deals.filter((d) => d.stage === "kazanildi" || d.stage === "kaybedildi");
-      const cancelled = closed.filter((d) => d.stage === "kaybedildi" && d.lostReason === "İptal etti");
+      const cancelled = closed.filter((d) => d.stage === "kaybedildi" && (d.lostReason === "İptal etti" || d.lostReason === "Geç iptal etti"));
       if (closed.length === 0) return "Henüz sonuçlanmış bir randevunuz yok.";
       return `Tüm zamanlar iptal oranınız %${Math.round((cancelled.length / closed.length) * 100)} (${cancelled.length}/${closed.length}).`;
     },
@@ -6213,6 +6220,8 @@ function rowToCompanySettings(r) {
     hardBlockHours: r.hard_block_hours ?? null,
     lateCancelStrikeLimit: r.late_cancel_strike_limit ?? null,
     appointmentCancelHours: r.appointment_cancel_hours ?? null,
+    appointmentPenaltyHours: r.appointment_penalty_hours ?? null,
+    appointmentPenaltyStrikeLimit: r.appointment_penalty_strike_limit ?? null,
   };
 }
 
@@ -6715,7 +6724,7 @@ function RowActionsMenu({ items }) {
   );
 }
 
-function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], payments = [], appointmentDateTimeKey = null, roomInventory = [], customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, businessUserId, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onSave, onCancel }) {
+function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], payments = [], appointmentDateTimeKey = null, roomInventory = [], customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, businessUserId, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], appointmentPenaltyStrikeLimit = null, onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(
     initial?.customerId || customers.find((c) => c.customerType === preferredCustomerType)?.id || customers[0]?.id || ""
   );
@@ -6724,7 +6733,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   // Sadece YENİ teklifte gösterilir — var olan bir teklifi düzenlerken (initial
   // dolu) müşteri zaten seçilmiş, bu uyarı o an bir işe yaramaz, sadece gürültü olur.
   const creditRisk = !initial && selectedCustomer ? computeCustomerCreditRisk(selectedCustomer, deals, payments) : null;
-  const noShowRisk = !initial && selectedCustomer && isAppointmentSector(sector) ? computeNoShowRisk(selectedCustomer, deals) : null;
+  const noShowRisk = !initial && selectedCustomer && isAppointmentSector(sector) ? computeNoShowRisk(selectedCustomer, deals, appointmentPenaltyStrikeLimit) : null;
   const [title, setTitle] = useState(initial?.title || "");
   const [value, setValue] = useState(initial?.value ?? "");
   const [selectedPriceItemId, setSelectedPriceItemId] = useState("");
@@ -6745,7 +6754,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   // Yeni tekliflerde son seçilen ödeme tercihi hatırlanır (localStorage) —
   // kaydetmeden formu kapatıp tekrar açsa bile "Sadece onaylasın"a sıfırlanmasın.
   // Var olan bir teklifi düzenlerken bu, kaydedilmiş değeri EZMEZ.
-  const [paymentMode, setPaymentMode] = useState(initial?.paymentMode || localStorage.getItem(PAYMENT_MODE_LAST_CHOICE_KEY) || "none");
+  const [paymentMode, setPaymentMode] = useState(initial?.paymentMode || (noShowRisk ? "required" : null) || localStorage.getItem(PAYMENT_MODE_LAST_CHOICE_KEY) || "none");
   const [kdvRate, setKdvRate] = useState(initial?.kdvRate ?? defaultKdvRate ?? 20);
   const [stage, setStage] = useState(initial?.stage || "ilk_gorusme");
   const [dealDate, setDealDate] = useState((initial?.createdAt || new Date().toISOString()).slice(0, 10));
@@ -6939,10 +6948,12 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           <i className="ti ti-calendar-off" style={{ fontSize: 16, color: "var(--text-warning)", flexShrink: 0, marginTop: 1 }} aria-hidden="true"></i>
           <div style={{ flex: 1 }}>
             <p style={{ margin: 0, fontWeight: 500, color: "var(--text-warning)" }}>
-              {selectedCustomer?.name} daha önce {noShowRisk.noShowCount} kez randevusuna gelmedi
+              {selectedCustomer?.name} daha önce{noShowRisk.noShowCount > 0 ? ` ${noShowRisk.noShowCount} kez randevusuna gelmedi` : ""}{noShowRisk.noShowCount > 0 && noShowRisk.lateCancelCount > 0 ? "," : ""}{noShowRisk.lateCancelCount > 0 ? ` ${noShowRisk.lateCancelCount} kez geç iptal etti` : ""}
             </p>
             <p style={{ margin: "2px 0 0", color: "var(--text-secondary)" }}>
-              Kapora/ödeme zorunlu tutmayı düşünebilirsiniz — Tutar alanına kapora miktarını girip aşağıdan "Ödeme zorunlu" seçin.
+              {paymentMode === "required"
+                ? "Müsaitlik Saatleri'ndeki politikanız gereği ödeme otomatik olarak zorunlu yapıldı — Tutar alanına kapora/tutar girin, isterseniz aşağıdan bu tercihi değiştirebilirsiniz."
+                : "Politikanız bu müşteri için ödeme zorunlu tutmayı öneriyor — Tutar alanına kapora miktarını girip aşağıdan \"Ödeme zorunlu\" seçebilirsiniz."}
             </p>
           </div>
           {paymentMode !== "required" && (
@@ -8692,47 +8703,103 @@ function LateCancelPolicyBox({ companySettings, onSave }) {
 }
 
 // Tekli randevu sektörlerinde (Güzellik & Bakım, Sağlık/Klinik, Emlak vb. —
-// bookingModel(sector)==="slot" olan her yerde) portaldan iptal her zaman sabit
-// 2 saatlik kuralla çalışıyordu (bkz. CustomerPortal.jsx canCancelAppointmentDeal).
-// KENDİ AYRI kolonu (appointment_cancel_hours) var — ilk sürümde grup dersi
-// politikasıyla (hard_block_hours) aynı kolon paylaştırılmıştı, "iki özellik
-// hiç kesişmeyen sektörlerde kullanılıyor" varsayımıyla; ama bir işletme sektör
-// DEĞİŞTİREBİLİR (company_settings tek satır), bu yüzden eski sektörde girilen
-// değer yeni sektörde sessizce yeniden yorumlanıyordu. Artık tamamen ayrı.
-function AppointmentCancelLockBox({ companySettings, onSave }) {
-  const [on, setOn] = useState(companySettings?.appointmentCancelHours != null);
-  const [hours, setHours] = useState(companySettings?.appointmentCancelHours ?? 2);
-  const [dirty, setDirty] = useState(false);
+// bookingModel(sector)==="slot" olan her yerde) portaldan iptal/gelmeme
+// politikası TAMAMEN kobiye bırakılıyor — üç bağımsız, opsiyonel katman:
+// 1) Tamamen kilitle: bu süreden az kala portaldan iptal edilemez.
+// 2) Geç sayılma penceresi: (1)'den fazla ama bu süreden az kala yapılan
+//    iptaller ENGELLENMEZ ama "Geç iptal etti" olarak işaretlenir.
+// 3) Kaçıncı ihlalde: geç iptal + gelmeme (Randevuya gelmedi) sayısı bu
+//    eşiğe ulaşınca o müşterinin SONRAKİ randevusunda ödeme otomatik
+//    zorunlu hale gelir (bkz. computeNoShowRisk, DealForm).
+// Üçü de boşsa HİÇBİR kısıtlama/ceza yok — eski "kapalıyken sabit 2 saat
+// kilitli" davranışı BİLEREK kaldırıldı, kobi "iptal etse de sorun değil"
+// diyorsa bunu tam olarak uygulayabilsin diye (2026-07-26).
+function AppointmentCancelPolicyBox({ companySettings, onSave }) {
+  const configured = companySettings?.appointmentCancelHours != null || companySettings?.appointmentPenaltyHours != null || companySettings?.appointmentPenaltyStrikeLimit != null;
+  const [open, setOpen] = useState(false);
+  const [hardBlockOn, setHardBlockOn] = useState(companySettings?.appointmentCancelHours != null);
+  const [hardBlockHours, setHardBlockHours] = useState(companySettings?.appointmentCancelHours ?? "");
+  const [penaltyOn, setPenaltyOn] = useState(companySettings?.appointmentPenaltyHours != null);
+  const [penaltyHours, setPenaltyHours] = useState(companySettings?.appointmentPenaltyHours ?? "");
+  const [strikeOn, setStrikeOn] = useState(companySettings?.appointmentPenaltyStrikeLimit != null);
+  const [strikeLimit, setStrikeLimit] = useState(companySettings?.appointmentPenaltyStrikeLimit ?? "");
+
+  const handleOpen = () => {
+    setHardBlockOn(companySettings?.appointmentCancelHours != null);
+    setHardBlockHours(companySettings?.appointmentCancelHours ?? "");
+    setPenaltyOn(companySettings?.appointmentPenaltyHours != null);
+    setPenaltyHours(companySettings?.appointmentPenaltyHours ?? "");
+    setStrikeOn(companySettings?.appointmentPenaltyStrikeLimit != null);
+    setStrikeLimit(companySettings?.appointmentPenaltyStrikeLimit ?? "");
+    setOpen(true);
+  };
 
   const handleSave = () => {
-    onSave({ appointmentCancelHours: on ? (Number(hours) || 2) : null });
-    setDirty(false);
+    onSave({
+      appointmentCancelHours: hardBlockOn && hardBlockHours !== "" ? Number(hardBlockHours) : null,
+      appointmentPenaltyHours: penaltyOn && penaltyHours !== "" ? Number(penaltyHours) : null,
+      appointmentPenaltyStrikeLimit: strikeOn && strikeLimit !== "" ? Number(strikeLimit) : null,
+    });
+    setOpen(false);
   };
 
   return (
     <div style={{ marginBottom: 16, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 12 }}>
-      <label style={{ fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-        <input type="checkbox" checked={on} onChange={(e) => { setOn(e.target.checked); setDirty(true); }} />
-        Randevu iptal kilidini özelleştir
-        <InfoTip
-          placement="bottom"
-          align="left"
-          text={"Kapalıyken müşteri randevu saatine 2 saatten az kala portaldan iptal edemez (sabit, değiştirilemez). Açarsanız bu süreyi kendiniz belirlersiniz — örn. 24 saat girerseniz müşteri randevudan bir gün öncesine kadar iptal edebilir, sonrasında iptal butonu devre dışı kalır."}
-        />
-      </label>
-      <div style={{ marginTop: 10, display: "flex", alignItems: "flex-end", gap: 10, flexWrap: "wrap" }}>
-        <div>
-          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Randevuya bu kadar saat kalana kadar iptal edilebilir</label>
-          <input type="number" min="0" step="0.5" disabled={!on} value={hours} onChange={(e) => { setHours(e.target.value); setDirty(true); }} style={{ width: 150 }} />
-        </div>
-        {dirty && (
-          <button type="button" onClick={handleSave} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <p style={{ fontSize: 13, fontWeight: 500, margin: 0, display: "flex", alignItems: "center", gap: 4 }}>
+          Randevu iptal / gelmeme politikası
+          <InfoTip
+            placement="bottom"
+            align="left"
+            text={
+              "Üçü de opsiyonel, hiç ayarlamazsanız hiçbir kısıtlama/ceza uygulanmaz — müşteri istediği an iptal edebilir, gelmeyen müşteriler için otomatik bir sonuç doğmaz.\n\n" +
+              "Nasıl işler: 'Tamamen kilitle' süresinden az kala müşteri portaldan HİÇ iptal edemez (buton devre dışı kalır). Bunun ile 'Geç sayılma penceresi' arasında iptal ederse iptale İZİN VERİLİR ama 'Geç iptal etti' olarak işaretlenir. Bu geç iptaller ile elle işaretlediğiniz 'Randevuya gelmedi' kayıtları AYNI sayaçta birleşir — 'Kaçıncı ihlalde' alanına ulaşınca o müşterinin BİR SONRAKİ randevusu için ödeme otomatik olarak zorunlu önerilir (siz yine de elle değiştirebilirsiniz, gerçek bir engel değildir)."
+            }
+          />
+        </p>
+        {!open && (
+          <button type="button" onClick={handleOpen} style={{ fontSize: 12, padding: "4px 10px" }}>
+            {configured ? "Düzenle" : "Ayarla"}
+          </button>
         )}
       </div>
-      {!dirty && (
+      {!open && (
         <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0 0" }}>
-          {on ? `Şu an: randevuya ${companySettings?.appointmentCancelHours ?? 2} saat kalana kadar iptal edilebilir.` : "Kullanılmıyor — sabit 2 saat kuralı geçerli."}
+          {configured
+            ? `Aktif: ${companySettings.appointmentCancelHours != null ? `randevuya ${companySettings.appointmentCancelHours} saat kalana kadar tamamen kilit` : "tamamen kilitleme yok"}${companySettings.appointmentPenaltyHours != null ? `, ${companySettings.appointmentPenaltyHours} saatten az kala iptal 'geç iptal' sayılır` : ""}${companySettings.appointmentPenaltyStrikeLimit ? `, ${companySettings.appointmentPenaltyStrikeLimit}. ihlalde sonraki randevuda ödeme önerilir` : ""}.`
+            : "Kullanılmıyor — müşteri randevusunu istediği an iptal edebilir, geç iptal/gelmeme için otomatik bir sonuç yok."}
         </p>
+      )}
+      {open && (
+        <>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 10 }}>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                <input type="checkbox" checked={hardBlockOn} onChange={(e) => setHardBlockOn(e.target.checked)} />
+                Tamamen kilitle (saat)
+              </label>
+              <input type="number" min="0" step="0.5" disabled={!hardBlockOn} value={hardBlockHours} onChange={(e) => setHardBlockHours(e.target.value)} placeholder="Örn. 2" style={{ width: 150 }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                <input type="checkbox" checked={penaltyOn} onChange={(e) => setPenaltyOn(e.target.checked)} />
+                Geç sayılma penceresi (saat)
+              </label>
+              <input type="number" min="0" step="0.5" disabled={!penaltyOn} value={penaltyHours} onChange={(e) => setPenaltyHours(e.target.value)} placeholder="Örn. 6" style={{ width: 150 }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                <input type="checkbox" checked={strikeOn} onChange={(e) => setStrikeOn(e.target.checked)} />
+                Kaçıncı ihlalde ödeme zorunlu olsun
+              </label>
+              <input type="number" min="1" step="1" disabled={!strikeOn} value={strikeLimit} onChange={(e) => setStrikeLimit(e.target.value)} placeholder="Örn. 2" style={{ width: 150 }} />
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}>
+            <button type="button" onClick={() => setOpen(false)}>Vazgeç</button>
+            <button type="button" onClick={handleSave} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
+          </div>
+        </>
       )}
     </div>
   );
@@ -12437,6 +12504,8 @@ export default function App() {
       hard_block_hours: s.hardBlockHours || null,
       late_cancel_strike_limit: s.lateCancelStrikeLimit || null,
       appointment_cancel_hours: s.appointmentCancelHours || null,
+      appointment_penalty_hours: s.appointmentPenaltyHours || null,
+      appointment_penalty_strike_limit: s.appointmentPenaltyStrikeLimit || null,
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase.from("company_settings").upsert(row).select().single();
@@ -14602,7 +14671,7 @@ export default function App() {
 
       {showBusinessHours && (
         <Modal title="Müsaitlik Saatleri" wide onClose={() => setShowBusinessHours(false)}>
-          <AppointmentCancelLockBox companySettings={companySettings} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
+          <AppointmentCancelPolicyBox companySettings={companySettings} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
           <BusinessHoursManager items={businessHours} onAdd={addBusinessHours} onDelete={deleteBusinessHours} />
         </Modal>
       )}
@@ -14802,6 +14871,7 @@ export default function App() {
             hasPaymentConnection={paymentCredentials.length > 0}
             totalPaid={editingDeal ? totalPaidForDeal(editingDeal.id) : 0}
             attachments={attachments}
+            appointmentPenaltyStrikeLimit={companySettings?.appointmentPenaltyStrikeLimit}
             onUploadAttachment={uploadAttachment}
             onDownloadAttachment={downloadAttachment}
             onDeleteAttachment={deleteAttachment}

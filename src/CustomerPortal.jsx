@@ -121,12 +121,17 @@ function formatDateTime(dateStr) {
     " · " + d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 }
 
-// hardBlockHours opsiyonel: işletme İşletme Bilgileri'nde özelleştirmediyse
-// (Ayarlar → Müsaitlik Saatleri, "Randevu iptal kilidini özelleştir" kapalıysa)
-// null gelir, eski sabit 2 saatlik davranış aynen çalışmaya devam eder.
-function canCancelAppointmentDeal(randevuTarihi, hardBlockHours) {
-  const hours = hardBlockHours ?? 2;
-  return new Date(`${randevuTarihi}+03:00`).getTime() - Date.now() > hours * 60 * 60 * 1000;
+// Randevu iptal/gelmeme politikası tamamen kobiye bırakılmıştır (Ayarlar →
+// Müsaitlik Saatleri → "Randevu iptal / gelmeme politikası"). hardBlockHours
+// boşsa (kobi hiç ayarlamadıysa) HİÇBİR kısıtlama uygulanmaz — eski sabit 2
+// saatlik varsayılan BİLEREK kaldırıldı: kobi "iptal etse de sorun değil"
+// diyorsa bu tercih birebir uygulanır. penaltyHours boşsa hiçbir iptal "geç"
+// sayılmaz (ceza sayacına eklenmez).
+function appointmentCancelDecision(randevuTarihi, hardBlockHours, penaltyHours) {
+  const hoursLeft = (new Date(`${randevuTarihi}+03:00`).getTime() - Date.now()) / (60 * 60 * 1000);
+  const canCancel = hardBlockHours == null || hoursLeft >= hardBlockHours;
+  const isLate = canCancel && penaltyHours != null && hoursLeft < penaltyHours;
+  return { canCancel, isLate };
 }
 
 function CustomerPortalLanding({ onEnter }) {
@@ -445,7 +450,7 @@ function PortalMessagesPanel({ messages, onSend, sending }) {
   );
 }
 
-function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, hardBlockHoursByCustomerId = {}, sector, showCompany, dealKind, onCancelAppointment }) {
+function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, hardBlockHoursByCustomerId = {}, appointmentPenaltyHoursByCustomerId = {}, sector, showCompany, dealKind, onCancelAppointment }) {
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
@@ -515,7 +520,10 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
         const randevuTarihi = d.customFields?.portal_randevu_zamani;
         const cancellable = d.stage === "ilk_gorusme" && randevuTarihi;
         const hardBlockHours = hardBlockHoursByCustomerId[d.customerId];
-        const canCancel = cancellable && canCancelAppointmentDeal(randevuTarihi, hardBlockHours);
+        const penaltyHours = appointmentPenaltyHoursByCustomerId[d.customerId];
+        const { canCancel, isLate } = cancellable
+          ? appointmentCancelDecision(randevuTarihi, hardBlockHours, penaltyHours)
+          : { canCancel: false, isLate: false };
         // Onay ve ödeme birbirinden bağımsız — /onay/{token} sayfası zaten
         // hangi moda göre ne göstereceğini kendi kararlaştırıyor, burada
         // sadece o sayfaya giden tek bir uyarlanmış link/rozet sunuluyor.
@@ -575,9 +583,9 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
                 <span style={{ fontSize: 13, fontWeight: 600, minWidth: 90, textAlign: "right" }}>{formatTL(d.value)}</span>
               )}
               {cancellable && (canCancel ? (
-                <button type="button" onClick={() => onCancelAppointment(d.id)} style={{ fontSize: 13 }}>İptal Et</button>
+                <button type="button" onClick={() => onCancelAppointment(d.id, isLate)} style={{ fontSize: 13 }}>İptal Et</button>
               ) : (
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }} title={`Planlanan saate ${hardBlockHours ?? 2} saatten az kaldığı için iptal edilemez`}>İptal edilemez</span>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }} title={`Planlanan saate ${hardBlockHours} saatten az kaldığı için iptal edilemez`}>İptal edilemez</span>
               ))}
             </div>
           </div>
@@ -1283,6 +1291,7 @@ export default function CustomerPortal() {
           companyHardBlockHours: r.company_hard_block_hours ?? null,
           companyLateCancelStrikeLimit: r.company_late_cancel_strike_limit ?? null,
           companyAppointmentCancelHours: r.company_appointment_cancel_hours ?? null,
+          companyAppointmentPenaltyHours: r.company_appointment_penalty_hours ?? null,
         }));
         setCustomerRows(rows);
         const customerIds = rows.map((r) => r.id);
@@ -1489,13 +1498,16 @@ export default function CustomerPortal() {
     return true;
   };
 
-  const cancelAppointment = async (dealId) => {
-    // Müşterinin kendi iptali her zaman "İptal etti" — asla "Randevuya gelmedi"
-    // sayılmaz, bu iki farklı iş anlamı taşıyor (KOBİ tarafında da aynı ayrım
-    // App.jsx'teki dealLostReasons ile yapılıyor).
-    const { error } = await supabase.from("deals").update({ stage: "kaybedildi", lost_reason: "İptal etti" }).eq("id", dealId);
+  const cancelAppointment = async (dealId, isLate = false) => {
+    // Müşterinin kendi iptali asla "Randevuya gelmedi" sayılmaz — bu iki farklı
+    // iş anlamı taşıyor. "Geç iptal etti" (isLate), kobinin Müsaitlik
+    // Saatleri'nde ayarladığı "geç sayılma penceresi" içinde yapılan iptaller
+    // için — App.jsx'teki computeNoShowRisk bunu "Randevuya gelmedi" ile
+    // AYNI sayaçta birleştirip kaçıncı ihlalde ödeme zorunlu olacağını hesaplar.
+    const lostReason = isLate ? "Geç iptal etti" : "İptal etti";
+    const { error } = await supabase.from("deals").update({ stage: "kaybedildi", lost_reason: lostReason }).eq("id", dealId);
     if (error) { notify(`İptal edilemedi: ${error.message}`); return; }
-    setDeals((prev) => prev.map((d) => (d.id === dealId ? { ...d, stage: "kaybedildi", lostReason: "İptal etti" } : d)));
+    setDeals((prev) => prev.map((d) => (d.id === dealId ? { ...d, stage: "kaybedildi", lostReason } : d)));
     notify("Randevunuz iptal edildi.", "success");
   };
 
@@ -1653,6 +1665,7 @@ export default function CustomerPortal() {
   const companyNameByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companyName || c.name]));
   const sectorByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companySector]));
   const hardBlockHoursByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companyAppointmentCancelHours]));
+  const appointmentPenaltyHoursByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companyAppointmentPenaltyHours]));
   const totalUnreadTickets = visibleTickets.filter((t) => unreadCountByTicket[t.id] > 0).length;
 
   const dealKind = dealWordKind(activeCustomerRow?.companySector);
@@ -1831,7 +1844,7 @@ export default function CustomerPortal() {
                   ))}
                 </div>
               )}
-              <PortalDealList deals={visibleDeals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} hardBlockHoursByCustomerId={hardBlockHoursByCustomerId} sector={activeCustomerRow?.companySector} showCompany={false} dealKind={dealKind} onCancelAppointment={(id) => setConfirmCancel({ type: "appointment", id })} />
+              <PortalDealList deals={visibleDeals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} hardBlockHoursByCustomerId={hardBlockHoursByCustomerId} appointmentPenaltyHoursByCustomerId={appointmentPenaltyHoursByCustomerId} sector={activeCustomerRow?.companySector} showCompany={false} dealKind={dealKind} onCancelAppointment={(id, isLate) => setConfirmCancel({ type: "appointment", id, isLate })} />
             </div>
           )}
 
@@ -1901,7 +1914,9 @@ export default function CustomerPortal() {
           title="İptal edilsin mi?"
           message={
             confirmCancel.type === "appointment"
-              ? "Randevunuzu iptal etmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
+              ? (confirmCancel.isLate
+                  ? "Randevunuzu iptal etmek istediğinizden emin misiniz? Randevu saatine az kaldığı için bu iptal 'geç iptal' olarak işaretlenecek. Bu işlem geri alınamaz."
+                  : "Randevunuzu iptal etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.")
               : confirmCancel.burn?.newSessionUsed != null
               ? "Bu derse kaydınızı iptal etmek istediğinizden emin misiniz? Bu süreden az kala iptal ettiğiniz için 1 seansınız düşülecek. Bu işlem geri alınamaz."
               : confirmCancel.burn
@@ -1911,7 +1926,7 @@ export default function CustomerPortal() {
           confirmLabel="İptal Et"
           onClose={() => setConfirmCancel(null)}
           onConfirm={async () => {
-            if (confirmCancel.type === "appointment") await cancelAppointment(confirmCancel.id);
+            if (confirmCancel.type === "appointment") await cancelAppointment(confirmCancel.id, confirmCancel.isLate);
             else await cancelEnrollment(confirmCancel.id, confirmCancel.burn);
             setConfirmCancel(null);
           }}
