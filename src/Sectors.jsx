@@ -894,7 +894,7 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
             <option value="bireysel">Sadece Bireysel</option>
           </select>
         </div>
-        <button type="submit" style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", fontSize: 13 }}>
+        <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
           {editingDef ? "Güncelle" : "+ Alan ekle"}
         </button>
         {editingDef && (

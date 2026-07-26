@@ -6380,6 +6380,42 @@ const COMPANY_NAME_EXAMPLES = {
   otel: "Akın Otel",
 };
 
+// Sektör seçimi öncesi anında (onChange'de) uygulanıyordu — yanlışlıkla farklı
+// bir seçeneğe tıklanırsa aşama isimleri/özel alanlar hemen değişiyordu. Artık
+// seçim sadece dropdown'ı günceller, gerçek uygulama "Kaydet"e basınca olur —
+// modal kapatılıp seçim kaydedilmeden bırakılırsa (component unmount olunca)
+// bir sonraki açılışta gerçek kayıtlı sektöre sıfırlanır.
+function SectorPicker({ companySettings, onSave, onFetchFields }) {
+  const currentSector = companySettings?.sector || "";
+  const [pendingSector, setPendingSector] = useState(currentSector);
+  const dirty = pendingSector !== currentSector;
+
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Sektör</label>
+      <select value={pendingSector} onChange={(e) => setPendingSector(e.target.value)} style={{ width: "100%" }}>
+        <option value="">Seçilmedi</option>
+        {SECTOR_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+      </select>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Seçtikten sonra "Kaydet"e basınca aşama isimlerini, önerilen etiketleri ve özel alanları günceller.</p>
+      {currentSector && (
+        <button type="button" onClick={onFetchFields} style={{ fontSize: 12, marginTop: 8 }}>
+          Sektöre özel yeni alanları getir
+        </button>
+      )}
+      {dirty && pendingSector && (
+        <button
+          type="button"
+          onClick={() => onSave(pendingSector)}
+          style={{ fontSize: 13, marginTop: 8, display: "block", background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+        >
+          Kaydet
+        </button>
+      )}
+    </div>
+  );
+}
+
 function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, activeTeamId, notify }) {
   const hasDatetimeField = customFieldDefs.some((d) => d.entity === "deal" && d.type === "datetime" && d.active);
   const [companyName, setCompanyName] = useState(initial?.companyName || "");
@@ -14459,27 +14495,11 @@ export default function App() {
 
       {showSectorFields && (
         <Modal title="Sektör & Özel Alanlar" onClose={() => setShowSectorFields(false)}>
-          <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Sektör</label>
-            <select
-              value={companySettings?.sector || ""}
-              onChange={(e) => e.target.value && applySectorPreset(e.target.value)}
-              style={{ width: "100%" }}
-            >
-              <option value="">Seçilmedi</option>
-              {SECTOR_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-            </select>
-            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Seçtiğinizde aşama isimlerini, önerilen etiketleri ve özel alanları hemen günceller.</p>
-            {companySettings?.sector && (
-              <button
-                type="button"
-                onClick={async () => { await applySectorCustomFields(companySettings.sector); notify("Sektöre özel yeni alanlar getirildi.", "success"); }}
-                style={{ fontSize: 12, marginTop: 8 }}
-              >
-                Sektöre özel yeni alanları getir
-              </button>
-            )}
-          </div>
+          <SectorPicker
+            companySettings={companySettings}
+            onSave={(sectorId) => applySectorPreset(sectorId)}
+            onFetchFields={async () => { await applySectorCustomFields(companySettings.sector); notify("Sektöre özel yeni alanlar getirildi.", "success"); }}
+          />
           <CustomFieldDefsManager customFieldDefs={customFieldDefs} onAdd={addCustomFieldDef} onUpdate={updateCustomFieldDef} onDelete={deleteCustomFieldDef} sector={companySettings?.sector} />
         </Modal>
       )}
