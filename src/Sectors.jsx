@@ -437,6 +437,28 @@ export function supportsSessionPackages(sector) {
   return sector === "spor_merkezi" || sector === "egitim_kurs" || sector === "guzellik_bakim" || sector === "saglik_klinik";
 }
 
+// Tekli randevu sektörlerinde (Güzellik & Bakım, Sağlık/Klinik) bir müşteri
+// geç iptal/gelmeme ihlali yaptığında, eğer zaten bir paket satın almışsa
+// ("session_total"lı bir deal, henüz tükenmemiş) — kobi appointment_penalty_
+// burns_session'ı açtıysa — sonraki randevuda ödeme istemek yerine paketten
+// bir seans düşülür (zaten önceden ödediği bir şeyi tekrar ödemesi istenmez).
+// App.jsx (staff: moveDealStage/upsertDeal) ve CustomerPortal.jsx (müşteri:
+// cancelAppointment) AYNI fonksiyonu kullanıyor — ihlal AN'INDA (gecikmesiz)
+// karar veriliyor, grup dersindeki seans yakma zamanlamasıyla aynı ilke.
+// deals: müşterinin TÜM geçmiş deal'leri (BU ihlal deal'i dahil DEĞİL, henüz
+// kaydedilmemiş haliyle çağrılmalı — nextViolationCount buna göre +1 sayar).
+export function computeAppointmentPenaltyBurn({ customerId, deals, burnsSessionEnabled, strikeLimit }) {
+  if (!burnsSessionEnabled || !strikeLimit) return null;
+  const activePackage = deals
+    .filter((d) => d.customerId === customerId && d.stage === "kazanildi" && d.sessionTotal > 0 && (d.sessionUsed || 0) < d.sessionTotal)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+  if (!activePackage) return null;
+  const pastViolations = deals.filter((d) => d.customerId === customerId && d.stage === "kaybedildi" && (d.lostReason === "Randevuya gelmedi" || d.lostReason === "Geç iptal etti")).length;
+  const nextViolationCount = pastViolations + 1;
+  if (nextViolationCount < strikeLimit) return null;
+  return { packageDealId: activePackage.id, newSessionUsed: (activePackage.sessionUsed || 0) + 1 };
+}
+
 // Bir teklifin o anki aşaması için sektöre özel, salt bilgilendirici bir
 // "yapılacaklar" rehberi — kayıt/işaretleme tutmuyor, sadece Teklif formunda
 // gösterilecek kısa bir metin. Preset'i (veya o aşama için tanımlı rehberi)

@@ -36,6 +36,7 @@ import {
   TagBadges,
   matchEmlakListing,
   buildEmlakListingTexts,
+  computeAppointmentPenaltyBurn,
 } from "./Sectors";
 
 // Beklenen Gelir tahmini için basit, sabit olasılık ağırlıkları — kullanıcı
@@ -6222,6 +6223,7 @@ function rowToCompanySettings(r) {
     appointmentCancelHours: r.appointment_cancel_hours ?? null,
     appointmentPenaltyHours: r.appointment_penalty_hours ?? null,
     appointmentPenaltyStrikeLimit: r.appointment_penalty_strike_limit ?? null,
+    appointmentPenaltyBurnsSession: r.appointment_penalty_burns_session === true,
   };
 }
 
@@ -6724,7 +6726,7 @@ function RowActionsMenu({ items }) {
   );
 }
 
-function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], payments = [], appointmentDateTimeKey = null, roomInventory = [], customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, businessUserId, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], appointmentPenaltyStrikeLimit = null, onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onSave, onCancel }) {
+function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], payments = [], appointmentDateTimeKey = null, roomInventory = [], customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, businessUserId, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], appointmentPenaltyStrikeLimit = null, appointmentPenaltyBurnsSession = false, onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(
     initial?.customerId || customers.find((c) => c.customerType === preferredCustomerType)?.id || customers[0]?.id || ""
   );
@@ -6734,6 +6736,12 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   // dolu) müşteri zaten seçilmiş, bu uyarı o an bir işe yaramaz, sadece gürültü olur.
   const creditRisk = !initial && selectedCustomer ? computeCustomerCreditRisk(selectedCustomer, deals, payments) : null;
   const noShowRisk = !initial && selectedCustomer && isAppointmentSector(sector) ? computeNoShowRisk(selectedCustomer, deals, appointmentPenaltyStrikeLimit) : null;
+  // Müşterinin zaten aktif (tükenmemiş) bir paketi varsa VE kobi "paket
+  // sahiplerinde seans yaksın"ı açtıysa, ihlal cezası ödeme zorunluluğu
+  // DEĞİL seans yakma olarak uygulanıyor (bkz. computeAppointmentPenaltyBurn,
+  // ihlal anında otomatik) — bu durumda burada ayrıca ödeme istemeye gerek yok.
+  const hasActivePackage = !!selectedCustomer && deals.some((d) => d.customerId === selectedCustomer.id && d.stage === "kazanildi" && d.sessionTotal > 0 && (d.sessionUsed || 0) < d.sessionTotal);
+  const noShowPenaltyBurnsInstead = !!noShowRisk && appointmentPenaltyBurnsSession && hasActivePackage;
   const [title, setTitle] = useState(initial?.title || "");
   const [value, setValue] = useState(initial?.value ?? "");
   const [selectedPriceItemId, setSelectedPriceItemId] = useState("");
@@ -6754,7 +6762,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   // Yeni tekliflerde son seçilen ödeme tercihi hatırlanır (localStorage) —
   // kaydetmeden formu kapatıp tekrar açsa bile "Sadece onaylasın"a sıfırlanmasın.
   // Var olan bir teklifi düzenlerken bu, kaydedilmiş değeri EZMEZ.
-  const [paymentMode, setPaymentMode] = useState(initial?.paymentMode || (noShowRisk ? "required" : null) || localStorage.getItem(PAYMENT_MODE_LAST_CHOICE_KEY) || "none");
+  const [paymentMode, setPaymentMode] = useState(initial?.paymentMode || (noShowRisk && !noShowPenaltyBurnsInstead ? "required" : null) || localStorage.getItem(PAYMENT_MODE_LAST_CHOICE_KEY) || "none");
   const [kdvRate, setKdvRate] = useState(initial?.kdvRate ?? defaultKdvRate ?? 20);
   const [stage, setStage] = useState(initial?.stage || "ilk_gorusme");
   const [dealDate, setDealDate] = useState((initial?.createdAt || new Date().toISOString()).slice(0, 10));
@@ -6951,12 +6959,14 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
               {selectedCustomer?.name} daha önce{noShowRisk.noShowCount > 0 ? ` ${noShowRisk.noShowCount} kez randevusuna gelmedi` : ""}{noShowRisk.noShowCount > 0 && noShowRisk.lateCancelCount > 0 ? "," : ""}{noShowRisk.lateCancelCount > 0 ? ` ${noShowRisk.lateCancelCount} kez geç iptal etti` : ""}
             </p>
             <p style={{ margin: "2px 0 0", color: "var(--text-secondary)" }}>
-              {paymentMode === "required"
+              {noShowPenaltyBurnsInstead
+                ? "Bu müşterinin aktif bir paketi var — politikanız gereği ödeme istemek yerine ihlallerinde paketten otomatik seans düşülüyor, ayrıca bir işlem yapmanız gerekmiyor."
+                : paymentMode === "required"
                 ? "Müsaitlik Saatleri'ndeki politikanız gereği ödeme otomatik olarak zorunlu yapıldı — Tutar alanına kapora/tutar girin, isterseniz aşağıdan bu tercihi değiştirebilirsiniz."
                 : "Politikanız bu müşteri için ödeme zorunlu tutmayı öneriyor — Tutar alanına kapora miktarını girip aşağıdan \"Ödeme zorunlu\" seçebilirsiniz."}
             </p>
           </div>
-          {paymentMode !== "required" && (
+          {!noShowPenaltyBurnsInstead && paymentMode !== "required" && (
             <button type="button" onClick={() => setPaymentMode("required")} style={{ fontSize: 12, flexShrink: 0, whiteSpace: "nowrap" }}>
               Ödemeyi zorunlu yap
             </button>
@@ -8704,14 +8714,18 @@ function LateCancelPolicyBox({ companySettings, onSave }) {
 
 // Tekli randevu sektörlerinde (Güzellik & Bakım, Sağlık/Klinik, Emlak vb. —
 // bookingModel(sector)==="slot" olan her yerde) portaldan iptal/gelmeme
-// politikası TAMAMEN kobiye bırakılıyor — üç bağımsız, opsiyonel katman:
+// politikası TAMAMEN kobiye bırakılıyor — dört bağımsız, opsiyonel katman:
 // 1) Tamamen kilitle: bu süreden az kala portaldan iptal edilemez.
 // 2) Geç sayılma penceresi: (1)'den fazla ama bu süreden az kala yapılan
 //    iptaller ENGELLENMEZ ama "Geç iptal etti" olarak işaretlenir.
 // 3) Kaçıncı ihlalde: geç iptal + gelmeme (Randevuya gelmedi) sayısı bu
 //    eşiğe ulaşınca o müşterinin SONRAKİ randevusunda ödeme otomatik
 //    zorunlu hale gelir (bkz. computeNoShowRisk, DealForm).
-// Üçü de boşsa HİÇBİR kısıtlama/ceza yok — eski "kapalıyken sabit 2 saat
+// 4) Paket sahiplerinde seans yaksın: müşterinin zaten aktif (tükenmemiş)
+//    bir paketi varsa, (3)'teki ödeme zorunluluğu YERİNE, ihlal ANINDA
+//    (gecikmesiz — bkz. computeAppointmentPenaltyBurn) paketten 1 seans
+//    düşülür. Zaten ödemiş birine tekrar ödeme istemek adaletsiz olurdu.
+// Dördü de boşsa HİÇBİR kısıtlama/ceza yok — eski "kapalıyken sabit 2 saat
 // kilitli" davranışı BİLEREK kaldırıldı, kobi "iptal etse de sorun değil"
 // diyorsa bunu tam olarak uygulayabilsin diye (2026-07-26).
 function AppointmentCancelPolicyBox({ companySettings, onSave }) {
@@ -8723,6 +8737,7 @@ function AppointmentCancelPolicyBox({ companySettings, onSave }) {
   const [penaltyHours, setPenaltyHours] = useState(companySettings?.appointmentPenaltyHours ?? "");
   const [strikeOn, setStrikeOn] = useState(companySettings?.appointmentPenaltyStrikeLimit != null);
   const [strikeLimit, setStrikeLimit] = useState(companySettings?.appointmentPenaltyStrikeLimit ?? "");
+  const [burnsSession, setBurnsSession] = useState(companySettings?.appointmentPenaltyBurnsSession === true);
 
   const handleOpen = () => {
     setHardBlockOn(companySettings?.appointmentCancelHours != null);
@@ -8731,6 +8746,7 @@ function AppointmentCancelPolicyBox({ companySettings, onSave }) {
     setPenaltyHours(companySettings?.appointmentPenaltyHours ?? "");
     setStrikeOn(companySettings?.appointmentPenaltyStrikeLimit != null);
     setStrikeLimit(companySettings?.appointmentPenaltyStrikeLimit ?? "");
+    setBurnsSession(companySettings?.appointmentPenaltyBurnsSession === true);
     setOpen(true);
   };
 
@@ -8739,6 +8755,7 @@ function AppointmentCancelPolicyBox({ companySettings, onSave }) {
       appointmentCancelHours: hardBlockOn && hardBlockHours !== "" ? Number(hardBlockHours) : null,
       appointmentPenaltyHours: penaltyOn && penaltyHours !== "" ? Number(penaltyHours) : null,
       appointmentPenaltyStrikeLimit: strikeOn && strikeLimit !== "" ? Number(strikeLimit) : null,
+      appointmentPenaltyBurnsSession: strikeOn && burnsSession,
     });
     setOpen(false);
   };
@@ -8752,8 +8769,8 @@ function AppointmentCancelPolicyBox({ companySettings, onSave }) {
             placement="bottom"
             align="left"
             text={
-              "Üçü de opsiyonel, hiç ayarlamazsanız hiçbir kısıtlama/ceza uygulanmaz — müşteri istediği an iptal edebilir, gelmeyen müşteriler için otomatik bir sonuç doğmaz.\n\n" +
-              "Nasıl işler: 'Tamamen kilitle' süresinden az kala müşteri portaldan HİÇ iptal edemez (buton devre dışı kalır). Bunun ile 'Geç sayılma penceresi' arasında iptal ederse iptale İZİN VERİLİR ama 'Geç iptal etti' olarak işaretlenir. Bu geç iptaller ile elle işaretlediğiniz 'Randevuya gelmedi' kayıtları AYNI sayaçta birleşir — 'Kaçıncı ihlalde' alanına ulaşınca o müşterinin BİR SONRAKİ randevusu için ödeme otomatik olarak zorunlu önerilir (siz yine de elle değiştirebilirsiniz, gerçek bir engel değildir)."
+              "Dördü de opsiyonel, hiç ayarlamazsanız hiçbir kısıtlama/ceza uygulanmaz — müşteri istediği an iptal edebilir, gelmeyen müşteriler için otomatik bir sonuç doğmaz.\n\n" +
+              "Nasıl işler: 'Tamamen kilitle' süresinden az kala müşteri portaldan HİÇ iptal edemez (buton devre dışı kalır). Bunun ile 'Geç sayılma penceresi' arasında iptal ederse iptale İZİN VERİLİR ama 'Geç iptal etti' olarak işaretlenir. Bu geç iptaller ile elle işaretlediğiniz 'Randevuya gelmedi' kayıtları AYNI sayaçta birleşir — 'Kaçıncı ihlalde' alanına ulaşınca o müşterinin BİR SONRAKİ randevusu için ödeme otomatik olarak zorunlu önerilir (siz yine de elle değiştirebilirsiniz, gerçek bir engel değildir). 'Paket sahiplerinde seans yaksın' açıksa, ihlal eden müşterinin zaten aktif bir paketi varsa ödeme istemek YERİNE o paketten ihlal anında 1 seans düşülür."
             }
           />
         </p>
@@ -8766,7 +8783,7 @@ function AppointmentCancelPolicyBox({ companySettings, onSave }) {
       {!open && (
         <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0 0" }}>
           {configured
-            ? `Aktif: ${companySettings.appointmentCancelHours != null ? `randevuya ${companySettings.appointmentCancelHours} saat kalana kadar tamamen kilit` : "tamamen kilitleme yok"}${companySettings.appointmentPenaltyHours != null ? `, ${companySettings.appointmentPenaltyHours} saatten az kala iptal 'geç iptal' sayılır` : ""}${companySettings.appointmentPenaltyStrikeLimit ? `, ${companySettings.appointmentPenaltyStrikeLimit}. ihlalde sonraki randevuda ödeme önerilir` : ""}.`
+            ? `Aktif: ${companySettings.appointmentCancelHours != null ? `randevuya ${companySettings.appointmentCancelHours} saat kalana kadar tamamen kilit` : "tamamen kilitleme yok"}${companySettings.appointmentPenaltyHours != null ? `, ${companySettings.appointmentPenaltyHours} saatten az kala iptal 'geç iptal' sayılır` : ""}${companySettings.appointmentPenaltyStrikeLimit ? `, ${companySettings.appointmentPenaltyStrikeLimit}. ihlalde ${companySettings.appointmentPenaltyBurnsSession ? "paket sahiplerinde seans yanar, diğerlerinde sonraki randevuda ödeme önerilir" : "sonraki randevuda ödeme önerilir"}` : ""}.`
             : "Kullanılmıyor — müşteri randevusunu istediği an iptal edebilir, geç iptal/gelmeme için otomatik bir sonuç yok."}
         </p>
       )}
@@ -8795,6 +8812,10 @@ function AppointmentCancelPolicyBox({ companySettings, onSave }) {
               <input type="number" min="1" step="1" disabled={!strikeOn} value={strikeLimit} onChange={(e) => setStrikeLimit(e.target.value)} placeholder="Örn. 2" style={{ width: 150 }} />
             </div>
           </div>
+          <label style={{ fontSize: 12, color: strikeOn ? "var(--text-secondary)" : "var(--text-muted)", display: "flex", alignItems: "center", gap: 6, marginTop: 10, cursor: strikeOn ? "pointer" : "default" }}>
+            <input type="checkbox" checked={burnsSession} disabled={!strikeOn} onChange={(e) => setBurnsSession(e.target.checked)} />
+            Paket sahibi müşterilerde ödeme yerine seans yaksın
+          </label>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}>
             <button type="button" onClick={() => setOpen(false)}>Vazgeç</button>
             <button type="button" onClick={handleSave} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
@@ -11702,6 +11723,9 @@ export default function App() {
     if (deal.stage === "kazanildi" && previousStage !== "kazanildi") {
       await applyServiceCompletionEffects(deal, lineItemsForDeal);
     }
+    if (deal.stage === "kaybedildi" && previousStage !== "kaybedildi" && (deal.lostReason === "Randevuya gelmedi" || deal.lostReason === "Geç iptal etti")) {
+      await applyAppointmentPenaltyBurn(deal.customerId, deals);
+    }
 
     setShowDealForm(false);
     setEditingDeal(null);
@@ -12117,6 +12141,31 @@ export default function App() {
     notify("Örnek veriler eklendi.", "success");
   };
 
+  // AppointmentCancelPolicyBox'ın "paket sahiplerinde seans yaksın" ayarı —
+  // bir randevu "Randevuya gelmedi"/"Geç iptal etti" ile kapanınca (hem
+  // moveDealStage hem upsertDeal'dan çağrılıyor — applyServiceCompletionEffects
+  // ile aynı çifte-hook deseni) müşterinin aktif paketi varsa oradan 1 seans
+  // düşer. dealsBeforeChange, BU kapanışı henüz yansıtmayan eski deals array'i
+  // olmalı — computeAppointmentPenaltyBurn geçmiş ihlal sayısını ondan sayıyor.
+  const applyAppointmentPenaltyBurn = async (customerId, dealsBeforeChange) => {
+    const burn = computeAppointmentPenaltyBurn({
+      customerId,
+      deals: dealsBeforeChange,
+      burnsSessionEnabled: companySettings?.appointmentPenaltyBurnsSession === true,
+      strikeLimit: companySettings?.appointmentPenaltyStrikeLimit,
+    });
+    if (!burn) return;
+    const packageDeal = dealsBeforeChange.find((d) => d.id === burn.packageDealId);
+    setDeals((prev) => prev.map((d) => (d.id === burn.packageDealId ? { ...d, sessionUsed: burn.newSessionUsed } : d)));
+    const { error } = await supabase.from("deals").update({ session_used: burn.newSessionUsed }).eq("id", burn.packageDealId);
+    if (error) {
+      notify(`Paket seansı güncellenemedi: ${error.message}`);
+      setDeals((prev) => prev.map((d) => (d.id === burn.packageDealId ? { ...d, sessionUsed: packageDeal?.sessionUsed ?? 0 } : d)));
+      return;
+    }
+    logAction("deals", burn.packageDealId, "updated", `Geç iptal/gelmeme cezası: ${burn.newSessionUsed}. seans otomatik düşüldü (${burn.newSessionUsed}/${packageDeal?.sessionTotal})`);
+  };
+
   const moveDealStage = async (id, stage, lostReason) => {
     const current = deals.find((d) => d.id === id);
     const previousStage = current?.stage;
@@ -12141,6 +12190,9 @@ export default function App() {
       if (current && stage !== previousStage) sendStageEmail(current, stage);
       if (current && stage === "kazanildi" && previousStage !== "kazanildi") {
         await applyServiceCompletionEffects({ ...current, stage }, dealLineItems.filter((li) => li.dealId === id));
+      }
+      if (current && stage === "kaybedildi" && previousStage !== "kaybedildi" && (nextLostReason === "Randevuya gelmedi" || nextLostReason === "Geç iptal etti")) {
+        await applyAppointmentPenaltyBurn(current.customerId, deals);
       }
     }
   };
@@ -12506,6 +12558,7 @@ export default function App() {
       appointment_cancel_hours: s.appointmentCancelHours || null,
       appointment_penalty_hours: s.appointmentPenaltyHours || null,
       appointment_penalty_strike_limit: s.appointmentPenaltyStrikeLimit || null,
+      appointment_penalty_burns_session: s.appointmentPenaltyBurnsSession === true,
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase.from("company_settings").upsert(row).select().single();
@@ -14872,6 +14925,7 @@ export default function App() {
             totalPaid={editingDeal ? totalPaidForDeal(editingDeal.id) : 0}
             attachments={attachments}
             appointmentPenaltyStrikeLimit={companySettings?.appointmentPenaltyStrikeLimit}
+            appointmentPenaltyBurnsSession={companySettings?.appointmentPenaltyBurnsSession === true}
             onUploadAttachment={uploadAttachment}
             onDownloadAttachment={downloadAttachment}
             onDeleteAttachment={deleteAttachment}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { Badge, Modal, Toast, ConfirmDialog, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, isFullNameValid, WEEKDAYS, nextWeeklyOccurrence, NotificationBell, getPortalUrl, EmojiPickerButton } from "./shared";
-import { STAGES, stageLabel, dealWordKind, isAppointmentSector, supportsSelfBooking, bookingModel, supportsGroupClasses, groupClassWords, supportExamples, appointmentNoteExample, SECTOR_PRESETS } from "./Sectors";
+import { STAGES, stageLabel, dealWordKind, isAppointmentSector, supportsSelfBooking, bookingModel, supportsGroupClasses, groupClassWords, supportExamples, appointmentNoteExample, SECTOR_PRESETS, computeAppointmentPenaltyBurn } from "./Sectors";
 
 const PORTAL_DEAL_WORDS = {
   teklif: { emptyList: "Henüz bir teklifiniz yok.", possAcc: "tekliflerinizi", tabLabel: "Tekliflerim", plural: "teklifler" },
@@ -450,7 +450,7 @@ function PortalMessagesPanel({ messages, onSend, sending }) {
   );
 }
 
-function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, hardBlockHoursByCustomerId = {}, appointmentPenaltyHoursByCustomerId = {}, sector, showCompany, dealKind, onCancelAppointment }) {
+function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, hardBlockHoursByCustomerId = {}, appointmentPenaltyHoursByCustomerId = {}, appointmentPenaltyStrikeLimitByCustomerId = {}, appointmentPenaltyBurnsSessionByCustomerId = {}, sector, showCompany, dealKind, onCancelAppointment }) {
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
@@ -524,6 +524,16 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
         const { canCancel, isLate } = cancellable
           ? appointmentCancelDecision(randevuTarihi, hardBlockHours, penaltyHours)
           : { canCancel: false, isLate: false };
+        // Sadece bilgilendirme amaçlı bir ÖNİZLEME — cezanın gerçek uygulanışı
+        // cancelAppointment'ta (isLate onaylanınca) aynı fonksiyonla tekrar
+        // hesaplanıyor. Burada erken göstermek müşteriye "bu iptal ne yapacak"
+        // sorusunu iptal etmeden önce, detaylı açıklayarak yanıtlıyor.
+        const willBurnSession = isLate && !!computeAppointmentPenaltyBurn({
+          customerId: d.customerId,
+          deals,
+          burnsSessionEnabled: appointmentPenaltyBurnsSessionByCustomerId[d.customerId] === true,
+          strikeLimit: appointmentPenaltyStrikeLimitByCustomerId[d.customerId],
+        });
         // Onay ve ödeme birbirinden bağımsız — /onay/{token} sayfası zaten
         // hangi moda göre ne göstereceğini kendi kararlaştırıyor, burada
         // sadece o sayfaya giden tek bir uyarlanmış link/rozet sunuluyor.
@@ -583,7 +593,7 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
                 <span style={{ fontSize: 13, fontWeight: 600, minWidth: 90, textAlign: "right" }}>{formatTL(d.value)}</span>
               )}
               {cancellable && (canCancel ? (
-                <button type="button" onClick={() => onCancelAppointment(d.id, isLate)} style={{ fontSize: 13 }}>İptal Et</button>
+                <button type="button" onClick={() => onCancelAppointment(d.id, isLate, willBurnSession)} style={{ fontSize: 13 }}>İptal Et</button>
               ) : (
                 <span style={{ fontSize: 12, color: "var(--text-muted)" }} title={`Planlanan saate ${hardBlockHours} saatten az kaldığı için iptal edilemez`}>İptal edilemez</span>
               ))}
@@ -1292,6 +1302,8 @@ export default function CustomerPortal() {
           companyLateCancelStrikeLimit: r.company_late_cancel_strike_limit ?? null,
           companyAppointmentCancelHours: r.company_appointment_cancel_hours ?? null,
           companyAppointmentPenaltyHours: r.company_appointment_penalty_hours ?? null,
+          companyAppointmentPenaltyStrikeLimit: r.company_appointment_penalty_strike_limit ?? null,
+          companyAppointmentPenaltyBurnsSession: r.company_appointment_penalty_burns_session === true,
         }));
         setCustomerRows(rows);
         const customerIds = rows.map((r) => r.id);
@@ -1507,8 +1519,26 @@ export default function CustomerPortal() {
     const lostReason = isLate ? "Geç iptal etti" : "İptal etti";
     const { error } = await supabase.from("deals").update({ stage: "kaybedildi", lost_reason: lostReason }).eq("id", dealId);
     if (error) { notify(`İptal edilemedi: ${error.message}`); return; }
+    const cancelledDeal = deals.find((d) => d.id === dealId);
     setDeals((prev) => prev.map((d) => (d.id === dealId ? { ...d, stage: "kaybedildi", lostReason } : d)));
     notify("Randevunuz iptal edildi.", "success");
+    // Paket sahibi müşterilerde ("paket sahiplerinde seans yaksın" açıksa)
+    // ödeme zorunluluğu YERİNE ihlal ANINDA paketten 1 seans düşülür — bkz.
+    // Sectors.jsx computeAppointmentPenaltyBurn (App.jsx staff tarafında
+    // aynı fonksiyonu moveDealStage/upsertDeal'dan çağırıyor).
+    if (isLate && cancelledDeal) {
+      const ownerRow = customerRows.find((c) => c.id === cancelledDeal.customerId);
+      const burn = computeAppointmentPenaltyBurn({
+        customerId: cancelledDeal.customerId,
+        deals,
+        burnsSessionEnabled: ownerRow?.companyAppointmentPenaltyBurnsSession === true,
+        strikeLimit: ownerRow?.companyAppointmentPenaltyStrikeLimit,
+      });
+      if (burn) {
+        const { error: burnError } = await supabase.from("deals").update({ session_used: burn.newSessionUsed }).eq("id", burn.packageDealId);
+        if (!burnError) setDeals((prev) => prev.map((d) => (d.id === burn.packageDealId ? { ...d, sessionUsed: burn.newSessionUsed } : d)));
+      }
+    }
   };
 
   // "Mesajlar" sekmesi — talep açmadan düz sohbet. İlk mesajda müşteri başına
@@ -1666,6 +1696,8 @@ export default function CustomerPortal() {
   const sectorByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companySector]));
   const hardBlockHoursByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companyAppointmentCancelHours]));
   const appointmentPenaltyHoursByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companyAppointmentPenaltyHours]));
+  const appointmentPenaltyStrikeLimitByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companyAppointmentPenaltyStrikeLimit]));
+  const appointmentPenaltyBurnsSessionByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companyAppointmentPenaltyBurnsSession]));
   const totalUnreadTickets = visibleTickets.filter((t) => unreadCountByTicket[t.id] > 0).length;
 
   const dealKind = dealWordKind(activeCustomerRow?.companySector);
@@ -1844,7 +1876,7 @@ export default function CustomerPortal() {
                   ))}
                 </div>
               )}
-              <PortalDealList deals={visibleDeals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} hardBlockHoursByCustomerId={hardBlockHoursByCustomerId} appointmentPenaltyHoursByCustomerId={appointmentPenaltyHoursByCustomerId} sector={activeCustomerRow?.companySector} showCompany={false} dealKind={dealKind} onCancelAppointment={(id, isLate) => setConfirmCancel({ type: "appointment", id, isLate })} />
+              <PortalDealList deals={visibleDeals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} hardBlockHoursByCustomerId={hardBlockHoursByCustomerId} appointmentPenaltyHoursByCustomerId={appointmentPenaltyHoursByCustomerId} appointmentPenaltyStrikeLimitByCustomerId={appointmentPenaltyStrikeLimitByCustomerId} appointmentPenaltyBurnsSessionByCustomerId={appointmentPenaltyBurnsSessionByCustomerId} sector={activeCustomerRow?.companySector} showCompany={false} dealKind={dealKind} onCancelAppointment={(id, isLate, willBurnSession) => setConfirmCancel({ type: "appointment", id, isLate, willBurnSession })} />
             </div>
           )}
 
@@ -1914,7 +1946,9 @@ export default function CustomerPortal() {
           title="İptal edilsin mi?"
           message={
             confirmCancel.type === "appointment"
-              ? (confirmCancel.isLate
+              ? (confirmCancel.willBurnSession
+                  ? "Randevunuzu iptal etmek istediğinizden emin misiniz? Randevu saatine az kaldığı için bu iptal paketinizden 1 seans düşürecek. Bu işlem geri alınamaz."
+                  : confirmCancel.isLate
                   ? "Randevunuzu iptal etmek istediğinizden emin misiniz? Randevu saatine az kaldığı için bu iptal 'geç iptal' olarak işaretlenecek. Bu işlem geri alınamaz."
                   : "Randevunuzu iptal etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.")
               : confirmCancel.burn?.newSessionUsed != null
