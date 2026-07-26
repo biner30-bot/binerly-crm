@@ -759,10 +759,29 @@ function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange
   );
 }
 
+// Portal "Mesajlar" sekmesinden gelen chatTickets/chatMessages'ı (is_general_chat)
+// App.jsx'teki ana "Mesajlar" sekmesinin gösterebileceği bir konuşma listesine
+// çevirir — sadece müşteri başlattıysa (en az 1 mesajı varsa) bir konuşma sayılır.
+export function computeChatConversations(chatTickets, chatMessages, customerById) {
+  return chatTickets
+    .map((t) => {
+      const msgs = [...chatMessages.filter((m) => m.ticketId === t.id)].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      return {
+        ticket: t,
+        customer: customerById(t.customerId),
+        messages: msgs,
+        lastMessage: msgs[msgs.length - 1] || null,
+        unread: msgs.filter((m) => m.direction === "gelen" && !m.readAt).length,
+      };
+    })
+    .filter((c) => c.lastMessage)
+    .sort((a, b) => new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt));
+}
+
 // Portal "Mesajlar" sekmesinin admin karşılığı — talep akışının dışında,
 // WhatsApp/Instagram gelen kutusuna (Messages.jsx) benzer sade bir sohbet
 // arayüzü. Konu/durum/öncelik yok; sadece müşteri başlattıysa bir konuşma var.
-function ChatInbox({ conversations, selectedTicketId, onSelect, selectedConversation, onSend }) {
+export function ChatInbox({ conversations, selectedTicketId, onSelect, selectedConversation, onSend }) {
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
 
@@ -992,8 +1011,6 @@ export default function Support({
   customers,
   tickets,
   ticketMessages,
-  chatTickets = [],
-  chatMessages = [],
   kbArticles,
   onSaveTicket,
   onDeleteTicket,
@@ -1005,12 +1022,9 @@ export default function Support({
   onBulkImportKbArticles,
   initialViewTicketId,
   onConsumeInitialViewTicket,
-  initialChatCustomerId,
-  onConsumeInitialChatCustomer,
   sector,
 }) {
   const [supportView, setSupportView] = useState("talepler");
-  const [selectedChatTicketId, setSelectedChatTicketId] = useState(null);
   const [showImportTickets, setShowImportTickets] = useState(false);
   const [showImportKbArticles, setShowImportKbArticles] = useState(false);
   const [showTicketForm, setShowTicketForm] = useState(false);
@@ -1040,16 +1054,6 @@ export default function Support({
     }
     onConsumeInitialViewTicket?.();
   }, [initialViewTicketId]);
-
-  useEffect(() => {
-    if (!initialChatCustomerId) return;
-    const t = chatTickets.find((x) => x.customerId === initialChatCustomerId);
-    if (t) {
-      setSupportView("mesajlar");
-      setSelectedChatTicketId(t.id);
-    }
-    onConsumeInitialChatCustomer?.();
-  }, [initialChatCustomerId]);
 
   const saveTicket = async (t) => {
     await onSaveTicket(t);
@@ -1104,25 +1108,6 @@ export default function Support({
     return a.title.toLowerCase().includes(kbQuery);
   });
 
-  // Portal "Mesajlar" sohbetleri — talep akışının dışında, düz bir gelen kutusu
-  // gibi gösteriliyor (konu/durum/öncelik yok). Sadece müşteri başlattıysa var
-  // olur, o yüzden liste chatTickets'ten (App.jsx'te is_general_chat'e göre
-  // ayrılmış) türetiliyor.
-  const chatConversations = chatTickets
-    .map((t) => {
-      const msgs = [...chatMessages.filter((m) => m.ticketId === t.id)].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-      return {
-        ticket: t,
-        customer: customerById(t.customerId),
-        messages: msgs,
-        lastMessage: msgs[msgs.length - 1] || null,
-        unread: msgs.filter((m) => m.direction === "gelen" && !m.readAt).length,
-      };
-    })
-    .filter((c) => c.lastMessage)
-    .sort((a, b) => new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt));
-  const selectedChatConversation = chatConversations.find((c) => c.ticket.id === selectedChatTicketId) || null;
-
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
@@ -1141,17 +1126,9 @@ export default function Support({
             <i className="ti ti-book" style={{ fontSize: 15 }} aria-hidden="true"></i>
             Bilgi Bankası
           </button>
-          <button
-            onClick={() => setSupportView("mesajlar")}
-            style={{ border: "none", background: supportView === "mesajlar" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
-          >
-            <i className="ti ti-message-circle" style={{ fontSize: 15 }} aria-hidden="true"></i>
-            Müşteri Mesajları
-            {chatConversations.some((c) => c.unread > 0) && <Badge tone="accent">{chatConversations.reduce((sum, c) => sum + c.unread, 0)}</Badge>}
-          </button>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          {supportView === "mesajlar" ? null : supportView === "talepler" ? (
+          {supportView === "talepler" ? (
             <>
               <button
                 onClick={() =>
@@ -1250,14 +1227,6 @@ export default function Support({
           onEditTicket={(t) => { setEditingTicket(t); setShowTicketForm(true); }}
           onDeleteTicket={onDeleteTicket}
           onCreateNew={() => { setEditingTicket(null); setShowTicketForm(true); }}
-        />
-      ) : supportView === "mesajlar" ? (
-        <ChatInbox
-          conversations={chatConversations}
-          selectedTicketId={selectedChatTicketId}
-          onSelect={setSelectedChatTicketId}
-          selectedConversation={selectedChatConversation}
-          onSend={(content) => onAddTicketMessage({ ticketId: selectedChatConversation.ticket.id, direction: "giden", content, isInternal: false })}
         />
       ) : (
         <KbList

@@ -10,6 +10,8 @@ import Support, {
   getSlaStatus,
   TERMINAL_STATUSES,
   STATUSES,
+  ChatInbox,
+  computeChatConversations,
 } from "./Support";
 import { ImportModal } from "./ImportExport";
 import { TrackingScripts } from "./analytics";
@@ -11146,6 +11148,7 @@ export default function App() {
   const [quickList, setQuickList] = useState(null);
   const [initialViewTicketId, setInitialViewTicketId] = useState(null);
   const [initialChatCustomerId, setInitialChatCustomerId] = useState(null);
+  const [selectedChatTicketId, setSelectedChatTicketId] = useState(null);
   const [toast, setToast] = useState(null);
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
@@ -11377,14 +11380,24 @@ export default function App() {
     if (!ticketId) return;
     const matched = tickets.find((t) => t.id === ticketId);
     if (matched) {
-      setTab("destek");
-      if (matched.isGeneralChat) setInitialChatCustomerId(matched.customerId);
-      else setInitialViewTicketId(ticketId);
+      if (matched.isGeneralChat) { setTab("mesajlar"); setInitialChatCustomerId(matched.customerId); }
+      else { setTab("destek"); setInitialViewTicketId(ticketId); }
     }
     const url = new URL(window.location.href);
     url.searchParams.delete("ticket");
     window.history.replaceState({}, "", url);
   }, [tickets]);
+
+  // initialChatCustomerId'yi (yukarıdaki push bildirimi derin bağlantısından)
+  // ilgili sohbete çevirir — bu hook'un erken return'lerden (session/loading
+  // kontrolü) ÖNCE olması şart, aksi halde "Rendered more hooks than during
+  // the previous render" hatası çıkar (ilk render'da hook hiç çağrılmaz).
+  useEffect(() => {
+    if (!initialChatCustomerId) return;
+    const t = tickets.find((x) => x.isGeneralChat && x.customerId === initialChatCustomerId);
+    if (t) setSelectedChatTicketId(t.id);
+    setInitialChatCustomerId(null);
+  }, [initialChatCustomerId, tickets]);
 
   const subscribeToPush = async () => {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
@@ -13112,6 +13125,9 @@ export default function App() {
   const chatTicketIds = new Set(chatTickets.map((t) => t.id));
   const supportTicketMessages = ticketMessages.filter((m) => !chatTicketIds.has(m.ticketId));
   const chatMessages = ticketMessages.filter((m) => chatTicketIds.has(m.ticketId));
+  const chatConversations = computeChatConversations(chatTickets, chatMessages, customerById);
+  const selectedChatConversation = chatConversations.find((c) => c.ticket.id === selectedChatTicketId) || null;
+  const chatUnreadCount = chatConversations.reduce((sum, c) => sum + c.unread, 0);
 
   const openTicketsCount = supportTickets.filter((t) => !TERMINAL_STATUSES.includes(t.status)).length;
   const breachedTickets = supportTickets.filter(
@@ -13358,6 +13374,17 @@ export default function App() {
                 }}
               >
                 {unreadMessagesCount}
+              </span>
+            )}
+            {t.id === "mesajlar" && chatUnreadCount > 0 && (
+              <span
+                style={{
+                  minWidth: 18, height: 18, borderRadius: 9,
+                  background: "var(--text-danger)", color: "var(--on-accent)", fontSize: 11, fontWeight: 700,
+                  display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", flexShrink: 0,
+                }}
+              >
+                {chatUnreadCount}
               </span>
             )}
           </button>
@@ -14370,13 +14397,13 @@ export default function App() {
       )}
 
       {tab === "mesajlar" && (
-        <div style={{ background: "#fff", borderRadius: 16, padding: "3rem 2rem", textAlign: "center", border: "1px solid #e1e8f0" }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>💬</div>
-          <h3 style={{ margin: "0 0 8px" }}>Yakında</h3>
-          <p style={{ margin: 0, color: "#64748b", maxWidth: 420, marginLeft: "auto", marginRight: "auto" }}>
-            WhatsApp ve Instagram üzerinden gelen mesajları tek yerden yönetme özelliği üzerinde çalışıyoruz. Yakında burada olacak.
-          </p>
-        </div>
+        <ChatInbox
+          conversations={chatConversations}
+          selectedTicketId={selectedChatTicketId}
+          onSelect={setSelectedChatTicketId}
+          selectedConversation={selectedChatConversation}
+          onSend={(content) => addTicketMessage({ ticketId: selectedChatConversation.ticket.id, direction: "giden", content, isInternal: false })}
+        />
       )}
 
       {tab === "destek" && (
@@ -14384,8 +14411,6 @@ export default function App() {
           customers={customers}
           tickets={supportTickets}
           ticketMessages={supportTicketMessages}
-          chatTickets={chatTickets}
-          chatMessages={chatMessages}
           kbArticles={kbArticles}
           onSaveTicket={upsertTicket}
           onDeleteTicket={deleteTicket}
@@ -14398,8 +14423,6 @@ export default function App() {
           sector={companySettings?.sector}
           initialViewTicketId={initialViewTicketId}
           onConsumeInitialViewTicket={() => setInitialViewTicketId(null)}
-          initialChatCustomerId={initialChatCustomerId}
-          onConsumeInitialChatCustomer={() => setInitialChatCustomerId(null)}
         />
       )}
 
