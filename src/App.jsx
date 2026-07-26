@@ -6212,6 +6212,7 @@ function rowToCompanySettings(r) {
     lateCancelHours: r.late_cancel_hours ?? null,
     hardBlockHours: r.hard_block_hours ?? null,
     lateCancelStrikeLimit: r.late_cancel_strike_limit ?? null,
+    appointmentCancelHours: r.appointment_cancel_hours ?? null,
   };
 }
 
@@ -6426,6 +6427,7 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
           lateCancelHours: initial?.lateCancelHours ?? null,
           hardBlockHours: initial?.hardBlockHours ?? null,
           lateCancelStrikeLimit: initial?.lateCancelStrikeLimit ?? null,
+          appointmentCancelHours: initial?.appointmentCancelHours ?? null,
         });
       }}
     >
@@ -8566,22 +8568,28 @@ function GroupClassRoster({ group, enrollments, customers, activeCustomerIds, se
 function LateCancelPolicyBox({ companySettings, onSave }) {
   const configured = companySettings?.hardBlockHours != null || companySettings?.lateCancelHours != null || companySettings?.lateCancelStrikeLimit != null;
   const [open, setOpen] = useState(false);
+  const [hardBlockOn, setHardBlockOn] = useState(companySettings?.hardBlockHours != null);
   const [hardBlockHours, setHardBlockHours] = useState(companySettings?.hardBlockHours ?? "");
+  const [lateCancelOn, setLateCancelOn] = useState(companySettings?.lateCancelHours != null);
   const [lateCancelHours, setLateCancelHours] = useState(companySettings?.lateCancelHours ?? "");
+  const [strikeOn, setStrikeOn] = useState(companySettings?.lateCancelStrikeLimit != null);
   const [lateCancelStrikeLimit, setLateCancelStrikeLimit] = useState(companySettings?.lateCancelStrikeLimit ?? "");
 
   const handleOpen = () => {
+    setHardBlockOn(companySettings?.hardBlockHours != null);
     setHardBlockHours(companySettings?.hardBlockHours ?? "");
+    setLateCancelOn(companySettings?.lateCancelHours != null);
     setLateCancelHours(companySettings?.lateCancelHours ?? "");
+    setStrikeOn(companySettings?.lateCancelStrikeLimit != null);
     setLateCancelStrikeLimit(companySettings?.lateCancelStrikeLimit ?? "");
     setOpen(true);
   };
 
   const handleSave = () => {
     onSave({
-      hardBlockHours: hardBlockHours === "" ? null : Number(hardBlockHours),
-      lateCancelHours: lateCancelHours === "" ? null : Number(lateCancelHours),
-      lateCancelStrikeLimit: lateCancelStrikeLimit === "" ? null : Number(lateCancelStrikeLimit),
+      hardBlockHours: hardBlockOn && hardBlockHours !== "" ? Number(hardBlockHours) : null,
+      lateCancelHours: lateCancelOn && lateCancelHours !== "" ? Number(lateCancelHours) : null,
+      lateCancelStrikeLimit: strikeOn && lateCancelStrikeLimit !== "" ? Number(lateCancelStrikeLimit) : null,
     });
     setOpen(false);
   };
@@ -8616,16 +8624,25 @@ function LateCancelPolicyBox({ companySettings, onSave }) {
         <>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 10 }}>
             <div>
-              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tamamen kilitle (saat)</label>
-              <input type="number" min="0" step="0.5" value={hardBlockHours} onChange={(e) => setHardBlockHours(e.target.value)} placeholder="Varsayılan: 2" style={{ width: 150 }} />
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                <input type="checkbox" checked={hardBlockOn} onChange={(e) => setHardBlockOn(e.target.checked)} />
+                Tamamen kilitle (saat)
+              </label>
+              <input type="number" min="0" step="0.5" disabled={!hardBlockOn} value={hardBlockHours} onChange={(e) => setHardBlockHours(e.target.value)} placeholder="Varsayılan: 2" style={{ width: 150 }} />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Uyarı/seans yakma başlangıcı (saat)</label>
-              <input type="number" min="0" step="0.5" value={lateCancelHours} onChange={(e) => setLateCancelHours(e.target.value)} placeholder="Örn. 4" style={{ width: 150 }} />
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                <input type="checkbox" checked={lateCancelOn} onChange={(e) => setLateCancelOn(e.target.checked)} />
+                Uyarı/seans yakma başlangıcı (saat)
+              </label>
+              <input type="number" min="0" step="0.5" disabled={!lateCancelOn} value={lateCancelHours} onChange={(e) => setLateCancelHours(e.target.value)} placeholder="Örn. 4" style={{ width: 150 }} />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kaçıncı geç iptalde seans yansın</label>
-              <input type="number" min="1" step="1" value={lateCancelStrikeLimit} onChange={(e) => setLateCancelStrikeLimit(e.target.value)} placeholder="Varsayılan: 1 (hemen)" style={{ width: 150 }} />
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                <input type="checkbox" checked={strikeOn} onChange={(e) => setStrikeOn(e.target.checked)} />
+                Kaçıncı geç iptalde seans yansın
+              </label>
+              <input type="number" min="1" step="1" disabled={!strikeOn} value={lateCancelStrikeLimit} onChange={(e) => setLateCancelStrikeLimit(e.target.value)} placeholder="Varsayılan: 1 (hemen)" style={{ width: 150 }} />
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}>
@@ -8633,6 +8650,52 @@ function LateCancelPolicyBox({ companySettings, onSave }) {
             <button type="button" onClick={handleSave} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+// Tekli randevu sektörlerinde (Güzellik & Bakım, Sağlık/Klinik, Emlak vb. —
+// bookingModel(sector)==="slot" olan her yerde) portaldan iptal her zaman sabit
+// 2 saatlik kuralla çalışıyordu (bkz. CustomerPortal.jsx canCancelAppointmentDeal).
+// KENDİ AYRI kolonu (appointment_cancel_hours) var — ilk sürümde grup dersi
+// politikasıyla (hard_block_hours) aynı kolon paylaştırılmıştı, "iki özellik
+// hiç kesişmeyen sektörlerde kullanılıyor" varsayımıyla; ama bir işletme sektör
+// DEĞİŞTİREBİLİR (company_settings tek satır), bu yüzden eski sektörde girilen
+// değer yeni sektörde sessizce yeniden yorumlanıyordu. Artık tamamen ayrı.
+function AppointmentCancelLockBox({ companySettings, onSave }) {
+  const [on, setOn] = useState(companySettings?.appointmentCancelHours != null);
+  const [hours, setHours] = useState(companySettings?.appointmentCancelHours ?? 2);
+  const [dirty, setDirty] = useState(false);
+
+  const handleSave = () => {
+    onSave({ appointmentCancelHours: on ? (Number(hours) || 2) : null });
+    setDirty(false);
+  };
+
+  return (
+    <div style={{ marginBottom: 16, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 12 }}>
+      <label style={{ fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+        <input type="checkbox" checked={on} onChange={(e) => { setOn(e.target.checked); setDirty(true); }} />
+        Randevu iptal kilidini özelleştir
+        <InfoTip
+          align="left"
+          text={"Kapalıyken müşteri randevu saatine 2 saatten az kala portaldan iptal edemez (sabit, değiştirilemez). Açarsanız bu süreyi kendiniz belirlersiniz — örn. 24 saat girerseniz müşteri randevudan bir gün öncesine kadar iptal edebilir, sonrasında iptal butonu devre dışı kalır."}
+        />
+      </label>
+      <div style={{ marginTop: 10, display: "flex", alignItems: "flex-end", gap: 10, flexWrap: "wrap" }}>
+        <div>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Randevuya bu kadar saat kalana kadar iptal edilebilir</label>
+          <input type="number" min="0" step="0.5" disabled={!on} value={hours} onChange={(e) => { setHours(e.target.value); setDirty(true); }} style={{ width: 150 }} />
+        </div>
+        {dirty && (
+          <button type="button" onClick={handleSave} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
+        )}
+      </div>
+      {!dirty && (
+        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0 0" }}>
+          {on ? `Şu an: randevuya ${companySettings?.appointmentCancelHours ?? 2} saat kalana kadar iptal edilebilir.` : "Kullanılmıyor — sabit 2 saat kuralı geçerli."}
+        </p>
       )}
     </div>
   );
@@ -12336,6 +12399,7 @@ export default function App() {
       late_cancel_hours: s.lateCancelHours || null,
       hard_block_hours: s.hardBlockHours || null,
       late_cancel_strike_limit: s.lateCancelStrikeLimit || null,
+      appointment_cancel_hours: s.appointmentCancelHours || null,
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase.from("company_settings").upsert(row).select().single();
@@ -14516,7 +14580,8 @@ export default function App() {
       )}
 
       {showBusinessHours && (
-        <Modal title="Müsaitlik Saatleri" onClose={() => setShowBusinessHours(false)}>
+        <Modal title="Müsaitlik Saatleri" wide onClose={() => setShowBusinessHours(false)}>
+          <AppointmentCancelLockBox companySettings={companySettings} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
           <BusinessHoursManager items={businessHours} onAdd={addBusinessHours} onDelete={deleteBusinessHours} />
         </Modal>
       )}

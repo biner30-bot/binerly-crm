@@ -121,8 +121,12 @@ function formatDateTime(dateStr) {
     " · " + d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 }
 
-function canCancelAppointmentDeal(randevuTarihi) {
-  return new Date(`${randevuTarihi}+03:00`).getTime() - Date.now() > 2 * 60 * 60 * 1000;
+// hardBlockHours opsiyonel: işletme İşletme Bilgileri'nde özelleştirmediyse
+// (Ayarlar → Müsaitlik Saatleri, "Randevu iptal kilidini özelleştir" kapalıysa)
+// null gelir, eski sabit 2 saatlik davranış aynen çalışmaya devam eder.
+function canCancelAppointmentDeal(randevuTarihi, hardBlockHours) {
+  const hours = hardBlockHours ?? 2;
+  return new Date(`${randevuTarihi}+03:00`).getTime() - Date.now() > hours * 60 * 60 * 1000;
 }
 
 function CustomerPortalLanding({ onEnter }) {
@@ -441,7 +445,7 @@ function PortalMessagesPanel({ messages, onSend, sending }) {
   );
 }
 
-function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, sector, showCompany, dealKind, onCancelAppointment }) {
+function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, hardBlockHoursByCustomerId = {}, sector, showCompany, dealKind, onCancelAppointment }) {
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
@@ -510,7 +514,8 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, se
         const tone = d.stage === "kazanildi" ? "success" : d.stage === "kaybedildi" ? "default" : d.stage === "muzakere" ? "warning" : "accent";
         const randevuTarihi = d.customFields?.portal_randevu_zamani;
         const cancellable = d.stage === "ilk_gorusme" && randevuTarihi;
-        const canCancel = cancellable && canCancelAppointmentDeal(randevuTarihi);
+        const hardBlockHours = hardBlockHoursByCustomerId[d.customerId];
+        const canCancel = cancellable && canCancelAppointmentDeal(randevuTarihi, hardBlockHours);
         // Onay ve ödeme birbirinden bağımsız — /onay/{token} sayfası zaten
         // hangi moda göre ne göstereceğini kendi kararlaştırıyor, burada
         // sadece o sayfaya giden tek bir uyarlanmış link/rozet sunuluyor.
@@ -572,7 +577,7 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, se
               {cancellable && (canCancel ? (
                 <button type="button" onClick={() => onCancelAppointment(d.id)} style={{ fontSize: 13 }}>İptal Et</button>
               ) : (
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }} title="Planlanan saate 2 saatten az kaldığı için iptal edilemez">İptal edilemez</span>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }} title={`Planlanan saate ${hardBlockHours ?? 2} saatten az kaldığı için iptal edilemez`}>İptal edilemez</span>
               ))}
             </div>
           </div>
@@ -1277,6 +1282,7 @@ export default function CustomerPortal() {
           companyLateCancelHours: r.company_late_cancel_hours ?? null,
           companyHardBlockHours: r.company_hard_block_hours ?? null,
           companyLateCancelStrikeLimit: r.company_late_cancel_strike_limit ?? null,
+          companyAppointmentCancelHours: r.company_appointment_cancel_hours ?? null,
         }));
         setCustomerRows(rows);
         const customerIds = rows.map((r) => r.id);
@@ -1646,6 +1652,7 @@ export default function CustomerPortal() {
 
   const companyNameByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companyName || c.name]));
   const sectorByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companySector]));
+  const hardBlockHoursByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companyAppointmentCancelHours]));
   const totalUnreadTickets = visibleTickets.filter((t) => unreadCountByTicket[t.id] > 0).length;
 
   const dealKind = dealWordKind(activeCustomerRow?.companySector);
@@ -1824,7 +1831,7 @@ export default function CustomerPortal() {
                   ))}
                 </div>
               )}
-              <PortalDealList deals={visibleDeals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} sector={activeCustomerRow?.companySector} showCompany={false} dealKind={dealKind} onCancelAppointment={(id) => setConfirmCancel({ type: "appointment", id })} />
+              <PortalDealList deals={visibleDeals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} hardBlockHoursByCustomerId={hardBlockHoursByCustomerId} sector={activeCustomerRow?.companySector} showCompany={false} dealKind={dealKind} onCancelAppointment={(id) => setConfirmCancel({ type: "appointment", id })} />
             </div>
           )}
 
