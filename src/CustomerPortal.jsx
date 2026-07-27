@@ -1710,7 +1710,16 @@ export default function CustomerPortal() {
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
             <img src="/favicon.svg" alt="Binerly" style={{ width: 31, height: 31 }} />
-            <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Binerly — Müşteri Bilgi Sistemi</h1>
+            <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
+              {activeCustomerRow ? (
+                <>
+                  {activeCustomerRow.companyName || activeCustomerRow.name}{" "}
+                  <span style={{ fontWeight: 400, fontSize: 13, color: "var(--text-secondary)" }}>(Binerly ile)</span>
+                </>
+              ) : (
+                "Binerly — Müşteri Bilgi Sistemi"
+              )}
+            </h1>
           </div>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>Taleplerinizi ve {PORTAL_DEAL_WORDS[dealKind].possAcc} buradan takip edin</p>
         </div>
