@@ -335,8 +335,18 @@
          önce uzun bir kaydırma gerektiriyordu. Dar ekranda butonlar küçülüp
          birden fazlası aynı satıra sığar. */
       @media (max-width: 640px) {
-        .list-toolbar { gap: 6px !important; }
+        /* flex-wrap her zaman zorlanıyor — bazı buton grupları (ör. Destek'in
+           dışa/içe aktar satırı) kendi flexWrap'ini üst container'a bırakıyor,
+           kendisi sarmıyordu; !important bu durumda da güvenli, zaten wrap
+           olan satırlarda hiçbir şeyi değiştirmiyor. */
+        .list-toolbar { gap: 6px !important; flex-wrap: wrap !important; }
         .list-toolbar > button, .list-toolbar > select { flex: 1 1 auto !important; min-width: 0; font-size: 12px !important; padding: 6px 10px !important; }
+      }
+      /* Finans → Gelir-Gider Defteri "2fr 1fr" grid'i (ana defter + kategori
+         özeti) dar ekranda ikisini de sıkıştırıyordu, kategori sütunu
+         okunaksız hale geliyordu. Dar ekranda tek sütuna düşer. */
+      @media (max-width: 760px) {
+        .finance-ledger-grid { grid-template-columns: 1fr !important; }
       }
     </style>
   </head>

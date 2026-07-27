@@ -620,7 +620,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
             <p style={{ fontSize: 13, color: "var(--text-muted)" }}>{FINANCE_DEAL_WORDS[dealWordKind(sector)].noWonEmpty}</p>
           ) : (
             <div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+              <div className="list-toolbar" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
                 <input
                   value={tahsilatSearch}
                   onChange={(e) => setTahsilatSearch(e.target.value)}
@@ -698,7 +698,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
         />
         <MetricCard label="Net Kalan" value={formatTL(netRemaining)} tone={netRemaining >= 0 ? "success" : "danger"} />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, alignItems: "start", flexWrap: "wrap" }}>
+      <div className="finance-ledger-grid" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, alignItems: "start" }}>
         <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", minWidth: 280 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
             <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>Gelir-Gider Defteri</p>
@@ -710,7 +710,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
               Gider ekle
             </button>
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+          <div className="list-toolbar" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
             <input
               value={ledgerSearch}
               onChange={(e) => setLedgerSearch(e.target.value)}

@@ -562,7 +562,7 @@ function TicketList({
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+      <div className="list-toolbar" style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
         <input
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
@@ -599,7 +599,7 @@ function TicketList({
         )
       ) : (
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", minWidth: 600, borderCollapse: "separate", borderSpacing: "0 8px" }}>
+          <table className="responsive-table" style={{ width: "100%", minWidth: 600, borderCollapse: "separate", borderSpacing: "0 8px" }}>
             <thead>
               <tr>
                 <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>Talep</th>
@@ -621,7 +621,7 @@ function TicketList({
                 const sla = getSlaStatus(t);
                 return (
                   <tr key={t.id} style={{ background: "var(--surface-1)" }}>
-                    <td onClick={() => onOpenTicket(t)} style={{ padding: "10px 12px", borderRadius: "var(--radius) 0 0 var(--radius)", cursor: "pointer" }}>
+                    <td data-label="Talep" onClick={() => onOpenTicket(t)} style={{ padding: "10px 12px", borderRadius: "var(--radius) 0 0 var(--radius)", cursor: "pointer" }}>
                       <p style={{ margin: 0, fontWeight: 500, fontSize: 14, display: "flex", alignItems: "center", gap: 6 }}>
                         {t.subject}
                         {unreadCountByTicket[t.id] > 0 && (
@@ -630,16 +630,16 @@ function TicketList({
                       </p>
                       <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{c?.name || "Bilinmeyen müşteri"}</p>
                     </td>
-                    <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                    <td data-label="Öncelik" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                       <span style={{ fontSize: 12, color: `var(--text-${PRIORITY_TONE[t.priority]})`, display: "flex", alignItems: "center", gap: 4 }}>
                         <i className="ti ti-point-filled" style={{ fontSize: 14 }} aria-hidden="true"></i>
                         {priorityInfo?.label}
                       </span>
                     </td>
-                    <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                    <td data-label="Durum" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                       <Badge tone={STATUS_TONE[t.status] || "default"}>{statusInfo?.label}</Badge>
                     </td>
-                    <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                    <td data-label="SLA" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                       <Badge tone={sla.tone}>{sla.label}</Badge>
                     </td>
                     <td style={{ padding: "10px 12px", borderRadius: "0 var(--radius) var(--radius) 0" }}>
@@ -799,8 +799,8 @@ export function ChatInbox({ conversations, selectedTicketId, onSelect, selectedC
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 16, alignItems: "start" }}>
-      <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 8, maxHeight: 560, overflowY: "auto" }}>
+    <div className="messages-grid" data-has-selection={selectedConversation ? "true" : "false"} style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 16, alignItems: "start" }}>
+      <div className="msg-list-pane" style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 8, maxHeight: 560, overflowY: "auto" }}>
         {conversations.map((c) => (
           <div
             key={c.ticket.id}
@@ -823,7 +823,10 @@ export function ChatInbox({ conversations, selectedTicketId, onSelect, selectedC
         ))}
       </div>
 
-      <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", display: "flex", flexDirection: "column", height: 560 }}>
+      <div className="msg-thread-pane" style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", display: "flex", flexDirection: "column", height: 560 }}>
+        <button type="button" className="msg-back-button" onClick={() => onSelect(null)} style={{ display: "none", alignItems: "center", gap: 6, fontSize: 13, marginBottom: 10, background: "none", border: "none", color: "var(--text-accent)", padding: 0, cursor: "pointer" }}>
+          <i className="ti ti-arrow-left" style={{ fontSize: 16 }} aria-hidden="true"></i> Konuşmalara dön
+        </button>
         {!selectedConversation ? (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 13 }}>
             Bir konuşma seçin
@@ -891,7 +894,7 @@ function KbList({
       <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 10px", display: "flex", alignItems: "center", gap: 4 }}>
         Sadece siz ve ekibiniz görür <InfoTip text={KB_INFO_TEXT} />
       </p>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
+      <div className="list-toolbar" style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
         <input
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
@@ -1127,7 +1130,7 @@ export default function Support({
             Bilgi Bankası
           </button>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="list-toolbar" style={{ display: "flex", gap: 8 }}>
           {supportView === "talepler" ? (
             <>
               <button
