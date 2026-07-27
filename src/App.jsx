@@ -6400,7 +6400,7 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
 const COMPANY_NAME_EXAMPLES = {
   emlak: "Akın Emlak",
   dijital_ajans: "Akın Dijital Ajans",
-  saglik_klinik: "Akın Diş Kliniği",
+  saglik_klinik: "Akın Sağlık Merkezi",
   uretim_satis: "Akın Tekstil",
   hizmet_danismanlik: "Akın Danışmanlık",
   perakende: "Akın Mağazacılık",
@@ -8216,7 +8216,7 @@ const PRICE_ITEM_NAME_EXAMPLES = {
 const DEAL_TITLE_EXAMPLES = {
   emlak: "3+1 daire satışı / Kadıköy'de kiralık ofis",
   dijital_ajans: "Sosyal medya yönetimi paketi",
-  saglik_klinik: "Diş kontrolü / kanal tedavisi",
+  saglik_klinik: "Kontrol muayenesi / Botoks uygulaması",
   uretim_satis: "500 adet toptan sipariş",
   hizmet_danismanlik: "Aylık danışmanlık anlaşması",
   perakende: "Kampanya kapsamında toplu satış",

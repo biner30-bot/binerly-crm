@@ -643,7 +643,7 @@ export const supportExamples = (sector) => SUPPORT_EXAMPLES[sector] || DEFAULT_S
 // Sağlık/Klinik'te yersiz kaçar, bu yüzden sektöre göre ayrılıyor.
 const APPOINTMENT_NOTE_EXAMPLES = {
   guzellik_bakim: "Saç kesimi, cilt bakımı, manikür...",
-  saglik_klinik: "Kontrol muayenesi, diş temizliği...",
+  saglik_klinik: "Kontrol muayenesi, botoks uygulaması, diş tedavisi...",
   emlak: "Mülk gösterimi, kira sözleşmesi görüşmesi...",
   dijital_ajans: "Keşif görüşmesi, reklam kampanyası planlaması...",
   hizmet_danismanlik: "Danışmanlık görüşmesi, proje kapsamı...",
