@@ -6228,6 +6228,14 @@ function rowToBusinessHours(r) {
   };
 }
 
+function rowToStaffShift(r) {
+  return {
+    id: r.id, memberId: r.member_id, weekday: r.weekday,
+    startTime: (r.start_time || "").slice(0, 5),
+    endTime: (r.end_time || "").slice(0, 5),
+  };
+}
+
 function rowToRoomInventory(r) {
   return { id: r.id, roomType: r.room_type, quantity: r.quantity, capacity: r.capacity || null, description: r.description || "" };
 }
@@ -9499,6 +9507,100 @@ function BusinessHoursManager({ items, onAdd, onDelete }) {
   );
 }
 
+// BusinessHoursManager'ın personel bazlı eşi — slot süresi burada YOK (o zaten
+// Müsaitlik Saatleri'nden geliyor), vardiya sadece "bu kişi bu aralıkta
+// müsait" penceresini tanımlıyor. Hiç vardiya tanımlanmamış bir işletmede
+// randevu slotları eskisi gibi sadece Müsaitlik Saatleri'ne göre hesaplanır —
+// bu bileşen hiç kullanılmadıkça mevcut davranış birebir korunur.
+function StaffShiftManager({ items, onAdd, onDelete }) {
+  const [weekday, setWeekday] = useState(1);
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("18:00");
+  const [hasBreak, setHasBreak] = useState(false);
+  const [breakStart, setBreakStart] = useState("12:00");
+  const [breakEnd, setBreakEnd] = useState("13:00");
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const sorted = [...items].sort((a, b) => a.weekday - b.weekday || a.startTime.localeCompare(b.startTime));
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (!startTime || !endTime || endTime <= startTime) return;
+    if (hasBreak) {
+      if (!breakStart || !breakEnd || breakStart <= startTime || breakEnd >= endTime || breakEnd <= breakStart) return;
+      onAdd({ weekday: Number(weekday), startTime, endTime: breakStart });
+      onAdd({ weekday: Number(weekday), startTime: breakEnd, endTime });
+    } else {
+      onAdd({ weekday: Number(weekday), startTime, endTime });
+    }
+  };
+
+  return (
+    <div>
+      {sorted.length === 0 ? (
+        <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10 }}>Henüz vardiya eklenmedi — vardiya eklenmezse bu kişi için ayrı bir kısıtlama uygulanmaz.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+          {sorted.map((s) => (
+            <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "6px 10px" }}>
+              <span style={{ fontSize: 12.5, fontWeight: 500 }}>{WEEKDAYS[s.weekday - 1]}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                <Badge tone="accent">{s.startTime}–{s.endTime}</Badge>
+                <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(s)} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <form onSubmit={submit} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <div style={{ minWidth: 120 }}>
+          <label style={{ fontSize: 11.5, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Gün</label>
+          <select value={weekday} onChange={(e) => setWeekday(e.target.value)} style={{ fontSize: 12.5 }}>
+            {WEEKDAYS.map((w, i) => <option key={w} value={i + 1}>{w}</option>)}
+          </select>
+        </div>
+        <div style={{ width: 95 }}>
+          <label style={{ fontSize: 11.5, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Başlangıç</label>
+          <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} style={{ fontSize: 12.5, width: "100%" }} />
+        </div>
+        <div style={{ width: 95 }}>
+          <label style={{ fontSize: 11.5, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Bitiş</label>
+          <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} style={{ fontSize: 12.5, width: "100%" }} />
+        </div>
+        <div style={{ width: "100%", display: "flex", gap: 6, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "var(--text-secondary)", marginBottom: 6 }}>
+            <input type="checkbox" checked={hasBreak} onChange={(e) => setHasBreak(e.target.checked)} />
+            Ara var
+          </label>
+          {hasBreak && (
+            <>
+              <div style={{ width: 95 }}>
+                <label style={{ fontSize: 11.5, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ara başlangıç</label>
+                <input type="time" value={breakStart} onChange={(e) => setBreakStart(e.target.value)} style={{ fontSize: 12.5, width: "100%" }} />
+              </div>
+              <div style={{ width: 95 }}>
+                <label style={{ fontSize: 11.5, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ara bitiş</label>
+                <input type="time" value={breakEnd} onChange={(e) => setBreakEnd(e.target.value)} style={{ fontSize: 12.5, width: "100%" }} />
+              </div>
+            </>
+          )}
+        </div>
+        <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 12.5 }}>+ Ekle</button>
+      </form>
+
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Vardiyayı sil"
+          message={`${WEEKDAYS[confirmDelete.weekday - 1]} ${confirmDelete.startTime}–${confirmDelete.endTime} vardiyası kaldırılacak. Bu geri alınamaz.`}
+          onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
+          onClose={() => setConfirmDelete(null)}
+        />
+      )}
+    </div>
+  );
+}
+
 // Otel gibi "randevu saati" değil "oda stoku" mantığıyla çalışan sektörler için —
 // Müsaitlik Saatleri'ndeki gün/saat/slot modeli buraya uymuyor (bkz. bookingModel,
 // Sectors.jsx): burada müsaitlik bir GÜN/SAAT slotu değil, bir TARİH ARALIĞINDA
@@ -9636,7 +9738,7 @@ function RoomInventoryManager({ items, roomTypeOptions, onAdd, onUpdate, onDelet
   );
 }
 
-function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) {
+function TeamModal({ session, activeTeamId, companySettings, onClose, notify, staffShifts, onAddStaffShift, onDeleteStaffShift }) {
   const isOwner = activeTeamId === session.user.id;
   const [members, setMembers] = useState([]);
   const [invites, setInvites] = useState([]);
@@ -9645,6 +9747,7 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
   const [sending, setSending] = useState(false);
   const [confirmRemoveMember, setConfirmRemoveMember] = useState(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [expandedShiftMemberId, setExpandedShiftMemberId] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -9754,6 +9857,32 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
       ) : (
         <>
           <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
+              Vardiyam <InfoTip placement="bottom" text="Vardiya tanımlarsanız müşteri portalında sadece en az bir kişinin (siz veya bir üye) vardiyada olduğu saatler randevu için sunulur. Kimse vardiya tanımlamazsa Müsaitlik Saatleri tek başına geçerli olmaya devam eder." />
+            </label>
+            <div style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 500 }}>Ben ({session.user.email})</span>
+                <button
+                  type="button"
+                  onClick={() => setExpandedShiftMemberId((prev) => (prev === session.user.id ? null : session.user.id))}
+                  style={{ fontSize: 12, background: "transparent", border: "0.5px solid var(--border-strong)" }}
+                >
+                  Vardiya {expandedShiftMemberId === session.user.id ? "▲" : "▼"}
+                </button>
+              </div>
+              {expandedShiftMemberId === session.user.id && (
+                <div style={{ marginTop: 10 }}>
+                  <StaffShiftManager
+                    items={staffShifts.filter((s) => s.memberId === session.user.id)}
+                    onAdd={(shift) => onAddStaffShift({ ...shift, memberId: session.user.id })}
+                    onDelete={onDeleteStaffShift}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+          <div style={{ marginBottom: 16 }}>
             <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>Üyeler</label>
             {members.length === 0 ? (
               <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz takım üyesi yok.</p>
@@ -9763,8 +9892,26 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify }) 
                   <div key={m.member_id} style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                       <span style={{ fontSize: 13, fontWeight: 500 }}>{m.name || m.email}</span>
-                      <IconButton icon="ti-trash" title="Kaldır" size="sm" onClick={() => setConfirmRemoveMember(m)} />
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedShiftMemberId((prev) => (prev === m.member_id ? null : m.member_id))}
+                          style={{ fontSize: 12, background: "transparent", border: "0.5px solid var(--border-strong)" }}
+                        >
+                          Vardiya {expandedShiftMemberId === m.member_id ? "▲" : "▼"}
+                        </button>
+                        <IconButton icon="ti-trash" title="Kaldır" size="sm" onClick={() => setConfirmRemoveMember(m)} />
+                      </div>
                     </div>
+                    {expandedShiftMemberId === m.member_id && (
+                      <div style={{ marginTop: 8, marginBottom: 4 }}>
+                        <StaffShiftManager
+                          items={staffShifts.filter((s) => s.memberId === m.member_id)}
+                          onAdd={(shift) => onAddStaffShift({ ...shift, memberId: m.member_id })}
+                          onDelete={onDeleteStaffShift}
+                        />
+                      </div>
+                    )}
                     <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-secondary)", marginTop: 4, cursor: "pointer" }}>
                       <input
                         type="checkbox"
@@ -11253,6 +11400,7 @@ export default function App() {
   const [classAttendance, setClassAttendanceState] = useState([]);
   const [groupClassWaitlist, setGroupClassWaitlist] = useState([]);
   const [businessHours, setBusinessHours] = useState([]);
+  const [staffShifts, setStaffShifts] = useState([]);
   const [roomInventory, setRoomInventory] = useState([]);
   const [showSectorOnboarding, setShowSectorOnboarding] = useState(false);
   const [showTour, setShowTour] = useState(false);
@@ -11409,6 +11557,7 @@ export default function App() {
       supabase.from("group_class_enrollments").select("*"),
       supabase.from("class_attendance").select("*"),
       supabase.from("business_hours").select("*").order("weekday").order("start_time"),
+      supabase.from("staff_shifts").select("*").order("weekday").order("start_time"),
       supabase.from("room_inventory").select("*").order("room_type"),
       supabase.from("deal_pdf_templates").select("*").order("created_at"),
       supabase.from("deal_line_items").select("*").order("sort_order"),
@@ -11417,7 +11566,7 @@ export default function App() {
       supabase.from("group_class_waitlist").select("*").order("created_at"),
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ri }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: gcw }, { data: myMembership }, { data: invites }]) => {
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ss }, { data: ri }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: gcw }, { data: myMembership }, { data: invites }]) => {
       // customers/deals/company_settings RLS'i, sahiplik politikasına ek olarak
       // portal kullanıcılarının kendi bağlı oldukları kayıtları görmesine izin
       // veren bir politikayla da "veya" ile birleşiyor (customer_*_view'ların
@@ -11446,6 +11595,7 @@ export default function App() {
       setGroupClassEnrollments((gce || []).filter((row) => row.user_id === ownerId).map(rowToGroupClassEnrollment));
       setClassAttendanceState((catt || []).filter((row) => row.user_id === ownerId).map(rowToClassAttendance));
       setBusinessHours((bh || []).filter((row) => row.user_id === ownerId).map(rowToBusinessHours));
+      setStaffShifts((ss || []).filter((row) => row.user_id === ownerId).map(rowToStaffShift));
       setRoomInventory((ri || []).filter((row) => row.user_id === ownerId).map(rowToRoomInventory));
       setPdfTemplates((pdft || []).filter((row) => row.user_id === ownerId).map(rowToPdfTemplate));
       setStockItems((stk || []).filter((row) => row.user_id === ownerId).map(rowToStockItem));
@@ -13076,6 +13226,19 @@ export default function App() {
     const { error } = await supabase.from("business_hours").delete().eq("id", id);
     if (error) { notify(`Müsaitlik silinemedi: ${error.message}`); return; }
     setBusinessHours((prev) => prev.filter((b) => b.id !== id));
+  };
+
+  const addStaffShift = async ({ memberId, weekday, startTime, endTime }) => {
+    const row = { id: uid(), user_id: activeTeamId, member_id: memberId, weekday, start_time: startTime, end_time: endTime };
+    const { data, error } = await supabase.from("staff_shifts").insert(row).select().single();
+    if (error) { notify(`Vardiya eklenemedi: ${error.message}`); return; }
+    setStaffShifts((prev) => [...prev, rowToStaffShift(data)]);
+  };
+
+  const deleteStaffShift = async (id) => {
+    const { error } = await supabase.from("staff_shifts").delete().eq("id", id);
+    if (error) { notify(`Vardiya silinemedi: ${error.message}`); return; }
+    setStaffShifts((prev) => prev.filter((s) => s.id !== id));
   };
 
   const addRoomInventory = async ({ roomType, quantity, capacity, description }) => {
@@ -15263,6 +15426,9 @@ export default function App() {
           activeTeamId={activeTeamId}
           companySettings={companySettings}
           notify={notify}
+          staffShifts={staffShifts}
+          onAddStaffShift={addStaffShift}
+          onDeleteStaffShift={deleteStaffShift}
           onClose={() => setShowTeamModal(false)}
         />
       )}

@@ -90,14 +90,15 @@ export default async function handler(req, res) {
   // Bakım/Sağlık-Klinik'te randevu_tarihi, Emlak/Dijital Ajans/Danışmanlık'ta
   // gorusme_tarihi) — send-appointment-reminders.js'in zaten yaptığı gibi, sabit
   // kodlamak yerine bu işletmenin aktif "Tarih & Saat" alanı dinamik bulunuyor.
-  const [{ data: fieldDefs, error: fieldDefsError }, { data: hours, error: hoursError }, { data: deals, error: dealsError }, { data: cred, error: credError }] = await Promise.all([
+  const [{ data: fieldDefs, error: fieldDefsError }, { data: hours, error: hoursError }, { data: shifts, error: shiftsError }, { data: deals, error: dealsError }, { data: cred, error: credError }] = await Promise.all([
     supabaseAdmin.from("custom_field_defs").select("key").eq("user_id", businessUserId).eq("entity", "deal").eq("field_type", "datetime").eq("active", true).limit(1),
     supabaseAdmin.from("business_hours").select("start_time, end_time, slot_duration_minutes").eq("user_id", businessUserId).eq("weekday", isoWeekday),
+    supabaseAdmin.from("staff_shifts").select("start_time, end_time").eq("user_id", businessUserId).eq("weekday", isoWeekday),
     supabaseAdmin.from("deals").select("custom_fields").eq("user_id", businessUserId).is("deleted_at", null).neq("stage", "kaybedildi"),
     supabaseAdmin.from("payment_credentials").select("id").eq("user_id", businessUserId).maybeSingle(),
   ]);
 
-  if (fieldDefsError || hoursError || dealsError || credError) return res.status(500).json({ error: (fieldDefsError || hoursError || dealsError || credError).message });
+  if (fieldDefsError || hoursError || shiftsError || dealsError || credError) return res.status(500).json({ error: (fieldDefsError || hoursError || shiftsError || dealsError || credError).message });
   const hasPaymentProvider = !!cred;
 
   const dateTimeKey = fieldDefs?.[0]?.key || null;
@@ -123,6 +124,19 @@ export default async function handler(req, res) {
   // randevunun nereye yazılacağı belirsiz olur — güvenli tarafta kalıp boş dönülür.
   if (!dateTimeKey) return res.status(200).json({ slots: [], dateTimeKey: null, hasPaymentProvider });
 
+  // Vardiya pencereleri dakika cinsinden [start, end) aralıklarına çevrilir —
+  // hiç vardiya tanımlanmamışsa (shiftWindows.length === 0) aşağıdaki filtre
+  // hiç uygulanmaz, davranış Müsaitlik Saatleri'yle birebir eskisi gibi kalır.
+  // Müşteri hangi personelle randevu aldığını seçmiyor (bkz. SlotBookingModal),
+  // bu yüzden "en az bir kişi vardiyada mı" agregat kontrolü yeterli — kişi
+  // bazlı slot listesi değil, tek bir müsaitlik listesi dönülüyor.
+  const shiftWindows = (shifts || []).map((s) => {
+    const [sh, sm] = s.start_time.slice(0, 5).split(":").map(Number);
+    const [eh, em] = s.end_time.slice(0, 5).split(":").map(Number);
+    return [sh * 60 + sm, eh * 60 + em];
+  });
+  const coveredByShift = (cursor) => shiftWindows.length === 0 || shiftWindows.some(([start, end]) => cursor >= start && cursor < end);
+
   const slots = [];
   for (const window of hours || []) {
     const [startH, startM] = window.start_time.slice(0, 5).split(":").map(Number);
@@ -131,6 +145,7 @@ export default async function handler(req, res) {
     const end = endH * 60 + endM;
     for (let cursor = startH * 60 + startM; cursor + step <= end; cursor += step) {
       if (isToday && cursor <= nowMinutes) continue;
+      if (!coveredByShift(cursor)) continue;
       const time = `${String(Math.floor(cursor / 60)).padStart(2, "0")}:${String(cursor % 60).padStart(2, "0")}`;
       if (!takenTimes.has(time)) slots.push(time);
     }
