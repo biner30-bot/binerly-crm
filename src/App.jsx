@@ -13551,7 +13551,7 @@ export default function App() {
 
       {tab === "pano" && (
         <div>
-          {!(activationChecklistDismissedClick || (activeTeamId && localStorage.getItem(`binerly_activation_checklist_dismissed_${activeTeamId}`))) && (() => {
+          {!(activationChecklistDismissedClick || (activeTeamId && localStorage.getItem(`binerly_activation_checklist_dismissed_${activeTeamId}`)) || pendingInvites.some((inv) => !dismissedInviteIds.includes(inv.id))) && (() => {
             const steps = [
               // Şirket bilgileri/sektör adımları Ayarlar hub'ındaki ile aynı yetkiye
               // (canEditCompanySettings) tabi — aksi halde yetkisi olmayan bir takım
