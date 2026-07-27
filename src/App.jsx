@@ -511,6 +511,7 @@ function rowToCustomer(r) {
     deletedAt: r.deleted_at || null,
     tags: r.tags || [],
     customFields: r.custom_fields || {},
+    appointmentCreditCount: r.appointment_credit_count || 0,
   };
 }
 
@@ -592,7 +593,7 @@ const LOST_REASONS =["Yüksek fiyat", "Rakip tercih edildi", "Bütçe yok", "Zam
 // kalıyordu. "İptal etti" bilinçli olarak İLK sırada: bir kaybı yanlışlıkla
 // "gelmedi" (no-show, müşteri hakkında daha ağır bir iddia) olarak
 // varsayılmasın diye varsayılan seçim daha nötr olan tarafta.
-const APPOINTMENT_LOST_REASONS = ["İptal etti", "Geç iptal etti", "Randevuya gelmedi", "Diğer"];
+const APPOINTMENT_LOST_REASONS = ["İptal etti", "Geç iptal etti", "Randevuya gelmedi", "Mücbir sebep", "İşletme iptal etti", "Diğer"];
 function dealLostReasons(sector) {
   return isAppointmentSector(sector) ? APPOINTMENT_LOST_REASONS : LOST_REASONS;
 }
@@ -745,7 +746,7 @@ const HELP_TOPICS = [
   { category: "Randevu & Program", q: "Randevu hatırlatması otomatik mi gidiyor?", a: "Evet, randevu saatinden yaklaşık 2 saat önce müşteriye otomatik hatırlatma e-postası gider. Ayarlar → İşletme Bilgileri'nden bu özelliği kapatabilirsiniz.", visibleIf: (sector) => supportsSelfBooking(sector) },
   { category: "Randevu & Program", q: "Oda Stoku ne işe yarar?", a: "Ayarlar → Oda Stoku'ndan her oda tipinden kaç adet olduğunuzu belirlersiniz — müşteri portalı, seçilen giriş/çıkış tarihi aralığında o tipte zaten stok kadar rezervasyon varsa \"müsait değil\" gösterir. Henüz eklenmemiş bir oda tipinden rezervasyon alınamaz.", visibleIf: (sector) => bookingModel(sector) === "inventory" },
   { category: "Randevu & Program", q: "Aynı oda tipine aynı tarihler için birden fazla rezervasyon girebilir miyim?", a: "Evet — Oda Stoku'nda tanımladığınız adet kadar, aynı tarih aralığında çakışan rezervasyon kabul edilir; adet dolduğunda yeni bir kayıt eklemeye çalışırsanız net bir uyarıyla engellenir.", visibleIf: (sector) => bookingModel(sector) === "inventory" },
-  { category: "Randevu & Program", q: "Bir randevuyu \"gelmedi\" mi \"iptal\" mi olarak işaretlemeliyim?", a: "Aşamayı \"kaybedildi\"ye çektiğinizde size sorulur — müşteri habersiz gelmediyse \"Randevuya gelmedi\", önceden haber verip iptal ettiyse \"İptal etti\" seçin. Bu ayrım Pano'daki \"Gelmeme oranı\" metriğini doğru hesaplamak için önemlidir.", visibleIf: (sector) => isAppointmentSector(sector) },
+  { category: "Randevu & Program", q: "Bir randevuyu \"gelmedi\" mi \"iptal\" mi olarak işaretlemeliyim?", a: "Aşamayı \"kaybedildi\"ye çektiğinizde size sorulur — müşteri habersiz gelmediyse \"Randevuya gelmedi\", önceden haber verip iptal ettiyse \"İptal etti\" seçin. Bu ayrım Pano'daki \"Gelmeme oranı\" metriğini doğru hesaplamak için önemlidir. Ayrıca belgelenebilir acil durumlarda \"Mücbir sebep\" (ceza/sayaç işletilmez) ve siz/personeliniz kaynaklı iptallerde \"İşletme iptal etti\" (geç iptal ediyorsanız müşteriye otomatik telafi hakkı tanınır) seçeneklerini kullanabilirsiniz.", visibleIf: (sector) => isAppointmentSector(sector) },
   { category: "Randevu & Program", q: "Grup dersi / haftalık program nasıl oluştururum?", a: "Spor Merkezi ve Eğitim/Kurs Merkezi sektörlerinde \"Dersler\" sekmesinden haftalık program, kapasite ve eğitmen bilgisiyle ders tanımlayabilirsiniz — müşteriler portaldan kendi kaydolup iptal edebilir.", visibleIf: (sector) => supportsGroupClasses(sector) },
 
   // Destek & Bilgi Bankası
@@ -938,6 +939,8 @@ const REASON_ADVICE = {
   "Randevuya gelmedi": "Randevu hatırlatmalarınızın açık olduğundan emin olun, randevuya yakın ek bir hatırlatma da gelmeme oranını azaltabilir.",
   "İptal etti": "İptal nedenini not almayı sürdürün — tekrarlayan bir kalıp (örn. hep aynı gün/saat) varsa program/müsaitlik saatlerinizi gözden geçirebilirsiniz.",
   "Geç iptal etti": "Bu müşteriler randevuya çok yakın iptal ediyor — Müsaitlik Saatleri'ndeki geç iptal/gelmeme cezası ayarını kullanarak tekrarlayanlarda sonraki randevuda ödeme zorunlu tutabilirsiniz.",
+  "Mücbir sebep": "Belgelenebilir acil durumlarda (hastalık, kaza, resmi mücbir sebep) ceza/sayaç uygulanmaması adil bir istisnadır — sık tekrarlanıyorsa yine de not tutmakta fayda var.",
+  "İşletme iptal etti": "İşletme/personel kaynaklı geç iptallerde müşteriye otomatik tanınan telafi hakkını bir sonraki randevusunda hatırlatmayı unutmayın.",
 };
 
 const ANSWER_LIBRARY = [
@@ -6244,6 +6247,7 @@ function rowToCompanySettings(r) {
     appointmentPenaltyHours: r.appointment_penalty_hours ?? null,
     appointmentPenaltyStrikeLimit: r.appointment_penalty_strike_limit ?? null,
     appointmentPenaltyBurnsSession: r.appointment_penalty_burns_session === true,
+    appointmentPartialChargeHours: r.appointment_partial_charge_hours ?? null,
   };
 }
 
@@ -6762,6 +6766,10 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   // ihlal anında otomatik) — bu durumda burada ayrıca ödeme istemeye gerek yok.
   const hasActivePackage = !!selectedCustomer && deals.some((d) => d.customerId === selectedCustomer.id && d.stage === "kazanildi" && d.sessionTotal > 0 && (d.sessionUsed || 0) < d.sessionTotal);
   const noShowPenaltyBurnsInstead = !!noShowRisk && appointmentPenaltyBurnsSession && hasActivePackage;
+  // İşletme kaynaklı geç iptallerde tanınan ücretsiz telafi hakkı — sadece YENİ
+  // randevu oluştururken sorulur (var olanı düzenlerken anlamsız).
+  const hasCredit = !initial && !!selectedCustomer && (selectedCustomer.appointmentCreditCount || 0) > 0;
+  const [applyCredit, setApplyCredit] = useState(false);
   const [title, setTitle] = useState(initial?.title || "");
   const [value, setValue] = useState(initial?.value ?? "");
   const [selectedPriceItemId, setSelectedPriceItemId] = useState("");
@@ -6891,13 +6899,15 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           return;
         }
         setSessionError("");
+        const useAppointmentCredit = hasCredit && applyCredit;
         const payload = {
           id: initial?.id || uid(),
           customerId,
           title: title.trim(),
-          value: Number(value) || 0,
+          value: useAppointmentCredit ? 0 : Number(value) || 0,
           cost: Number(cost) || 0,
-          paymentMode,
+          paymentMode: useAppointmentCredit ? "none" : paymentMode,
+          useAppointmentCredit,
           kdvRate,
           stage,
           reminder: reminder.trim(),
@@ -6991,6 +7001,20 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
               Ödemeyi zorunlu yap
             </button>
           )}
+        </div>
+      )}
+      {hasCredit && (
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "var(--bg-accent)", border: "0.5px solid var(--border-strong)", borderRadius: "var(--radius)", padding: "10px 12px", marginBottom: 12, fontSize: 13 }}>
+          <i className="ti ti-gift" style={{ fontSize: 16, color: "var(--text-accent)", flexShrink: 0, marginTop: 1 }} aria-hidden="true"></i>
+          <div style={{ flex: 1 }}>
+            <p style={{ margin: 0, fontWeight: 500 }}>
+              {selectedCustomer?.name} için {selectedCustomer?.appointmentCreditCount} ücretsiz telafi hakkı var
+            </p>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, color: "var(--text-secondary)", cursor: "pointer" }}>
+              <input type="checkbox" checked={applyCredit} onChange={(e) => setApplyCredit(e.target.checked)} />
+              Bu randevuya uygula (Tutar 0 TL olur, ödeme istenmez)
+            </label>
+          </div>
         </div>
       )}
       {(initial?.approvedAt || initial?.paymentStatus === "paid") && (
@@ -7854,6 +7878,11 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
         {customer.tags?.length > 0 && (
           <div style={{ marginTop: 8 }}>
             <TagBadges tags={customer.tags} />
+          </div>
+        )}
+        {customer.appointmentCreditCount > 0 && (
+          <div style={{ marginTop: 8 }}>
+            <Badge tone="accent">🎁 {customer.appointmentCreditCount} ücretsiz telafi hakkı</Badge>
           </div>
         )}
         {customFieldDefs.filter((d) => d.entity === "customer" && customer.customFields?.[d.key]).length > 0 && (
@@ -8860,12 +8889,14 @@ function LateCancelPolicyBox({ companySettings, onSave }) {
 // kilitli" davranışı BİLEREK kaldırıldı, kobi "iptal etse de sorun değil"
 // diyorsa bunu tam olarak uygulayabilsin diye (2026-07-26).
 function AppointmentCancelPolicyBox({ companySettings, onSave }) {
-  const configured = companySettings?.appointmentCancelHours != null || companySettings?.appointmentPenaltyHours != null || companySettings?.appointmentPenaltyStrikeLimit != null;
+  const configured = companySettings?.appointmentCancelHours != null || companySettings?.appointmentPenaltyHours != null || companySettings?.appointmentPenaltyStrikeLimit != null || companySettings?.appointmentPartialChargeHours != null;
   const [open, setOpen] = useState(false);
   const [hardBlockOn, setHardBlockOn] = useState(companySettings?.appointmentCancelHours != null);
   const [hardBlockHours, setHardBlockHours] = useState(companySettings?.appointmentCancelHours ?? "");
   const [penaltyOn, setPenaltyOn] = useState(companySettings?.appointmentPenaltyHours != null);
   const [penaltyHours, setPenaltyHours] = useState(companySettings?.appointmentPenaltyHours ?? "");
+  const [partialOn, setPartialOn] = useState(companySettings?.appointmentPartialChargeHours != null);
+  const [partialHours, setPartialHours] = useState(companySettings?.appointmentPartialChargeHours ?? "");
   const [strikeOn, setStrikeOn] = useState(companySettings?.appointmentPenaltyStrikeLimit != null);
   const [strikeLimit, setStrikeLimit] = useState(companySettings?.appointmentPenaltyStrikeLimit ?? "");
   const [burnsSession, setBurnsSession] = useState(companySettings?.appointmentPenaltyBurnsSession === true);
@@ -8875,6 +8906,8 @@ function AppointmentCancelPolicyBox({ companySettings, onSave }) {
     setHardBlockHours(companySettings?.appointmentCancelHours ?? "");
     setPenaltyOn(companySettings?.appointmentPenaltyHours != null);
     setPenaltyHours(companySettings?.appointmentPenaltyHours ?? "");
+    setPartialOn(companySettings?.appointmentPartialChargeHours != null);
+    setPartialHours(companySettings?.appointmentPartialChargeHours ?? "");
     setStrikeOn(companySettings?.appointmentPenaltyStrikeLimit != null);
     setStrikeLimit(companySettings?.appointmentPenaltyStrikeLimit ?? "");
     setBurnsSession(companySettings?.appointmentPenaltyBurnsSession === true);
@@ -8885,6 +8918,7 @@ function AppointmentCancelPolicyBox({ companySettings, onSave }) {
     onSave({
       appointmentCancelHours: hardBlockOn && hardBlockHours !== "" ? Number(hardBlockHours) : null,
       appointmentPenaltyHours: penaltyOn && penaltyHours !== "" ? Number(penaltyHours) : null,
+      appointmentPartialChargeHours: partialOn && partialHours !== "" ? Number(partialHours) : null,
       appointmentPenaltyStrikeLimit: strikeOn && strikeLimit !== "" ? Number(strikeLimit) : null,
       appointmentPenaltyBurnsSession: strikeOn && burnsSession,
     });
@@ -8900,8 +8934,10 @@ function AppointmentCancelPolicyBox({ companySettings, onSave }) {
             placement="bottom"
             align="left"
             text={
-              "Dördü de opsiyonel, hiç ayarlamazsanız hiçbir kısıtlama/ceza uygulanmaz — müşteri istediği an iptal edebilir, gelmeyen müşteriler için otomatik bir sonuç doğmaz.\n\n" +
-              "Nasıl işler: 'Tamamen kilitle' süresinden az kala müşteri portaldan HİÇ iptal edemez (buton devre dışı kalır). Bunun ile 'Geç sayılma penceresi' arasında iptal ederse iptale İZİN VERİLİR ama 'Geç iptal etti' olarak işaretlenir. Bu geç iptaller ile elle işaretlediğiniz 'Randevuya gelmedi' kayıtları AYNI sayaçta birleşir — 'Kaçıncı ihlalde' alanına ulaşınca o müşterinin BİR SONRAKİ randevusu için ödeme otomatik olarak zorunlu önerilir (siz yine de elle değiştirebilirsiniz, gerçek bir engel değildir). 'Paket sahiplerinde seans yaksın' açıksa, ihlal eden müşterinin zaten aktif bir paketi varsa ödeme istemek YERİNE o paketten ihlal anında 1 seans düşülür."
+              "Beşi de opsiyonel, hiç ayarlamazsanız hiçbir kısıtlama/ceza uygulanmaz — müşteri istediği an iptal edebilir, gelmeyen müşteriler için otomatik bir sonuç doğmaz.\n\n" +
+              "Nasıl işler: 'Tamamen kilitle' süresinden az kala müşteri portaldan HİÇ iptal edemez (buton devre dışı kalır). Bunun ile 'Geç sayılma penceresi' arasında iptal ederse iptale İZİN VERİLİR ama 'Geç iptal etti' olarak işaretlenir. 'Kısmi kesinti sınırı', geç sayılma penceresinin İÇİNDE, geç iptali daha da yakın/uzak diye ikiye ayıran SADECE GÖRÜNÜRLÜK amaçlı bir eşiktir — otomatik para hareketi YAPMAZ, sadece size ve müşteriye 'bu iptal ~%50 kısmi kesinti önerilen bölgede' bilgisini gösterir, tahsilat/iade kararını siz verirsiniz. Bu geç iptaller ile elle işaretlediğiniz 'Randevuya gelmedi' kayıtları AYNI sayaçta birleşir — 'Kaçıncı ihlalde' alanına ulaşınca o müşterinin BİR SONRAKİ randevusu için ödeme otomatik olarak zorunlu önerilir (siz yine de elle değiştirebilirsiniz, gerçek bir engel değildir). 'Paket sahiplerinde seans yaksın' açıksa, ihlal eden müşterinin zaten aktif bir paketi varsa ödeme istemek YERİNE o paketten ihlal anında 1 seans düşülür.\n\n" +
+              "No-show için öneri: müşteriden haber alamadığınızda randevu saatinden itibaren genelde 15-20 dakika beklemeniz, sonra 'Randevuya gelmedi' olarak işaretlemeniz makul kabul edilir — bu bir ayar değil, sadece bir öneridir.\n\n" +
+              "'Neden kaybedildi?' seçiminde ayrıca 'Mücbir sebep' (ceza/sayaç işletilmez) ve 'İşletme iptal etti' (geç iptal ediyorsanız müşteriye otomatik 1 ücretsiz telafi hakkı tanınır) seçenekleri de vardır."
             }
           />
         </p>
@@ -8914,7 +8950,7 @@ function AppointmentCancelPolicyBox({ companySettings, onSave }) {
       {!open && (
         <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0 0" }}>
           {configured
-            ? `Aktif: ${companySettings.appointmentCancelHours != null ? `randevuya ${companySettings.appointmentCancelHours} saat kalana kadar tamamen kilit` : "tamamen kilitleme yok"}${companySettings.appointmentPenaltyHours != null ? `, ${companySettings.appointmentPenaltyHours} saatten az kala iptal 'geç iptal' sayılır` : ""}${companySettings.appointmentPenaltyStrikeLimit ? `, ${companySettings.appointmentPenaltyStrikeLimit}. ihlalde ${companySettings.appointmentPenaltyBurnsSession ? "paket sahiplerinde seans yanar, diğerlerinde sonraki randevuda ödeme önerilir" : "sonraki randevuda ödeme önerilir"}` : ""}.`
+            ? `Aktif: ${companySettings.appointmentCancelHours != null ? `randevuya ${companySettings.appointmentCancelHours} saat kalana kadar tamamen kilit` : "tamamen kilitleme yok"}${companySettings.appointmentPenaltyHours != null ? `, ${companySettings.appointmentPenaltyHours} saatten az kala iptal 'geç iptal' sayılır` : ""}${companySettings.appointmentPartialChargeHours != null ? `, ${companySettings.appointmentPartialChargeHours} saatten az kala kısmi kesinti (~%50) önerilir` : ""}${companySettings.appointmentPenaltyStrikeLimit ? `, ${companySettings.appointmentPenaltyStrikeLimit}. ihlalde ${companySettings.appointmentPenaltyBurnsSession ? "paket sahiplerinde seans yanar, diğerlerinde sonraki randevuda ödeme önerilir" : "sonraki randevuda ödeme önerilir"}` : ""}.`
             : "Kullanılmıyor — müşteri randevusunu istediği an iptal edebilir, geç iptal/gelmeme için otomatik bir sonuç yok."}
         </p>
       )}
@@ -8933,7 +8969,15 @@ function AppointmentCancelPolicyBox({ companySettings, onSave }) {
                 <input type="checkbox" checked={penaltyOn} onChange={(e) => setPenaltyOn(e.target.checked)} />
                 Geç sayılma penceresi (saat)
               </label>
-              <input type="number" min="0" step="0.5" disabled={!penaltyOn} value={penaltyHours} onChange={(e) => setPenaltyHours(e.target.value)} placeholder="Örn. 6" style={{ width: 150 }} />
+              <input type="number" min="0" step="0.5" disabled={!penaltyOn} value={penaltyHours} onChange={(e) => setPenaltyHours(e.target.value)} placeholder="Örn. 24" style={{ width: 150 }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                <input type="checkbox" checked={partialOn} onChange={(e) => setPartialOn(e.target.checked)} />
+                Kısmi kesinti sınırı (saat)
+                <InfoTip align="left" text="Geç sayılma penceresinin içinde, bundan az kala yapılan iptaller için 'kısmi kesinti (~%50) önerilir' notu gösterilir — sadece bilgi amaçlı, otomatik tahsilat/iade yapılmaz." />
+              </label>
+              <input type="number" min="0" step="0.5" disabled={!partialOn} value={partialHours} onChange={(e) => setPartialHours(e.target.value)} placeholder="Örn. 12" style={{ width: 150 }} />
             </div>
             <div>
               <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
@@ -11223,6 +11267,7 @@ export default function App() {
   const [showImportPriceList, setShowImportPriceList] = useState(false);
   const [showPriceListExport, setShowPriceListExport] = useState(false);
   const [showBusinessHours, setShowBusinessHours] = useState(false);
+  const [businessHoursTab, setBusinessHoursTab] = useState("saatler");
   const [showRoomInventory, setShowRoomInventory] = useState(false);
   const [showPdfTemplates, setShowPdfTemplates] = useState(false);
   const [showPaymentSettings, setShowPaymentSettings] = useState(false);
@@ -11837,6 +11882,18 @@ export default function App() {
       prev.some((x) => x.id === deal.id) ? prev.map((x) => (x.id === deal.id ? deal : x)) : [...prev, deal]
     );
 
+    // DealForm'daki "telafi hakkını uygula" kutusu işaretlendiyse müşterinin
+    // ücretsiz telafi hakkı sayacından 1 düşülür (bkz. applyAppointmentCreditGrant —
+    // bu, hakkın verildiği yer; burası TÜKETİLDİĞİ yer).
+    if (d.useAppointmentCredit) {
+      const customer = customers.find((c) => c.id === deal.customerId);
+      if (customer && (customer.appointmentCreditCount || 0) > 0) {
+        const newCount = customer.appointmentCreditCount - 1;
+        const { error: creditError } = await supabase.from("customers").update({ appointment_credit_count: newCount }).eq("id", customer.id);
+        if (!creditError) setCustomers((prev) => prev.map((c) => (c.id === customer.id ? { ...c, appointmentCreditCount: newCount } : c)));
+      }
+    }
+
     // Kalemler DealForm'dan geldiyse (d.lineItems tanımlıysa — moveDealStage gibi
     // kalemlerden habersiz diğer çağrılar bu alanı hiç göndermiyor, dokunulmuyor)
     // sil-hepsini-baştan-ekle senkronizasyonu yapılır — bu projede diffing yerine
@@ -11868,6 +11925,9 @@ export default function App() {
     }
     if (deal.stage === "kaybedildi" && previousStage !== "kaybedildi" && (deal.lostReason === "Randevuya gelmedi" || deal.lostReason === "Geç iptal etti")) {
       await applyAppointmentPenaltyBurn(deal.customerId, deals);
+    }
+    if (deal.stage === "kaybedildi" && previousStage !== "kaybedildi" && deal.lostReason === "İşletme iptal etti") {
+      await applyAppointmentCreditGrant(deal);
     }
 
     setShowDealForm(false);
@@ -12317,6 +12377,26 @@ export default function App() {
     logAction("deals", burn.packageDealId, "updated", `Geç iptal/gelmeme cezası: ${burn.newSessionUsed}. seans otomatik düşüldü (${burn.newSessionUsed}/${packageDeal?.sessionTotal})`);
   };
 
+  // Simetrik adalet: işletme/personel kaynaklı geç iptallerde (randevu saatine
+  // "Geç sayılma penceresi" kadar veya daha az kala) müşteriye otomatik 1
+  // ücretsiz telafi hakkı tanınır — DealForm'da yeni bir randevu oluşturulurken
+  // kullanılabilir (bkz. DealForm'daki telafi hakkı banner'ı). Pencere
+  // ayarlanmamışsa (appointmentPenaltyHours null) ya da randevu tarihi
+  // çözümlenemiyorsa sessizce atlanır — bu özellik de tamamen opsiyonel.
+  const applyAppointmentCreditGrant = async (deal) => {
+    const raw = appointmentDateTimeKey ? deal.customFields?.[appointmentDateTimeKey] : null;
+    if (!raw || companySettings?.appointmentPenaltyHours == null) return;
+    const hoursLeft = (new Date(`${raw}:00+03:00`).getTime() - Date.now()) / (60 * 60 * 1000);
+    if (isNaN(hoursLeft) || hoursLeft >= companySettings.appointmentPenaltyHours) return;
+    const customer = customers.find((c) => c.id === deal.customerId);
+    if (!customer) return;
+    const newCount = (customer.appointmentCreditCount || 0) + 1;
+    const { error } = await supabase.from("customers").update({ appointment_credit_count: newCount }).eq("id", deal.customerId);
+    if (error) { notify(`Telafi hakkı kaydedilemedi: ${error.message}`); return; }
+    setCustomers((prev) => prev.map((c) => (c.id === deal.customerId ? { ...c, appointmentCreditCount: newCount } : c)));
+    logAction("customers", deal.customerId, "updated", `${customer.name} için işletme kaynaklı geç iptal nedeniyle 1 ücretsiz telafi hakkı tanındı.`);
+  };
+
   const moveDealStage = async (id, stage, lostReason) => {
     const current = deals.find((d) => d.id === id);
     const previousStage = current?.stage;
@@ -12344,6 +12424,9 @@ export default function App() {
       }
       if (current && stage === "kaybedildi" && previousStage !== "kaybedildi" && (nextLostReason === "Randevuya gelmedi" || nextLostReason === "Geç iptal etti")) {
         await applyAppointmentPenaltyBurn(current.customerId, deals);
+      }
+      if (current && stage === "kaybedildi" && previousStage !== "kaybedildi" && nextLostReason === "İşletme iptal etti") {
+        await applyAppointmentCreditGrant(current);
       }
     }
   };
@@ -12710,6 +12793,7 @@ export default function App() {
       appointment_penalty_hours: s.appointmentPenaltyHours || null,
       appointment_penalty_strike_limit: s.appointmentPenaltyStrikeLimit || null,
       appointment_penalty_burns_session: s.appointmentPenaltyBurnsSession === true,
+      appointment_partial_charge_hours: s.appointmentPartialChargeHours || null,
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase.from("company_settings").upsert(row).select().single();
@@ -14934,8 +15018,23 @@ export default function App() {
 
       {showBusinessHours && (
         <Modal title="Müsaitlik Saatleri" wide onClose={() => setShowBusinessHours(false)}>
-          <AppointmentCancelPolicyBox companySettings={companySettings} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
-          <BusinessHoursManager items={businessHours} onAdd={addBusinessHours} onDelete={deleteBusinessHours} />
+          <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: 16, flexWrap: "wrap" }}>
+            {[["saatler", "Müsaitlik Saatleri"], ["politika", "Randevu iptal / gelmeme politikası"]].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setBusinessHoursTab(id)}
+                style={{ border: "none", background: businessHoursTab === id ? "var(--fill-accent)" : "transparent", color: businessHoursTab === id ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: businessHoursTab === id ? 600 : 400, fontSize: 13 }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {businessHoursTab === "saatler" ? (
+            <BusinessHoursManager items={businessHours} onAdd={addBusinessHours} onDelete={deleteBusinessHours} />
+          ) : (
+            <AppointmentCancelPolicyBox companySettings={companySettings} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
+          )}
         </Modal>
       )}
 
@@ -15243,24 +15342,46 @@ export default function App() {
         <CampaignModal customers={customers} replyTo={session.user.email} companyName={companySettings?.companyName} logoUrl={companySettings?.logoUrl} session={session} onClose={() => setShowCampaignModal(false)} />
       )}
 
-      {pendingLostReasonMove && (
-        <Modal title="Neden kaybedildi?" onClose={() => setPendingLostReasonMove(null)}>
-          <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px" }}>
-            Müşteri randevuya gelmedi mi, yoksa iptal mi etti? Bu ayrım Pano'daki "Gelmeme oranı" hesabında kullanılıyor.
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {dealLostReasons(companySettings?.sector).map((reason) => (
-              <button
-                key={reason}
-                onClick={() => { moveDealStage(pendingLostReasonMove.dealId, "kaybedildi", reason); setPendingLostReasonMove(null); }}
-                style={{ textAlign: "left" }}
-              >
-                {reason}
-              </button>
-            ))}
-          </div>
-        </Modal>
-      )}
+      {pendingLostReasonMove && (() => {
+        const pendingDeal = deals.find((d) => d.id === pendingLostReasonMove.dealId);
+        const rawAppt = appointmentDateTimeKey ? pendingDeal?.customFields?.[appointmentDateTimeKey] : null;
+        const hoursLeft = rawAppt ? (new Date(`${rawAppt}:00+03:00`).getTime() - Date.now()) / (60 * 60 * 1000) : null;
+        const partialChargeHours = companySettings?.appointmentPartialChargeHours;
+        // Sadece bilgi amaçlı — "Geç iptal etti" seçilirse hangi kesinti
+        // bölgesine düştüğünü gösterir, otomatik para hareketi yapmaz.
+        const chargeZoneNote = hoursLeft != null && companySettings?.appointmentPenaltyHours != null && hoursLeft < companySettings.appointmentPenaltyHours && partialChargeHours != null
+          ? (hoursLeft >= partialChargeHours ? "Kısmi kesinti (~%50) önerilen bölgede." : "Tam kesinti önerilen bölgede (seans yapılmış sayılabilir).")
+          : null;
+        const willGrantCredit = hoursLeft != null && companySettings?.appointmentPenaltyHours != null && hoursLeft < companySettings.appointmentPenaltyHours;
+        return (
+          <Modal title="Neden kaybedildi?" onClose={() => setPendingLostReasonMove(null)}>
+            <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px" }}>
+              Müşteri randevuya gelmedi mi, yoksa iptal mi etti? Bu ayrım Pano'daki "Gelmeme oranı" hesabında kullanılıyor.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {dealLostReasons(companySettings?.sector).map((reason) => (
+                <div key={reason}>
+                  <button
+                    onClick={() => { moveDealStage(pendingLostReasonMove.dealId, "kaybedildi", reason); setPendingLostReasonMove(null); }}
+                    style={{ textAlign: "left", width: "100%" }}
+                  >
+                    {reason}
+                  </button>
+                  {reason === "Geç iptal etti" && chargeZoneNote && (
+                    <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "2px 0 0 2px" }}>{chargeZoneNote}</p>
+                  )}
+                  {reason === "İşletme iptal etti" && willGrantCredit && (
+                    <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "2px 0 0 2px" }}>Randevu saatine az kaldığı için müşteriye otomatik 1 ücretsiz telafi hakkı tanınacak.</p>
+                  )}
+                  {reason === "Mücbir sebep" && (
+                    <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "2px 0 0 2px" }}>Ceza/sayaç işletilmez.</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Modal>
+        );
+      })()}
 
       {viewingCustomer && (
         <CustomerDetail

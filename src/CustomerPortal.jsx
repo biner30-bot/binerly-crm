@@ -131,7 +131,7 @@ function appointmentCancelDecision(randevuTarihi, hardBlockHours, penaltyHours) 
   const hoursLeft = (new Date(`${randevuTarihi}+03:00`).getTime() - Date.now()) / (60 * 60 * 1000);
   const canCancel = hardBlockHours == null || hoursLeft >= hardBlockHours;
   const isLate = canCancel && penaltyHours != null && hoursLeft < penaltyHours;
-  return { canCancel, isLate };
+  return { canCancel, isLate, hoursLeft };
 }
 
 function CustomerPortalLanding({ onEnter }) {
@@ -450,7 +450,7 @@ function PortalMessagesPanel({ messages, onSend, sending }) {
   );
 }
 
-function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, hardBlockHoursByCustomerId = {}, appointmentPenaltyHoursByCustomerId = {}, appointmentPenaltyStrikeLimitByCustomerId = {}, appointmentPenaltyBurnsSessionByCustomerId = {}, sector, showCompany, dealKind, onCancelAppointment }) {
+function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, hardBlockHoursByCustomerId = {}, appointmentPenaltyHoursByCustomerId = {}, appointmentPenaltyStrikeLimitByCustomerId = {}, appointmentPenaltyBurnsSessionByCustomerId = {}, appointmentPartialChargeHoursByCustomerId = {}, sector, showCompany, dealKind, onCancelAppointment }) {
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
@@ -521,9 +521,10 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
         const cancellable = d.stage === "ilk_gorusme" && randevuTarihi;
         const hardBlockHours = hardBlockHoursByCustomerId[d.customerId];
         const penaltyHours = appointmentPenaltyHoursByCustomerId[d.customerId];
-        const { canCancel, isLate } = cancellable
+        const partialChargeHours = appointmentPartialChargeHoursByCustomerId[d.customerId];
+        const { canCancel, isLate, hoursLeft } = cancellable
           ? appointmentCancelDecision(randevuTarihi, hardBlockHours, penaltyHours)
-          : { canCancel: false, isLate: false };
+          : { canCancel: false, isLate: false, hoursLeft: null };
         // Sadece bilgilendirme amaçlı bir ÖNİZLEME — cezanın gerçek uygulanışı
         // cancelAppointment'ta (isLate onaylanınca) aynı fonksiyonla tekrar
         // hesaplanıyor. Burada erken göstermek müşteriye "bu iptal ne yapacak"
@@ -534,6 +535,11 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
           burnsSessionEnabled: appointmentPenaltyBurnsSessionByCustomerId[d.customerId] === true,
           strikeLimit: appointmentPenaltyStrikeLimitByCustomerId[d.customerId],
         });
+        // Kısmi kesinti sınırı — sadece bilgi amaçlı bir bölge etiketi, otomatik
+        // para hareketi yapmaz (bkz. AppointmentCancelPolicyBox InfoTip'i).
+        const chargeZone = isLate && partialChargeHours != null
+          ? (hoursLeft >= partialChargeHours ? "partial" : "full")
+          : null;
         // Onay ve ödeme birbirinden bağımsız — /onay/{token} sayfası zaten
         // hangi moda göre ne göstereceğini kendi kararlaştırıyor, burada
         // sadece o sayfaya giden tek bir uyarlanmış link/rozet sunuluyor.
@@ -593,7 +599,7 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
                 <span style={{ fontSize: 13, fontWeight: 600, minWidth: 90, textAlign: "right" }}>{formatTL(d.value)}</span>
               )}
               {cancellable && (canCancel ? (
-                <button type="button" onClick={() => onCancelAppointment(d.id, isLate, willBurnSession)} style={{ fontSize: 13 }}>İptal Et</button>
+                <button type="button" onClick={() => onCancelAppointment(d.id, isLate, willBurnSession, chargeZone)} style={{ fontSize: 13 }}>İptal Et</button>
               ) : (
                 <span style={{ fontSize: 12, color: "var(--text-muted)" }} title={`Planlanan saate ${hardBlockHours} saatten az kaldığı için iptal edilemez`}>İptal edilemez</span>
               ))}
@@ -1304,6 +1310,7 @@ export default function CustomerPortal() {
           companyAppointmentPenaltyHours: r.company_appointment_penalty_hours ?? null,
           companyAppointmentPenaltyStrikeLimit: r.company_appointment_penalty_strike_limit ?? null,
           companyAppointmentPenaltyBurnsSession: r.company_appointment_penalty_burns_session === true,
+          companyAppointmentPartialChargeHours: r.company_appointment_partial_charge_hours ?? null,
         }));
         setCustomerRows(rows);
         const customerIds = rows.map((r) => r.id);
@@ -1698,6 +1705,7 @@ export default function CustomerPortal() {
   const appointmentPenaltyHoursByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companyAppointmentPenaltyHours]));
   const appointmentPenaltyStrikeLimitByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companyAppointmentPenaltyStrikeLimit]));
   const appointmentPenaltyBurnsSessionByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companyAppointmentPenaltyBurnsSession]));
+  const appointmentPartialChargeHoursByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companyAppointmentPartialChargeHours]));
   const totalUnreadTickets = visibleTickets.filter((t) => unreadCountByTicket[t.id] > 0).length;
 
   const dealKind = dealWordKind(activeCustomerRow?.companySector);
@@ -1885,7 +1893,7 @@ export default function CustomerPortal() {
                   ))}
                 </div>
               )}
-              <PortalDealList deals={visibleDeals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} hardBlockHoursByCustomerId={hardBlockHoursByCustomerId} appointmentPenaltyHoursByCustomerId={appointmentPenaltyHoursByCustomerId} appointmentPenaltyStrikeLimitByCustomerId={appointmentPenaltyStrikeLimitByCustomerId} appointmentPenaltyBurnsSessionByCustomerId={appointmentPenaltyBurnsSessionByCustomerId} sector={activeCustomerRow?.companySector} showCompany={false} dealKind={dealKind} onCancelAppointment={(id, isLate, willBurnSession) => setConfirmCancel({ type: "appointment", id, isLate, willBurnSession })} />
+              <PortalDealList deals={visibleDeals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} hardBlockHoursByCustomerId={hardBlockHoursByCustomerId} appointmentPenaltyHoursByCustomerId={appointmentPenaltyHoursByCustomerId} appointmentPenaltyStrikeLimitByCustomerId={appointmentPenaltyStrikeLimitByCustomerId} appointmentPenaltyBurnsSessionByCustomerId={appointmentPenaltyBurnsSessionByCustomerId} appointmentPartialChargeHoursByCustomerId={appointmentPartialChargeHoursByCustomerId} sector={activeCustomerRow?.companySector} showCompany={false} dealKind={dealKind} onCancelAppointment={(id, isLate, willBurnSession, chargeZone) => setConfirmCancel({ type: "appointment", id, isLate, willBurnSession, chargeZone })} />
             </div>
           )}
 
@@ -1957,6 +1965,10 @@ export default function CustomerPortal() {
             confirmCancel.type === "appointment"
               ? (confirmCancel.willBurnSession
                   ? "Randevunuzu iptal etmek istediğinizden emin misiniz? Randevu saatine az kaldığı için bu iptal paketinizden 1 seans düşürecek. Bu işlem geri alınamaz."
+                  : confirmCancel.chargeZone === "full"
+                  ? "Randevunuzu iptal etmek istediğinizden emin misiniz? Randevu saatine çok az kaldığı için bu iptal 'geç iptal' olarak işaretlenecek ve tam kesinti (seans yapılmış sayılabilir) bölgesinde. Bu işlem geri alınamaz."
+                  : confirmCancel.chargeZone === "partial"
+                  ? "Randevunuzu iptal etmek istediğinizden emin misiniz? Randevu saatine az kaldığı için bu iptal 'geç iptal' olarak işaretlenecek ve kısmi kesinti (~%50) önerilen bölgede. Bu işlem geri alınamaz."
                   : confirmCancel.isLate
                   ? "Randevunuzu iptal etmek istediğinizden emin misiniz? Randevu saatine az kaldığı için bu iptal 'geç iptal' olarak işaretlenecek. Bu işlem geri alınamaz."
                   : "Randevunuzu iptal etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.")
