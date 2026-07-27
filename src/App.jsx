@@ -153,6 +153,13 @@ function computeOrderRhythmAlerts(deals, customers) {
 // (createdAt'ten) kullanılıyor — daha basit ve yeterince açıklayıcı bir yaklaşım,
 // GERÇEK BİR ENGEL DEĞİL sadece görünürlük.
 const STUCK_DEAL_DAYS_THRESHOLD = 3;
+const STUCK_DEAL_DAYS_DANGER_THRESHOLD = 7;
+// Liste ve Kanban'da ortak "kaç gündür açık" rozeti — computeStuckDeals'daki
+// aynı createdAt-bazlı yaklaşımı tek bir kayıt için hesaplar.
+function dealDaysOpen(deal) {
+  if (!deal.createdAt || deal.stage === "kazanildi" || deal.stage === "kaybedildi") return null;
+  return Math.floor((Date.now() - new Date(deal.createdAt).getTime()) / 86400000);
+}
 function computeStuckDeals(deals) {
   const now = Date.now();
   return deals
@@ -11309,6 +11316,13 @@ export default function App() {
   const [dealPaymentFilter, setDealPaymentFilter] = useState("all");
   const [dealSort, setDealSort] = useState("newest");
   const [dealAudience, setDealAudience] = useState("kurumsal");
+  const [dealView, setDealView] = useState(() => localStorage.getItem("binerly_deal_view") || "list");
+  const [dragDealId, setDragDealId] = useState(null);
+  const [expandedKanbanStages, setExpandedKanbanStages] = useState(() => new Set());
+  const changeDealView = (view) => {
+    setDealView(view);
+    localStorage.setItem("binerly_deal_view", view);
+  };
   // "İlgilenilmesi gereken" hızlı filtresi — sektörün gerçek yeteneğine göre farklı
   // bir tarih alanına bakar (randevu/görüşme tarihi, otel giriş-çıkış, hatırlatma),
   // ders programı olan sektörlerde ise tamamen farklı iki kontrol kullanır.
@@ -14390,21 +14404,39 @@ export default function App() {
 
       {tab === "firsat" && (
         <div>
-          <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: 12, width: "fit-content" }}>
-            <button
-              onClick={() => { setDealAudience("kurumsal"); updatePreferredCustomerType("kurumsal"); }}
-              style={{ border: "none", background: dealAudience === "kurumsal" ? "var(--fill-accent)" : "transparent", color: dealAudience === "kurumsal" ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: dealAudience === "kurumsal" ? 600 : 400, display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
-            >
-              <i className="ti ti-building" style={{ fontSize: 15 }} aria-hidden="true"></i>
-              Kurumsal
-            </button>
-            <button
-              onClick={() => { setDealAudience("bireysel"); updatePreferredCustomerType("bireysel"); }}
-              style={{ border: "none", background: dealAudience === "bireysel" ? "var(--fill-accent)" : "transparent", color: dealAudience === "bireysel" ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: dealAudience === "bireysel" ? 600 : 400, display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
-            >
-              <i className="ti ti-user" style={{ fontSize: 15 }} aria-hidden="true"></i>
-              Bireysel
-            </button>
+          <div style={{ display: "flex", gap: 16, marginBottom: 12, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, width: "fit-content" }}>
+              <button
+                onClick={() => { setDealAudience("kurumsal"); updatePreferredCustomerType("kurumsal"); }}
+                style={{ border: "none", background: dealAudience === "kurumsal" ? "var(--fill-accent)" : "transparent", color: dealAudience === "kurumsal" ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: dealAudience === "kurumsal" ? 600 : 400, display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+              >
+                <i className="ti ti-building" style={{ fontSize: 15 }} aria-hidden="true"></i>
+                Kurumsal
+              </button>
+              <button
+                onClick={() => { setDealAudience("bireysel"); updatePreferredCustomerType("bireysel"); }}
+                style={{ border: "none", background: dealAudience === "bireysel" ? "var(--fill-accent)" : "transparent", color: dealAudience === "bireysel" ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: dealAudience === "bireysel" ? 600 : 400, display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+              >
+                <i className="ti ti-user" style={{ fontSize: 15 }} aria-hidden="true"></i>
+                Bireysel
+              </button>
+            </div>
+            <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, width: "fit-content" }}>
+              <button
+                onClick={() => changeDealView("list")}
+                style={{ border: "none", background: dealView === "list" ? "var(--fill-accent)" : "transparent", color: dealView === "list" ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: dealView === "list" ? 600 : 400, display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+              >
+                <i className="ti ti-list" style={{ fontSize: 15 }} aria-hidden="true"></i>
+                Liste
+              </button>
+              <button
+                onClick={() => changeDealView("kanban")}
+                style={{ border: "none", background: dealView === "kanban" ? "var(--fill-accent)" : "transparent", color: dealView === "kanban" ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: dealView === "kanban" ? 600 : 400, display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+              >
+                <i className="ti ti-layout-kanban" style={{ fontSize: 15 }} aria-hidden="true"></i>
+                Kanban
+              </button>
+            </div>
           </div>
 
           {isMembershipSector ? (
@@ -14507,6 +14539,130 @@ export default function App() {
             <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
               {deals.length === 0 ? dealWords.emptyDefault : dealWords.emptySearch}
             </p>
+          ) : dealView === "kanban" ? (
+            <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
+              {STAGES.map((stage) => {
+                const isClosedStage = stage.id === "kazanildi" || stage.id === "kaybedildi";
+                const cap = isClosedStage ? 15 : 20;
+                const expanded = expandedKanbanStages.has(stage.id);
+                const stageDeals = filteredDeals
+                  .filter((d) => d.stage === stage.id)
+                  .sort((a, b) =>
+                    isClosedStage
+                      ? new Date(b.closedAt || b.createdAt || 0) - new Date(a.closedAt || a.createdAt || 0)
+                      : (dealDaysOpen(b) ?? 0) - (dealDaysOpen(a) ?? 0)
+                  );
+                const stageValue = stageDeals.reduce((sum, d) => sum + (d.value || 0), 0);
+                const visibleDeals = expanded ? stageDeals : stageDeals.slice(0, cap);
+                const hiddenCount = stageDeals.length - visibleDeals.length;
+                return (
+                  <div
+                    key={stage.id}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => {
+                      if (!dragDealId) return;
+                      attemptMoveDealStage(dragDealId, stage.id);
+                      setDragDealId(null);
+                    }}
+                    style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 10, minWidth: 220, flex: "0 0 220px" }}
+                  >
+                    <div style={{ marginBottom: 8 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 2px" }}>{stageLabel(stage.id, dealAudience, companySettings?.sector)} · {stageDeals.length}</p>
+                      <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0 }}>{formatTL(stageValue)}</p>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 40, maxHeight: 560, overflowY: "auto" }}>
+                      {visibleDeals.map((d) => {
+                        const c = customerById(d.customerId);
+                        const daysOpen = dealDaysOpen(d);
+                        return (
+                          <div
+                            key={d.id}
+                            draggable
+                            onDragStart={() => setDragDealId(d.id)}
+                            onClick={() => { setEditingDeal(d); setShowDealForm(true); }}
+                            style={{ background: "var(--surface-2)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 10, cursor: "grab" }}
+                          >
+                            <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 500 }}>{c?.name || "Bilinmeyen müşteri"}</p>
+                            <p style={{ margin: "0 0 4px", fontSize: 12, color: "var(--text-secondary)" }}>{d.title}</p>
+                            {daysOpen != null && daysOpen >= STUCK_DEAL_DAYS_THRESHOLD && (
+                              <div style={{ marginBottom: 4 }}>
+                                <Badge tone={daysOpen >= STUCK_DEAL_DAYS_DANGER_THRESHOLD ? "danger" : "warning"}>
+                                  {daysOpen >= STUCK_DEAL_DAYS_DANGER_THRESHOLD ? "🔴" : "🟡"} {daysOpen} gündür açık
+                                </Badge>
+                              </div>
+                            )}
+                            {d.customFields?.kaynak === "portal" && d.customFields?.portal_randevu_zamani && (
+                              <div style={{ marginBottom: 4 }}>
+                                <Badge tone="accent">Portaldan alındı</Badge>
+                              </div>
+                            )}
+                            {d.paymentStatus === "paid" && (
+                              <div style={{ marginBottom: 4 }}>
+                                <Badge tone="success">✓ Online ödendi</Badge>
+                              </div>
+                            )}
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--text-accent)" }}>{formatTL(d.value)}</p>
+                              <IconButton
+                                icon="ti-file-text"
+                                title={dealPdfLabel}
+                                size="sm"
+                                onClick={(e) => { e.stopPropagation(); setTeklifDeal(d); }}
+                              />
+                            </div>
+                            {(() => {
+                              const paid = totalPaidForDeal(d.id);
+                              if (paid <= 0) return null;
+                              const remaining = d.value - paid;
+                              return (
+                                <div style={{ marginTop: 4 }}>
+                                  <Badge tone={remaining <= 0 ? "success" : "warning"}>{remaining <= 0 ? "Ödendi" : "Kısmi ödeme"}</Badge>
+                                </div>
+                              );
+                            })()}
+                            {!!d.sessionTotal && (
+                              <div style={{ marginTop: 4, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                                <Badge tone={d.sessionUsed >= d.sessionTotal ? "success" : "default"}>
+                                  {d.sessionUsed >= d.sessionTotal ? "Paket tamamlandı" : `${d.sessionUsed}/${d.sessionTotal} seans`}
+                                </Badge>
+                                {d.sessionUsed < d.sessionTotal && (
+                                  <IconButton
+                                    icon="ti-plus"
+                                    title="Seans kullanıldı"
+                                    size="sm"
+                                    onClick={(e) => { e.stopPropagation(); incrementSessionUsage(d.id); }}
+                                  />
+                                )}
+                              </div>
+                            )}
+                            {d.reminder && (
+                              <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--text-warning)", display: "flex", alignItems: "center", gap: 4 }}>
+                                <i className="ti ti-bell" style={{ fontSize: 12 }} aria-hidden="true"></i>
+                                {d.reminder}
+                              </p>
+                            )}
+                            {d.tags?.length > 0 && (
+                              <div style={{ marginTop: 4 }}>
+                                <TagBadges tags={d.tags} />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {hiddenCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setExpandedKanbanStages((prev) => new Set(prev).add(stage.id))}
+                          style={{ background: "transparent", border: "0.5px dashed var(--border-strong)", color: "var(--text-secondary)", fontSize: 12, padding: "6px 8px" }}
+                        >
+                          +{hiddenCount} tane daha göster
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           ) : (
             <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", minWidth: 620, borderCollapse: "separate", borderSpacing: "0 8px" }}>
@@ -14539,6 +14695,16 @@ export default function App() {
                             : ""}
                           {" "}· {d.reminder ? `Hatırlatma: ${d.reminder}` : "Hatırlatma yok"}
                         </p>
+                        {(() => {
+                          const daysOpen = dealDaysOpen(d);
+                          if (daysOpen == null || daysOpen < STUCK_DEAL_DAYS_THRESHOLD) return null;
+                          const danger = daysOpen >= STUCK_DEAL_DAYS_DANGER_THRESHOLD;
+                          return (
+                            <div style={{ marginTop: 4 }}>
+                              <Badge tone={danger ? "danger" : "warning"}>{danger ? "🔴" : "🟡"} {daysOpen} gündür açık</Badge>
+                            </div>
+                          );
+                        })()}
                         {d.customFields?.kaynak === "portal" && d.customFields?.portal_randevu_zamani && (
                           <div style={{ marginTop: 4 }}>
                             <Badge tone="accent">Portaldan alındı</Badge>
