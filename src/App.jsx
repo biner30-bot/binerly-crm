@@ -12106,6 +12106,20 @@ export default function App() {
       if (matches.length > 0) setEmlakMatches({ deal, matches });
     }
     logAction("deals", deal.id, isNew ? "created" : "updated", `${deal.title} ${isNew ? "oluşturuldu" : "güncellendi"}`);
+    // "Sorumlu" ata değiştirmesi, kazanma oranı/ciro/prim hesaplarını doğrudan
+    // etkiliyor — herhangi bir takım üyesi bunu kendine çevirip haksız kazanç
+    // gösterebilir. Genel "güncellendi" kaydı KİME'yi belli etmiyordu; burada
+    // eski→yeni sorumluyu isimle ayrı bir denetim kaydına yazıyoruz ki sahip
+    // Geçmiş'ten suistimali fark edebilsin (kısıtlama değil görünürlük).
+    if (!isNew && previousDeal && previousDeal.assignedTo !== deal.assignedTo) {
+      const labelFor = (id) => {
+        if (!id) return "Atanmamış";
+        if (id === session.user.id) return `Ben (${session.user.email})`;
+        const m = teamMembers.find((tm) => tm.id === id);
+        return m ? (m.name || m.email) : "Eski üye";
+      };
+      logAction("deals", deal.id, "updated", `${deal.title}: Sorumlu ${labelFor(previousDeal.assignedTo)} → ${labelFor(deal.assignedTo)} olarak değiştirildi`);
+    }
     // Kazanılmış bir teklifin Tutar/KDV'si değiştirilirse bu, geçmiş bir KDV
     // raporunu sessizce etkileyebilir — ayrı, açık bir denetim kaydı bırakıyoruz.
     if (previousDeal?.stage === "kazanildi" && (previousDeal.value !== deal.value || previousDeal.kdvRate !== deal.kdvRate)) {
