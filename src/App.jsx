@@ -8934,10 +8934,8 @@ function AppointmentCancelPolicyBox({ companySettings, onSave }) {
             placement="bottom"
             align="left"
             text={
-              "Beşi de opsiyonel, hiç ayarlamazsanız hiçbir kısıtlama/ceza uygulanmaz — müşteri istediği an iptal edebilir, gelmeyen müşteriler için otomatik bir sonuç doğmaz.\n\n" +
-              "Nasıl işler: 'Tamamen kilitle' süresinden az kala müşteri portaldan HİÇ iptal edemez (buton devre dışı kalır). Bunun ile 'Geç sayılma penceresi' arasında iptal ederse iptale İZİN VERİLİR ama 'Geç iptal etti' olarak işaretlenir. 'Kısmi kesinti sınırı', geç sayılma penceresinin İÇİNDE, geç iptali daha da yakın/uzak diye ikiye ayıran SADECE GÖRÜNÜRLÜK amaçlı bir eşiktir — otomatik para hareketi YAPMAZ, sadece size ve müşteriye 'bu iptal ~%50 kısmi kesinti önerilen bölgede' bilgisini gösterir, tahsilat/iade kararını siz verirsiniz. Bu geç iptaller ile elle işaretlediğiniz 'Randevuya gelmedi' kayıtları AYNI sayaçta birleşir — 'Kaçıncı ihlalde' alanına ulaşınca o müşterinin BİR SONRAKİ randevusu için ödeme otomatik olarak zorunlu önerilir (siz yine de elle değiştirebilirsiniz, gerçek bir engel değildir). 'Paket sahiplerinde seans yaksın' açıksa, ihlal eden müşterinin zaten aktif bir paketi varsa ödeme istemek YERİNE o paketten ihlal anında 1 seans düşülür.\n\n" +
-              "No-show için öneri: müşteriden haber alamadığınızda randevu saatinden itibaren genelde 15-20 dakika beklemeniz, sonra 'Randevuya gelmedi' olarak işaretlemeniz makul kabul edilir — bu bir ayar değil, sadece bir öneridir.\n\n" +
-              "'Neden kaybedildi?' seçiminde ayrıca 'Mücbir sebep' (ceza/sayaç işletilmez) ve 'İşletme iptal etti' (geç iptal ediyorsanız müşteriye otomatik 1 ücretsiz telafi hakkı tanınır) seçenekleri de vardır."
+              "Beşi de opsiyonel, hiç ayarlamazsanız hiçbir kısıtlama/ceza uygulanmaz.\n\n" +
+              "'Tamamen kilitle'den az kala müşteri portaldan iptal edemez. Bunun ile 'Geç sayılma penceresi' arasında iptal edilebilir ama 'Geç iptal etti' sayılır. 'Kısmi kesinti sınırı', geç iptalleri SADECE GÖRÜNÜRLÜK için ikiye ayırır (otomatik para hareketi yok). Geç iptal + gelmeme sayısı 'Kaçıncı ihlalde' eşiğine ulaşınca sonraki randevuda ödeme önerilir; 'Paket sahiplerinde seans yaksın' açıksa bunun yerine paketten 1 seans düşer."
             }
           />
         </p>
@@ -8991,6 +8989,9 @@ function AppointmentCancelPolicyBox({ companySettings, onSave }) {
             <input type="checkbox" checked={burnsSession} disabled={!strikeOn} onChange={(e) => setBurnsSession(e.target.checked)} />
             Paket sahibi müşterilerde ödeme yerine seans yaksın
           </label>
+          <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "10px 0 0" }}>
+            Öneri: no-show'da randevu saatinden itibaren 15-20 dakika bekleyip sonra "Randevuya gelmedi" işaretlemeniz makul kabul edilir (bir ayar değil, sadece bir öneri).
+          </p>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}>
             <button type="button" onClick={() => setOpen(false)}>Vazgeç</button>
             <button type="button" onClick={handleSave} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>

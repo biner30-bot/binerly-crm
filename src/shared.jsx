@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 export function uid() {
@@ -474,29 +474,54 @@ export function AuthDivider() {
 // bu da x eksenini aynı şekilde kırpar) olan HERHANGİ bir üst öğenin içindeyse
 // balon görünüm dışına taşan kısmı KIRPILIYORDU (z-index bunu çözmez — overflow
 // kırpması z-index'ten önce gelir). Kalıcı çözüm: balonu document.body'ye
-// portal'la taşımak — artık hiçbir üst öğenin overflow'undan etkilenmiyor,
-// konumu ikonun ekran koordinatlarından (getBoundingClientRect) JS ile
-// hesaplanıyor. CSS :hover artık portal sınırını geçemediği için görünürlük
-// React state'e taşındı (onMouseEnter/Leave, onFocus/Blur).
+// portal'la taşımak — artık hiçbir üst öğenin overflow'undan etkilenmiyor.
+// AMA bu tek başına yeterli değil — ikon ekranın (viewport'un) kendisine çok
+// yakınsa (örn. modal en üstte, balon uzun) balon artık bir üst öğe tarafından
+// değil VIEWPORT'UN kendisi tarafından "kırpılır" (aslında kırpılmaz, sadece
+// ekranın dışına taşar, görünmez olur). Bunu önlemek için balon önce OFF-SCREEN
+// mount edilip gerçek boyutu ölçülüyor, sonra viewport sınırlarına göre
+// placement/align GEREKİRSE otomatik ters çevriliyor/kırpılıyor (useLayoutEffect
+// ile — boyama öncesi çalıştığı için kullanıcı yanlış konumu hiç görmüyor).
 export function InfoTip({ text, placement = "top", align = "center" }) {
   const iconRef = useRef(null);
+  const bubbleRef = useRef(null);
+  const [visible, setVisible] = useState(false);
   const [coords, setCoords] = useState(null);
 
-  const updatePosition = () => {
-    const el = iconRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const top = placement === "bottom" ? rect.bottom + 7 : rect.top - 7;
-    const left = align === "right" ? rect.right : align === "left" ? rect.left : rect.left + rect.width / 2;
-    setCoords({ top, left });
+  const show = () => setVisible(true);
+  const hide = () => { setVisible(false); setCoords(null); };
+
+  const reposition = () => {
+    const iconEl = iconRef.current;
+    const bubbleEl = bubbleRef.current;
+    if (!iconEl || !bubbleEl) return;
+    const rect = iconEl.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const margin = 8;
+    const bw = bubbleEl.offsetWidth;
+    const bh = bubbleEl.offsetHeight;
+
+    let resolvedPlacement = placement;
+    if (resolvedPlacement === "top" && rect.top - 7 - bh < margin) resolvedPlacement = "bottom";
+    else if (resolvedPlacement === "bottom" && rect.bottom + 7 + bh > vh - margin) resolvedPlacement = "top";
+
+    let left = align === "right" ? rect.right : align === "left" ? rect.left : rect.left + rect.width / 2;
+    let translateX = align === "right" ? "-100%" : align === "left" ? "0" : "-50%";
+    const effectiveLeft = align === "right" ? left - bw : align === "left" ? left : left - bw / 2;
+    const effectiveRight = effectiveLeft + bw;
+    if (effectiveLeft < margin) { left = margin; translateX = "0"; }
+    else if (effectiveRight > vw - margin) { left = vw - margin; translateX = "-100%"; }
+
+    const top = resolvedPlacement === "bottom" ? rect.bottom + 7 : rect.top - 7;
+    const translateY = resolvedPlacement === "bottom" ? "0" : "-100%";
+    setCoords({ top, left, transform: `translate(${translateX}, ${translateY})` });
   };
 
-  const show = () => updatePosition();
-  const hide = () => setCoords(null);
-
-  useEffect(() => {
-    if (!coords) return;
-    const onScrollOrResize = () => updatePosition();
+  useLayoutEffect(() => {
+    if (!visible) return;
+    reposition();
+    const onScrollOrResize = () => reposition();
     window.addEventListener("scroll", onScrollOrResize, true);
     window.addEventListener("resize", onScrollOrResize);
     return () => {
@@ -504,10 +529,7 @@ export function InfoTip({ text, placement = "top", align = "center" }) {
       window.removeEventListener("resize", onScrollOrResize);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [!!coords]);
-
-  const translateY = placement === "bottom" ? "0" : "-100%";
-  const translateX = align === "right" ? "-100%" : align === "left" ? "0" : "-50%";
+  }, [visible]);
 
   return (
     <span
@@ -520,11 +542,14 @@ export function InfoTip({ text, placement = "top", align = "center" }) {
       onBlur={hide}
     >
       <i className="ti ti-info-circle" style={{ fontSize: 14, color: "var(--text-muted)", cursor: "help" }} aria-hidden="true"></i>
-      {coords && createPortal(
+      {visible && createPortal(
         <span
+          ref={bubbleRef}
           className="info-tip-bubble info-tip-bubble--portal"
           role="tooltip"
-          style={{ top: coords.top, left: coords.left, transform: `translate(${translateX}, ${translateY})` }}
+          // İlk mount'ta coords henüz yok — ekran dışına (ama ölçülebilir şekilde)
+          // konumlanır, reposition() gerçek boyutu ölçüp doğru yere taşır.
+          style={coords ? { top: coords.top, left: coords.left, transform: coords.transform } : { top: -9999, left: -9999 }}
         >
           {text}
         </span>,
