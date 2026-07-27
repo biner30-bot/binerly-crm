@@ -199,7 +199,7 @@ function CustomerAuthForm({ initialMode = "login", onBack }) {
       if (error) setMessage(error.message);
     } else {
       if (!isFullNameValid(name)) { setMessage("Lütfen ad ve soyadınızı girin."); setLoading(false); return; }
-      const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name.trim() } } });
+      const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name.trim() }, emailRedirectTo: getPortalUrl() } });
       if (error) setMessage(error.message);
       else setMessage("Kayıt başarılı! E-postanıza gelen doğrulama linkine tıklayın.");
     }

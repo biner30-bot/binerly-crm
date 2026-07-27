@@ -123,14 +123,16 @@ export default async function handler(req, res) {
 
         // Randevu sektörlerinde (Güzellik & Bakım, Sağlık/Klinik) hatırlatma
         // maili girişsiz, tek tıkla Evet/Hayır onayına da izin veriyor —
-        // portal girişi gerektiren /onay/{token} akışından AYRI, appointment-
-        // confirm.js'deki hafif uç nokta. Diğer sektörlerde (Emlak/Otel/Dijital
-        // Ajans/Hizmet-Danışmanlık'taki "görüşme/check-in tarihi" hatırlatmaları)
-        // bu buton hiç eklenmiyor — oralarda "randevu" bir teklif/rezervasyon
-        // aşamasıdır, iptal/ceza politikası anlamsız olurdu.
+        // portal girişi gerektiren /onay/{token} akışından AYRI, deal-approval.js
+        // içindeki action=confirm-attendance dalı (Vercel Hobby planının 12
+        // fonksiyon sınırı nedeniyle ayrı bir dosya değil, buraya taşındı).
+        // Diğer sektörlerde (Emlak/Otel/Dijital Ajans/Hizmet-Danışmanlık'taki
+        // "görüşme/check-in tarihi" hatırlatmaları) bu buton hiç eklenmiyor —
+        // oralarda "randevu" bir teklif/rezervasyon aşamasıdır, iptal/ceza
+        // politikası anlamsız olurdu.
         const isAppointmentSector = APPOINTMENT_SECTORS.has(settings.sector);
-        const yesUrl = isAppointmentSector ? `https://binerly.com/api/appointment-confirm?token=${token}&response=yes` : null;
-        const noUrl = isAppointmentSector ? `https://binerly.com/api/appointment-confirm?token=${token}&response=no` : null;
+        const yesUrl = isAppointmentSector ? `https://binerly.com/api/deal-approval?action=confirm-attendance&token=${token}&response=yes` : null;
+        const noUrl = isAppointmentSector ? `https://binerly.com/api/deal-approval?action=confirm-attendance&token=${token}&response=no` : null;
 
         const bodyText = isAppointmentSector
           ? `Merhaba ${customer.name || ""},\n\n${company} bünyesindeki "${deal.title}" randevunuz ` +
