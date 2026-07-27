@@ -75,7 +75,9 @@ export function PrivacyPolicyPage() {
           Supabase (veritabanı, kimlik doğrulama ve barındırma), Vercel (uygulama barındırma), Resend
           (e-posta gönderimi), Google (Google ile giriş/kayıt tercih ettiğinizde kimlik doğrulama), iyzico
           ve PayTR (hesap sahibi online ödeme bağlantısını aktif ettiğinde kredi/banka kartı ile ödeme
-          işlemleri — kart bilgileriniz bu sağlayıcılar üzerinden işlenir, Binerly sunucularında saklanmaz).
+          işlemleri — kart bilgileriniz bu sağlayıcılar üzerinden işlenir, Binerly sunucularında saklanmaz),
+          Sentry (uygulamada oluşan teknik hataların otomatik tespiti için hata mesajı/oturum teknik
+          bilgisi işlenir, kişisel veri içeriği en aza indirilecek şekilde yapılandırılmıştır).
           Bu sağlayıcılarla veri işleme sözleşmeleri kapsamında çalışılmaktadır.
         </p>
       </Section>
@@ -133,8 +135,8 @@ export function KvkkPage() {
           Verileriniz, hizmetin sunulabilmesi için gerekli teknik altyapı sağlayıcılarımız (Supabase —
           veritabanı ve kimlik doğrulama, Vercel — barındırma, Resend — e-posta gönderimi, Google — Google
           ile giriş tercih edildiğinde kimlik doğrulama, iyzico/PayTR — online ödeme tercih edildiğinde
-          kredi/banka kartı ile ödeme işlemleri) ile ve yasal olarak yetkili kamu kurum/kuruluşlarıyla,
-          yalnızca talep edilmesi halinde paylaşılabilir.
+          kredi/banka kartı ile ödeme işlemleri, Sentry — uygulama hatalarının teknik olarak tespiti) ile
+          ve yasal olarak yetkili kamu kurum/kuruluşlarıyla, yalnızca talep edilmesi halinde paylaşılabilir.
         </p>
       </Section>
       <Section title="5. Veri Sahibinin Hakları (KVKK m.11)">
