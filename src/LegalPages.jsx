@@ -43,12 +43,12 @@ function Section({ title, children }) {
 
 export function PrivacyPolicyPage() {
   return (
-    <LegalLayout title="Gizlilik Politikası" updatedAt="10 Temmuz 2026">
+    <LegalLayout title="Gizlilik Politikası" updatedAt="27 Temmuz 2026">
       <Section title="1. Genel">
         <p>
           Bu Gizlilik Politikası, Binerly ("biz", "Binerly") tarafından işletilen KOBİ CRM hizmetinin
-          (binerly.com) kullanımı sırasında toplanan kişisel verilerin nasıl işlendiğini açıklar.
-          Binerly'yi kullanarak bu politikayı kabul etmiş olursunuz.
+          (binerly.com, portal.binerly.com) kullanımı sırasında toplanan kişisel verilerin nasıl
+          işlendiğini açıklar. Binerly'yi kullanarak bu politikayı kabul etmiş olursunuz.
         </p>
       </Section>
       <Section title="2. Topladığımız Veriler">
@@ -56,7 +56,10 @@ export function PrivacyPolicyPage() {
           Hesap sahibi (KOBİ) olarak: ad-soyad, e-posta adresi ve işletme bilgileri. Hesap sahibinin sisteme
           kendi girdiği müşteri verileri: müşteri adı, iletişim bilgileri, satış/teklif kayıtları, destek
           talepleri ve mesajları. Müşteri Bilgi Sistemi (portal) kullanıcıları için: e-posta adresi ve
-          portal üzerinden oluşturdukları destek talepleri/mesajlar.
+          portal üzerinden oluşturdukları destek talepleri/mesajlar. Hesap sahibinin tercihine bağlı olarak,
+          bazı sektörlerde (örn. Sağlık/Klinik, Güzellik & Bakım) tedavi öncesi/sonrası fotoğraflar gibi
+          görsel veriler de sisteme yüklenebilir — bu özellik, hesap sahibinin kendi müşterisinden ayrıca
+          açık rıza almasını gerektirecek şekilde tasarlanmıştır (bkz. KVKK Aydınlatma Metni m.2).
         </p>
       </Section>
       <Section title="3. Verilerin Kullanım Amacı">
@@ -70,8 +73,10 @@ export function PrivacyPolicyPage() {
         <p>
           Verileriniz aşağıdaki alt yüklenicilerle, yalnızca hizmetin çalışması için gerekli ölçüde paylaşılır:
           Supabase (veritabanı, kimlik doğrulama ve barındırma), Vercel (uygulama barındırma), Resend
-          (e-posta gönderimi), Google (Google ile giriş/kayıt tercih ettiğinizde kimlik doğrulama). Bu
-          sağlayıcılarla veri işleme sözleşmeleri kapsamında çalışılmaktadır.
+          (e-posta gönderimi), Google (Google ile giriş/kayıt tercih ettiğinizde kimlik doğrulama), iyzico
+          ve PayTR (hesap sahibi online ödeme bağlantısını aktif ettiğinde kredi/banka kartı ile ödeme
+          işlemleri — kart bilgileriniz bu sağlayıcılar üzerinden işlenir, Binerly sunucularında saklanmaz).
+          Bu sağlayıcılarla veri işleme sözleşmeleri kapsamında çalışılmaktadır.
         </p>
       </Section>
       <Section title="5. Veri Güvenliği">
@@ -97,7 +102,7 @@ export function PrivacyPolicyPage() {
 
 export function KvkkPage() {
   return (
-    <LegalLayout title="KVKK Aydınlatma Metni" updatedAt="10 Temmuz 2026">
+    <LegalLayout title="KVKK Aydınlatma Metni" updatedAt="27 Temmuz 2026">
       <Section title="1. Veri Sorumlusu">
         <p>
           6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") uyarınca, Binerly markası altında hizmet
@@ -109,21 +114,26 @@ export function KvkkPage() {
         <p>
           Kimlik bilgileri (ad-soyad), iletişim bilgileri (e-posta, telefon), müşteri ilişkisi kapsamında
           hesap sahibi tarafından sisteme girilen veriler (satış/teklif/destek kayıtları), işlem güvenliği
-          bilgileri (giriş kayıtları).
+          bilgileri (giriş kayıtları). Hesap sahibinin tercihine bağlı olarak, bazı sektörlerde (örn.
+          Sağlık/Klinik, Güzellik & Bakım) tedavi öncesi/sonrası fotoğraflar gibi görsel veriler de
+          işlenebilir; bu veriler KVKK m.6 kapsamında özel nitelikli kişisel veri sayılabilir.
         </p>
       </Section>
       <Section title="3. İşleme Amacı ve Hukuki Sebep">
         <p>
           Kişisel verileriniz, KVKK m.5/2(c) sözleşmenin kurulması/ifası ve m.5/2(f) meşru menfaat hukuki
           sebeplerine dayanarak; CRM hizmetinin sunulması, destek taleplerinin yönetilmesi ve yasal
-          yükümlülüklerin yerine getirilmesi amacıyla işlenmektedir.
+          yükümlülüklerin yerine getirilmesi amacıyla işlenmektedir. Özel nitelikli kişisel verileriniz
+          (örn. tedavi öncesi/sonrası fotoğraflar) yalnızca KVKK m.6/2 uyarınca açık rızanıza dayanılarak
+          işlenir.
         </p>
       </Section>
       <Section title="4. Verilerin Aktarılması">
         <p>
           Verileriniz, hizmetin sunulabilmesi için gerekli teknik altyapı sağlayıcılarımız (Supabase —
           veritabanı ve kimlik doğrulama, Vercel — barındırma, Resend — e-posta gönderimi, Google — Google
-          ile giriş tercih edildiğinde kimlik doğrulama) ile ve yasal olarak yetkili kamu kurum/kuruluşlarıyla,
+          ile giriş tercih edildiğinde kimlik doğrulama, iyzico/PayTR — online ödeme tercih edildiğinde
+          kredi/banka kartı ile ödeme işlemleri) ile ve yasal olarak yetkili kamu kurum/kuruluşlarıyla,
           yalnızca talep edilmesi halinde paylaşılabilir.
         </p>
       </Section>
