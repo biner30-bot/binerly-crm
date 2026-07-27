@@ -148,13 +148,15 @@
         overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
       }
       .info-tip { position: relative; display: inline-flex; align-items: center; }
-      .info-tip .info-tip-bubble {
-        visibility: hidden;
-        opacity: 0;
-        position: absolute;
-        bottom: calc(100% + 7px);
-        left: 50%;
-        transform: translateX(-50%);
+      /* Balon artık InfoTip.jsx tarafından document.body'ye portal'lanıyor
+         (bkz. shared.jsx InfoTip yorumu) — bu yüzden position:fixed ve
+         top/left/transform React'ten inline style olarak geliyor, burada
+         sadece GÖRSEL stil kalıyor. Bu sayede bir modal/kart gibi overflow:
+         hidden/auto olan HİÇBİR üst öğe artık balonu kırpamıyor.
+         z-index:2000, Modal'ın kendi z-index:1000'inin üstünde olacak şekilde
+         bilerek yüksek tutuldu. */
+      .info-tip-bubble--portal {
+        position: fixed;
         background: #0c2540;
         color: #fff;
         font-size: 12px;
@@ -164,39 +166,12 @@
         border-radius: 8px;
         width: max-content;
         max-width: 280px;
-        z-index: 20;
-        transition: opacity 0.12s ease;
+        z-index: 2000;
         pointer-events: none;
         text-transform: none;
         letter-spacing: normal;
-        font-weight: 400;
         white-space: pre-line;
         text-align: left;
-      }
-      /* Ekranın/modal'ın en üstüne yakın alanlarda (ör. formun ilk etiketi)
-         yukarı açılan balon görünüm dışına taşıp okunamaz hale geliyordu —
-         bu durumlarda InfoTip'e placement="bottom" verilip aşağı açtırılır. */
-      .info-tip .info-tip-bubble--bottom {
-        bottom: auto;
-        top: calc(100% + 7px);
-      }
-      /* İkon, geniş bir paragrafın/satırın sonunda (sağ kenara yakın) durunca
-         ortalanmış balon modal'ın sağından taşıp son satırı kırpıyordu —
-         align="right" ikonun sağ kenarına yaslayıp sola doğru açar. Simetrik
-         olarak align="left" sol kenara yakın ikonlarda sağa doğru açar. */
-      .info-tip .info-tip-bubble--align-right {
-        left: auto;
-        right: 0;
-        transform: none;
-      }
-      .info-tip .info-tip-bubble--align-left {
-        left: 0;
-        transform: none;
-      }
-      .info-tip:hover .info-tip-bubble,
-      .info-tip:focus-visible .info-tip-bubble {
-        visibility: visible;
-        opacity: 1;
       }
       /* Sol menüdeki sekme butonları seçili değilken background:transparent
          inline stille geliyor — genel button:hover filter'ı koyulaştıracak bir

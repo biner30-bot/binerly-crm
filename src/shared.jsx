@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export function uid() {
   return crypto.randomUUID();
@@ -468,12 +469,67 @@ export function AuthDivider() {
   );
 }
 
+// Balon eskiden .info-tip'in İÇİNDE, position:absolute ile açılıyordu — bu
+// yüzden bir modal/kart gibi overflow:hidden (veya scroll için overflow-y:auto,
+// bu da x eksenini aynı şekilde kırpar) olan HERHANGİ bir üst öğenin içindeyse
+// balon görünüm dışına taşan kısmı KIRPILIYORDU (z-index bunu çözmez — overflow
+// kırpması z-index'ten önce gelir). Kalıcı çözüm: balonu document.body'ye
+// portal'la taşımak — artık hiçbir üst öğenin overflow'undan etkilenmiyor,
+// konumu ikonun ekran koordinatlarından (getBoundingClientRect) JS ile
+// hesaplanıyor. CSS :hover artık portal sınırını geçemediği için görünürlük
+// React state'e taşındı (onMouseEnter/Leave, onFocus/Blur).
 export function InfoTip({ text, placement = "top", align = "center" }) {
-  const alignClass = align === "right" ? " info-tip-bubble--align-right" : align === "left" ? " info-tip-bubble--align-left" : "";
+  const iconRef = useRef(null);
+  const [coords, setCoords] = useState(null);
+
+  const updatePosition = () => {
+    const el = iconRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const top = placement === "bottom" ? rect.bottom + 7 : rect.top - 7;
+    const left = align === "right" ? rect.right : align === "left" ? rect.left : rect.left + rect.width / 2;
+    setCoords({ top, left });
+  };
+
+  const show = () => updatePosition();
+  const hide = () => setCoords(null);
+
+  useEffect(() => {
+    if (!coords) return;
+    const onScrollOrResize = () => updatePosition();
+    window.addEventListener("scroll", onScrollOrResize, true);
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      window.removeEventListener("scroll", onScrollOrResize, true);
+      window.removeEventListener("resize", onScrollOrResize);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!coords]);
+
+  const translateY = placement === "bottom" ? "0" : "-100%";
+  const translateX = align === "right" ? "-100%" : align === "left" ? "0" : "-50%";
+
   return (
-    <span className="info-tip" tabIndex={0}>
+    <span
+      ref={iconRef}
+      className="info-tip"
+      tabIndex={0}
+      onMouseEnter={show}
+      onMouseLeave={hide}
+      onFocus={show}
+      onBlur={hide}
+    >
       <i className="ti ti-info-circle" style={{ fontSize: 14, color: "var(--text-muted)", cursor: "help" }} aria-hidden="true"></i>
-      <span className={`info-tip-bubble${placement === "bottom" ? " info-tip-bubble--bottom" : ""}${alignClass}`} role="tooltip">{text}</span>
+      {coords && createPortal(
+        <span
+          className="info-tip-bubble info-tip-bubble--portal"
+          role="tooltip"
+          style={{ top: coords.top, left: coords.left, transform: `translate(${translateX}, ${translateY})` }}
+        >
+          {text}
+        </span>,
+        document.body
+      )}
     </span>
   );
 }
