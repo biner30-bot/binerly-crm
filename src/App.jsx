@@ -9507,94 +9507,117 @@ function BusinessHoursManager({ items, onAdd, onDelete }) {
   );
 }
 
-// BusinessHoursManager'ın personel bazlı eşi — slot süresi burada YOK (o zaten
-// Müsaitlik Saatleri'nden geliyor), vardiya sadece "bu kişi bu aralıkta
-// müsait" penceresini tanımlıyor. Hiç vardiya tanımlanmamış bir işletmede
-// randevu slotları eskisi gibi sadece Müsaitlik Saatleri'ne göre hesaplanır —
-// bu bileşen hiç kullanılmadıkça mevcut davranış birebir korunur.
-function StaffShiftManager({ items, onAdd, onDelete }) {
-  const [weekday, setWeekday] = useState(1);
+// Bir kişinin bir günündeki vardiya pencerelerini düzenleyen küçük modal —
+// StaffShiftGrid'deki bir hücreye tıklanınca açılır. Birden fazla pencere
+// (öğle arası için iki ayrı aralık gibi) eklemeye izin verir, gün seçici
+// yok çünkü hücrenin kendisi zaten günü belirliyor.
+function StaffShiftDayEditor({ weekday, memberLabel, items, onAdd, onDelete, onClose }) {
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("18:00");
-  const [hasBreak, setHasBreak] = useState(false);
-  const [breakStart, setBreakStart] = useState("12:00");
-  const [breakEnd, setBreakEnd] = useState("13:00");
   const [confirmDelete, setConfirmDelete] = useState(null);
 
-  const sorted = [...items].sort((a, b) => a.weekday - b.weekday || a.startTime.localeCompare(b.startTime));
+  const sorted = [...items].sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   const submit = (e) => {
     e.preventDefault();
     if (!startTime || !endTime || endTime <= startTime) return;
-    if (hasBreak) {
-      if (!breakStart || !breakEnd || breakStart <= startTime || breakEnd >= endTime || breakEnd <= breakStart) return;
-      onAdd({ weekday: Number(weekday), startTime, endTime: breakStart });
-      onAdd({ weekday: Number(weekday), startTime: breakEnd, endTime });
-    } else {
-      onAdd({ weekday: Number(weekday), startTime, endTime });
-    }
+    onAdd({ weekday, startTime, endTime });
   };
 
   return (
-    <div>
+    <Modal title={`${memberLabel} — ${WEEKDAYS[weekday - 1]}`} onClose={onClose}>
       {sorted.length === 0 ? (
-        <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 10 }}>Henüz vardiya eklenmedi — vardiya eklenmezse bu kişi için ayrı bir kısıtlama uygulanmaz.</p>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>Bu gün için vardiya tanımlanmadı.</p>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
           {sorted.map((s) => (
-            <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "6px 10px" }}>
-              <span style={{ fontSize: 12.5, fontWeight: 500 }}>{WEEKDAYS[s.weekday - 1]}</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                <Badge tone="accent">{s.startTime}–{s.endTime}</Badge>
-                <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(s)} />
-              </div>
+            <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
+              <Badge tone="accent">{s.startTime}–{s.endTime}</Badge>
+              <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(s)} />
             </div>
           ))}
         </div>
       )}
 
-      <form onSubmit={submit} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end" }}>
-        <div style={{ minWidth: 120 }}>
-          <label style={{ fontSize: 11.5, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Gün</label>
-          <select value={weekday} onChange={(e) => setWeekday(e.target.value)} style={{ fontSize: 12.5 }}>
-            {WEEKDAYS.map((w, i) => <option key={w} value={i + 1}>{w}</option>)}
-          </select>
+      <form onSubmit={submit} style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+        <div style={{ width: 110 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Başlangıç</label>
+          <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} style={{ width: "100%" }} />
         </div>
-        <div style={{ width: 95 }}>
-          <label style={{ fontSize: 11.5, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Başlangıç</label>
-          <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} style={{ fontSize: 12.5, width: "100%" }} />
+        <div style={{ width: 110 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Bitiş</label>
+          <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} style={{ width: "100%" }} />
         </div>
-        <div style={{ width: 95 }}>
-          <label style={{ fontSize: 11.5, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Bitiş</label>
-          <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} style={{ fontSize: 12.5, width: "100%" }} />
-        </div>
-        <div style={{ width: "100%", display: "flex", gap: 6, alignItems: "flex-end", flexWrap: "wrap" }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "var(--text-secondary)", marginBottom: 6 }}>
-            <input type="checkbox" checked={hasBreak} onChange={(e) => setHasBreak(e.target.checked)} />
-            Ara var
-          </label>
-          {hasBreak && (
-            <>
-              <div style={{ width: 95 }}>
-                <label style={{ fontSize: 11.5, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ara başlangıç</label>
-                <input type="time" value={breakStart} onChange={(e) => setBreakStart(e.target.value)} style={{ fontSize: 12.5, width: "100%" }} />
-              </div>
-              <div style={{ width: 95 }}>
-                <label style={{ fontSize: 11.5, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ara bitiş</label>
-                <input type="time" value={breakEnd} onChange={(e) => setBreakEnd(e.target.value)} style={{ fontSize: 12.5, width: "100%" }} />
-              </div>
-            </>
-          )}
-        </div>
-        <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 12.5 }}>+ Ekle</button>
+        <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>+ Ekle</button>
       </form>
+      <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "10px 0 0" }}>
+        Öğle arası gibi bir boşluk bırakmak isterseniz iki ayrı aralık ekleyin (ör. 09:00–12:00 ve 13:00–18:00).
+      </p>
 
       {confirmDelete && (
         <ConfirmDialog
           title="Vardiyayı sil"
-          message={`${WEEKDAYS[confirmDelete.weekday - 1]} ${confirmDelete.startTime}–${confirmDelete.endTime} vardiyası kaldırılacak. Bu geri alınamaz.`}
+          message={`${confirmDelete.startTime}–${confirmDelete.endTime} vardiyası kaldırılacak. Bu geri alınamaz.`}
           onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
           onClose={() => setConfirmDelete(null)}
+        />
+      )}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+        <button onClick={onClose}>Kapat</button>
+      </div>
+    </Modal>
+  );
+}
+
+// Haftalık vardiya tablosu — satır=personel (sahip dahil), sütun=gün. Her
+// hücre o kişi+günün vardiya penceresini (varsa) gösterir, tıklanınca
+// StaffShiftDayEditor açılır. Hiç vardiya tanımlanmamış bir işletmede
+// randevu slotları eskisi gibi sadece Müsaitlik Saatleri'ne göre hesaplanır —
+// bu tablo boş kaldıkça mevcut davranış birebir korunur.
+function StaffShiftGrid({ people, staffShifts, onAdd, onDelete }) {
+  const [editingCell, setEditingCell] = useState(null); // { memberId, weekday, label }
+
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table className="responsive-table" style={{ width: "100%", minWidth: 520, borderCollapse: "separate", borderSpacing: "0 6px" }}>
+        <thead>
+          <tr>
+            <th style={{ textAlign: "left", padding: "0 10px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>Personel</th>
+            {WEEKDAYS_SHORT.map((w) => (
+              <th key={w} style={{ textAlign: "center", padding: "0 4px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>{w}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {people.map((p) => (
+            <tr key={p.id} style={{ background: "var(--surface-1)" }}>
+              <td data-label="Personel" style={{ padding: "8px 10px", fontSize: 12.5, fontWeight: 500, borderRadius: "var(--radius) 0 0 var(--radius)", whiteSpace: "nowrap" }}>{p.label}</td>
+              {WEEKDAYS.map((w, i) => {
+                const weekday = i + 1;
+                const dayShifts = staffShifts.filter((s) => s.memberId === p.id && s.weekday === weekday).sort((a, b) => a.startTime.localeCompare(b.startTime));
+                return (
+                  <td
+                    key={weekday}
+                    data-label={w}
+                    onClick={() => setEditingCell({ memberId: p.id, weekday, label: p.label })}
+                    style={{ padding: "8px 4px", fontSize: 11, textAlign: "center", cursor: "pointer", color: dayShifts.length ? "var(--text-accent)" : "var(--text-muted)" }}
+                  >
+                    {dayShifts.length === 0 ? "–" : dayShifts.map((s) => `${s.startTime}-${s.endTime}`).join(", ")}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {editingCell && (
+        <StaffShiftDayEditor
+          weekday={editingCell.weekday}
+          memberLabel={editingCell.label}
+          items={staffShifts.filter((s) => s.memberId === editingCell.memberId && s.weekday === editingCell.weekday)}
+          onAdd={(shift) => onAdd({ ...shift, memberId: editingCell.memberId })}
+          onDelete={onDelete}
+          onClose={() => setEditingCell(null)}
         />
       )}
     </div>
@@ -9747,7 +9770,6 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify, st
   const [sending, setSending] = useState(false);
   const [confirmRemoveMember, setConfirmRemoveMember] = useState(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
-  const [expandedShiftMemberId, setExpandedShiftMemberId] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -9851,36 +9873,24 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify, st
   }
 
   return (
-    <Modal title="Takım" onClose={onClose}>
+    <Modal title="Takım" onClose={onClose} wide>
       {loading ? (
         <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>Yükleniyor…</p>
       ) : (
         <>
           <div style={{ marginBottom: 16 }}>
             <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
-              Vardiyam <InfoTip placement="bottom" text="Vardiya tanımlarsanız müşteri portalında sadece en az bir kişinin (siz veya bir üye) vardiyada olduğu saatler randevu için sunulur. Kimse vardiya tanımlamazsa Müsaitlik Saatleri tek başına geçerli olmaya devam eder." />
+              Vardiya <InfoTip placement="bottom" text="Vardiya tanımlarsanız müşteri portalında sadece en az bir kişinin (siz veya bir üye) vardiyada olduğu saatler randevu için sunulur. Kimse vardiya tanımlamazsa Müsaitlik Saatleri tek başına geçerli olmaya devam eder. Bir hücreye tıklayıp o günün saatini ekleyin/düzenleyin." />
             </label>
-            <div style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 500 }}>Ben ({session.user.email})</span>
-                <button
-                  type="button"
-                  onClick={() => setExpandedShiftMemberId((prev) => (prev === session.user.id ? null : session.user.id))}
-                  style={{ fontSize: 12, background: "transparent", border: "0.5px solid var(--border-strong)" }}
-                >
-                  Vardiya {expandedShiftMemberId === session.user.id ? "▲" : "▼"}
-                </button>
-              </div>
-              {expandedShiftMemberId === session.user.id && (
-                <div style={{ marginTop: 10 }}>
-                  <StaffShiftManager
-                    items={staffShifts.filter((s) => s.memberId === session.user.id)}
-                    onAdd={(shift) => onAddStaffShift({ ...shift, memberId: session.user.id })}
-                    onDelete={onDeleteStaffShift}
-                  />
-                </div>
-              )}
-            </div>
+            <StaffShiftGrid
+              people={[
+                { id: session.user.id, label: "Ben" },
+                ...members.map((m) => ({ id: m.member_id, label: m.name || m.email })),
+              ]}
+              staffShifts={staffShifts}
+              onAdd={onAddStaffShift}
+              onDelete={onDeleteStaffShift}
+            />
           </div>
           <div style={{ marginBottom: 16 }}>
             <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>Üyeler</label>
@@ -9892,26 +9902,8 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify, st
                   <div key={m.member_id} style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                       <span style={{ fontSize: 13, fontWeight: 500 }}>{m.name || m.email}</span>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <button
-                          type="button"
-                          onClick={() => setExpandedShiftMemberId((prev) => (prev === m.member_id ? null : m.member_id))}
-                          style={{ fontSize: 12, background: "transparent", border: "0.5px solid var(--border-strong)" }}
-                        >
-                          Vardiya {expandedShiftMemberId === m.member_id ? "▲" : "▼"}
-                        </button>
-                        <IconButton icon="ti-trash" title="Kaldır" size="sm" onClick={() => setConfirmRemoveMember(m)} />
-                      </div>
+                      <IconButton icon="ti-trash" title="Kaldır" size="sm" onClick={() => setConfirmRemoveMember(m)} />
                     </div>
-                    {expandedShiftMemberId === m.member_id && (
-                      <div style={{ marginTop: 8, marginBottom: 4 }}>
-                        <StaffShiftManager
-                          items={staffShifts.filter((s) => s.memberId === m.member_id)}
-                          onAdd={(shift) => onAddStaffShift({ ...shift, memberId: m.member_id })}
-                          onDelete={onDeleteStaffShift}
-                        />
-                      </div>
-                    )}
                     <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-secondary)", marginTop: 4, cursor: "pointer" }}>
                       <input
                         type="checkbox"
