@@ -2,6 +2,60 @@ import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
 import { CookieConsentBanner } from "./CookieConsent.jsx";
 
+// DSN ayarlanmadığı sürece tamamen no-op — GA/Meta Pixel'deki (analytics.js)
+// aynı "env var yoksa hiç yüklenmez" deseni. Pazarlama izleme değil, sadece
+// operasyonel hata takibi olduğu için çerez onayına bağlanmadı (localStorage'a
+// yazmaz, kullanıcı davranışını izlemez — yalnızca hata/çökme raporlar).
+const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
+if (SENTRY_DSN) {
+  import("@sentry/react").then((Sentry) => {
+    Sentry.init({
+      dsn: SENTRY_DSN,
+      environment: import.meta.env.PROD ? "production" : "development",
+      sendDefaultPii: false,
+      tracesSampleRate: 0,
+    });
+  });
+}
+
+// Render sırasında beklenmedik bir hata olursa (önceden hiçbir ErrorBoundary
+// yoktu) kullanıcı beyaz/boş bir ekranla baş başa kalıyordu, hiçbir kurtarma
+// yolu sunulmuyordu. Artık en azından "Sayfayı Yenile" ile kurtarabiliyor,
+// hata da (varsa) Sentry'ye gidiyor.
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error, info) {
+    console.error(error, info);
+    if (SENTRY_DSN) {
+      import("@sentry/react").then((Sentry) => Sentry.captureException(error));
+    }
+  }
+  render() {
+    if (!this.state.hasError) return this.props.children;
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, background: "var(--bg, #f5f8fc)", padding: 24, textAlign: "center" }}>
+        <img src="/favicon.svg" alt="" style={{ width: 40, height: 40 }} />
+        <div>
+          <p style={{ fontWeight: 600, fontSize: 16, margin: "0 0 4px" }}>Beklenmedik bir hata oluştu</p>
+          <p style={{ color: "var(--text-muted, #6b7280)", fontSize: 13, margin: 0 }}>Sayfayı yenilemeyi deneyin. Sorun devam ederse bizimle iletişime geçin.</p>
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: "var(--fill-accent, #185fa5)", color: "#fff", fontWeight: 500, fontSize: 14, cursor: "pointer" }}
+        >
+          Sayfayı Yenile
+        </button>
+      </div>
+    );
+  }
+}
+
 // Rota bazlı kod bölme — bir KOBİ kullanıcısı hiç CustomerPortal/Yasal sayfa
 // kodunu indirmez ve tam tersi, her ziyaretçi sadece kendi sayfasının bundle'ını çeker.
 const App = lazy(() => import("./App.jsx"));
@@ -88,10 +142,12 @@ function resolvePage() {
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <Suspense fallback={<LoadingScreen />}>
-      {resolvePage()}
-    </Suspense>
-    {!path.startsWith("/panel-4k9x") && !path.startsWith("/onay/") && !path.startsWith("/lead/") && <CookieConsentBanner />}
+    <ErrorBoundary>
+      <Suspense fallback={<LoadingScreen />}>
+        {resolvePage()}
+      </Suspense>
+      {!path.startsWith("/panel-4k9x") && !path.startsWith("/onay/") && !path.startsWith("/lead/") && <CookieConsentBanner />}
+    </ErrorBoundary>
   </React.StrictMode>
 );
 
