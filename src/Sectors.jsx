@@ -115,6 +115,11 @@ export const SECTOR_PRESETS = [
       { entity: "deal", key: "tedavi_hizmet", label: "Tedavi / Hizmet", type: "text" },
       { entity: "deal", key: "randevu_tarihi", label: "Randevu Tarihi", type: "datetime" },
       { entity: "deal", key: "tetkik_turu", label: "İstenen Tetkik", type: "text" },
+      // Botoks/dolgu gibi estetik tedavilerde sık sorulan iki alan — genel
+      // muayene/danışmanlık hizmeti veren klinikler için Sigorta/Tetkik
+      // alanları bilerek KORUNDU (silinmedi), bu ikisi sadece EKLENDİ.
+      { entity: "deal", key: "uygulama_bolgesi", label: "Uygulama Bölgesi", type: "text" },
+      { entity: "deal", key: "urun_marka", label: "Kullanılan Ürün/Marka", type: "text" },
     ],
     stageGuides: {
       ilk_gorusme: "Şikayeti/geçmişi not alın, gerekiyorsa tetkik isteyin.",
