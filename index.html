@@ -189,7 +189,10 @@
       /* Dar ekranlarda navbar'daki ikincil linkler (Hizmetlerimiz/Hakkımızda) taşıp
          kayboluyordu — dar ekranda gizlenir, ilgili bölümlere sayfa kaydırarak zaten ulaşılabilir. */
       @media (max-width: 640px) {
-        .landing-nav-links { display: none; }
+        /* .landing-nav-links elementi ayrıca inline style={{display:"flex"}}
+           de taşıyor — !important olmadan bu kural hiç etkili olmuyordu,
+           menü her genişlikte görünür kalıp logonun yanına sıkışıyordu. */
+        .landing-nav-links { display: none !important; }
       }
       /* Ana uygulamanın sol sekme menüsü (Pano/Müşteriler/... ) masaüstünde sabit
          200px'lik bir sidebar — telefon genişliğinde (ve özellikle kurulu PWA'da,
@@ -300,6 +303,40 @@
       .compact-form textarea {
         padding: 8px 10px;
         font-size: 14px;
+      }
+      /* Uygulama içi üst başlık çubuğu (logo, şirket adı, bildirim/ayarlar/çıkış)
+         sabit tek satır flex idi — dar telefon ekranında sağdaki ikon kümesi
+         (özellikle "Çıkış" metniyle) viewport'un sağından taşıyordu. Dar
+         ekranda satır kırılır (ikonlar alta düşer, hiçbir şey kaybolmaz),
+         "Çıkış" ayrıca ikon-only'e döner. */
+      @media (max-width: 480px) {
+        .app-header-row { flex-wrap: wrap !important; row-gap: 8px; }
+        .app-header-logout-btn span { display: none !important; }
+      }
+      /* Müşteriler/Randevular gibi liste ekranlarındaki tablolar dar ekranda
+         yatay kaydırmaya zorluyordu (sütunlar sığmıyordu). CSS-only "responsive
+         table" deseni: satır bloğa döner (kart gibi), her hücre kendi
+         data-label'ını başlık olarak gösterir — <thead> gizlenir. <tr> zaten
+         inline background taşıdığı için kart görünümü ek renk gerektirmiyor,
+         sadece hücrelerin satır-içi köşe-yuvarlatması (masaüstünde ilk/son
+         hücreye özel) sıfırlanıp yuvarlatma satırın kendisine taşınıyor. */
+      @media (max-width: 640px) {
+        .responsive-table thead { display: none !important; }
+        .responsive-table tr { display: block !important; border-radius: var(--radius) !important; margin-bottom: 8px; }
+        .responsive-table td { display: block !important; border-radius: 0 !important; padding: 4px 12px !important; text-align: left !important; white-space: normal !important; }
+        .responsive-table td::before { content: attr(data-label); display: block; font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 4px; }
+        .responsive-table td:empty { display: none !important; }
+        .responsive-table td:first-child { padding-top: 10px !important; }
+        .responsive-table td:last-child { padding-bottom: 10px !important; }
+      }
+      /* Liste ekranlarındaki buton/filtre satırları (Dışa aktar, İçe aktar,
+         Kurumsal/Bireysel, Liste/Kanban vb.) sınırsız flex-wrap ile her biri
+         neredeyse tam genişlikte alt alta diziliyor, gerçek veriye ulaşmadan
+         önce uzun bir kaydırma gerektiriyordu. Dar ekranda butonlar küçülüp
+         birden fazlası aynı satıra sığar. */
+      @media (max-width: 640px) {
+        .list-toolbar { gap: 6px !important; }
+        .list-toolbar > button, .list-toolbar > select { flex: 1 1 auto !important; min-width: 0; font-size: 12px !important; padding: 6px 10px !important; }
       }
     </style>
   </head>

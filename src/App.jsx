@@ -13668,7 +13668,7 @@ export default function App() {
 
   return (
     <div style={{ padding: "24px 16px 64px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
+      <div className="app-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
           <IconButton icon="ti-menu-2" onClick={() => setSidebarOpen(true)} title="Menü" className="app-sidebar-toggle" />
           <div>
@@ -13698,7 +13698,7 @@ export default function App() {
         <div style={{ display: "flex", gap: 8 }}>
           <NotificationBell userId={session.user.id} supabase={supabase} dataTour="notification-bell" />
           <IconButton icon="ti-settings" onClick={() => setShowSettingsHub(true)} title="Ayarlar" data-tour="settings-gear" />
-          <IconButton icon="ti-logout" label="Çıkış" onClick={() => supabase.auth.signOut()} title="Çıkış yap" />
+          <IconButton icon="ti-logout" label="Çıkış" onClick={() => supabase.auth.signOut()} title="Çıkış yap" className="app-header-logout-btn" />
         </div>
       </div>
 
@@ -14391,7 +14391,7 @@ export default function App() {
 
       {tab === "musteri" && (
         <div>
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
+          <div className="list-toolbar" style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
             <button
               onClick={() => setShowCustomerExport(true)}
               disabled={filteredCustomers.length === 0}
@@ -14441,7 +14441,7 @@ export default function App() {
             </button>
           </div>
 
-          <div style={{ display: "flex", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
+          <div className="list-toolbar" style={{ display: "flex", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
             <input
               value={customerSearch}
               onChange={(e) => setCustomerSearch(e.target.value)}
@@ -14483,7 +14483,7 @@ export default function App() {
             )
           ) : (
             <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", minWidth: 640, borderCollapse: "separate", borderSpacing: "0 8px" }}>
+            <table className="responsive-table" style={{ width: "100%", minWidth: 640, borderCollapse: "separate", borderSpacing: "0 8px" }}>
               <thead>
                 <tr>
                   <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>Müşteri</th>
@@ -14507,7 +14507,7 @@ export default function App() {
                     .reduce((sum, d) => sum + (d.value || 0) - totalPaidForDeal(d.id), 0);
                   return (
                   <tr key={c.id} style={{ background: "var(--surface-1)" }}>
-                    <td onClick={() => setViewingCustomer(c)} style={{ padding: "10px 12px", borderRadius: "var(--radius) 0 0 var(--radius)", cursor: "pointer" }}>
+                    <td data-label="Müşteri" onClick={() => setViewingCustomer(c)} style={{ padding: "10px 12px", borderRadius: "var(--radius) 0 0 var(--radius)", cursor: "pointer" }}>
                       <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{c.name}</p>
                       <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
                         {c.sector} {c.region ? `· ${c.region}` : ""} {c.phone ? `· ${c.phone}` : ""}
@@ -14518,15 +14518,15 @@ export default function App() {
                         </div>
                       )}
                     </td>
-                    <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                    <td data-label="İlgi durumu" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                       <Badge tone={leadScore(c.lastContact).tone}>{leadScore(c.lastContact).label}</Badge>
                     </td>
-                    <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                    <td data-label="Son temas" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                       <Badge tone={daysAgo(c.lastContact) === "Bugün" ? "success" : "default"}>
                         {daysAgo(c.lastContact) || "Temas yok"}
                       </Badge>
                     </td>
-                    <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                    <td data-label="Portal" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                       {c.portalUserId ? (
                         <Badge tone="accent">Var</Badge>
                       ) : (
@@ -14548,7 +14548,7 @@ export default function App() {
                         </button>
                       )}
                     </td>
-                    <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                    <td data-label="Bakiye" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                       {customerBalance > 0 ? <Badge tone="warning">{formatTL(customerBalance)}</Badge> : <span style={{ fontSize: 12, color: "var(--text-muted)" }}>—</span>}
                     </td>
                     <td style={{ padding: "10px 12px", borderRadius: "0 var(--radius) var(--radius) 0" }}>
@@ -14650,7 +14650,7 @@ export default function App() {
             </div>
           )}
 
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
+          <div className="list-toolbar" style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
             <button
               onClick={() => setShowDealExport(true)}
               disabled={filteredDeals.length === 0}
@@ -14683,7 +14683,7 @@ export default function App() {
             </button>
           </div>
 
-          <div style={{ display: "flex", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
+          <div className="list-toolbar" style={{ display: "flex", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
             <input
               value={dealSearch}
               onChange={(e) => setDealSearch(e.target.value)}
@@ -14866,7 +14866,7 @@ export default function App() {
             </div>
           ) : (
             <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", minWidth: 620, borderCollapse: "separate", borderSpacing: "0 8px" }}>
+            <table className="responsive-table" style={{ width: "100%", minWidth: 620, borderCollapse: "separate", borderSpacing: "0 8px" }}>
               <thead>
                 <tr>
                   <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>{dealWords.columnHeader}</th>
@@ -14885,7 +14885,7 @@ export default function App() {
                   const remaining = d.value - paid;
                   return (
                     <tr key={d.id} style={{ background: "var(--surface-1)" }}>
-                      <td onClick={() => { setEditingDeal(d); setShowDealForm(true); }} style={{ padding: "10px 12px", borderRadius: "var(--radius) 0 0 var(--radius)", cursor: "pointer" }}>
+                      <td data-label={dealWords.columnHeader} onClick={() => { setEditingDeal(d); setShowDealForm(true); }} style={{ padding: "10px 12px", borderRadius: "var(--radius) 0 0 var(--radius)", cursor: "pointer" }}>
                         <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>
                           {c?.name || "Bilinmeyen müşteri"} — {d.title}
                         </p>
@@ -14949,7 +14949,7 @@ export default function App() {
                           </div>
                         )}
                       </td>
-                      <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                      <td data-label="Aşama" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                         <select
                           value={d.stage}
                           onChange={(e) => attemptMoveDealStage(d.id, e.target.value)}
@@ -14961,10 +14961,10 @@ export default function App() {
                           ))}
                         </select>
                       </td>
-                      <td onClick={() => setPaymentsDeal(d)} style={{ padding: "10px 12px", whiteSpace: "nowrap", cursor: "pointer" }}>
+                      <td data-label="Ödeme" onClick={() => setPaymentsDeal(d)} style={{ padding: "10px 12px", whiteSpace: "nowrap", cursor: "pointer" }}>
                         {paid > 0 ? <Badge tone={remaining <= 0 ? "success" : "warning"}>{remaining <= 0 ? "Ödendi" : "Kısmi ödeme"}</Badge> : <span style={{ fontSize: 12, color: "var(--text-muted)" }}>—</span>}
                       </td>
-                      <td style={{ padding: "10px 12px", whiteSpace: "nowrap", textAlign: "right", fontSize: 13, fontWeight: 500 }}>{formatTL(d.value)}</td>
+                      <td data-label="Tutar" style={{ padding: "10px 12px", whiteSpace: "nowrap", textAlign: "right", fontSize: 13, fontWeight: 500 }}>{formatTL(d.value)}</td>
                       <td style={{ padding: "10px 12px", borderRadius: "0 var(--radius) var(--radius) 0" }}>
                         <div style={{ display: "flex", justifyContent: "flex-end" }}>
                           <RowActionsMenu
