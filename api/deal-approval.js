@@ -386,11 +386,13 @@ async function recordSuccessfulPayment(supabaseAdmin, deal, { provider, iyzicoPa
 
   // Ödeme, hangi modda olursa olsun onaydan daha güçlü bir sinyal — "isteğe
   // bağlı" modda ayrı bir "Onaylıyorum" adımı hâlâ sunuluyor, ama müşteri
-  // onu hiç kullanmadan direkt öderse bu da onay yerine geçer. Portaldan
-  // kendi alınan randevu/üyelik/rezervasyonlarda ise onay diye bir kavram
-  // hiç yok — approved_at bilerek hiç set edilmiyor, tek sinyal payment_status.
-  const isSelfBooked = deal.custom_fields?.kaynak === "portal";
-  if (!deal.approved_at && !isSelfBooked) {
+  // onu hiç kullanmadan direkt öderse bu da onay yerine geçer. Önceden
+  // portaldan kendi alınan randevu/üyelik/rezervasyonlar bu kapsam dışı
+  // bırakılıyordu ("onay diye bir kavram yok" gerekçesiyle) — ama bu,
+  // ödenmiş bir kaydın hâlâ "Onay bekleniyor" aşama etiketiyle görünmesine
+  // (çelişkili görünmesine) yol açıyordu. Ödeyen müşteri kaynağı ne olursa
+  // olsun zaten onaylamış sayılır, o yüzden istisna kaldırıldı.
+  if (!deal.approved_at) {
     const { data: customer } = await supabaseAdmin.from("customers").select("name").eq("id", deal.customer_id).maybeSingle();
     await markApproved(supabaseAdmin, deal, customer, null, "ödeyerek onayladı").catch((e) => console.error("auto-approve error:", e.message));
   }

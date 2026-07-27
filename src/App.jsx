@@ -14611,6 +14611,10 @@ export default function App() {
                               />
                             </div>
                             {(() => {
+                              // "Online ödendi" rozeti zaten tam ödendiğini gösteriyor —
+                              // aynı bilgiyi burada tekrar "Ödendi" olarak basmak gereksiz
+                              // tekrar oluyordu (kullanıcı bunu Kanban kartında fark etti).
+                              if (d.paymentStatus === "paid") return null;
                               const paid = totalPaidForDeal(d.id);
                               if (paid <= 0) return null;
                               const remaining = d.value - paid;
@@ -14644,6 +14648,26 @@ export default function App() {
                             {d.tags?.length > 0 && (
                               <div style={{ marginTop: 4 }}>
                                 <TagBadges tags={d.tags} />
+                              </div>
+                            )}
+                            {d.customFields?.sevkiyat_durumu && (
+                              <div style={{ marginTop: 4 }}>
+                                <Badge tone="default">{d.customFields.sevkiyat_durumu}</Badge>
+                              </div>
+                            )}
+                            {d.firstViewedAt && !d.approvedAt && (
+                              <div style={{ marginTop: 4 }} title={d.viewDurationSeconds > 0 ? `Müşteri toplam ${formatViewDuration(d.viewDurationSeconds)} inceledi` : undefined}>
+                                <Badge tone="accent">👁 Görüntülendi{d.viewDurationSeconds > 0 ? ` · ${formatViewDuration(d.viewDurationSeconds)}` : ""}</Badge>
+                              </div>
+                            )}
+                            {d.approvedAt && (
+                              <div style={{ marginTop: 4 }}>
+                                <Badge tone="success">Onaylandı ✓</Badge>
+                              </div>
+                            )}
+                            {d.customFields?.attendanceConfirmedAt && (
+                              <div style={{ marginTop: 4 }} title="Müşteri hatırlatma e-postasındaki linkten geleceğini onayladı">
+                                <Badge tone="success">✓ Katılım onayladı</Badge>
                               </div>
                             )}
                           </div>
