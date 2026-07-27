@@ -146,6 +146,22 @@ function computeOrderRhythmAlerts(deals, customers) {
   return alerts.sort((a, b) => b.daysSinceLast / b.typicalInterval - a.daysSinceLast / a.typicalInterval);
 }
 
+// Açık (kazanılmamış/kaybedilmemiş) bir kayıt uzunca bir süre hiç ilerlemezse
+// unutulmuş/takip edilmemiş olabilir — sektörden bağımsız, her satış/danışmanlık
+// hattı için geçerli bir sinyal. Ayrı bir "aşama geçmişi" tablosu yok, bu yüzden
+// "ne kadar süredir bu aşamada" yerine "ne kadar süredir hiç kapanmadı"
+// (createdAt'ten) kullanılıyor — daha basit ve yeterince açıklayıcı bir yaklaşım,
+// GERÇEK BİR ENGEL DEĞİL sadece görünürlük.
+const STUCK_DEAL_DAYS_THRESHOLD = 3;
+function computeStuckDeals(deals) {
+  const now = Date.now();
+  return deals
+    .filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi" && d.createdAt)
+    .map((d) => ({ deal: d, daysOpen: Math.floor((now - new Date(d.createdAt).getTime()) / 86400000) }))
+    .filter((x) => x.daysOpen >= STUCK_DEAL_DAYS_THRESHOLD)
+    .sort((a, b) => b.daysOpen - a.daysOpen);
+}
+
 // Vadesi geçmiş bakiye / kredi limiti uyarısı — GERÇEK BİR ENGEL DEĞİL, sadece
 // bilgilendirme (kullanıcının kararı: "riskli müşteriye teklif vermek KOBİ'nin
 // kendi bileceği iş"). "Ödeme Vadesi" (Peşin/30 gün/60 gün/90 gün) zaten var
@@ -552,6 +568,8 @@ function rowToAttachment(r) {
     fileSize: r.file_size || 0,
     contentType: r.content_type || "",
     uploadedBy: r.uploaded_by || "",
+    photoType: r.photo_type || null,
+    consentConfirmed: r.consent_confirmed === true,
     createdAt: r.created_at,
     deletedAt: r.deleted_at || null,
     deletedBatchId: r.deleted_batch_id || null,
@@ -7367,6 +7385,14 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
             <TagInput tags={tags} onChange={setTags} suggestions={sectorTags} />
           </div>
           <CustomFieldsSection defs={otherDefsForEntity} values={customFields} onChange={setCustomFields} />
+          {initial?.id && isAppointmentSector(sector) && (
+            <BeforeAfterPhotos
+              dealId={initial.id}
+              attachments={attachments}
+              onUpload={onUploadAttachment}
+              onDelete={onDeleteAttachment}
+            />
+          )}
           {initial?.id && (
             <AttachmentList
               entityType="deals"
@@ -7599,6 +7625,109 @@ function DealPayments({ deal, payments, sector, onAddPayment, onUpdatePayment, o
           title="Tahsilat silinsin mi?"
           message="Bu tahsilat kaydı çöp kutusuna taşınır."
           onConfirm={() => { onDeletePayment(confirmDeleteId); setConfirmDeleteId(null); }}
+          onClose={() => setConfirmDeleteId(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+const BEFORE_AFTER_CONSENT_TEXT = "Bu görsellerin çekilip saklanması için müşteriden KVKK kapsamında açık rıza alındığını onaylıyorum.";
+
+function BeforeAfterPhotoThumb({ attachment, onDelete }) {
+  const [url, setUrl] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    supabase.storage.from("attachments").createSignedUrl(attachment.storagePath, 3600).then(({ data }) => {
+      if (active && data?.signedUrl) setUrl(data.signedUrl);
+    });
+    return () => { active = false; };
+  }, [attachment.storagePath]);
+
+  return (
+    <div style={{ position: "relative", width: 88, height: 88, borderRadius: "var(--radius)", overflow: "hidden", border: "0.5px solid var(--border)", background: "var(--surface-1)", flexShrink: 0 }}>
+      {url ? (
+        <a href={url} target="_blank" rel="noopener noreferrer">
+          <img src={url} alt={attachment.fileName} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        </a>
+      ) : (
+        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "var(--text-muted)" }}>Yükleniyor…</div>
+      )}
+      <button
+        type="button"
+        onClick={() => onDelete(attachment.id)}
+        title="Sil"
+        style={{ position: "absolute", top: 2, right: 2, width: 18, height: 18, borderRadius: "50%", background: "var(--surface-0)", border: "0.5px solid var(--border)", fontSize: 12, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+// AI'siz basit versiyon — otomatik eşleştirme/analiz yok, ekip elle "Öncesi"/"Sonrası"
+// olarak yükler, yan yana bakıp kendi gözüyle karşılaştırır. KVKK onay kutusu
+// işaretlenmeden yükleme alanları kilitli kalır (bkz. isAppointmentSector — sadece
+// Sağlık/Klinik ve Güzellik & Bakım'da anlamlı).
+function BeforeAfterPhotos({ dealId, attachments, onUpload, onDelete }) {
+  const [consentChecked, setConsentChecked] = useState(false);
+  const [uploadingSlot, setUploadingSlot] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const items = attachments.filter((a) => a.entityType === "deal_photos" && a.entityId === dealId);
+  const beforePhotos = items.filter((a) => a.photoType === "before");
+  const afterPhotos = items.filter((a) => a.photoType === "after");
+
+  const handleFile = async (slot, e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !consentChecked) return;
+    setUploadingSlot(slot);
+    await onUpload("deal_photos", dealId, file, { photoType: slot, consentConfirmed: true });
+    setUploadingSlot(null);
+  };
+
+  const renderColumn = (label, slot, photos) => (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <p style={{ fontSize: 12, fontWeight: 500, margin: "0 0 6px", color: "var(--text-secondary)" }}>{label}</p>
+      {photos.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+          {photos.map((a) => (
+            <BeforeAfterPhotoThumb key={a.id} attachment={a} onDelete={setConfirmDeleteId} />
+          ))}
+        </div>
+      )}
+      <label
+        style={{
+          background: "var(--surface-1)", border: "0.5px dashed var(--border)", borderRadius: "var(--radius)",
+          padding: "6px 10px", fontSize: 12, display: "inline-block",
+          cursor: consentChecked && uploadingSlot === null ? "pointer" : "not-allowed",
+          opacity: consentChecked ? 1 : 0.5,
+        }}
+      >
+        {uploadingSlot === slot ? "Yükleniyor…" : `+ ${label} fotoğrafı`}
+        <input type="file" accept="image/*" onChange={(e) => handleFile(slot, e)} disabled={!consentChecked || uploadingSlot !== null} style={{ display: "none" }} />
+      </label>
+    </div>
+  );
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>Öncesi / Sonrası Fotoğrafları</label>
+      <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer", marginBottom: 10 }}>
+        <input type="checkbox" checked={consentChecked} onChange={(e) => setConsentChecked(e.target.checked)} style={{ marginTop: 2, flexShrink: 0 }} />
+        {BEFORE_AFTER_CONSENT_TEXT}
+      </label>
+      <div style={{ display: "flex", gap: 12 }}>
+        {renderColumn("Öncesi", "before", beforePhotos)}
+        {renderColumn("Sonrası", "after", afterPhotos)}
+      </div>
+      <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "6px 0 0" }}>Fotoğraflar yalnızca ekibinizin erişebildiği güvenli bir alanda saklanır, müşteri portalında görünmez.</p>
+      {confirmDeleteId && (
+        <ConfirmDialog
+          title="Fotoğraf silinsin mi?"
+          message="Bu fotoğraf çöp kutusuna taşınır."
+          onConfirm={() => { onDelete(confirmDeleteId); setConfirmDeleteId(null); }}
           onClose={() => setConfirmDeleteId(null)}
         />
       )}
@@ -11622,6 +11751,7 @@ export default function App() {
     await supabase.from("attachments").update({ deleted_at: now, deleted_batch_id: batchId }).eq("entity_type", "customers").eq("entity_id", id);
     if (dealIds.length > 0) {
       await supabase.from("attachments").update({ deleted_at: now, deleted_batch_id: batchId }).eq("entity_type", "deals").in("entity_id", dealIds);
+      await supabase.from("attachments").update({ deleted_at: now, deleted_batch_id: batchId }).eq("entity_type", "deal_photos").in("entity_id", dealIds);
     }
 
     const ticketIds = customerTickets.map((t) => t.id);
@@ -11831,6 +11961,7 @@ export default function App() {
       .eq("id", id);
     if (error) { notify(`${DEAL_TAB_STRINGS[dealWordKind(companySettings?.sector)].columnHeader} silinemedi: ${error.message}`); return; }
     await supabase.from("attachments").update({ deleted_at: now, deleted_batch_id: batchId }).eq("entity_type", "deals").eq("entity_id", id);
+    await supabase.from("attachments").update({ deleted_at: now, deleted_batch_id: batchId }).eq("entity_type", "deal_photos").eq("entity_id", id);
     setDeals((prev) => prev.filter((d) => d.id !== id));
     setPayments((prev) => prev.filter((p) => p.dealId !== id));
     setAttachments((prev) => prev.filter((att) => !(att.entityType === "deals" && att.entityId === id)));
@@ -12023,7 +12154,7 @@ export default function App() {
     setPaymentCredentials((prev) => prev.filter((pc) => pc.provider !== provider));
   };
 
-  const uploadAttachment = async (entityType, entityId, file) => {
+  const uploadAttachment = async (entityType, entityId, file, extra = {}) => {
     if (!file) return;
     if (file.size > MAX_ATTACHMENT_SIZE) { notify("Dosya en fazla 10 MB olabilir."); return; }
     const lowerName = file.name.toLowerCase();
@@ -12044,11 +12175,18 @@ export default function App() {
       file_size: file.size,
       content_type: file.type || "",
       uploaded_by: session?.user?.email || "",
+      photo_type: extra.photoType || null,
+      consent_confirmed: extra.consentConfirmed === true,
     };
     const { data, error } = await supabase.from("attachments").insert(row).select().single();
     if (error) { notify(`Dosya kaydedilemedi: ${error.message}`); return; }
     setAttachments((prev) => [rowToAttachment(data), ...prev]);
-    logAction(entityType, entityId, "updated", `"${file.name}" dosyası eklendi`);
+    logAction(
+      entityType,
+      entityId,
+      "updated",
+      extra.photoType ? `"${file.name}" (${extra.photoType === "before" ? "öncesi" : "sonrası"} fotoğrafı) eklendi — KVKK onayı alındı` : `"${file.name}" dosyası eklendi`
+    );
   };
 
   const downloadAttachment = async (attachment) => {
@@ -13170,6 +13308,24 @@ export default function App() {
     return s.isBreached || s.isApproaching;
   });
   const orderRhythmAlerts = computeOrderRhythmAlerts(deals, customers);
+  const stuckDeals = computeStuckDeals(deals);
+  // Randevu sektörlerinde (Güzellik & Bakım, Sağlık/Klinik) bir randevu iptal/
+  // gelmeme ile boşaldığında — o saat hâlâ ileride olduğu sürece (geçmiş bir
+  // no-show'u "boşalan saat" olarak göstermenin anlamı yok) — Pano'da bilgi
+  // amaçlı bir uyarı gösterilir. Bilinçli olarak aday müşteri ÖNERİLMİYOR
+  // (doğrulanmamış eşleştirme riski, bkz. feedback_portal_privacy_priority) —
+  // kimi arayacağına kobi kendi karar verir, sadece Müşteriler'e link verilir.
+  const freedAppointmentAlerts = isAppointmentSector(companySettings?.sector) && appointmentDateTimeKey
+    ? deals
+        .filter((d) => d.stage === "kaybedildi" && (d.lostReason === "İptal etti" || d.lostReason === "Geç iptal etti" || d.lostReason === "Randevuya gelmedi"))
+        .map((d) => {
+          const raw = d.customFields?.[appointmentDateTimeKey];
+          const apptTime = raw ? new Date(`${raw}:00+03:00`) : null;
+          return { deal: d, apptTime };
+        })
+        .filter((x) => x.apptTime && !isNaN(x.apptTime.getTime()) && x.apptTime.getTime() > Date.now())
+        .sort((a, b) => a.apptTime - b.apptTime)
+    : [];
   const lowStockItems = stockItems.filter((s) => s.reorderThreshold != null && s.quantityOnHand <= s.reorderThreshold);
   const membershipAlerts = computeMembershipAlerts(deals, customers);
   const churnAlerts = supportsGroupClasses(companySettings?.sector) ? computeAttendanceChurnRisk(customers, deals, groupClassEnrollments, classAttendance) : [];
@@ -13440,7 +13596,7 @@ export default function App() {
           })()}
           <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", marginBottom: "1.5rem" }}>
             <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 10px" }}>Bugün ne yapmalıyım</p>
-            {dueReminderDeals.length === 0 && urgentTickets.length === 0 && newPortalAppointments.length === 0 && orderRhythmAlerts.length === 0 && lowStockItems.length === 0 && membershipAlerts.length === 0 && churnAlerts.length === 0 && waitlistFillableAlerts.length === 0 ? (
+            {dueReminderDeals.length === 0 && urgentTickets.length === 0 && newPortalAppointments.length === 0 && orderRhythmAlerts.length === 0 && lowStockItems.length === 0 && membershipAlerts.length === 0 && churnAlerts.length === 0 && waitlistFillableAlerts.length === 0 && stuckDeals.length === 0 && freedAppointmentAlerts.length === 0 ? (
               <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>Bugün için acil bir şey yok.</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
@@ -13572,6 +13728,32 @@ export default function App() {
                     <button type="button" onClick={() => promoteFromWaitlistIfAny(group.id)} style={{ fontSize: 12, flexShrink: 0 }}>
                       Doldur
                     </button>
+                  </div>
+                ))}
+                {stuckDeals.map(({ deal, daysOpen }) => (
+                  <div
+                    key={`stuck-${deal.id}`}
+                    onClick={() => { setTab("firsat"); setEditingDeal(deal); setShowDealForm(true); }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", padding: "4px 0" }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--fill-warning)", flexShrink: 0 }} />
+                    <span style={{ flex: 1 }}>
+                      {customerById(deal.customerId)?.name || "Bilinmeyen müşteri"} — {stageLabel(deal.stage, undefined, companySettings?.sector)} aşamasında {daysOpen} gündür bekliyor
+                    </span>
+                    <Badge tone="warning">Takip gerekiyor</Badge>
+                  </div>
+                ))}
+                {freedAppointmentAlerts.map(({ deal, apptTime }) => (
+                  <div
+                    key={`freed-${deal.id}`}
+                    onClick={() => setTab("musteri")}
+                    style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", padding: "4px 0" }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--fill-accent)", flexShrink: 0 }} />
+                    <span style={{ flex: 1 }}>
+                      {apptTime.toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} {apptTime.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} — {customerById(deal.customerId)?.name || "Bilinmeyen müşteri"} ({deal.lostReason?.toLocaleLowerCase("tr")}) randevusu boşaldı
+                    </span>
+                    <Badge tone="accent">Doldurulabilir</Badge>
                   </div>
                 ))}
               </div>
@@ -14307,6 +14489,11 @@ export default function App() {
                         {d.approvedAt && (
                           <div style={{ marginTop: 4 }}>
                             <Badge tone="success">Onaylandı ✓</Badge>
+                          </div>
+                        )}
+                        {d.customFields?.attendanceConfirmedAt && (
+                          <div style={{ marginTop: 4 }} title="Müşteri hatırlatma e-postasındaki linkten geleceğini onayladı">
+                            <Badge tone="success">✓ Katılım onayladı</Badge>
                           </div>
                         )}
                       </td>

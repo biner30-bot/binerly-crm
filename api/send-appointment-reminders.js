@@ -8,6 +8,11 @@ function secretsMatch(a, b) {
   return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
 }
 
+// Sectors.jsx'teki isAppointmentSector ile aynı liste — api/*.js JSX içeren
+// Sectors.jsx'i import edemediği için (bkz. deal-approval.js) burada da
+// küçük bir kopyası tutuluyor.
+const APPOINTMENT_SECTORS = new Set(["guzellik_bakim", "saglik_klinik"]);
+
 // GitHub Actions'tan (bkz. .github/workflows/appointment-reminders.yml) her 15
 // dakikada bir tetiklenir — Vercel'in ücretsiz planındaki "cron günde 1 kez"
 // kısıtını aşmak için ayrı bir zamanlayıcı kullanıyoruz, ekstra ücret gerekmiyor.
@@ -116,12 +121,29 @@ export default async function handler(req, res) {
         }
         const ctaUrl = `https://binerly.com/onay/${token}`;
 
-        const bodyText =
-          `Merhaba ${customer.name || ""},\n\n${company} bünyesindeki "${deal.title}" randevunuz ` +
-          `bugün saat ${timeLabel}'de. Sizi görmekten mutluluk duyarız.`;
+        // Randevu sektörlerinde (Güzellik & Bakım, Sağlık/Klinik) hatırlatma
+        // maili girişsiz, tek tıkla Evet/Hayır onayına da izin veriyor —
+        // portal girişi gerektiren /onay/{token} akışından AYRI, appointment-
+        // confirm.js'deki hafif uç nokta. Diğer sektörlerde (Emlak/Otel/Dijital
+        // Ajans/Hizmet-Danışmanlık'taki "görüşme/check-in tarihi" hatırlatmaları)
+        // bu buton hiç eklenmiyor — oralarda "randevu" bir teklif/rezervasyon
+        // aşamasıdır, iptal/ceza politikası anlamsız olurdu.
+        const isAppointmentSector = APPOINTMENT_SECTORS.has(settings.sector);
+        const yesUrl = isAppointmentSector ? `https://binerly.com/api/appointment-confirm?token=${token}&response=yes` : null;
+        const noUrl = isAppointmentSector ? `https://binerly.com/api/appointment-confirm?token=${token}&response=no` : null;
+
+        const bodyText = isAppointmentSector
+          ? `Merhaba ${customer.name || ""},\n\n${company} bünyesindeki "${deal.title}" randevunuz ` +
+            `bugün saat ${timeLabel}'de. Geleceğinizi onaylar mısınız?`
+          : `Merhaba ${customer.name || ""},\n\n${company} bünyesindeki "${deal.title}" randevunuz ` +
+            `bugün saat ${timeLabel}'de. Sizi görmekten mutluluk duyarız.`;
         const footerLines = [`${company} (Binerly ile)`, "Bu e-posta Binerly (binerly.com) altyapısıyla gönderildi."];
-        const html = renderEmailHtml({ logoUrl: settings.logo_url, bodyText, ctaLabel: "Randevuyu Görüntüle", ctaUrl, footerLines });
-        const text = plainTextFallback(bodyText, "Randevuyu Görüntüle", ctaUrl, footerLines);
+        const html = isAppointmentSector
+          ? renderEmailHtml({ logoUrl: settings.logo_url, bodyText, ctaLabel: "✓ Evet, geliyorum", ctaUrl: yesUrl, secondaryCtaLabel: "Hayır, gelemeyeceğim", secondaryCtaUrl: noUrl, footerLines })
+          : renderEmailHtml({ logoUrl: settings.logo_url, bodyText, ctaLabel: "Randevuyu Görüntüle", ctaUrl, footerLines });
+        const text = isAppointmentSector
+          ? plainTextFallback(bodyText, "✓ Evet, geliyorum", yesUrl, footerLines, "Hayır, gelemeyeceğim", noUrl)
+          : plainTextFallback(bodyText, "Randevuyu Görüntüle", ctaUrl, footerLines);
 
         const sendRes = await fetch("https://api.resend.com/emails", {
           method: "POST",

@@ -22,12 +22,16 @@ function linesToParagraphs(text) {
 // Hem müşteriye ("İşletme Adı (Binerly ile)") hem KOBİ sahibine/takıma
 // (Binerly) giden mailler için tek şablon — logoUrl'e göre kimin markası
 // öne çıktığı değişir, iskelet aynı kalır.
-export function renderEmailHtml({ logoUrl, bodyText, ctaLabel, ctaUrl, footerLines = [] }) {
+export function renderEmailHtml({ logoUrl, bodyText, ctaLabel, ctaUrl, secondaryCtaLabel, secondaryCtaUrl, footerLines = [] }) {
   const logo = logoUrl || BINERLY_LOGO_URL;
-  const cta = ctaUrl
-    ? `<div style="text-align:center;margin:8px 0 20px;">
-        <a href="${escapeHtml(ctaUrl)}" style="display:inline-block;background:#185fa5;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;font-size:14px;">${escapeHtml(ctaLabel || "Görüntüle")}</a>
-      </div>`
+  const primaryBtn = ctaUrl
+    ? `<a href="${escapeHtml(ctaUrl)}" style="display:inline-block;background:#185fa5;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;font-size:14px;margin:0 6px 10px;">${escapeHtml(ctaLabel || "Görüntüle")}</a>`
+    : "";
+  const secondaryBtn = secondaryCtaUrl
+    ? `<a href="${escapeHtml(secondaryCtaUrl)}" style="display:inline-block;background:#ffffff;color:#4a5b6e;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;font-size:14px;margin:0 6px 10px;border:1px solid #d5dde6;">${escapeHtml(secondaryCtaLabel || "")}</a>`
+    : "";
+  const cta = primaryBtn || secondaryBtn
+    ? `<div style="text-align:center;margin:8px 0 20px;">${primaryBtn}${secondaryBtn}</div>`
     : "";
   const footer = footerLines
     .filter(Boolean)
@@ -53,8 +57,9 @@ export function renderEmailHtml({ logoUrl, bodyText, ctaLabel, ctaUrl, footerLin
 </html>`;
 }
 
-export function plainTextFallback(bodyText, ctaLabel, ctaUrl, footerLines = []) {
+export function plainTextFallback(bodyText, ctaLabel, ctaUrl, footerLines = [], secondaryCtaLabel, secondaryCtaUrl) {
   const ctaBlock = ctaUrl ? `\n\n${ctaLabel || "Görüntüle"}: ${ctaUrl}` : "";
+  const secondaryCtaBlock = secondaryCtaUrl ? `\n${secondaryCtaLabel || ""}: ${secondaryCtaUrl}` : "";
   const footerBlock = footerLines.filter(Boolean).join("\n");
-  return `${bodyText}${ctaBlock}${footerBlock ? `\n\n${footerBlock}` : ""}`;
+  return `${bodyText}${ctaBlock}${secondaryCtaBlock}${footerBlock ? `\n\n${footerBlock}` : ""}`;
 }
