@@ -10109,7 +10109,7 @@ function TrashHistoryModal({ notify, onRestore, onClose, activeTeamId, session, 
         </button>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+      <div className="list-toolbar" style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -10264,7 +10264,7 @@ function ExportSelectionModal({ title, items, columns, filename, getLabel, getRo
       <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 12px" }}>
         Arayıp istediklerinizi seçin — hepsini dışa aktarabilir, ya da tek bir kaydı bile seçip sadece onu indirebilirsiniz.
       </p>
-      <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+      <div className="list-toolbar" style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -14576,7 +14576,7 @@ export default function App() {
 
       {tab === "firsat" && (
         <div>
-          <div style={{ display: "flex", gap: 16, marginBottom: 12, flexWrap: "wrap" }}>
+          <div className="list-toolbar" style={{ display: "flex", gap: 16, marginBottom: 12, flexWrap: "wrap" }}>
             <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, width: "fit-content" }}>
               <button
                 onClick={() => { setDealAudience("kurumsal"); updatePreferredCustomerType("kurumsal"); }}
@@ -14612,7 +14612,7 @@ export default function App() {
           </div>
 
           {isMembershipSector ? (
-            <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
+            <div className="list-toolbar" style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
               <button
                 onClick={() => setDealTodayClassFilter((v) => !v)}
                 style={{ background: dealTodayClassFilter ? "var(--fill-accent)" : "var(--surface-1)", color: dealTodayClassFilter ? "var(--on-accent)" : "var(--text-primary)", border: "0.5px solid var(--border)", fontSize: 13 }}
@@ -14627,7 +14627,7 @@ export default function App() {
               </select>
             </div>
           ) : (
-            <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: 12, width: "fit-content" }}>
+            <div className="list-toolbar" style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: 12, width: "fit-content" }}>
               {[
                 { id: "all", label: "Tümü" },
                 { id: "today", label: "Bugün" },

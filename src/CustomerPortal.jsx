@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, Toast, ConfirmDialog, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, isFullNameValid, WEEKDAYS, nextWeeklyOccurrence, NotificationBell, getPortalUrl, EmojiPickerButton } from "./shared";
+import { Badge, Modal, Toast, ConfirmDialog, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, isFullNameValid, WEEKDAYS, nextWeeklyOccurrence, NotificationBell, getPortalUrl, EmojiPickerButton, IconButton } from "./shared";
 import { STAGES, stageLabel, dealWordKind, isAppointmentSector, supportsSelfBooking, bookingModel, supportsGroupClasses, groupClassWords, supportExamples, appointmentNoteExample, SECTOR_PRESETS, computeAppointmentPenaltyBurn } from "./Sectors";
 
 const PORTAL_DEAL_WORDS = {
@@ -485,7 +485,7 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+      <div className="list-toolbar" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -578,7 +578,7 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
                 <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{companyNameByCustomerId[d.customerId] || "Bilinmeyen firma"}</p>
               )}
             </div>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <div className="list-toolbar" style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <Badge tone={tone}>{stageText}</Badge>
               {d.customFields?.sevkiyat_durumu && <Badge tone="accent">{d.customFields.sevkiyat_durumu}</Badge>}
               {isApproved && !isSelfBooked && <Badge tone="success">✓ Onaylandı</Badge>}
@@ -1162,6 +1162,7 @@ function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubsc
 export default function CustomerPortal() {
   const [session, setSession] = useState(undefined);
   const [portalTab, setPortalTab] = useState("talepler");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tickets, setTickets] = useState([]);
   const [ticketMessages, setTicketMessages] = useState([]);
   const [deals, setDeals] = useState([]);
@@ -1716,9 +1717,10 @@ export default function CustomerPortal() {
 
   return (
     <div style={{ padding: "24px 16px 64px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
+      <div className="app-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <IconButton icon="ti-menu-2" onClick={() => setSidebarOpen(true)} title="Menü" className="app-sidebar-toggle" />
             <img src="/favicon.svg" alt="Binerly" style={{ width: 31, height: 31 }} />
             <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
               {activeCustomerRow ? (
@@ -1809,7 +1811,8 @@ export default function CustomerPortal() {
       ) : (
         <>
           <div style={{ display: "flex", gap: 32, alignItems: "flex-start" }}>
-          <nav style={{ width: 200, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4, position: "sticky", top: 24 }}>
+          {sidebarOpen && <div className="app-sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
+          <nav className={`app-sidebar${sidebarOpen ? " open" : ""}`} style={{ width: 200, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4, position: "sticky", top: 24 }}>
             {[
               { id: "talepler", label: "Taleplerim", icon: "ti-ticket" },
               { id: "mesajlar", label: "Mesajlar", icon: "ti-message-circle" },
@@ -1818,7 +1821,8 @@ export default function CustomerPortal() {
             ].map((t) => (
               <button
                 key={t.id}
-                onClick={() => setPortalTab(t.id)}
+                onClick={() => { setPortalTab(t.id); setSidebarOpen(false); }}
+                className={portalTab === t.id ? undefined : "app-sidebar-tab"}
                 style={{
                   border: portalTab === t.id ? "0.5px solid var(--border-strong)" : "0.5px solid transparent",
                   background: portalTab === t.id ? "var(--surface-1)" : "transparent",
