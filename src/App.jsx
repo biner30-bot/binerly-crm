@@ -15069,7 +15069,12 @@ export default function App() {
         <ChatInbox
           conversations={chatConversations}
           selectedTicketId={selectedChatTicketId}
-          onSelect={setSelectedChatTicketId}
+          onSelect={(ticketId) => {
+            setSelectedChatTicketId(ticketId);
+            // Destek talebinin aksine (bkz. addTicketMessage), burada gerçek bir
+            // yanıt beklemiyoruz - sıradan bir sohbet konuşması, açması yeterli.
+            if (ticketId) markMessagesRead(ticketId, "gelen");
+          }}
           selectedConversation={selectedChatConversation}
           onSend={(content) => addTicketMessage({ ticketId: selectedChatConversation.ticket.id, direction: "giden", content, isInternal: false })}
         />
