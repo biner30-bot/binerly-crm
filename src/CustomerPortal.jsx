@@ -403,7 +403,7 @@ function PortalTicketDetail({ ticket, messages, onAddMessage, onClose }) {
 // "Mesajlar" sekmesi — Taleplerim'in aksine konu/durum yok, düz bir sohbet.
 // İlk mesaj gönderildiğinde CustomerPortal'daki sendChatMessage otomatik
 // olarak arkada bir "genel sohbet" talebi açar, burası bunu hiç bilmez.
-function PortalMessagesPanel({ messages, onSend, sending }) {
+function PortalMessagesPanel({ messages, onSend, sending, companyName }) {
   const [content, setContent] = useState("");
   const sorted = [...messages].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
@@ -423,6 +423,9 @@ function PortalMessagesPanel({ messages, onSend, sending }) {
         ) : (
           sorted.map((m) => (
             <div key={m.id} style={{ alignSelf: m.direction === "gelen" ? "flex-end" : "flex-start", maxWidth: "75%" }}>
+              {m.direction !== "gelen" && companyName && (
+                <p style={{ margin: "0 0 2px 4px", fontSize: 11, fontWeight: 600, color: "var(--text-secondary)" }}>{companyName}</p>
+              )}
               <div
                 style={{
                   background: m.direction === "gelen" ? "var(--fill-accent)" : "var(--surface-2)",
@@ -1877,7 +1880,7 @@ export default function CustomerPortal() {
           )}
 
           {portalTab === "mesajlar" && (
-            <PortalMessagesPanel messages={chatMessages} onSend={sendChatMessage} sending={creatingChat} />
+            <PortalMessagesPanel messages={chatMessages} onSend={sendChatMessage} sending={creatingChat} companyName={activeCustomerRow?.companyName || activeCustomerRow?.name} />
           )}
 
           {portalTab === "teklifler" && (
