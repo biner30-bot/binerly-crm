@@ -87,7 +87,7 @@ const KB_TEMPLATES_BY_SECTOR = {
       title: "Web sitem/projem ne zaman yayına alınır?",
       category: "Web Tasarım",
       content:
-        "Proje süresi kapsam ve revizyon sayısına göre değişir — sözleşmede belirtilen [X hafta] hedeflenir. " +
+        "Proje süresi kapsam ve revizyon sayısına göre değişir - sözleşmede belirtilen [X hafta] hedeflenir. " +
         "İçerik ve görsellerin zamanında tarafımıza ulaşması süreci hızlandırır.",
     },
     {
@@ -144,7 +144,7 @@ const KB_TEMPLATES_BY_SECTOR = {
       title: "Minimum sipariş miktarı var mı?",
       category: "Sipariş",
       content:
-        "Ürün grubuna göre minimum sipariş miktarı değişebilir — güncel bilgi için bizimle iletişime geçebilirsiniz.",
+        "Ürün grubuna göre minimum sipariş miktarı değişebilir - güncel bilgi için bizimle iletişime geçebilirsiniz.",
     },
     {
       title: "Toptan/bayilik fiyat listesi nasıl alırım?",
@@ -209,7 +209,7 @@ const KB_TEMPLATES_BY_SECTOR = {
       title: "Online sipariş verip mağazadan teslim alabilir miyim?",
       category: "Sipariş Takibi",
       content:
-        "Evet, online sipariş verip [mağaza adı/adresi] üzerinden teslim alabilirsiniz — sipariş onayından sonra sizi bilgilendiririz.",
+        "Evet, online sipariş verip [mağaza adı/adresi] üzerinden teslim alabilirsiniz - sipariş onayından sonra sizi bilgilendiririz.",
     },
   ],
   guzellik_bakim: [
@@ -302,14 +302,14 @@ const KB_TEMPLATES_BY_SECTOR = {
       title: "Aracım/işim ne zaman teslim edilir?",
       category: "Servis",
       content:
-        "Tahmini teslim süresi, yapılacak işin kapsamına ve yedek parça durumuna göre değişir — güncel durumu " +
+        "Tahmini teslim süresi, yapılacak işin kapsamına ve yedek parça durumuna göre değişir - güncel durumu " +
         "sizinle paylaşırız.",
     },
     {
       title: "Verilen fiyat teklifi kesin midir?",
       category: "Fiyatlandırma",
       content:
-        "Teklif, ilk incelemeye göre hazırlanır — sökme sırasında ek bir arıza/ihtiyaç tespit edilirse " +
+        "Teklif, ilk incelemeye göre hazırlanır - sökme sırasında ek bir arıza/ihtiyaç tespit edilirse " +
         "onayınızı almadan işleme devam etmeyiz.",
     },
     {
@@ -364,11 +364,11 @@ const PRIORITY_INFO_TEXT =
 
 const SLA_INFO_TEXT =
   "Talep hâlâ açıksa, hedef süreye kalan zamana göre:\n" +
-  "🟢 Zamanında — kalan süre hedefin %20'sinden fazla\n" +
-  "🟠 Süre yaklaşıyor — kalan süre hedefin son %20'lik diliminde (Acil'de son 48 dk, Yüksek'te son ~5 sa, Orta'da son ~10 sa, Düşük'te son ~14 sa)\n" +
-  "🔴 SLA aşıldı — hedef süre geçti, talep hâlâ açık\n\n" +
+  "🟢 Zamanında - kalan süre hedefin %20'sinden fazla\n" +
+  "🟠 Süre yaklaşıyor - kalan süre hedefin son %20'lik diliminde (Acil'de son 48 dk, Yüksek'te son ~5 sa, Orta'da son ~10 sa, Düşük'te son ~14 sa)\n" +
+  "🔴 SLA aşıldı - hedef süre geçti, talep hâlâ açık\n\n" +
   "Talep Çözüldü/Kapatıldı ise kırmızı alarm gösterilmez: çözülme anı hedeften önceyse \"Zamanında çözüldü\", " +
-  "sonraysa turuncu \"Geç çözüldü\" etiketiyle sadece geçmişe dönük bir kayıt olarak gösterilir — talep artık aktif değildir.";
+  "sonraysa turuncu \"Geç çözüldü\" etiketiyle sadece geçmişe dönük bir kayıt olarak gösterilir - talep artık aktif değildir.";
 
 const MESSAGE_DIRECTIONS = [
   { id: "giden", label: "Giden (müşteriye)", icon: "ti-arrow-up-right" },
@@ -378,16 +378,16 @@ const MESSAGE_DIRECTIONS = [
 const STATUS_INFO_TEXT =
   "Durumu \"Çözüldü\" veya \"Kapatıldı\" yaptığınızda, e-posta bildirimleri açıksa (Ayarlar → İşletme Bilgileri) " +
   "müşteriye otomatik bir bilgilendirme e-postası gider.\n\n" +
-  "İkisi arasındaki fark tamamen size kalmış — örn. \"Çözüldü\" sorunun giderildiğini, \"Kapatıldı\" konunun " +
+  "İkisi arasındaki fark tamamen size kalmış - örn. \"Çözüldü\" sorunun giderildiğini, \"Kapatıldı\" konunun " +
   "artık takip edilmeyeceğini belirtmek için kullanılabilir. İkisi de SLA süresini durdurur.";
 
 const DIRECTION_INFO_TEXT =
-  "\"Giden (müşteriye)\" bir e-posta GÖNDERMEZ — sadece bu mesajı kaydeder ve müşteri, kendi hesabıyla " +
+  "\"Giden (müşteriye)\" bir e-posta GÖNDERMEZ - sadece bu mesajı kaydeder ve müşteri, kendi hesabıyla " +
   "Müşteri Portalı'na (portal.binerly.com) giriş yaptığında görebilir. Müşteriye gerçekten e-posta atmak için " +
   "WhatsApp/e-posta gibi kendi iletişim kanallarınızı kullanmanız gerekir.";
 
 const KB_INFO_TEXT =
-  "Bilgi Bankası makaleleri sadece siz ve ekibiniz için — iç kaynak niteliğindedir. Müşterileriniz bu makaleleri " +
+  "Bilgi Bankası makaleleri sadece siz ve ekibiniz için - iç kaynak niteliğindedir. Müşterileriniz bu makaleleri " +
   "Müşteri Portalı'nda göremez.";
 
 function getSlaDueAt(priority, createdAt) {
@@ -796,7 +796,7 @@ export function ChatInbox({ conversations, selectedTicketId, onSelect, selectedC
   };
 
   if (conversations.length === 0) {
-    return <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Henüz müşteriden gelen bir mesaj yok — müşteri portaldaki "Mesajlar" sekmesinden yazınca burada görünecek.</p>;
+    return <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Henüz müşteriden gelen bir mesaj yok - müşteri portaldaki "Mesajlar" sekmesinden yazınca burada görünecek.</p>;
   }
 
   return (
@@ -921,7 +921,7 @@ function KbList({
       {showTemplates && (
         <div style={{ background: "var(--bg-accent)", borderRadius: "var(--radius)", padding: "0.9rem 1rem", marginBottom: 16 }}>
           <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 500, color: "var(--text-accent)" }}>
-            {sectorLabel ? `${sectorLabel} sektörüne uygun örnek makaleler` : "Hızlı başlangıç için örnek makaleler"} — "Kullan" ile taslağı açar, düzenleyip kaydedebilirsin.
+            {sectorLabel ? `${sectorLabel} sektörüne uygun örnek makaleler` : "Hızlı başlangıç için örnek makaleler"} - "Kullan" ile taslağı açar, düzenleyip kaydedebilirsin.
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {templates.map((t) => (

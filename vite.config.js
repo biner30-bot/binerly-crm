@@ -21,7 +21,7 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,svg,png,ico}"],
       },
       manifest: {
-        name: "Binerly — KOBİ Satış Takip Sistemi",
+        name: "Binerly - KOBİ Satış Takip Sistemi",
         short_name: "Binerly",
         description: "KOBİ'ler için müşteri ilişkileri, satış ve destek yönetimi.",
         theme_color: "#185fa5",

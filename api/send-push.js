@@ -136,7 +136,7 @@ async function handleAppointmentPush(req, res, supabaseAdmin) {
 
   return await sendToRecipients(supabaseAdmin, res, recipientIds, {
     title,
-    body: `${customer?.name || "Bir müşteri"} — ${dateLabel}`,
+    body: `${customer?.name || "Bir müşteri"} - ${dateLabel}`,
     url: "/?tab=firsat",
   });
 }
@@ -169,7 +169,7 @@ async function handlePaymentPush(req, res, supabaseAdmin) {
   const amountLabel = new Intl.NumberFormat("tr-TR").format(Math.round(record.amount)) + " TL";
   return await sendToRecipients(supabaseAdmin, res, recipientIds, {
     title: "Ödeme alındı",
-    body: `${deal.title} — ${amountLabel}`,
+    body: `${deal.title} - ${amountLabel}`,
     url: "/?tab=firsat",
   });
 }
@@ -193,7 +193,7 @@ async function handleDealApprovalPush(req, res, supabaseAdmin) {
 
   return await sendToRecipients(supabaseAdmin, res, recipientIds, {
     title: "Teklif onaylandı",
-    body: `${record.customer_name || "Bir müşteri"} — ${record.title}`,
+    body: `${record.customer_name || "Bir müşteri"} - ${record.title}`,
     url: "/?tab=firsat",
   });
 }
@@ -217,7 +217,7 @@ async function handleDealViewedPush(req, res, supabaseAdmin) {
 
   return await sendToRecipients(supabaseAdmin, res, recipientIds, {
     title: "Teklif görüntülendi",
-    body: `${record.customer_name || "Bir müşteri"} — ${record.title}`,
+    body: `${record.customer_name || "Bir müşteri"} - ${record.title}`,
     url: "/?tab=firsat",
   });
 }

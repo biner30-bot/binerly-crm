@@ -83,7 +83,7 @@ export function DateRangeFilter({ from, to, onFromChange, onToChange }) {
         title="Başlangıç tarihi"
         style={{ fontSize: 12, padding: "6px 8px" }}
       />
-      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>–</span>
+      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>-</span>
       <input
         type="date"
         value={to}
@@ -887,7 +887,7 @@ const TOUR_STEPS = [
   { target: '[data-tour="notification-bell"]', title: "Bildirimler", body: "Müşteri portaldan bir işlem yaptığında (randevu alma, mesaj vb.) burada anında görürsünüz." },
   { target: '[data-tour="tab-destek"]', title: "Destek", body: "Müşteri destek taleplerini buradan yönetirsiniz." },
   { target: '[data-tour="tab-finans"]', title: "Finans", body: "Gelir-Gider Defteri, tahsilatlar ve KDV Özet Raporu'nu burada görürsünüz." },
-  { target: '[data-tour="ask-bubble"]', title: "Soru Sor", body: "Sağ alttaki baloncuktan istediğiniz zaman sorabilirsiniz — kendi verileriniz, \"nasıl yapılır\" rehberleri veya genel işletme tavsiyesi, hepsi tek arama kutusunda." },
+  { target: '[data-tour="ask-bubble"]', title: "Soru Sor", body: "Sağ alttaki baloncuktan istediğiniz zaman sorabilirsiniz - kendi verileriniz, \"nasıl yapılır\" rehberleri veya genel işletme tavsiyesi, hepsi tek arama kutusunda." },
   { target: null, title: "Hepsi bu kadar!", body: "İstediğiniz zaman Ayarlar'dan turu tekrar başlatabilirsiniz." },
 ];
 

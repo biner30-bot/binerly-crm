@@ -227,7 +227,7 @@ async function handleConfirmAttendance(req, res, supabaseAdmin, deal, settings, 
 
   if (response === "yes") {
     if (deal.custom_fields?.attendanceConfirmedAt) {
-      return res.status(200).send(renderAttendancePage({ logoUrl, title: "Zaten onaylanmış", message: `Bu randevu için geleceğinizi zaten onaylamıştınız, sizi bekliyoruz. — ${company}` }));
+      return res.status(200).send(renderAttendancePage({ logoUrl, title: "Zaten onaylanmış", message: `Bu randevu için geleceğinizi zaten onaylamıştınız, sizi bekliyoruz. - ${company}` }));
     }
     if (req.method === "GET") {
       return res.status(200).send(renderAttendancePage({
@@ -242,7 +242,7 @@ async function handleConfirmAttendance(req, res, supabaseAdmin, deal, settings, 
       id: crypto.randomUUID(), user_id: deal.user_id, customer_id: deal.customer_id, type: "note",
       content: `Müşteri, "${deal.title}" randevusuna e-posta üzerinden geleceğini onayladı.`,
     });
-    return res.status(200).send(renderAttendancePage({ logoUrl, title: "Teşekkürler!", message: `Randevunuz onaylandı, sizi bekliyoruz. — ${company}` }));
+    return res.status(200).send(renderAttendancePage({ logoUrl, title: "Teşekkürler!", message: `Randevunuz onaylandı, sizi bekliyoruz. - ${company}` }));
   }
 
   // response === "no"
@@ -306,7 +306,7 @@ async function handleConfirmAttendance(req, res, supabaseAdmin, deal, settings, 
     }
   }
 
-  return res.status(200).send(renderAttendancePage({ logoUrl, title: "Randevunuz iptal edildi", message: `Bize haber verdiğiniz için teşekkürler.${burnMessage} — ${company}` }));
+  return res.status(200).send(renderAttendancePage({ logoUrl, title: "Randevunuz iptal edildi", message: `Bize haber verdiğiniz için teşekkürler.${burnMessage} - ${company}` }));
 }
 
 async function fetchSector(supabaseAdmin, userId) {
@@ -584,7 +584,7 @@ async function handlePaymentCallback(req, res, supabaseAdmin, url) {
   // sayılıyor (aşırı katı tek-alan kontrolü gerçek ödemeleri de reddedebilir).
   console.error("payment-callback retrieve debug:", "deal.id:", deal.id, "basketId:", result.basketId, "conversationId:", result.conversationId, "paidPrice:", result.paidPrice, "price:", result.price);
   if (result.basketId !== deal.id && result.conversationId !== deal.id) {
-    console.error("payment-callback deal mismatch — hiçbir alan deal.id ile eşleşmedi:", "deal.id:", deal.id, "basketId:", result.basketId, "conversationId:", result.conversationId);
+    console.error("payment-callback deal mismatch - hiçbir alan deal.id ile eşleşmedi:", "deal.id:", deal.id, "basketId:", result.basketId, "conversationId:", result.conversationId);
     return redirect(`${target}?paid=0`);
   }
 
@@ -717,7 +717,7 @@ async function handleRefund(req, res, supabaseAdmin) {
     .maybeSingle();
   if (!cred) {
     const providerLabel = payment.provider === "paytr" ? "PayTR" : "iyzico";
-    return res.status(400).json({ error: `${providerLabel} bağlantısı bulunamadı — iade için önce bu sağlayıcıyı yeniden bağlamanız gerekiyor.` });
+    return res.status(400).json({ error: `${providerLabel} bağlantısı bulunamadı - iade için önce bu sağlayıcıyı yeniden bağlamanız gerekiyor.` });
   }
 
   const validReasons = Object.values(Iyzipay.REFUND_REASON);
@@ -769,7 +769,7 @@ async function handleRefund(req, res, supabaseAdmin) {
     deal_id: dealId,
     amount: -refundAmount,
     paid_at: new Date().toISOString().slice(0, 10),
-    note: `${providerLabel} ile iade — ${REFUND_REASON_LABELS_TR[refundReason] || "Diğer"}`,
+    note: `${providerLabel} ile iade - ${REFUND_REASON_LABELS_TR[refundReason] || "Diğer"}`,
     provider: payment.provider,
     refund_of_payment_id: payment.id,
   };

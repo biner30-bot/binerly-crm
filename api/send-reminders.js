@@ -77,7 +77,7 @@ export default async function handler(req, res) {
       }
 
       const lines = userDeals.map(
-        (d) => `- ${customerNameById[d.customer_id] || "Bilinmeyen müşteri"}: ${d.title} — ${d.reminder}`
+        (d) => `- ${customerNameById[d.customer_id] || "Bilinmeyen müşteri"}: ${d.title} - ${d.reminder}`
       );
       const ownerBodyText = `Bugün için hatırlatmalarınız:\n\n${lines.join("\n")}\n\nBinerly'ye giriş yaparak fırsatlarınızı görüntüleyebilirsiniz.`;
       const ownerFooterLines = ["Binerly Ekibi"];

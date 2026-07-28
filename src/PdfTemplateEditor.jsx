@@ -220,7 +220,7 @@ export function TemplateEditor({ initialTemplate, companySettings, onSave, onClo
                     {MERGE_FIELD_OPTIONS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
                   </select>
                   <p style={{ fontSize: 11.5, color: "#5b7088", margin: "4px 0 0", lineHeight: 1.4 }}>
-                    Seçtiğiniz alanın yerine, gerçek bir teklif/randevu için oluşturulan PDF'te o kaydın kendi bilgisi otomatik gelir — örneğin "Firma Adı" seçerseniz orada işletmenizin adı yazar. Burada sadece örnek bir veriyle önizleme gösterilir.
+                    Seçtiğiniz alanın yerine, gerçek bir teklif/randevu için oluşturulan PDF'te o kaydın kendi bilgisi otomatik gelir - örneğin "Firma Adı" seçerseniz orada işletmenizin adı yazar. Burada sadece örnek bir veriyle önizleme gösterilir.
                   </p>
                   <label style={labelStyle}>Yazı boyutu</label>
                   <input type="number" min="8" value={selectedBlock.fontSize || 13} onChange={(e) => updateSelectedBlock({ fontSize: Number(e.target.value) })} style={{ width: "100%" }} />

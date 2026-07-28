@@ -72,7 +72,7 @@ export default function AdminPanel({ session }) {
                     </p>
                   </td>
                   <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                    {a.sector ? <Badge>{a.sector}</Badge> : <span style={{ fontSize: 12, color: "var(--text-muted)" }}>—</span>}
+                    {a.sector ? <Badge>{a.sector}</Badge> : <span style={{ fontSize: 12, color: "var(--text-muted)" }}>-</span>}
                   </td>
                   <td style={{ padding: "10px 12px", whiteSpace: "nowrap", textAlign: "right", fontSize: 13 }}>{a.memberCount}</td>
                   <td style={{ padding: "10px 12px", whiteSpace: "nowrap", textAlign: "right", fontSize: 13 }}>{a.customerCount}</td>

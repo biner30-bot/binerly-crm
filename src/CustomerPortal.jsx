@@ -419,7 +419,7 @@ function PortalMessagesPanel({ messages, onSend, sending, companyName }) {
     <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", display: "flex", flexDirection: "column", height: 480 }}>
       <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
         {sorted.length === 0 ? (
-          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz mesaj yok — işletmeye buradan yazabilirsiniz.</p>
+          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz mesaj yok - işletmeye buradan yazabilirsiniz.</p>
         ) : (
           sorted.map((m) => (
             <div key={m.id} style={{ alignSelf: m.direction === "gelen" ? "flex-end" : "flex-start", maxWidth: "75%" }}>
@@ -802,7 +802,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose }) {
   };
 
   return (
-    <Modal title={`${customerRow.companyName || customerRow.name} — Randevu Al`} onClose={onClose}>
+    <Modal title={`${customerRow.companyName || customerRow.name} - Randevu Al`} onClose={onClose}>
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tarih</label>
         <input type="date" min={todayStr} max={maxDateStr} value={date} onChange={(e) => setDate(e.target.value)} style={{ width: "100%" }} />
@@ -847,7 +847,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose }) {
           >
             <option value="">Elle gir / listeden seç</option>
             {priceListItems.map((p) => (
-              <option key={p.id} value={p.id}>{p.name} — {formatTL(p.price)}</option>
+              <option key={p.id} value={p.id}>{p.name} - {formatTL(p.price)}</option>
             ))}
           </select>
           {Number(value) > 0 && hasPaymentProvider && (
@@ -942,7 +942,7 @@ function RoomBookingModal({ customerRow, onBook, onClose }) {
   const availableRooms = rooms.filter((r) => r.available);
 
   return (
-    <Modal title={`${customerRow.companyName || customerRow.name} — Rezervasyon Yap`} onClose={onClose}>
+    <Modal title={`${customerRow.companyName || customerRow.name} - Rezervasyon Yap`} onClose={onClose}>
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Giriş tarihi</label>
@@ -1001,7 +1001,7 @@ function RoomBookingModal({ customerRow, onBook, onClose }) {
           if (!room?.capacity || Number(partySize) <= room.capacity) return null;
           return (
             <p style={{ fontSize: 12, color: "var(--text-warning, #b45309)", margin: "6px 0 0" }}>
-              Seçtiğiniz oda {room.capacity} kişilik — kişi sayınız bunu aşıyor, işletmeyle iletişime geçmeniz gerekebilir.
+              Seçtiğiniz oda {room.capacity} kişilik - kişi sayınız bunu aşıyor, işletmeyle iletişime geçmeniz gerekebilir.
             </p>
           );
         })()}
@@ -1052,7 +1052,7 @@ function PasswordRecoveryModal({ notify, onClose }) {
   return (
     <Modal title="Yeni şifre belirleyin" onClose={onClose}>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px" }}>
-        Sıfırlama bağlantısına tıkladınız — hesabınız için yeni bir şifre belirleyin.
+        Sıfırlama bağlantısına tıkladınız - hesabınız için yeni bir şifre belirleyin.
       </p>
       <form onSubmit={submit}>
         <div style={{ marginBottom: 8 }}>
@@ -1431,7 +1431,7 @@ export default function CustomerPortal() {
     const { data, error } = await supabase.from("group_class_waitlist").insert(row).select().single();
     if (error) { notify(`Yedek listeye eklenemedi: ${error.message}`); return; }
     setGroupClassWaitlist((prev) => [...prev, rowToWaitlistEntry(data)]);
-    notify("Yedek listeye eklendiniz — yer açılınca otomatik veya işletme tarafından eklenebilirsiniz.", "success");
+    notify("Yedek listeye eklendiniz - yer açılınca otomatik veya işletme tarafından eklenebilirsiniz.", "success");
   };
 
   const leaveWaitlist = async (waitlistId) => {
@@ -1732,7 +1732,7 @@ export default function CustomerPortal() {
                   <span style={{ fontWeight: 400, fontSize: 13, color: "var(--text-secondary)" }}>(Binerly ile)</span>
                 </>
               ) : (
-                "Binerly — Müşteri Bilgi Sistemi"
+                "Binerly - Müşteri Bilgi Sistemi"
               )}
             </h1>
           </div>
@@ -1785,7 +1785,7 @@ export default function CustomerPortal() {
       ) : showCompanyPicker ? (
         <div>
           <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px" }}>
-            Birden fazla işletmeyle bağlantılısınız — hangisiyle işlem yapmak istiyorsunuz?
+            Birden fazla işletmeyle bağlantılısınız - hangisiyle işlem yapmak istiyorsunuz?
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {customerRows.map((row) => {
@@ -1896,7 +1896,7 @@ export default function CustomerPortal() {
                       <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
                       {(() => {
                         const label = bookingModel(row.companySector) === "inventory" ? "Rezervasyon Yap" : "Randevu Al";
-                        return appointmentCompanies.length > 1 ? `${row.companyName || row.name} — ${label}` : label;
+                        return appointmentCompanies.length > 1 ? `${row.companyName || row.name} - ${label}` : label;
                       })()}
                     </button>
                   ))}

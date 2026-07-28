@@ -10,7 +10,7 @@ const FINANCE_DEAL_WORDS = {
 };
 
 const RECURRING_INFO_TEXT =
-  "Bu tekrarlayan bir gider — tek bir kayıt girdiniz, burada gördüğünüz her ay/yıl/gün otomatik oluşturulan bir kopyadır, " +
+  "Bu tekrarlayan bir gider - tek bir kayıt girdiniz, burada gördüğünüz her ay/yıl/gün otomatik oluşturulan bir kopyadır, " +
   "ayrı ayrı kaydedilmiş değildir. Herhangi birini silmek, geçmiş ve gelecekteki TÜM tekrarları kaldırır.";
 
 const totalExpenseInfoText = (sector) => {
@@ -24,7 +24,7 @@ const totalExpenseInfoText = (sector) => {
 const yeniTahsilatInfoText = (sector) => {
   const noun = FINANCE_DEAL_WORDS[dealWordKind(sector)].genPlural;
   return (
-    `Müşteri listesinde ve tahsilat eklerken sadece "${stageLabel("kazanildi", "kurumsal", sector)}" durumundaki ${noun} tutarı sayılır — ` +
+    `Müşteri listesinde ve tahsilat eklerken sadece "${stageLabel("kazanildi", "kurumsal", sector)}" durumundaki ${noun} tutarı sayılır - ` +
     "diğer aşamalardaki (görüşülüyor, kaybedildi vb.) kayıtlar borca dahil edilmez ve bu listede görünmez."
   );
 };
@@ -33,8 +33,8 @@ const kdvReportInfoText = (sector) => {
   const noun = FINANCE_DEAL_WORDS[dealWordKind(sector)].genPlural;
   return (
     `Satış KDV'si, seçilen aydaki "${stageLabel("kazanildi", "kurumsal", sector)}" ${noun} KDV tutarlarından; Alış KDV'si, o ay içindeki ve KDV oranı ` +
-    "girilmiş giderlerden hesaplanır. Bu, resmi bir beyanname veya e-defter değildir — sadece kendi ön hazırlığınız içindir, " +
-    "muhasebecinizin/SMMM'nizin yerine geçmez. Rapor her zaman GÜNCEL verilerle hesaplanır — geçmiş bir ayın " +
+    "girilmiş giderlerden hesaplanır. Bu, resmi bir beyanname veya e-defter değildir - sadece kendi ön hazırlığınız içindir, " +
+    "muhasebecinizin/SMMM'nizin yerine geçmez. Rapor her zaman GÜNCEL verilerle hesaplanır - geçmiş bir ayın " +
     "kazanılmış teklifinde Tutar/KDV değişikliği yaparsanız, o ayın raporu da (zaten beyan etmiş olsanız bile) buna göre değişir."
   );
 };
@@ -300,13 +300,13 @@ function DealCostEditForm({ deal, sector, onSave, onCancel }) {
   };
 
   return (
-    <Modal title={`Gideri düzenle — ${deal.title}`} onClose={onCancel}>
+    <Modal title={`Gideri düzenle - ${deal.title}`} onClose={onCancel}>
       <form onSubmit={submit}>
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Gider (TL)</label>
           <input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: "100%" }} autoFocus />
           <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0" }}>
-            Bu, {words.locativePlural} kaydın "Gider" alanıyla aynıdır — burada değiştirirseniz orada da yansır.
+            Bu, {words.locativePlural} kaydın "Gider" alanıyla aynıdır - burada değiştirirseniz orada da yansır.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -384,7 +384,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
         // yine paid_at — kullanıcı elle girdiği tarihi görmeye devam ediyor.
         sortAt: p.createdAt || p.paidAt,
         hasTime: false,
-        label: `${customer?.name || "Bilinmeyen müşteri"} — ${deal?.title || "Tahsilat"}${isRefund ? " (iade)" : ""}`,
+        label: `${customer?.name || "Bilinmeyen müşteri"} - ${deal?.title || "Tahsilat"}${isRefund ? " (iade)" : ""}`,
         amount: Math.abs(p.amount),
         dealId: deal?.id || null,
         paymentId: p.id,
@@ -410,7 +410,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
       date: d.closedAt || d.createdAt,
       sortAt: d.closedAt || d.createdAt,
       hasTime: false,
-      label: `${customerById(d.customerId)?.name || "Bilinmeyen müşteri"} — ${d.title} maliyeti`,
+      label: `${customerById(d.customerId)?.name || "Bilinmeyen müşteri"} - ${d.title} maliyeti`,
       amount: d.cost,
       dealCostId: d.id,
     })),
@@ -446,7 +446,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
       `Alış KDV'si: ${formatTL(alisKdv)}\n` +
       `Ödenecek/Devreden KDV: ${formatTL(odenecekKdv)}\n\n` +
       "Bu rapor Binerly üzerinden alınmıştır, resmi bir beyanname/e-defter değildir.\n\nİyi çalışmalar.";
-    openAccountantMail(`KDV Özet Raporu — ${kdvMonth}`, body);
+    openAccountantMail(`KDV Özet Raporu - ${kdvMonth}`, body);
   };
 
   const sendDefterToAccountant = () => {
@@ -542,7 +542,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
             <i className="ti ti-send" style={{ fontSize: 14 }} aria-hidden="true"></i>
             Muhasebeciye Gönder
           </button>
-          <InfoTip text={'Defteri .xlsx olarak indirir ve e-posta taslağı açar — mailto: dosyayı otomatik ekleyemediği için, az önce inen "gelir-gider-defteri.xlsx" dosyasını göndermeden önce e-postaya elle eklemeyi unutmayın.'} placement="bottom" />
+          <InfoTip text={'Defteri .xlsx olarak indirir ve e-posta taslağı açar - mailto: dosyayı otomatik ekleyemediği için, az önce inen "gelir-gider-defteri.xlsx" dosyasını göndermeden önce e-postaya elle eklemeyi unutmayın.'} placement="bottom" />
         </div>
       </div>
       )}
@@ -822,7 +822,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
         <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", minWidth: 200 }}>
           <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 4 }}>
             Kategoriye göre gider
-            <InfoTip text={`Sadece elle eklenen işletme giderlerini gösterir, kazanılan ${FINANCE_DEAL_WORDS[dealWordKind(sector)].locativePlural} gider tutarlarını içermez — bu yüzden yukarıdaki Toplam Gider'le tam eşleşmeyebilir.`} />
+            <InfoTip text={`Sadece elle eklenen işletme giderlerini gösterir, kazanılan ${FINANCE_DEAL_WORDS[dealWordKind(sector)].locativePlural} gider tutarlarını içermez - bu yüzden yukarıdaki Toplam Gider'le tam eşleşmeyebilir.`} />
           </p>
           {Object.keys(categoryTotals).length === 0 ? (
             <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Bu aralıkta işletme gideri yok.</p>
@@ -861,7 +861,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
           title="Gideri sil"
           message={
             confirmDelete.isRecurring
-              ? "Bu tekrarlayan bir gider — silerseniz geçmiş ve gelecekteki TÜM tekrarları çöp kutusuna taşınır, sadece bu ay/yıl değil. Dilediğiniz zaman geri yükleyebilirsiniz."
+              ? "Bu tekrarlayan bir gider - silerseniz geçmiş ve gelecekteki TÜM tekrarları çöp kutusuna taşınır, sadece bu ay/yıl değil. Dilediğiniz zaman geri yükleyebilirsiniz."
               : "Bu gider çöp kutusuna taşınacak, dilediğiniz zaman geri yükleyebilirsiniz."
           }
           onConfirm={() => { onDeleteExpense(confirmDelete.expenseId); setConfirmDelete(null); }}
@@ -925,7 +925,7 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
       {confirmClearDealCost && (
         <ConfirmDialog
           title="Gider kaldırılsın mı?"
-          message={`${confirmClearDealCost.label.split(" — ")[0]} müşterisinin bu kayıttan kaynaklanan Gider tutarı 0'a çekilecek — bu, ${FINANCE_DEAL_WORDS[dealWordKind(sector)].locativePlural} kayıtta da aynı şekilde yansır.`}
+          message={`${confirmClearDealCost.label.split(" - ")[0]} müşterisinin bu kayıttan kaynaklanan Gider tutarı 0'a çekilecek - bu, ${FINANCE_DEAL_WORDS[dealWordKind(sector)].locativePlural} kayıtta da aynı şekilde yansır.`}
           onConfirm={() => { onUpdateDealCost(confirmClearDealCost.dealCostId, 0); setConfirmClearDealCost(null); }}
           onClose={() => setConfirmClearDealCost(null)}
         />

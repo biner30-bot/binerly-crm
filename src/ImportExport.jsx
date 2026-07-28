@@ -251,7 +251,7 @@ export function ImportModal({
   const previewFields = fieldDefs.filter((f) => !f.hideInPreview);
 
   return (
-    <Modal title={`${entityLabel} — İçe Aktar`} onClose={onClose}>
+    <Modal title={`${entityLabel} - İçe Aktar`} onClose={onClose}>
       {step === "file" && (
         <div>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 12 }}>
@@ -259,7 +259,7 @@ export function ImportModal({
           </p>
           {allowVcf && (
             <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, marginBottom: 12 }}>
-              Not: WhatsApp'ın kendi bir "kişi dışa aktar" özelliği yoktur — telefonunuzun Kişiler/Contacts uygulamasından vCard dışa aktarabilirsiniz.
+              Not: WhatsApp'ın kendi bir "kişi dışa aktar" özelliği yoktur - telefonunuzun Kişiler/Contacts uygulamasından vCard dışa aktarabilirsiniz.
               Word belgesindeki bir tabloyu aktarmak isterseniz, tabloyu kopyalayıp Excel'e yapıştırıp CSV olarak kaydetmeniz yeterli.
             </p>
           )}

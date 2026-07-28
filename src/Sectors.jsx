@@ -126,7 +126,7 @@ export const SECTOR_PRESETS = [
       teklif: "Tedavi planını ve maliyetini hastaya açıkça anlatın.",
       muzakere: "Randevudan bir gün önce hatırlatma yapmayı unutmayın.",
       kazanildi: "Kontrol randevusu gerekiyorsa hatırlatma ekleyin.",
-      kaybedildi: "Vazgeçme nedenini not alın; hasta randevuya gelmediyse \"Gelmedi\" etiketini ekleyin — Pano'daki oran bunu kullanıyor.",
+      kaybedildi: "Vazgeçme nedenini not alın; hasta randevuya gelmediyse \"Gelmedi\" etiketini ekleyin - Pano'daki oran bunu kullanıyor.",
     },
   },
   {
@@ -243,9 +243,9 @@ export const SECTOR_PRESETS = [
     stageGuides: {
       ilk_gorusme: "Hizmet türünü ve tahmini süreyi netleştirip randevu saatini onaylayın.",
       teklif: "Randevu saatini müşteriye tekrar teyit edin.",
-      muzakere: "Randevudan bir gün önce hatırlatma mesajı/arama yapın — randevuya gelmeme riskini azaltır.",
+      muzakere: "Randevudan bir gün önce hatırlatma mesajı/arama yapın - randevuya gelmeme riskini azaltır.",
       kazanildi: "Kullanılan formül/dozu not düşün, paket hizmetse sonraki seans için hatırlatma ekleyin.",
-      kaybedildi: "Müşteri habersiz gelmediyse aşamayı kaydederken kayıp nedeni olarak \"Randevuya gelmedi\"yi seçin — Pano'daki gelmeme oranı ve no-show uyarısı bunu kullanıyor.",
+      kaybedildi: "Müşteri habersiz gelmediyse aşamayı kaydederken kayıp nedeni olarak \"Randevuya gelmedi\"yi seçin - Pano'daki gelmeme oranı ve no-show uyarısı bunu kullanıyor.",
     },
   },
   {
@@ -591,7 +591,7 @@ export function buildEmlakListingTexts(deal) {
   const sahibinden = [
     `${satirBaslik || deal.title}`.toLocaleUpperCase("tr"),
     "",
-    [olcu, fiyat].filter(Boolean).join(" — "),
+    [olcu, fiyat].filter(Boolean).join(" - "),
     "",
     `${cf.bolge ? `${cf.bolge} bölgesinde, ` : ""}${cf.oda_sayisi ? `${cf.oda_sayisi} planlı, ` : ""}${cf.metrekare ? `${cf.metrekare} m² ` : ""}${(cf.mulk_tipi || "mülk").toLocaleLowerCase("tr")}. Detaylı bilgi ve randevu için bizimle iletişime geçebilirsiniz.`,
     "",
@@ -599,7 +599,7 @@ export function buildEmlakListingTexts(deal) {
   ].join("\n");
 
   const instagram = [
-    `🏠 ${islemLabel.toLocaleUpperCase("tr")} ${cf.mulk_tipi || ""}${cf.bolge ? ` — ${cf.bolge}` : ""}`,
+    `🏠 ${islemLabel.toLocaleUpperCase("tr")} ${cf.mulk_tipi || ""}${cf.bolge ? ` - ${cf.bolge}` : ""}`,
     "",
     [cf.metrekare ? `📐 ${cf.metrekare} m²` : null, cf.oda_sayisi ? `🛏️ ${cf.oda_sayisi}` : null].filter(Boolean).join("  ·  "),
     deal.value ? `💰 ${fiyat}` : null,
@@ -612,7 +612,7 @@ export function buildEmlakListingTexts(deal) {
   const whatsapp = [
     `Merhaba, yeni bir ${islemLabel.toLocaleLowerCase("tr")} ilanımız var:`,
     "",
-    `🏠 ${cf.mulk_tipi || deal.title}${cf.bolge ? ` — ${cf.bolge}` : ""}`,
+    `🏠 ${cf.mulk_tipi || deal.title}${cf.bolge ? ` - ${cf.bolge}` : ""}`,
     [cf.metrekare ? `📐 ${cf.metrekare} m²` : null, cf.oda_sayisi ? `🛏️ ${cf.oda_sayisi}` : null].filter(Boolean).join("  |  "),
     deal.value ? `💰 ${fiyat}` : null,
     "",
@@ -661,12 +661,12 @@ const GROUP_CLASS_WORDS = {
     tabSubtitle: "Haftalık ders programınız ve kayıtlı öğrenciler",
     rosterTitle: "Kayıtlı öğrenciler",
     emptyRoster: "Henüz öğrenci yok.",
-    fullMessage: "Ders dolu — yeni öğrenci eklemek için önce birini çıkarın.",
+    fullMessage: "Ders dolu - yeni öğrenci eklemek için önce birini çıkarın.",
     addMemberLabel: "+ Öğrenci ekle",
-    addMemberInfoTip: "Sadece aktif kaydı olan müşteriler listelenir — kaydı olmayan bir öğrenciyi eklemek için önce Teklifler'den kayıt oluşturun.",
+    addMemberInfoTip: "Sadece aktif kaydı olan müşteriler listelenir - kaydı olmayan bir öğrenciyi eklemek için önce Teklifler'den kayıt oluşturun.",
     removeMemberTitle: "Öğrenciyi dersten çıkar",
     deleteClassMessage: "silinecek. Bu dersteki öğrencilerin listesi de silinir; dersi geri yüklerseniz öğrencileri tekrar eklemeniz gerekir.",
-    noMembershipToast: "Bu müşterinin aktif bir kaydı yok — önce Teklifler'den kayıt oluşturun.",
+    noMembershipToast: "Bu müşterinin aktif bir kaydı yok - önce Teklifler'den kayıt oluşturun.",
     addErrorPrefix: "Öğrenci eklenemedi",
     removeErrorPrefix: "Öğrenci çıkarılamadı",
     portalEligibility: "Katılmak için aktif kaydınız olması gerekiyor.",
@@ -677,12 +677,12 @@ const GROUP_CLASS_WORDS = {
     tabSubtitle: "Haftalık grup dersi programınız ve kayıtlı üyeler",
     rosterTitle: "Kayıtlı üyeler",
     emptyRoster: "Henüz üye yok.",
-    fullMessage: "Ders dolu — yeni üye eklemek için önce birini çıkarın.",
+    fullMessage: "Ders dolu - yeni üye eklemek için önce birini çıkarın.",
     addMemberLabel: "+ Üye ekle",
-    addMemberInfoTip: "Sadece aktif üyeliği olan müşteriler listelenir — üyeliği olmayan bir müşteriyi eklemek için önce Üyelikler'den üyelik kaydı oluşturun.",
+    addMemberInfoTip: "Sadece aktif üyeliği olan müşteriler listelenir - üyeliği olmayan bir müşteriyi eklemek için önce Üyelikler'den üyelik kaydı oluşturun.",
     removeMemberTitle: "Üyeyi dersten çıkar",
     deleteClassMessage: "silinecek. Bu dersteki üyelerin listesi de silinir; dersi geri yüklerseniz üyeleri tekrar eklemeniz gerekir.",
-    noMembershipToast: "Bu müşterinin aktif bir üyeliği yok — önce üyelik kaydı oluşturun.",
+    noMembershipToast: "Bu müşterinin aktif bir üyeliği yok - önce üyelik kaydı oluşturun.",
     addErrorPrefix: "Üye eklenemedi",
     removeErrorPrefix: "Üye çıkarılamadı",
     portalEligibility: "Katılmak için aktif üyeliğiniz olması gerekiyor.",
@@ -876,14 +876,14 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
     <div style={{ marginTop: 24, paddingTop: 20, borderTop: "0.5px solid var(--border)" }}>
       <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 4px" }}>Özel alanlar</p>
       <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 12px" }}>
-        Sektör değiştirdiğinizde başka sektöre ait alanlar burada gizlenir (silinmez) — daha önce kaydedilmiş değerler korunur, aynı sektöre dönerseniz alanlar geri gelir.
+        Sektör değiştirdiğinizde başka sektöre ait alanlar burada gizlenir (silinmez) - daha önce kaydedilmiş değerler korunur, aynı sektöre dönerseniz alanlar geri gelir.
       </p>
       {renderGroup("Müşteri alanları", customerDefs)}
       {renderGroup(`${dealEntityLabel} alanları`, dealDefs)}
 
       <p style={{ fontSize: 13, fontWeight: 500, margin: "12px 0 4px", display: "flex", alignItems: "center", gap: 4 }}>
         {editingDef ? "Alanı düzenle" : "Yeni alan ekle"}
-        <InfoTip align="left" text={`Standart alanların (isim, telefon, tutar vb.) dışında, işinize özel ekstra bilgi alanları tanımlayabilirsiniz — örn. "Mülk Tipi", "Tercih Edilen Uzman", "Alerji Notu". "Nerede": bu bilgi müşteri kartında mı yoksa ${dealEntityLabel} kaydında mı görünsün. "Tip": ne tür veri gireceksiniz (metin, sayı, tarih, tarih & saat veya hazır seçim listesi) — "Tarih & Saat" tipiyle ${dealEntityLabel} kaydına eklenen alanlar için, o saatten 2 saat önce müşteriye otomatik hatırlatma e-postası gönderilir (randevu takibi için). "Kime": bu alanı sadece kurumsal, sadece bireysel müşterilerde mi yoksa herkeste mi göstermek istiyorsunuz.`} />
+        <InfoTip align="left" text={`Standart alanların (isim, telefon, tutar vb.) dışında, işinize özel ekstra bilgi alanları tanımlayabilirsiniz - örn. "Mülk Tipi", "Tercih Edilen Uzman", "Alerji Notu". "Nerede": bu bilgi müşteri kartında mı yoksa ${dealEntityLabel} kaydında mı görünsün. "Tip": ne tür veri gireceksiniz (metin, sayı, tarih, tarih & saat veya hazır seçim listesi) - "Tarih & Saat" tipiyle ${dealEntityLabel} kaydına eklenen alanlar için, o saatten 2 saat önce müşteriye otomatik hatırlatma e-postası gönderilir (randevu takibi için). "Kime": bu alanı sadece kurumsal, sadece bireysel müşterilerde mi yoksa herkeste mi göstermek istiyorsunuz.`} />
       </p>
       <form onSubmit={submit} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end", marginTop: 8 }}>
         <div>
@@ -985,7 +985,7 @@ export function CustomFieldsSection({ defs, values, onChange }) {
     <div style={{ marginBottom: 8 }}>
       <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px", display: "flex", alignItems: "center", gap: 4 }}>
         Özel alanlar
-        <InfoTip align="left" text="Bu alanlar sabit değil — Ayarlar → Sektör & Özel Alanlar'dan kendiniz ekleyip kaldırabilirsiniz. Sektör seçtiğinizde bazı alanlar otomatik hazır gelir." />
+        <InfoTip align="left" text="Bu alanlar sabit değil - Ayarlar → Sektör & Özel Alanlar'dan kendiniz ekleyip kaldırabilirsiniz. Sektör seçtiğinizde bazı alanlar otomatik hazır gelir." />
       </p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {active.map((d) => (

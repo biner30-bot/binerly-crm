@@ -64,7 +64,7 @@ export default function AdminPage() {
     <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "system-ui, -apple-system, sans-serif", padding: "2rem" }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Binerly — Yönetici</h1>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Binerly - Yönetici</h1>
           <button onClick={() => supabase.auth.signOut()}>Çıkış yap</button>
         </div>
         {error && <p style={{ color: "#b91c1c", fontSize: 13, marginBottom: 12 }}>{error}</p>}

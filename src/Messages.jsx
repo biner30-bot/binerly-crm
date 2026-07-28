@@ -225,7 +225,7 @@ function ThreadView({ conversation, customer, onSend, onConvertToCustomer, onCre
 
       {!withinWindow && (
         <p style={{ fontSize: 12, color: "var(--text-warning)", margin: "0 0 8px" }}>
-          24 saatlik yanıt penceresi kapandı — bu kişiye şu an serbest metinli mesaj gönderilemez.
+          24 saatlik yanıt penceresi kapandı - bu kişiye şu an serbest metinli mesaj gönderilemez.
         </p>
       )}
       <form onSubmit={submit} style={{ display: "flex", gap: 8 }}>

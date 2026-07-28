@@ -75,7 +75,7 @@ function buildEmlakMatchMessage(deal, customer, companySettings) {
   const islem = cf.islem_turu === "Kiralama" ? "kiralık" : "satılık";
   const firstName = (customer.name || "").split(" ")[0] || customer.name;
   const firma = companySettings?.companyName ? `${companySettings.companyName} olarak ` : "";
-  return `Merhaba ${firstName}, ${firma}aradığınız kriterlere uygun yeni bir ${islem} ilanımız var: ${details}${fiyat ? ` — ${fiyat}` : ""}. İlgilenirseniz detaylarını ve fotoğrafları hemen paylaşabilirim.`;
+  return `Merhaba ${firstName}, ${firma}aradığınız kriterlere uygun yeni bir ${islem} ilanımız var: ${details}${fiyat ? ` - ${fiyat}` : ""}. İlgilenirseniz detaylarını ve fotoğrafları hemen paylaşabilirim.`;
 }
 
 // Paket/üyelik yenileme hatırlatması — approvalLink opsiyonel, çağıran taraf
@@ -96,7 +96,7 @@ function buildRenewalMessage(deal, customer, alert, companySettings, approvalLin
 function buildWinBackMessage(customer, daysSince, companySettings) {
   const firstName = (customer.name || "").split(" ")[0] || customer.name;
   const firma = companySettings?.companyName ? `${companySettings.companyName} olarak ` : "";
-  return `Merhaba ${firstName}, sizi ${daysSince} gündür derslerde göremedik, sizi özledik! ${firma}bir sonraki dersinizde görüşmeyi çok isteriz — uygun bir saat için bize yazabilirsiniz.`;
+  return `Merhaba ${firstName}, sizi ${daysSince} gündür derslerde göremedik, sizi özledik! ${firma}bir sonraki dersinizde görüşmeyi çok isteriz - uygun bir saat için bize yazabilirsiniz.`;
 }
 
 function median(nums) {
@@ -347,16 +347,16 @@ function computeAttendanceChurnRisk(customers, deals, groupClassEnrollments, cla
 
 const LEAD_INFO_TEXT =
   "Son temas tarihine göre müşterinin ne kadar güncel takip edildiğini gösterir:\n" +
-  "🟢 Sıcak — son 7 gün içinde temas edildi\n" +
-  "🟠 Ilık — son 8-30 gün içinde temas edildi\n" +
-  "⚪ Soğuk — 30 günden uzun süredir temas yok (veya hiç temas edilmedi)";
+  "🟢 Sıcak - son 7 gün içinde temas edildi\n" +
+  "🟠 Ilık - son 8-30 gün içinde temas edildi\n" +
+  "⚪ Soğuk - 30 günden uzun süredir temas yok (veya hiç temas edilmedi)";
 
 const PORTAL_INFO_TEXT =
   "Müşteri Portalı, müşterilerinizin kendi hesaplarıyla giriş yapıp tekliflerinin durumunu görebildiği, " +
   "destek talebi açabildiği ve sizinle mesajlaşabildiği ayrı bir alan (portal.binerly.com).\n\n" +
-  "Var — bu müşteri portala kayıt olup kendi hesabını bu müşteri kaydına bağlamış.\n" +
-  "— — bu müşteri henüz portala giriş yapmamış. Müşterinizin, kayıtlı e-posta adresiyle " +
-  "portal üzerinden kendi hesabını oluşturması yeterli, özel bir davet göndermenize gerek yok — " +
+  "Var - bu müşteri portala kayıt olup kendi hesabını bu müşteri kaydına bağlamış.\n" +
+  "Yok - bu müşteri henüz portala giriş yapmamış. Müşterinizin, kayıtlı e-posta adresiyle " +
+  "portal üzerinden kendi hesabını oluşturması yeterli, özel bir davet göndermenize gerek yok - " +
   "isterseniz \"Linki paylaş\"a tıklayıp portal adresini WhatsApp'tan hatırlatabilirsiniz.";
 
 const DEAL_WORD_FORMS = {
@@ -438,37 +438,37 @@ const DEAL_TAB_STRINGS = {
 const dealActionsInfoText = (sector) => {
   const forms = DEAL_WORD_FORMS[dealWordKind(sector)];
   return (
-    `📄 ${forms.pdfLabel} — markalı, yazdırılabilir ${forms.bare} belgesi oluşturur.\n` +
-    `🔗 Onay linki — müşterinin "onaylıyorum" diyebileceği bir link kopyalar, siz WhatsApp/e-posta ile gönderirsiniz. Müşteri, ` +
-    `sisteme kayıtlı e-postasıyla giriş yapmadan ${forms.acc} göremez/onaylayamaz — bu yüzden müşterinin e-postası kayıtlı olmalı. ` +
-    `Müşteri linki açıp giriş yaptığı an "👁 Görüntülendi" rozeti ve size bir bildirim düşer — hâlâ onaylamadıysa arayıp hatırlatabilirsiniz. ` +
-    `Onaylayınca satırda yeşil "Onaylandı ✓" rozeti otomatik görünür. Bu, resmi/güvenli elektronik imza değildir — ` +
+    `📄 ${forms.pdfLabel} - markalı, yazdırılabilir ${forms.bare} belgesi oluşturur.\n` +
+    `🔗 Onay linki - müşterinin "onaylıyorum" diyebileceği bir link kopyalar, siz WhatsApp/e-posta ile gönderirsiniz. Müşteri, ` +
+    `sisteme kayıtlı e-postasıyla giriş yapmadan ${forms.acc} göremez/onaylayamaz - bu yüzden müşterinin e-postası kayıtlı olmalı. ` +
+    `Müşteri linki açıp giriş yaptığı an "👁 Görüntülendi" rozeti ve size bir bildirim düşer - hâlâ onaylamadıysa arayıp hatırlatabilirsiniz. ` +
+    `Onaylayınca satırda yeşil "Onaylandı ✓" rozeti otomatik görünür. Bu, resmi/güvenli elektronik imza değildir - ` +
     `sadece takip ve bildirim amaçlıdır, hukuki bağlayıcılığı önemli anlaşmalarda ıslak imza veya nitelikli e-imza kullanın.\n` +
-    `💵 Tahsilat — bu ${forms.dat} yapılan ödemeleri kaydedin/görün.\n` +
-    `📋 Kopyala — aynı müşteri/tutar/etiketlerle sıfırdan yeni bir ${forms.bare} formu açar (tekrar eden işler için), hiçbir şeyi otomatik kaydetmez.\n` +
+    `💵 Tahsilat - bu ${forms.dat} yapılan ödemeleri kaydedin/görün.\n` +
+    `📋 Kopyala - aynı müşteri/tutar/etiketlerle sıfırdan yeni bir ${forms.bare} formu açar (tekrar eden işler için), hiçbir şeyi otomatik kaydetmez.\n` +
     "✏️ Düzenle · 🗑️ Sil"
   );
 };
 
 const CUSTOMER_EMAIL_INFO_TEXT =
-  "Güncel bir e-posta girmeniz önemli — teklif onay linki, müşteri portalı girişi ve hatırlatma e-postaları gibi " +
+  "Güncel bir e-posta girmeniz önemli - teklif onay linki, müşteri portalı girişi ve hatırlatma e-postaları gibi " +
   "özellikler ancak müşterinin e-postası kayıtlıysa çalışır. E-posta yoksa bu özellikler o müşteri için kullanılamaz.";
 
 const CUSTOMER_TYPE_INFO_TEXT =
-  "Kurumsal/Bireysel seçimi sadece bir etiket değil — Sektör alanının görünüp görünmeyeceğini, hangi özel alanların çıkacağını " +
+  "Kurumsal/Bireysel seçimi sadece bir etiket değil - Sektör alanının görünüp görünmeyeceğini, hangi özel alanların çıkacağını " +
   "ve teklif formundaki bazı metinleri (\"Kayıp nedeni\" yerine \"İptal nedeni\" gibi) uygulamanın birçok yerinde değiştirir. " +
   "Aşama isimleri ise önce sektörünüze (varsa) göre belirlenir, sektör bir aşamayı özelleştirmemişse kurumsal/bireysel ayrımına göre değişir.";
 
 const SECTOR_FIELD_INFO_TEXT =
-  "Bu, müşterinin kendi sektörü — Ayarlar'daki \"Sektör & Özel Alanlar\"da seçtiğiniz KENDİ şirket sektörünüzden " +
+  "Bu, müşterinin kendi sektörü - Ayarlar'daki \"Sektör & Özel Alanlar\"da seçtiğiniz KENDİ şirket sektörünüzden " +
   "farklı bir alan. Burada seçtiğiniz değer, teklif formunda etiket önerisi olarak çıkabilir.";
 
 const TAGS_INFO_TEXT =
-  "Serbest metin etiketler — arama/filtrelemede ve listelerde kayda hızlıca göz atmak için kullanılır. " +
+  "Serbest metin etiketler - arama/filtrelemede ve listelerde kayda hızlıca göz atmak için kullanılır. " +
   "Sektörünüze göre bazı etiketler öneri olarak çıkar, istediğiniz herhangi bir kelimeyi de ekleyebilirsiniz.";
 
 const SESSION_PACKAGE_INFO_TEXT =
-  "Kuaför/klinik gibi paket/seans bazlı satış yapıyorsanız kullanın — toplam ve kullanılan seans sayısını siz " +
+  "Kuaför/klinik gibi paket/seans bazlı satış yapıyorsanız kullanın - toplam ve kullanılan seans sayısını siz " +
   "elle güncellersiniz (\"Seans kullanıldı\" butonuyla), kullanılan sayı toplama ulaşınca kart üzerinde " +
   "\"Paket tamamlandı\" rozeti otomatik görünür.";
 
@@ -476,7 +476,7 @@ const kdvRateInfoText = (sector) => {
   const kind = dealWordKind(sector);
   const label = kind === "uyelik" ? "Üyelik Özeti PDF'inde" : kind === "randevu" ? "Randevu Özeti PDF'inde" : kind === "rezervasyon" ? "Rezervasyon Özeti PDF'inde" : "yazdırılan teklif PDF'inde";
   return (
-    `Yukarıdaki Tutar zaten KDV dahil, müşteriden alınan toplam tutarı DEĞİŞTİRMEZ — sadece ${label} ` +
+    `Yukarıdaki Tutar zaten KDV dahil, müşteriden alınan toplam tutarı DEĞİŞTİRMEZ - sadece ${label} ` +
     "\"Ara Toplam / KDV / Genel Toplam\" satırlarının nasıl bölüneceğini belirler."
   );
 };
@@ -612,8 +612,8 @@ function dealLostReasons(sector) {
 const SECTOR_DEMO_PRESETS = {
   guzellik_bakim: {
     customers: [
-      { name: "Örnek Müşteri — Elif Kaya", customerType: "bireysel", phone: "0532 000 00 11" },
-      { name: "Örnek Müşteri — Zeynep Demir", customerType: "bireysel", phone: "0532 000 00 12" },
+      { name: "Örnek Müşteri - Elif Kaya", customerType: "bireysel", phone: "0532 000 00 11" },
+      { name: "Örnek Müşteri - Zeynep Demir", customerType: "bireysel", phone: "0532 000 00 12" },
     ],
     deals: [
       { customerIndex: 0, title: "Lazer Epilasyon Paketi", value: 3500, cost: 0, stage: "kazanildi", customFields: { hizmet_turu: "Lazer Epilasyon", hizmet_suresi_dk: 45 } },
@@ -623,8 +623,8 @@ const SECTOR_DEMO_PRESETS = {
   },
   saglik_klinik: {
     customers: [
-      { name: "Örnek Hasta — Mehmet Aydın", customerType: "bireysel", phone: "0532 000 00 21" },
-      { name: "Örnek Hasta — Fatma Şahin", customerType: "bireysel", phone: "0532 000 00 22" },
+      { name: "Örnek Hasta - Mehmet Aydın", customerType: "bireysel", phone: "0532 000 00 21" },
+      { name: "Örnek Hasta - Fatma Şahin", customerType: "bireysel", phone: "0532 000 00 22" },
     ],
     deals: [
       { customerIndex: 0, title: "Diş Muayenesi ve Tedavi", value: 2500, cost: 0, stage: "kazanildi", customFields: { tedavi_hizmet: "Diş dolgusu", tetkik_turu: "Panoramik röntgen" } },
@@ -634,8 +634,8 @@ const SECTOR_DEMO_PRESETS = {
   },
   sanayi_esnaf: {
     customers: [
-      { name: "Örnek Müşteri — Ahmet Yılmaz", customerType: "bireysel", phone: "0532 000 00 31" },
-      { name: "Örnek Müşteri — Kaya Nakliyat", customerType: "kurumsal", phone: "0532 000 00 32" },
+      { name: "Örnek Müşteri - Ahmet Yılmaz", customerType: "bireysel", phone: "0532 000 00 31" },
+      { name: "Örnek Müşteri - Kaya Nakliyat", customerType: "kurumsal", phone: "0532 000 00 32" },
     ],
     deals: [
       { customerIndex: 0, title: "Oto Boya İşlemi", value: 8500, cost: 3000, stage: "kazanildi", customFields: { servis_turu: "Oto Boya", arac_ekipman_bilgisi: "34 ABC 123, Toyota Corolla", tahmini_ucret: 8000 } },
@@ -645,19 +645,19 @@ const SECTOR_DEMO_PRESETS = {
   },
   emlak: {
     customers: [
-      { name: "Örnek Müşteri — Can Öztürk", customerType: "bireysel", phone: "0532 000 00 41" },
-      { name: "Örnek Müşteri — Ada Yapı A.Ş.", customerType: "kurumsal", phone: "0532 000 00 42" },
+      { name: "Örnek Müşteri - Can Öztürk", customerType: "bireysel", phone: "0532 000 00 41" },
+      { name: "Örnek Müşteri - Ada Yapı A.Ş.", customerType: "kurumsal", phone: "0532 000 00 42" },
     ],
     deals: [
-      { customerIndex: 0, title: "3+1 Daire Satışı — Kadıköy", value: 2500000, cost: 0, stage: "kazanildi", customFields: { mulk_tipi: "Daire", islem_turu: "Satış", metrekare: 120, ilan_no: "KDK-1042" } },
+      { customerIndex: 0, title: "3+1 Daire Satışı - Kadıköy", value: 2500000, cost: 0, stage: "kazanildi", customFields: { mulk_tipi: "Daire", islem_turu: "Satış", metrekare: 120, ilan_no: "KDK-1042" } },
       { customerIndex: 1, title: "Ofis Kiralama Teklifi", value: 45000, cost: 0, stage: "teklif", reminderToday: true, reminder: "Mülk fotoğraflarını gönder", customFields: { mulk_tipi: "İşyeri", islem_turu: "Kiralama", metrekare: 200 } },
       { customerIndex: 0, title: "Villa Görüşmesi", value: 4500000, cost: 0, stage: "ilk_gorusme", customFields: { mulk_tipi: "Villa", islem_turu: "Satış" } },
     ],
   },
   dijital_ajans: {
     customers: [
-      { name: "Örnek Müşteri — Lezzet Cafe", customerType: "kurumsal", phone: "0532 000 00 51" },
-      { name: "Örnek Müşteri — Parlak Kozmetik", customerType: "kurumsal", phone: "0532 000 00 52" },
+      { name: "Örnek Müşteri - Lezzet Cafe", customerType: "kurumsal", phone: "0532 000 00 51" },
+      { name: "Örnek Müşteri - Parlak Kozmetik", customerType: "kurumsal", phone: "0532 000 00 52" },
     ],
     deals: [
       { customerIndex: 0, title: "Sosyal Medya Yönetimi (Aylık)", value: 12000, cost: 0, stage: "kazanildi", customFields: { hizmet_turu: "Sosyal medya yönetimi", sozlesme_suresi: "Aylık", aylik_butce: 5000 } },
@@ -667,8 +667,8 @@ const SECTOR_DEMO_PRESETS = {
   },
   uretim_satis: {
     customers: [
-      { name: "Örnek Müşteri — Yıldız Market Zinciri", customerType: "kurumsal", phone: "0532 000 00 61" },
-      { name: "Örnek Müşteri — Deniz Toptan Gıda", customerType: "kurumsal", phone: "0532 000 00 62" },
+      { name: "Örnek Müşteri - Yıldız Market Zinciri", customerType: "kurumsal", phone: "0532 000 00 61" },
+      { name: "Örnek Müşteri - Deniz Toptan Gıda", customerType: "kurumsal", phone: "0532 000 00 62" },
     ],
     deals: [
       { customerIndex: 0, title: "Aylık Ürün Sevkiyatı", value: 85000, cost: 0, stage: "kazanildi", customFields: { urun_grubu: "Gıda ambalaj", siparis_miktari: 5000, sevkiyat_durumu: "Teslim edildi" } },
@@ -678,8 +678,8 @@ const SECTOR_DEMO_PRESETS = {
   },
   hizmet_danismanlik: {
     customers: [
-      { name: "Örnek Müşteri — Vizyon Holding", customerType: "kurumsal", phone: "0532 000 00 71" },
-      { name: "Örnek Müşteri — Selin Aydın", customerType: "bireysel", phone: "0532 000 00 72" },
+      { name: "Örnek Müşteri - Vizyon Holding", customerType: "kurumsal", phone: "0532 000 00 71" },
+      { name: "Örnek Müşteri - Selin Aydın", customerType: "bireysel", phone: "0532 000 00 72" },
     ],
     deals: [
       { customerIndex: 0, title: "Kurumsal Verimlilik Danışmanlığı", value: 60000, cost: 0, stage: "kazanildi", customFields: { ucretlendirme_modeli: "Proje bazlı", proje_kapsami: "Süreç iyileştirme" } },
@@ -689,8 +689,8 @@ const SECTOR_DEMO_PRESETS = {
   },
   perakende: {
     customers: [
-      { name: "Örnek Müşteri — Burak Kaya", customerType: "bireysel", phone: "0532 000 00 81" },
-      { name: "Örnek Müşteri — Naz Yılmaz", customerType: "bireysel", phone: "0532 000 00 82" },
+      { name: "Örnek Müşteri - Burak Kaya", customerType: "bireysel", phone: "0532 000 00 81" },
+      { name: "Örnek Müşteri - Naz Yılmaz", customerType: "bireysel", phone: "0532 000 00 82" },
     ],
     deals: [
       { customerIndex: 0, title: "Mağaza İçi Alışveriş", value: 3200, cost: 0, stage: "kazanildi", customFields: { satis_kanali: "Mağaza", urun_kategorisi: "Giyim" } },
@@ -700,8 +700,8 @@ const SECTOR_DEMO_PRESETS = {
   },
   spor_merkezi: {
     customers: [
-      { name: "Örnek Üye — Deniz Arslan", customerType: "bireysel", phone: "0532 000 00 91" },
-      { name: "Örnek Üye — Ege Korkmaz", customerType: "bireysel", phone: "0532 000 00 92" },
+      { name: "Örnek Üye - Deniz Arslan", customerType: "bireysel", phone: "0532 000 00 91" },
+      { name: "Örnek Üye - Ege Korkmaz", customerType: "bireysel", phone: "0532 000 00 92" },
     ],
     deals: [
       { customerIndex: 0, title: "Yıllık Üyelik", value: 18000, cost: 0, stage: "kazanildi", customFields: { uyelik_paketi: "Yıllık" } },
@@ -711,8 +711,8 @@ const SECTOR_DEMO_PRESETS = {
   },
   egitim_kurs: {
     customers: [
-      { name: "Örnek Öğrenci — Defne Yıldız", customerType: "bireysel", phone: "0532 000 01 01" },
-      { name: "Örnek Öğrenci — Kerem Çelik", customerType: "bireysel", phone: "0532 000 01 02" },
+      { name: "Örnek Öğrenci - Defne Yıldız", customerType: "bireysel", phone: "0532 000 01 01" },
+      { name: "Örnek Öğrenci - Kerem Çelik", customerType: "bireysel", phone: "0532 000 01 02" },
     ],
     deals: [
       { customerIndex: 0, title: "İngilizce Kursu Kaydı", value: 7500, cost: 0, stage: "kazanildi", customFields: { kurs_programi: "Yabancı Dil", egitmen: "Ayşe Öğretmen" } },
@@ -731,35 +731,35 @@ const HELP_TOPICS = [
   // Müşteriler & Kayıtlar
   { category: "Müşteriler & Kayıtlar", q: "Yeni müşteri nasıl eklerim?", a: "Müşteriler sekmesine gidip \"+ Müşteri ekle\" butonuna tıklayın. Ad/firma adı zorunlu, geri kalan alanlar opsiyoneldir." },
   { category: "Müşteriler & Kayıtlar", q: "Teklif/randevu/üyelik nasıl oluşturulur?", a: "Sol menüdeki Teklifler/Randevular/Üyelikler/Rezervasyonlar sekmesinden (sektörünüze göre adı değişir) \"+ Ekle\" ile yeni bir kayıt açın; önce bir müşteri seçilmiş olmalı. Aşama değiştikçe kayıt otomatik ilerler." },
-  { category: "Müşteriler & Kayıtlar", q: "Müşteri Kazanma Linki nedir?", a: "Ayarlar → Müşteri Kazanma Linki'nden aldığınız linki (veya QR kodunu) paylaşırsanız, müşteri kendi bilgilerini doldurup sisteminize düşer — elle veri girmenize gerek kalmaz." },
+  { category: "Müşteriler & Kayıtlar", q: "Müşteri Kazanma Linki nedir?", a: "Ayarlar → Müşteri Kazanma Linki'nden aldığınız linki (veya QR kodunu) paylaşırsanız, müşteri kendi bilgilerini doldurup sisteminize düşer - elle veri girmenize gerek kalmaz." },
   { category: "Müşteriler & Kayıtlar", q: "Yanlışlıkla sildiğim bir kaydı nasıl geri getiririm?", a: "Ayarlar → Çöp Kutusu ve Geçmiş'ten silinen müşteri/teklif/tahsilat kayıtlarını geri yükleyebilirsiniz. Hiçbir şey otomatik olarak kalıcı silinmez." },
   { category: "Müşteriler & Kayıtlar", q: "Müşteri/teklif listemi Excel'e nasıl aktarırım?", a: "İlgili sekmenin üstündeki \"Dışa Aktar\" butonuyla .xlsx dosyası indirebilirsiniz. Aynı ekranlarda \"İçe Aktar\" ile de toplu veri yükleyebilirsiniz (CSV/Excel/vCard)." },
-  { category: "Müşteriler & Kayıtlar", q: "Word tablosundaki veya WhatsApp kişilerimdeki müşterileri nasıl aktarırım?", a: "Word tablonuzu Excel'e kopyalayıp CSV olarak kaydedin, sonra İçe Aktar'dan yükleyin. WhatsApp'ın kendi kişi dışa aktarma özelliği yok — telefonunuzun Kişiler uygulamasından vCard (.vcf) alıp İçe Aktar'a yükleyebilirsiniz." },
+  { category: "Müşteriler & Kayıtlar", q: "Word tablosundaki veya WhatsApp kişilerimdeki müşterileri nasıl aktarırım?", a: "Word tablonuzu Excel'e kopyalayıp CSV olarak kaydedin, sonra İçe Aktar'dan yükleyin. WhatsApp'ın kendi kişi dışa aktarma özelliği yok - telefonunuzun Kişiler uygulamasından vCard (.vcf) alıp İçe Aktar'a yükleyebilirsiniz." },
 
   // Ödeme & Faturalama
   { category: "Ödeme & Faturalama", q: "Müşteriden online ödeme nasıl alınır?", a: "Ayarlar → Ödeme Bağlantısı'ndan iyzico veya PayTR hesabınızı bağlayın. Sonra bir kaydı düzenlerken \"Müşteri ödemesi\" alanından onay linkine ödeme ekleyebilirsiniz." },
-  { category: "Ödeme & Faturalama", q: "Aldığım bir ödemeyi iade etmem gerekirse ne yapmalıyım?", a: "Finans sekmesinden ilgili tahsilatı bulup iade işlemini başlatın — gerçek iyzico/PayTR iade API'si çağrılır, tutar müşterinin kartına geri döner, sisteminizde de otomatik düşülür." },
-  { category: "Ödeme & Faturalama", q: "Paraşüt'e fatura nasıl aktarırım?", a: "Teklifler/Randevular/Üyelikler/Rezervasyonlar sekmesinde \"Kazanıldı\" durumundaki kayıtlardan seçtiklerinizi \"Paraşüt'e Aktar\"dan indirin — Paraşüt'ün toplu fatura şablonuyla birebir uyumlu bir Excel dosyası iner, doğrudan içe aktarabilirsiniz." },
+  { category: "Ödeme & Faturalama", q: "Aldığım bir ödemeyi iade etmem gerekirse ne yapmalıyım?", a: "Finans sekmesinden ilgili tahsilatı bulup iade işlemini başlatın - gerçek iyzico/PayTR iade API'si çağrılır, tutar müşterinin kartına geri döner, sisteminizde de otomatik düşülür." },
+  { category: "Ödeme & Faturalama", q: "Paraşüt'e fatura nasıl aktarırım?", a: "Teklifler/Randevular/Üyelikler/Rezervasyonlar sekmesinde \"Kazanıldı\" durumundaki kayıtlardan seçtiklerinizi \"Paraşüt'e Aktar\"dan indirin - Paraşüt'ün toplu fatura şablonuyla birebir uyumlu bir Excel dosyası iner, doğrudan içe aktarabilirsiniz." },
   { category: "Ödeme & Faturalama", q: "KDV oranını nasıl değiştiririm?", a: "Her teklifte ayrı ayrı seçebilirsiniz; varsayılan oranı Ayarlar → İşletme Bilgileri'nden belirleyebilirsiniz, yeni tekliflerde otomatik gelir." },
 
   // Finans
-  { category: "Finans", q: "Gelir-Gider Defteri ne işe yarar?", a: "Finans sekmesindeki bu liste, tüm tahsilatlarınızı ve giderlerinizi (kazanılan tekliflerin maliyeti dahil) tek yerde, kategoriye göre gösterir — net kâr/zarar durumunuzu anlık görürsünüz." },
+  { category: "Finans", q: "Gelir-Gider Defteri ne işe yarar?", a: "Finans sekmesindeki bu liste, tüm tahsilatlarınızı ve giderlerinizi (kazanılan tekliflerin maliyeti dahil) tek yerde, kategoriye göre gösterir - net kâr/zarar durumunuzu anlık görürsünüz." },
   { category: "Finans", q: "KDV Özet Raporu nasıl okunur?", a: "Seçtiğiniz ay için Satış KDV'si (tahsil ettiğiniz) ile Alış KDV'si (ödediğiniz giderler) karşılaştırılır, Ödenecek/Devreden KDV otomatik hesaplanır. Muhasebecinize göstermeden önce kendi kayıtlarınızla karşılaştırmanız önerilir." },
-  { category: "Finans", q: "Her ay tekrar eden bir gideri (kira, abonelik) her seferinde elden mi gireceğim?", a: "Hayır — gider eklerken \"Tekrarlayan\" seçip günlük/aylık/yıllık aralığını belirtin, sistem her dönem için otomatik hesaplar, yeniden girmenize gerek kalmaz." },
+  { category: "Finans", q: "Her ay tekrar eden bir gideri (kira, abonelik) her seferinde elden mi gireceğim?", a: "Hayır - gider eklerken \"Tekrarlayan\" seçip günlük/aylık/yıllık aralığını belirtin, sistem her dönem için otomatik hesaplar, yeniden girmenize gerek kalmaz." },
 
   // Randevu & Program
-  { category: "Randevu & Program", q: "Randevularım sekmesi ne işe yarar?", a: "Randevu alınabilen sektörlerde, Bugün/Bu Hafta/Bu Ay filtreleriyle tüm randevularınızı saatine göre sıralı tek listede gösterir — arama ve aşama filtresi de var.", visibleIf: (sector) => supportsSelfBooking(sector) },
-  { category: "Randevu & Program", q: "Müşterilerimin portaldan randevu alabileceği saatleri nasıl belirlerim?", a: "Ayarlar → Müsaitlik Saatleri'nden hangi gün hangi saatler arası, kaçar dakikalık aralıklarla randevu verebileceğinizi tanımlarsınız — müşteri portalı sadece bu saatleri boş gösterir.", visibleIf: (sector) => bookingModel(sector) === "slot" },
+  { category: "Randevu & Program", q: "Randevularım sekmesi ne işe yarar?", a: "Randevu alınabilen sektörlerde, Bugün/Bu Hafta/Bu Ay filtreleriyle tüm randevularınızı saatine göre sıralı tek listede gösterir - arama ve aşama filtresi de var.", visibleIf: (sector) => supportsSelfBooking(sector) },
+  { category: "Randevu & Program", q: "Müşterilerimin portaldan randevu alabileceği saatleri nasıl belirlerim?", a: "Ayarlar → Müsaitlik Saatleri'nden hangi gün hangi saatler arası, kaçar dakikalık aralıklarla randevu verebileceğinizi tanımlarsınız - müşteri portalı sadece bu saatleri boş gösterir.", visibleIf: (sector) => bookingModel(sector) === "slot" },
   { category: "Randevu & Program", q: "Randevu hatırlatması otomatik mi gidiyor?", a: "Evet, randevu saatinden yaklaşık 2 saat önce müşteriye otomatik hatırlatma e-postası gider. Ayarlar → İşletme Bilgileri'nden bu özelliği kapatabilirsiniz.", visibleIf: (sector) => supportsSelfBooking(sector) },
-  { category: "Randevu & Program", q: "Oda Stoku ne işe yarar?", a: "Ayarlar → Oda Stoku'ndan her oda tipinden kaç adet olduğunuzu belirlersiniz — müşteri portalı, seçilen giriş/çıkış tarihi aralığında o tipte zaten stok kadar rezervasyon varsa \"müsait değil\" gösterir. Henüz eklenmemiş bir oda tipinden rezervasyon alınamaz.", visibleIf: (sector) => bookingModel(sector) === "inventory" },
-  { category: "Randevu & Program", q: "Aynı oda tipine aynı tarihler için birden fazla rezervasyon girebilir miyim?", a: "Evet — Oda Stoku'nda tanımladığınız adet kadar, aynı tarih aralığında çakışan rezervasyon kabul edilir; adet dolduğunda yeni bir kayıt eklemeye çalışırsanız net bir uyarıyla engellenir.", visibleIf: (sector) => bookingModel(sector) === "inventory" },
-  { category: "Randevu & Program", q: "Bir randevuyu \"gelmedi\" mi \"iptal\" mi olarak işaretlemeliyim?", a: "Aşamayı \"kaybedildi\"ye çektiğinizde size sorulur — müşteri habersiz gelmediyse \"Randevuya gelmedi\", önceden haber verip iptal ettiyse \"İptal etti\" seçin. Bu ayrım Pano'daki \"Gelmeme oranı\" metriğini doğru hesaplamak için önemlidir. Ayrıca belgelenebilir acil durumlarda \"Mücbir sebep\" (ceza/sayaç işletilmez) ve siz/personeliniz kaynaklı iptallerde \"İşletme iptal etti\" (geç iptal ediyorsanız müşteriye otomatik telafi hakkı tanınır) seçeneklerini kullanabilirsiniz.", visibleIf: (sector) => isAppointmentSector(sector) },
-  { category: "Randevu & Program", q: "Grup dersi / haftalık program nasıl oluştururum?", a: "Spor Merkezi ve Eğitim/Kurs Merkezi sektörlerinde \"Dersler\" sekmesinden haftalık program, kapasite ve eğitmen bilgisiyle ders tanımlayabilirsiniz — müşteriler portaldan kendi kaydolup iptal edebilir.", visibleIf: (sector) => supportsGroupClasses(sector) },
+  { category: "Randevu & Program", q: "Oda Stoku ne işe yarar?", a: "Ayarlar → Oda Stoku'ndan her oda tipinden kaç adet olduğunuzu belirlersiniz - müşteri portalı, seçilen giriş/çıkış tarihi aralığında o tipte zaten stok kadar rezervasyon varsa \"müsait değil\" gösterir. Henüz eklenmemiş bir oda tipinden rezervasyon alınamaz.", visibleIf: (sector) => bookingModel(sector) === "inventory" },
+  { category: "Randevu & Program", q: "Aynı oda tipine aynı tarihler için birden fazla rezervasyon girebilir miyim?", a: "Evet - Oda Stoku'nda tanımladığınız adet kadar, aynı tarih aralığında çakışan rezervasyon kabul edilir; adet dolduğunda yeni bir kayıt eklemeye çalışırsanız net bir uyarıyla engellenir.", visibleIf: (sector) => bookingModel(sector) === "inventory" },
+  { category: "Randevu & Program", q: "Bir randevuyu \"gelmedi\" mi \"iptal\" mi olarak işaretlemeliyim?", a: "Aşamayı \"kaybedildi\"ye çektiğinizde size sorulur - müşteri habersiz gelmediyse \"Randevuya gelmedi\", önceden haber verip iptal ettiyse \"İptal etti\" seçin. Bu ayrım Pano'daki \"Gelmeme oranı\" metriğini doğru hesaplamak için önemlidir. Ayrıca belgelenebilir acil durumlarda \"Mücbir sebep\" (ceza/sayaç işletilmez) ve siz/personeliniz kaynaklı iptallerde \"İşletme iptal etti\" (geç iptal ediyorsanız müşteriye otomatik telafi hakkı tanınır) seçeneklerini kullanabilirsiniz.", visibleIf: (sector) => isAppointmentSector(sector) },
+  { category: "Randevu & Program", q: "Grup dersi / haftalık program nasıl oluştururum?", a: "Spor Merkezi ve Eğitim/Kurs Merkezi sektörlerinde \"Dersler\" sekmesinden haftalık program, kapasite ve eğitmen bilgisiyle ders tanımlayabilirsiniz - müşteriler portaldan kendi kaydolup iptal edebilir.", visibleIf: (sector) => supportsGroupClasses(sector) },
 
   // Destek & Bilgi Bankası
   { category: "Destek & Bilgi Bankası", q: "Müşteri destek talebini nasıl açar?", a: "Müşteri kendi portalından (Müşteri Kazanma Linki veya davet ettiğiniz portal linkiyle giriş yaparak) yeni talep oluşturur; siz Destek sekmesinden yanıtlarsınız." },
   { category: "Destek & Bilgi Bankası", q: "SLA (yanıt süresi hedefi) nasıl hesaplanıyor?", a: "Her destek talebinin önceliğine (düşük/orta/yüksek/acil) göre otomatik bir hedef yanıt süresi belirlenir, süre yaklaşınca/aşılınca talep listesinde ve Pano'da uyarı çıkar." },
-  { category: "Destek & Bilgi Bankası", q: "Destek talebine müşterinin görmemesi gereken bir not nasıl eklerim?", a: "Yanıt yazarken \"Dahili not\" kutucuğunu işaretleyin — bu not sadece siz ve takımınız tarafından görülür, müşteri portalında hiç görünmez." },
+  { category: "Destek & Bilgi Bankası", q: "Destek talebine müşterinin görmemesi gereken bir not nasıl eklerim?", a: "Yanıt yazarken \"Dahili not\" kutucuğunu işaretleyin - bu not sadece siz ve takımınız tarafından görülür, müşteri portalında hiç görünmez." },
   { category: "Destek & Bilgi Bankası", q: "Bilgi Bankası'na nasıl makale eklerim?", a: "Destek → Bilgi Bankası'ndan \"+ Makale ekle\" ile kendi yazınızı ekleyebilir, ya da \"Örnek şablonlar\"dan (Kargo, Fatura, İade, Destek takibi vb.) hazır bir taslağı tek tıkla açıp düzenleyebilirsiniz." },
 
   // Takım
@@ -769,149 +769,149 @@ const HELP_TOPICS = [
   // Bildirimler & İletişim
   { category: "Bildirimler & İletişim", q: "Müşterilerim kendi bilgilerini/randevularını nasıl görebilir?", a: "Ayarlar → Müşteri Kazanma Linki'nden paylaşacağınız linkle müşteriniz kendi portalına kaydolup tekliflerini/randevularını görebilir, destek talebi açabilir." },
   { category: "Bildirimler & İletişim", q: "Anlık bildirim (push) nasıl açarım?", a: "Ayarlar → Görünüm, Bildirimler & Hesap'tan bildirimleri açabilirsiniz. iPhone'da bildirim alabilmek için önce siteyi Ana Ekrana eklemeniz gerekir (Safari paylaş menüsü → Ana Ekrana Ekle)." },
-  { category: "Bildirimler & İletişim", q: "Müşterilerime toplu kampanya e-postası nasıl gönderirim?", a: "Müşteriler sekmesindeki \"Kampanya Gönder\" butonundan alıcıları seçip mesajınızı yazabilirsiniz. Türkiye'de ticari elektronik ileti göndermek için müşterilerinizden İYS/açık onay almış olmanız yasal olarak sizin sorumluluğunuzdadır — göndermeden önce onay kutusunu işaretlemeniz istenir." },
+  { category: "Bildirimler & İletişim", q: "Müşterilerime toplu kampanya e-postası nasıl gönderirim?", a: "Müşteriler sekmesindeki \"Kampanya Gönder\" butonundan alıcıları seçip mesajınızı yazabilirsiniz. Türkiye'de ticari elektronik ileti göndermek için müşterilerinizden İYS/açık onay almış olmanız yasal olarak sizin sorumluluğunuzdadır - göndermeden önce onay kutusunu işaretlemeniz istenir." },
 
   // Ayarlar & Hesap
-  { category: "Ayarlar & Hesap", q: "Sektörümü nasıl değiştiririm?", a: "Ayarlar → Sektör & Özel Alanlar'dan istediğiniz zaman değiştirebilirsiniz — aşama isimleri, önerilen etiketler ve özel alanlar otomatik güncellenir. Daha önce girilmiş değerler kaybolmaz, sadece görünürlükleri değişir." },
+  { category: "Ayarlar & Hesap", q: "Sektörümü nasıl değiştiririm?", a: "Ayarlar → Sektör & Özel Alanlar'dan istediğiniz zaman değiştirebilirsiniz - aşama isimleri, önerilen etiketler ve özel alanlar otomatik güncellenir. Daha önce girilmiş değerler kaybolmaz, sadece görünürlükleri değişir." },
   { category: "Ayarlar & Hesap", q: "Açık/koyu temayı nasıl değiştiririm?", a: "Ayarlar → Görünüm, Bildirimler & Hesap'tan \"Açık\"/\"Koyu\" arasında seçim yapabilirsiniz." },
   { category: "Ayarlar & Hesap", q: "Şifremi nasıl değiştiririm?", a: "Ayarlar → Görünüm, Bildirimler & Hesap'tan, mevcut şifrenizi doğrulayarak yenisini belirleyebilirsiniz. Şifrenizi unuttuysanız giriş ekranındaki \"Şifremi unuttum\" linkini kullanın." },
-  { category: "Ayarlar & Hesap", q: "Hesabımı tamamen silebilir miyim?", a: "Ayarlar → Görünüm, Bildirimler & Hesap'taki \"Hesabımı silmek istiyorum\" seçeneği destek ekibine e-posta gönderir — takım sahipliği gibi durumlar elle kontrol gerektirdiği için bu işlem otomatik yapılmıyor." },
+  { category: "Ayarlar & Hesap", q: "Hesabımı tamamen silebilir miyim?", a: "Ayarlar → Görünüm, Bildirimler & Hesap'taki \"Hesabımı silmek istiyorum\" seçeneği destek ekibine e-posta gönderir - takım sahipliği gibi durumlar elle kontrol gerektirdiği için bu işlem otomatik yapılmıyor." },
   { category: "Ayarlar & Hesap", q: "Teklif onay linkini müşteriyle nasıl paylaşırım?", a: "İlgili kaydı açıp onay linkini kopyalayın, müşteriye WhatsApp/e-posta ile gönderin. Müşteri linke tıklayıp onaylayabilir, ayarladıysanız ödeme de yapabilir." },
-  { category: "Ayarlar & Hesap", q: "Örnek verilerle nasıl başlarım?", a: "Pano boşken görünen \"Örnek verilerle başla\" butonuyla birkaç örnek müşteri ve kayıt oluşturabilirsiniz — istediğiniz zaman silinebilir, gerçek verilerinizi etkilemez." },
+  { category: "Ayarlar & Hesap", q: "Örnek verilerle nasıl başlarım?", a: "Pano boşken görünen \"Örnek verilerle başla\" butonuyla birkaç örnek müşteri ve kayıt oluşturabilirsiniz - istediğiniz zaman silinebilir, gerçek verilerinizi etkilemez." },
 
-  { category: "Müşteriler & Kayıtlar", q: "Müşteri kartına görüşme/telefon notu nasıl eklerim?", a: "Müşteri kartını açıp \"İletişim geçmişi\" bölümünden Not/Telefon görüşmesi/Toplantı/E-posta türünü seçip kısa bir açıklama yazabilirsiniz — bu kayıtlar zaman sırasına göre listelenir." },
-  { category: "Müşteriler & Kayıtlar", q: "Müşteri veya teklif kaydına dosya (sözleşme, fotoğraf vb.) nasıl eklerim?", a: "Müşteri kartını veya teklif formunu açıp \"Dosyalar\" bölümündeki \"+ Dosya Ekle\"ye tıklayın — dosya en fazla 10 MB olabilir, istediğiniz zaman indirebilir veya silebilirsiniz (silinen dosya da çöp kutusuna düşer)." },
-  { category: "Müşteriler & Kayıtlar", q: "Bir teklife birden fazla ürün/hizmet kalemi (kalem kalem fiyat) nasıl eklerim?", a: "Teklif formundaki \"Kalemler\" bölümünden \"+ Kalem ekle\" ile istediğiniz kadar açıklama/adet/birim fiyat satırı ekleyebilirsiniz — Tutar alanı bunların toplamına göre otomatik hesaplanır, hiç kalem eklemezseniz Tutar'ı yine elle girebilirsiniz." },
+  { category: "Müşteriler & Kayıtlar", q: "Müşteri kartına görüşme/telefon notu nasıl eklerim?", a: "Müşteri kartını açıp \"İletişim geçmişi\" bölümünden Not/Telefon görüşmesi/Toplantı/E-posta türünü seçip kısa bir açıklama yazabilirsiniz - bu kayıtlar zaman sırasına göre listelenir." },
+  { category: "Müşteriler & Kayıtlar", q: "Müşteri veya teklif kaydına dosya (sözleşme, fotoğraf vb.) nasıl eklerim?", a: "Müşteri kartını veya teklif formunu açıp \"Dosyalar\" bölümündeki \"+ Dosya Ekle\"ye tıklayın - dosya en fazla 10 MB olabilir, istediğiniz zaman indirebilir veya silebilirsiniz (silinen dosya da çöp kutusuna düşer)." },
+  { category: "Müşteriler & Kayıtlar", q: "Bir teklife birden fazla ürün/hizmet kalemi (kalem kalem fiyat) nasıl eklerim?", a: "Teklif formundaki \"Kalemler\" bölümünden \"+ Kalem ekle\" ile istediğiniz kadar açıklama/adet/birim fiyat satırı ekleyebilirsiniz - Tutar alanı bunların toplamına göre otomatik hesaplanır, hiç kalem eklemezseniz Tutar'ı yine elle girebilirsiniz." },
   { category: "Müşteriler & Kayıtlar", q: "Teklif kalemlerini Fiyat Listesi'nden nasıl hızlıca eklerim?", a: "Kalemler bölümündeki \"Fiyat listesinden kalem ekle…\" menüsünden bir ürün/hizmet seçtiğinizde açıklama ve birim fiyat otomatik dolan yeni bir satır eklenir; Ayarlar → Ürün & Hizmet Fiyat Listesi'nde kayıtlı olmanız yeterli." },
-  { category: "Müşteriler & Kayıtlar", q: "Teklif formundaki \"Sorumlu\" ataması ne işe yarar?", a: "Bir takım üyesi seçebilirsiniz — kapanan (kazanılan veya kaybedilen) kayıtlar Pano'daki \"Personel Performansı\" bölümünde o kişinin altında ve kazanma oranına dahil olarak sayılır; atama yapılmazsa \"Atanmamış\" grubuna düşer." },
+  { category: "Müşteriler & Kayıtlar", q: "Teklif formundaki \"Sorumlu\" ataması ne işe yarar?", a: "Bir takım üyesi seçebilirsiniz - kapanan (kazanılan veya kaybedilen) kayıtlar Pano'daki \"Personel Performansı\" bölümünde o kişinin altında ve kazanma oranına dahil olarak sayılır; atama yapılmazsa \"Atanmamış\" grubuna düşer." },
   { category: "Müşteriler & Kayıtlar", q: "Müşteri listemi nasıl filtreleyip ararım?", a: "Müşteriler sekmesindeki arama kutusu ad/sektör/bölge/adres/telefon/e-postada arar; ayrıca Kurumsal/Bireysel, sektör, en yeni/en eski sıralama ve tarih aralığı filtrelerini de kullanabilirsiniz." },
-  { category: "Müşteriler & Kayıtlar", q: "Not veya hatırlatmaları sesle nasıl yazabilirim?", a: "Not/hatırlatma gibi metin alanlarının yanındaki mikrofon simgesine tıklayıp konuşarak yazdırabilirsiniz — bu özellik Chrome/Edge'de çalışır, Firefox/Safari'de görünmez." },
+  { category: "Müşteriler & Kayıtlar", q: "Not veya hatırlatmaları sesle nasıl yazabilirim?", a: "Not/hatırlatma gibi metin alanlarının yanındaki mikrofon simgesine tıklayıp konuşarak yazdırabilirsiniz - bu özellik Chrome/Edge'de çalışır, Firefox/Safari'de görünmez." },
   { category: "Müşteriler & Kayıtlar", q: "Müşteriyi \"Kurumsal\" veya \"Bireysel\" olarak işaretlemek neyi değiştirir?", a: "Formda hangi alanların (örn. firma unvanı) göründüğünü ve teklif/randevu aşamalarının hangi dille gösterileceğini belirler; bazı özel alanlar da \"Kime\" ayarına göre sadece kurumsal veya sadece bireysel müşterilerde görünür." },
   { category: "Müşteriler & Kayıtlar", q: "Cari Hesap Ekstresi müşteri kartında ne gösterir?", a: "Kazanılmış tekliflerden doğan toplam borcu, toplam tahsilatı ve güncel bakiyeyi; altında da her borç/tahsilat hareketini tarih sırasıyla ve o andaki bakiyeyle listeler." },
-  { category: "Müşteriler & Kayıtlar", q: "Teklif formundaki \"Gider\" alanı ne işe yarar?", a: "O teklifin size maliyetini (örn. malzeme, alt yüklenici) girmenizi sağlar — kayıt kazanıldığında bu tutar Finans → Gelir-Gider Defteri'nde otomatik gider olarak sayılır, ayrıca Finans sekmesinden de düzenlenebilir." },
-  { category: "Müşteriler & Kayıtlar", q: "Kazanılmış bir teklifin tutarını veya KDV oranını sonradan değiştirirsem ne olur?", a: "Değişiklik geriye dönük işler — o teklifin kazanıldığı ayın KDV Özet Raporu'nu da (o ay için zaten beyanname vermiş olsanız bile) yeniden hesaplar; formda bu durumda bir uyarı gösterilir." },
+  { category: "Müşteriler & Kayıtlar", q: "Teklif formundaki \"Gider\" alanı ne işe yarar?", a: "O teklifin size maliyetini (örn. malzeme, alt yüklenici) girmenizi sağlar - kayıt kazanıldığında bu tutar Finans → Gelir-Gider Defteri'nde otomatik gider olarak sayılır, ayrıca Finans sekmesinden de düzenlenebilir." },
+  { category: "Müşteriler & Kayıtlar", q: "Kazanılmış bir teklifin tutarını veya KDV oranını sonradan değiştirirsem ne olur?", a: "Değişiklik geriye dönük işler - o teklifin kazanıldığı ayın KDV Özet Raporu'nu da (o ay için zaten beyanname vermiş olsanız bile) yeniden hesaplar; formda bu durumda bir uyarı gösterilir." },
   { category: "Müşteriler & Kayıtlar", q: "Müşteri kartındaki WhatsApp simgesi ne yapar?", a: "Müşterinin kayıtlı telefon numarasıyla doğrudan WhatsApp Web/uygulamasında yeni bir sohbet penceresi açar, numarayı elle aramanıza gerek kalmaz." },
 
-  { category: "Ödeme & Faturalama", q: "iyzico/PayTR bağlarken hangi bilgileri girmem gerekiyor?", a: "iyzico için API Key ve Secret Key; PayTR için Mağaza No (Merchant ID), Merchant Key ve Merchant Salt gerekir — bu bilgileri sağlayıcının kendi panelinden alıp Ayarlar → Ödeme Bağlantısı'na girersiniz." },
-  { category: "Ödeme & Faturalama", q: "Aynı anda hem iyzico hem PayTR'yi aktif edebilir miyim?", a: "Hayır, aynı anda yalnızca bir sağlayıcı aktif olabilir — yeni birini bağlarsanız öncekinin yerini alır." },
+  { category: "Ödeme & Faturalama", q: "iyzico/PayTR bağlarken hangi bilgileri girmem gerekiyor?", a: "iyzico için API Key ve Secret Key; PayTR için Mağaza No (Merchant ID), Merchant Key ve Merchant Salt gerekir - bu bilgileri sağlayıcının kendi panelinden alıp Ayarlar → Ödeme Bağlantısı'na girersiniz." },
+  { category: "Ödeme & Faturalama", q: "Aynı anda hem iyzico hem PayTR'yi aktif edebilir miyim?", a: "Hayır, aynı anda yalnızca bir sağlayıcı aktif olabilir - yeni birini bağlarsanız öncekinin yerini alır." },
   { category: "Ödeme & Faturalama", q: "Ödeme bağlantımı canlıya almadan önce nasıl test ederim?", a: "Ödeme Bağlantısı formundaki \"Test modu (Sandbox)\" kutusunu işaretleyip sağlayıcınızın test API bilgileriyle bağlayın; hazır olduğunuzda aynı formdan gerçek anahtarlarla güncelleyip kutuyu kaldırabilirsiniz." },
-  { category: "Ödeme & Faturalama", q: "Taksitli ödeme nasıl açarım?", a: "Ödeme Bağlantısı formundaki \"Taksit\" alanından azami taksit sayısını (2, 3, 6, 9 veya 12) seçin — bu sadece bir üst sınırdır, taksitin gerçekten sunulması sağlayıcı hesabınızda taksitli satışın açık olmasına ve müşterinin kartına bağlıdır." },
-  { category: "Ödeme & Faturalama", q: "PayTR bağlarken ekstra bir ayar yapmam gerekiyor mu?", a: "Evet — PayTR panelinizde \"Bildirim URL'i\" olarak Binerly'nin size gösterdiği adresi bir kez girmeniz gerekir, aksi halde ödemeler onaylanmaz." },
+  { category: "Ödeme & Faturalama", q: "Taksitli ödeme nasıl açarım?", a: "Ödeme Bağlantısı formundaki \"Taksit\" alanından azami taksit sayısını (2, 3, 6, 9 veya 12) seçin - bu sadece bir üst sınırdır, taksitin gerçekten sunulması sağlayıcı hesabınızda taksitli satışın açık olmasına ve müşterinin kartına bağlıdır." },
+  { category: "Ödeme & Faturalama", q: "PayTR bağlarken ekstra bir ayar yapmam gerekiyor mu?", a: "Evet - PayTR panelinizde \"Bildirim URL'i\" olarak Binerly'nin size gösterdiği adresi bir kez girmeniz gerekir, aksi halde ödemeler onaylanmaz." },
   { category: "Ödeme & Faturalama", q: "Onay linkindeki \"Sadece onaylasın\", \"Onaylasın + isterse ödesin\" ve \"Onaylamak için ödemesi şart\" seçenekleri ne fark eder?", a: "Bu üç seçenek müşterinin onay ve ödeme adımlarını nasıl yaşayacağını belirler: birincisinde ödeme adımı hiç yok, ikincisinde ikisi bağımsız sunulur, üçüncüsünde ödeme tamamlanmadan onay da gerçekleşmez." },
-  { category: "Ödeme & Faturalama", q: "Müşterinin kart bilgileri Binerly sunucularından geçiyor mu?", a: "Hayır — kart bilgisi hiçbir zaman Binerly sunucularından geçmez, müşteri doğrudan iyzico/PayTR'nin kendi güvenli ödeme sayfasına yönlendirilir." },
+  { category: "Ödeme & Faturalama", q: "Müşterinin kart bilgileri Binerly sunucularından geçiyor mu?", a: "Hayır - kart bilgisi hiçbir zaman Binerly sunucularından geçmez, müşteri doğrudan iyzico/PayTR'nin kendi güvenli ödeme sayfasına yönlendirilir." },
   { category: "Ödeme & Faturalama", q: "Online alınan bir ödemeyi iade edersem sistemimde ne değişir?", a: "Finans → Gelir-Gider Defteri'nde ilgili tahsilatın yanındaki \"İade Et\"e tıkladığınızda gerçek iyzico/PayTR iade API'si çağrılır, tutar müşterinin bakiyesinden otomatik düşülür ve deftere iade olarak işlenir." },
-  { category: "Ödeme & Faturalama", q: "Paraşüt'e aktarırken tüm kazanılan teklifleri mi seçmem gerekiyor?", a: "Hayır — \"Paraşüt'e Aktar\" ekranında müşteri/başlık arama, min/max tutar, ödeme durumu ve tarih aralığı filtreleriyle sadece istediğiniz teklifleri seçip aktarabilirsiniz." },
-  { category: "Ödeme & Faturalama", q: "Varsayılan KDV oranını değiştirdim, daha önce oluşturduğum tekliflerin oranı da değişir mi?", a: "Hayır — Ayarlar → İşletme Bilgileri'ndeki varsayılan KDV oranı sadece o andan sonra oluşturacağınız yeni tekliflere uygulanır, mevcut tekliflerin kendi kaydettiği oran aynen kalır." },
+  { category: "Ödeme & Faturalama", q: "Paraşüt'e aktarırken tüm kazanılan teklifleri mi seçmem gerekiyor?", a: "Hayır - \"Paraşüt'e Aktar\" ekranında müşteri/başlık arama, min/max tutar, ödeme durumu ve tarih aralığı filtreleriyle sadece istediğiniz teklifleri seçip aktarabilirsiniz." },
+  { category: "Ödeme & Faturalama", q: "Varsayılan KDV oranını değiştirdim, daha önce oluşturduğum tekliflerin oranı da değişir mi?", a: "Hayır - Ayarlar → İşletme Bilgileri'ndeki varsayılan KDV oranı sadece o andan sonra oluşturacağınız yeni tekliflere uygulanır, mevcut tekliflerin kendi kaydettiği oran aynen kalır." },
   { category: "Ödeme & Faturalama", q: "Onay linkinden ödeme tercihini her teklifte ayrı mı seçmem gerekiyor?", a: "Onay linkini her kopyaladığınızda son seçtiğiniz ödeme tercihi otomatik ön işaretli gelir, isterseniz o teklife özel değiştirebilirsiniz." },
 
-  { category: "Finans", q: "KDV Özet Raporu resmi beyanname yerine geçer mi?", a: "Hayır — bu rapor sadece kendi ön hazırlığınız içindir, muhasebecinizin/SMMM'nizin resmi beyanname veya e-defterinin yerini tutmaz; göndermeden önce kendi kayıtlarınızla karşılaştırmanız önerilir." },
-  { category: "Finans", q: "Giderime KDV oranı girmezsem ne olur?", a: "O gider, KDV Özet Raporu'ndaki \"Alış KDV'si\" hesabına dahil edilmez — rapor ekranında kaç giderin bu şekilde dışarıda kaldığı ayrıca gösterilir." },
-  { category: "Finans", q: "Tekrarlayan bir gideri silersem geçmiş aylardaki kayıtlar da silinir mi?", a: "Evet — tekrarlayan gider tek bir kayıttır, gördüğünüz her tekrar aynı kaydın otomatik kopyasıdır; birini sildiğinizde geçmiş ve gelecekteki TÜM tekrarlar birlikte çöp kutusuna taşınır." },
+  { category: "Finans", q: "KDV Özet Raporu resmi beyanname yerine geçer mi?", a: "Hayır - bu rapor sadece kendi ön hazırlığınız içindir, muhasebecinizin/SMMM'nizin resmi beyanname veya e-defterinin yerini tutmaz; göndermeden önce kendi kayıtlarınızla karşılaştırmanız önerilir." },
+  { category: "Finans", q: "Giderime KDV oranı girmezsem ne olur?", a: "O gider, KDV Özet Raporu'ndaki \"Alış KDV'si\" hesabına dahil edilmez - rapor ekranında kaç giderin bu şekilde dışarıda kaldığı ayrıca gösterilir." },
+  { category: "Finans", q: "Tekrarlayan bir gideri silersem geçmiş aylardaki kayıtlar da silinir mi?", a: "Evet - tekrarlayan gider tek bir kayıttır, gördüğünüz her tekrar aynı kaydın otomatik kopyasıdır; birini sildiğinizde geçmiş ve gelecekteki TÜM tekrarlar birlikte çöp kutusuna taşınır." },
   { category: "Finans", q: "Toplam Gider ile \"Kategoriye göre gider\" listesi neden birbirini tutmuyor?", a: "\"Kategoriye göre gider\" sadece elle eklediğiniz işletme giderlerini toplar; Toplam Gider'e ayrıca kazanılan tekliflerin \"Gider\" tutarları da eklendiği için iki rakam farklı çıkabilir." },
   { category: "Finans", q: "Gelir-Gider Defteri'nde bir tahsilatı düzenleyebilir miyim?", a: "Elle girilmiş (online olmayan) tahsilatların tutarını, tarihini ve notunu düzenleyebilir veya silebilirsiniz; online (iyzico/PayTR) tahsilatlarda düzenleme yerine \"İade Et\" seçeneği çıkar." },
   { category: "Finans", q: "Finans sekmesindeki \"Tahsilat / Cari Hesap\" görünümü ne işe yarar?", a: "Kazanılmış teklifi olan her müşterinin toplam borcunu, tahsil edilenini ve kalan bakiyesini listeler; bir müşteriyi genişletip üzerindeki tekliften doğrudan yeni tahsilat ekleyebilirsiniz." },
-  { category: "Finans", q: "Yeni bir tahsilatı hangi teklife/müşteriye ekleyeceğimi nasıl seçerim?", a: "Finans → Tahsilat / Cari Hesap'taki \"Yeni Tahsilat\" kutusundan önce müşteriyi, sonra o müşterinin kazanılmış tekliflerinden birini seçip \"Devam\"a basarsınız — tahsilat formu o teklif için açılır." },
-  { category: "Finans", q: "Gider eklerken saat de girebilir miyim?", a: "Evet, tarih zorunlu olmakla birlikte saat alanı opsiyoneldir — saat girerseniz gider listesinde tarih yanında saat de gösterilir." },
+  { category: "Finans", q: "Yeni bir tahsilatı hangi teklife/müşteriye ekleyeceğimi nasıl seçerim?", a: "Finans → Tahsilat / Cari Hesap'taki \"Yeni Tahsilat\" kutusundan önce müşteriyi, sonra o müşterinin kazanılmış tekliflerinden birini seçip \"Devam\"a basarsınız - tahsilat formu o teklif için açılır." },
+  { category: "Finans", q: "Gider eklerken saat de girebilir miyim?", a: "Evet, tarih zorunlu olmakla birlikte saat alanı opsiyoneldir - saat girerseniz gider listesinde tarih yanında saat de gösterilir." },
   { category: "Finans", q: "KDV Özet Raporu'nda görüntülediğim ayı nasıl değiştiririm?", a: "Rapor ekranının üstündeki ay seçiciden istediğiniz ay/yıl kombinasyonunu seçebilirsiniz, rapor her zaman o anki güncel verilerle yeniden hesaplanır." },
   { category: "Finans", q: "Gider kategorisi listede yoksa ne yapmalıyım?", a: "Kategori olarak \"Diğer\"i seçip açılan kutuya kendi kategori adınızı yazabilirsiniz, bu isim o gider için kaydedilir ve kategori listelerinde görünür." },
-  { category: "Finans", q: "Bir teklifin \"Gider\"ini doğrudan Finans sekmesinden düzenleyebilir miyim?", a: "Evet — Gelir-Gider Defteri'nde o kaydın yanındaki kalem işaretine tıklayıp tutarı doğrudan güncelleyebilirsiniz; bu, teklif formundaki Gider alanıyla aynı değeri paylaşır." },
+  { category: "Finans", q: "Bir teklifin \"Gider\"ini doğrudan Finans sekmesinden düzenleyebilir miyim?", a: "Evet - Gelir-Gider Defteri'nde o kaydın yanındaki kalem işaretine tıklayıp tutarı doğrudan güncelleyebilirsiniz; bu, teklif formundaki Gider alanıyla aynı değeri paylaşır." },
 
-  { category: "Randevu & Program", q: "Ajanda sekmesi ne işe yarar?", a: "Tüm sektörlerde hatırlatmalarınızı, randevu alanı olan kayıtlarınızı ve grup derslerinizi tek bir ay/hafta takviminde birleştirir — bir güne tıklayınca o günün tüm etkinlikleri altta listelenir." },
+  { category: "Randevu & Program", q: "Ajanda sekmesi ne işe yarar?", a: "Tüm sektörlerde hatırlatmalarınızı, randevu alanı olan kayıtlarınızı ve grup derslerinizi tek bir ay/hafta takviminde birleştirir - bir güne tıklayınca o günün tüm etkinlikleri altta listelenir." },
   { category: "Randevu & Program", q: "Ajanda'da bir güne tıklayınca ne görürüm?", a: "O tarihteki hatırlatmaları, randevuları ve (varsa) grup derslerini saatine göre sıralı bir liste hâlinde görürsünüz; bir hatırlatma/randevuya tıklarsanız ilgili kayıt açılır, bir derse tıklarsanız o günün yoklama listesi açılır." },
   { category: "Randevu & Program", q: "Yoklama (Geldi/Gelmedi) nasıl alınır?", a: "Ajanda'da geçmiş veya bugüne ait bir ders gününe tıklayıp açılan listede her öğrenci/üye için Geldi ya da Gelmedi işaretlersiniz; henüz gerçekleşmemiş bir ders günü için yoklama alınamaz.", visibleIf: (sector) => supportsGroupClasses(sector) },
-  { category: "Randevu & Program", q: "Müşteri randevusunu kendisi iptal ederse bu \"Gelmedi\" olarak mı sayılır?", a: "Hayır — müşterinin kendi portalından yaptığı iptal \"İptal etti\" (veya ayarladığınız geç sayılma penceresi içindeyse \"Geç iptal etti\") olarak işaretlenir, \"Randevuya gelmedi\" sadece siz elle işaretlediğinizde (habersiz gelmeme durumunda) kullanılır.", visibleIf: (sector) => isAppointmentSector(sector) },
-  { category: "Randevu & Program", q: "Müşteri randevusunu portaldan iptal ederken bir süre sınırı var mı?", a: "Bunu tamamen siz belirlersiniz — Ayarlar → Müsaitlik Saatleri'ndeki \"Randevu iptal / gelmeme politikası\"ndan hiç kısıtlama uygulamayabilir, belirli bir süreden az kala iptali tamamen kilitleyebilir ve/veya geç iptal + gelmeme sayısı bir eşiği geçince sonraki randevuda ödemeyi otomatik zorunlu hale getirebilirsiniz. Hiçbir şey ayarlamazsanız müşteri istediği an iptal edebilir.", visibleIf: (sector) => supportsSelfBooking(sector) },
+  { category: "Randevu & Program", q: "Müşteri randevusunu kendisi iptal ederse bu \"Gelmedi\" olarak mı sayılır?", a: "Hayır - müşterinin kendi portalından yaptığı iptal \"İptal etti\" (veya ayarladığınız geç sayılma penceresi içindeyse \"Geç iptal etti\") olarak işaretlenir, \"Randevuya gelmedi\" sadece siz elle işaretlediğinizde (habersiz gelmeme durumunda) kullanılır.", visibleIf: (sector) => isAppointmentSector(sector) },
+  { category: "Randevu & Program", q: "Müşteri randevusunu portaldan iptal ederken bir süre sınırı var mı?", a: "Bunu tamamen siz belirlersiniz - Ayarlar → Müsaitlik Saatleri'ndeki \"Randevu iptal / gelmeme politikası\"ndan hiç kısıtlama uygulamayabilir, belirli bir süreden az kala iptali tamamen kilitleyebilir ve/veya geç iptal + gelmeme sayısı bir eşiği geçince sonraki randevuda ödemeyi otomatik zorunlu hale getirebilirsiniz. Hiçbir şey ayarlamazsanız müşteri istediği an iptal edebilir.", visibleIf: (sector) => supportsSelfBooking(sector) },
   { category: "Randevu & Program", q: "Müşteri ders kaydını portaldan iptal ederken bir süre sınırı var mı?", a: "Evet, varsayılan olarak ders saatine en az 2 saat kala portaldan iptal edilebilir; bunu Dersler sekmesindeki \"Geç iptal / seans yakma politikası\"ndan tamamen kendiniz özelleştirebilirsiniz (kilitleme süresi, geç iptal penceresi, kaçıncı geç iptalde seansın yanacağı).", visibleIf: (sector) => supportsGroupClasses(sector) },
   { category: "Randevu & Program", q: "Müşteri portaldan randevu alırken hizmet/fiyat seçebilir mi?", a: "Evet, Ayarlar → Ürün & Hizmet Fiyat Listesi'nde kayıtlı kalemleriniz varsa müşteri randevu formunda listeden seçebilir, açıklama ve tutar otomatik dolar; isterse yine elle de yazabilir.", visibleIf: (sector) => supportsSelfBooking(sector) },
   { category: "Randevu & Program", q: "Bir grup dersine kaç kişi kaydolabilir, bunu nasıl sınırlarım?", a: "Ders oluştururken girdiğiniz \"Kapasite\" değeri sınırı belirler; kapasite dolunca portalda ders \"dolu\" görünür ve yeni kayıt alınamaz. Kapasiteyi zaten kayıtlı kişi sayısının altına düşüremezsiniz.", visibleIf: (sector) => supportsGroupClasses(sector) },
-  { category: "Randevu & Program", q: "Müşterinin bir derse kaydolabilmesi için aktif üyeliği/kaydı olması gerekir mi?", a: "Evet — sadece kazanılmış ve süresi (varsa) dolmamış bir kaydı olan müşteriler derse kaydolabilir; uygun olmayan müşteriler için portalda kısa bir uyarı metni gösterilir.", visibleIf: (sector) => supportsGroupClasses(sector) },
-  { category: "Randevu & Program", q: "Randevu/görüşme tarihi alanı nereden geliyor, ben mi ekliyorum?", a: "Bu, Sektör & Özel Alanlar'da \"Tarih & Saat\" tipinde tanımlanan bir özel alandır — randevu sektörlerinde hazır gelir, diğer sektörlerde isterseniz kendiniz ekleyebilirsiniz.", visibleIf: (sector) => supportsSelfBooking(sector) },
-  { category: "Randevu & Program", q: "Aynı saate iki randevu/görüşme girebilir miyim?", a: "Hayır — Tarih & Saat özel alanınız varsa ve aynı tarih/saatte başka bir aktif kayıt bulunursa, sistem kaydı engeller ve önce bu çakışmayı çözmeniz gerekir.", visibleIf: (sector) => supportsSelfBooking(sector) },
-  { category: "Randevu & Program", q: "Haftalık ders programını nasıl kurarım?", a: "Dersler sekmesinden her ders için gün, saat, süre, eğitmen ve kapasite girip kaydedersiniz — program haftadan haftaya aynı şekilde tekrarlar, tarihe özel tek seferlik ders oluşturma yoktur.", visibleIf: (sector) => supportsGroupClasses(sector) },
-  { category: "Randevu & Program", q: "Müsaitlik Saatleri'nde öğle arası gibi bir boşluk tanımlayabilir miyim?", a: "Evet — her gün için başlangıç/bitiş saati ile kaçar dakikalık aralıklarla randevu verileceğini belirlersiniz; \"Öğle arası var\" kutusunu işaretleyip ara saatlerini girerseniz sistem günü otomatik olarak iki ayrı müsaitlik bloğuna böler.", visibleIf: (sector) => bookingModel(sector) === "slot" },
-  { category: "Randevu & Program", q: "Randevu hatırlatma e-postasının içeriğini değiştirebilir miyim?", a: "Hayır, hatırlatma sabit bir şablonla otomatik gönderilir, içeriği uygulama içinden özelleştirilemez — sadece Ayarlar → İşletme Bilgileri'nden tamamen açıp kapatabilirsiniz.", visibleIf: (sector) => supportsSelfBooking(sector) },
+  { category: "Randevu & Program", q: "Müşterinin bir derse kaydolabilmesi için aktif üyeliği/kaydı olması gerekir mi?", a: "Evet - sadece kazanılmış ve süresi (varsa) dolmamış bir kaydı olan müşteriler derse kaydolabilir; uygun olmayan müşteriler için portalda kısa bir uyarı metni gösterilir.", visibleIf: (sector) => supportsGroupClasses(sector) },
+  { category: "Randevu & Program", q: "Randevu/görüşme tarihi alanı nereden geliyor, ben mi ekliyorum?", a: "Bu, Sektör & Özel Alanlar'da \"Tarih & Saat\" tipinde tanımlanan bir özel alandır - randevu sektörlerinde hazır gelir, diğer sektörlerde isterseniz kendiniz ekleyebilirsiniz.", visibleIf: (sector) => supportsSelfBooking(sector) },
+  { category: "Randevu & Program", q: "Aynı saate iki randevu/görüşme girebilir miyim?", a: "Hayır - Tarih & Saat özel alanınız varsa ve aynı tarih/saatte başka bir aktif kayıt bulunursa, sistem kaydı engeller ve önce bu çakışmayı çözmeniz gerekir.", visibleIf: (sector) => supportsSelfBooking(sector) },
+  { category: "Randevu & Program", q: "Haftalık ders programını nasıl kurarım?", a: "Dersler sekmesinden her ders için gün, saat, süre, eğitmen ve kapasite girip kaydedersiniz - program haftadan haftaya aynı şekilde tekrarlar, tarihe özel tek seferlik ders oluşturma yoktur.", visibleIf: (sector) => supportsGroupClasses(sector) },
+  { category: "Randevu & Program", q: "Müsaitlik Saatleri'nde öğle arası gibi bir boşluk tanımlayabilir miyim?", a: "Evet - her gün için başlangıç/bitiş saati ile kaçar dakikalık aralıklarla randevu verileceğini belirlersiniz; \"Öğle arası var\" kutusunu işaretleyip ara saatlerini girerseniz sistem günü otomatik olarak iki ayrı müsaitlik bloğuna böler.", visibleIf: (sector) => bookingModel(sector) === "slot" },
+  { category: "Randevu & Program", q: "Randevu hatırlatma e-postasının içeriğini değiştirebilir miyim?", a: "Hayır, hatırlatma sabit bir şablonla otomatik gönderilir, içeriği uygulama içinden özelleştirilemez - sadece Ayarlar → İşletme Bilgileri'nden tamamen açıp kapatabilirsiniz.", visibleIf: (sector) => supportsSelfBooking(sector) },
 
-  { category: "Destek & Bilgi Bankası", q: "SLA süresi dolmak üzereyken bunu nasıl anlarım?", a: "Talep listesinde ve talep detayında SLA rozeti \"Süre yaklaşıyor\" olur — bu, kalan sürenin hedefin son %20'lik dilimine girdiği andır (örn. Acil'de son 48 dakika, Yüksek'te son ~5 saat)." },
-  { category: "Destek & Bilgi Bankası", q: "Bir talebi \"Çözüldü\" mü \"Kapatıldı\" mı yapmalıyım?", a: "Fark tamamen size kalmış — \"Çözüldü\" sorunun giderildiğini, \"Kapatıldı\" konunun artık takip edilmeyeceğini belirtmek için kullanılabilir; ikisi de SLA süresini durdurur ve e-posta bildirimleri açıksa müşteriye otomatik bilgilendirme gönderir." },
-  { category: "Destek & Bilgi Bankası", q: "Destek talebine yazdığım \"Giden (müşteriye)\" mesaj müşteriye e-posta olarak gider mi?", a: "Hayır — bu sadece mesajı kaydeder, müşteri kendi hesabıyla Müşteri Portalı'na girdiğinde görür. Müşteriye gerçekten e-posta göndermek isterseniz, talep durumu değiştiğinde veya yanıt yazdığınızda zaten otomatik bir bilgilendirme e-postası gider." },
-  { category: "Destek & Bilgi Bankası", q: "Bilgi Bankası makalelerini müşterilerim görebilir mi?", a: "Hayır, Bilgi Bankası tamamen iç kaynak niteliğindedir — sadece siz ve ekibiniz görür, müşteri portalında hiç görünmez." },
+  { category: "Destek & Bilgi Bankası", q: "SLA süresi dolmak üzereyken bunu nasıl anlarım?", a: "Talep listesinde ve talep detayında SLA rozeti \"Süre yaklaşıyor\" olur - bu, kalan sürenin hedefin son %20'lik dilimine girdiği andır (örn. Acil'de son 48 dakika, Yüksek'te son ~5 saat)." },
+  { category: "Destek & Bilgi Bankası", q: "Bir talebi \"Çözüldü\" mü \"Kapatıldı\" mı yapmalıyım?", a: "Fark tamamen size kalmış - \"Çözüldü\" sorunun giderildiğini, \"Kapatıldı\" konunun artık takip edilmeyeceğini belirtmek için kullanılabilir; ikisi de SLA süresini durdurur ve e-posta bildirimleri açıksa müşteriye otomatik bilgilendirme gönderir." },
+  { category: "Destek & Bilgi Bankası", q: "Destek talebine yazdığım \"Giden (müşteriye)\" mesaj müşteriye e-posta olarak gider mi?", a: "Hayır - bu sadece mesajı kaydeder, müşteri kendi hesabıyla Müşteri Portalı'na girdiğinde görür. Müşteriye gerçekten e-posta göndermek isterseniz, talep durumu değiştiğinde veya yanıt yazdığınızda zaten otomatik bir bilgilendirme e-postası gider." },
+  { category: "Destek & Bilgi Bankası", q: "Bilgi Bankası makalelerini müşterilerim görebilir mi?", a: "Hayır, Bilgi Bankası tamamen iç kaynak niteliğindedir - sadece siz ve ekibiniz görür, müşteri portalında hiç görünmez." },
   { category: "Destek & Bilgi Bankası", q: "Destek taleplerimi/Bilgi Bankası makalelerimi Excel'e aktarabilir miyim?", a: "Evet, her iki listenin üstündeki \"Dışa aktar\" butonuyla .xlsx dosyası indirebilir, \"İçe aktar\" ile de toplu talep/makale yükleyebilirsiniz." },
-  { category: "Destek & Bilgi Bankası", q: "Örnek Bilgi Bankası şablonları sektörüme göre mi geliyor?", a: "Evet — Destek → Bilgi Bankası'ndaki \"Örnek şablonlar\" listesi, Ayarlar'da seçtiğiniz sektöre göre (örn. Emlak'ta tapu/depozito, Spor Merkezi'nde üyelik dondurma) farklı hazır taslaklar gösterir." },
+  { category: "Destek & Bilgi Bankası", q: "Örnek Bilgi Bankası şablonları sektörüme göre mi geliyor?", a: "Evet - Destek → Bilgi Bankası'ndaki \"Örnek şablonlar\" listesi, Ayarlar'da seçtiğiniz sektöre göre (örn. Emlak'ta tapu/depozito, Spor Merkezi'nde üyelik dondurma) farklı hazır taslaklar gösterir." },
   { category: "Destek & Bilgi Bankası", q: "Destek talebi mesaj geçmişindeki okunmamış mesaj rozeti nasıl temizlenir?", a: "Müşteriden gelen bir mesaja yanıt yazdığınızda o talebin okunmamış rozeti otomatik temizlenir; talebi sadece açıp bakmak rozeti kaldırmaz, yanıt vermeniz gerekir." },
-  { category: "Destek & Bilgi Bankası", q: "Öncelik (Acil/Yüksek/Orta/Düşük) hedef çözüm süresini nasıl belirliyor?", a: "Her öncelik seviyesinin sabit bir hedef süresi vardır: Acil 4 saat, Yüksek 24 saat, Orta 48 saat, Düşük 72 saat — süre talebin oluşturulduğu andan itibaren işler." },
+  { category: "Destek & Bilgi Bankası", q: "Öncelik (Acil/Yüksek/Orta/Düşük) hedef çözüm süresini nasıl belirliyor?", a: "Her öncelik seviyesinin sabit bir hedef süresi vardır: Acil 4 saat, Yüksek 24 saat, Orta 48 saat, Düşük 72 saat - süre talebin oluşturulduğu andan itibaren işler." },
   { category: "Destek & Bilgi Bankası", q: "Talep listesini SLA durumuna göre filtreleyebilir miyim?", a: "Evet, talep listesindeki SLA filtresinden \"Gecikti\", \"Yaklaşıyor\" veya \"Zamanında\" durumundaki talepleri ayrı ayrı görebilirsiniz; ayrıca durum, öncelik, arama ve tarih aralığı filtreleri de var." },
-  { category: "Destek & Bilgi Bankası", q: "Bir destek talebini silersem mesaj geçmişi de silinir mi?", a: "Talep çöp kutusuna taşınır ama mesaj geçmişi korunur — geri yüklediğinizde tüm mesajlar aynen yerinde durur." },
+  { category: "Destek & Bilgi Bankası", q: "Bir destek talebini silersem mesaj geçmişi de silinir mi?", a: "Talep çöp kutusuna taşınır ama mesaj geçmişi korunur - geri yüklediğinizde tüm mesajlar aynen yerinde durur." },
   { category: "Destek & Bilgi Bankası", q: "Müşteri yeni bir destek talebi açtığında bunu nereden fark ederim?", a: "Pano'daki \"Bugün ne yapmalıyım\" listesinde SLA durumuna göre öne çıkar, ayrıca sol menüdeki Destek sekmesi üzerinde okunmamış mesaj sayısı rozet olarak görünür." },
 
-  { category: "Takım", q: "Takıma davet ettiğim bir kişiyi henüz kabul etmeden iptal edebilir miyim?", a: "Evet, Ayarlar → Takım'daki \"Bekleyen davetler\" listesinden ilgili davetin yanındaki \"İptal et\"e tıklayabilirsiniz — kişi daha sonra aynı e-postayla tekrar davet edilebilir." },
-  { category: "Takım", q: "Bir takım üyesini nasıl çıkarırım?", a: "Ayarlar → Takım'da ilgili üyenin yanındaki \"Kaldır\"a tıklarsınız — üye, müşteri/teklif/destek verilerinize erişimini anında kaybeder, tekrar erişmesi için yeniden davet edilmesi gerekir." },
+  { category: "Takım", q: "Takıma davet ettiğim bir kişiyi henüz kabul etmeden iptal edebilir miyim?", a: "Evet, Ayarlar → Takım'daki \"Bekleyen davetler\" listesinden ilgili davetin yanındaki \"İptal et\"e tıklayabilirsiniz - kişi daha sonra aynı e-postayla tekrar davet edilebilir." },
+  { category: "Takım", q: "Bir takım üyesini nasıl çıkarırım?", a: "Ayarlar → Takım'da ilgili üyenin yanındaki \"Kaldır\"a tıklarsınız - üye, müşteri/teklif/destek verilerinize erişimini anında kaybeder, tekrar erişmesi için yeniden davet edilmesi gerekir." },
   { category: "Takım", q: "Bir takıma üye olarak eklendiğimde ne görürüm?", a: "Davet eden işletmenin tüm müşteri, teklif ve destek verisini görüp düzenleyebilirsiniz; isterseniz Ayarlar → Takım'dan o takımdan ayrılabilirsiniz." },
   { category: "Takım", q: "Takım sahibi değilsem Ayarlar'da neler görürüm?", a: "İşletme Bilgileri, Sektör & Özel Alanlar gibi ayarlar sadece \"İşletme/sektör ayarlarını düzenleyebilir\" izni size verilmişse görünür; Takım ekranında ise sadece hangi işletmenin üyesi olduğunuzu ve \"Takımdan ayrıl\" seçeneğini görürsünüz." },
-  { category: "Takım", q: "Bir takım üyesine sadece belirli sekmeleri mi açabilirim?", a: "Hayır, sekme bazlı bir kısıtlama yok — tek ayrım İşletme Bilgileri/Sektör gibi ayarları düzenleme izni; verilen izin dışında tüm müşteri/teklif/destek verisi her üyeye aynı şekilde açıktır." },
+  { category: "Takım", q: "Bir takım üyesine sadece belirli sekmeleri mi açabilirim?", a: "Hayır, sekme bazlı bir kısıtlama yok - tek ayrım İşletme Bilgileri/Sektör gibi ayarları düzenleme izni; verilen izin dışında tüm müşteri/teklif/destek verisi her üyeye aynı şekilde açıktır." },
   { category: "Takım", q: "Davet e-postası karşı tarafa otomatik mi gönderiliyor?", a: "Davet kaydını oluşturduğunuzda sistem otomatik bir bilgilendirme e-postası göndermeyi dener; e-posta gönderimi başarısız olsa bile davet geçerli kalır, kişi giriş yaptığında bekleyen daveti Binerly içinde görür." },
   { category: "Takım", q: "Takım üyesi sayısında bir sınır var mı?", a: "Şu an için pratik bir üst sınır yok; bekleyen davetleriniz de Takım ekranında listelenir, dilerseniz kabul edilmeden önce iptal edebilirsiniz." },
-  { category: "Takım", q: "Bir kişi aynı anda birden fazla işletmenin takımına üye olabilir mi?", a: "Evet — aynı e-posta adresiyle farklı işletmelerden davet alıp kabul edebilir, giriş yaptığında hangi işletmeyle çalışacağını seçer." },
-  { category: "Takım", q: "Bir üyeyi takımdan çıkarırsam, o üyenin sorumlu olduğu kayıtlara ne olur?", a: "Kayıtlar olduğu gibi kalır, sorumlu ataması değişmez — sadece o kişinin sisteme erişimi kesilir; kayıtları başka bir üyeye yeniden atamak isterseniz elle değiştirmeniz gerekir." },
-  { category: "Takım", q: "Tek seferde birden fazla kişiyi davet edebilir miyim?", a: "Hayır, davet ekranı tek bir e-posta adresi alır — birden fazla kişiyi davet etmek için işlemi her kişi için ayrı ayrı tekrarlamanız gerekir." },
-  { category: "Takım", q: "Bekleyen bir daveti tekrar gönderebilir miyim?", a: "Ayrı bir \"yeniden gönder\" özelliği yok — davet e-postası ulaşmadıysa daveti iptal edip aynı e-postayla yeniden davet edebilirsiniz." },
-  { category: "Takım", q: "Takıma üye eklemek ek ücrete tabi mi?", a: "Hayır, takım üyesi sayısına göre ek bir ücret alınmaz — abonelik ücretiniz sabittir." },
-  { category: "Takım", q: "Bir üyenin e-postasını sonradan değiştirebilir miyim?", a: "Hayır, doğrudan bir düzenleme seçeneği yok — üyeyi çıkarıp doğru e-postayla yeniden davet etmeniz gerekir." },
-  { category: "Takım", q: "Bir üyenin ayarları düzenleme iznini sonradan kaldırabilir miyim?", a: "Evet, bu izin herhangi bir zamanda Takım ekranından açılıp kapatılabilir — sadece davet anında değil, istediğiniz zaman değiştirebilirsiniz." },
+  { category: "Takım", q: "Bir kişi aynı anda birden fazla işletmenin takımına üye olabilir mi?", a: "Evet - aynı e-posta adresiyle farklı işletmelerden davet alıp kabul edebilir, giriş yaptığında hangi işletmeyle çalışacağını seçer." },
+  { category: "Takım", q: "Bir üyeyi takımdan çıkarırsam, o üyenin sorumlu olduğu kayıtlara ne olur?", a: "Kayıtlar olduğu gibi kalır, sorumlu ataması değişmez - sadece o kişinin sisteme erişimi kesilir; kayıtları başka bir üyeye yeniden atamak isterseniz elle değiştirmeniz gerekir." },
+  { category: "Takım", q: "Tek seferde birden fazla kişiyi davet edebilir miyim?", a: "Hayır, davet ekranı tek bir e-posta adresi alır - birden fazla kişiyi davet etmek için işlemi her kişi için ayrı ayrı tekrarlamanız gerekir." },
+  { category: "Takım", q: "Bekleyen bir daveti tekrar gönderebilir miyim?", a: "Ayrı bir \"yeniden gönder\" özelliği yok - davet e-postası ulaşmadıysa daveti iptal edip aynı e-postayla yeniden davet edebilirsiniz." },
+  { category: "Takım", q: "Takıma üye eklemek ek ücrete tabi mi?", a: "Hayır, takım üyesi sayısına göre ek bir ücret alınmaz - abonelik ücretiniz sabittir." },
+  { category: "Takım", q: "Bir üyenin e-postasını sonradan değiştirebilir miyim?", a: "Hayır, doğrudan bir düzenleme seçeneği yok - üyeyi çıkarıp doğru e-postayla yeniden davet etmeniz gerekir." },
+  { category: "Takım", q: "Bir üyenin ayarları düzenleme iznini sonradan kaldırabilir miyim?", a: "Evet, bu izin herhangi bir zamanda Takım ekranından açılıp kapatılabilir - sadece davet anında değil, istediğiniz zaman değiştirebilirsiniz." },
 
   { category: "Bildirimler & İletişim", q: "Bildirim çanı (üstteki zil simgesi) nasıl çalışır?", a: "Okunmamış bildirim sayısını rozet olarak gösterir; zile tıklayınca açılan panelde bildirimlerde arama yapabilir, sadece okunmamışları filtreleyebilir ve bir bildirime tıkladığınızda hem okundu işaretlenir hem de ilgili kayda yönlendirilirsiniz." },
-  { category: "Bildirimler & İletişim", q: "Müşteriyle talep açmadan direkt nasıl mesajlaşırım?", a: "Destek → Müşteri Mesajları'ndan (müşteri tarafında Portal → Mesajlar sekmesinden) konu/durum girmeden düz bir sohbet gibi yazışabilirsiniz — bu, resmi destek talebi akışından tamamen ayrı, karşılıklı mesajlar anlık düşer." },
-  { category: "Bildirimler & İletişim", q: "Bir bildirim geldiğinde takım üyelerim de haberdar olur mu?", a: "Evet — yeni bir destek talebi/mesaj, ödeme veya randevu gibi olaylarda işletme sahibiyle birlikte tüm takım üyeleri, bildirim izni verdikleri kendi cihazlarında aynı anda bildirim alır." },
+  { category: "Bildirimler & İletişim", q: "Müşteriyle talep açmadan direkt nasıl mesajlaşırım?", a: "Destek → Müşteri Mesajları'ndan (müşteri tarafında Portal → Mesajlar sekmesinden) konu/durum girmeden düz bir sohbet gibi yazışabilirsiniz - bu, resmi destek talebi akışından tamamen ayrı, karşılıklı mesajlar anlık düşer." },
+  { category: "Bildirimler & İletişim", q: "Bir bildirim geldiğinde takım üyelerim de haberdar olur mu?", a: "Evet - yeni bir destek talebi/mesaj, ödeme veya randevu gibi olaylarda işletme sahibiyle birlikte tüm takım üyeleri, bildirim izni verdikleri kendi cihazlarında aynı anda bildirim alır." },
   { category: "Bildirimler & İletişim", q: "Müşteriye hangi durumlarda otomatik e-posta gider?", a: "Başlıca durumlar: bir teklif/randevu aşaması değiştiğinde, destek talebine yanıt verildiğinde veya durumu güncellendiğinde, bir ödeme alındığında ve randevu saatinden önce hatırlatma olarak. Bu e-postalar sistemin temel bildirim kanalıdır, tek tek kapatılamaz." },
-  { category: "Bildirimler & İletişim", q: "Müşteri portalında da bildirim çanı var mı?", a: "Evet, müşteri portalında da benzer bir bildirim çanı var — müşteri sadece kendi talep/mesaj/randevu bildirimlerini görür, sizin veya başka müşterilerin bildirimleri karışmaz." },
-  { category: "Bildirimler & İletişim", q: "WhatsApp/Instagram üzerinden gelen mesajları buradan yönetebilir miyim?", a: "Henüz değil — üst menüdeki \"Mesajlar\" sekmesi bu özellik üzerinde çalışıldığını gösteriyor, şu an için sadece Destek → Müşteri Mesajları ve Portal → Mesajlar üzerinden mesajlaşabilirsiniz." },
-  { category: "Bildirimler & İletişim", q: "Destek talebine gelen bildirim e-postasına doğrudan yanıt yazarak cevap verebilir miyim?", a: "Hayır — gelen bildirim e-postası sadece bilgilendirme amaçlıdır, yanıtınızı Destek sekmesinden (veya Müşteri Mesajları'ndan) yazmanız gerekir; e-postaya cevap yazmanız sisteme işlenmez." },
-  { category: "Bildirimler & İletişim", q: "Bir push bildirimine tıklayınca beni nereye götürür?", a: "Bildirim türüne göre değişir — bir destek talebi/mesaj bildirimi doğrudan ilgili talebi/sohbeti açar, böylece aramanıza gerek kalmadan konuşmaya kaldığınız yerden devam edersiniz." },
-  { category: "Bildirimler & İletişim", q: "Bildirim iznini bir cihazda verdim, başka bir telefonda/tarayıcıda da otomatik gelir mi?", a: "Hayır — bildirim izni cihaz/tarayıcı bazlıdır, her yeni cihazda veya tarayıcıda (Ayarlar → Görünüm, Bildirimler & Hesap'tan) ayrıca izin vermeniz gerekir." },
-  { category: "Bildirimler & İletişim", q: "Bildirim panelinde en fazla kaç bildirim görünür?", a: "Panel en son 30 bildirimi gösterir; daha eski bir bildirimi aramanın bir yolu yok — önemli bir gelişmeyi kaçırdıysanız ilgili sekmeden (Talepler, Randevular vb.) doğrudan kontrol etmeniz gerekir." },
+  { category: "Bildirimler & İletişim", q: "Müşteri portalında da bildirim çanı var mı?", a: "Evet, müşteri portalında da benzer bir bildirim çanı var - müşteri sadece kendi talep/mesaj/randevu bildirimlerini görür, sizin veya başka müşterilerin bildirimleri karışmaz." },
+  { category: "Bildirimler & İletişim", q: "WhatsApp/Instagram üzerinden gelen mesajları buradan yönetebilir miyim?", a: "Henüz değil - üst menüdeki \"Mesajlar\" sekmesi bu özellik üzerinde çalışıldığını gösteriyor, şu an için sadece Destek → Müşteri Mesajları ve Portal → Mesajlar üzerinden mesajlaşabilirsiniz." },
+  { category: "Bildirimler & İletişim", q: "Destek talebine gelen bildirim e-postasına doğrudan yanıt yazarak cevap verebilir miyim?", a: "Hayır - gelen bildirim e-postası sadece bilgilendirme amaçlıdır, yanıtınızı Destek sekmesinden (veya Müşteri Mesajları'ndan) yazmanız gerekir; e-postaya cevap yazmanız sisteme işlenmez." },
+  { category: "Bildirimler & İletişim", q: "Bir push bildirimine tıklayınca beni nereye götürür?", a: "Bildirim türüne göre değişir - bir destek talebi/mesaj bildirimi doğrudan ilgili talebi/sohbeti açar, böylece aramanıza gerek kalmadan konuşmaya kaldığınız yerden devam edersiniz." },
+  { category: "Bildirimler & İletişim", q: "Bildirim iznini bir cihazda verdim, başka bir telefonda/tarayıcıda da otomatik gelir mi?", a: "Hayır - bildirim izni cihaz/tarayıcı bazlıdır, her yeni cihazda veya tarayıcıda (Ayarlar → Görünüm, Bildirimler & Hesap'tan) ayrıca izin vermeniz gerekir." },
+  { category: "Bildirimler & İletişim", q: "Bildirim panelinde en fazla kaç bildirim görünür?", a: "Panel en son 30 bildirimi gösterir; daha eski bir bildirimi aramanın bir yolu yok - önemli bir gelişmeyi kaçırdıysanız ilgili sekmeden (Talepler, Randevular vb.) doğrudan kontrol etmeniz gerekir." },
   { category: "Bildirimler & İletişim", q: "Tüm bildirimlerimi tek seferde okundu olarak işaretleyebilir miyim?", a: "Evet, bildirim panelindeki \"Tümünü okundu işaretle\" ile tek tıkla tüm okunmamış bildirimleri temizleyebilirsiniz." },
-  { category: "Bildirimler & İletişim", q: "Android telefonda veya bilgisayarda bildirim almak için de Ana Ekrana Eklemem gerekir mi?", a: "Hayır, bu adım sadece iPhone/Safari için gerekli — Android'de Chrome'dan, bilgisayarda ise herhangi bir modern tarayıcıdan siteyi kurmadan doğrudan bildirim izni verebilirsiniz." },
-  { category: "Bildirimler & İletişim", q: "Müşteri portalında bildirim izni açmak KOBİ tarafındakiyle aynı mı çalışır?", a: "Evet, aynı mantıkla çalışır — müşteri kendi portal hesabında bildirimleri açtığında, sadece kendi talep/randevu/mesaj güncellemeleri için bu cihaza push bildirimi gider." },
+  { category: "Bildirimler & İletişim", q: "Android telefonda veya bilgisayarda bildirim almak için de Ana Ekrana Eklemem gerekir mi?", a: "Hayır, bu adım sadece iPhone/Safari için gerekli - Android'de Chrome'dan, bilgisayarda ise herhangi bir modern tarayıcıdan siteyi kurmadan doğrudan bildirim izni verebilirsiniz." },
+  { category: "Bildirimler & İletişim", q: "Müşteri portalında bildirim izni açmak KOBİ tarafındakiyle aynı mı çalışır?", a: "Evet, aynı mantıkla çalışır - müşteri kendi portal hesabında bildirimleri açtığında, sadece kendi talep/randevu/mesaj güncellemeleri için bu cihaza push bildirimi gider." },
 
   { category: "Ayarlar & Hesap", q: "Sistemin nasıl çalıştığını gösteren kısa turu tekrar izleyebilir miyim?", a: "Evet, Ayarlar → \"Turu Tekrar Başlat\"a tıklayarak ilk girişte gördüğünüz kısa tanıtım turunu istediğiniz zaman baştan izleyebilirsiniz." },
-  { category: "Ayarlar & Hesap", q: "Pano'daki \"Kuruluma başlayın\" kutusunu nasıl kapatırım?", a: "Kutunun sağ üstündeki \"Gizle\"ye tıklarsınız — bu tercih saklanır, adımları tamamlamasanız bile bir daha görünmez." },
-  { category: "Ayarlar & Hesap", q: "Bir özel alanı silersem, o alana daha önce girilmiş veriler ne olur?", a: "Hiçbir veri silinmez — alan sadece formlardan kaldırılır (gizlenir), müşteri/teklif kayıtlarındaki mevcut değerler veritabanında saklı kalmaya devam eder." },
-  { category: "Ayarlar & Hesap", q: "Özel alan eklerken sistemin kendi kullandığı bir isim girersem ne olur?", a: "Sistemin iç kullandığı birkaç anahtar (örn. \"Kaynak\") özel alan adı olarak kullanılamaz — böyle bir isim girip kaydetmeye çalıştığınızda alan sessizce eklenmez; farklı bir isim kullanmanız yeterli." },
-  { category: "Ayarlar & Hesap", q: "Aynı isimde iki özel alan tanımlayabilir miyim?", a: "Hayır, aynı \"Nerede\" (Müşteriler/Teklifler-Randevular-Üyelikler-Rezervasyonlar) için aynı isimden ikinci bir alan eklenemez — farklı bir isim seçmeniz veya mevcut alanı düzenlemeniz gerekir." },
+  { category: "Ayarlar & Hesap", q: "Pano'daki \"Kuruluma başlayın\" kutusunu nasıl kapatırım?", a: "Kutunun sağ üstündeki \"Gizle\"ye tıklarsınız - bu tercih saklanır, adımları tamamlamasanız bile bir daha görünmez." },
+  { category: "Ayarlar & Hesap", q: "Bir özel alanı silersem, o alana daha önce girilmiş veriler ne olur?", a: "Hiçbir veri silinmez - alan sadece formlardan kaldırılır (gizlenir), müşteri/teklif kayıtlarındaki mevcut değerler veritabanında saklı kalmaya devam eder." },
+  { category: "Ayarlar & Hesap", q: "Özel alan eklerken sistemin kendi kullandığı bir isim girersem ne olur?", a: "Sistemin iç kullandığı birkaç anahtar (örn. \"Kaynak\") özel alan adı olarak kullanılamaz - böyle bir isim girip kaydetmeye çalıştığınızda alan sessizce eklenmez; farklı bir isim kullanmanız yeterli." },
+  { category: "Ayarlar & Hesap", q: "Aynı isimde iki özel alan tanımlayabilir miyim?", a: "Hayır, aynı \"Nerede\" (Müşteriler/Teklifler-Randevular-Üyelikler-Rezervasyonlar) için aynı isimden ikinci bir alan eklenemez - farklı bir isim seçmeniz veya mevcut alanı düzenlemeniz gerekir." },
   { category: "Ayarlar & Hesap", q: "Oturumum neden belirli bir süre sonra kendiliğinden kapanıyor?", a: "Güvenlik için oturumlar, hiç hareketsiz kalmasanız bile girişten itibaren en fazla 24 saat sonra otomatik sonlanır; süre dolduğunda tekrar giriş yapmanız istenir." },
-  { category: "Ayarlar & Hesap", q: "Uygulamayı telefonuma nasıl kurarım (PWA)?", a: "Tarayıcınızın paylaş/menü seçeneğinden \"Ana Ekrana Ekle\"yi seçerek Binerly'i normal bir uygulama gibi ana ekranınıza ekleyebilirsiniz — özellikle iPhone'da anlık bildirim alabilmek için bu adım gereklidir." },
-  { category: "Ayarlar & Hesap", q: "Google hesabımla giriş yapabilir miyim?", a: "Evet, giriş ekranındaki Google seçeneğiyle e-posta/şifre girmeden tek tıkla giriş yapabilir veya kayıt olabilirsiniz — bu hem ana uygulamada hem Müşteri Portalı'nda mevcuttur." },
-  { category: "Ayarlar & Hesap", q: "Şirket logomu teklif PDF'lerinde nasıl gösteririm?", a: "Ayarlar → İşletme Bilgileri'nden logonuzu yükleyin — Teklif Şablonları'ndaki hazır tasarımlar ve oluşturacağınız özel şablonlar logo alanında otomatik olarak bu görseli kullanır." },
+  { category: "Ayarlar & Hesap", q: "Uygulamayı telefonuma nasıl kurarım (PWA)?", a: "Tarayıcınızın paylaş/menü seçeneğinden \"Ana Ekrana Ekle\"yi seçerek Binerly'i normal bir uygulama gibi ana ekranınıza ekleyebilirsiniz - özellikle iPhone'da anlık bildirim alabilmek için bu adım gereklidir." },
+  { category: "Ayarlar & Hesap", q: "Google hesabımla giriş yapabilir miyim?", a: "Evet, giriş ekranındaki Google seçeneğiyle e-posta/şifre girmeden tek tıkla giriş yapabilir veya kayıt olabilirsiniz - bu hem ana uygulamada hem Müşteri Portalı'nda mevcuttur." },
+  { category: "Ayarlar & Hesap", q: "Şirket logomu teklif PDF'lerinde nasıl gösteririm?", a: "Ayarlar → İşletme Bilgileri'nden logonuzu yükleyin - Teklif Şablonları'ndaki hazır tasarımlar ve oluşturacağınız özel şablonlar logo alanında otomatik olarak bu görseli kullanır." },
   { category: "Ayarlar & Hesap", q: "Vergi numaramı nereye giriyorum, teklif PDF'inde otomatik çıkar mı?", a: "Ayarlar → İşletme Bilgileri'ne girdiğiniz vergi numarası, teklif PDF şablonlarındaki \"Vergi no\" satırında otomatik olarak görünür." },
-  { category: "Ayarlar & Hesap", q: "Ayarlar menüsünden hangi ekranlara ulaşabilirim?", a: "İşletme Bilgileri, Sektör & Özel Alanlar, Ürün & Hizmet Fiyat Listesi, Teklif Şablonları, Ödeme Bağlantısı, (randevu alınabilen sektörlerde) Müsaitlik Saatleri, Görünüm/Bildirimler/Hesap, Takım, Çöp Kutusu ve Geçmiş, Müşteri Kazanma Linki, Müşteri Portalı Linki ve Turu Tekrar Başlat — hepsi tek bir Ayarlar penceresinden açılır." },
+  { category: "Ayarlar & Hesap", q: "Ayarlar menüsünden hangi ekranlara ulaşabilirim?", a: "İşletme Bilgileri, Sektör & Özel Alanlar, Ürün & Hizmet Fiyat Listesi, Teklif Şablonları, Ödeme Bağlantısı, (randevu alınabilen sektörlerde) Müsaitlik Saatleri, Görünüm/Bildirimler/Hesap, Takım, Çöp Kutusu ve Geçmiş, Müşteri Kazanma Linki, Müşteri Portalı Linki ve Turu Tekrar Başlat - hepsi tek bir Ayarlar penceresinden açılır." },
 
-  { category: "İçe/Dışa Aktarma", q: "İçe aktarırken dosyamdaki sütunları Binerly alanlarıyla nasıl eşleştiririm?", a: "Dosyanızı yükledikten sonra açılan eşleştirme ekranında her Binerly alanı için dosyanızdaki hangi sütunun kullanılacağını seçersiniz — sistem sütun başlıklarına bakarak bu eşleşmeyi olabildiğince otomatik önerir, siz kontrol edip düzeltirsiniz." },
+  { category: "İçe/Dışa Aktarma", q: "İçe aktarırken dosyamdaki sütunları Binerly alanlarıyla nasıl eşleştiririm?", a: "Dosyanızı yükledikten sonra açılan eşleştirme ekranında her Binerly alanı için dosyanızdaki hangi sütunun kullanılacağını seçersiniz - sistem sütun başlıklarına bakarak bu eşleşmeyi olabildiğince otomatik önerir, siz kontrol edip düzeltirsiniz." },
   { category: "İçe/Dışa Aktarma", q: "İçe aktarmadan önce hangi satırların hatalı olduğunu görebilir miyim?", a: "Evet, önizleme ekranında her satır tek tek gösterilir; hatalı (örn. eşleşen müşteri bulunamayan) satırlar işaretlenip seçilemez hâle gelir, olası yinelenen kayıtlar ise ayrı bir uyarıyla belirtilir." },
   { category: "İçe/Dışa Aktarma", q: "İçe aktarırken bazı satırları hariç tutabilir miyim?", a: "Evet, önizleme ekranındaki kutucuğu işaretleyerek her satırı ayrı ayrı içe aktarıma dahil edebilir veya çıkarabilirsiniz; hatalı satırların kutucuğu zaten devre dışı gelir." },
   { category: "İçe/Dışa Aktarma", q: "Destek taleplerini veya Bilgi Bankası makalelerini de toplu içe aktarabilir miyim?", a: "Evet, Destek sekmesindeki Talepler ve Bilgi Bankası listelerinin her ikisinde de ayrı \"İçe aktar\" seçeneği vardır, aynı CSV/Excel akışını kullanır." },
-  { category: "İçe/Dışa Aktarma", q: "Ürün & Hizmet Fiyat Listemi toplu olarak yükleyebilir/indirebilir miyim?", a: "Evet, Ayarlar → Ürün & Hizmet Fiyat Listesi'nde de ayrı \"İçe aktar\"/\"Dışa aktar\" butonları var — ürün/hizmet adı ve fiyat sütunlarıyla aynı CSV/Excel akışını kullanır." },
+  { category: "İçe/Dışa Aktarma", q: "Ürün & Hizmet Fiyat Listemi toplu olarak yükleyebilir/indirebilir miyim?", a: "Evet, Ayarlar → Ürün & Hizmet Fiyat Listesi'nde de ayrı \"İçe aktar\"/\"Dışa aktar\" butonları var - ürün/hizmet adı ve fiyat sütunlarıyla aynı CSV/Excel akışını kullanır." },
   { category: "İçe/Dışa Aktarma", q: "Teklif/talep içe aktarırken müşteri sütununda tam adı mı yazmalıyım?", a: "Evet, müşteri sütunundaki isim sistemdeki müşteri adıyla (büyük/küçük harf hariç) birebir eşleşmelidir; eşleşme bulunamazsa veya birden fazla müşteri aynı isme sahipse o satır hatalı sayılır." },
-  { category: "İçe/Dışa Aktarma", q: "CSV dosyamda noktalı virgül mü virgül mü kullanmalıyım?", a: "İkisi de desteklenir — dosyanızın ilk satırına bakılarak hangi ayırıcının kullanıldığı otomatik tespit edilir, ayrıca bir ayar yapmanıza gerek yoktur." },
-  { category: "İçe/Dışa Aktarma", q: "vCard (.vcf) içe aktarırken hangi bilgiler okunur?", a: "Kişinin adı, telefonu ve e-postası (varsa) okunur — adı olmayan kartlar listeye hiç dahil edilmez, diğer vCard alanları (adres, doğum günü vb.) içe aktarılmaz." },
-  { category: "İçe/Dışa Aktarma", q: "İçe aktarırken yinelenen (mükerrer) kayıt kontrolü nasıl yapılıyor?", a: "Sadece müşteri ve fiyat listesi içe aktarımında, isim eşleşmesine (büyük/küçük harf hariç) bakılır — aynı isimde bir kayıt zaten varsa satır bir uyarıyla işaretlenir, ama otomatik olarak dışlanmaz; içe aktarmak istemiyorsanız kutucuğunu elle kaldırmanız gerekir." },
+  { category: "İçe/Dışa Aktarma", q: "CSV dosyamda noktalı virgül mü virgül mü kullanmalıyım?", a: "İkisi de desteklenir - dosyanızın ilk satırına bakılarak hangi ayırıcının kullanıldığı otomatik tespit edilir, ayrıca bir ayar yapmanıza gerek yoktur." },
+  { category: "İçe/Dışa Aktarma", q: "vCard (.vcf) içe aktarırken hangi bilgiler okunur?", a: "Kişinin adı, telefonu ve e-postası (varsa) okunur - adı olmayan kartlar listeye hiç dahil edilmez, diğer vCard alanları (adres, doğum günü vb.) içe aktarılmaz." },
+  { category: "İçe/Dışa Aktarma", q: "İçe aktarırken yinelenen (mükerrer) kayıt kontrolü nasıl yapılıyor?", a: "Sadece müşteri ve fiyat listesi içe aktarımında, isim eşleşmesine (büyük/küçük harf hariç) bakılır - aynı isimde bir kayıt zaten varsa satır bir uyarıyla işaretlenir, ama otomatik olarak dışlanmaz; içe aktarmak istemiyorsanız kutucuğunu elle kaldırmanız gerekir." },
   { category: "İçe/Dışa Aktarma", q: "İçe aktarabileceğim satır sayısında bir sınır var mı?", a: "Pratik bir üst sınır belirtilmemiştir; satırlar arka planda küçük gruplar hâlinde (chunk) yüklenir, çok büyük dosyalarda ilerleme çubuğundan yükleme durumunu takip edebilirsiniz." },
   { category: "İçe/Dışa Aktarma", q: "Kayıt (teklif/randevu/üyelik) içe aktarırken aşama belirtmezsem ne olur?", a: "Aşama sütununu boş bırakırsanız kayıt otomatik olarak en baştaki aşamada (\"İlk Görüşme\") açılır." },
-  { category: "İçe/Dışa Aktarma", q: "İçe aktarma sırasında bazı satırlar hata verirse diğerleri yine de eklenir mi?", a: "Evet — satırlar gruplar hâlinde yüklenir, bir grupta hata olsa bile önceden başarıyla yüklenmiş gruplar sisteme eklenmiş olarak kalır; işlem sonunda kaç satırın eklendiği ve varsa hata mesajları gösterilir." },
+  { category: "İçe/Dışa Aktarma", q: "İçe aktarma sırasında bazı satırlar hata verirse diğerleri yine de eklenir mi?", a: "Evet - satırlar gruplar hâlinde yüklenir, bir grupta hata olsa bile önceden başarıyla yüklenmiş gruplar sisteme eklenmiş olarak kalır; işlem sonunda kaç satırın eklendiği ve varsa hata mesajları gösterilir." },
   { category: "İçe/Dışa Aktarma", q: "Destek talebi içe aktarırken öncelik/durum belirtmezsem ne olur?", a: "Öncelik boş bırakılırsa \"Orta\", durum boş bırakılırsa \"Açık\" olarak ayarlanır." },
   { category: "İçe/Dışa Aktarma", q: "Hangi ekranlarda toplu içe/dışa aktarma yapabilirim?", a: "Müşteriler, Teklifler/Randevular/Üyelikler/Rezervasyonlar, Destek Talepleri, Bilgi Bankası ve Ürün & Hizmet Fiyat Listesi ekranlarının hepsinde ayrı \"İçe Aktar\"/\"Dışa Aktar\" butonları vardır, hepsi aynı CSV/Excel akışını kullanır." },
   { category: "İçe/Dışa Aktarma", q: "İçe aktarılan müşterilerin \"son temas\" tarihi ne olur?", a: "İçe aktarma anının tarihi \"son temas\" olarak otomatik kaydedilir, dosyanızda bu bilgiyi ayrıca belirtmenize gerek yoktur." },
 
   { category: "Teklif Şablonları", q: "Kendi teklif PDF şablonumu nasıl tasarlarım?", a: "Ayarlar → Teklif Şablonları'ndaki galeriden \"+ Yeni Şablon (boş)\" ile boş bir sayfa açar ya da mevcut bir şablonu \"Düzenle\"yle kopyalayıp üzerinde değişiklik yaparsınız; editörde metin, logo, dikdörtgen, çizgi ve tablo blokları ekleyip konumlandırabilirsiniz." },
-  { category: "Teklif Şablonları", q: "Şablon editöründe bir bloğu nasıl hassas taşırım?", a: "Bloğu seçtikten sonra ok tuşlarıyla 1 piksel, Shift'e basılı tutarak 10 piksel adımlarla kaydırabilirsiniz — fareyle sürüklemek yerine ince ayar yapmak için kullanışlıdır." },
+  { category: "Teklif Şablonları", q: "Şablon editöründe bir bloğu nasıl hassas taşırım?", a: "Bloğu seçtikten sonra ok tuşlarıyla 1 piksel, Shift'e basılı tutarak 10 piksel adımlarla kaydırabilirsiniz - fareyle sürüklemek yerine ince ayar yapmak için kullanışlıdır." },
   { category: "Teklif Şablonları", q: "Şablonuma hangi bilgileri otomatik doldurtabilirim?", a: "Firma adı/adres/telefon/e-posta/vergi no, müşteri adı/telefon/e-posta, belge başlığı, tarih, ara toplam/KDV/genel toplam, geçerlilik metni ve ek not gibi hazır alanları metin bloklarına ekleyip otomatik doldurulmasını sağlayabilirsiniz." },
   { category: "Teklif Şablonları", q: "Bir teklif şablonunu silersem ne olur?", a: "Şablon kalıcı olarak silinir (geri alınamaz); o an seçili şablonsa otomatik olarak \"Klasik\" hazır şablona geri dönülür, daha önce o şablonla oluşturulmuş PDF'ler etkilenmez." },
-  { category: "Teklif Şablonları", q: "Teklif PDF'inde kalem sayısı arttıkça tasarım bozulur mu?", a: "Hayır — kalem sayısı arttıkça tablo bloğunun altındaki bloklar (geçerlilik metni, ek not vb.) otomatik olarak aşağı kayar, tasarımınız bozulmadan birden fazla kalemli teklifler de düzgün görünür." },
+  { category: "Teklif Şablonları", q: "Teklif PDF'inde kalem sayısı arttıkça tasarım bozulur mu?", a: "Hayır - kalem sayısı arttıkça tablo bloğunun altındaki bloklar (geçerlilik metni, ek not vb.) otomatik olarak aşağı kayar, tasarımınız bozulmadan birden fazla kalemli teklifler de düzgün görünür." },
   { category: "Teklif Şablonları", q: "Hazır \"Klasik\" ve \"Modern\" şablonlarını değiştirebilir miyim?", a: "Hazır şablonları doğrudan düzenleyemezsiniz ama \"Düzenle\"ye bastığınızda adının sonuna \"(Kopya)\" eklenmiş bir kopyası açılır, üzerinde değişiklik yapıp kendi şablonunuz olarak kaydedebilirsiniz." },
-  { category: "Teklif Şablonları", q: "Teklif PDF'inde hangi şablonun kullanılacağını nasıl seçerim?", a: "Ayarlar → Teklif Şablonları galerisinde istediğiniz şablonun yanındaki \"Seç\"e tıklarsınız — o andan sonra oluşturduğunuz tüm teklif PDF'leri bu şablonla üretilir." },
+  { category: "Teklif Şablonları", q: "Teklif PDF'inde hangi şablonun kullanılacağını nasıl seçerim?", a: "Ayarlar → Teklif Şablonları galerisinde istediğiniz şablonun yanındaki \"Seç\"e tıklarsınız - o andan sonra oluşturduğunuz tüm teklif PDF'leri bu şablonla üretilir." },
   { category: "Teklif Şablonları", q: "Şablon editöründe bir metin bloğunun rengini/hizasını değiştirebilir miyim?", a: "Evet, seçili metin bloğu için yazı boyutu, kalınlık, renk, hizalama (sol/orta/sağ) ve büyük/küçük harf dönüşümü gibi özellikleri ayrı ayrı ayarlayabilirsiniz." },
-  { category: "Teklif Şablonları", q: "Boş şablondan başlarsam varsayılan sayfa boyutu ne olur?", a: "Boş şablon 700×900 piksellik bir sayfa olarak açılır, istediğiniz blokları sıfırdan ekleyip konumlandırırsınız — hazır şablonlardaki gibi önceden yerleştirilmiş hiçbir blok gelmez." },
-  { category: "Teklif Şablonları", q: "Şablonuma birden fazla sayfa ekleyebilir miyim?", a: "Hayır, şu an tek sayfalık bir tasarım alanı var — kalem sayısı arttıkça bloklar otomatik aşağı kayar ama ikinci bir sayfaya geçilmez." },
-  { category: "Teklif Şablonları", q: "Şablonuma logo dışında bir görsel/resim ekleyebilir miyim?", a: "Hayır, editördeki tek görsel bloğu firma logonuzdur (Ayarlar → İşletme Bilgileri'nden yüklediğiniz) — ayrı bir serbest resim/görsel bloğu eklenemez." },
-  { category: "Teklif Şablonları", q: "Şablonlarım müşteri portalında da görünür mü?", a: "Evet — müşteri portalından bir kaydın PDF'ini indirdiğinde, o kayıt için seçili olan aynı şablon kullanılır." },
+  { category: "Teklif Şablonları", q: "Boş şablondan başlarsam varsayılan sayfa boyutu ne olur?", a: "Boş şablon 700×900 piksellik bir sayfa olarak açılır, istediğiniz blokları sıfırdan ekleyip konumlandırırsınız - hazır şablonlardaki gibi önceden yerleştirilmiş hiçbir blok gelmez." },
+  { category: "Teklif Şablonları", q: "Şablonuma birden fazla sayfa ekleyebilir miyim?", a: "Hayır, şu an tek sayfalık bir tasarım alanı var - kalem sayısı arttıkça bloklar otomatik aşağı kayar ama ikinci bir sayfaya geçilmez." },
+  { category: "Teklif Şablonları", q: "Şablonuma logo dışında bir görsel/resim ekleyebilir miyim?", a: "Hayır, editördeki tek görsel bloğu firma logonuzdur (Ayarlar → İşletme Bilgileri'nden yüklediğiniz) - ayrı bir serbest resim/görsel bloğu eklenemez." },
+  { category: "Teklif Şablonları", q: "Şablonlarım müşteri portalında da görünür mü?", a: "Evet - müşteri portalından bir kaydın PDF'ini indirdiğinde, o kayıt için seçili olan aynı şablon kullanılır." },
   { category: "Teklif Şablonları", q: "Tablo bloğundaki sütunları özelleştirebilir miyim?", a: "Tablo bloğu kalem listenizin (ürün/hizmet adı, miktar, birim fiyat, tutar) standart görünümünü kullanır; sütun ekleme/çıkarma veya yeniden adlandırma seçeneği yoktur, sadece rengini ve konumunu ayarlayabilirsiniz." },
   { category: "Teklif Şablonları", q: "Bir dikdörtgen veya çizgi bloğunun rengini değiştirebilir miyim?", a: "Evet, dikdörtgen ve çizgi bloklarının rengini seçili blok panelinden değiştirebilirsiniz." },
   { category: "Teklif Şablonları", q: "Kaç tane özel şablon oluşturabilirim?", a: "Pratik bir üst sınır yok, istediğiniz kadar özel şablon oluşturup galeriden aralarında geçiş yapabilirsiniz." },
@@ -938,15 +938,15 @@ function topEntry(totals) {
 // somut bir tavsiyeye eşleşen sabit bir sözlük. Hem teklif sektörlerindeki
 // LOST_REASONS'ı hem randevu sektörlerindeki APPOINTMENT_LOST_REASONS'ı kapsar.
 const REASON_ADVICE = {
-  "Yüksek fiyat": "Fiyatlandırmanızı ve sunduğunuz değeri gözden geçirmeyi düşünebilirsiniz — doğrudan indirim yerine paketleme veya ek hizmet eklemek genelde daha sürdürülebilir bir çözümdür.",
+  "Yüksek fiyat": "Fiyatlandırmanızı ve sunduğunuz değeri gözden geçirmeyi düşünebilirsiniz - doğrudan indirim yerine paketleme veya ek hizmet eklemek genelde daha sürdürülebilir bir çözümdür.",
   "Rakip tercih edildi": "Rakiplerinizi analiz edip kendi farklılaşma noktalarınızı (hız, kalite, kişisel ilgi, garanti) tekliflerinizde daha net vurgulamayı deneyin.",
   "Bütçe yok": "Daha küçük/esnek bir paket veya taksitli ödeme seçeneği sunmak bütçe engelini aşmanıza yardımcı olabilir.",
   "Zamanlama uymadı": "Bu kayıtlar için bir hatırlatma bırakıp uygun zaman geldiğinde tekrar iletişime geçmeyi unutmayın.",
-  "Vazgeçti": "İlk temas sonrası takip hızınızı gözden geçirin — yanıt gecikmesi genelde ilginin soğumasına yol açar.",
+  "Vazgeçti": "İlk temas sonrası takip hızınızı gözden geçirin - yanıt gecikmesi genelde ilginin soğumasına yol açar.",
   "Randevuya gelmedi": "Randevu hatırlatmalarınızın açık olduğundan emin olun, randevuya yakın ek bir hatırlatma da gelmeme oranını azaltabilir.",
-  "İptal etti": "İptal nedenini not almayı sürdürün — tekrarlayan bir kalıp (örn. hep aynı gün/saat) varsa program/müsaitlik saatlerinizi gözden geçirebilirsiniz.",
-  "Geç iptal etti": "Bu müşteriler randevuya çok yakın iptal ediyor — Müsaitlik Saatleri'ndeki geç iptal/gelmeme cezası ayarını kullanarak tekrarlayanlarda sonraki randevuda ödeme zorunlu tutabilirsiniz.",
-  "Mücbir sebep": "Belgelenebilir acil durumlarda (hastalık, kaza, resmi mücbir sebep) ceza/sayaç uygulanmaması adil bir istisnadır — sık tekrarlanıyorsa yine de not tutmakta fayda var.",
+  "İptal etti": "İptal nedenini not almayı sürdürün - tekrarlayan bir kalıp (örn. hep aynı gün/saat) varsa program/müsaitlik saatlerinizi gözden geçirebilirsiniz.",
+  "Geç iptal etti": "Bu müşteriler randevuya çok yakın iptal ediyor - Müsaitlik Saatleri'ndeki geç iptal/gelmeme cezası ayarını kullanarak tekrarlayanlarda sonraki randevuda ödeme zorunlu tutabilirsiniz.",
+  "Mücbir sebep": "Belgelenebilir acil durumlarda (hastalık, kaza, resmi mücbir sebep) ceza/sayaç uygulanmaması adil bir istisnadır - sık tekrarlanıyorsa yine de not tutmakta fayda var.",
   "İşletme iptal etti": "İşletme/personel kaynaklı geç iptallerde müşteriye otomatik tanınan telafi hakkını bir sonraki randevusunda hatırlatmayı unutmayın.",
 };
 
@@ -964,7 +964,7 @@ const ANSWER_LIBRARY = [
       won.forEach((d) => { totals[d.customerId] = (totals[d.customerId] || 0) + (d.value || 0); });
       const top = topEntry(totals);
       const customer = ctx.customers.find((c) => c.id === top[0]);
-      return `${customer?.name || "Bilinmeyen müşteri"} — bu ay ${formatTL(top[1])} ile en çok kazandıran müşteriniz.`;
+      return `${customer?.name || "Bilinmeyen müşteri"} - bu ay ${formatTL(top[1])} ile en çok kazandıran müşteriniz.`;
     },
   },
   {
@@ -1094,7 +1094,7 @@ const ANSWER_LIBRARY = [
       const top = Object.entries(balances).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1])[0];
       if (!top) return "Şu anda borcu olan bir müşteriniz görünmüyor.";
       const customer = ctx.customers.find((c) => c.id === top[0]);
-      return `${customer?.name || "Bilinmeyen müşteri"} — ${formatTL(top[1])} bakiye ile en çok borçlu müşteriniz.`;
+      return `${customer?.name || "Bilinmeyen müşteri"} - ${formatTL(top[1])} bakiye ile en çok borçlu müşteriniz.`;
     },
   },
   {
@@ -1167,8 +1167,8 @@ const ANSWER_LIBRARY = [
       const commonlyMissed = ["Eğitim", "Danışmanlık", "Sigorta", "Bakım / Onarım", "Seyahat / Konaklama", "Temsil ve Ağırlama"];
       const usedCategories = new Set(ctx.companyExpenses.map((e) => e.category));
       const missing = commonlyMissed.filter((c) => !usedCategories.has(c));
-      if (missing.length === 0) return "Yaygın gider kategorilerinin hepsini en az bir kez kullanmışsınız — başka bir kalem gözden kaçıyorsa muhasebecinize danışabilirsiniz.";
-      return `Şu kategorilerde hiç gideriniz görünmüyor: ${missing.join(", ")}. Gerçekten yaptığınız ama kaydetmediğiniz bir harcama varsa (örn. bir eğitim, sigorta poliçesi, danışmanlık ücreti) Finans → Gider ekle'den kaydedin — hem gerçek kârınızı doğru gösterir hem KDV'nizi doğru hesaplar.`;
+      if (missing.length === 0) return "Yaygın gider kategorilerinin hepsini en az bir kez kullanmışsınız - başka bir kalem gözden kaçıyorsa muhasebecinize danışabilirsiniz.";
+      return `Şu kategorilerde hiç gideriniz görünmüyor: ${missing.join(", ")}. Gerçekten yaptığınız ama kaydetmediğiniz bir harcama varsa (örn. bir eğitim, sigorta poliçesi, danışmanlık ücreti) Finans → Gider ekle'den kaydedin - hem gerçek kârınızı doğru gösterir hem KDV'nizi doğru hesaplar.`;
     },
   },
   {
@@ -1254,7 +1254,7 @@ const ANSWER_LIBRARY = [
       if (open.length === 0) return "Şu anda açık bir kaydınız yok.";
       const top = open[0];
       const customer = ctx.customers.find((c) => c.id === top.customerId);
-      return `"${top.title}" (${customer?.name || "müşteri silinmiş"}) — ${formatTL(top.value)} ile en değerli açık kaydınız.`;
+      return `"${top.title}" (${customer?.name || "müşteri silinmiş"}) - ${formatTL(top.value)} ile en değerli açık kaydınız.`;
     },
   },
   {
@@ -1268,7 +1268,7 @@ const ANSWER_LIBRARY = [
       const top = open[0];
       const customer = ctx.customers.find((c) => c.id === top.customerId);
       const days = Math.floor((Date.now() - new Date(top.createdAt).getTime()) / (24 * 60 * 60 * 1000));
-      return `"${top.title}" (${customer?.name || "müşteri silinmiş"}) — ${days} gündür açık.`;
+      return `"${top.title}" (${customer?.name || "müşteri silinmiş"}) - ${days} gündür açık.`;
     },
   },
   {
@@ -1331,7 +1331,7 @@ const ANSWER_LIBRARY = [
       const top = topEntry(totals);
       if (!top) return "Henüz sorumlu atanmış kazanılan bir kaydınız yok.";
       const name = top[0] === ctx.currentUserId ? "Siz" : (ctx.teamMembers.find((m) => m.id === top[0])?.name || ctx.teamMembers.find((m) => m.id === top[0])?.email || "Bilinmeyen üye");
-      return `${name} — ${formatTL(top[1])} ile en çok kazandıran kişi.`;
+      return `${name} - ${formatTL(top[1])} ile en çok kazandıran kişi.`;
     },
   },
   {
@@ -1342,7 +1342,7 @@ const ANSWER_LIBRARY = [
     compute: (ctx) => {
       if (ctx.customers.length === 0) return "Henüz müşteriniz yok.";
       const sorted = [...ctx.customers].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      return `${sorted[0].name} — ${new Date(sorted[0].createdAt).toLocaleDateString("tr-TR")} tarihinde eklendi.`;
+      return `${sorted[0].name} - ${new Date(sorted[0].createdAt).toLocaleDateString("tr-TR")} tarihinde eklendi.`;
     },
   },
   {
@@ -1572,7 +1572,7 @@ const ANSWER_LIBRARY = [
       const top = topEntry(totals);
       if (!top) return "Henüz hiçbir dersinize kayıt yok.";
       const cls = ctx.groupClasses.find((g) => g.id === top[0]);
-      return `En dolu dersiniz "${cls?.name || "silinmiş ders"}" — ${top[1]}/${cls?.capacity ?? "?"} kayıt.`;
+      return `En dolu dersiniz "${cls?.name || "silinmiş ders"}" - ${top[1]}/${cls?.capacity ?? "?"} kayıt.`;
     },
   },
   {
@@ -1892,7 +1892,7 @@ const ANSWER_LIBRARY = [
       won.forEach((d) => { totals[d.customerId] = (totals[d.customerId] || 0) + (d.value || 0); });
       const top = topEntry(totals);
       const customer = ctx.customers.find((c) => c.id === top[0]);
-      return `${customer?.name || "Bilinmeyen müşteri"} — tüm zamanlar ${formatTL(top[1])} ile en çok kazandıran müşteriniz.`;
+      return `${customer?.name || "Bilinmeyen müşteri"} - tüm zamanlar ${formatTL(top[1])} ile en çok kazandıran müşteriniz.`;
     },
   },
   {
@@ -1908,7 +1908,7 @@ const ANSWER_LIBRARY = [
       won.forEach((d) => { totals[d.customerId] = (totals[d.customerId] || 0) + (d.value || 0); });
       const top = topEntry(totals);
       const customer = ctx.customers.find((c) => c.id === top[0]);
-      return `${customer?.name || "Bilinmeyen müşteri"} — bu çeyrek ${formatTL(top[1])} ile en çok kazandıran müşteriniz.`;
+      return `${customer?.name || "Bilinmeyen müşteri"} - bu çeyrek ${formatTL(top[1])} ile en çok kazandıran müşteriniz.`;
     },
   },
   {
@@ -1924,7 +1924,7 @@ const ANSWER_LIBRARY = [
       won.forEach((d) => { totals[d.customerId] = (totals[d.customerId] || 0) + (d.value || 0); });
       const top = topEntry(totals);
       const customer = ctx.customers.find((c) => c.id === top[0]);
-      return `${customer?.name || "Bilinmeyen müşteri"} — bu yıl ${formatTL(top[1])} ile en çok kazandıran müşteriniz.`;
+      return `${customer?.name || "Bilinmeyen müşteri"} - bu yıl ${formatTL(top[1])} ile en çok kazandıran müşteriniz.`;
     },
   },
   {
@@ -1937,7 +1937,7 @@ const ANSWER_LIBRARY = [
       if (won.length === 0) return "Henüz kazanılmış bir kaydınız yok.";
       const top = [...won].sort((a, b) => (b.value || 0) - (a.value || 0))[0];
       const customer = ctx.customers.find((c) => c.id === top.customerId);
-      return `"${top.title}" (${customer?.name || "müşteri silinmiş"}) — ${formatTL(top.value)} ile en büyük kazanılan kaydınız.`;
+      return `"${top.title}" (${customer?.name || "müşteri silinmiş"}) - ${formatTL(top.value)} ile en büyük kazanılan kaydınız.`;
     },
   },
   {
@@ -1953,7 +1953,7 @@ const ANSWER_LIBRARY = [
       const top = topEntry(totals);
       const customer = ctx.customers.find((c) => c.id === top[0]);
       const count = won.filter((d) => d.customerId === top[0]).length;
-      return `${customer?.name || "Bilinmeyen müşteri"} — bugüne kadar ${count} kayıtla toplam ${formatTL(top[1])} kazandırdı.`;
+      return `${customer?.name || "Bilinmeyen müşteri"} - bugüne kadar ${count} kayıtla toplam ${formatTL(top[1])} kazandırdı.`;
     },
   },
   {
@@ -2022,7 +2022,7 @@ const ANSWER_LIBRARY = [
     visibleIf: (sector) => supportsSessionPackages(sector),
     compute: (ctx) => {
       const near = ctx.deals.filter((d) => d.stage === "kazanildi" && d.sessionTotal != null && d.sessionTotal - (d.sessionUsed || 0) === 1);
-      return near.length > 0 ? `Son seansına gelmiş ${near.length} paketiniz var — yenileme teklifi için iyi bir fırsat.` : "Son seansına gelmiş bir paketiniz şu anda yok.";
+      return near.length > 0 ? `Son seansına gelmiş ${near.length} paketiniz var - yenileme teklifi için iyi bir fırsat.` : "Son seansına gelmiş bir paketiniz şu anda yok.";
     },
   },
   {
@@ -2099,7 +2099,7 @@ const ANSWER_LIBRARY = [
       });
       const top = topEntry(totals);
       const monthNames = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
-      return `Bu yılın en iyi ayı ${monthNames[Number(top[0])]} — ${formatTL(top[1])} kazandınız.`;
+      return `Bu yılın en iyi ayı ${monthNames[Number(top[0])]} - ${formatTL(top[1])} kazandınız.`;
     },
   },
   {
@@ -2279,7 +2279,7 @@ const ANSWER_LIBRARY = [
       ctx.deals.forEach((d) => { totals[d.customerId] = (totals[d.customerId] || 0) + 1; });
       const top = topEntry(totals);
       const customer = ctx.customers.find((c) => c.id === top[0]);
-      return `${customer?.name || "Bilinmeyen müşteri"} — ${top[1]} kayıtla en çok kaydı olan müşteriniz.`;
+      return `${customer?.name || "Bilinmeyen müşteri"} - ${top[1]} kayıtla en çok kaydı olan müşteriniz.`;
     },
   },
   {
@@ -2291,7 +2291,7 @@ const ANSWER_LIBRARY = [
       if (ctx.deals.length === 0) return "Henüz bir kaydınız yok.";
       const top = [...ctx.deals].sort((a, b) => (b.value || 0) - (a.value || 0))[0];
       const customer = ctx.customers.find((c) => c.id === top.customerId);
-      return `${customer?.name || "Bilinmeyen müşteri"} — "${top.title}" kaydı ${formatTL(top.value)} ile en yüksek tutarlı tekli kaydınız.`;
+      return `${customer?.name || "Bilinmeyen müşteri"} - "${top.title}" kaydı ${formatTL(top.value)} ile en yüksek tutarlı tekli kaydınız.`;
     },
   },
   {
@@ -2358,7 +2358,7 @@ const ANSWER_LIBRARY = [
       if (withContact.length === 0) return "Henüz temas tarihi girilmiş bir müşteriniz yok.";
       const oldest = [...withContact].sort((a, b) => new Date(a.lastContact) - new Date(b.lastContact))[0];
       const days = Math.floor((Date.now() - new Date(oldest.lastContact).getTime()) / (24 * 60 * 60 * 1000));
-      return `${oldest.name} — ${days} gündür temas edilmemiş.`;
+      return `${oldest.name} - ${days} gündür temas edilmemiş.`;
     },
   },
   {
@@ -2476,7 +2476,7 @@ const ANSWER_LIBRARY = [
       deals.forEach((d) => { totals[d.customerId] = (totals[d.customerId] || 0) + 1; });
       const top = topEntry(totals);
       const customer = ctx.customers.find((c) => c.id === top[0]);
-      return `${customer?.name || "Bilinmeyen müşteri"} — bu çeyrek ${top[1]} yeni kayıtla en çok kayıt açtığınız müşteri.`;
+      return `${customer?.name || "Bilinmeyen müşteri"} - bu çeyrek ${top[1]} yeni kayıtla en çok kayıt açtığınız müşteri.`;
     },
   },
   {
@@ -2751,7 +2751,7 @@ const ANSWER_LIBRARY = [
     compute: (ctx) => {
       if (ctx.companyExpenses.length === 0) return "Henüz kayıtlı bir gideriniz yok.";
       const top = [...ctx.companyExpenses].sort((a, b) => (b.amount || 0) - (a.amount || 0))[0];
-      return `En büyük tek gider kaydınız "${top.title}" — ${formatTL(top.amount)}.`;
+      return `En büyük tek gider kaydınız "${top.title}" - ${formatTL(top.amount)}.`;
     },
   },
   {
@@ -3069,7 +3069,7 @@ const ANSWER_LIBRARY = [
       ctx.tickets.forEach((t) => { totals[t.customerId] = (totals[t.customerId] || 0) + 1; });
       const top = topEntry(totals);
       const customer = ctx.customers.find((c) => c.id === top[0]);
-      return `${customer?.name || "Bilinmeyen müşteri"} — ${top[1]} destek talebiyle en çok talep açan müşteriniz.`;
+      return `${customer?.name || "Bilinmeyen müşteri"} - ${top[1]} destek talebiyle en çok talep açan müşteriniz.`;
     },
   },
   {
@@ -3138,7 +3138,7 @@ const ANSWER_LIBRARY = [
       const oldest = [...open].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))[0];
       const days = Math.floor((Date.now() - new Date(oldest.createdAt).getTime()) / (24 * 60 * 60 * 1000));
       const customer = ctx.customers.find((c) => c.id === oldest.customerId);
-      return `"${oldest.subject}" (${customer?.name || "müşteri silinmiş"}) — ${days} gündür açık.`;
+      return `"${oldest.subject}" (${customer?.name || "müşteri silinmiş"}) - ${days} gündür açık.`;
     },
   },
   {
@@ -3250,7 +3250,7 @@ const ANSWER_LIBRARY = [
       const next = upcoming[0];
       const customer = ctx.customers.find((c) => c.id === next.customerId);
       const dt = next.customFields[ctx.appointmentDateTimeKey];
-      return `Bir sonraki randevunuz ${new Date(dt).toLocaleDateString("tr-TR")} tarihinde, saat ${dt.slice(11, 16)} — ${customer?.name || "müşteri silinmiş"}.`;
+      return `Bir sonraki randevunuz ${new Date(dt).toLocaleDateString("tr-TR")} tarihinde, saat ${dt.slice(11, 16)} - ${customer?.name || "müşteri silinmiş"}.`;
     },
   },
   {
@@ -3287,7 +3287,7 @@ const ANSWER_LIBRARY = [
       ctx.groupClassEnrollments.forEach((e) => { totals[e.groupClassId] = (totals[e.groupClassId] || 0) + 1; });
       const sorted = [...ctx.groupClasses].sort((a, b) => (totals[a.id] || 0) - (totals[b.id] || 0));
       const emptiest = sorted[0];
-      return `En az kayıtlı dersiniz "${emptiest.name}" — ${totals[emptiest.id] || 0}/${emptiest.capacity ?? "?"} kayıt.`;
+      return `En az kayıtlı dersiniz "${emptiest.name}" - ${totals[emptiest.id] || 0}/${emptiest.capacity ?? "?"} kayıt.`;
     },
   },
   {
@@ -3403,7 +3403,7 @@ const ANSWER_LIBRARY = [
         .filter(Boolean);
       if (rates.length === 0) return "Henüz hiçbir dersiniz için yoklama girilmemiş.";
       const best = [...rates].sort((a, b) => b.rate - a.rate)[0];
-      return `En yüksek katılım oranına sahip dersiniz "${best.name}" — %${Math.round(best.rate * 100)} (${best.total} yoklama kaydı).`;
+      return `En yüksek katılım oranına sahip dersiniz "${best.name}" - %${Math.round(best.rate * 100)} (${best.total} yoklama kaydı).`;
     },
   },
   {
@@ -3425,7 +3425,7 @@ const ANSWER_LIBRARY = [
         .filter(Boolean);
       if (rates.length === 0) return "Henüz hiçbir dersiniz için yoklama girilmemiş.";
       const worst = [...rates].sort((a, b) => a.rate - b.rate)[0];
-      return `En düşük katılım oranına sahip dersiniz "${worst.name}" — %${Math.round(worst.rate * 100)} (${worst.total} yoklama kaydı).`;
+      return `En düşük katılım oranına sahip dersiniz "${worst.name}" - %${Math.round(worst.rate * 100)} (${worst.total} yoklama kaydı).`;
     },
   },
   {
@@ -3441,7 +3441,7 @@ const ANSWER_LIBRARY = [
       attendance.forEach((a) => { totals[a.customerId] = (totals[a.customerId] || 0) + 1; });
       const top = topEntry(totals);
       const customer = ctx.customers.find((c) => c.id === top[0]);
-      return `${customer?.name || "Bilinmeyen müşteri"} — ${top[1]} derse katılarak en çok derse gelen müşteriniz.`;
+      return `${customer?.name || "Bilinmeyen müşteri"} - ${top[1]} derse katılarak en çok derse gelen müşteriniz.`;
     },
   },
   {
@@ -3628,7 +3628,7 @@ const ANSWER_LIBRARY = [
       open.forEach((d) => { totals[d.assignedTo] = (totals[d.assignedTo] || 0) + (d.value || 0); });
       const top = topEntry(totals);
       const name = top[0] === ctx.currentUserId ? "Siz" : (ctx.teamMembers.find((m) => m.id === top[0])?.name || ctx.teamMembers.find((m) => m.id === top[0])?.email || "Bilinmeyen üye");
-      return `${name} — açık kayıtlarında ${formatTL(top[1])} değerle en yüksek açık portföye sahip.`;
+      return `${name} - açık kayıtlarında ${formatTL(top[1])} değerle en yüksek açık portföye sahip.`;
     },
   },
   {
@@ -3644,7 +3644,7 @@ const ANSWER_LIBRARY = [
       assigned.forEach((d) => { totals[d.assignedTo] = (totals[d.assignedTo] || 0) + 1; });
       const top = topEntry(totals);
       const name = top[0] === ctx.currentUserId ? "Siz" : (ctx.teamMembers.find((m) => m.id === top[0])?.name || ctx.teamMembers.find((m) => m.id === top[0])?.email || "Bilinmeyen üye");
-      return `${name} — ${top[1]} kayıtla en çok kayıt sorumlusu olan kişi.`;
+      return `${name} - ${top[1]} kayıtla en çok kayıt sorumlusu olan kişi.`;
     },
   },
   {
@@ -3659,7 +3659,7 @@ const ANSWER_LIBRARY = [
       withUploader.forEach((a) => { totals[a.uploadedBy] = (totals[a.uploadedBy] || 0) + 1; });
       const top = topEntry(totals);
       const member = ctx.teamMembers.find((m) => m.email === top[0]);
-      return `${member?.name || top[0]} — ${top[1]} dosya ile en çok dosya yükleyen kişi.`;
+      return `${member?.name || top[0]} - ${top[1]} dosya ile en çok dosya yükleyen kişi.`;
     },
   },
   {
@@ -3718,7 +3718,7 @@ const ANSWER_LIBRARY = [
         return { label: def.label, rate: filled / records.length };
       });
       const lowest = [...rates].sort((a, b) => a.rate - b.rate)[0];
-      return `En az doldurulan özel alanınız "${lowest.label}" — %${Math.round(lowest.rate * 100)} doluluk.`;
+      return `En az doldurulan özel alanınız "${lowest.label}" - %${Math.round(lowest.rate * 100)} doluluk.`;
     },
   },
   {
@@ -3806,14 +3806,14 @@ const ANSWER_LIBRARY = [
     category: "Sistem",
     label: "Logom yüklü mü?",
     keywords: ["logo yüklü mü", "firma logosu var mı"],
-    compute: (ctx) => (ctx.companySettings?.logoUrl ? "Evet, logonuz yüklü." : "Henüz bir logo yüklemediniz — teklif PDF'lerinizde ve portalda daha profesyonel görünmesi için ekleyebilirsiniz."),
+    compute: (ctx) => (ctx.companySettings?.logoUrl ? "Evet, logonuz yüklü." : "Henüz bir logo yüklemediniz - teklif PDF'lerinizde ve portalda daha profesyonel görünmesi için ekleyebilirsiniz."),
   },
   {
     id: "lead_capture_link_active",
     category: "Sistem",
     label: "Müşteri Kazanma Linkim aktif mi?",
     keywords: ["müşteri kazanma linki aktif mi", "lead capture link"],
-    compute: (ctx) => (ctx.companySettings?.leadCaptureToken ? "Evet, Müşteri Kazanma Linkiniz aktif — Ayarlar'dan paylaşabilirsiniz." : "Müşteri Kazanma Linkiniz henüz oluşturulmamış görünüyor."),
+    compute: (ctx) => (ctx.companySettings?.leadCaptureToken ? "Evet, Müşteri Kazanma Linkiniz aktif - Ayarlar'dan paylaşabilirsiniz." : "Müşteri Kazanma Linkiniz henüz oluşturulmamış görünüyor."),
   },
   {
     id: "default_kdv_rate_value",
@@ -3888,13 +3888,13 @@ const ANSWER_LIBRARY = [
     keywords: ["neden kaybediyorum", "satış kaybı analizi", "neden satamıyorum", "kayıp analizi teşhis", "neyi değiştirmem lazım"],
     compute: (ctx) => {
       const lost = ctx.deals.filter((d) => d.stage === "kaybedildi" && d.lostReason);
-      if (lost.length < 3) return "Nedeni belirtilmiş yeterli kayıp kaydınız yok (en az birkaç kayıt gerekiyor) — kayıp nedenini not etmeye devam edin, zamanla burada net bir örüntü görebiliriz.";
+      if (lost.length < 3) return "Nedeni belirtilmiş yeterli kayıp kaydınız yok (en az birkaç kayıt gerekiyor) - kayıp nedenini not etmeye devam edin, zamanla burada net bir örüntü görebiliriz.";
       const totals = {};
       lost.forEach((d) => { totals[d.lostReason] = (totals[d.lostReason] || 0) + 1; });
       const [topReason, topCount] = topEntry(totals);
       const share = Math.round((topCount / lost.length) * 100);
       const advice = REASON_ADVICE[topReason] || "Bu nedeni daha yakından incelemek için ilgili kayıtların notlarına tekrar göz atmanızda fayda var.";
-      if (share >= 40) return `Kayıplarınızın %${share}'i "${topReason}" nedeniyle (${topCount}/${lost.length}) — baskın bir örüntü var. ${advice}`;
+      if (share >= 40) return `Kayıplarınızın %${share}'i "${topReason}" nedeniyle (${topCount}/${lost.length}) - baskın bir örüntü var. ${advice}`;
       return `Kayıplarınız birçok farklı nedene dağılmış, tek bir baskın neden yok (en sık: "${topReason}", %${share}). Genel bir sorundan çok kayıt bazlı özel durumlar öne çıkıyor gibi görünüyor.`;
     },
   },
@@ -3914,8 +3914,8 @@ const ANSWER_LIBRARY = [
       const winRateThis = closedThis.filter((d) => d.stage === "kazanildi").length / closedThis.length;
       const winRateLast = closedLast.filter((d) => d.stage === "kazanildi").length / closedLast.length;
       const diff = Math.round((winRateThis - winRateLast) * 100);
-      if (diff <= -10) return `Kazanma oranınız geçen aya göre ${Math.abs(diff)} puan düştü (%${Math.round(winRateLast * 100)} → %${Math.round(winRateThis * 100)}) — kayıp nedenlerinize bakmanızda fayda var, "neden kaybediyorum" diye de sorabilirsiniz.`;
-      if (diff >= 10) return `Kazanma oranınız geçen aya göre ${diff} puan arttı (%${Math.round(winRateLast * 100)} → %${Math.round(winRateThis * 100)}) — iyi gidiyor, bu ay ne farklı yaptığınızı not etmeye değer.`;
+      if (diff <= -10) return `Kazanma oranınız geçen aya göre ${Math.abs(diff)} puan düştü (%${Math.round(winRateLast * 100)} → %${Math.round(winRateThis * 100)}) - kayıp nedenlerinize bakmanızda fayda var, "neden kaybediyorum" diye de sorabilirsiniz.`;
+      if (diff >= 10) return `Kazanma oranınız geçen aya göre ${diff} puan arttı (%${Math.round(winRateLast * 100)} → %${Math.round(winRateThis * 100)}) - iyi gidiyor, bu ay ne farklı yaptığınızı not etmeye değer.`;
       return `Kazanma oranınız geçen aya göre görece stabil (%${Math.round(winRateLast * 100)} → %${Math.round(winRateThis * 100)}).`;
     },
   },
@@ -3932,9 +3932,9 @@ const ANSWER_LIBRARY = [
       const overdue = open.filter((d) => d.reminderDate && d.reminderDate < todayStr).length;
       const missingShare = Math.round((missing / open.length) * 100);
       if (missingShare >= 40 || overdue >= 5) {
-        return `Açık kayıtlarınızın %${missingShare}'inde hiç hatırlatma tarihi yok, ${overdue} tanesinin hatırlatması da geçmiş — bu, takibi kaçırıp kayıt kaybetmenin yaygın bir nedenidir. Her açık kayda bir sonraki adım için hatırlatma tarihi eklemeyi alışkanlık hâline getirin.`;
+        return `Açık kayıtlarınızın %${missingShare}'inde hiç hatırlatma tarihi yok, ${overdue} tanesinin hatırlatması da geçmiş - bu, takibi kaçırıp kayıt kaybetmenin yaygın bir nedenidir. Her açık kayda bir sonraki adım için hatırlatma tarihi eklemeyi alışkanlık hâline getirin.`;
       }
-      return `Takip alışkanlıklarınız iyi görünüyor — açık kayıtlarınızın çoğunda hatırlatma tarihi var, geciken hatırlatma sayınız (${overdue}) düşük.`;
+      return `Takip alışkanlıklarınız iyi görünüyor - açık kayıtlarınızın çoğunda hatırlatma tarihi var, geciken hatırlatma sayınız (${overdue}) düşük.`;
     },
   },
   {
@@ -3945,9 +3945,9 @@ const ANSWER_LIBRARY = [
     compute: (ctx) => {
       if (ctx.passiveCustomerRate == null) return "Bu analiz için henüz yeterli müşteri/kayıt verisi yok.";
       const rate = Math.round(ctx.passiveCustomerRate);
-      if (rate >= 40) return `Müşterilerinizin %${rate}'i 90 gündür işlem yapmıyor — bu yüksek bir oran, kaybetme riski taşıyorsunuz. Bu müşterilere kişisel bir hatırlatma mesajı veya küçük bir kampanya göndermeyi değerlendirin.`;
-      if (rate >= 20) return `Müşterilerinizin %${rate}'i pasif durumda — takip edilmeye değer ama henüz alarm verici değil.`;
-      return `Pasif müşteri oranınız düşük (%${rate}) — müşteri bağlılığınız şu an sağlıklı görünüyor.`;
+      if (rate >= 40) return `Müşterilerinizin %${rate}'i 90 gündür işlem yapmıyor - bu yüksek bir oran, kaybetme riski taşıyorsunuz. Bu müşterilere kişisel bir hatırlatma mesajı veya küçük bir kampanya göndermeyi değerlendirin.`;
+      if (rate >= 20) return `Müşterilerinizin %${rate}'i pasif durumda - takip edilmeye değer ama henüz alarm verici değil.`;
+      return `Pasif müşteri oranınız düşük (%${rate}) - müşteri bağlılığınız şu an sağlıklı görünüyor.`;
     },
   },
   {
@@ -3961,8 +3961,8 @@ const ANSWER_LIBRARY = [
       if (lost.length < 3) return "Son 6 ayda nedeni belirtilmiş yeterli kayıp kaydınız yok, güvenilir bir sinyal veremiyorum.";
       const priceLost = lost.filter((d) => d.lostReason === "Yüksek fiyat").length;
       const share = Math.round((priceLost / lost.length) * 100);
-      if (share >= 35) return `Son 6 aydaki kayıplarınızın %${share}'i "Yüksek fiyat" nedeniyle — bu, fiyatlandırmanızı gözden geçirmeniz için makul bir sinyal. İndirim yerine paketleme veya ek değer eklemeyi deneyebilirsiniz.`;
-      return `Son 6 ayda "Yüksek fiyat" kayıplarınızın payı %${share} — fiyat, kayıplarınızda baskın bir neden gibi görünmüyor.`;
+      if (share >= 35) return `Son 6 aydaki kayıplarınızın %${share}'i "Yüksek fiyat" nedeniyle - bu, fiyatlandırmanızı gözden geçirmeniz için makul bir sinyal. İndirim yerine paketleme veya ek değer eklemeyi deneyebilirsiniz.`;
+      return `Son 6 ayda "Yüksek fiyat" kayıplarınızın payı %${share} - fiyat, kayıplarınızda baskın bir neden gibi görünmüyor.`;
     },
   },
   {
@@ -3976,8 +3976,8 @@ const ANSWER_LIBRARY = [
       const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
       const stalled = open.filter((d) => new Date(d.createdAt).getTime() < cutoff).length;
       const share = Math.round((stalled / open.length) * 100);
-      if (share >= 40) return `Açık kayıtlarınızın %${share}'i 30 günden uzun süredir açık — bu kayıtlarda net bir "evet/hayır" cevabı almak için daha proaktif bir takip deneyin; uzayan belirsizlik genelde kayba dönüşür.`;
-      return `Açık kayıtlarınızın çoğu makul bir sürede ilerliyor (%${share}'i 30 günden eski) — takılı kalma şu an büyük bir sorun gibi görünmüyor.`;
+      if (share >= 40) return `Açık kayıtlarınızın %${share}'i 30 günden uzun süredir açık - bu kayıtlarda net bir "evet/hayır" cevabı almak için daha proaktif bir takip deneyin; uzayan belirsizlik genelde kayba dönüşür.`;
+      return `Açık kayıtlarınızın çoğu makul bir sürede ilerliyor (%${share}'i 30 günden eski) - takılı kalma şu an büyük bir sorun gibi görünmüyor.`;
     },
   },
   {
@@ -3990,9 +3990,9 @@ const ANSWER_LIBRARY = [
       const resolved = ctx.tickets.filter((t) => TERMINAL_STATUSES.includes(t.status));
       const rate = Math.round((resolved.length / ctx.tickets.length) * 100);
       if (ctx.breachedTicketsCount >= 3 || rate < 50) {
-        return `${ctx.breachedTicketsCount} talebiniz SLA'yı aşmış ve çözülme oranınız %${rate} — yavaş/eksik destek genelde müşteri güvenini ve tekrar satın almayı olumsuz etkiler. Önce bekleyen talepleri kapatmaya odaklanın.`;
+        return `${ctx.breachedTicketsCount} talebiniz SLA'yı aşmış ve çözülme oranınız %${rate} - yavaş/eksik destek genelde müşteri güvenini ve tekrar satın almayı olumsuz etkiler. Önce bekleyen talepleri kapatmaya odaklanın.`;
       }
-      return `Destek sürecinizde (SLA aşımı ${ctx.breachedTicketsCount}, çözülme oranı %${rate}) belirgin bir sorun görünmüyor — bu şu an satışlarınızı olumsuz etkileyen bir faktör gibi durmuyor.`;
+      return `Destek sürecinizde (SLA aşımı ${ctx.breachedTicketsCount}, çözülme oranı %${rate}) belirgin bir sorun görünmüyor - bu şu an satışlarınızı olumsuz etkileyen bir faktör gibi durmuyor.`;
     },
   },
   {
@@ -4003,26 +4003,26 @@ const ANSWER_LIBRARY = [
     compute: (ctx) => {
       const candidates = [];
       if (ctx.breachedTicketsCount > 0) {
-        candidates.push({ score: ctx.breachedTicketsCount * 3, text: `${ctx.breachedTicketsCount} destek talebinizin SLA süresi geçmiş — müşteri güvenini doğrudan etkiler, önce bunlara bakın.` });
+        candidates.push({ score: ctx.breachedTicketsCount * 3, text: `${ctx.breachedTicketsCount} destek talebinizin SLA süresi geçmiş - müşteri güvenini doğrudan etkiler, önce bunlara bakın.` });
       }
       const open = ctx.deals.filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi");
       const todayStr = new Date().toISOString().slice(0, 10);
       const overdueReminders = open.filter((d) => d.reminderDate && d.reminderDate < todayStr).length;
       if (overdueReminders > 0) {
-        candidates.push({ score: overdueReminders * 2, text: `${overdueReminders} kaydınızın hatırlatma tarihi geçmiş — bunları güncelleyip takip etmek muhtemelen en hızlı kazanımı sağlar.` });
+        candidates.push({ score: overdueReminders * 2, text: `${overdueReminders} kaydınızın hatırlatma tarihi geçmiş - bunları güncelleyip takip etmek muhtemelen en hızlı kazanımı sağlar.` });
       }
       if (ctx.passiveCustomerRate != null && ctx.passiveCustomerRate >= 40) {
-        candidates.push({ score: ctx.passiveCustomerRate, text: `Müşterilerinizin %${Math.round(ctx.passiveCustomerRate)}'i pasif durumda — bir yeniden etkileşim kampanyası düşünmelisiniz.` });
+        candidates.push({ score: ctx.passiveCustomerRate, text: `Müşterilerinizin %${Math.round(ctx.passiveCustomerRate)}'i pasif durumda - bir yeniden etkileşim kampanyası düşünmelisiniz.` });
       }
       const bounds6m = getRangeBounds("son_6_ay");
       const lost6m = ctx.deals.filter((d) => d.stage === "kaybedildi" && d.lostReason && inRange(d.closedAt || d.createdAt, bounds6m));
       if (lost6m.length >= 3) {
         const priceLost = lost6m.filter((d) => d.lostReason === "Yüksek fiyat").length;
         if (priceLost / lost6m.length >= 0.35) {
-          candidates.push({ score: (priceLost / lost6m.length) * 50, text: "Son 6 ayda kayıplarınızın önemli bir kısmı \"Yüksek fiyat\" nedeniyle — fiyatlandırmanızı gözden geçirmeyi düşünün." });
+          candidates.push({ score: (priceLost / lost6m.length) * 50, text: "Son 6 ayda kayıplarınızın önemli bir kısmı \"Yüksek fiyat\" nedeniyle - fiyatlandırmanızı gözden geçirmeyi düşünün." });
         }
       }
-      if (candidates.length === 0) return "Şu an belirgin bir alarm sinyali görünmüyor — genel durumunuz istikrarlı, düzenli takibe devam edin.";
+      if (candidates.length === 0) return "Şu an belirgin bir alarm sinyali görünmüyor - genel durumunuz istikrarlı, düzenli takibe devam edin.";
       return candidates.sort((a, b) => b.score - a.score)[0].text;
     },
   },
@@ -4040,8 +4040,8 @@ const ANSWER_LIBRARY = [
       if (customerCount < 5) return "Sağlıklı bir oran için yeterli müşteri sayınız yok, veri arttıkça burada anlamlı bir sonuç görürsünüz.";
       const repeatCount = Object.values(byCustomer).filter((n) => n >= 2).length;
       const share = Math.round((repeatCount / customerCount) * 100);
-      if (share >= 30) return `Müşterilerinizin %${share}'i birden fazla kez satın almış — sağlıklı bir tekrar oranı, mevcut müşteri ilişkilerinizi korumaya devam edin.`;
-      return `Müşterilerinizin sadece %${share}'i birden fazla kez satın almış, çoğu tek seferlik — mevcut müşterilere yeniden ulaşmayı (hatırlatma, küçük bir kampanya) değerlendirin, genelde yeni müşteri kazanmaktan daha ucuza gelir.`;
+      if (share >= 30) return `Müşterilerinizin %${share}'i birden fazla kez satın almış - sağlıklı bir tekrar oranı, mevcut müşteri ilişkilerinizi korumaya devam edin.`;
+      return `Müşterilerinizin sadece %${share}'i birden fazla kez satın almış, çoğu tek seferlik - mevcut müşterilere yeniden ulaşmayı (hatırlatma, küçük bir kampanya) değerlendirin, genelde yeni müşteri kazanmaktan daha ucuza gelir.`;
     },
   },
   {
@@ -4054,8 +4054,8 @@ const ANSWER_LIBRARY = [
       if (won.length < 3) return "Sağlıklı bir ortalama için yeterli kazanılmış kaydınız yok.";
       const totalDays = won.reduce((sum, d) => sum + (new Date(d.closedAt) - new Date(d.createdAt)) / (1000 * 60 * 60 * 24), 0);
       const avgDays = Math.round(totalDays / won.length);
-      if (avgDays > 30) return `Bir kaydı kazanmanız ortalama ${avgDays} gün sürüyor — bu uzun bir süre, açık kayıtlarınızı daha sık takip etmek karar sürecini hızlandırabilir.`;
-      return `Bir kaydı kazanmanız ortalama ${avgDays} gün sürüyor — makul bir hız, mevcut takip temponuzu koruyun.`;
+      if (avgDays > 30) return `Bir kaydı kazanmanız ortalama ${avgDays} gün sürüyor - bu uzun bir süre, açık kayıtlarınızı daha sık takip etmek karar sürecini hızlandırabilir.`;
+      return `Bir kaydı kazanmanız ortalama ${avgDays} gün sürüyor - makul bir hız, mevcut takip temponuzu koruyun.`;
     },
   },
   {
@@ -4071,9 +4071,9 @@ const ANSWER_LIBRARY = [
       const totalExpense = expense + dealCost;
       if (income === 0) return "Bu ay henüz bir geliriniz yok, bu oranı hesaplamak için erken.";
       const ratio = Math.round((totalExpense / income) * 100);
-      if (ratio >= 80) return `Bu ay giderleriniz gelirinizin %${ratio}'i — kâr marjınız daralmış görünüyor, gereksiz/tekrarlayan giderlerinizi gözden geçirmenizde fayda var.`;
-      if (ratio >= 50) return `Bu ay giderleriniz gelirinizin %${ratio}'i — normal aralıkta ama yakından takip etmeye devam edin.`;
-      return `Bu ay giderleriniz gelirinizin sadece %${ratio}'i — sağlıklı bir marjla çalışıyorsunuz.`;
+      if (ratio >= 80) return `Bu ay giderleriniz gelirinizin %${ratio}'i - kâr marjınız daralmış görünüyor, gereksiz/tekrarlayan giderlerinizi gözden geçirmenizde fayda var.`;
+      if (ratio >= 50) return `Bu ay giderleriniz gelirinizin %${ratio}'i - normal aralıkta ama yakından takip etmeye devam edin.`;
+      return `Bu ay giderleriniz gelirinizin sadece %${ratio}'i - sağlıklı bir marjla çalışıyorsunuz.`;
     },
   },
   {
@@ -4095,9 +4095,9 @@ const ANSWER_LIBRARY = [
       });
       if (delays.length < 3) return "Tamamen tahsil edilmiş yeterli kaydınız yok, güvenilir bir ortalama veremiyorum.";
       const avgDelay = Math.round(delays.reduce((a, b) => a + b, 0) / delays.length);
-      if (avgDelay <= 0) return "Kazandığınız kayıtlarda tahsilatı genelde aynı gün veya önceden alıyorsunuz — tahsilat süreciniz sağlıklı.";
-      if (avgDelay > 14) return `Kazandığınız bir kaydın tamamen tahsil edilmesi ortalama ${avgDelay} gün sürüyor — bu nakit akışınızı zorlayabilir, peşinat almayı veya daha kısa vadeli bir ödeme planı istemeyi değerlendirin.`;
-      return `Kazandığınız bir kaydın tamamen tahsil edilmesi ortalama ${avgDelay} gün sürüyor — makul bir süre.`;
+      if (avgDelay <= 0) return "Kazandığınız kayıtlarda tahsilatı genelde aynı gün veya önceden alıyorsunuz - tahsilat süreciniz sağlıklı.";
+      if (avgDelay > 14) return `Kazandığınız bir kaydın tamamen tahsil edilmesi ortalama ${avgDelay} gün sürüyor - bu nakit akışınızı zorlayabilir, peşinat almayı veya daha kısa vadeli bir ödeme planı istemeyi değerlendirin.`;
+      return `Kazandığınız bir kaydın tamamen tahsil edilmesi ortalama ${avgDelay} gün sürüyor - makul bir süre.`;
     },
   },
   {
@@ -4117,9 +4117,9 @@ const ANSWER_LIBRARY = [
       const rateOf = (list) => Math.round((list.filter((d) => d.stage === "kaybedildi" && d.lostReason === "Randevuya gelmedi").length / list.length) * 100);
       const thisRate = rateOf(closedThis);
       const lastRate = rateOf(closedLast);
-      if (thisRate > lastRate + 5) return `Bu ay gelmeme oranınız %${thisRate}, geçen ay %${lastRate}'ti — artış var, randevu hatırlatmalarınızın açık olduğundan emin olun ve randevuya yakın ek bir hatırlatma göndermeyi deneyin.`;
-      if (thisRate < lastRate - 5) return `Bu ay gelmeme oranınız %${thisRate}, geçen ay %${lastRate}'ti — düşüş iyi bir işaret, mevcut hatırlatma alışkanlığınızı koruyun.`;
-      return `Bu ay gelmeme oranınız %${thisRate}, geçen ay %${lastRate}'ti — belirgin bir değişim yok.`;
+      if (thisRate > lastRate + 5) return `Bu ay gelmeme oranınız %${thisRate}, geçen ay %${lastRate}'ti - artış var, randevu hatırlatmalarınızın açık olduğundan emin olun ve randevuya yakın ek bir hatırlatma göndermeyi deneyin.`;
+      if (thisRate < lastRate - 5) return `Bu ay gelmeme oranınız %${thisRate}, geçen ay %${lastRate}'ti - düşüş iyi bir işaret, mevcut hatırlatma alışkanlığınızı koruyun.`;
+      return `Bu ay gelmeme oranınız %${thisRate}, geçen ay %${lastRate}'ti - belirgin bir değişim yok.`;
     },
   },
   {
@@ -4134,7 +4134,7 @@ const ANSWER_LIBRARY = [
       items.forEach((li) => { totals[li.description] = (totals[li.description] || 0) + (li.quantity || 1); });
       const top = topEntry(totals);
       if (!top) return "Kazanılmış kayıtlarınızda henüz kalem (ürün/hizmet satırı) bulunmuyor.";
-      return `En çok satılan kaleminiz "${top[0]}" — kazanılmış kayıtlarınızda toplam ${top[1]} adet. Bunu öne çıkaran bir kampanya veya paket düşünebilirsiniz.`;
+      return `En çok satılan kaleminiz "${top[0]}" - kazanılmış kayıtlarınızda toplam ${top[1]} adet. Bunu öne çıkaran bir kampanya veya paket düşünebilirsiniz.`;
     },
   },
   {
@@ -4148,8 +4148,8 @@ const ANSWER_LIBRARY = [
       const dealIdsWithAttachment = new Set(ctx.attachments.filter((a) => a.entityType === "deals" && !a.deletedAt).map((a) => a.entityId));
       const missing = won.filter((d) => !dealIdsWithAttachment.has(d.id)).length;
       const share = Math.round((missing / won.length) * 100);
-      if (share >= 50) return `Kazandığınız kayıtların %${share}'inde hiç dosya/sözleşme eklenmemiş — bir anlaşmazlık durumunda elinizde kanıt olmayabilir, en azından önemli kayıtlara sözleşme veya onay yazışması eklemeyi alışkanlık hâline getirin.`;
-      return `Kazandığınız kayıtların çoğunda (%${100 - share}'i) dosya/sözleşme eklenmiş — dokümantasyon alışkanlığınız iyi durumda.`;
+      if (share >= 50) return `Kazandığınız kayıtların %${share}'inde hiç dosya/sözleşme eklenmemiş - bir anlaşmazlık durumunda elinizde kanıt olmayabilir, en azından önemli kayıtlara sözleşme veya onay yazışması eklemeyi alışkanlık hâline getirin.`;
+      return `Kazandığınız kayıtların çoğunda (%${100 - share}'i) dosya/sözleşme eklenmiş - dokümantasyon alışkanlığınız iyi durumda.`;
     },
   },
   {
@@ -4163,10 +4163,10 @@ const ANSWER_LIBRARY = [
       const manualDeals = ctx.deals.filter((d) => d.customFields?.kaynak !== "portal" && (d.stage === "kazanildi" || d.stage === "kaybedildi"));
       if (portalDeals.length < 3) return "Portaldan yeterli sayıda sonuçlanmış kaydınız yok, karşılaştırma için erken.";
       const portalWinRate = Math.round((portalDeals.filter((d) => d.stage === "kazanildi").length / portalDeals.length) * 100);
-      if (manualDeals.length < 3) return `Portaldan gelen kayıtlarınızın kazanma oranı %${portalWinRate} — elle eklediğiniz kayıt sayınız karşılaştırma için henüz yetersiz.`;
+      if (manualDeals.length < 3) return `Portaldan gelen kayıtlarınızın kazanma oranı %${portalWinRate} - elle eklediğiniz kayıt sayınız karşılaştırma için henüz yetersiz.`;
       const manualWinRate = Math.round((manualDeals.filter((d) => d.stage === "kazanildi").length / manualDeals.length) * 100);
-      if (portalWinRate < manualWinRate - 15) return `Portaldan gelen kayıtlarınızın kazanma oranı %${portalWinRate}, elle eklediklerinizde ise %${manualWinRate} — portaldan gelen taleplerin kalitesi biraz daha düşük olabilir, bu kayıtlara daha hızlı geri dönmeyi deneyin.`;
-      return `Portaldan gelen kayıtlarınızın kazanma oranı %${portalWinRate}, elle eklediklerinizde %${manualWinRate} — aralarında belirgin bir kalite farkı görünmüyor.`;
+      if (portalWinRate < manualWinRate - 15) return `Portaldan gelen kayıtlarınızın kazanma oranı %${portalWinRate}, elle eklediklerinizde ise %${manualWinRate} - portaldan gelen taleplerin kalitesi biraz daha düşük olabilir, bu kayıtlara daha hızlı geri dönmeyi deneyin.`;
+      return `Portaldan gelen kayıtlarınızın kazanma oranı %${portalWinRate}, elle eklediklerinizde %${manualWinRate} - aralarında belirgin bir kalite farkı görünmüyor.`;
     },
   },
   {
@@ -4175,13 +4175,13 @@ const ANSWER_LIBRARY = [
     label: "Kayıtlarımda fiyat listesini mi kullanıyorum, yoksa hep elle mi fiyat giriyorum?",
     keywords: ["fiyat listesi kullanım oranı", "elle fiyat giriyorum", "yapılandırılmış fiyatlandırma"],
     compute: (ctx) => {
-      if (ctx.priceListItems.length === 0) return "Henüz bir fiyat listeniz yok — Ayarlar → Ürün & Hizmet Fiyat Listesi'nden ekleyip kayıtlarınızda seçerek zaman kazanabilirsiniz.";
+      if (ctx.priceListItems.length === 0) return "Henüz bir fiyat listeniz yok - Ayarlar → Ürün & Hizmet Fiyat Listesi'nden ekleyip kayıtlarınızda seçerek zaman kazanabilirsiniz.";
       if (ctx.dealLineItems.length === 0) return "Kayıtlarınızda henüz kalem (ürün/hizmet satırı) kullanılmamış.";
       const priceListNames = new Set(ctx.priceListItems.map((i) => i.name));
       const fromList = ctx.dealLineItems.filter((li) => priceListNames.has(li.description)).length;
       const share = Math.round((fromList / ctx.dealLineItems.length) * 100);
-      if (share < 40) return `Kalemlerinizin sadece %${share}'i fiyat listenizdeki ürün/hizmet adlarıyla eşleşiyor — çoğunlukla elle fiyat giriyor olabilirsiniz, fiyat listesini kullanmak hata riskini ve zaman kaybını azaltır.`;
-      return `Kalemlerinizin %${share}'i fiyat listenizdeki ürün/hizmetlerle eşleşiyor — fiyat listenizi düzenli kullanıyorsunuz.`;
+      if (share < 40) return `Kalemlerinizin sadece %${share}'i fiyat listenizdeki ürün/hizmet adlarıyla eşleşiyor - çoğunlukla elle fiyat giriyor olabilirsiniz, fiyat listesini kullanmak hata riskini ve zaman kaybını azaltır.`;
+      return `Kalemlerinizin %${share}'i fiyat listenizdeki ürün/hizmetlerle eşleşiyor - fiyat listenizi düzenli kullanıyorsunuz.`;
     },
   },
   {
@@ -4193,8 +4193,8 @@ const ANSWER_LIBRARY = [
       if (ctx.customers.length === 0) return "Henüz bir müşteri kaydınız yok.";
       const unreachable = ctx.customers.filter((c) => !c.phone && !c.email).length;
       const share = Math.round((unreachable / ctx.customers.length) * 100);
-      if (share >= 15) return `Müşterilerinizin %${share}'inde ne telefon ne e-posta var — bu müşterilere ulaşamazsınız, kayıtlarını güncellemeyi önceliklendirin.`;
-      return `Müşterilerinizin çoğunda telefon veya e-posta kayıtlı (%${100 - share}'i) — iletişim bilgileriniz genel olarak sağlıklı.`;
+      if (share >= 15) return `Müşterilerinizin %${share}'inde ne telefon ne e-posta var - bu müşterilere ulaşamazsınız, kayıtlarını güncellemeyi önceliklendirin.`;
+      return `Müşterilerinizin çoğunda telefon veya e-posta kayıtlı (%${100 - share}'i) - iletişim bilgileriniz genel olarak sağlıklı.`;
     },
   },
   {
@@ -4213,8 +4213,8 @@ const ANSWER_LIBRARY = [
       const rates = Object.values(byMember).filter((m) => m.total >= 3).map((m) => (m.won / m.total) * 100);
       if (rates.length < 2) return "Karşılaştırma için yeterli veri yok (en az 2 üye, her biri en az 3 sonuçlanmış kayıt gerekiyor).";
       const gap = Math.round(Math.max(...rates) - Math.min(...rates));
-      if (gap >= 30) return `Takım üyeleriniz arasında kazanma oranı farkı %${gap} puana kadar çıkıyor — düşük performanslı üyeye eşlik/eğitim desteği vermeyi değerlendirin.`;
-      return `Takım üyeleriniz arasındaki kazanma oranı farkı %${gap} puan — belirgin bir dengesizlik görünmüyor.`;
+      if (gap >= 30) return `Takım üyeleriniz arasında kazanma oranı farkı %${gap} puana kadar çıkıyor - düşük performanslı üyeye eşlik/eğitim desteği vermeyi değerlendirin.`;
+      return `Takım üyeleriniz arasındaki kazanma oranı farkı %${gap} puan - belirgin bir dengesizlik görünmüyor.`;
     },
   },
   {
@@ -4229,7 +4229,7 @@ const ANSWER_LIBRARY = [
       const counts = {};
       won.forEach((d) => { const wd = WEEKDAYS[(new Date(d.closedAt).getDay() + 6) % 7]; counts[wd] = (counts[wd] || 0) + 1; });
       const top = topEntry(counts);
-      return `En çok kazandığınız gün ${top[0]} (${top[1]} kayıt) — o gün için ekstra hazırlıklı/müsait olmak işinize yarayabilir.`;
+      return `En çok kazandığınız gün ${top[0]} (${top[1]} kayıt) - o gün için ekstra hazırlıklı/müsait olmak işinize yarayabilir.`;
     },
   },
   {
@@ -4242,7 +4242,7 @@ const ANSWER_LIBRARY = [
       const lost = ctx.deals.filter((d) => d.stage === "kaybedildi" && inRange(d.closedAt || d.createdAt, bounds));
       if (lost.length === 0) return "Son 6 ayda kaybedilmiş bir kaydınız yok.";
       const total = lost.reduce((sum, d) => sum + (d.value || 0), 0);
-      return `Son 6 ayda kaybettiğiniz kayıtların toplam değeri ${formatTL(total)} (${lost.length} kayıt) — bu tutarın bir kısmını geri kazanmak için uygun olanlara tekrar dönmeyi değerlendirebilirsiniz.`;
+      return `Son 6 ayda kaybettiğiniz kayıtların toplam değeri ${formatTL(total)} (${lost.length} kayıt) - bu tutarın bir kısmını geri kazanmak için uygun olanlara tekrar dönmeyi değerlendirebilirsiniz.`;
     },
   },
   {
@@ -4259,9 +4259,9 @@ const ANSWER_LIBRARY = [
       const lastCount = ctx.deals.filter((d) => inRange(d.createdAt, { start: lastStart, end: lastEnd })).length;
       if (lastCount < 3) return "Geçen ay yeterli veri yok, sağlıklı bir karşılaştırma yapılamıyor.";
       const change = Math.round(((thisCount - lastCount) / lastCount) * 100);
-      if (change <= -30) return `Bu ay ${thisCount} yeni kayıt açtınız, geçen ay ${lastCount} idi — %${Math.abs(change)} bir düşüş var, yeni müşteri/kayıt kazanma çabalarınızı gözden geçirmenin zamanı olabilir.`;
-      if (change >= 30) return `Bu ay ${thisCount} yeni kayıt açtınız, geçen ay ${lastCount} idi — belirgin bir artış var, bu ivmeyi sürdürmeye çalışın.`;
-      return `Bu ay ${thisCount} yeni kayıt açtınız, geçen ay ${lastCount} idi — hızınız istikrarlı.`;
+      if (change <= -30) return `Bu ay ${thisCount} yeni kayıt açtınız, geçen ay ${lastCount} idi - %${Math.abs(change)} bir düşüş var, yeni müşteri/kayıt kazanma çabalarınızı gözden geçirmenin zamanı olabilir.`;
+      if (change >= 30) return `Bu ay ${thisCount} yeni kayıt açtınız, geçen ay ${lastCount} idi - belirgin bir artış var, bu ivmeyi sürdürmeye çalışın.`;
+      return `Bu ay ${thisCount} yeni kayıt açtınız, geçen ay ${lastCount} idi - hızınız istikrarlı.`;
     },
   },
   {
@@ -4274,8 +4274,8 @@ const ANSWER_LIBRARY = [
       const byCustomer = {};
       ctx.tickets.forEach((t) => { byCustomer[t.customerId] = (byCustomer[t.customerId] || 0) + 1; });
       const repeatCustomers = Object.values(byCustomer).filter((n) => n >= 3).length;
-      if (repeatCustomers === 0) return "3'ten fazla destek talebi açan bir müşteriniz yok — bu iyi bir işaret.";
-      return `${repeatCustomers} müşteriniz 3 veya daha fazla destek talebi açmış — bu müşterilerde tekrar eden bir sorun olabilir, kök nedeni araştırmaya değer.`;
+      if (repeatCustomers === 0) return "3'ten fazla destek talebi açan bir müşteriniz yok - bu iyi bir işaret.";
+      return `${repeatCustomers} müşteriniz 3 veya daha fazla destek talebi açmış - bu müşterilerde tekrar eden bir sorun olabilir, kök nedeni araştırmaya değer.`;
     },
   },
   {
@@ -4288,8 +4288,8 @@ const ANSWER_LIBRARY = [
       if (outgoing.length < 5) return "Bu analiz için yeterli destek mesajı verisi yok.";
       const internal = outgoing.filter((m) => m.isInternal).length;
       const share = Math.round((internal / outgoing.length) * 100);
-      if (share >= 50) return `"Giden" mesajlarınızın %${share}'i dahili not — müşteriye giden gerçek yanıt oranınız düşük olabilir, taleplere doğrudan yanıt vermeyi unutmayın.`;
-      return `"Giden" mesajlarınızın %${share}'i dahili not, geri kalanı doğrudan müşteriye gidiyor — sağlıklı bir oran.`;
+      if (share >= 50) return `"Giden" mesajlarınızın %${share}'i dahili not - müşteriye giden gerçek yanıt oranınız düşük olabilir, taleplere doğrudan yanıt vermeyi unutmayın.`;
+      return `"Giden" mesajlarınızın %${share}'i dahili not, geri kalanı doğrudan müşteriye gidiyor - sağlıklı bir oran.`;
     },
   },
   {
@@ -4304,8 +4304,8 @@ const ANSWER_LIBRARY = [
       if (openUrgent.length === 0) return "Şu anda açık bir \"Acil\" öncelikli talebiniz yok.";
       const breached = openUrgent.filter((t) => getSlaStatus(t).isBreached).length;
       const share = Math.round((breached / openUrgent.length) * 100);
-      if (share >= 30) return `Açık "Acil" önceliğe sahip taleplerinizin %${share}'i SLA süresini aşmış — en acil talepleriniz bile geç kalıyor, önceliklendirme sürecinizi gözden geçirin.`;
-      return `Açık "Acil" önceliğe sahip taleplerinizin %${share}'i SLA süresini aşmış — acil talepleriniz genel olarak zamanında yönetiliyor.`;
+      if (share >= 30) return `Açık "Acil" önceliğe sahip taleplerinizin %${share}'i SLA süresini aşmış - en acil talepleriniz bile geç kalıyor, önceliklendirme sürecinizi gözden geçirin.`;
+      return `Açık "Acil" önceliğe sahip taleplerinizin %${share}'i SLA süresini aşmış - acil talepleriniz genel olarak zamanında yönetiliyor.`;
     },
   },
   {
@@ -4325,9 +4325,9 @@ const ANSWER_LIBRARY = [
       const thisAvg = avg(thisWon);
       const lastAvg = avg(lastWon);
       const change = Math.round(((thisAvg - lastAvg) / lastAvg) * 100);
-      if (change <= -15) return `Bu ay ortalama kayıt değeriniz ${formatTL(thisAvg)}, geçen ay ${formatTL(lastAvg)} idi — %${Math.abs(change)} düşüş var, daha küçük paketlere mi kayıyorsunuz kontrol edin.`;
-      if (change >= 15) return `Bu ay ortalama kayıt değeriniz ${formatTL(thisAvg)}, geçen ay ${formatTL(lastAvg)} idi — %${change} artış var, olumlu bir gidişat.`;
-      return `Bu ay ortalama kayıt değeriniz ${formatTL(thisAvg)}, geçen ay ${formatTL(lastAvg)} idi — belirgin bir değişim yok.`;
+      if (change <= -15) return `Bu ay ortalama kayıt değeriniz ${formatTL(thisAvg)}, geçen ay ${formatTL(lastAvg)} idi - %${Math.abs(change)} düşüş var, daha küçük paketlere mi kayıyorsunuz kontrol edin.`;
+      if (change >= 15) return `Bu ay ortalama kayıt değeriniz ${formatTL(thisAvg)}, geçen ay ${formatTL(lastAvg)} idi - %${change} artış var, olumlu bir gidişat.`;
+      return `Bu ay ortalama kayıt değeriniz ${formatTL(thisAvg)}, geçen ay ${formatTL(lastAvg)} idi - belirgin bir değişim yok.`;
     },
   },
   {
@@ -4344,8 +4344,8 @@ const ANSWER_LIBRARY = [
         const count = ctx.deals.filter((d) => inRange(d.createdAt, { start, end })).length;
         if (count === 0) emptyMonths.push(start.toLocaleDateString("tr-TR", { month: "long", year: "numeric" }));
       }
-      if (emptyMonths.length === 0) return "Son 6 ayın her birinde en az bir yeni kayıt açmışsınız — tutarlı bir aktiviteniz var.";
-      return `Son 6 ayda hiç yeni kayıt açmadığınız ay(lar): ${emptyMonths.join(", ")} — bu dönemlerde ne olduğunu hatırlamaya çalışın (tatil, yoğunluk, pazarlama eksikliği?), tekrarlamaması için not alın.`;
+      if (emptyMonths.length === 0) return "Son 6 ayın her birinde en az bir yeni kayıt açmışsınız - tutarlı bir aktiviteniz var.";
+      return `Son 6 ayda hiç yeni kayıt açmadığınız ay(lar): ${emptyMonths.join(", ")} - bu dönemlerde ne olduğunu hatırlamaya çalışın (tatil, yoğunluk, pazarlama eksikliği?), tekrarlamaması için not alın.`;
     },
   },
   {
@@ -4354,9 +4354,9 @@ const ANSWER_LIBRARY = [
     label: "Ödeme sağlayıcım bağlı değilse ne kadar tahsilatı elle takip ediyorum?",
     keywords: ["ödeme sağlayıcı bağlı değil", "elle tahsilat takibi riski", "online ödeme eksikliği"],
     compute: (ctx) => {
-      if (ctx.paymentCredentials.length > 0) return "Bir ödeme sağlayıcınız (iyzico/PayTR) bağlı — tahsilatlarınızın bir kısmı zaten otomatik/online takip ediliyor.";
+      if (ctx.paymentCredentials.length > 0) return "Bir ödeme sağlayıcınız (iyzico/PayTR) bağlı - tahsilatlarınızın bir kısmı zaten otomatik/online takip ediliyor.";
       if (!ctx.totalOutstanding || ctx.totalOutstanding <= 0) return "Şu an bekleyen bir alacağınız yok, bu risk şu an için düşük.";
-      return `Hiçbir ödeme sağlayıcınız bağlı değil ve ${formatTL(ctx.totalOutstanding)} bekleyen alacağınız var — bunların tamamını elle takip ediyorsunuz. Ayarlar → Ödeme Bağlantısı'ndan iyzico/PayTR bağlarsanız online tahsilat ve otomatik takip alabilirsiniz.`;
+      return `Hiçbir ödeme sağlayıcınız bağlı değil ve ${formatTL(ctx.totalOutstanding)} bekleyen alacağınız var - bunların tamamını elle takip ediyorsunuz. Ayarlar → Ödeme Bağlantısı'ndan iyzico/PayTR bağlarsanız online tahsilat ve otomatik takip alabilirsiniz.`;
     },
   },
   {
@@ -4375,7 +4375,7 @@ const ANSWER_LIBRARY = [
       });
       const top = topEntry(counts);
       if (!top) return "Yeterli randevu verisi yok, bu analiz için erken.";
-      return `En çok tercih edilen randevu saati ${top[0]} civarı (${top[1]} randevu) — o saat aralığında yeterli kapasite/personel ayırdığınızdan emin olun.`;
+      return `En çok tercih edilen randevu saati ${top[0]} civarı (${top[1]} randevu) - o saat aralığında yeterli kapasite/personel ayırdığınızdan emin olun.`;
     },
   },
   {
@@ -4394,7 +4394,7 @@ const ANSWER_LIBRARY = [
         return debt - paid > 0;
       });
       if (risky.length === 0) return "90 günden uzun süredir iletişime geçmediğiniz, bakiyesi olan bir müşteriniz görünmüyor.";
-      return `${risky.length} müşterinizle 90 günden uzun süredir iletişim yok ama hâlâ bekleyen bakiyeleri var — unutulmuş bir alacak riski oluşmadan bu müşterileri aramanızda fayda var.`;
+      return `${risky.length} müşterinizle 90 günden uzun süredir iletişim yok ama hâlâ bekleyen bakiyeleri var - unutulmuş bir alacak riski oluşmadan bu müşterileri aramanızda fayda var.`;
     },
   },
   {
@@ -4410,7 +4410,7 @@ const ANSWER_LIBRARY = [
       upcoming.forEach((d) => { const day = d.customFields[ctx.appointmentDateTimeKey].slice(0, 10); counts[day] = (counts[day] || 0) + 1; });
       const top = topEntry(counts);
       if (!top || top[1] < 5) return "Şu an tek bir günde aşırı yoğunlaşma görünmüyor.";
-      return `${new Date(top[0]).toLocaleDateString("tr-TR", { day: "numeric", month: "long" })} tarihinde ${top[1]} randevunuz birikmiş — o gün için ekstra hazırlık/personel planlamayı düşünün.`;
+      return `${new Date(top[0]).toLocaleDateString("tr-TR", { day: "numeric", month: "long" })} tarihinde ${top[1]} randevunuz birikmiş - o gün için ekstra hazırlık/personel planlamayı düşünün.`;
     },
   },
   {
@@ -4425,7 +4425,7 @@ const ANSWER_LIBRARY = [
       const counts = {};
       won.forEach((d) => { const m = new Date(d.closedAt).getMonth(); counts[m] = (counts[m] || 0) + 1; });
       const top = topEntry(counts);
-      return `En çok kazandığınız ay ${monthNames[Number(top[0])]} (tüm zamanlar, ${top[1]} kayıt) — bu döneme yaklaşırken stok/kapasite/pazarlama planınızı buna göre yapabilirsiniz.`;
+      return `En çok kazandığınız ay ${monthNames[Number(top[0])]} (tüm zamanlar, ${top[1]} kayıt) - bu döneme yaklaşırken stok/kapasite/pazarlama planınızı buna göre yapabilirsiniz.`;
     },
   },
   {
@@ -4485,7 +4485,7 @@ const ANSWER_LIBRARY = [
       won.forEach((d) => { totals[d.customerId] = (totals[d.customerId] || 0) + (d.value || 0); });
       const top = topEntry(totals);
       const customer = ctx.customers.find((c) => c.id === top[0]);
-      return `${customer?.name || "Bilinmeyen müşteri"} — bu hafta ${formatTL(top[1])} ile en çok kazandıran müşteriniz.`;
+      return `${customer?.name || "Bilinmeyen müşteri"} - bu hafta ${formatTL(top[1])} ile en çok kazandıran müşteriniz.`;
     },
   },
   {
@@ -4718,7 +4718,7 @@ const ANSWER_LIBRARY = [
     compute: (ctx) => {
       const missing = ctx.companyExpenses.filter((e) => e.kdvRate == null).length;
       if (missing === 0) return "Tüm gider kayıtlarınızda KDV oranı girilmiş.";
-      return `${missing} gider kaydınızda KDV oranı girilmemiş — KDV Özet Raporu'nun doğru hesaplanması için bunları tamamlamanız önerilir.`;
+      return `${missing} gider kaydınızda KDV oranı girilmemiş - KDV Özet Raporu'nun doğru hesaplanması için bunları tamamlamanız önerilir.`;
     },
   },
   {
@@ -4770,7 +4770,7 @@ const ANSWER_LIBRARY = [
     compute: (ctx) => {
       const bounds = getRangeBounds("bu_ay");
       const commission = ctx.companyExpenses.filter((e) => e.category === "Ödeme Komisyonu").flatMap((e) => expandExpenseOccurrences(e, bounds)).reduce((sum, e) => sum + (e.amount || 0), 0);
-      if (commission === 0) return "Bu ay ödeme sağlayıcı komisyonu görünmüyor — online tahsilat yapmadıysanız normaldir.";
+      if (commission === 0) return "Bu ay ödeme sağlayıcı komisyonu görünmüyor - online tahsilat yapmadıysanız normaldir.";
       return `Bu ay ödeme sağlayıcı komisyonu olarak ${formatTL(commission)} ödediniz.`;
     },
   },
@@ -4782,7 +4782,7 @@ const ANSWER_LIBRARY = [
     compute: (ctx) => {
       const commission = ctx.companyExpenses.filter((e) => e.category === "Ödeme Komisyonu").reduce((sum, e) => sum + (e.amount || 0), 0);
       if (commission === 0) return "Şu ana kadar ödeme sağlayıcı komisyonu görünmüyor.";
-      return `Tüm zamanlar ödeme sağlayıcı komisyonu olarak ${formatTL(commission)} ödediniz — bu, gelir-gider defterinize otomatik işleniyor.`;
+      return `Tüm zamanlar ödeme sağlayıcı komisyonu olarak ${formatTL(commission)} ödediniz - bu, gelir-gider defterinize otomatik işleniyor.`;
     },
   },
   {
@@ -4942,7 +4942,7 @@ const ANSWER_LIBRARY = [
       ctx.customers.filter((c) => c.phone).forEach((c) => { byPhone[c.phone] = (byPhone[c.phone] || 0) + 1; });
       const duplicateGroups = Object.values(byPhone).filter((n) => n >= 2).length;
       if (duplicateGroups === 0) return "Aynı telefon numarasını paylaşan birden fazla müşteri kaydınız görünmüyor.";
-      return `${duplicateGroups} farklı telefon numarası birden fazla müşteri kaydında kullanılmış — mükerrer kayıt olup olmadığını kontrol etmenizde fayda var.`;
+      return `${duplicateGroups} farklı telefon numarası birden fazla müşteri kaydında kullanılmış - mükerrer kayıt olup olmadığını kontrol etmenizde fayda var.`;
     },
   },
   {
@@ -4955,7 +4955,7 @@ const ANSWER_LIBRARY = [
       ctx.customers.filter((c) => c.email).forEach((c) => { byEmail[c.email] = (byEmail[c.email] || 0) + 1; });
       const duplicateGroups = Object.values(byEmail).filter((n) => n >= 2).length;
       if (duplicateGroups === 0) return "Aynı e-postayı paylaşan birden fazla müşteri kaydınız görünmüyor.";
-      return `${duplicateGroups} farklı e-posta adresi birden fazla müşteri kaydında kullanılmış — mükerrer kayıt olup olmadığını kontrol etmenizde fayda var.`;
+      return `${duplicateGroups} farklı e-posta adresi birden fazla müşteri kaydında kullanılmış - mükerrer kayıt olup olmadığını kontrol etmenizde fayda var.`;
     },
   },
   {
@@ -5003,7 +5003,7 @@ const ANSWER_LIBRARY = [
     compute: (ctx) => {
       const count = ctx.customers.filter((c) => !isFullNameValid(c.name)).length;
       if (count === 0) return "Tüm müşterilerinizin adı en az iki kelimeden oluşuyor.";
-      return `${count} müşterinizin adı tek kelime — gerçek ad/soyad ya da firma adı olup olmadığını kontrol etmenizde fayda var.`;
+      return `${count} müşterinizin adı tek kelime - gerçek ad/soyad ya da firma adı olup olmadığını kontrol etmenizde fayda var.`;
     },
   },
   {
@@ -5095,7 +5095,7 @@ const ANSWER_LIBRARY = [
     category: "Destek",
     label: "Kapatıldı durumunda kaç talebim var?",
     keywords: ["kapatıldı durumu talep sayısı", "kapatılan talep sayısı"],
-    compute: (ctx) => `${ctx.tickets.filter((t) => t.status === "kapatildi").length} talebiniz "Kapatıldı" durumunda — bu, "Çözüldü"den farklı, tamamen sonlandırılmış talepleri sayar.`,
+    compute: (ctx) => `${ctx.tickets.filter((t) => t.status === "kapatildi").length} talebiniz "Kapatıldı" durumunda - bu, "Çözüldü"den farklı, tamamen sonlandırılmış talepleri sayar.`,
   },
   {
     id: "tickets_today_count",
@@ -5142,7 +5142,7 @@ const ANSWER_LIBRARY = [
       const openTickets = ctx.tickets.filter((t) => !TERMINAL_STATUSES.includes(t.status));
       const neverReplied = openTickets.filter((t) => !ticketIdsWithMessages.has(t.id)).length;
       if (neverReplied === 0) return "Açık taleplerinizin hepsinde en az bir mesaj var.";
-      return `${neverReplied} açık talebinizde hiç mesaj yok (açıklama dahil) — bu talepleri gözden kaçırmış olabilirsiniz.`;
+      return `${neverReplied} açık talebinizde hiç mesaj yok (açıklama dahil) - bu talepleri gözden kaçırmış olabilirsiniz.`;
     },
   },
   {
@@ -5178,7 +5178,7 @@ const ANSWER_LIBRARY = [
       const withDuration = resolved.map((t) => ({ ...t, durationHours: (new Date(t.resolvedAt) - new Date(t.createdAt)) / (1000 * 60 * 60) }));
       const fastest = withDuration.sort((a, b) => a.durationHours - b.durationHours)[0];
       const hours = Math.round(fastest.durationHours);
-      return `En hızlı çözdüğünüz talep "${fastest.subject}" — yaklaşık ${hours < 1 ? "1 saatten kısa" : `${hours} saat`} sürdü.`;
+      return `En hızlı çözdüğünüz talep "${fastest.subject}" - yaklaşık ${hours < 1 ? "1 saatten kısa" : `${hours} saat`} sürdü.`;
     },
   },
   {
@@ -5254,7 +5254,7 @@ const ANSWER_LIBRARY = [
       assigned.forEach((d) => { totals[d.assignedTo] = (totals[d.assignedTo] || 0) + 1; });
       const bottom = Object.entries(totals).sort((a, b) => a[1] - b[1])[0];
       const name = bottom[0] === ctx.currentUserId ? "Siz" : (ctx.teamMembers.find((m) => m.id === bottom[0])?.name || ctx.teamMembers.find((m) => m.id === bottom[0])?.email || "Bilinmeyen üye");
-      return `${name} — ${bottom[1]} kayıtla en az sorumlu olduğunuz/olunan üye.`;
+      return `${name} - ${bottom[1]} kayıtla en az sorumlu olduğunuz/olunan üye.`;
     },
   },
   {
@@ -5271,7 +5271,7 @@ const ANSWER_LIBRARY = [
       won.forEach((d) => { totals[d.assignedTo] = (totals[d.assignedTo] || 0) + (d.value || 0); });
       const top = topEntry(totals);
       const name = top[0] === ctx.currentUserId ? "Siz" : (ctx.teamMembers.find((m) => m.id === top[0])?.name || ctx.teamMembers.find((m) => m.id === top[0])?.email || "Bilinmeyen üye");
-      return `${name} — bu ay ${formatTL(top[1])} ile en çok kazandıran üye.`;
+      return `${name} - bu ay ${formatTL(top[1])} ile en çok kazandıran üye.`;
     },
   },
   {
@@ -5288,7 +5288,7 @@ const ANSWER_LIBRARY = [
       won.forEach((d) => { totals[d.assignedTo] = (totals[d.assignedTo] || 0) + (d.value || 0); });
       const top = topEntry(totals);
       const name = top[0] === ctx.currentUserId ? "Siz" : (ctx.teamMembers.find((m) => m.id === top[0])?.name || ctx.teamMembers.find((m) => m.id === top[0])?.email || "Bilinmeyen üye");
-      return `${name} — bu yıl ${formatTL(top[1])} ile en çok kazandıran üye.`;
+      return `${name} - bu yıl ${formatTL(top[1])} ile en çok kazandıran üye.`;
     },
   },
   {
@@ -5304,7 +5304,7 @@ const ANSWER_LIBRARY = [
       won.forEach((d) => { totals[d.assignedTo] = (totals[d.assignedTo] || 0) + (d.value || 0); });
       const top = topEntry(totals);
       const name = top[0] === ctx.currentUserId ? "Siz" : (ctx.teamMembers.find((m) => m.id === top[0])?.name || ctx.teamMembers.find((m) => m.id === top[0])?.email || "Bilinmeyen üye");
-      return `${name} — tüm zamanlar ${formatTL(top[1])} ile en çok kazandıran üye.`;
+      return `${name} - tüm zamanlar ${formatTL(top[1])} ile en çok kazandıran üye.`;
     },
   },
   {
@@ -5400,8 +5400,8 @@ const ANSWER_LIBRARY = [
       const top = topEntry(totals);
       const share = Math.round((top[1] / total) * 100);
       const name = top[0] === ctx.currentUserId ? "Siz" : (ctx.teamMembers.find((m) => m.id === top[0])?.name || ctx.teamMembers.find((m) => m.id === top[0])?.email || "Bilinmeyen üye");
-      if (share >= 60) return `${name} açık portföyün %${share}'ini tek başına taşıyor — bu kişi izinli/uzakta olursa iş sürekliliği riski oluşabilir.`;
-      return `${name} açık portföyün %${share}'ini taşıyor — dağılım makul görünüyor.`;
+      if (share >= 60) return `${name} açık portföyün %${share}'ini tek başına taşıyor - bu kişi izinli/uzakta olursa iş sürekliliği riski oluşabilir.`;
+      return `${name} açık portföyün %${share}'ini taşıyor - dağılım makul görünüyor.`;
     },
   },
   {
@@ -5446,7 +5446,7 @@ const ANSWER_LIBRARY = [
       if (rates.length === 0) return "Karşılaştırma için yeterli veri yok (her üyenin en az 3 sonuçlanmış kaydı olmalı).";
       const bottom = rates.sort((a, b) => a.rate - b.rate)[0];
       const name = bottom.id === ctx.currentUserId ? "Siz" : (ctx.teamMembers.find((m) => m.id === bottom.id)?.name || ctx.teamMembers.find((m) => m.id === bottom.id)?.email || "Bilinmeyen üye");
-      return `${name} — %${Math.round(bottom.rate)} kazanma oranıyla en düşük performansa sahip üye.`;
+      return `${name} - %${Math.round(bottom.rate)} kazanma oranıyla en düşük performansa sahip üye.`;
     },
   },
   {
@@ -5526,7 +5526,7 @@ const ANSWER_LIBRARY = [
     compute: (ctx) => {
       if (ctx.attachments.length === 0) return "Henüz bir dosya yüklenmemiş.";
       const sorted = [...ctx.attachments].sort((a, b) => (b.fileSize || 0) - (a.fileSize || 0));
-      return `En büyük dosyanız "${sorted[0].fileName}" — ${formatFileSize(sorted[0].fileSize || 0)}.`;
+      return `En büyük dosyanız "${sorted[0].fileName}" - ${formatFileSize(sorted[0].fileSize || 0)}.`;
     },
   },
   {
@@ -5566,7 +5566,7 @@ const ANSWER_LIBRARY = [
         return { label: def.label, rate: filled / records.length };
       });
       const highest = [...rates].sort((a, b) => b.rate - a.rate)[0];
-      return `En çok doldurulan özel alanınız "${highest.label}" — %${Math.round(highest.rate * 100)} doluluk.`;
+      return `En çok doldurulan özel alanınız "${highest.label}" - %${Math.round(highest.rate * 100)} doluluk.`;
     },
   },
   {
@@ -5663,109 +5663,109 @@ function staticToLibraryEntry(item, idx, idPrefix, categoryPrefix) {
 }
 
 const ADVISOR_TIPS = [
-  { category: "Satış", q: "Satışlarımı nasıl artırabilirim?", keywords: ["satışlarımı nasıl arttırabilirim", "arttırmak", "ciro artırmak", "satış artırma", "daha çok satış"], a: "Tek bir taktiğe değil üç alana birden bakın: yeni müşteri kazanmak (pazarlama, referans), mevcut müşteriye daha fazla satmak (çapraz satış, yeniden alım hatırlatması) ve kayıp oranını azaltmak (kaybedilen tekliflerin nedenini analiz etmek). Genelde en hızlı sonuç, elinizdeki açık kayıtların takibini sıkılaştırmaktan (hatırlatma tarihleri, zamanında yanıt) gelir — yeni müşteri bulmaktan daha ucuzdur." },
-  { category: "Nakit Akışı", q: "Nakit akışımı nasıl iyileştiririm?", a: "Kâr ile nakit farklıdır — kârlı olsanız bile tahsilat gecikirse nakit sıkışabilir. Vadeli satışlarda kısmi peşinat almak, tahsilat takibini düzenli yapmak (Finans → Bekleyen Alacak) ve tekrarlayan giderlerinizi önceden bilmek nakit akışını daha öngörülebilir kılar." },
-  { category: "Fiyatlandırma", q: "Fiyatımı nasıl belirlemeliyim?", a: "Sadece maliyeti değil, rakiplerinizin fiyatını ve müşterinin algıladığı değeri de hesaba katın. Çok düşük fiyat kâr bırakmaz, çok yüksek fiyat müşteri kaybettirir — küçük bir müşteri grubuyla test ederek ayarlamak risksiz bir yöntemdir." },
+  { category: "Satış", q: "Satışlarımı nasıl artırabilirim?", keywords: ["satışlarımı nasıl arttırabilirim", "arttırmak", "ciro artırmak", "satış artırma", "daha çok satış"], a: "Tek bir taktiğe değil üç alana birden bakın: yeni müşteri kazanmak (pazarlama, referans), mevcut müşteriye daha fazla satmak (çapraz satış, yeniden alım hatırlatması) ve kayıp oranını azaltmak (kaybedilen tekliflerin nedenini analiz etmek). Genelde en hızlı sonuç, elinizdeki açık kayıtların takibini sıkılaştırmaktan (hatırlatma tarihleri, zamanında yanıt) gelir - yeni müşteri bulmaktan daha ucuzdur." },
+  { category: "Nakit Akışı", q: "Nakit akışımı nasıl iyileştiririm?", a: "Kâr ile nakit farklıdır - kârlı olsanız bile tahsilat gecikirse nakit sıkışabilir. Vadeli satışlarda kısmi peşinat almak, tahsilat takibini düzenli yapmak (Finans → Bekleyen Alacak) ve tekrarlayan giderlerinizi önceden bilmek nakit akışını daha öngörülebilir kılar." },
+  { category: "Fiyatlandırma", q: "Fiyatımı nasıl belirlemeliyim?", a: "Sadece maliyeti değil, rakiplerinizin fiyatını ve müşterinin algıladığı değeri de hesaba katın. Çok düşük fiyat kâr bırakmaz, çok yüksek fiyat müşteri kaybettirir - küçük bir müşteri grubuyla test ederek ayarlamak risksiz bir yöntemdir." },
   { category: "Müşteri Sadakati", q: "Mevcut müşterilerimi nasıl elde tutarım?", a: "Yeni müşteri kazanmak, mevcut müşteriyi elde tutmaktan genelde daha pahalıdır. Düzenli iletişim, hızlı destek yanıtı ve küçük jestler (doğum günü, sadakat indirimi) uzun vadede en çok geri dönüşü sağlar." },
-  { category: "Pazarlama", q: "Sınırlı bütçeyle nasıl pazarlama yaparım?", a: "Önce mevcut müşterilerinizden referans isteyin — en ucuz ve en güvenilir pazarlama budur. Sosyal medyada düzenli ama az sayıda paylaşım, tek seferlik büyük kampanyadan daha sürdürülebilirdir." },
-  { category: "Satış", q: "Kaybettiğim satışlardan nasıl ders çıkarırım?", a: "Kayıp nedenini her zaman not edin (Binerly'de otomatik istenir) — belirli bir dönemde aynı neden tekrar ediyorsa (örn. \"yüksek fiyat\") bu, fiyatlandırma veya değer anlatımınızda sistemli bir sorun olduğunun işaretidir." },
+  { category: "Pazarlama", q: "Sınırlı bütçeyle nasıl pazarlama yaparım?", a: "Önce mevcut müşterilerinizden referans isteyin - en ucuz ve en güvenilir pazarlama budur. Sosyal medyada düzenli ama az sayıda paylaşım, tek seferlik büyük kampanyadan daha sürdürülebilirdir." },
+  { category: "Satış", q: "Kaybettiğim satışlardan nasıl ders çıkarırım?", a: "Kayıp nedenini her zaman not edin (Binerly'de otomatik istenir) - belirli bir dönemde aynı neden tekrar ediyorsa (örn. \"yüksek fiyat\") bu, fiyatlandırma veya değer anlatımınızda sistemli bir sorun olduğunun işaretidir." },
   { category: "Ekip Yönetimi", q: "Küçük ekibimi nasıl daha verimli yönetirim?", a: "Herkesin net bir sorumluluk alanı olsun, aynı işi iki kişi paralel yapmasın. Haftalık kısa bir değerlendirme (neler bitti, neler bekliyor) büyük toplantılardan daha etkilidir." },
   { category: "Zaman Yönetimi", q: "Günlük işlerime nasıl öncelik veririm?", a: "Güne başlarken \"bugün gerçekten yapılması gerekenler\" listesi (Pano'daki \"Bugün ne yapmalıyım\") 3-5 maddeyi geçmesin. Acil ama önemsiz işler (bildirimler, küçük sorular) genelde beklettirilebilir." },
   { category: "Marka", q: "Küçük işletmem nasıl daha güvenilir görünür?", a: "Tutarlı iletişim (aynı logo, aynı ton), zamanında yanıt ve net bir iade/iptal politikası büyük bütçeli reklamdan daha fazla güven yaratır. Müşteri yorumları/referanslar varsa görünür kılın." },
-  { category: "Sosyal Medya", q: "Sosyal medyada ne paylaşmalıyım?", a: "Sadece ürün tanıtımı değil, işin arkasındaki süreci (üretim, ekip, müşteri hikayeleri) de gösterin — insanlar markalardan değil insanlardan alışveriş yapmayı sever." },
-  { category: "Müzakere", q: "Müşteriyle fiyat pazarlığında nasıl davranmalıyım?", a: "Doğrudan indirim yerine değer ekleyin (ek hizmet, daha hızlı teslim) — bu, fiyatınızı düşürmeden müşteriyi tatmin edebilir. Sürekli indirim vermek, gelecekte \"normal fiyatın\" pazarlık payı olduğu algısı yaratır." },
+  { category: "Sosyal Medya", q: "Sosyal medyada ne paylaşmalıyım?", a: "Sadece ürün tanıtımı değil, işin arkasındaki süreci (üretim, ekip, müşteri hikayeleri) de gösterin - insanlar markalardan değil insanlardan alışveriş yapmayı sever." },
+  { category: "Müzakere", q: "Müşteriyle fiyat pazarlığında nasıl davranmalıyım?", a: "Doğrudan indirim yerine değer ekleyin (ek hizmet, daha hızlı teslim) - bu, fiyatınızı düşürmeden müşteriyi tatmin edebilir. Sürekli indirim vermek, gelecekte \"normal fiyatın\" pazarlık payı olduğu algısı yaratır." },
   { category: "Rekabet", q: "Rakiplerimi nasıl takip etmeliyim?", a: "Fiyatlarını kopyalamak yerine neyi farklı/daha iyi yaptıklarını anlayın. Kendi güçlü yönünüze (hız, kişisel ilgi, uzmanlık) odaklanmak, sürekli fiyat savaşından daha sürdürülebilir bir stratejidir." },
   { category: "Girişimcilik", q: "Tükenmişlik hissediyorum, ne yapmalıyım?", a: "Küçük işletme sahipliğinde her şeyi tek başına yapma isteği yaygın bir tükenmişlik nedenidir. Tekrar eden işleri (hatırlatma, raporlama) sistemlere bırakmak gerçek bir zaman kazancı sağlar." },
   { category: "Yeni İşletme", q: "İşimin ilk aylarında nelere odaklanmalıyım?", a: "İlk aylarda çok kanal/çok ürün denemek yerine, tek bir müşteri segmentinde gerçekten iyi olmaya odaklanın. İlk 10-20 gerçek müşterinizden aldığınız geri bildirim, herhangi bir pazar araştırmasından daha değerlidir." },
-  { category: "Networking", q: "İş bağlantılarımı nasıl genişletirim?", a: "Sektör etkinlikleri/odalar dışında, mevcut müşterilerinizin tanıdıkları da güçlü bir ağdır — memnun bir müşteriden doğrudan tavsiye istemek genelde soğuk bir tanıtımdan daha etkilidir." },
+  { category: "Networking", q: "İş bağlantılarımı nasıl genişletirim?", a: "Sektör etkinlikleri/odalar dışında, mevcut müşterilerinizin tanıdıkları da güçlü bir ağdır - memnun bir müşteriden doğrudan tavsiye istemek genelde soğuk bir tanıtımdan daha etkilidir." },
   { category: "Şikayet Yönetimi", q: "Müşteri şikayetlerini nasıl ele almalıyım?", a: "Hızlı yanıt (SLA takibi bunun için var) ve savunmaya geçmeden dinlemek en önemli iki adımdır. İyi çözülmüş bir şikayet, memnun bir müşteriden bile daha güçlü bir sadakat yaratabilir." },
   { category: "Büyüme", q: "İşimi ne zaman büyütmeliyim (yeni çalışan, yeni ürün)?", a: "Talep sürekli kapasitenizi aşıyorsa ve bu geçici bir dönem değilse büyüme sinyali olabilir. Aceleyle büyümek yerine, mevcut süreçlerinizin yeni hacmi kaldırıp kaldıramayacağını önce test edin." },
-  { category: "İşe Alım", q: "Doğru elemanı nasıl bulurum?", keywords: ["eleman bulma", "personel bulma", "çalışan arama", "doğru çalışanı bulma"], a: "İlanı sadece görev tanımıyla değil, ilk 90 günde başaracağı somut 2-3 hedefle yazın — bu, doğru adayları çeker ve yanlış beklentiyle gelenleri elemenizi sağlar. Mülakatta geçmişte gerçekten yaptığı bir işi detaylıca anlatmasını isteyin (\"anlat\" yerine \"nasıl yaptın\"), genel cevaplar genelde deneyim eksikliğinin işaretidir." },
-  { category: "İşe Alım", q: "Yeni çalışanı işe nasıl daha hızlı adapte ederim (oryantasyon)?", a: "İlk haftada net bir kontrol listesi (kimden ne öğrenecek, hangi sistemlere erişimi olacak, ilk göreve ne zaman başlayacak) belirsizlikten doğan yavaşlamayı önler. Sık yapılan hatalardan biri yeni çalışanı hemen tam yüke koymaktır — ilk 2 haftada deneyimli biriyle birlikte gölge çalışma, daha az hataya yol açar." },
-  { category: "Sözleşmeler", q: "Müşteri sözleşmelerimde nelere dikkat etmeliyim?", a: "Kapsam (tam olarak ne yapılacak, ne yapılmayacak), ödeme takvimi ve gecikme durumunda ne olacağı, iptal/erteleme koşulları en sık ihtilaf çıkan üç maddedir — bunları net yazmak sonradan tartışmayı büyük ölçüde azaltır. Standart bir şablon oluşturup her müşteride küçük değişikliklerle kullanmak sıfırdan yazmaktan hızlıdır; bağlayıcı maddeler için şablona bir kez avukat onayı aldırmak uzun vadede ucuza gelir." },
-  { category: "Sözleşmeler", q: "Sözlü anlaşmalarla mı çalışmalıyım yoksa yazılı mı?", a: "İş büyüdükçe hafıza ve iyi niyete güvenmek risklidir — en azından teklif/onay yazışmasını (e-posta, WhatsApp mesajı, PDF teklif) saklamak asgari bir kayıttır. Tutarı, tarihi ve kapsamı içeren tek sayfalık basit bir onay formu bile, ilerideki \"böyle anlaşmamıştık\" tartışmalarının çoğunu önler." },
-  { category: "Stok Yönetimi", q: "Stok seviyemi nasıl doğru tutarım?", a: "ABC analizi denen basit bir yöntem işe yarar: ürünlerinizi cirodaki paya göre sıralayın, en çok kazandıran %20'lik dilimi (A grubu) sıkı takip edin, geri kalanı daha gevşek kontrol edin. Aşırı stok nakdinizi kilitler, yetersiz stok satış kaybettirir — dengeyi geçmiş 2-3 ayın satış hızına göre ayarlamak tahminden daha güvenilirdir." },
-  { category: "Stok Yönetimi", q: "Ölü stoktan (satılmayan üründen) nasıl kurtulurum?", a: "Belirli bir süredir (örn. 90 gün) hiç hareket etmeyen kalemleri düzenli olarak listeleyip ayrı değerlendirin — biriktirmek yerine erken fark etmek kayıp tutarını küçük tutar. Kampanya/paket satışıyla eritmek tamamen zarar yazmaktan genelde daha iyidir; ama o ürünü neden fazla aldığınızı not edin ki hata tekrarlanmasın." },
-  { category: "E-ticaret", q: "Online satışa yeni başlıyorum, nelere dikkat etmeliyim?", keywords: ["e-ticarete başlamak", "online mağaza açmak", "internetten satış"], a: "Önce tek bir kanalda (kendi site veya tek bir pazaryeri) düzgün çalışmayı öğrenin, aynı anda beş platformda birden başlamak stok ve sipariş takibini karmaşıklaştırır. Kargo/iade sürecini netleştirmeden reklam vermek memnuniyetsiz ilk müşteri deneyimleri yaratır — süreç oturduktan sonra büyütün." },
-  { category: "E-ticaret", q: "Online mağazamda terk edilmiş sepetleri nasıl azaltırım?", a: "En sık neden beklenmedik ek maliyettir (kargo ücretinin son adımda çıkması gibi) — bunu en baştan göstermek terk oranını düşürür. Ödeme adımını mümkün olduğunca kısaltmak (gereksiz form alanlarını kaldırmak) ve tamamlanmayan siparişe kısa bir hatırlatma göndermek de işe yarayan basit adımlardır." },
-  { category: "Mevsimsellik", q: "Sezonluk talep dalgalanmasına nasıl hazırlanmalıyım?", a: "Geçmiş yılların aynı dönemine ait satış verisi en güvenilir tahmin kaynağınızdır — sezon başlamadan stok/personel kararını buna göre verin, sezon ortasında toparlamak genelde geç kalır. Düşük sezonda nakit sıkışmasına karşı önceden bir tampon ayırmak (tekrarlayan giderlerinizi bilerek), yüksek sezon kârını düşük sezona taşımanızı sağlar." },
-  { category: "Franchise", q: "İşimi franchise/bayilik modeliyle büyütmeyi düşünüyorum, nereden başlamalıyım?", a: "Franchise vermeden önce kendi tek şubenizde süreçlerinizin (eğitim, tedarik, kalite standardı) yazılı ve tekrarlanabilir olduğundan emin olun — belgelenmemiş bir iş modeli başka birine devredilemez. İlk bayiyi mümkünse güvendiğiniz, yakından takip edebileceğiniz biriyle pilot olarak başlatmak, hatanın büyümeden görülmesini sağlar." },
+  { category: "İşe Alım", q: "Doğru elemanı nasıl bulurum?", keywords: ["eleman bulma", "personel bulma", "çalışan arama", "doğru çalışanı bulma"], a: "İlanı sadece görev tanımıyla değil, ilk 90 günde başaracağı somut 2-3 hedefle yazın - bu, doğru adayları çeker ve yanlış beklentiyle gelenleri elemenizi sağlar. Mülakatta geçmişte gerçekten yaptığı bir işi detaylıca anlatmasını isteyin (\"anlat\" yerine \"nasıl yaptın\"), genel cevaplar genelde deneyim eksikliğinin işaretidir." },
+  { category: "İşe Alım", q: "Yeni çalışanı işe nasıl daha hızlı adapte ederim (oryantasyon)?", a: "İlk haftada net bir kontrol listesi (kimden ne öğrenecek, hangi sistemlere erişimi olacak, ilk göreve ne zaman başlayacak) belirsizlikten doğan yavaşlamayı önler. Sık yapılan hatalardan biri yeni çalışanı hemen tam yüke koymaktır - ilk 2 haftada deneyimli biriyle birlikte gölge çalışma, daha az hataya yol açar." },
+  { category: "Sözleşmeler", q: "Müşteri sözleşmelerimde nelere dikkat etmeliyim?", a: "Kapsam (tam olarak ne yapılacak, ne yapılmayacak), ödeme takvimi ve gecikme durumunda ne olacağı, iptal/erteleme koşulları en sık ihtilaf çıkan üç maddedir - bunları net yazmak sonradan tartışmayı büyük ölçüde azaltır. Standart bir şablon oluşturup her müşteride küçük değişikliklerle kullanmak sıfırdan yazmaktan hızlıdır; bağlayıcı maddeler için şablona bir kez avukat onayı aldırmak uzun vadede ucuza gelir." },
+  { category: "Sözleşmeler", q: "Sözlü anlaşmalarla mı çalışmalıyım yoksa yazılı mı?", a: "İş büyüdükçe hafıza ve iyi niyete güvenmek risklidir - en azından teklif/onay yazışmasını (e-posta, WhatsApp mesajı, PDF teklif) saklamak asgari bir kayıttır. Tutarı, tarihi ve kapsamı içeren tek sayfalık basit bir onay formu bile, ilerideki \"böyle anlaşmamıştık\" tartışmalarının çoğunu önler." },
+  { category: "Stok Yönetimi", q: "Stok seviyemi nasıl doğru tutarım?", a: "ABC analizi denen basit bir yöntem işe yarar: ürünlerinizi cirodaki paya göre sıralayın, en çok kazandıran %20'lik dilimi (A grubu) sıkı takip edin, geri kalanı daha gevşek kontrol edin. Aşırı stok nakdinizi kilitler, yetersiz stok satış kaybettirir - dengeyi geçmiş 2-3 ayın satış hızına göre ayarlamak tahminden daha güvenilirdir." },
+  { category: "Stok Yönetimi", q: "Ölü stoktan (satılmayan üründen) nasıl kurtulurum?", a: "Belirli bir süredir (örn. 90 gün) hiç hareket etmeyen kalemleri düzenli olarak listeleyip ayrı değerlendirin - biriktirmek yerine erken fark etmek kayıp tutarını küçük tutar. Kampanya/paket satışıyla eritmek tamamen zarar yazmaktan genelde daha iyidir; ama o ürünü neden fazla aldığınızı not edin ki hata tekrarlanmasın." },
+  { category: "E-ticaret", q: "Online satışa yeni başlıyorum, nelere dikkat etmeliyim?", keywords: ["e-ticarete başlamak", "online mağaza açmak", "internetten satış"], a: "Önce tek bir kanalda (kendi site veya tek bir pazaryeri) düzgün çalışmayı öğrenin, aynı anda beş platformda birden başlamak stok ve sipariş takibini karmaşıklaştırır. Kargo/iade sürecini netleştirmeden reklam vermek memnuniyetsiz ilk müşteri deneyimleri yaratır - süreç oturduktan sonra büyütün." },
+  { category: "E-ticaret", q: "Online mağazamda terk edilmiş sepetleri nasıl azaltırım?", a: "En sık neden beklenmedik ek maliyettir (kargo ücretinin son adımda çıkması gibi) - bunu en baştan göstermek terk oranını düşürür. Ödeme adımını mümkün olduğunca kısaltmak (gereksiz form alanlarını kaldırmak) ve tamamlanmayan siparişe kısa bir hatırlatma göndermek de işe yarayan basit adımlardır." },
+  { category: "Mevsimsellik", q: "Sezonluk talep dalgalanmasına nasıl hazırlanmalıyım?", a: "Geçmiş yılların aynı dönemine ait satış verisi en güvenilir tahmin kaynağınızdır - sezon başlamadan stok/personel kararını buna göre verin, sezon ortasında toparlamak genelde geç kalır. Düşük sezonda nakit sıkışmasına karşı önceden bir tampon ayırmak (tekrarlayan giderlerinizi bilerek), yüksek sezon kârını düşük sezona taşımanızı sağlar." },
+  { category: "Franchise", q: "İşimi franchise/bayilik modeliyle büyütmeyi düşünüyorum, nereden başlamalıyım?", a: "Franchise vermeden önce kendi tek şubenizde süreçlerinizin (eğitim, tedarik, kalite standardı) yazılı ve tekrarlanabilir olduğundan emin olun - belgelenmemiş bir iş modeli başka birine devredilemez. İlk bayiyi mümkünse güvendiğiniz, yakından takip edebileceğiniz biriyle pilot olarak başlatmak, hatanın büyümeden görülmesini sağlar." },
   { category: "Kriz Yönetimi", q: "Beklenmedik bir kriz anında (talep düşüşü, tedarik sorunu) ilk ne yapmalıyım?", a: "Panikle karar vermek yerine önce net bir tablo çıkarın: elinizdeki nakit kaç ay yeter, hangi giderler ertelenebilir/kesilebilir, hangi müşteriler/gelirler en risksiz. Durumu müşterilerinize şeffaf ama sakin bir dille erken bildirmek, sessiz kalıp güven kaybetmekten çok daha iyidir." },
-  { category: "Kriz Yönetimi", q: "Krizde çalışanlarımı nasıl bilgilendirmeliyim?", a: "Belirsizlik kötü haberden daha fazla kaygı yaratır — durum netleşmemiş olsa bile ne bildiğinizi ve ne zaman güncelleme vereceğinizi paylaşmak ekibi sakinleştirir. Kararları (kesinti, öncelik değişikliği) toplu duyurmadan önce mümkünse doğrudan etkilenenlerle önce konuşun." },
-  { category: "Rekabet", q: "Rakip analizini nasıl daha sistemli yaparım?", a: "Ayda bir düzenli olarak rakiplerin fiyat, kampanya ve müşteri yorumlarına (Google/sosyal medya) bakıp kısa not tutmak, hafızaya güvenmekten daha güvenilirdir. Sadece ne yaptıklarını değil müşteri yorumlarında neyi eleştirdiklerini de takip edin — rakibin zayıf noktası sizin fırsatınız olabilir." },
+  { category: "Kriz Yönetimi", q: "Krizde çalışanlarımı nasıl bilgilendirmeliyim?", a: "Belirsizlik kötü haberden daha fazla kaygı yaratır - durum netleşmemiş olsa bile ne bildiğinizi ve ne zaman güncelleme vereceğinizi paylaşmak ekibi sakinleştirir. Kararları (kesinti, öncelik değişikliği) toplu duyurmadan önce mümkünse doğrudan etkilenenlerle önce konuşun." },
+  { category: "Rekabet", q: "Rakip analizini nasıl daha sistemli yaparım?", a: "Ayda bir düzenli olarak rakiplerin fiyat, kampanya ve müşteri yorumlarına (Google/sosyal medya) bakıp kısa not tutmak, hafızaya güvenmekten daha güvenilirdir. Sadece ne yaptıklarını değil müşteri yorumlarında neyi eleştirdiklerini de takip edin - rakibin zayıf noktası sizin fırsatınız olabilir." },
   { category: "Fiyatlandırma", q: "Fiyat artışını müşterilerime nasıl duyurmalıyım?", a: "Artışı son ana bırakmadan (en az 2-4 hafta önceden) ve nedenini kısaca açıklayarak (maliyet artışı, kalite iyileştirme) duyurmak tepkiyi azaltır. Sadık/uzun süreli müşterilere geçiş dönemi için küçük bir esneklik (eski fiyatla son sipariş hakkı gibi) tanımak, ilişkiyi korurken artışı kabul edilebilir kılar." },
-  { category: "Müşteri Kaybı Analizi", q: "Müşteri kaybımı (churn) nasıl analiz etmeliyim?", keywords: ["churn analizi", "müşteri kaybı analizi", "müşteri neden ayrılıyor"], a: "Tek tek kaybedilen müşteriye üzülmek yerine belirli bir dönemdeki kayıpları bir arada listeleyip ortak nedeni arayın — fiyat mı, hizmet gecikmesi mi, rakip mi tekrar ediyor? Kaybeden müşteriyle mümkünse kısa bir \"neden ayrıldınız\" görüşmesi yapmak, iç varsayımlarınızdan çok daha doğru bilgi verir." },
-  { category: "Muhasebe", q: "Küçük işletme sahibi olarak muhasebe konusunda nelere dikkat etmeliyim?", a: "Gelir-gider kayıtlarını gerçek zamanlı tutmak (ay sonuna bırakmamak) hem nakit durumunuzu net görmenizi sağlar hem de yıl sonunda sürpriz yaşamamanızı. Fatura/gider belgelerini düzenli arşivlemek ve mevzuat takibini bir mali müşavire bırakmak, kendi vaktinizi işin büyümesine ayırmanızı sağlar — bu bir hukuki/mali tavsiye değildir, kendi durumunuz için mutlaka bir uzmana danışın." },
-  { category: "Vergi", q: "Vergi yükümlülüklerimi nasıl takip etmeliyim?", a: "Beyanname/ödeme tarihlerini kendi takviminize hatırlatma olarak işlemek, son güne kalıp cezai gecikmeye düşmekten daha güvenlidir. Bu alan sık değişen mevzuata tabidir — güncel oran ve yükümlülükler için mutlaka bir mali müşavirle çalışın, burada verilen bilgi genel farkındalık amaçlıdır." },
-  { category: "Yatırım", q: "İşimi büyütmek için dışarıdan finansman almalı mıyım?", a: "Önce borç mu (kredi) yoksa ortaklık mı (yatırımcı) istediğinizi netleştirin — borç kontrolü sizde bırakır ama geri ödeme yükümlülüğü getirir, ortaklık yükü paylaştırır ama karar gücünüzü paylaştırır. Finansmanı almadan önce parayı tam olarak neye harcayacağınızı ve ne kadar ek gelir getireceğini yazılı netleştirmek, \"büyürüz nasılsa\" iyimserliğinden daha sağlıklıdır." },
-  { category: "Yatırım", q: "Kredi kullanmadan önce nelere dikkat etmeliyim?", a: "Aylık geri ödemenin işletmenizin ortalama nakit akışına oranını hesaplayın — düşük sezonda bile ödemeyi karşılayıp karşılayamayacağınızı görmeden kredi almak risklidir. Farklı bankaların koşullarını (faiz, erken kapama, ek masraf) karşılaştırmak ve nihai kararı bir mali danışmanla teyit etmek, sadece en düşük görünen faize bakmaktan daha güvenlidir." },
-  { category: "Dijital Pazarlama", q: "Google reklamlarına nasıl başlamalıyım?", keywords: ["google ads", "google reklam", "arama reklamı"], a: "Geniş bir bütçeyle her şeyi denemek yerine, en çok kâr getiren tek bir ürün/hizmet ve dar bir hedef kitle (bölge, arama terimi) ile küçük bütçeli test başlatın. İlk haftalarda hangi aramaların tıklama getirdiğini değil hangisinin gerçek satışa dönüştüğünü izleyin — tıklama ucuz, dönüşüm değerlidir." },
+  { category: "Müşteri Kaybı Analizi", q: "Müşteri kaybımı (churn) nasıl analiz etmeliyim?", keywords: ["churn analizi", "müşteri kaybı analizi", "müşteri neden ayrılıyor"], a: "Tek tek kaybedilen müşteriye üzülmek yerine belirli bir dönemdeki kayıpları bir arada listeleyip ortak nedeni arayın - fiyat mı, hizmet gecikmesi mi, rakip mi tekrar ediyor? Kaybeden müşteriyle mümkünse kısa bir \"neden ayrıldınız\" görüşmesi yapmak, iç varsayımlarınızdan çok daha doğru bilgi verir." },
+  { category: "Muhasebe", q: "Küçük işletme sahibi olarak muhasebe konusunda nelere dikkat etmeliyim?", a: "Gelir-gider kayıtlarını gerçek zamanlı tutmak (ay sonuna bırakmamak) hem nakit durumunuzu net görmenizi sağlar hem de yıl sonunda sürpriz yaşamamanızı. Fatura/gider belgelerini düzenli arşivlemek ve mevzuat takibini bir mali müşavire bırakmak, kendi vaktinizi işin büyümesine ayırmanızı sağlar - bu bir hukuki/mali tavsiye değildir, kendi durumunuz için mutlaka bir uzmana danışın." },
+  { category: "Vergi", q: "Vergi yükümlülüklerimi nasıl takip etmeliyim?", a: "Beyanname/ödeme tarihlerini kendi takviminize hatırlatma olarak işlemek, son güne kalıp cezai gecikmeye düşmekten daha güvenlidir. Bu alan sık değişen mevzuata tabidir - güncel oran ve yükümlülükler için mutlaka bir mali müşavirle çalışın, burada verilen bilgi genel farkındalık amaçlıdır." },
+  { category: "Yatırım", q: "İşimi büyütmek için dışarıdan finansman almalı mıyım?", a: "Önce borç mu (kredi) yoksa ortaklık mı (yatırımcı) istediğinizi netleştirin - borç kontrolü sizde bırakır ama geri ödeme yükümlülüğü getirir, ortaklık yükü paylaştırır ama karar gücünüzü paylaştırır. Finansmanı almadan önce parayı tam olarak neye harcayacağınızı ve ne kadar ek gelir getireceğini yazılı netleştirmek, \"büyürüz nasılsa\" iyimserliğinden daha sağlıklıdır." },
+  { category: "Yatırım", q: "Kredi kullanmadan önce nelere dikkat etmeliyim?", a: "Aylık geri ödemenin işletmenizin ortalama nakit akışına oranını hesaplayın - düşük sezonda bile ödemeyi karşılayıp karşılayamayacağınızı görmeden kredi almak risklidir. Farklı bankaların koşullarını (faiz, erken kapama, ek masraf) karşılaştırmak ve nihai kararı bir mali danışmanla teyit etmek, sadece en düşük görünen faize bakmaktan daha güvenlidir." },
+  { category: "Dijital Pazarlama", q: "Google reklamlarına nasıl başlamalıyım?", keywords: ["google ads", "google reklam", "arama reklamı"], a: "Geniş bir bütçeyle her şeyi denemek yerine, en çok kâr getiren tek bir ürün/hizmet ve dar bir hedef kitle (bölge, arama terimi) ile küçük bütçeli test başlatın. İlk haftalarda hangi aramaların tıklama getirdiğini değil hangisinin gerçek satışa dönüştüğünü izleyin - tıklama ucuz, dönüşüm değerlidir." },
   { category: "Dijital Pazarlama", q: "Meta (Facebook/Instagram) reklamlarında bütçemi nasıl verimli kullanırım?", keywords: ["facebook reklamı", "instagram reklamı", "meta ads"], a: "Yeni başlarken geniş kitleye tek reklam yerine 2-3 farklı görsel/mesaj varyasyonunu küçük bütçeyle test edip en iyi performans göstereni büyütün. Soğuk kitleye satış reklamı yerine önce marka farkındalığı, sonra sizi ziyaret edenlere yeniden hedefleme genelde daha az maliyetle daha çok dönüşüm getirir." },
-  { category: "Dijital Pazarlama", q: "SEO (Google'da üst sıralarda çıkma) için ne yapmalıyım?", keywords: ["seo nasıl yapılır", "google'da üst sıraya çıkmak", "arama motoru optimizasyonu"], a: "Küçük işletme için en yüksek getiri genelde genel anahtar kelimelerde değil, bölge + hizmet kombinasyonunda (\"Kadıköy klima servisi\" gibi) rekabettir — burada üst sıraya çıkmak çok daha kolaydır. Site içeriğinizde bu ifadeleri doğal şekilde kullanmak ve ayda 1-2 yeni içerik eklemek, tek seferlik teknik ayardan daha kalıcı sonuç verir." },
-  { category: "E-posta Pazarlaması", q: "E-posta pazarlamasına nasıl başlamalıyım?", a: "Elinizdeki izinli müşteri listesine ayda 1-2 kez, satış baskısı yapmayan gerçek değer (ipucu, kampanya, yenilik) içeren kısa bir e-posta göndermek, sık ve agresif göndermekten daha az abonelikten çıkma yaratır. Konu başlığı e-postanın açılıp açılmayacağını belirleyen en önemli faktördür — birkaç farklı başlık deneyip hangisinin daha çok açıldığına bakmak zamanla işe yarar bir sezgi kazandırır." },
-  { category: "Müzakere", q: "Müşteri \"rakip daha ucuza yapıyor\" derse ne yanıt vermeliyim?", a: "Hemen fiyat kırmak yerine önce aynı kapsamda olup olmadığını sorun — çoğu zaman rakip teklifi farklı bir kapsam/kalitededir, bu farkı net anlatmak fiyatı savunmaktan daha etkilidir. Gerçekten aynı kapsamdaysa indirim yerine ek değer (garanti süresi, öncelikli destek) önermek kâr marjınızı korur." },
-  { category: "Delegasyon", q: "İşleri ekibime nasıl devredebilirim (delegasyon)?", a: "\"Nasıl yapacağını\" değil \"ne sonucu istediğinizi\" tarif edin — mikro yönetim hem sizin zamanınızı hem çalışanın özgüvenini tüketir. İlk birkaç seferde küçük, geri dönüşü kolay işlerle başlayıp güven oluşturmak, doğrudan kritik bir işi devretmekten daha güvenlidir." },
+  { category: "Dijital Pazarlama", q: "SEO (Google'da üst sıralarda çıkma) için ne yapmalıyım?", keywords: ["seo nasıl yapılır", "google'da üst sıraya çıkmak", "arama motoru optimizasyonu"], a: "Küçük işletme için en yüksek getiri genelde genel anahtar kelimelerde değil, bölge + hizmet kombinasyonunda (\"Kadıköy klima servisi\" gibi) rekabettir - burada üst sıraya çıkmak çok daha kolaydır. Site içeriğinizde bu ifadeleri doğal şekilde kullanmak ve ayda 1-2 yeni içerik eklemek, tek seferlik teknik ayardan daha kalıcı sonuç verir." },
+  { category: "E-posta Pazarlaması", q: "E-posta pazarlamasına nasıl başlamalıyım?", a: "Elinizdeki izinli müşteri listesine ayda 1-2 kez, satış baskısı yapmayan gerçek değer (ipucu, kampanya, yenilik) içeren kısa bir e-posta göndermek, sık ve agresif göndermekten daha az abonelikten çıkma yaratır. Konu başlığı e-postanın açılıp açılmayacağını belirleyen en önemli faktördür - birkaç farklı başlık deneyip hangisinin daha çok açıldığına bakmak zamanla işe yarar bir sezgi kazandırır." },
+  { category: "Müzakere", q: "Müşteri \"rakip daha ucuza yapıyor\" derse ne yanıt vermeliyim?", a: "Hemen fiyat kırmak yerine önce aynı kapsamda olup olmadığını sorun - çoğu zaman rakip teklifi farklı bir kapsam/kalitededir, bu farkı net anlatmak fiyatı savunmaktan daha etkilidir. Gerçekten aynı kapsamdaysa indirim yerine ek değer (garanti süresi, öncelikli destek) önermek kâr marjınızı korur." },
+  { category: "Delegasyon", q: "İşleri ekibime nasıl devredebilirim (delegasyon)?", a: "\"Nasıl yapacağını\" değil \"ne sonucu istediğinizi\" tarif edin - mikro yönetim hem sizin zamanınızı hem çalışanın özgüvenini tüketir. İlk birkaç seferde küçük, geri dönüşü kolay işlerle başlayıp güven oluşturmak, doğrudan kritik bir işi devretmekten daha güvenlidir." },
   { category: "İş-Yaşam Dengesi", q: "İş ile özel hayatımı nasıl dengelerim?", a: "Net bir \"kapanış\" rutini olmadan (belirli saatten sonra bildirim bakmamak gibi) küçük işletme sahipliği kolayca 7/24 işe dönüşür. Tekrar eden soruları/işleri sisteme veya ekibe bırakmak, sürekli \"acil\" hissi yaratan işleri azaltır." },
-  { category: "Ortaklık", q: "İş ortağımla anlaşmazlıkları nasıl yönetmeliyim?", a: "Kararların kim tarafından, nasıl alınacağı (eşit oy mu, alan bazlı yetki mi) baştan yazılı netleşmediyse her anlaşmazlık güç mücadelesine dönüşür — bunu erken, sorun çıkmadan konuşun. Ciddi ortaklıklarda ayrılık senaryosunu da (biri çekilirse ne olacak) yazılı hale getirmek ileride büyük anlaşmazlıkları önler; bunun için bir avukattan destek almak faydalı olur." },
-  { category: "Tedarikçi İlişkileri", q: "Tedarikçilerimle ilişkimi nasıl güçlendirmeliyim?", a: "Sadece sorun çıktığında değil düzenli iletişimde kalmak ve ödemeleri zamanında yapmak, kriz anında (kıtlık, öncelik) size öncelik tanınmasını sağlar. Tek tedarikçiye tamamen bağımlı olmak risklidir — kritik ürünlerde en az bir alternatif kaynağı önceden belirlemiş olmak size pazarlık gücü de verir." },
-  { category: "Tedarikçi İlişkileri", q: "Tedarikçi seçerken/değiştirirken nelere dikkat etmeliyim?", a: "Sadece fiyata değil, teslim süresinin tutarlılığına ve sorun çıktığında ne kadar hızlı çözüm ürettiğine bakın — ucuz ama gecikmeli tedarikçi, size müşteri kaybettirerek daha pahalıya gelebilir. Yeni bir tedarikçiye tüm siparişi birden kaydırmak yerine küçük bir siparişle önce güvenilirliğini test etmek daha güvenlidir." },
+  { category: "Ortaklık", q: "İş ortağımla anlaşmazlıkları nasıl yönetmeliyim?", a: "Kararların kim tarafından, nasıl alınacağı (eşit oy mu, alan bazlı yetki mi) baştan yazılı netleşmediyse her anlaşmazlık güç mücadelesine dönüşür - bunu erken, sorun çıkmadan konuşun. Ciddi ortaklıklarda ayrılık senaryosunu da (biri çekilirse ne olacak) yazılı hale getirmek ileride büyük anlaşmazlıkları önler; bunun için bir avukattan destek almak faydalı olur." },
+  { category: "Tedarikçi İlişkileri", q: "Tedarikçilerimle ilişkimi nasıl güçlendirmeliyim?", a: "Sadece sorun çıktığında değil düzenli iletişimde kalmak ve ödemeleri zamanında yapmak, kriz anında (kıtlık, öncelik) size öncelik tanınmasını sağlar. Tek tedarikçiye tamamen bağımlı olmak risklidir - kritik ürünlerde en az bir alternatif kaynağı önceden belirlemiş olmak size pazarlık gücü de verir." },
+  { category: "Tedarikçi İlişkileri", q: "Tedarikçi seçerken/değiştirirken nelere dikkat etmeliyim?", a: "Sadece fiyata değil, teslim süresinin tutarlılığına ve sorun çıktığında ne kadar hızlı çözüm ürettiğine bakın - ucuz ama gecikmeli tedarikçi, size müşteri kaybettirerek daha pahalıya gelebilir. Yeni bir tedarikçiye tüm siparişi birden kaydırmak yerine küçük bir siparişle önce güvenilirliğini test etmek daha güvenlidir." },
   { category: "Kalite Kontrol", q: "Ürün/hizmet kalitesini nasıl tutarlı tutarım?", a: "Kalitenin \"göze bakarak\" değil yazılı bir kontrol listesiyle (teslimden önce kontrol edilecek 5-10 madde) sağlanması, ekip büyüdükçe tutarlılığı korur. Müşteri şikayetlerini tek tek unutmak yerine kategori bazında takip etmek, kalite sorununun kaynağını (tedarik mi, süreç mi, eğitim mi) gösterir." },
-  { category: "Müşteri Segmentasyonu", q: "Müşterilerimi nasıl segmentlere ayırmalıyım?", a: "En basit ve etkili yöntem RFM'dir: müşteri ne zaman son alışveriş yaptı (Recency), ne sıklıkla alıyor (Frequency), ne kadar harcıyor (Monetary) — bu üçüne göre gruplamak kimi öncelikli takip edeceğinizi gösterir. Müşteri etiketlerini bu segmentleri (\"VIP\", \"riskli\", \"pasif\" gibi) işaretlemek için kullanmak, herkese aynı mesajı göndermek yerine segmente göre farklı yaklaşmanızı ve dönüşümü artırmanızı sağlar." },
-  { category: "Büyüme", q: "İkinci şube/lokasyon açmadan önce neye bakmalıyım?", a: "Mevcut şubenizin kârlı olması tek başına yeterli değildir — o kârın sizin kişisel çabanıza mı yoksa tekrarlanabilir bir sisteme mi bağlı olduğuna bakın, birinci şubede siz olmadan ikincisi aynı performansı gösteremeyebilir. Yeni lokasyonu açmadan önce o bölgede gerçek talep olduğunu (rakip yoğunluğu, nüfus/demografi) doğrulamak, \"iyi gidiyoruz, bir tane daha açalım\" iyimserliğinden daha güvenlidir." },
-  { category: "Ekip Yönetimi", q: "Uzaktan/hibrit çalışan ekibimi nasıl yönetmeliyim?", a: "Fiziksel gözetim olmadan güven, net teslim tarihleri ve görünür sonuçlarla kurulur — \"ne kadar çalıştı\" yerine \"ne teslim etti\"ye odaklanmak daha sağlıklı bir ölçüttür. Önemli kararları anlık mesajla değil yazılı (e-posta, ortak not) kaydetmek, dağınık ekipte bilgi kaybını önler." },
-  { category: "Fiyatlandırma", q: "Fiyat listemi hazırlarken çapa etkisinden nasıl faydalanırım?", a: "Üç seçenek sunduğunuzda (temel/standart/premium) müşterilerin çoğu ortadakini seçer — en çok satmasını istediğiniz paketi ortada konumlandırmak, tek fiyat sunmaktan daha yüksek ortalama sepet getirir. En üstteki pahalı seçenek az satılsa bile, ortadaki paketi \"makul\" gösteren bir çapa görevi görür, tamamen kaldırmayın." },
-  { category: "Abonelik Modeli", q: "İşimi tekrarlayan gelir (abonelik) modeline nasıl geçiririm?", keywords: ["tekrarlayan gelir", "abonelik modeli", "recurring revenue"], a: "Tek seferlik satışın yanına aynı müşteriye düzenli değer sunan bir bakım/yenileme/üyelik paketi eklemek gelirinizi öngörülebilir kılar — tüm işi birden abonmanlığa çevirmek yerine önce en istekli müşteri grubunda pilot yapın. Tekrarlayan giderlerinizi izlediğiniz gibi tekrarlayan gelirinizi de düzenli izlemek nakit planlamanızı kolaylaştırır." },
-  { category: "Mevsimlik Personel", q: "Sezonluk/geçici personeli nasıl yönetmeliyim?", a: "Kısa süreli çalışacak birine bile temel işleyişi (en sık sorulan 5-10 soru, hangi durumda kime sorulacağı) yazılı bir kısa kılavuzla anlatmak, her seferinde sıfırdan eğitim vermekten çok daha hızlıdır. İyi performans gösteren mevsimlik çalışanları not edin — bir sonraki sezon yeniden işe almak sıfırdan ilan vermekten hem hızlı hem güvenilirdir." },
-  { category: "Müşteri Geri Bildirimi", q: "Müşterilerimden düzenli geri bildirim nasıl toplarım?", keywords: ["nps", "müşteri anketi", "geri bildirim toplama"], a: "Uzun anketler genelde cevaplanmaz — tek soruluk basit bir \"bizi 0-10 arası tavsiye eder misiniz\" sorusu (NPS) bile, zamanla takip edildiğinde memnuniyet trendini görmenizi sağlar. Olumsuz cevap verenlere kısa süre içinde dönüp nedenini sormak hem sorunu çözer hem müşteride \"gerçekten dinleniyorum\" hissi yaratır." },
-  { category: "Yerel SEO", q: "Google İşletme Profilimi (Google Haritalar) nasıl etkili kullanırım?", keywords: ["google my business", "google işletmem", "harita kaydı"], a: "Profili eksiksiz doldurmak (çalışma saatleri, fotoğraflar, hizmet listesi) ve düzenli müşteri yorumu istemek yerel aramalarda görünürlüğü doğrudan artırır — çoğu küçük işletme bu profili bir kere doldurup unutur. Gelen yorumlara kısa bir yanıt yazmak, hem yorumu okuyanlara hem Google'ın sıralama algoritmasına aktif olduğunuzu gösterir." },
-  { category: "İtibar Yönetimi", q: "Olumsuz online yorumlara nasıl karşılık vermeliyim?", a: "Savunmaya geçmeden, sorunu anladığınızı gösteren sakin bir yanıt yazıp çözümü mümkünse özelden devam ettirin — herkese açık bir tartışma yorumu okuyan diğer müşterileri de etkiler. Yorumu silmeye/görmezden gelmeye çalışmak genelde daha kötü sonuç verir; iyi yönetilmiş bir olumsuz yorum bile markanızın hesap verebilir olduğunu gösterebilir." },
-  { category: "B2B / B2C", q: "Kurumsal (B2B) müşteriye satış, bireysel (B2C) müşteriden nasıl farklıdır?", a: "Kurumsalda genelde tek kişi değil birden fazla kişi (kullanıcı, satın alma, yönetici) karar sürecine dahildir ve karar süresi daha uzundur — sabırsız takip yerine düzenli, profesyonel hatırlatma daha etkilidir. Bireyselde ise duygusal/anlık karar daha belirleyicidir, hız ve kolaylık genelde fiyattan bile önemli olabilir." },
-  { category: "Satış Ekibi", q: "Satış ekibime nasıl bir prim/komisyon sistemi kurmalıyım?", keywords: ["komisyon sistemi", "satış primi", "prim sistemi kurma"], a: "Sadece ciroya değil, kâr marjına veya tahsilata bağlı prim vermek, ekibi indirimle satış kapatmaya değil kârlı ve tahsil edilebilir satışa yönlendirir. Prim hesabını basit ve şeffaf tutun — karmaşık formüller güven kaybettirir, kimse anlamadığı bir sisteme motive olmaz." },
-  { category: "Freelancer/Taşeron", q: "Freelancer/taşeronla çalışırken nelere dikkat etmeliyim?", a: "İşi devretmeden önce teslim tarihini, kapsamı ve revizyon hakkını (kaç revizyon dahil) net yazın — sözlü \"anlaşırız\" ifadeleri en sık gecikme ve ek ücret tartışmasına yol açar. İlk işte küçük bir görevle güvenilirliğini test etmeden büyük/kritik bir işi doğrudan vermek risklidir." },
-  { category: "Nakit Akışı", q: "Kriz anında (talep düşüşü) nakdimi nasıl korurum?", a: "Önce zorunlu olmayan giderleri (yeni yatırım, ek kiralama, birikmiş stok alımı) askıya alın, sabit giderlerinizi yeniden müzakere edin (kira, abonelikler) — kesinti kararını erken almak, nakit tükenene kadar beklemekten daha güvenlidir. Mevcut alacaklarınızı (Finans → Bekleyen Alacak) bu dönemde her zamankinden daha sıkı takip etmek, elinizdeki en hızlı nakit kaynağıdır." },
-  { category: "Girişimcilik", q: "Yeni bir iş fikrini uygulamaya koymadan önce nasıl test etmeliyim?", a: "Büyük yatırım yapmadan önce, fikri en küçük haliyle (basit bir sayfa, sınırlı sayıda müşteri, elle yürütülen bir hizmet) gerçek insanlarla test edin — \"bence tutar\" varsayımı gerçek para ödeyip ödemeyecekleri sorusunun yerini tutmaz. İlk 5-10 gerçek müşteriden çıkan tepki, uzun bir pazar araştırması raporundan daha güvenilir bir sinyaldir." },
-  { category: "Pazarlama", q: "İçerik pazarlaması veya influencer işbirliği işime katkı sağlar mı?", a: "Takipçi sayısına değil, o kişinin kitlesinin sizin hedef müşterinizle ne kadar örtüştüğüne bakın — küçük ama ilgili bir kitleye sahip biri, büyük ama alakasız bir kitleden daha fazla dönüşüm getirebilir. Tek seferlik bir gönderi yerine, sonucu (kod, link, indirim) ölçülebilir yapılandırılmış bir işbirliği, harcamanın karşılığını görmenizi sağlar." },
-  { category: "Satış", q: "Mevcut müşteriye ek satış (upsell/çapraz satış) nasıl yaparım?", a: "En doğru an, müşteri zaten memnunken (bir işi başarıyla tamamladıktan hemen sonra) ek bir ihtiyacını çözecek teklif sunmaktır — memnuniyetsiz bir müşteriye ek satış denemek güveni daha da zedeler. Rastgele değil, müşterinin geçmiş taleplerine/kayıtlarına bakarak hangi ürünü/hizmeti almamış ama ihtiyacı olabilir diye hedefli öneri sunmak dönüşümü artırır." },
+  { category: "Müşteri Segmentasyonu", q: "Müşterilerimi nasıl segmentlere ayırmalıyım?", a: "En basit ve etkili yöntem RFM'dir: müşteri ne zaman son alışveriş yaptı (Recency), ne sıklıkla alıyor (Frequency), ne kadar harcıyor (Monetary) - bu üçüne göre gruplamak kimi öncelikli takip edeceğinizi gösterir. Müşteri etiketlerini bu segmentleri (\"VIP\", \"riskli\", \"pasif\" gibi) işaretlemek için kullanmak, herkese aynı mesajı göndermek yerine segmente göre farklı yaklaşmanızı ve dönüşümü artırmanızı sağlar." },
+  { category: "Büyüme", q: "İkinci şube/lokasyon açmadan önce neye bakmalıyım?", a: "Mevcut şubenizin kârlı olması tek başına yeterli değildir - o kârın sizin kişisel çabanıza mı yoksa tekrarlanabilir bir sisteme mi bağlı olduğuna bakın, birinci şubede siz olmadan ikincisi aynı performansı gösteremeyebilir. Yeni lokasyonu açmadan önce o bölgede gerçek talep olduğunu (rakip yoğunluğu, nüfus/demografi) doğrulamak, \"iyi gidiyoruz, bir tane daha açalım\" iyimserliğinden daha güvenlidir." },
+  { category: "Ekip Yönetimi", q: "Uzaktan/hibrit çalışan ekibimi nasıl yönetmeliyim?", a: "Fiziksel gözetim olmadan güven, net teslim tarihleri ve görünür sonuçlarla kurulur - \"ne kadar çalıştı\" yerine \"ne teslim etti\"ye odaklanmak daha sağlıklı bir ölçüttür. Önemli kararları anlık mesajla değil yazılı (e-posta, ortak not) kaydetmek, dağınık ekipte bilgi kaybını önler." },
+  { category: "Fiyatlandırma", q: "Fiyat listemi hazırlarken çapa etkisinden nasıl faydalanırım?", a: "Üç seçenek sunduğunuzda (temel/standart/premium) müşterilerin çoğu ortadakini seçer - en çok satmasını istediğiniz paketi ortada konumlandırmak, tek fiyat sunmaktan daha yüksek ortalama sepet getirir. En üstteki pahalı seçenek az satılsa bile, ortadaki paketi \"makul\" gösteren bir çapa görevi görür, tamamen kaldırmayın." },
+  { category: "Abonelik Modeli", q: "İşimi tekrarlayan gelir (abonelik) modeline nasıl geçiririm?", keywords: ["tekrarlayan gelir", "abonelik modeli", "recurring revenue"], a: "Tek seferlik satışın yanına aynı müşteriye düzenli değer sunan bir bakım/yenileme/üyelik paketi eklemek gelirinizi öngörülebilir kılar - tüm işi birden abonmanlığa çevirmek yerine önce en istekli müşteri grubunda pilot yapın. Tekrarlayan giderlerinizi izlediğiniz gibi tekrarlayan gelirinizi de düzenli izlemek nakit planlamanızı kolaylaştırır." },
+  { category: "Mevsimlik Personel", q: "Sezonluk/geçici personeli nasıl yönetmeliyim?", a: "Kısa süreli çalışacak birine bile temel işleyişi (en sık sorulan 5-10 soru, hangi durumda kime sorulacağı) yazılı bir kısa kılavuzla anlatmak, her seferinde sıfırdan eğitim vermekten çok daha hızlıdır. İyi performans gösteren mevsimlik çalışanları not edin - bir sonraki sezon yeniden işe almak sıfırdan ilan vermekten hem hızlı hem güvenilirdir." },
+  { category: "Müşteri Geri Bildirimi", q: "Müşterilerimden düzenli geri bildirim nasıl toplarım?", keywords: ["nps", "müşteri anketi", "geri bildirim toplama"], a: "Uzun anketler genelde cevaplanmaz - tek soruluk basit bir \"bizi 0-10 arası tavsiye eder misiniz\" sorusu (NPS) bile, zamanla takip edildiğinde memnuniyet trendini görmenizi sağlar. Olumsuz cevap verenlere kısa süre içinde dönüp nedenini sormak hem sorunu çözer hem müşteride \"gerçekten dinleniyorum\" hissi yaratır." },
+  { category: "Yerel SEO", q: "Google İşletme Profilimi (Google Haritalar) nasıl etkili kullanırım?", keywords: ["google my business", "google işletmem", "harita kaydı"], a: "Profili eksiksiz doldurmak (çalışma saatleri, fotoğraflar, hizmet listesi) ve düzenli müşteri yorumu istemek yerel aramalarda görünürlüğü doğrudan artırır - çoğu küçük işletme bu profili bir kere doldurup unutur. Gelen yorumlara kısa bir yanıt yazmak, hem yorumu okuyanlara hem Google'ın sıralama algoritmasına aktif olduğunuzu gösterir." },
+  { category: "İtibar Yönetimi", q: "Olumsuz online yorumlara nasıl karşılık vermeliyim?", a: "Savunmaya geçmeden, sorunu anladığınızı gösteren sakin bir yanıt yazıp çözümü mümkünse özelden devam ettirin - herkese açık bir tartışma yorumu okuyan diğer müşterileri de etkiler. Yorumu silmeye/görmezden gelmeye çalışmak genelde daha kötü sonuç verir; iyi yönetilmiş bir olumsuz yorum bile markanızın hesap verebilir olduğunu gösterebilir." },
+  { category: "B2B / B2C", q: "Kurumsal (B2B) müşteriye satış, bireysel (B2C) müşteriden nasıl farklıdır?", a: "Kurumsalda genelde tek kişi değil birden fazla kişi (kullanıcı, satın alma, yönetici) karar sürecine dahildir ve karar süresi daha uzundur - sabırsız takip yerine düzenli, profesyonel hatırlatma daha etkilidir. Bireyselde ise duygusal/anlık karar daha belirleyicidir, hız ve kolaylık genelde fiyattan bile önemli olabilir." },
+  { category: "Satış Ekibi", q: "Satış ekibime nasıl bir prim/komisyon sistemi kurmalıyım?", keywords: ["komisyon sistemi", "satış primi", "prim sistemi kurma"], a: "Sadece ciroya değil, kâr marjına veya tahsilata bağlı prim vermek, ekibi indirimle satış kapatmaya değil kârlı ve tahsil edilebilir satışa yönlendirir. Prim hesabını basit ve şeffaf tutun - karmaşık formüller güven kaybettirir, kimse anlamadığı bir sisteme motive olmaz." },
+  { category: "Freelancer/Taşeron", q: "Freelancer/taşeronla çalışırken nelere dikkat etmeliyim?", a: "İşi devretmeden önce teslim tarihini, kapsamı ve revizyon hakkını (kaç revizyon dahil) net yazın - sözlü \"anlaşırız\" ifadeleri en sık gecikme ve ek ücret tartışmasına yol açar. İlk işte küçük bir görevle güvenilirliğini test etmeden büyük/kritik bir işi doğrudan vermek risklidir." },
+  { category: "Nakit Akışı", q: "Kriz anında (talep düşüşü) nakdimi nasıl korurum?", a: "Önce zorunlu olmayan giderleri (yeni yatırım, ek kiralama, birikmiş stok alımı) askıya alın, sabit giderlerinizi yeniden müzakere edin (kira, abonelikler) - kesinti kararını erken almak, nakit tükenene kadar beklemekten daha güvenlidir. Mevcut alacaklarınızı (Finans → Bekleyen Alacak) bu dönemde her zamankinden daha sıkı takip etmek, elinizdeki en hızlı nakit kaynağıdır." },
+  { category: "Girişimcilik", q: "Yeni bir iş fikrini uygulamaya koymadan önce nasıl test etmeliyim?", a: "Büyük yatırım yapmadan önce, fikri en küçük haliyle (basit bir sayfa, sınırlı sayıda müşteri, elle yürütülen bir hizmet) gerçek insanlarla test edin - \"bence tutar\" varsayımı gerçek para ödeyip ödemeyecekleri sorusunun yerini tutmaz. İlk 5-10 gerçek müşteriden çıkan tepki, uzun bir pazar araştırması raporundan daha güvenilir bir sinyaldir." },
+  { category: "Pazarlama", q: "İçerik pazarlaması veya influencer işbirliği işime katkı sağlar mı?", a: "Takipçi sayısına değil, o kişinin kitlesinin sizin hedef müşterinizle ne kadar örtüştüğüne bakın - küçük ama ilgili bir kitleye sahip biri, büyük ama alakasız bir kitleden daha fazla dönüşüm getirebilir. Tek seferlik bir gönderi yerine, sonucu (kod, link, indirim) ölçülebilir yapılandırılmış bir işbirliği, harcamanın karşılığını görmenizi sağlar." },
+  { category: "Satış", q: "Mevcut müşteriye ek satış (upsell/çapraz satış) nasıl yaparım?", a: "En doğru an, müşteri zaten memnunken (bir işi başarıyla tamamladıktan hemen sonra) ek bir ihtiyacını çözecek teklif sunmaktır - memnuniyetsiz bir müşteriye ek satış denemek güveni daha da zedeler. Rastgele değil, müşterinin geçmiş taleplerine/kayıtlarına bakarak hangi ürünü/hizmeti almamış ama ihtiyacı olabilir diye hedefli öneri sunmak dönüşümü artırır." },
   { category: "Nakit Akışı", q: "Geç ödeyen müşterilerle nasıl başa çıkarım?", a: "Vade dolmadan kısa bir hatırlatma (vade gününde değil, birkaç gün önce) göndermek, vade geçtikten sonra sert bir uyarı yazmaktan daha az sürtüşme yaratır ve daha erken sonuç verir. Kronik geç ödeyen müşterilerde bir sonraki işte kısmi peşinat şartı koymak, ilişkiyi bitirmeden riski azaltan makul bir adımdır." },
   { category: "Fiyatlandırma", q: "Hizmetlerimi paket (bundle) halinde satmalı mıyım?", a: "Ayrı ayrı satıldığında düşük görünen küçük hizmetleri bir pakette birleştirmek, hem müşteriye \"daha değerli\" bir teklif gibi görünür hem de ortalama sepet tutarınızı yükseltir. Fiyat listenizde 2-3 net paket seçeneği sunmak, müşteriyi çok fazla seçenekle boğmaktan daha hızlı karar verdirir." },
   { category: "Ekip Yönetimi", q: "Çalışanlarımı nasıl adil bir şekilde değerlendirmeliyim?", a: "Yıl sonunu beklemeden, kısa aralıklarla (3 ayda bir gibi) somut örneklere dayalı geri bildirim vermek hem çalışanın gelişimini hızlandırır hem yıl sonu değerlendirmesini sürpriz olmaktan çıkarır. \"Genel olarak iyisin\" gibi belirsiz yorumlar yerine belirli bir olayı (\"şu talebi hızlı çözdün\") örnek göstermek, geri bildirimi daha inandırıcı ve uygulanabilir kılar." },
-  { category: "Marka", q: "Kurumsal kimliğimi (logo, renkler, ton) nasıl oluşturmalıyım?", a: "Pahalı bir marka ajansı olmadan da, tüm materyallerinizde (fatura, sosyal medya, tabela) aynı logo/renk/yazı tipini tutarlı kullanmak profesyonel bir izlenim yaratır — tutarsızlık, kalitesizlikten çok güvensizlik hissi verir. Marka tonunuzu (resmi mi samimi mi) bir kere netleştirip tüm iletişiminizde aynı tonu korumak, büyük bütçeli tasarımdan daha etkili bir tutarlılık sağlar." },
+  { category: "Marka", q: "Kurumsal kimliğimi (logo, renkler, ton) nasıl oluşturmalıyım?", a: "Pahalı bir marka ajansı olmadan da, tüm materyallerinizde (fatura, sosyal medya, tabela) aynı logo/renk/yazı tipini tutarlı kullanmak profesyonel bir izlenim yaratır - tutarsızlık, kalitesizlikten çok güvensizlik hissi verir. Marka tonunuzu (resmi mi samimi mi) bir kere netleştirip tüm iletişiminizde aynı tonu korumak, büyük bütçeli tasarımdan daha etkili bir tutarlılık sağlar." },
   { category: "Müşteri Sadakati", q: "Sadakat programı nasıl kurmalıyım?", a: "Karmaşık puan sistemleri yerine basit bir kural (örneğin belirli sayıda alışveriş sonrası bir avantaj) hem sizin takip etmenizi hem müşterinin anlamasını kolaylaştırır. Programı geniş kitleye açmadan önce en sadık mevcut müşterilerinizde (en çok işlem yapan müşteri etiketi/listesi) test etmek, ayarlamaları erken yapmanızı sağlar." },
   { category: "Vergi Teşvikleri", q: "Genç girişimci vergi istisnasından yararlanabilir miyim?", a: "29 yaşını doldurmamış ve ilk kez vergi mükellefi olan girişimciler için Gelir Vergisi Kanunu'nda kazancın belirli bir kısmını gelir vergisinden istisna tutan bir düzenleme (\"genç girişimci kazanç istisnası\") var. Şartlar ve güncel tutar sık değiştiği için muhasebecinize/SMMM'nize sorup uygunluğunuzu teyit ettirin." },
   { category: "Vergi Teşvikleri", q: "KOBİ'me devlet desteği/hibe var mı?", a: "KOSGEB, KOBİ'lere yönelik girişimcilik, dijitalleşme, Ar-Ge ve işletme geliştirme destekleri (hibe ve düşük faizli kredi) sunuyor. Güncel programları ve başvuru şartlarını KOSGEB'in kendi sitesinden veya bağlı olduğunuz Ticaret/Sanayi Odası'ndan öğrenebilirsiniz." },
   { category: "Vergi Teşvikleri", q: "Yeni ekipman/makine alırken vergi avantajı var mı?", a: "Belirli yatırımlar için alınan \"yatırım teşvik belgesi\" kapsamında KDV istisnası, gümrük vergisi muafiyeti ve vergi indirimi gibi avantajlardan yararlanılabiliyor. Bu belge genelde yatırımdan ÖNCE alınması gerektiği için, büyük bir alım öncesi muhasebecinize danışmanız önemli." },
-  { category: "Vergi Teşvikleri", q: "Fazla ödediğim KDV'yi geri alabilir miyim?", a: "Bazı işlemlerde (ihracat, indirimli orana tabi teslimler, KDV tevkifatı uygulanan hizmetler vb.) yüklendiğiniz KDV, hesapladığınız KDV'den fazla kalabilir — bu fark belirli şartlarda nakden veya mahsuben iade alınabilir. Çoğu KOBİ'nin bilmediği ama muhasebecisinin başvurabileceği bir hak." },
+  { category: "Vergi Teşvikleri", q: "Fazla ödediğim KDV'yi geri alabilir miyim?", a: "Bazı işlemlerde (ihracat, indirimli orana tabi teslimler, KDV tevkifatı uygulanan hizmetler vb.) yüklendiğiniz KDV, hesapladığınız KDV'den fazla kalabilir - bu fark belirli şartlarda nakden veya mahsuben iade alınabilir. Çoğu KOBİ'nin bilmediği ama muhasebecisinin başvurabileceği bir hak." },
   { category: "Satış", q: "Soğuk aramada/soğuk mesajda nasıl daha iyi sonuç alırım?", a: "Genel bir tanıtım yerine karşı tarafın işine özel, kısa ve tek bir somut fayda vurgulayan bir açılış cümlesi kullanmak yanıt oranını artırır. İlk temasta satış kapatmaya çalışmak yerine küçük bir sonraki adım (kısa görüşme, örnek gönderme) istemek, karşı tarafın karar yükünü azaltır." },
   { category: "Nakit Akışı", q: "İşletme sermayesi ihtiyacımı nasıl hesaplarım?", a: "Aylık sabit giderlerinizi tahsilat gecikmesi kadar bir süreyle (örn. ortalama tahsilat süreniz 30 gün ise en az 1-2 aylık gider) çarpmak, kaba ama kullanışlı bir güvenlik tamponu verir. Bu tamponu ayrı bir hesapta tutmak, günlük harcamalarla karışmasını önler." },
-  { category: "Müşteri Sadakati", q: "Müşteri kaybetme sinyallerini erken nasıl fark ederim?", a: "Sipariş sıklığında/tutarında ani düşüş, geç yanıt verme veya destek taleplerinde artan hoşnutsuzluk erken uyarı işaretleridir — bunları beklemeden, düzenli aralıklarla pasif müşteri listenizi (Binerly'de otomatik hesaplanır) gözden geçirmek fark etmeyi kolaylaştırır. Sinyali gördüğünüzde beklemeden kişisel bir arama/mesaj genelde işe yarar." },
+  { category: "Müşteri Sadakati", q: "Müşteri kaybetme sinyallerini erken nasıl fark ederim?", a: "Sipariş sıklığında/tutarında ani düşüş, geç yanıt verme veya destek taleplerinde artan hoşnutsuzluk erken uyarı işaretleridir - bunları beklemeden, düzenli aralıklarla pasif müşteri listenizi (Binerly'de otomatik hesaplanır) gözden geçirmek fark etmeyi kolaylaştırır. Sinyali gördüğünüzde beklemeden kişisel bir arama/mesaj genelde işe yarar." },
   { category: "Pazarlama", q: "Web sitem olmadan online varlığımı nasıl güçlendiririm?", a: "Google İşletme Profili ve aktif bir sosyal medya hesabı, küçük bir işletme için genelde ilk web sitesinden daha hızlı sonuç verir çünkü zaten arama yapan/keşfeden kullanıcıya ulaşır. Bütçe el verdiğinde bile karmaşık bir site yerine tek sayfalık, iletişim bilgisi net bir sayfa yeterlidir." },
-  { category: "Ekip Yönetimi", q: "Motivasyonu düşük bir çalışanla nasıl konuşmalıyım?", a: "Suçlayıcı bir üslup yerine önce gözlemi paylaşıp (\"son zamanlarda şunu fark ettim\") nedenini sormak, savunmaya geçmeden gerçek sorunu ortaya çıkarır — kişisel bir sorun mu, iş yükü mü, takdir eksikliği mi olduğunu bilmeden çözüm üretilemez. Tek seferlik bir konuşma yerine kısa aralıklarla takip etmek kalıcı değişim şansını artırır." },
+  { category: "Ekip Yönetimi", q: "Motivasyonu düşük bir çalışanla nasıl konuşmalıyım?", a: "Suçlayıcı bir üslup yerine önce gözlemi paylaşıp (\"son zamanlarda şunu fark ettim\") nedenini sormak, savunmaya geçmeden gerçek sorunu ortaya çıkarır - kişisel bir sorun mu, iş yükü mü, takdir eksikliği mi olduğunu bilmeden çözüm üretilemez. Tek seferlik bir konuşma yerine kısa aralıklarla takip etmek kalıcı değişim şansını artırır." },
   { category: "Zaman Yönetimi", q: "Sürekli kesintiye uğrayan işimi nasıl daha az bölünerek yürütürüm?", a: "Günün belirli bir bölümünü (örn. sabahın ilk saati) bildirim/telefon almayan \"derin çalışma\" zamanı olarak ayırmak, sürekli açık kapı politikasından daha üretkendir. Acil olmayan soruları biriktirip günde 1-2 kez toplu yanıtlamak, her seferinde odağı bölmekten daha verimlidir." },
-  { category: "Marka", q: "Rakiplerimden farklılaşmak için ne yapmalıyım (konumlandırma)?", a: "\"Herkese her şeyi\" sunmaya çalışmak yerine, belirli bir müşteri tipinde veya ihtiyaçta gerçekten en iyisi olmayı hedeflemek daha akılda kalıcıdır — dar ama net bir konumlandırma, geniş ama belirsiz olmaktan daha fazla tercih edilir. Bu farkı tüm iletişiminizde (site, sosyal medya, satış konuşması) tutarlı tekrarlamak gerekir." },
+  { category: "Marka", q: "Rakiplerimden farklılaşmak için ne yapmalıyım (konumlandırma)?", a: "\"Herkese her şeyi\" sunmaya çalışmak yerine, belirli bir müşteri tipinde veya ihtiyaçta gerçekten en iyisi olmayı hedeflemek daha akılda kalıcıdır - dar ama net bir konumlandırma, geniş ama belirsiz olmaktan daha fazla tercih edilir. Bu farkı tüm iletişiminizde (site, sosyal medya, satış konuşması) tutarlı tekrarlamak gerekir." },
   { category: "Sosyal Medya", q: "Hangi sosyal medya platformuna öncelik vermeliyim?", a: "Tüm platformlarda az ve düzensiz paylaşım yapmak yerine, hedef kitlenizin en çok vakit geçirdiği tek platformda düzenli ve kaliteli içerik üretmek daha etkilidir. Görsel bir ürün/hizmetiniz varsa Instagram, profesyonel/B2B bir hizmetseniz LinkedIn genelde daha yüksek geri dönüş sağlar." },
-  { category: "Müzakere", q: "Büyük bir müşteriye özel indirim isterse ne yapmalıyım?", a: "İndirimi karşılıksız vermek yerine bir karşılık isteyin (daha uzun sözleşme, peşin ödeme, referans) — bu hem kâr kaybınızı dengeler hem de müşterinin indirimi daha değerli görmesini sağlar. Tek seferlik özel bir indirim verirken bunu yazılı olarak \"bu sefere özel\" diye belirtmek, gelecekte standart beklenti hâline gelmesini önler." },
-  { category: "Rekabet", q: "Fiyat savaşına girmeden rekabet edebilir miyim?", a: "Sadece fiyatla rekabet eden bir işletme genelde en düşük kâr marjına da mahkûm olur — hız, kişisel ilgi, garanti veya uzmanlık gibi paraya çevrilemeyen farkları öne çıkarmak daha sürdürülebilirdir. Rakip fiyat kırdığında hemen siz de kırmak yerine, önce kaybettiğiniz müşterilerin gerçek nedenini (Binerly'deki kayıp analizi) doğrulayın." },
+  { category: "Müzakere", q: "Büyük bir müşteriye özel indirim isterse ne yapmalıyım?", a: "İndirimi karşılıksız vermek yerine bir karşılık isteyin (daha uzun sözleşme, peşin ödeme, referans) - bu hem kâr kaybınızı dengeler hem de müşterinin indirimi daha değerli görmesini sağlar. Tek seferlik özel bir indirim verirken bunu yazılı olarak \"bu sefere özel\" diye belirtmek, gelecekte standart beklenti hâline gelmesini önler." },
+  { category: "Rekabet", q: "Fiyat savaşına girmeden rekabet edebilir miyim?", a: "Sadece fiyatla rekabet eden bir işletme genelde en düşük kâr marjına da mahkûm olur - hız, kişisel ilgi, garanti veya uzmanlık gibi paraya çevrilemeyen farkları öne çıkarmak daha sürdürülebilirdir. Rakip fiyat kırdığında hemen siz de kırmak yerine, önce kaybettiğiniz müşterilerin gerçek nedenini (Binerly'deki kayıp analizi) doğrulayın." },
   { category: "Girişimcilik", q: "İşimi büyütürken kontrolü kaybetme korkusuyla nasıl başa çıkarım?", a: "Her kararı kendiniz vermek yerine, düşük riskli kararlarda ekibinize net sınırlar içinde yetki vermek (\"şu tutara kadar sen karar verebilirsin\") güveni kademeli inşa eder. Kontrolü tamamen bırakmak değil, hangi kararların gerçekten sizde kalması gerektiğini netleştirmek asıl çözümdür." },
-  { category: "Yeni İşletme", q: "İlk yıl en sık yapılan hatalar nelerdir?", a: "Çok erken çok fazla harcama (ofis, ekipman, personel) yapmak ve gerçek talebi doğrulamadan büyümeye yatırım yapmak en sık rastlanan hatalardır. İkinci sık hata ise fiyatlandırmayı çok düşük belirleyip sonradan yükseltmekte zorlanmaktır — başlangıçta biraz muhafazakâr ama sürdürülebilir bir fiyatla başlamak daha sağlıklıdır." },
+  { category: "Yeni İşletme", q: "İlk yıl en sık yapılan hatalar nelerdir?", a: "Çok erken çok fazla harcama (ofis, ekipman, personel) yapmak ve gerçek talebi doğrulamadan büyümeye yatırım yapmak en sık rastlanan hatalardır. İkinci sık hata ise fiyatlandırmayı çok düşük belirleyip sonradan yükseltmekte zorlanmaktır - başlangıçta biraz muhafazakâr ama sürdürülebilir bir fiyatla başlamak daha sağlıklıdır." },
   { category: "Networking", q: "Bir etkinlikte/toplantıda kendimi nasıl tanıtmalıyım?", a: "Uzun bir unvan/hizmet listesi yerine, kime ne fayda sağladığınızı tek cümlede anlatan kısa bir tanıtım (\"X yapan işletmelere Y konusunda yardımcı oluyorum\") akılda kalıcıdır. Tanıştığınız kişiden hemen bir şey istemek yerine önce onun ne yaptığını sorup dinlemek, uzun vadeli bir bağlantı kurma ihtimalini artırır." },
   { category: "Şikayet Yönetimi", q: "Haksız/aşırı bir şikayete nasıl yanıt vermeliyim?", a: "Haklı olduğunuzu kanıtlamaya çalışmadan önce müşterinin duygusunu (hayal kırıklığı, sinir) kabul eden bir cümleyle başlamak, konuşmayı sakinleştirir. Gerçekten haksız bir talep varsa kararlı ama saygılı bir dille sınır çizmek, her isteği kabul etmekten uzun vadede daha sağlıklıdır." },
-  { category: "Büyüme", q: "Büyürken kaliteyi nasıl korurum?", a: "Büyüme hızınız, kalite kontrol süreçlerinizi (kontrol listesi, eğitim, denetim) kurma hızınızı geçmemeli — önce süreci belgeleyip tekrarlanabilir hâle getirin, sonra hacmi artırın. Büyüme sırasında en sık gözden kaçan şey, eskiden \"sizin gözünüzle\" yapılan kalite kontrolünün ekip büyüdükçe kimin sorumluluğunda olacağıdır." },
+  { category: "Büyüme", q: "Büyürken kaliteyi nasıl korurum?", a: "Büyüme hızınız, kalite kontrol süreçlerinizi (kontrol listesi, eğitim, denetim) kurma hızınızı geçmemeli - önce süreci belgeleyip tekrarlanabilir hâle getirin, sonra hacmi artırın. Büyüme sırasında en sık gözden kaçan şey, eskiden \"sizin gözünüzle\" yapılan kalite kontrolünün ekip büyüdükçe kimin sorumluluğunda olacağıdır." },
   { category: "İşe Alım", q: "Küçük işletmede maaş dışında nasıl cazip olabilirim?", a: "Büyük şirketlerle maaşta yarışamayan küçük işletmeler genelde esneklik (çalışma saati, uzaktan çalışma), hızlı öğrenme/sorumluluk alma fırsatı ve daha yakın bir çalışma ortamıyla fark yaratabilir. Bu avantajları ilanda açıkça yazmak, sadece maaşa bakan değil kültüre uyan adayları çeker." },
   { category: "Sözleşmeler", q: "Sözleşmeyi feshetmek istediğimde nelere dikkat etmeliyim?", a: "Fesih bildirimini sözleşmede belirtilen süre ve şekilde (genelde yazılı, belirli gün önceden) yapmak, sonradan \"usulüne uygun bildirilmedi\" itirazını önler. Fesih öncesi tarafların birbirine olan yükümlülüklerini (bekleyen ödeme, teslim edilmemiş iş) netleştirmek, ilerideki anlaşmazlığı azaltır." },
   { category: "Stok Yönetimi", q: "Mevsimsel ürünlerde stok planlamasını nasıl yaparım?", a: "Sezon başlamadan geçmiş yılın aynı dönem satışına bakıp küçük bir güvenlik payıyla sipariş vermek, sezon ortasında telaşla ek sipariş vermekten daha ucuza gelir. Sezon sonunda kalan stoğu erken bir kampanyayla eritmek, bir sonraki sezona taşımaktan (bayatlama, depolama maliyeti) genelde daha kârlıdır." },
   { category: "E-ticaret", q: "Kargo/lojistik maliyetini nasıl optimize ederim?", a: "Tek bir kargo firmasına bağlı kalmak yerine 2-3 firmanın fiyat/hızını karşılaştırıp bölgeye göre değiştirmek maliyeti düşürebilir. Belirli bir tutarın üzerinde ücretsiz kargo sunmak, ortalama sepet tutarını artırırken kargo maliyetini de dengeler." },
   { category: "Mevsimsellik", q: "Düşük sezonda ekibimi nasıl değerlendiririm?", a: "Düşük sezonu boşta geçirmek yerine, yoğun sezonda vakit bulamadığınız eğitim, bakım/temizlik veya süreç iyileştirme işlerine ayırmak verimliliği kaybetmeden değerlendirir. Bazı işletmeler düşük sezonda farklı bir ürün/hizmete geçici olarak yönelerek geliri de dengeler." },
-  { category: "Franchise", q: "Franchise almayı düşünüyorum, nelere dikkat etmeliyim?", a: "Sadece marka bilinirliğine değil, franchise verenin size sağlayacağı eğitim, tedarik desteği ve bölgenizdeki gerçek talebe bakın — güçlü marka, zayıf yerel talep varsa yeterli olmaz. Sözleşmedeki süre, yenileme koşulları ve fesih/cayma şartlarını imzalamadan önce bir avukata incelettirmek önemlidir." },
+  { category: "Franchise", q: "Franchise almayı düşünüyorum, nelere dikkat etmeliyim?", a: "Sadece marka bilinirliğine değil, franchise verenin size sağlayacağı eğitim, tedarik desteği ve bölgenizdeki gerçek talebe bakın - güçlü marka, zayıf yerel talep varsa yeterli olmaz. Sözleşmedeki süre, yenileme koşulları ve fesih/cayma şartlarını imzalamadan önce bir avukata incelettirmek önemlidir." },
   { category: "Kriz Yönetimi", q: "Bir tedarik krizinde alternatif nasıl bulurum?", a: "Kriz çıkmadan önce kritik ürünlerde en az bir yedek tedarikçiyi önceden belirlemiş olmak, kriz anında panikle arama yapmaktan çok daha hızlı çözüm sağlar. Mevcut tedarikçinizle de krizde önceliklendirilme konusunda önceden konuşmuş olmak (düzenli ödeme/iletişim karşılığında) pazarlık gücü verir." },
-  { category: "Müşteri Kaybı Analizi", q: "Kaybedilen müşteriyi geri kazanmaya değer mi?", a: "Kayıp nedenine bağlıdır — fiyat veya geçici bir memnuniyetsizlikse geri kazanma denemeye değer olabilir, ama hizmet kapsamınız dışında bir ihtiyaç değiştiyse zaman kaybı olabilir. Geri kazanma denemesinde eski sorunu çözdüğünüzü somut olarak göstermeden sadece \"geri dönün\" demek genelde işe yaramaz." },
-  { category: "Muhasebe", q: "Nakit bazlı mı tahakkuk bazlı mı takip etmeliyim?", a: "Küçük işletmeler için basitçe: nakit bazlı (para gerçekten girip çıktığında kaydetmek) günlük karar almak için daha sezgiseldir, tahakkuk bazlı (fatura kesildiğinde kaydetmek) ise gerçek kârlılığı daha doğru gösterir. İkisi arasındaki farkı bilmek, \"kârdayım ama param yok\" şaşkınlığını önler — resmi kayıtlar için muhasebecinizin yöntemini esas alın." },
-  { category: "Vergi", q: "Fatura kesmeyi unutursam ne olur?", a: "Zamanında kesilmeyen fatura hem cezai yaptırıma hem de KDV/gelir beyanınızda tutarsızlığa yol açabilir — fark ettiğiniz anda muhasebecinize bildirip düzeltme yapmak, sessiz kalmaktan çok daha güvenlidir. Bu sık yaşanan bir hata, düzenli bir fatura kontrol alışkanlığı (haftalık) riski büyük ölçüde azaltır." },
+  { category: "Müşteri Kaybı Analizi", q: "Kaybedilen müşteriyi geri kazanmaya değer mi?", a: "Kayıp nedenine bağlıdır - fiyat veya geçici bir memnuniyetsizlikse geri kazanma denemeye değer olabilir, ama hizmet kapsamınız dışında bir ihtiyaç değiştiyse zaman kaybı olabilir. Geri kazanma denemesinde eski sorunu çözdüğünüzü somut olarak göstermeden sadece \"geri dönün\" demek genelde işe yaramaz." },
+  { category: "Muhasebe", q: "Nakit bazlı mı tahakkuk bazlı mı takip etmeliyim?", a: "Küçük işletmeler için basitçe: nakit bazlı (para gerçekten girip çıktığında kaydetmek) günlük karar almak için daha sezgiseldir, tahakkuk bazlı (fatura kesildiğinde kaydetmek) ise gerçek kârlılığı daha doğru gösterir. İkisi arasındaki farkı bilmek, \"kârdayım ama param yok\" şaşkınlığını önler - resmi kayıtlar için muhasebecinizin yöntemini esas alın." },
+  { category: "Vergi", q: "Fatura kesmeyi unutursam ne olur?", a: "Zamanında kesilmeyen fatura hem cezai yaptırıma hem de KDV/gelir beyanınızda tutarsızlığa yol açabilir - fark ettiğiniz anda muhasebecinize bildirip düzeltme yapmak, sessiz kalmaktan çok daha güvenlidir. Bu sık yaşanan bir hata, düzenli bir fatura kontrol alışkanlığı (haftalık) riski büyük ölçüde azaltır." },
   { category: "Yatırım", q: "Kendi param mı yoksa kredi mi kullanmalıyım?", a: "Kendi paranızı kullanmak faiz yükü getirmez ama kişisel güvenliğinizi (acil durum tamponunuz) riske atar; kredi ise kişisel tamponunuzu korur ama geri ödeme yükümlülüğü ekler. Genel bir kural: işin getirisi kredi faizinden belirgin şekilde yüksekse ve geri ödemeyi düşük sezonda bile karşılayabiliyorsanız kredi mantıklı olabilir." },
   { category: "Dijital Pazarlama", q: "Reklam bütçemi platformlar arasında nasıl paylaştırmalıyım?", a: "Tüm bütçeyi tek platforma yatırmadan önce küçük eşit paylarla 2-3 platformu test edip hangisinin gerçek satışa (sadece tıklamaya değil) dönüştüğünü ölçün, sonra bütçeyi kazanana kaydırın. Test dönemini en az birkaç hafta tutmak, erken ve yanıltıcı sonuçlara göre karar vermeyi önler." },
-  { category: "E-posta Pazarlaması", q: "E-posta listemi nasıl büyütürüm?", a: "Satın alma veya kayıt sırasında açık bir onay kutusuyla izin istemek, listeyi küçük ama etkileşimli tutar — izinsiz eklenen adresler hem yasal risk taşır hem de düşük açılma oranıyla sonucu bozar. Küçük bir teşvik (indirim kodu, bilgi PDF'i) karşılığında kayıt istemek gönüllü büyümeyi hızlandırır." },
-  { category: "Delegasyon", q: "Hangi işleri asla devretmemeliyim?", a: "Stratejik kararlar, kritik müşteri ilişkileri ve para/yetki gerektiren onaylar genelde son ana kadar sizde kalmalı — geri kalan hemen hemen her tekrar eden operasyonel iş devredilebilir. \"Ben daha iyi yaparım\" düşüncesi genelde devretmemenin gerçek nedenidir, hız/kalite farkı devretmenin getirdiği zaman kazancına değmeyebilir." },
+  { category: "E-posta Pazarlaması", q: "E-posta listemi nasıl büyütürüm?", a: "Satın alma veya kayıt sırasında açık bir onay kutusuyla izin istemek, listeyi küçük ama etkileşimli tutar - izinsiz eklenen adresler hem yasal risk taşır hem de düşük açılma oranıyla sonucu bozar. Küçük bir teşvik (indirim kodu, bilgi PDF'i) karşılığında kayıt istemek gönüllü büyümeyi hızlandırır." },
+  { category: "Delegasyon", q: "Hangi işleri asla devretmemeliyim?", a: "Stratejik kararlar, kritik müşteri ilişkileri ve para/yetki gerektiren onaylar genelde son ana kadar sizde kalmalı - geri kalan hemen hemen her tekrar eden operasyonel iş devredilebilir. \"Ben daha iyi yaparım\" düşüncesi genelde devretmemenin gerçek nedenidir, hız/kalite farkı devretmenin getirdiği zaman kazancına değmeyebilir." },
   { category: "İş-Yaşam Dengesi", q: "Tatile çıkarken işimi nasıl güvenle bırakırım?", a: "Gitmeden önce ekibinize/vekilinize hangi kararları kendi başlarına alabileceklerini ve hangi durumlarda sizi arayacaklarını net yazılı olarak bırakmak, sürekli \"acaba ne oluyor\" kaygısını azaltır. Tamamen ulaşılmaz olmak yerine günde belirli, kısa bir kontrol penceresi (örn. akşam 10 dakika) tutmak, hem dinlenmenizi hem güvenliği dengeler." },
-  { category: "Ortaklık", q: "Yeni bir ortak almayı düşünüyorum, nelere dikkat etmeliyim?", a: "Sadece getirdiği sermayeye değil, günlük işte gerçekten ne katkı sağlayacağına ve değerlerinizin/çalışma tarzınızın uyuşup uyuşmadığına bakın — uyumsuz bir ortaklık parayla telafi edilemeyecek zaman ve enerji kaybettirir. Ortaklık şartlarını (pay oranı, karar mekanizması, ayrılık senaryosu) baştan yazılı netleştirmek şarttır." },
+  { category: "Ortaklık", q: "Yeni bir ortak almayı düşünüyorum, nelere dikkat etmeliyim?", a: "Sadece getirdiği sermayeye değil, günlük işte gerçekten ne katkı sağlayacağına ve değerlerinizin/çalışma tarzınızın uyuşup uyuşmadığına bakın - uyumsuz bir ortaklık parayla telafi edilemeyecek zaman ve enerji kaybettirir. Ortaklık şartlarını (pay oranı, karar mekanizması, ayrılık senaryosu) baştan yazılı netleştirmek şarttır." },
   { category: "Tedarikçi İlişkileri", q: "Tedarikçiyle fiyat pazarlığını nasıl yaparım?", a: "Tek seferlik büyük bir indirim istemek yerine, düzenli ve öngörülebilir sipariş hacmi karşılığında kademeli bir fiyat avantajı önermek her iki taraf için de sürdürülebilir bir anlaşmadır. Rakip tedarikçi tekliflerini elinizde bulundurmak (kullanmasanız bile) pazarlıkta gerçekçi bir referans noktası verir." },
   { category: "Kalite Kontrol", q: "Müşteri şikayetlerinden kalite iyileştirmesi nasıl çıkarırım?", a: "Şikayetleri tek tek unutmak yerine kategori bazında (kargo, ürün hatası, iletişim gecikmesi vb.) düzenli topladığınızda, en sık tekrar eden kategori asıl kök sorunu gösterir. En sık kategoriye önce müdahale etmek, dağınık şekilde her şeyi aynı anda düzeltmeye çalışmaktan daha hızlı sonuç verir." },
   { category: "Müşteri Segmentasyonu", q: "En kârlı müşteri segmentimi nasıl bulurum?", a: "Sadece en çok ciro getiren değil, en az efor/maliyetle en çok kâr bırakan segmenti bulmak için hem gelir hem de o segmente hizmet verme maliyetini (destek yükü, özel talepler) birlikte değerlendirin. Bu segmenti bulduktan sonra pazarlama/satış çabanızın çoğunu oraya yönlendirmek, geniş ama düşük verimli bir kitleye eşit efor harcamaktan daha kârlıdır." },
@@ -5773,42 +5773,42 @@ const ADVISOR_TIPS = [
   { category: "Abonelik Modeli", q: "Abonelik iptallerini (churn) nasıl azaltırım?", a: "İptal talebi geldiğinde hemen işlemi tamamlamak yerine kısa bir nedeni sormak, hem gerçek sorunları öğrenmenizi hem de bazı durumlarda (fiyat, kullanım eksikliği) müşteriyi ikna etme şansı verir. Yeni abonelerin ilk haftalarda ürünü/hizmeti gerçekten kullanmasını sağlamak (onboarding), en çok terk edilen erken dönemi güvenli geçirir." },
   { category: "Mevsimlik Personel", q: "Mevsimlik personeli tam zamanlıya nasıl geçiririm?", a: "Sezon boyunca performansı iyi olan kişileri not edip sezon biterken (son ana bırakmadan) tam zamanlı teklif sunmak, sizin için bilinen/güvenilir bir kişiyi işe almak demektir. Geçiş öncesi beklentileri (görev kapsamı, çalışma saatleri) netleştirmek, mevsimlik dönemdeki gevşek düzenin tam zamanlıya taşınmasını önler." },
   { category: "Müşteri Geri Bildirimi", q: "Olumsuz geri bildirimi ekibime nasıl aktarmalıyım?", a: "Geri bildirimi kişiyi suçlayan değil süreci iyileştiren bir çerçevede sunmak (\"şu süreçte şu sorunu yaşıyoruz\" gibi) ekibin savunmaya geçmeden çözüme odaklanmasını sağlar. Sadece olumsuzu değil, olumlu geri bildirimleri de düzenli paylaşmak, geri bildirim kültürünü sadece eleştiri anına indirgemekten kaçınır." },
-  { category: "Yerel SEO", q: "Birden fazla şubem varsa her biri için ayrı Google profili mi açmalıyım?", a: "Evet, her fiziksel lokasyon için ayrı bir Google İşletme Profili açmak, o şubeye yakın aramalarda görünürlüğü artırır — tek bir profilde tüm şubeleri birleştirmek yerel aramada dezavantaj yaratır. Her profilin adres/telefon/çalışma saatleri bilgisini o şubeye özel ve güncel tutmak önemlidir." },
+  { category: "Yerel SEO", q: "Birden fazla şubem varsa her biri için ayrı Google profili mi açmalıyım?", a: "Evet, her fiziksel lokasyon için ayrı bir Google İşletme Profili açmak, o şubeye yakın aramalarda görünürlüğü artırır - tek bir profilde tüm şubeleri birleştirmek yerel aramada dezavantaj yaratır. Her profilin adres/telefon/çalışma saatleri bilgisini o şubeye özel ve güncel tutmak önemlidir." },
   { category: "İtibar Yönetimi", q: "Sahte/kötü niyetli bir yoruma nasıl karşılık vermeliyim?", a: "Öfkeli bir yanıt yazmak yerine sakin, gerçekleri (sipariş/randevu kaydı gibi) ortaya koyan kısa bir yanıt yazmak, okuyan diğer kullanıcılara güven verir. Gerçekten sahte olduğuna eminseniz platformun (Google, sosyal medya) şikayet/bildirme mekanizmasını kullanmak, yorumu silmeye çalışmaktan daha etkilidir." },
-  { category: "B2B / B2C", q: "Hem kurumsal hem bireysel müşteriye aynı anda nasıl hizmet veririm?", a: "İki farklı müşteri tipi genelde farklı iletişim tonu ve satış süreci ister — aynı pazarlama mesajını ikisine birden göndermek yerine ayrı ayrı ele almak dönüşümü artırır. Fiyatlandırma ve ödeme koşullarını da (kurumsalda vadeli/faturalı, bireyselde peşin) buna göre ayırmak süreç karmaşasını azaltır." },
-  { category: "Satış Ekibi", q: "Satış ekibimin performansını hangi metriklerle takip etmeliyim?", a: "Sadece kapatılan satış sayısına değil, kazanma oranına (kaç teklifin kaçı kazanıldı) ve ortalama kapanma süresine de bakmak, kimin gerçekten verimli çalıştığını gösterir — çok teklif açıp az kapatan biri, az teklif açıp çoğunu kapatan birinden daha \"başarılı\" görünmeyebilir. Bu metrikleri düzenli (haftalık/aylık) paylaşmak, ekipte sağlıklı bir rekabet kültürü oluşturur." },
+  { category: "B2B / B2C", q: "Hem kurumsal hem bireysel müşteriye aynı anda nasıl hizmet veririm?", a: "İki farklı müşteri tipi genelde farklı iletişim tonu ve satış süreci ister - aynı pazarlama mesajını ikisine birden göndermek yerine ayrı ayrı ele almak dönüşümü artırır. Fiyatlandırma ve ödeme koşullarını da (kurumsalda vadeli/faturalı, bireyselde peşin) buna göre ayırmak süreç karmaşasını azaltır." },
+  { category: "Satış Ekibi", q: "Satış ekibimin performansını hangi metriklerle takip etmeliyim?", a: "Sadece kapatılan satış sayısına değil, kazanma oranına (kaç teklifin kaçı kazanıldı) ve ortalama kapanma süresine de bakmak, kimin gerçekten verimli çalıştığını gösterir - çok teklif açıp az kapatan biri, az teklif açıp çoğunu kapatan birinden daha \"başarılı\" görünmeyebilir. Bu metrikleri düzenli (haftalık/aylık) paylaşmak, ekipte sağlıklı bir rekabet kültürü oluşturur." },
   { category: "Freelancer/Taşeron", q: "Birden fazla freelancer'ı aynı projede nasıl koordine ederim?", a: "Herkesin net bir teslim tarihini ve birbirine bağımlı olduğu noktaları (kimin işi bitmeden kim başlayamıyor) baştan görünür kılmak, iletişim eksikliğinden doğan gecikmeleri önler. Ortak bir ilerleme takibi (basit bir liste bile olur) tutmak, herkese ayrı ayrı \"nerede kaldın\" sormaktan daha verimlidir." },
   { category: "Sigorta", q: "İşletmem için hangi sigortalara öncelik vermeliyim?", a: "İşyeri sigortası (yangın, hırsızlık, su baskını) ve üçüncü şahıslara verilebilecek zararlara karşı sorumluluk sigortası çoğu küçük işletme için temel önceliktir. Sektörünüze özgü riskler (örn. sağlık/güzellik sektöründe mesleki sorumluluk) varsa bunun için ayrı bir poliçe gerekip gerekmediğini bir sigorta acentesiyle değerlendirin." },
   { category: "Sigorta", q: "Çalışanlarım için hangi sigortalar zorunlu?", a: "Sigortalı çalıştırdığınız her personel için SGK bildirimi ve prim ödemesi yasal bir zorunluluktur, bunu ihmal etmek ciddi cezai yaptırıma yol açar. Bunun ötesinde ek bir özel sağlık sigortası sunmak zorunlu olmasa da, küçük işletmelerde çalışan bağlılığını artıran düşük maliyetli bir yan haktır." },
-  { category: "Sigorta", q: "Sigorta poliçemi yenilerken nelere dikkat etmeliyim?", a: "Sadece fiyata değil, kapsam dışı bırakılan durumlara (istisnalar) dikkatlice bakın — ucuz bir poliçe, gerçekten ihtiyaç anında kapsamadığı bir riskle sizi savunmasız bırakabilir. İşletmeniz büyüdükçe (yeni ekipman, yeni lokasyon) poliçenizin güncel değeri yansıtıp yansıtmadığını yıllık gözden geçirin." },
-  { category: "Kira ve Mülk", q: "İşyeri kira sözleşmesinde nelere dikkat etmeliyim?", a: "Kira artış oranının nasıl belirleneceği (hangi endekse bağlı), sözleşme süresi ve erken fesih koşulları en sık ihtilaf çıkan maddelerdir — bunları imzalamadan önce net anlaşın. Depozito/güvence bedelinin iade koşullarını da yazılı almak, çıkışta yaşanan anlaşmazlıkları azaltır." },
-  { category: "Kira ve Mülk", q: "İşyeri için yer seçerken nelere bakmalıyım?", a: "Kira maliyetini sadece kendisiyle değil, o lokasyonun getireceği ek müşteri trafiğiyle (yaya trafiği, görünürlük, ulaşım kolaylığı) birlikte değerlendirin — ucuz ama görünmez bir yer, pahalı ama işlek bir yerden daha maliyetli çıkabilir. Uzun vadeli bir bölgesel gelişim planı (yol çalışması, yeni AVM vb.) varsa öğrenmeye çalışmak sürpriz risklerden korur." },
+  { category: "Sigorta", q: "Sigorta poliçemi yenilerken nelere dikkat etmeliyim?", a: "Sadece fiyata değil, kapsam dışı bırakılan durumlara (istisnalar) dikkatlice bakın - ucuz bir poliçe, gerçekten ihtiyaç anında kapsamadığı bir riskle sizi savunmasız bırakabilir. İşletmeniz büyüdükçe (yeni ekipman, yeni lokasyon) poliçenizin güncel değeri yansıtıp yansıtmadığını yıllık gözden geçirin." },
+  { category: "Kira ve Mülk", q: "İşyeri kira sözleşmesinde nelere dikkat etmeliyim?", a: "Kira artış oranının nasıl belirleneceği (hangi endekse bağlı), sözleşme süresi ve erken fesih koşulları en sık ihtilaf çıkan maddelerdir - bunları imzalamadan önce net anlaşın. Depozito/güvence bedelinin iade koşullarını da yazılı almak, çıkışta yaşanan anlaşmazlıkları azaltır." },
+  { category: "Kira ve Mülk", q: "İşyeri için yer seçerken nelere bakmalıyım?", a: "Kira maliyetini sadece kendisiyle değil, o lokasyonun getireceği ek müşteri trafiğiyle (yaya trafiği, görünürlük, ulaşım kolaylığı) birlikte değerlendirin - ucuz ama görünmez bir yer, pahalı ama işlek bir yerden daha maliyetli çıkabilir. Uzun vadeli bir bölgesel gelişim planı (yol çalışması, yeni AVM vb.) varsa öğrenmeye çalışmak sürpriz risklerden korur." },
   { category: "Kira ve Mülk", q: "Kira artışını nasıl müzakere ederim?", a: "Piyasadaki benzer işyerlerinin güncel kira bedellerini araştırıp elinizde bir referans bulundurmak, müzakerede gerçekçi bir zemin sağlar. Uzun süredir düzenli ödeme yapan iyi bir kiracı olduğunuzu vurgulamak, ev sahibi için de sizi kaybetmemenin değerini hatırlatır." },
   { category: "Veri Güvenliği", q: "Müşteri verilerimi nasıl korumalıyım?", a: "Müşteri bilgilerine (telefon, e-posta, ödeme geçmişi) kimlerin erişebildiğini sınırlı tutmak ve şifrelerinizi düzenli değiştirmek temel bir önlemdir. Verileri kişisel bir Excel dosyası yerine erişim kontrolü olan bir sistemde tutmak, kaybolma/sızma riskini büyük ölçüde azaltır." },
-  { category: "Veri Güvenliği", q: "KVKK açısından küçük işletme olarak ne yapmalıyım?", a: "Müşteri verisini sadece açık bir amaç için (hizmet sunmak, iletişim) toplayıp o amaç dışında kullanmamak ve müşterinin talebi hâlinde verisini silebilmek temel yükümlülüklerdendir. Ticari elektronik ileti (kampanya e-postası/SMS'i) göndermeden önce ayrı bir açık onay almanız gerektiğini unutmayın — detaylı uyum için bir hukuk danışmanına başvurmanız önerilir." },
-  { category: "Veri Güvenliği", q: "İşletme verilerimi nasıl yedeklemeliyim?", a: "Tek bir cihazda veya tek bir yerde tutulan veri, o cihaz bozulduğunda tamamen kaybolma riski taşır — bulut tabanlı bir sistem kullanmak bu riski büyük ölçüde ortadan kaldırır. Kritik dosyalarınızın (sözleşmeler, faturalar) ayrıca düzenli aralıklarla ikinci bir yere (harici disk, farklı bulut hesabı) kopyalanması ek bir güvenlik katmanıdır." },
+  { category: "Veri Güvenliği", q: "KVKK açısından küçük işletme olarak ne yapmalıyım?", a: "Müşteri verisini sadece açık bir amaç için (hizmet sunmak, iletişim) toplayıp o amaç dışında kullanmamak ve müşterinin talebi hâlinde verisini silebilmek temel yükümlülüklerdendir. Ticari elektronik ileti (kampanya e-postası/SMS'i) göndermeden önce ayrı bir açık onay almanız gerektiğini unutmayın - detaylı uyum için bir hukuk danışmanına başvurmanız önerilir." },
+  { category: "Veri Güvenliği", q: "İşletme verilerimi nasıl yedeklemeliyim?", a: "Tek bir cihazda veya tek bir yerde tutulan veri, o cihaz bozulduğunda tamamen kaybolma riski taşır - bulut tabanlı bir sistem kullanmak bu riski büyük ölçüde ortadan kaldırır. Kritik dosyalarınızın (sözleşmeler, faturalar) ayrıca düzenli aralıklarla ikinci bir yere (harici disk, farklı bulut hesabı) kopyalanması ek bir güvenlik katmanıdır." },
   { category: "İhracat", q: "İlk kez ihracata nasıl başlarım?", a: "Önce hedef pazarda ürününüze/hizmetinize gerçek bir talep olduğunu (rakip analizi, küçük bir test siparişi) doğrulamadan büyük yatırım yapmayın. Ticaret Bakanlığı ve İhracatçı Birlikleri'nin yeni ihracatçılara yönelik destek ve eğitim programlarından faydalanmak, süreci baştan öğrenmenin en ucuz yoludur." },
   { category: "İhracat", q: "İhracatta döviz kuru riskinden nasıl korunurum?", a: "Fiyatlarınızı uzun vadeli sözleşmelerde sabit döviz cinsinden belirlemek, kur dalgalanmasının kâr marjınızı erozyona uğratmasını önler. Büyük hacimli işlemlerde bankanızın sunduğu forward/vadeli işlem gibi kur riski koruma araçlarını bir finans danışmanıyla değerlendirebilirsiniz." },
-  { category: "Enflasyon Yönetimi", q: "Yüksek enflasyon döneminde fiyatlarımı ne sıklıkla güncellemeliyim?", a: "Fiyatları çok seyrek güncellemek maliyet artışını kâr marjınızdan karşılamanıza, çok sık güncellemek ise müşteri güvenini sarsmaya yol açabilir — çoğu KOBİ için aylık/çeyreklik düzenli bir gözden geçirme makul bir dengedir. Güncellemeyi sürpriz yapmak yerine önceden küçük bir bildirimle duyurmak tepkiyi azaltır." },
+  { category: "Enflasyon Yönetimi", q: "Yüksek enflasyon döneminde fiyatlarımı ne sıklıkla güncellemeliyim?", a: "Fiyatları çok seyrek güncellemek maliyet artışını kâr marjınızdan karşılamanıza, çok sık güncellemek ise müşteri güvenini sarsmaya yol açabilir - çoğu KOBİ için aylık/çeyreklik düzenli bir gözden geçirme makul bir dengedir. Güncellemeyi sürpriz yapmak yerine önceden küçük bir bildirimle duyurmak tepkiyi azaltır." },
   { category: "Enflasyon Yönetimi", q: "Maliyet artışlarını nasıl daha yakından takip ederim?", a: "Tedarik/gider kalemlerinizin fiyatını düzenli (aylık) not almak, hangi kalemin ne kadar arttığını fark etmenizi ve fiyatlarınıza ne zaman yansıtmanız gerektiğini zamanında görmenizi sağlar. Sadece toplam gideri değil, kategori bazında artışı izlemek (Finans → Gider Kategorileri) en çok etkilenen alanı netleştirir." },
   { category: "Enflasyon Yönetimi", q: "Uzun vadeli sözleşmelerimde enflasyona karşı nasıl korunurum?", a: "Sabit fiyat yerine belirli bir endekse (TÜFE, ÜFE gibi) bağlı otomatik güncelleme maddesi eklemek, her yenilemede yeniden pazarlık yapma zorunluluğunu ortadan kaldırır. Bu maddeyi sözleşmeye eklerken karşı tarafın da kabul edebileceği makul bir üst sınır belirlemek, anlaşmayı daha kolay kabul ettirir." },
   { category: "İş Sağlığı ve Güvenliği", q: "Küçük işletme olarak iş sağlığı ve güvenliği yükümlülüklerim neler?", a: "Çalışan sayınız az olsa bile temel risk değerlendirmesi yapmak ve çalışanlara temel güvenlik bilgilendirmesi vermek yasal bir yükümlülüktür, işkolunuza göre kapsam değişir. Güncel mevzuat ve gerekli belgeler için bir İSG uzmanı veya ortak sağlık güvenlik birimiyle çalışmak, cezai riskleri önler." },
-  { category: "İş Sağlığı ve Güvenliği", q: "İş kazalarını önlemek için neler yapmalıyım?", a: "En sık kazalar genelde tekrar eden, \"bilinen\" işlerde dikkat dağınıklığından olur — düzenli kısa hatırlatmalar (ekipman kontrolü, doğru kullanım) ciddi eğitimlerden çok, alışkanlığı tazeleme amaçlı işe yarar. Bir kaza/ramak kala olayı yaşandığında nedenini kayıt altına almak, tekrarını önlemenin en etkili yoludur." },
+  { category: "İş Sağlığı ve Güvenliği", q: "İş kazalarını önlemek için neler yapmalıyım?", a: "En sık kazalar genelde tekrar eden, \"bilinen\" işlerde dikkat dağınıklığından olur - düzenli kısa hatırlatmalar (ekipman kontrolü, doğru kullanım) ciddi eğitimlerden çok, alışkanlığı tazeleme amaçlı işe yarar. Bir kaza/ramak kala olayı yaşandığında nedenini kayıt altına almak, tekrarını önlemenin en etkili yoludur." },
   { category: "Ekipman ve Bakım", q: "Ekipmanlarımın periyodik bakımını nasıl planlamalıyım?", a: "Arıza çıktıktan sonra tamir etmek yerine üretici önerisine göre düzenli bakım takvimi oluşturmak, hem beklenmedik duruş sürelerini hem de büyük onarım maliyetlerini azaltır. Bakım tarihlerini bir hatırlatmayla takip etmek, \"unutulan\" bakımın en sık nedenidir." },
   { category: "Ekipman ve Bakım", q: "Eski bir ekipmanı ne zaman yenilemeliyim?", a: "Tamir maliyetleri sıklaşıp yeni bir ekipmanın maliyetine yaklaşmaya başladığında, artık yenileme kararının zamanı gelmiş demektir. Verimlilik kaybı (yavaşlama, kalite düşüşü, enerji tüketimi artışı) da genelde görünmeyen ama gerçek bir maliyettir, sadece tamir faturasına bakmak yeterli değildir." },
   { category: "Kurumsal Satın Alma Süreçleri", q: "Kurumsal/resmi bir ihaleye/teklife nasıl hazırlanmalıyım?", a: "Şartnameyi satır satır okuyup istenen her belgeyi (evrak, referans, teknik özellik) eksiksiz hazırlamak, fiyattan önce elenmenin en sık nedenidir. İlk birkaç ihalede kazanmayı değil süreci öğrenmeyi hedeflemek, deneyim kazandıkça teklif kalitenizi hızla artırır." },
-  { category: "Kurumsal Satın Alma Süreçleri", q: "Kurumsal müşteriye teklif dosyamı nasıl hazırlamalıyım?", a: "Kurumsal alıcılar genelde birden fazla kişiye teklifi ilettiği için, dosyanızın kendi başına (siz orada olmadan) anlaşılır ve ikna edici olması gerekir — kapsamı, fiyatı ve referanslarınızı net ve profesyonel bir formatta (Teklif Şablonları'ndaki PDF gibi) sunun. Teslim süresi ve ödeme koşullarını belirsiz bırakmamak, kurumsal onay sürecini hızlandırır." },
-  { category: "Müşteri Deneyimi", q: "Müşteride ilk izlenimi nasıl güçlendiririm?", a: "İlk temas (arama, mesaj, ziyaret) ne kadar hızlı ve ilgili karşılanırsa, müşterinin geri kalan süreçle ilgili beklentisi de o kadar olumlu şekillenir — ilk yanıt süresi genelde fiyattan daha belirleyicidir. Basit ama tutarlı bir karşılama rutini (standart bir selamlama, ilk bilgi toplama) ekip büyüdükçe bile deneyimi aynı tutar." },
+  { category: "Kurumsal Satın Alma Süreçleri", q: "Kurumsal müşteriye teklif dosyamı nasıl hazırlamalıyım?", a: "Kurumsal alıcılar genelde birden fazla kişiye teklifi ilettiği için, dosyanızın kendi başına (siz orada olmadan) anlaşılır ve ikna edici olması gerekir - kapsamı, fiyatı ve referanslarınızı net ve profesyonel bir formatta (Teklif Şablonları'ndaki PDF gibi) sunun. Teslim süresi ve ödeme koşullarını belirsiz bırakmamak, kurumsal onay sürecini hızlandırır." },
+  { category: "Müşteri Deneyimi", q: "Müşteride ilk izlenimi nasıl güçlendiririm?", a: "İlk temas (arama, mesaj, ziyaret) ne kadar hızlı ve ilgili karşılanırsa, müşterinin geri kalan süreçle ilgili beklentisi de o kadar olumlu şekillenir - ilk yanıt süresi genelde fiyattan daha belirleyicidir. Basit ama tutarlı bir karşılama rutini (standart bir selamlama, ilk bilgi toplama) ekip büyüdükçe bile deneyimi aynı tutar." },
   { category: "Müşteri Deneyimi", q: "Teslimat/hizmet sonrası takibi nasıl yapmalıyım?", a: "İş tamamlandıktan birkaç gün sonra kısa bir \"her şey yolunda mı\" kontrolü, hem memnuniyetsizliği erken yakalamanızı hem de müşteride \"önemsendiğini\" hissettirir. Bu takibi otomatikleştirmeden (kişisel bir mesaj/arama ile) yapmak, toplu ve kişiliksiz bir anketten daha etkili sonuç verir." },
-  { category: "Müşteri Deneyimi", q: "Müşteri beklentisini nasıl doğru yönetirim?", a: "Gerçekleşecek olandan biraz daha iyimser söz vermek kısa vadede etkileyici görünse de, teslim edemediğinizde güveni ciddi zedeler — teslim süresini/kapsamı olduğundan biraz temkinli belirtip beklenenden erken/iyi teslim etmek daha sağlıklı bir stratejidir. Süreç içinde ilerlemeyi paylaşmak (özellikle uzun işlerde), müşterinin sessizlikte kaygılanmasını önler." },
+  { category: "Müşteri Deneyimi", q: "Müşteri beklentisini nasıl doğru yönetirim?", a: "Gerçekleşecek olandan biraz daha iyimser söz vermek kısa vadede etkileyici görünse de, teslim edemediğinizde güveni ciddi zedeler - teslim süresini/kapsamı olduğundan biraz temkinli belirtip beklenenden erken/iyi teslim etmek daha sağlıklı bir stratejidir. Süreç içinde ilerlemeyi paylaşmak (özellikle uzun işlerde), müşterinin sessizlikte kaygılanmasını önler." },
   { category: "Dijital Dönüşüm", q: "Kağıt tabanlı süreçlerimi nasıl dijitalleştirmeye başlamalıyım?", a: "Tüm süreçleri bir anda değiştirmeye çalışmak yerine, en çok zaman kaybettiren tek bir süreci (örn. randevu takibi, tahsilat kaydı) seçip önce onu dijitalleştirmek, ekibin yeni sisteme alışmasını kolaylaştırır. Değişime en dirençli çalışanı sürecin başında dahil etmek, sonradan zorla kabul ettirmekten daha az direnç yaratır." },
   { category: "Dijital Dönüşüm", q: "Ekibimi yeni bir dijital araca nasıl alıştırırım?", a: "Uzun bir eğitim dokümanı yerine, günlük olarak gerçekten kullanacakları 3-5 temel işlemi kısa ve uygulamalı göstermek öğrenmeyi hızlandırır. İlk haftalarda kolayca ulaşabilecekleri bir kişiyi (siz veya deneyimli bir ekip üyesi) \"soru sorulacak kişi\" olarak belirlemek, takılıp eski yönteme geri dönmeyi önler." },
   { category: "Marka Ortaklıkları", q: "Başka bir işletmeyle ortak kampanya (co-branding) nasıl yapmalıyım?", a: "Doğrudan rakip olmayan ama aynı müşteri kitlesine hitap eden bir işletmeyle (örn. bir kuaför ve bir kozmetik mağazası) ortak kampanya, her iki tarafın müşterisine de yeni bir değer sunar. Kampanya öncesi kimin hangi maliyeti/kazanımı üstleneceğini net yazılı belirlemek, sonradan anlaşmazlığı önler." },
   { category: "Marka Ortaklıkları", q: "Yerel işletmelerle nasıl çapraz promosyon yapabilirim?", a: "Birbirinizin müşterilerine küçük bir indirim kuponu/tavsiye vermek, ikisi için de ek reklam maliyeti olmadan yeni müşteri getirir. Bu tür ortaklıkları tek seferlik değil düzenli (örn. her ay farklı bir işletmeyle) hâle getirmek, karşılıklı güveni ve sürekliliği artırır." },
-  { category: "Fiyat Şeffaflığı", q: "Fiyatlarımı web sitemde/sosyal medyada açık göstermeli miyim?", a: "Fiyatı gizlemek genelde \"pahalı olabilir\" algısı yaratıp potansiyel müşteriyi mesaj atmadan caydırır — en azından başlangıç fiyatını veya bir aralığı göstermek, sadece gerçekten uygun bütçeli müşterilerin size ulaşmasını sağlar. Karmaşık/özelleştirilebilir hizmetlerde tam fiyatı gösteremiyorsanız bile \"X TL'den başlayan\" gibi bir referans vermek şeffaflık hissi yaratır." },
+  { category: "Fiyat Şeffaflığı", q: "Fiyatlarımı web sitemde/sosyal medyada açık göstermeli miyim?", a: "Fiyatı gizlemek genelde \"pahalı olabilir\" algısı yaratıp potansiyel müşteriyi mesaj atmadan caydırır - en azından başlangıç fiyatını veya bir aralığı göstermek, sadece gerçekten uygun bütçeli müşterilerin size ulaşmasını sağlar. Karmaşık/özelleştirilebilir hizmetlerde tam fiyatı gösteremiyorsanız bile \"X TL'den başlayan\" gibi bir referans vermek şeffaflık hissi yaratır." },
   { category: "Fiyat Şeffaflığı", q: "Müşteri \"neden bu kadar\" diye fiyata itiraz ederse ne cevap vermeliyim?", a: "Savunmaya geçmeden fiyatın neyi kapsadığını (malzeme, işçilik, garanti, deneyim) somut olarak anlatmak, sadece \"bu bizim fiyatımız\" demekten daha ikna edicidir. Fiyat itirazı sık tekrarlanıyorsa bu, pazarınıza göre fiyatınızın gerçekten yüksek olduğunun ya da değerinizi yeterince anlatamadığınızın bir sinyali olabilir." },
-  { category: "Ürün Geliştirme", q: "Yeni bir ürün/hizmet fikrini nasıl test etmeliyim?", a: "Tam kapasiteyle üretmeden önce, sınırlı sayıda mevcut müşteriye küçük bir pilot olarak sunup gerçek tepkiyi (satın alır mı, tekrar ister mi) ölçmek, büyük bir yatırımdan önce riski azaltır. Olumsuz geri bildirim bile değerlidir — fikri tamamen terk etmek yerine hangi kısmının işe yaramadığını anlamaya çalışın." },
-  { category: "Ürün Geliştirme", q: "Ürün/hizmet yelpazemi ne zaman sadeleştirmeliyim?", a: "Çok fazla seçenek hem müşteriyi karar vermekte zorlar hem de sizin stok/operasyon yükünüzü artırır — en az satılan/en çok karmaşa yaratan kalemleri düzenli gözden geçirip kaldırmak genelde geliri düşürmez, hatta odaklanmayı artırarak yükseltebilir. Kaldırmadan önce o kalemi hâlâ tercih eden sadık bir müşteri grubu olup olmadığını kontrol edin." },
+  { category: "Ürün Geliştirme", q: "Yeni bir ürün/hizmet fikrini nasıl test etmeliyim?", a: "Tam kapasiteyle üretmeden önce, sınırlı sayıda mevcut müşteriye küçük bir pilot olarak sunup gerçek tepkiyi (satın alır mı, tekrar ister mi) ölçmek, büyük bir yatırımdan önce riski azaltır. Olumsuz geri bildirim bile değerlidir - fikri tamamen terk etmek yerine hangi kısmının işe yaramadığını anlamaya çalışın." },
+  { category: "Ürün Geliştirme", q: "Ürün/hizmet yelpazemi ne zaman sadeleştirmeliyim?", a: "Çok fazla seçenek hem müşteriyi karar vermekte zorlar hem de sizin stok/operasyon yükünüzü artırır - en az satılan/en çok karmaşa yaratan kalemleri düzenli gözden geçirip kaldırmak genelde geliri düşürmez, hatta odaklanmayı artırarak yükseltebilir. Kaldırmadan önce o kalemi hâlâ tercih eden sadık bir müşteri grubu olup olmadığını kontrol edin." },
   { category: "Randevu/Program Optimizasyonu", q: "Randevuya gelmeme (no-show) oranını nasıl azaltırım?", a: "Randevudan bir gün önce ve birkaç saat önce olmak üzere iki aşamalı hatırlatma göndermek, tek hatırlatmadan daha etkilidir. Sık gelmeyen müşterilerde küçük bir peşinat/kapora istemek, ciddiyeti artırıp gelmeme oranını belirgin şekilde düşürebilir." },
   { category: "Randevu/Program Optimizasyonu", q: "Randevu kapasitemi nasıl daha verimli planlarım?", a: "Geçmiş dönemin yoğun/sakin gün-saat dağılımına bakmak (Binerly'deki randevu analizleri), personel/kaynak planlamasını tahminden çok gerçek veriye dayandırır. Yoğun saatlere kısa, sakin saatlere daha uzun süren hizmetleri planlamak toplam kapasiteyi artırır." },
   { category: "Randevu/Program Optimizasyonu", q: "Bekleme listesi nasıl yönetmeliyim?", a: "Dolu bir saatte iptal olduğunda bekleme listesindeki ilk kişiye otomatik/hızlı haber vermek, o boşluğun boş geçmesini önler. Bekleme listesini sadece \"ilk gelen alır\" değil, aciliyet/öncelik durumuna göre de değerlendirmek müşteri memnuniyetini artırabilir." },
@@ -5817,29 +5817,29 @@ const ADVISOR_TIPS = [
   { category: "Kalite Kontrol", q: "Kalite standartlarımı yazılı hâle nasıl getiririm?", a: "Aklınızdaki \"iyi iş\" tanımını maddeler hâlinde (teslimden önce kontrol edilecek 5-10 kalem) yazmak, ekip büyüdükçe herkesin aynı standardı uygulamasını sağlar. Bu listeyi bir kere yazıp unutmak yerine, yeni bir hata/şikayet çıktıkça güncellemek listeyi canlı ve gerçekten işe yarar tutar." },
   { category: "Pazarlama", q: "Referans/tavsiye programı nasıl kurmalıyım?", a: "Hem tavsiye eden hem tavsiye edilen müşteriye küçük bir avantaj (indirim, hediye) sunmak, tek taraflı bir teşvikten daha fazla katılım sağlar. Programı karmaşık kurallarla değil (\"3 kişi getirirsen\") basit ve anlaşılır tutmak (\"her tavsiye için X TL indirim\") katılımı kolaylaştırır." },
   { category: "Satış", q: "Teklif verdikten sonra takibi nasıl yapmalıyım?", a: "Teklifi gönderip beklemek yerine, birkaç gün içinde kısa bir \"sorunuz var mı\" mesajıyla takip etmek, kararsız kalan müşterilerin çoğunu harekete geçirir. Takip zamanlamasını (Binerly'deki hatırlatma özelliği gibi) sistematik hâle getirmek, unutup fırsat kaçırmayı önler." },
-  { category: "Finans Okuryazarlığı", q: "Kâr marjımı nasıl doğru hesaplarım?", a: "Sadece ürün/hizmet maliyetini değil, o satışa giden dolaylı giderleri (kira, personel zamanı, pazarlama) de payına düşen kadar hesaba katmak gerçek kâr marjınızı gösterir — sadece \"aldım-sattım\" farkına bakmak yanıltıcı olabilir. Marjı düzenli (aylık) izlemek, hangi ürün/hizmetin gerçekte kârlı olduğunu erken fark ettirir." },
+  { category: "Finans Okuryazarlığı", q: "Kâr marjımı nasıl doğru hesaplarım?", a: "Sadece ürün/hizmet maliyetini değil, o satışa giden dolaylı giderleri (kira, personel zamanı, pazarlama) de payına düşen kadar hesaba katmak gerçek kâr marjınızı gösterir - sadece \"aldım-sattım\" farkına bakmak yanıltıcı olabilir. Marjı düzenli (aylık) izlemek, hangi ürün/hizmetin gerçekte kârlı olduğunu erken fark ettirir." },
   { category: "Finans Okuryazarlığı", q: "İşletmemin finansal sağlığını hangi 3 rakamla takip etmeliyim?", a: "Nakit durumu (elimde/bekleyen ne kadar var), net kâr (gelir eksi tüm giderler) ve bekleyen alacak tutarı, karmaşık tablolara girmeden işin nabzını tutan üç temel göstergedir. Bunları haftalık/aylık düzenli bir alışkanlıkla (Binerly Finans sekmesi gibi) takip etmek, sorunları büyümeden fark etmenizi sağlar." },
   { category: "Sürdürülebilirlik", q: "İşletmemi çevreye daha duyarlı hâle nasıl getiririm?", a: "Büyük yatırımlar gerektiren adımlardan önce, ambalaj/kağıt israfını azaltmak veya tedarikçi seçiminde yerel/sürdürülebilir kaynakları tercih etmek gibi düşük maliyetli adımlarla başlamak pratik bir yoldur. Bu çabaları müşterilerinize de (sosyal medya, ambalaj üzerinde) görünür kılmak, günümüzde bazı müşteri segmentlerinde gerçek bir tercih nedeni olabiliyor." },
-  { category: "Kriz Yönetimi", q: "Bir teknoloji/sistem arızası işimi durdurursa ne yapmalıyım?", a: "Kritik süreçleriniz (randevu takibi, ödeme alma) için basit bir \"yedek plan\"ınız olsun (örn. kağıt üzerinde geçici not alma) — sistem geri gelene kadar tamamen durmak yerine devam edebilirsiniz. Arıza sonrası neyin ters gittiğini kısaca not almak, aynı sorunun tekrarını önlemede işe yarar." },
-  { category: "Müşteri Segmentasyonu", q: "Yeni müşteri ile mevcut müşteriye farklı mı yaklaşmalıyım?", a: "Yeni müşteri güven inşa etme aşamasındadır — net beklenti yönetimi ve hızlı ilk deneyim önceliklidir; mevcut/sadık müşteride ise tanınmışlık ve küçük kişisel jestler daha değerlidir. İkisine aynı genel mesajı göndermek yerine bu farkı pazarlama ve iletişiminize yansıtmak dönüşümü artırır." },
-  { category: "Ekip Yönetimi", q: "Ekibimde yetki/sorumluluk dağılımını nasıl netleştiririm?", a: "\"Bu kararı kim alır\" sorusunun cevabı belirsizse aynı iş birden fazla kişi tarafından tekrarlanır veya hiç kimse tarafından yapılmaz — her görev/karar alanı için tek bir sorumlu belirlemek bu boşluğu kapatır. Yazılı bir görev/sorumluluk listesi (kısa bile olsa), ekip büyüdükçe hafızaya güvenmekten çok daha güvenilirdir." },
-  { category: "Fiyatlandırma", q: "Ücretsiz deneme/numune sunmalı mıyım?", a: "Ücretsiz deneme, müşterinin riski hissetmeden karar vermesini kolaylaştırır ama gerçek maliyeti olan bir hizmette bunu sınırsız sunmak kâr kaybettirebilir — süre veya kapsamı net sınırlı tutmak (ilk hizmet %50 indirimli gibi) daha sürdürülebilirdir. Deneme sonrası dönüşüm oranını takip etmek, bu yatırımın gerçekten işe yarayıp yaramadığını gösterir." },
-  { category: "Girişimcilik", q: "İşimi büyütmek mi yoksa mevcut hâlini korumak mı daha doğru?", a: "Her işletmenin büyümesi gerekmez — bazı KOBİ'ler için mevcut ölçekte yüksek kalite/kâr marjıyla çalışmak, büyüyüp karmaşıklaşmaktan daha kârlı ve daha az stresli olabilir. Büyüme kararını \"herkes büyüyor\" baskısıyla değil, gerçekten daha fazla talep ve bunu karşılayacak kapasiteniz olup olmadığına göre verin." },
+  { category: "Kriz Yönetimi", q: "Bir teknoloji/sistem arızası işimi durdurursa ne yapmalıyım?", a: "Kritik süreçleriniz (randevu takibi, ödeme alma) için basit bir \"yedek plan\"ınız olsun (örn. kağıt üzerinde geçici not alma) - sistem geri gelene kadar tamamen durmak yerine devam edebilirsiniz. Arıza sonrası neyin ters gittiğini kısaca not almak, aynı sorunun tekrarını önlemede işe yarar." },
+  { category: "Müşteri Segmentasyonu", q: "Yeni müşteri ile mevcut müşteriye farklı mı yaklaşmalıyım?", a: "Yeni müşteri güven inşa etme aşamasındadır - net beklenti yönetimi ve hızlı ilk deneyim önceliklidir; mevcut/sadık müşteride ise tanınmışlık ve küçük kişisel jestler daha değerlidir. İkisine aynı genel mesajı göndermek yerine bu farkı pazarlama ve iletişiminize yansıtmak dönüşümü artırır." },
+  { category: "Ekip Yönetimi", q: "Ekibimde yetki/sorumluluk dağılımını nasıl netleştiririm?", a: "\"Bu kararı kim alır\" sorusunun cevabı belirsizse aynı iş birden fazla kişi tarafından tekrarlanır veya hiç kimse tarafından yapılmaz - her görev/karar alanı için tek bir sorumlu belirlemek bu boşluğu kapatır. Yazılı bir görev/sorumluluk listesi (kısa bile olsa), ekip büyüdükçe hafızaya güvenmekten çok daha güvenilirdir." },
+  { category: "Fiyatlandırma", q: "Ücretsiz deneme/numune sunmalı mıyım?", a: "Ücretsiz deneme, müşterinin riski hissetmeden karar vermesini kolaylaştırır ama gerçek maliyeti olan bir hizmette bunu sınırsız sunmak kâr kaybettirebilir - süre veya kapsamı net sınırlı tutmak (ilk hizmet %50 indirimli gibi) daha sürdürülebilirdir. Deneme sonrası dönüşüm oranını takip etmek, bu yatırımın gerçekten işe yarayıp yaramadığını gösterir." },
+  { category: "Girişimcilik", q: "İşimi büyütmek mi yoksa mevcut hâlini korumak mı daha doğru?", a: "Her işletmenin büyümesi gerekmez - bazı KOBİ'ler için mevcut ölçekte yüksek kalite/kâr marjıyla çalışmak, büyüyüp karmaşıklaşmaktan daha kârlı ve daha az stresli olabilir. Büyüme kararını \"herkes büyüyor\" baskısıyla değil, gerçekten daha fazla talep ve bunu karşılayacak kapasiteniz olup olmadığına göre verin." },
   { category: "Satış", q: "Fiyat vermeden önce müşteriyi nasıl daha iyi anlarım (ihtiyaç analizi)?", a: "Hemen fiyat söylemek yerine birkaç soru sorup gerçek ihtiyacı, bütçeyi ve zaman baskısını anlamak, hem doğru paketi önermenizi hem de gereksiz yere düşük/yüksek fiyat vermenizi önler. Müşteri kendi ihtiyacını net anlatmıyorsa, geçmişte benzer taleplerde ne işe yaradığını örnek göstermek karar vermesine yardımcı olur." },
   { category: "Nakit Akışı", q: "Sezonluk gelir dalgalanmasında sabit giderlerimi nasıl karşılarım?", a: "Yüksek sezonda kazanılan fazlanın bir kısmını ayrı bir \"düşük sezon tamponu\" hesabında tutmak, düşük sezonda panik kararlar (acele kredi, gereksiz indirim) almanızı önler. Sabit giderlerinizin bir kısmını (kira, abonelikler) mümkünse yüksek sezona endeksli/esnek hâle getirmeyi tedarikçi/ev sahibiyle görüşmek de bir seçenektir." },
-  { category: "Müşteri Deneyimi", q: "Şikayeti fırsata nasıl çeviririm?", a: "Sorunu hızlı ve fazlasıyla (beklenenden biraz daha fazla telafi ile) çözmek, hiç sorun yaşamamış bir müşteriden bile daha güçlü bir sadakat yaratabilir — buna \"hizmet paradoksu\" denir. Çözümü sadece özel/görünmez yapmak yerine (uygunsa) herkese açık bir yanıtla da göstermek, diğer potansiyel müşterilere de güven verir." },
+  { category: "Müşteri Deneyimi", q: "Şikayeti fırsata nasıl çeviririm?", a: "Sorunu hızlı ve fazlasıyla (beklenenden biraz daha fazla telafi ile) çözmek, hiç sorun yaşamamış bir müşteriden bile daha güçlü bir sadakat yaratabilir - buna \"hizmet paradoksu\" denir. Çözümü sadece özel/görünmez yapmak yerine (uygunsa) herkese açık bir yanıtla da göstermek, diğer potansiyel müşterilere de güven verir." },
   { category: "Rekabet", q: "Pazara yeni giren bir rakiple nasıl başa çıkarım?", a: "Panikle fiyat kırmak yerine, mevcut müşterilerinizle olan güveninizi ve geçmiş performansınızı hatırlatan bir iletişim yapmak, sadık müşteri tabanınızı korumanın daha ucuz yoludur. Yeni rakibin sunduğu farklı bir avantaj varsa (daha ucuz, daha hızlı) bunu görmezden gelmek yerine kendi güçlü yönünüzü daha net vurgulayarak yanıt verin." },
-  { category: "Yeni İşletme", q: "İş fikrimi kaç kişiye danışmalıyım (fikir doğrulama)?", a: "Sadece yakın çevrenize (aile, arkadaş) danışmak genelde nazik ama gerçekçi olmayan geri bildirim getirir — hedef kitlenizden, sizi tanımayan gerçek potansiyel müşterilerden görüş almak daha değerlidir. \"Beğendin mi\" yerine \"bunun için para öder misin\" sorusu çok daha gerçekçi bir sinyal verir." },
+  { category: "Yeni İşletme", q: "İş fikrimi kaç kişiye danışmalıyım (fikir doğrulama)?", a: "Sadece yakın çevrenize (aile, arkadaş) danışmak genelde nazik ama gerçekçi olmayan geri bildirim getirir - hedef kitlenizden, sizi tanımayan gerçek potansiyel müşterilerden görüş almak daha değerlidir. \"Beğendin mi\" yerine \"bunun için para öder misin\" sorusu çok daha gerçekçi bir sinyal verir." },
   { category: "Zaman Yönetimi", q: "Ertelediğim ama önemli işleri nasıl bitiririm?", a: "Büyük ve belirsiz bir işi (\"pazarlama stratejimi güncelle\" gibi) küçük, somut ve kısa sürede bitebilecek adımlara bölmek, erteleme eğilimini büyük ölçüde azaltır. Bu tür işlere haftanın belirli bir gününde/saatinde sabit bir zaman ayırmak, \"vaktim olunca yaparım\" beklentisinden daha güvenilir sonuç verir." },
   { category: "Marka", q: "Müşteri yorumlarını/referanslarını nasıl daha etkili kullanırım?", a: "Genel bir \"harika hizmet\" yorumu yerine, somut bir sonucu (örn. \"randevumu 5 dakikada aldım\") anlatan yorumları öne çıkarmak daha ikna edicidir. Memnun bir müşteriden yorum istemeyi işin bitişinden hemen sonraya, memnuniyet en tazeyken denk getirmek, yanıt alma ihtimalini artırır." },
   { category: "İşe Alım", q: "Deneme süresini nasıl etkili kullanmalıyım?", a: "Deneme süresini sadece bekleyip görmek yerine, baştan net ve ölçülebilir hedefler (şu tarihe kadar şunu öğrenmiş/yapabiliyor olması) koymak, sürenin sonunda objektif bir karar vermenizi kolaylaştırır. Deneme süresinde düzenli kısa geri bildirim vermek, kişiye gelişme fırsatı tanırken sizi de sürpriz bir \"hayır\" kararından korur." },
   { category: "Tedarikçi İlişkileri", q: "Tedarikçi ödemelerimi nasıl düzenli yönetirim?", a: "Ödeme tarihlerini kaçırmamak, sadece iyi ilişkiyi değil bazen erken ödeme indirimi gibi somut avantajları da beraberinde getirir. Ödeme takvimini (kimin ne zaman, ne kadar) tek bir yerde (Finans → Giderler) tutmak, tedarikçi bazında sürpriz gecikmeleri önler." },
-  { category: "Büyüme", q: "Yeni bir bölgeye/şehre açılmadan önce ne test etmeliyim?", a: "Fiziksel bir yatırım yapmadan önce o bölgeden gelen online sipariş/talep varsa (kargo ile hizmet, danışmanlık gibi işlerde) bunu bir sinyal olarak değerlendirebilirsiniz — gerçek talep olmadan sadece \"iyi bir bölge gibi görünüyor\" sezgisiyle açılmak risklidir. Küçük/geçici bir varlıkla (pop-up, haftalık hizmet günü) test etmek, kalıcı yatırımdan önce ucuz bir doğrulama yoludur." },
-  { category: "Vergi", q: "Gider belgelerimi (fatura/fiş) nasıl düzenli tutmalıyım?", a: "Kağıt fişlerin solması/kaybolması yaygın bir sorundur — geldiği gün taranıp dijital olarak (veya Binerly'deki dosya ekleme özelliğiyle ilgili gider kaydına) saklanması, yıl sonunda belge arama telaşını ortadan kaldırır. Kategoriye göre düzenli kaydetmek (Finans → Gider Kategorileri) hem KDV raporunuzu hem denetim durumunda ibrazı kolaylaştırır." },
+  { category: "Büyüme", q: "Yeni bir bölgeye/şehre açılmadan önce ne test etmeliyim?", a: "Fiziksel bir yatırım yapmadan önce o bölgeden gelen online sipariş/talep varsa (kargo ile hizmet, danışmanlık gibi işlerde) bunu bir sinyal olarak değerlendirebilirsiniz - gerçek talep olmadan sadece \"iyi bir bölge gibi görünüyor\" sezgisiyle açılmak risklidir. Küçük/geçici bir varlıkla (pop-up, haftalık hizmet günü) test etmek, kalıcı yatırımdan önce ucuz bir doğrulama yoludur." },
+  { category: "Vergi", q: "Gider belgelerimi (fatura/fiş) nasıl düzenli tutmalıyım?", a: "Kağıt fişlerin solması/kaybolması yaygın bir sorundur - geldiği gün taranıp dijital olarak (veya Binerly'deki dosya ekleme özelliğiyle ilgili gider kaydına) saklanması, yıl sonunda belge arama telaşını ortadan kaldırır. Kategoriye göre düzenli kaydetmek (Finans → Gider Kategorileri) hem KDV raporunuzu hem denetim durumunda ibrazı kolaylaştırır." },
   { category: "Satış Ekibi", q: "Yeni bir satış temsilcisini nasıl hızlı verimli hâle getiririm?", a: "İlk haftalarda gerçek müşteriyle tek başına bırakmadan önce deneyimli biriyle birkaç görüşmeye gözlemci olarak katılmasını sağlamak, öğrenme eğrisini hızlandırır. Erken dönemde küçük, düşük riskli fırsatlarla başlayıp kademeli olarak büyük fırsatlara geçmesi, hem özgüven hem gerçek beceri kazandırır." },
   { category: "Müşteri Kaybı Analizi", q: "Kayıp oranımı sektör ortalamasıyla nasıl karşılaştırırım?", a: "Genel bir sektör ortalaması bulmak zor olsa da, kendi geçmiş dönemlerinizle (bu çeyrek vs geçen çeyrek) karşılaştırmak çoğu zaman daha anlamlı ve ulaşılabilir bir referanstır. Kayıp oranınız zamanla yükseliyorsa, tek bir nedene değil (fiyat, hizmet, rekabet) birkaç olası nedene birden bakmak gerekir." },
-  { category: "Dijital Pazarlama", q: "Web sitem/reklamlarım mobilde iyi görünüyor mu, nasıl kontrol ederim?", a: "Müşterilerinizin büyük kısmı telefondan geziniyor olabilir — kendi telefonunuzdan siteyi/reklamı düzenli kontrol etmek, sadece bilgisayardan bakıp \"iyi görünüyor\" sanmaktan daha güvenilirdir. Yavaş açılan veya küçük ekranda okunması zor bir sayfa, ilgi çekmiş bir müşteriyi bile kaybettirebilir." },
-  { category: "Franchise", q: "Franchise sözleşmemi yenilerken nelere dikkat etmeliyim?", a: "İlk sözleşmedeki şartların hâlâ makul olup olmadığını (royalti oranı, bölge münhasırlığı, destek kapsamı) yeniden değerlendirin — zamanla pazar koşulları değişmiş olabilir. Yenileme öncesi diğer bayilerin deneyimlerini (varsa bir bayi derneği/forumu üzerinden) öğrenmek pazarlık gücünüzü artırır." },
+  { category: "Dijital Pazarlama", q: "Web sitem/reklamlarım mobilde iyi görünüyor mu, nasıl kontrol ederim?", a: "Müşterilerinizin büyük kısmı telefondan geziniyor olabilir - kendi telefonunuzdan siteyi/reklamı düzenli kontrol etmek, sadece bilgisayardan bakıp \"iyi görünüyor\" sanmaktan daha güvenilirdir. Yavaş açılan veya küçük ekranda okunması zor bir sayfa, ilgi çekmiş bir müşteriyi bile kaybettirebilir." },
+  { category: "Franchise", q: "Franchise sözleşmemi yenilerken nelere dikkat etmeliyim?", a: "İlk sözleşmedeki şartların hâlâ makul olup olmadığını (royalti oranı, bölge münhasırlığı, destek kapsamı) yeniden değerlendirin - zamanla pazar koşulları değişmiş olabilir. Yenileme öncesi diğer bayilerin deneyimlerini (varsa bir bayi derneği/forumu üzerinden) öğrenmek pazarlık gücünüzü artırır." },
 ];
 
 const UNIFIED_LIBRARY = [
@@ -5942,7 +5942,7 @@ function AskDock({ open, onClose, sector, ctx }) {
 
     const userMsg = { id: uid(), role: "user", text: trimmed };
     const assistantMsg = scored.length === 0
-      ? { id: uid(), role: "assistant", text: "Bunu şu an bilmiyorum — farklı bir ifadeyle sorabilir ya da aşağıdaki örneklerden birini deneyebilirsiniz.", suggestions: starters.map((e) => e.resolvedLabel) }
+      ? { id: uid(), role: "assistant", text: "Bunu şu an bilmiyorum - farklı bir ifadeyle sorabilir ya da aşağıdaki örneklerden birini deneyebilirsiniz.", suggestions: starters.map((e) => e.resolvedLabel) }
       : { id: uid(), role: "assistant", category: scored[0].category, text: scored[0].compute(ctx), suggestions: scored.slice(1, 4).map((e) => e.resolvedLabel) };
     setMessages((prev) => [...prev, userMsg, assistantMsg]);
     setQuery("");
@@ -5968,7 +5968,7 @@ function AskDock({ open, onClose, sector, ctx }) {
       <div ref={threadRef} style={{ flex: 1, overflowY: "auto", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
         {messages.length === 0 && (
           <div style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "4px 12px 12px 12px", padding: "10px 12px", maxWidth: "88%", alignSelf: "flex-start" }}>
-            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>Merhaba! Satışlarınız/müşterileriniz hakkında, Binerly'nin nasıl kullanıldığı veya genel işletme tavsiyesi — istediğinizi sorabilirsiniz.</p>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>Merhaba! Satışlarınız/müşterileriniz hakkında, Binerly'nin nasıl kullanıldığı veya genel işletme tavsiyesi - istediğinizi sorabilirsiniz.</p>
           </div>
         )}
         {messages.length === 0 && starters.length > 0 && (
@@ -6334,7 +6334,7 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
         };
         const duplicateWith = findDuplicateCustomer(payload.email, payload.phone);
         if (duplicateWith) {
-          setDuplicateError(`"${duplicateWith.name}" adlı müşteride aynı e-posta veya telefon zaten kayıtlı — aynı telefon/e-posta ile ikinci bir müşteri eklenemez.`);
+          setDuplicateError(`"${duplicateWith.name}" adlı müşteride aynı e-posta veya telefon zaten kayıtlı - aynı telefon/e-posta ile ikinci bir müşteri eklenemez.`);
           return;
         }
         setDuplicateError("");
@@ -6375,7 +6375,7 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
       </div>
       <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
-          Açık Adres <InfoTip align="left" text="Online ödeme (iyzico/PayTR) alırken fatura/adres bilgisi olarak kullanılır — boş bırakılırsa sadece Bölge/Şehir gönderilir." />
+          Açık Adres <InfoTip align="left" text="Online ödeme (iyzico/PayTR) alırken fatura/adres bilgisi olarak kullanılır - boş bırakılırsa sadece Bölge/Şehir gönderilir." />
         </label>
         <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Mahalle, cadde/sokak, no, ilçe" style={{ width: "100%" }} />
       </div>
@@ -6555,7 +6555,7 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
             </button>
           )}
         </div>
-        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>PNG, JPG veya SVG — en fazla 2 MB. Teklif çıktısında ve müşterinin gördüğü sayfalarda görünür.</p>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>PNG, JPG veya SVG - en fazla 2 MB. Teklif çıktısında ve müşterinin gördüğü sayfalarda görünür.</p>
       </div>
       <div style={{ marginBottom: 16 }}>
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Varsayılan KDV oranı</label>
@@ -6578,8 +6578,8 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
           <InfoTip
             align="right"
             text={
-              `Bir ${DEAL_WORD_FORMS[dealWordKind(initial?.sector)].gen} aşaması her değiştiğinde (${STAGES.map((s) => stageLabel(s.id, "kurumsal", initial?.sector)).join(", ")}) o aşamaya özel bir mail gider — 2. ve 3. aşamalarda onay linki de eklenir. Destek talebi durumu değiştiğinde, yeni bir yanıt yazıldığında ve ödeme alındığında da müşteriye bilgilendirme gider.\n\n` +
-              `Yanlışlıkla bir ${DEAL_WORD_FORMS[dealWordKind(initial?.sector)].acc} başka bir aşamaya sürüklerseniz endişelenmeyin: mail hemen gitmez, 45 saniye beklenir — bu süre içinde aşamayı düzeltirseniz mail hiç gitmez, sadece son karar verdiğiniz aşama için gider.`
+              `Bir ${DEAL_WORD_FORMS[dealWordKind(initial?.sector)].gen} aşaması her değiştiğinde (${STAGES.map((s) => stageLabel(s.id, "kurumsal", initial?.sector)).join(", ")}) o aşamaya özel bir mail gider - 2. ve 3. aşamalarda onay linki de eklenir. Destek talebi durumu değiştiğinde, yeni bir yanıt yazıldığında ve ödeme alındığında da müşteriye bilgilendirme gider.\n\n` +
+              `Yanlışlıkla bir ${DEAL_WORD_FORMS[dealWordKind(initial?.sector)].acc} başka bir aşamaya sürüklerseniz endişelenmeyin: mail hemen gitmez, 45 saniye beklenir - bu süre içinde aşamayı düzeltirseniz mail hiç gitmez, sadece son karar verdiğiniz aşama için gider.`
             }
           />
         </label>
@@ -6593,7 +6593,7 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
               onChange={(e) => setAppointmentRemindersEnabled(e.target.checked)}
             />
             Randevu hatırlatma e-postası gönder
-            <InfoTip align="right" text="Tarih & Saat tipindeki özel alanı olan kayıtlarda, o saatten 2 saat önce müşteriye otomatik bir hatırlatma e-postası gider. Bu kutuyu kapatırsanız hiçbir hatırlatma e-postası gönderilmez — diğer bildirimler (aşama değişikliği, destek talebi, ödeme) bundan etkilenmez." />
+            <InfoTip align="right" text="Tarih & Saat tipindeki özel alanı olan kayıtlarda, o saatten 2 saat önce müşteriye otomatik bir hatırlatma e-postası gider. Bu kutuyu kapatırsanız hiçbir hatırlatma e-postası gönderilmez - diğer bildirimler (aşama değişikliği, destek talebi, ödeme) bundan etkilenmez." />
           </label>
         </div>
       )}
@@ -6665,7 +6665,7 @@ function AppointmentDateTimeField({ businessUserId, label, value, onChange }) {
     <div>
       <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
         {label}
-        <InfoTip placement="bottom" align="right" text="Tarihi seçince o güne ait müsait saatler otomatik listelenir — birine tıklamak saati doldurur. İstediğiniz saat listede yoksa saat kutusuna elle de yazabilirsiniz." />
+        <InfoTip placement="bottom" align="right" text="Tarihi seçince o güne ait müsait saatler otomatik listelenir - birine tıklamak saati doldurur. İstediğiniz saat listede yoksa saat kutusuna elle de yazabilirsiniz." />
       </label>
       <input
         type="date"
@@ -6954,7 +6954,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
         };
         const conflictWith = findAppointmentConflict(stage, customFields);
         if (conflictWith) {
-          setConflictError(`Bu tarih/saatte ${conflictWith} için de aktif bir randevu var — aynı saate iki randevu girilemez.`);
+          setConflictError(`Bu tarih/saatte ${conflictWith} için de aktif bir randevu var - aynı saate iki randevu girilemez.`);
           return;
         }
         const roomConflictMessage = findRoomConflict(stage, customFields);
@@ -6991,7 +6991,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
             <p style={{ margin: "2px 0 0", color: "var(--text-secondary)" }}>
               {creditRisk.overLimit && `Bakiyesi (${formatTL(creditRisk.balance)}) kredi limitini (${formatTL(creditRisk.creditLimit)}) aşıyor. `}
               {creditRisk.overdueBalance > 0 && `${formatTL(creditRisk.overdueBalance)} tutarında vadesi geçmiş bakiyesi var. `}
-              Bu sadece bir uyarı — devam edip etmemek size kalmış.
+              Bu sadece bir uyarı - devam edip etmemek size kalmış.
             </p>
           </div>
         </div>
@@ -7005,10 +7005,10 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
             </p>
             <p style={{ margin: "2px 0 0", color: "var(--text-secondary)" }}>
               {noShowPenaltyBurnsInstead
-                ? "Bu müşterinin aktif bir paketi var — politikanız gereği ödeme istemek yerine ihlallerinde paketten otomatik seans düşülüyor, ayrıca bir işlem yapmanız gerekmiyor."
+                ? "Bu müşterinin aktif bir paketi var - politikanız gereği ödeme istemek yerine ihlallerinde paketten otomatik seans düşülüyor, ayrıca bir işlem yapmanız gerekmiyor."
                 : paymentMode === "required"
-                ? "Müsaitlik Saatleri'ndeki politikanız gereği ödeme otomatik olarak zorunlu yapıldı — Tutar alanına kapora/tutar girin, isterseniz aşağıdan bu tercihi değiştirebilirsiniz."
-                : "Politikanız bu müşteri için ödeme zorunlu tutmayı öneriyor — Tutar alanına kapora miktarını girip aşağıdan \"Ödeme zorunlu\" seçebilirsiniz."}
+                ? "Müsaitlik Saatleri'ndeki politikanız gereği ödeme otomatik olarak zorunlu yapıldı - Tutar alanına kapora/tutar girin, isterseniz aşağıdan bu tercihi değiştirebilirsiniz."
+                : "Politikanız bu müşteri için ödeme zorunlu tutmayı öneriyor - Tutar alanına kapora miktarını girip aşağıdan \"Ödeme zorunlu\" seçebilirsiniz."}
             </p>
           </div>
           {!noShowPenaltyBurnsInstead && paymentMode !== "required" && (
@@ -7057,7 +7057,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
                 style={{ width: "100%" }}
               >
                 <option value="">Elle doldur / listeden seç</option>
-                {priceListItems.map((p) => <option key={p.id} value={p.id}>{p.name} — {formatTL(p.price)}</option>)}
+                {priceListItems.map((p) => <option key={p.id} value={p.id}>{p.name} - {formatTL(p.price)}</option>)}
               </select>
             </div>
           )}
@@ -7158,7 +7158,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
               style={{ fontSize: 12 }}
             >
               <option value="">Fiyat listesinden kalem ekle…</option>
-              {priceListItems.map((p) => <option key={p.id} value={p.id}>{p.name} — {formatTL(p.price)}</option>)}
+              {priceListItems.map((p) => <option key={p.id} value={p.id}>{p.name} - {formatTL(p.price)}</option>)}
             </select>
           )}
           {sector === "uretim_satis" && (
@@ -7180,7 +7180,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
                   <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 2 }}>Sabit Navlun Ücreti (TL)</label>
                   <input type="number" min="0" value={freightFlatFee} onChange={(e) => setFreightFlatFee(e.target.value)} placeholder="Opsiyonel" style={{ width: "100%", fontSize: 13, marginBottom: 8 }} />
                   <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 8px" }}>
-                    Oran, mevcut kalem toplamı üzerinden hesaplanır — bu kendi sabit oranınız, canlı gümrük/navlun verisi değildir.
+                    Oran, mevcut kalem toplamı üzerinden hesaplanır - bu kendi sabit oranınız, canlı gümrük/navlun verisi değildir.
                   </p>
                   <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
                     <button type="button" onClick={() => setShowFreightCalc(false)} style={{ fontSize: 12 }}>Vazgeç</button>
@@ -7225,7 +7225,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
         </div>
         <div style={{ flex: "1 1 140px" }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
-            Tutar (TL) <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>— KDV dahil{lineItems.length > 0 ? ", kalemlerden otomatik" : ""}</span>
+            Tutar (TL) <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>- KDV dahil{lineItems.length > 0 ? ", kalemlerden otomatik" : ""}</span>
           </label>
           <input type="number" min="0" value={value} disabled={lineItems.length > 0} onChange={(e) => setValue(e.target.value)} placeholder="0" style={{ width: "100%" }} />
           {totalPaid > 0 && (
@@ -7248,7 +7248,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
         <div style={{ flex: "1.4 1 180px" }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
             Müşteri ödemesi
-            <InfoTip text="Onay linkinden veya müşteri portalından kartla ödeme alınabilir — iyzico veya PayTR bağlantısı Ayarlar'dan kurulmalı." />
+            <InfoTip text="Onay linkinden veya müşteri portalından kartla ödeme alınabilir - iyzico veya PayTR bağlantısı Ayarlar'dan kurulmalı." />
           </label>
           <select value={paymentMode} onChange={(e) => { setPaymentMode(e.target.value); localStorage.setItem(PAYMENT_MODE_LAST_CHOICE_KEY, e.target.value); }} style={{ width: "100%" }}>
             {PAYMENT_MODE_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
@@ -7262,7 +7262,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
       </div>
       {initial?.stage === "kazanildi" && (Number(value) !== initial?.value || Number(kdvRate) !== initial?.kdvRate) && (
         <p style={{ fontSize: 12.5, color: "var(--text-warning, #b45309)", margin: "-4px 0 12px" }}>
-          Bu {DEAL_WORD_FORMS[dealWordKind(sector)].bare} zaten kazanılmış — Tutar/KDV değişikliği, bu döneme ait KDV Özet Raporu'nu da geriye dönük etkiler.
+          Bu {DEAL_WORD_FORMS[dealWordKind(sector)].bare} zaten kazanılmış - Tutar/KDV değişikliği, bu döneme ait KDV Özet Raporu'nu da geriye dönük etkiler.
         </p>
       )}
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
@@ -7270,7 +7270,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
             {supportsSelfBooking(sector) ? "Kayıt Tarihi" : "Tarih"}
             {supportsSelfBooking(sector) && (
-              <InfoTip align="left" text={`Bu, kaydın oluşturulma/güncellenme tarihidir — ${DEAL_WORD_FORMS[dealWordKind(sector)].bare === "randevu" ? "randevunun" : DEAL_WORD_FORMS[dealWordKind(sector)].bare === "rezervasyon" ? "rezervasyonun" : "görüşmenin"} kendi tarih/saati için ${bookingModel(sector) === "slot" ? "yukarıdaki" : "aşağıdaki özel alanlar bölümündeki"} "${customFieldDefs.find((d) => d.entity === "deal" && d.key === appointmentDateTimeKey)?.label || "Randevu/Görüşme Tarihi"}" alanını kullanın.`} />
+              <InfoTip align="left" text={`Bu, kaydın oluşturulma/güncellenme tarihidir - ${DEAL_WORD_FORMS[dealWordKind(sector)].bare === "randevu" ? "randevunun" : DEAL_WORD_FORMS[dealWordKind(sector)].bare === "rezervasyon" ? "rezervasyonun" : "görüşmenin"} kendi tarih/saati için ${bookingModel(sector) === "slot" ? "yukarıdaki" : "aşağıdaki özel alanlar bölümündeki"} "${customFieldDefs.find((d) => d.entity === "deal" && d.key === appointmentDateTimeKey)?.label || "Randevu/Görüşme Tarihi"}" alanını kullanın.`} />
             )}
           </label>
           <input type="date" value={dealDate} onChange={(e) => setDealDate(e.target.value)} style={{ width: "100%" }} />
@@ -7379,7 +7379,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
             <div style={{ flex: 2 }}>
               <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
                 Not
-                <InfoTip align="left" text="İsterseniz sadece bir not olarak kullanın (tarih boş kalabilir), isterseniz sağdaki tarihi de doldurup gerçek bir hatırlatmaya çevirin — tarih girilirse Pano'da ve 'Bugün ne yapmalıyım' listesinde çıkar." />
+                <InfoTip align="left" text="İsterseniz sadece bir not olarak kullanın (tarih boş kalabilir), isterseniz sağdaki tarihi de doldurup gerçek bir hatırlatmaya çevirin - tarih girilirse Pano'da ve 'Bugün ne yapmalıyım' listesinde çıkar." />
               </label>
               <div style={{ display: "flex", gap: 6 }}>
                 <input value={reminder} onChange={(e) => setReminder(e.target.value)} placeholder="Yarın takip araması yap" style={{ flex: 1 }} />
@@ -7917,7 +7917,7 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               {myClasses.map((g) => (
                 <p key={g.id} style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
-                  {g.name} — {WEEKDAYS[g.weekday - 1]} {g.startTime}
+                  {g.name} - {WEEKDAYS[g.weekday - 1]} {g.startTime}
                 </p>
               ))}
             </div>
@@ -8230,7 +8230,7 @@ function CampaignModal({ customers, replyTo, companyName, logoUrl, session, onCl
       {confirmSend && (
         <ConfirmDialog
           title="Kampanya gönderilsin mi?"
-          message={`${selected.size} kişiye e-posta gönderilecek — bu işlem geri alınamaz.`}
+          message={`${selected.size} kişiye e-posta gönderilecek - bu işlem geri alınamaz.`}
           onConfirm={() => { setConfirmSend(false); send(); }}
           onClose={() => setConfirmSend(false)}
         />
@@ -8314,7 +8314,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
     <div>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px", display: "flex", alignItems: "center", gap: 4 }}>
         Sabit fiyatlı ürün/hizmetlerinizi buraya kaydedin
-        <InfoTip placement="bottom" align="right" text={`Bu tamamen opsiyonel — kaydettikleriniz, yeni ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} formunda hızlı seçim olarak çıkar; seçince başlık ve tutar otomatik dolar, sonrasında yine de değiştirebilirsiniz. Bir kalemi silmek veya fiyatını güncellemek, daha önce oluşturulmuş ${DEAL_WORD_FORMS[dealWordKind(sector)].pluralAcc} etkilemez — sadece o ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} kaydedildiği andaki başlık/tutarı taşır.`} />
+        <InfoTip placement="bottom" align="right" text={`Bu tamamen opsiyonel - kaydettikleriniz, yeni ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} formunda hızlı seçim olarak çıkar; seçince başlık ve tutar otomatik dolar, sonrasında yine de değiştirebilirsiniz. Bir kalemi silmek veya fiyatını güncellemek, daha önce oluşturulmuş ${DEAL_WORD_FORMS[dealWordKind(sector)].pluralAcc} etkilemez - sadece o ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} kaydedildiği andaki başlık/tutarı taşır.`} />
       </p>
 
       {items.length === 0 ? (
@@ -8364,7 +8364,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
         <div style={{ width: 150 }}>
           <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 3, marginBottom: 4 }}>
             Tazeleme (gün)
-            <InfoTip align="left" text="Opsiyonel — girerseniz, bu hizmet 'tamamlandı' olarak işaretlendiğinde bu kadar gün sonrasına otomatik bir hatırlatma kurulur (örn. protez tırnak için 21 gün)." />
+            <InfoTip align="left" text="Opsiyonel - girerseniz, bu hizmet 'tamamlandı' olarak işaretlendiğinde bu kadar gün sonrasına otomatik bir hatırlatma kurulur (örn. protez tırnak için 21 gün)." />
           </label>
           <input type="number" min="0" value={refreshDays} onChange={(e) => setRefreshDays(e.target.value)} placeholder="Opsiyonel" style={{ width: "100%", fontSize: 13 }} />
         </div>
@@ -8381,7 +8381,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
       {confirmDelete && (
         <ConfirmDialog
           title="Ürün/hizmeti sil"
-          message={`"${confirmDelete.name}" kaldırılacak. Bu geri alınamaz — ancak daha önce bu kalemle oluşturulmuş ${DEAL_WORD_FORMS[dealWordKind(sector)].plural} etkilenmez.`}
+          message={`"${confirmDelete.name}" kaldırılacak. Bu geri alınamaz - ancak daha önce bu kalemle oluşturulmuş ${DEAL_WORD_FORMS[dealWordKind(sector)].plural} etkilenmez.`}
           onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
           onClose={() => setConfirmDelete(null)}
         />
@@ -8636,7 +8636,7 @@ function GroupClassForm({ initial, sector, currentEnrollment = 0, onSave, onCanc
             {WEEKDAYS.map((w, i) => <option key={w} value={i + 1}>{w}</option>)}
           </select>
           <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "4px 0 0" }}>
-            Her hafta tekrar eder — ilk oturum: {nextWeeklyOccurrence(Number(weekday), startTime || "00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "long", weekday: "long" })}
+            Her hafta tekrar eder - ilk oturum: {nextWeeklyOccurrence(Number(weekday), startTime || "00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "long", weekday: "long" })}
           </p>
         </div>
         <div style={{ flex: 1, minWidth: 100 }}>
@@ -8698,7 +8698,7 @@ function GroupClassRoster({ group, enrollments, customers, activeCustomerIds, se
       )}
 
       <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>
-        {showAttendance ? `Yoklama — ${new Date(occurrenceDate).toLocaleDateString("tr-TR", { day: "numeric", month: "long" })}` : words.rosterTitle}
+        {showAttendance ? `Yoklama - ${new Date(occurrenceDate).toLocaleDateString("tr-TR", { day: "numeric", month: "long" })}` : words.rosterTitle}
       </p>
       {enrollments.length === 0 ? (
         <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>{words.emptyRoster}</p>
@@ -8835,7 +8835,7 @@ function LateCancelPolicyBox({ companySettings, onSave }) {
             align="left"
             text={
               "Üçü de opsiyonel, hiç ayarlamazsanız hiçbir şey değişmez (sabit 2 saatlik iptal kilidi geçerli olmaya devam eder).\n\n" +
-              "Nasıl işler: ders saatine 'Tamamen kilitle' süresinden az kala üye HİÇ iptal edemez. Bunun ile 'Uyarı/seans yakma başlangıcı' süresi arasında iptal ederse 'geç iptal' sayılır — kaçıncı geç iptalde seansın yanacağını 'Kaçıncı geç iptalde' alanı belirler (örn. 3 girerseniz ilk 2 geç iptal sadece uyarı, 3.'den itibaren her geç iptalde 1 seans düşer). Bu iki eşiğin arasındaki sürede DEĞİLSE (yani yeterince erken iptal ediyorsa) hiçbir ceza uygulanmaz."
+              "Nasıl işler: ders saatine 'Tamamen kilitle' süresinden az kala üye HİÇ iptal edemez. Bunun ile 'Uyarı/seans yakma başlangıcı' süresi arasında iptal ederse 'geç iptal' sayılır - kaçıncı geç iptalde seansın yanacağını 'Kaçıncı geç iptalde' alanı belirler (örn. 3 girerseniz ilk 2 geç iptal sadece uyarı, 3.'den itibaren her geç iptalde 1 seans düşer). Bu iki eşiğin arasındaki sürede DEĞİLSE (yani yeterince erken iptal ediyorsa) hiçbir ceza uygulanmaz."
             }
           />
         </p>
@@ -8849,7 +8849,7 @@ function LateCancelPolicyBox({ companySettings, onSave }) {
         <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0 0" }}>
           {configured
             ? `Aktif: dersten ${companySettings.hardBlockHours ?? 2} saat kalana kadar tamamen kilit${companySettings.lateCancelHours != null ? `, ${companySettings.lateCancelHours} saatten itibaren geç iptal sayılır` : ""}${companySettings.lateCancelStrikeLimit ? `, ${companySettings.lateCancelStrikeLimit}. geç iptalde seans yanmaya başlar` : ""}.`
-            : "Kullanılmıyor — üyeler ders saatine 2 saat kalana kadar serbestçe iptal edebiliyor, geç iptal için özel bir kural/ceza yok."}
+            : "Kullanılmıyor - üyeler ders saatine 2 saat kalana kadar serbestçe iptal edebiliyor, geç iptal için özel bir kural/ceza yok."}
         </p>
       )}
       {open && (
@@ -8964,7 +8964,7 @@ function AppointmentCancelPolicyBox({ companySettings, onSave }) {
         <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0 0" }}>
           {configured
             ? `Aktif: ${companySettings.appointmentCancelHours != null ? `randevuya ${companySettings.appointmentCancelHours} saat kalana kadar tamamen kilit` : "tamamen kilitleme yok"}${companySettings.appointmentPenaltyHours != null ? `, ${companySettings.appointmentPenaltyHours} saatten az kala iptal 'geç iptal' sayılır` : ""}${companySettings.appointmentPartialChargeHours != null ? `, ${companySettings.appointmentPartialChargeHours} saatten az kala kısmi kesinti (~%50) önerilir` : ""}${companySettings.appointmentPenaltyStrikeLimit ? `, ${companySettings.appointmentPenaltyStrikeLimit}. ihlalde ${companySettings.appointmentPenaltyBurnsSession ? "paket sahiplerinde seans yanar, diğerlerinde sonraki randevuda ödeme önerilir" : "sonraki randevuda ödeme önerilir"}` : ""}.`
-            : "Kullanılmıyor — müşteri randevusunu istediği an iptal edebilir, geç iptal/gelmeme için otomatik bir sonuç yok."}
+            : "Kullanılmıyor - müşteri randevusunu istediği an iptal edebilir, geç iptal/gelmeme için otomatik bir sonuç yok."}
         </p>
       )}
       {open && (
@@ -8988,7 +8988,7 @@ function AppointmentCancelPolicyBox({ companySettings, onSave }) {
               <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                 <input type="checkbox" checked={partialOn} onChange={(e) => setPartialOn(e.target.checked)} />
                 Kısmi kesinti sınırı (saat)
-                <InfoTip align="left" text="Geç sayılma penceresinin içinde, bundan az kala yapılan iptaller için 'kısmi kesinti (~%50) önerilir' notu gösterilir — sadece bilgi amaçlı, otomatik tahsilat/iade yapılmaz." />
+                <InfoTip align="left" text="Geç sayılma penceresinin içinde, bundan az kala yapılan iptaller için 'kısmi kesinti (~%50) önerilir' notu gösterilir - sadece bilgi amaçlı, otomatik tahsilat/iade yapılmaz." />
               </label>
               <input type="number" min="0" step="0.5" disabled={!partialOn} value={partialHours} onChange={(e) => setPartialHours(e.target.value)} placeholder="Örn. 12" style={{ width: 150 }} />
             </div>
@@ -9070,7 +9070,7 @@ function GroupClassesTab({ groupClasses, groupClassEnrollments, customers, activ
                       </div>
                     );
                   })}
-                  {dayClasses.length === 0 && <p style={{ fontSize: 12, color: "var(--text-muted)" }}>—</p>}
+                  {dayClasses.length === 0 && <p style={{ fontSize: 12, color: "var(--text-muted)" }}>-</p>}
                 </div>
               </div>
             );
@@ -9271,7 +9271,7 @@ function AgendaTab({ deals, customers, groupClasses, groupClassEnrollments, clas
             >
               {viewMode === "ay"
                 ? anchorDate.toLocaleDateString("tr-TR", { month: "long", year: "numeric" })
-                : `${getWeekDays(anchorDate)[0].toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} – ${getWeekDays(anchorDate)[6].toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}`}
+                : `${getWeekDays(anchorDate)[0].toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} - ${getWeekDays(anchorDate)[6].toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}`}
               <i className="ti ti-chevron-down" style={{ fontSize: 12 }} aria-hidden="true"></i>
             </button>
             {pickerOpen && (
@@ -9435,7 +9435,7 @@ function BusinessHoursManager({ items, onAdd, onDelete }) {
     <div>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px", display: "flex", alignItems: "center", gap: 4 }}>
         Müşterilerinizin portaldan randevu alabileceği çalışma saatleriniz
-        <InfoTip placement="bottom" align="right" text={'Burada tanımladığınız gün/saat pencereleri, belirlediğiniz süre aralıklarla bölünüp müşteri portalında müsait randevu saatleri olarak gösterilir. Öğle arası varsa "Öğle arası var" kutusunu işaretleyip ara saatlerini girin — sistem günü otomatik olarak iki parçaya böler.'} />
+        <InfoTip placement="bottom" align="right" text={'Burada tanımladığınız gün/saat pencereleri, belirlediğiniz süre aralıklarla bölünüp müşteri portalında müsait randevu saatleri olarak gösterilir. Öğle arası varsa "Öğle arası var" kutusunu işaretleyip ara saatlerini girin - sistem günü otomatik olarak iki parçaya böler.'} />
       </p>
 
       {sorted.length === 0 ? (
@@ -9446,7 +9446,7 @@ function BusinessHoursManager({ items, onAdd, onDelete }) {
             <div key={b.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
               <span style={{ fontSize: 13, fontWeight: 500 }}>{WEEKDAYS[b.weekday - 1]}</span>
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                <Badge tone="accent">{b.startTime}–{b.endTime} · {b.slotDurationMinutes} dk aralıklarla</Badge>
+                <Badge tone="accent">{b.startTime}-{b.endTime} · {b.slotDurationMinutes} dk aralıklarla</Badge>
                 <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(b)} />
               </div>
             </div>
@@ -9498,7 +9498,7 @@ function BusinessHoursManager({ items, onAdd, onDelete }) {
       {confirmDelete && (
         <ConfirmDialog
           title="Müsaitliği sil"
-          message={`${WEEKDAYS[confirmDelete.weekday - 1]} ${confirmDelete.startTime}–${confirmDelete.endTime} müsaitliği kaldırılacak. Bu geri alınamaz.`}
+          message={`${WEEKDAYS[confirmDelete.weekday - 1]} ${confirmDelete.startTime}-${confirmDelete.endTime} müsaitliği kaldırılacak. Bu geri alınamaz.`}
           onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
           onClose={() => setConfirmDelete(null)}
         />
@@ -9525,14 +9525,14 @@ function StaffShiftDayEditor({ weekday, memberLabel, items, onAdd, onDelete, onC
   };
 
   return (
-    <Modal title={`${memberLabel} — ${WEEKDAYS[weekday - 1]}`} onClose={onClose}>
+    <Modal title={`${memberLabel} - ${WEEKDAYS[weekday - 1]}`} onClose={onClose}>
       {sorted.length === 0 ? (
         <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>Bu gün için vardiya tanımlanmadı.</p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
           {sorted.map((s) => (
             <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
-              <Badge tone="accent">{s.startTime}–{s.endTime}</Badge>
+              <Badge tone="accent">{s.startTime}-{s.endTime}</Badge>
               <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(s)} />
             </div>
           ))}
@@ -9551,13 +9551,13 @@ function StaffShiftDayEditor({ weekday, memberLabel, items, onAdd, onDelete, onC
         <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>+ Ekle</button>
       </form>
       <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "10px 0 0" }}>
-        Öğle arası gibi bir boşluk bırakmak isterseniz iki ayrı aralık ekleyin (ör. 09:00–12:00 ve 13:00–18:00).
+        Öğle arası gibi bir boşluk bırakmak isterseniz iki ayrı aralık ekleyin (ör. 09:00-12:00 ve 13:00-18:00).
       </p>
 
       {confirmDelete && (
         <ConfirmDialog
           title="Vardiyayı sil"
-          message={`${confirmDelete.startTime}–${confirmDelete.endTime} vardiyası kaldırılacak. Bu geri alınamaz.`}
+          message={`${confirmDelete.startTime}-${confirmDelete.endTime} vardiyası kaldırılacak. Bu geri alınamaz.`}
           onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
           onClose={() => setConfirmDelete(null)}
         />
@@ -9602,7 +9602,7 @@ function StaffShiftGrid({ people, staffShifts, onAdd, onDelete }) {
                     onClick={() => setEditingCell({ memberId: p.id, weekday, label: p.label })}
                     style={{ padding: "8px 4px", fontSize: 11, textAlign: "center", cursor: "pointer", color: dayShifts.length ? "var(--text-accent)" : "var(--text-muted)" }}
                   >
-                    {dayShifts.length === 0 ? "–" : dayShifts.map((s) => `${s.startTime}-${s.endTime}`).join(", ")}
+                    {dayShifts.length === 0 ? "-" : dayShifts.map((s) => `${s.startTime}-${s.endTime}`).join(", ")}
                   </td>
                 );
               })}
@@ -9692,7 +9692,7 @@ function RoomInventoryManager({ items, roomTypeOptions, onAdd, onUpdate, onDelet
       </p>
 
       {items.length === 0 ? (
-        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Henüz oda tipi eklenmedi — eklenene kadar müşteri portalından rezervasyon alınamaz.</p>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Henüz oda tipi eklenmedi - eklenene kadar müşteri portalından rezervasyon alınamaz.</p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
           {items.map((r) => (
@@ -9863,7 +9863,7 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify, st
         {confirmLeave && (
           <ConfirmDialog
             title="Takımdan ayrılınsın mı?"
-            message="Bu takımın müşteri/teklif/destek verilerine erişiminiz kalmaz — tekrar erişmek için yeniden davet edilmeniz gerekir."
+            message="Bu takımın müşteri/teklif/destek verilerine erişiminiz kalmaz - tekrar erişmek için yeniden davet edilmeniz gerekir."
             onConfirm={() => { setConfirmLeave(false); leaveTeam(); }}
             onClose={() => setConfirmLeave(false)}
           />
@@ -9919,7 +9919,7 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify, st
                           type="number" min="0" max="100" step="0.1"
                           defaultValue={m.commission_percent ?? ""}
                           onBlur={(e) => updateCommission(m.member_id, { commission_percent: e.target.value === "" ? null : Number(e.target.value), chair_rental_fee: m.chair_rental_fee ?? null })}
-                          placeholder="—"
+                          placeholder="-"
                           style={{ width: 60, fontSize: 12, padding: "2px 6px" }}
                         />
                       </span>
@@ -9929,7 +9929,7 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify, st
                           type="number" min="0" step="1"
                           defaultValue={m.chair_rental_fee ?? ""}
                           onBlur={(e) => updateCommission(m.member_id, { commission_percent: m.commission_percent ?? null, chair_rental_fee: e.target.value === "" ? null : Number(e.target.value) })}
-                          placeholder="—"
+                          placeholder="-"
                           style={{ width: 80, fontSize: 12, padding: "2px 6px" }}
                         />
                       </span>
@@ -10262,7 +10262,7 @@ function ExportSelectionModal({ title, items, columns, filename, getLabel, getRo
   return (
     <Modal title={title} onClose={onClose}>
       <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 12px" }}>
-        Arayıp istediklerinizi seçin — hepsini dışa aktarabilir, ya da tek bir kaydı bile seçip sadece onu indirebilirsiniz.
+        Arayıp istediklerinizi seçin - hepsini dışa aktarabilir, ya da tek bir kaydı bile seçip sadece onu indirebilirsiniz.
       </p>
       <div className="list-toolbar" style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
         <input
@@ -10407,7 +10407,7 @@ function ParasutExportModal({ deals, customerById, totalPaidForDeal, sector, onC
   return (
     <Modal title="Paraşüt'e Aktar" onClose={onClose}>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 12 }}>
-        "{stageLabel("kazanildi", "kurumsal", sector)}" aşamasındaki {DEAL_WORD_FORMS[dealWordKind(sector)].plural} arasından aktarmak istediklerinizi seçin. Seçilenler, Paraşüt'ün satış faturası içe aktarma şablonuyla uyumlu bir Excel (.xlsx) dosyası olarak indirilecek — her {DEAL_WORD_FORMS[dealWordKind(sector)].gen} kendi KDV oranı kullanılır. İndirdiğiniz dosyayı Paraşüt'te Satışlar → Faturalar → İçe/Dışa Aktar → İçeri Aktar ile yükleyebilirsiniz.
+        "{stageLabel("kazanildi", "kurumsal", sector)}" aşamasındaki {DEAL_WORD_FORMS[dealWordKind(sector)].plural} arasından aktarmak istediklerinizi seçin. Seçilenler, Paraşüt'ün satış faturası içe aktarma şablonuyla uyumlu bir Excel (.xlsx) dosyası olarak indirilecek - her {DEAL_WORD_FORMS[dealWordKind(sector)].gen} kendi KDV oranı kullanılır. İndirdiğiniz dosyayı Paraşüt'te Satışlar → Faturalar → İçe/Dışa Aktar → İçeri Aktar ile yükleyebilirsiniz.
       </p>
 
       {wonDeals.length === 0 ? (
@@ -10459,7 +10459,7 @@ function ParasutExportModal({ deals, customerById, totalPaidForDeal, sector, onC
               filteredWonDeals.map((d) => (
                 <label key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "4px 0", cursor: "pointer" }}>
                   <input type="checkbox" checked={selected.has(d.id)} onChange={() => toggle(d.id)} />
-                  {customerById(d.customerId)?.name || "Bilinmeyen müşteri"} — {d.title}{" "}
+                  {customerById(d.customerId)?.name || "Bilinmeyen müşteri"} - {d.title}{" "}
                   <span style={{ color: "var(--text-muted)" }}>({formatTL(d.value)}, KDV %{d.kdvRate ?? 20})</span>
                 </label>
               ))
@@ -10475,7 +10475,7 @@ function ParasutExportModal({ deals, customerById, totalPaidForDeal, sector, onC
         return (
           <div style={{ marginBottom: 16, background: "var(--bg-warning)", borderRadius: "var(--radius)", padding: "0.75rem 1rem" }}>
             <p style={{ fontSize: 12.5, color: "var(--text-warning)", margin: "0 0 8px", lineHeight: 1.6, fontWeight: 600 }}>
-              Dikkat: Excel dosyası tahsilat bilgisi taşımıyor, faturalar Paraşüt'e aktarılınca "ödenmemiş" görünecek. Aşağıdaki {dealsWithPayments.length} teklif için Binerly'de tahsilat kaydı var — Paraşüt'e aktardıktan sonra her biri için:
+              Dikkat: Excel dosyası tahsilat bilgisi taşımıyor, faturalar Paraşüt'e aktarılınca "ödenmemiş" görünecek. Aşağıdaki {dealsWithPayments.length} teklif için Binerly'de tahsilat kaydı var - Paraşüt'e aktardıktan sonra her biri için:
             </p>
             <ol style={{ margin: "0 0 10px", paddingLeft: 18, fontSize: 12.5, color: "var(--text-warning)", lineHeight: 1.6 }}>
               <li>Paraşüt'te o faturayı açın.</li>
@@ -10488,7 +10488,7 @@ function ParasutExportModal({ deals, customerById, totalPaidForDeal, sector, onC
                 const remaining = d.value - paid;
                 return (
                   <div key={d.id} style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                    <strong style={{ color: "var(--text-primary)" }}>{customerById(d.customerId)?.name || "Bilinmeyen müşteri"} — {d.title}:</strong>{" "}
+                    <strong style={{ color: "var(--text-primary)" }}>{customerById(d.customerId)?.name || "Bilinmeyen müşteri"} - {d.title}:</strong>{" "}
                     Girilecek tutar: <strong>{formatTL(paid)}</strong>
                     {remaining > 0 ? ` (kalan ${formatTL(remaining)} henüz tahsil edilmedi)` : " (tamamı ödendi)"}
                   </div>
@@ -10515,7 +10515,7 @@ function ParasutExportModal({ deals, customerById, totalPaidForDeal, sector, onC
 
 const PAYMENT_MODE_LAST_CHOICE_KEY = "binerly_last_payment_mode";
 const PAYMENT_MODE_OPTIONS = [
-  { value: "none", label: "Sadece onaylasın", desc: "Bugünkü gibi — ödeme adımı yok, müşteri sadece onaylar." },
+  { value: "none", label: "Sadece onaylasın", desc: "Bugünkü gibi - ödeme adımı yok, müşteri sadece onaylar." },
   { value: "optional", label: "Onaylasın + isterse ödesin", desc: "Onay ve ödeme birbirinden bağımsız, ikisi de ayrı ayrı sunulur." },
   { value: "required", label: "Onaylamak için ödemesi şart", desc: "Tek adım: ödeme tamamlanınca onay da otomatik gerçekleşir." },
 ];
@@ -10597,7 +10597,7 @@ function PaymentCredentialForm({ credential, onSave, onDelete, onClose }) {
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 14px" }}>
         Müşterilerinizin onay linkinden kartla doğrudan ödeme yapabilmesi için kendi iyzico veya PayTR hesabınızın API
         bilgilerini girin. Kart bilgisi hiçbir zaman Binerly sunucularından geçmez, sağlayıcının kendi güvenli sayfasında girilir.
-        Aynı anda sadece bir sağlayıcı aktif olabilir — yeni birini bağlarsanız öncekinin yerini alır.
+        Aynı anda sadece bir sağlayıcı aktif olabilir - yeni birini bağlarsanız öncekinin yerini alır.
       </p>
       {credential && (
         <div style={{ background: "var(--surface-2)", borderRadius: "var(--radius)", padding: 10, marginBottom: 14, fontSize: 13 }}>
@@ -10668,14 +10668,14 @@ function PaymentCredentialForm({ credential, onSave, onDelete, onClose }) {
             ))}
           </select>
           <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0 0" }}>
-            Müşteriye ödeme sayfasında sunulacak azami taksit sayısı. Bu sadece bir üst sınır — taksitin gerçekten
+            Müşteriye ödeme sayfasında sunulacak azami taksit sayısı. Bu sadece bir üst sınır - taksitin gerçekten
             sunulabilmesi {isPayTR ? "PayTR" : "iyzico"} hesabınızda taksitli satış özelliğinin açık olmasına ve
             müşterinin kartının taksit desteğine bağlıdır; hesabınızda kapalıysa bu ayara rağmen tek çekim gösterilir.
           </p>
         </div>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, marginBottom: 16 }}>
           <input type="checkbox" checked={sandbox} onChange={(e) => setSandbox(e.target.checked)} />
-          Test modu (Sandbox) — canlıya geçmeden önce test anahtarlarınızla deneyin
+          Test modu (Sandbox) - canlıya geçmeden önce test anahtarlarınızla deneyin
         </label>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
           {credential ? (
@@ -10846,7 +10846,7 @@ function PasswordRecoveryModal({ notify, onClose }) {
   return (
     <Modal title="Yeni şifre belirleyin" onClose={onClose}>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px" }}>
-        Sıfırlama bağlantısına tıkladınız — hesabınız için yeni bir şifre belirleyin.
+        Sıfırlama bağlantısına tıkladınız - hesabınız için yeni bir şifre belirleyin.
       </p>
       <form onSubmit={submit}>
         <div style={{ marginBottom: 8 }}>
@@ -10999,7 +10999,7 @@ function LandingPage() {
             tek yerde yönetin
           </h1>
           <p style={{ fontSize: 17, color: "#5b7088", lineHeight: 1.7, margin: "0 0 2rem", maxWidth: 480 }}>
-            Müşteri veya danışan takibi, teklif, randevu ya da üyelik süreci, destek ve müşterinizin kendi portalı — hepsi bir arada, sektörünüze göre şekillenen tek bir sistemde.
+            Müşteri veya danışan takibi, teklif, randevu ya da üyelik süreci, destek ve müşterinizin kendi portalı - hepsi bir arada, sektörünüze göre şekillenen tek bir sistemde.
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <button onClick={() => setAuthModal("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "13px 28px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
@@ -11013,7 +11013,7 @@ function LandingPage() {
             Kart bilgisi gerekmez. Erken erişim aşamasındayız, şu an için tamamen ücretsiz.
           </p>
           <p style={{ fontSize: 13, color: "#5b7088", margin: "6px 0 0" }}>
-            💬 Sizi dinliyoruz — talepleriniz doğrultusunda hızla geliştiriyoruz.
+            💬 Sizi dinliyoruz - talepleriniz doğrultusunda hızla geliştiriyoruz.
           </p>
         </div>
 
@@ -11148,7 +11148,7 @@ function LandingPage() {
               id: "musteri-portali",
               icon: "ti-users-group",
               title: "Müşteri Bilgi Sistemi",
-              desc: "Müşterileriniz kendi hesaplarıyla giriş yapıp destek taleplerini açabilir, sizinle mesajlaşabilir ve teklif/randevu/üyelik kayıtlarının durumunu görebilir. Güzellik salonu veya klinikseniz müşteri, sizin tanımladığınız müsaitlik saatlerinden kendi randevusunu alıp gerekirse iptal edebilir; spor merkeziyseniz üyeleriniz grup derslerinize kendi kaydolup çıkabilir — siz her yeni işlemde anında bildirim alırsınız. Telefon trafiğinizi azaltır.",
+              desc: "Müşterileriniz kendi hesaplarıyla giriş yapıp destek taleplerini açabilir, sizinle mesajlaşabilir ve teklif/randevu/üyelik kayıtlarının durumunu görebilir. Güzellik salonu veya klinikseniz müşteri, sizin tanımladığınız müsaitlik saatlerinden kendi randevusunu alıp gerekirse iptal edebilir; spor merkeziyseniz üyeleriniz grup derslerinize kendi kaydolup çıkabilir - siz her yeni işlemde anında bildirim alırsınız. Telefon trafiğinizi azaltır.",
               tags: ["Müşteri Portalı", "Kendi Randevusunu Alır", "Grup Dersi Kaydı", "Kendi Talebini Takip"],
             },
             {
@@ -11169,7 +11169,7 @@ function LandingPage() {
               id: "is-birligi-agi",
               icon: "ti-handshake",
               title: "KOBİ İş Birliği Ağı",
-              desc: "Binerly'ye kayıtlı KOBİ'ler birbirini keşfedip iş birliği yapabilecek, ücretli veya ücretsiz iş fırsatlarını paylaşabilecek — birbirinizin müşterisi, tedarikçisi veya iş ortağı olun.",
+              desc: "Binerly'ye kayıtlı KOBİ'ler birbirini keşfedip iş birliği yapabilecek, ücretli veya ücretsiz iş fırsatlarını paylaşabilecek - birbirinizin müşterisi, tedarikçisi veya iş ortağı olun.",
               tags: ["Yakında"],
             },
           ].map((f) => (
@@ -11193,7 +11193,7 @@ function LandingPage() {
           Hangi işi yapıyorsanız, dili de ona göre değişir
         </h2>
         <p style={{ textAlign: "center", fontSize: 15, color: "#5b7088", maxWidth: 640, margin: "0 auto 2rem" }}>
-          Sektörünüzü seçtiğinizde aşama isimleri, alanlar ve hatta "teklif mi, randevu mu, üyelik mi" dediğimiz otomatik ayarlanır — herkese aynı kalıp değil, işinize uygun bir sistem.
+          Sektörünüzü seçtiğinizde aşama isimleri, alanlar ve hatta "teklif mi, randevu mu, üyelik mi" dediğimiz otomatik ayarlanır - herkese aynı kalıp değil, işinize uygun bir sistem.
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
           {SECTOR_PRESETS.filter((s) => s.id !== "genel").map((s) => (
@@ -11204,7 +11204,7 @@ function LandingPage() {
           ))}
         </div>
         <p style={{ textAlign: "center", fontSize: 13, color: "#94a7bb", margin: "1.5rem 0 0" }}>
-          Listede yoksa da sorun değil — "Genel" ile başlayıp kendi özel alanlarınızı ekleyebilirsiniz.
+          Listede yoksa da sorun değil - "Genel" ile başlayıp kendi özel alanlarınızı ekleyebilirsiniz.
         </p>
       </div>
 
@@ -11218,7 +11218,7 @@ function LandingPage() {
             Ekibiniz büyüsün, faturanız büyümesin
           </h2>
           <p style={{ maxWidth: 680, fontSize: 16, color: "#5b7088", lineHeight: 1.8, margin: "0 0 2.5rem" }}>
-            Türkiye'deki CRM'lerin çoğu kullanıcı başına ücretlendiriyor, bazıları da dolar/euro bazlı — ekibiniz büyüdükçe faturanız da büyüyor, kur dalgalandıkça bütçeniz sarsılıyor. Binerly'de öyle değil: 10 kullanıcıya kadar sabit bir ücretle çalışacağız, her zaman TL bazlı.
+            Türkiye'deki CRM'lerin çoğu kullanıcı başına ücretlendiriyor, bazıları da dolar/euro bazlı - ekibiniz büyüdükçe faturanız da büyüyor, kur dalgalandıkça bütçeniz sarsılıyor. Binerly'de öyle değil: 10 kullanıcıya kadar sabit bir ücretle çalışacağız, her zaman TL bazlı.
           </p>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 2.5 + "rem" }}>
@@ -11239,7 +11239,7 @@ function LandingPage() {
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
             {[
-              ["ti-list-details", "Dağınıklık", "Müşteri bilgisi telefonda, WhatsApp'ta, Excel'de ve kafanızda — dört farklı yerde."],
+              ["ti-list-details", "Dağınıklık", "Müşteri bilgisi telefonda, WhatsApp'ta, Excel'de ve kafanızda - dört farklı yerde."],
               ["ti-eye-off", "Kör nokta", "Bir çalışan izinliyken veya ayrılınca, bildiği müşteri geçmişi de onunla gidiyor."],
               ["ti-clock-x", "Kaçan takip", "\"Yarın ararım\" dediğiniz teklifi unutup fırsatı rakibe kaptırıyorsunuz."],
               ["ti-certificate", "Kurumsal görünmeme", "Elle yazılmış teklif, büyük müşteriye karşı güven vermiyor."],
@@ -11282,14 +11282,14 @@ function LandingPage() {
               <i className="ti ti-shield-check" style={{ fontSize: 26, color: "#185fa5", display: "block", marginBottom: 12 }} />
               <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>Güvenilirlik</h3>
               <p style={{ fontSize: 13.5, color: "#5b7088", margin: 0, lineHeight: 1.7 }}>
-                Verileriniz, her hesabın yalnızca kendi kayıtlarına erişebildiği satır bazlı erişim kurallarıyla saklanır — başka bir işletmenin verisine teknik olarak erişim mümkün değildir. KVKK'ya uygun işlenir, asla üçüncü taraflarla paylaşılmaz. Kredi kartı istemeden ücretsiz deneyebilir, istediğiniz an ayrılabilirsiniz.
+                Verileriniz, her hesabın yalnızca kendi kayıtlarına erişebildiği satır bazlı erişim kurallarıyla saklanır - başka bir işletmenin verisine teknik olarak erişim mümkün değildir. KVKK'ya uygun işlenir, asla üçüncü taraflarla paylaşılmaz. Kredi kartı istemeden ücretsiz deneyebilir, istediğiniz an ayrılabilirsiniz.
               </p>
             </div>
             <div style={{ background: "#f5f8fc", borderRadius: 12, padding: "1.5rem", border: "1px solid #e1e8f0" }}>
               <i className="ti ti-heart-handshake" style={{ fontSize: 26, color: "#185fa5", display: "block", marginBottom: 12 }} />
               <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>Sizi Dinliyoruz</h3>
               <p style={{ fontSize: 13.5, color: "#5b7088", margin: 0, lineHeight: 1.7 }}>
-                Erken erişim aşamasında olduğumuz için Binerly'yi doğrudan kullanıcılarımızın talepleriyle şekillendiriyoruz. İşinize özel eksik bir özellik veya isteğiniz olursa bize ulaşın — değerlendirip mümkün olan en kısa sürede geliştirip ekleriz.
+                Erken erişim aşamasında olduğumuz için Binerly'yi doğrudan kullanıcılarımızın talepleriyle şekillendiriyoruz. İşinize özel eksik bir özellik veya isteğiniz olursa bize ulaşın - değerlendirip mümkün olan en kısa sürede geliştirip ekleriz.
               </p>
             </div>
           </div>
@@ -11826,7 +11826,7 @@ export default function App() {
     teklif: {
       subject: (title) => `${title} hazır`,
       needsLink: true,
-      body: (deal, company) => `Merhaba,\n\n${company} sizin için hazırladı: "${deal.title}" — ${formatTL(deal.value)}`,
+      body: (deal, company) => `Merhaba,\n\n${company} sizin için hazırladı: "${deal.title}" - ${formatTL(deal.value)}`,
     },
     muzakere: {
       subject: (title) => `${title} güncellendi`,
@@ -11860,7 +11860,7 @@ export default function App() {
       if (!customer?.email) return;
       const company = companySettings?.companyName || "Binerly";
       const ctaUrl = cfg.needsLink ? await generateApprovalLink(deal) : null;
-      notifyCustomerByEmail(customer, `${cfg.subject(deal.title)} — ${company}`, cfg.body(deal, company), {
+      notifyCustomerByEmail(customer, `${cfg.subject(deal.title)} - ${company}`, cfg.body(deal, company), {
         ctaUrl,
         ctaLabel: DEAL_WORD_FORMS[dealWordKind(companySettings?.sector)].ctaLabel,
       });
@@ -12212,7 +12212,7 @@ export default function App() {
     const company = companySettings?.companyName || "Binerly";
     notifyCustomerByEmail(
       customer,
-      `Ödemeniz alındı — ${company}`,
+      `Ödemeniz alındı - ${company}`,
       `Merhaba,\n\n"${deal?.title || DEAL_WORD_FORMS[dealWordKind(companySettings?.sector)].possYours}" için ${formatTL(payment.amount)} tutarındaki ödemeniz alınmıştır. Teşekkür ederiz.\n\n${company}`
     );
   };
@@ -12252,7 +12252,7 @@ export default function App() {
     // için (aksi halde sıkışıp kalırlar) burada normal silmeye izin veriliyor.
     const isRefundableOnline = (payment?.provider === "iyzico" && payment?.iyzicoPaymentTransactionId) || (payment?.provider === "paytr" && payment?.paytrMerchantOid);
     if (isRefundableOnline) {
-      notify("Online ödemeler doğrudan silinemez — \"İade Et\" ile geri ödeme yapın.");
+      notify("Online ödemeler doğrudan silinemez - \"İade Et\" ile geri ödeme yapın.");
       return;
     }
     const batchId = uid();
@@ -12416,7 +12416,7 @@ export default function App() {
       entityType,
       entityId,
       "updated",
-      extra.photoType ? `"${file.name}" (${extra.photoType === "before" ? "öncesi" : "sonrası"} fotoğrafı) eklendi — KVKK onayı alındı` : `"${file.name}" dosyası eklendi`
+      extra.photoType ? `"${file.name}" (${extra.photoType === "before" ? "öncesi" : "sonrası"} fotoğrafı) eklendi - KVKK onayı alındı` : `"${file.name}" dosyası eklendi`
     );
   };
 
@@ -12491,10 +12491,10 @@ export default function App() {
           id: uid(), name: c.name, customerType: c.customerType, sector: "", region: "", phone: c.phone, email: "", notes: demoNote, lastContact: now, createdAt: now,
         }))
       : [
-          { id: uid(), name: "Örnek Müşteri — Akın İnşaat", customerType: "kurumsal", sector: "İnşaat", phone: "0532 000 00 01", email: "", notes: demoNote, lastContact: now, createdAt: now },
-          { id: uid(), name: "Örnek Müşteri — Medipark Klinik", customerType: "kurumsal", sector: "Medikal / Sağlık", phone: "0532 000 00 02", email: "", notes: demoNote, lastContact: now, createdAt: now },
-          { id: uid(), name: "Örnek Müşteri — Tazegül Gıda", customerType: "kurumsal", sector: "Gıda", phone: "0532 000 00 03", email: "", notes: demoNote, lastContact: now, createdAt: now },
-          { id: uid(), name: "Örnek Müşteri — Ayşe Yılmaz", customerType: "bireysel", sector: "", region: "İzmir", phone: "0532 000 00 04", email: "", notes: demoNote, lastContact: now, createdAt: now },
+          { id: uid(), name: "Örnek Müşteri - Akın İnşaat", customerType: "kurumsal", sector: "İnşaat", phone: "0532 000 00 01", email: "", notes: demoNote, lastContact: now, createdAt: now },
+          { id: uid(), name: "Örnek Müşteri - Medipark Klinik", customerType: "kurumsal", sector: "Medikal / Sağlık", phone: "0532 000 00 02", email: "", notes: demoNote, lastContact: now, createdAt: now },
+          { id: uid(), name: "Örnek Müşteri - Tazegül Gıda", customerType: "kurumsal", sector: "Gıda", phone: "0532 000 00 03", email: "", notes: demoNote, lastContact: now, createdAt: now },
+          { id: uid(), name: "Örnek Müşteri - Ayşe Yılmaz", customerType: "bireysel", sector: "", region: "İzmir", phone: "0532 000 00 04", email: "", notes: demoNote, lastContact: now, createdAt: now },
         ];
     for (const c of demoCustomers) await upsertCustomer(c);
 
@@ -12631,7 +12631,7 @@ export default function App() {
         )
       : null;
     if (slotConflict) {
-      notify(`Bu tarih/saatte ${customers.find((c) => c.id === slotConflict.customerId)?.name || "başka bir kayıt"} için de aktif bir randevu var — aynı saate iki randevu girilemez.`);
+      notify(`Bu tarih/saatte ${customers.find((c) => c.id === slotConflict.customerId)?.name || "başka bir kayıt"} için de aktif bir randevu var - aynı saate iki randevu girilemez.`);
     } else if (roomConflict) {
       notify(`Bu oda tipinde seçili tarihler için müsait oda kalmadı (${roomConflict.occupied}/${roomConflict.quantity} dolu).`);
     } else {
@@ -12650,7 +12650,7 @@ export default function App() {
       notify(`Seans güncellenemedi: ${error.message}`);
       setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, sessionUsed: previousUsed } : d)));
     } else {
-      logAction("deals", id, "updated", `${current.title || DEAL_TAB_STRINGS[dealWordKind(companySettings?.sector)].columnHeader} — ${nextUsed}. seans kullanıldı (${nextUsed}/${current.sessionTotal})`);
+      logAction("deals", id, "updated", `${current.title || DEAL_TAB_STRINGS[dealWordKind(companySettings?.sector)].columnHeader} - ${nextUsed}. seans kullanıldı (${nextUsed}/${current.sessionTotal})`);
     }
   };
 
@@ -12693,7 +12693,7 @@ export default function App() {
       const statusLabel = STATUSES.find((s) => s.id === ticket.status)?.label || ticket.status;
       notifyCustomerByEmail(
         customer,
-        `Destek talebiniz güncellendi — ${company}`,
+        `Destek talebiniz güncellendi - ${company}`,
         `Merhaba,\n\n"${ticket.subject}" konulu talebinizin durumu "${statusLabel}" olarak güncellendi.\n\nDetaylar için müşteri portalımızdan giriş yapabilirsiniz: https://portal.binerly.com\n\n${company}`
       );
     }
@@ -12732,7 +12732,7 @@ export default function App() {
         const statusLabel = STATUSES.find((s) => s.id === status)?.label || status;
         notifyCustomerByEmail(
           customer,
-          `Destek talebiniz güncellendi — ${company}`,
+          `Destek talebiniz güncellendi - ${company}`,
           `Merhaba,\n\n"${previous?.subject || "Destek talebiniz"}" konulu talebinizin durumu "${statusLabel}" olarak güncellendi.\n\nDetaylar için müşteri portalımızdan giriş yapabilirsiniz: https://portal.binerly.com\n\n${company}`
         );
       }
@@ -12764,7 +12764,7 @@ export default function App() {
       const company = companySettings?.companyName || "Binerly";
       notifyCustomerByEmail(
         customer,
-        `Yeni bir yanıtınız var — ${company}`,
+        `Yeni bir yanıtınız var - ${company}`,
         `Merhaba,\n\n"${ticket?.subject || "Destek talebiniz"}" konulu talebinize yeni bir yanıt geldi:\n\n"${content.slice(0, 300)}"\n\nTam görüşme için müşteri portalımıza giriş yapabilirsiniz: https://portal.binerly.com\n\n${company}`
       );
     }
@@ -13130,7 +13130,7 @@ export default function App() {
         notifyCustomerByEmail(
           customer,
           `${updated.name} dersinin programı değişti`,
-          `Merhaba,\n\n${companySettings?.companyName || "Binerly"} — ${updated.name} dersinin programı güncellendi. Yeni ders zamanı: ${WEEKDAYS[updated.weekday - 1]} ${updated.startTime}${updated.instructorName ? ` · ${updated.instructorName}` : ""}.`
+          `Merhaba,\n\n${companySettings?.companyName || "Binerly"} - ${updated.name} dersinin programı güncellendi. Yeni ders zamanı: ${WEEKDAYS[updated.weekday - 1]} ${updated.startTime}${updated.instructorName ? ` · ${updated.instructorName}` : ""}.`
         );
       }
     }
@@ -13168,7 +13168,7 @@ export default function App() {
         notifyCustomerByEmail(
           customer,
           `${group.name} dersine kaydedildiniz`,
-          `Merhaba,\n\n${companySettings?.companyName || "Binerly"} — ${group.name} dersine (${WEEKDAYS[group.weekday - 1]} ${group.startTime}) kaydınız yapıldı.`
+          `Merhaba,\n\n${companySettings?.companyName || "Binerly"} - ${group.name} dersine (${WEEKDAYS[group.weekday - 1]} ${group.startTime}) kaydınız yapıldı.`
         );
       }
     }
@@ -13697,10 +13697,6 @@ export default function App() {
         </div>
       </div>
 
-      <p style={{ fontSize: 11, color: "var(--text-accent)", fontWeight: 500, margin: "-12px 0 12px" }}>
-        🎉 Erken erişim aşamasındayız, şu an için tamamen ücretsiz.
-      </p>
-
       {!pushSubscribed && (
         <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "-12px 0 12px" }}>
           🔔{" "}
@@ -13724,7 +13720,7 @@ export default function App() {
               }}
             >
               <p style={{ margin: "0 0 8px" }}>
-                Bir işletme sizi takımına davet etti ({inv.email}) — takıma katılırsanız o işletmenin tüm müşteri/teklif/destek verisini görüp düzenleyebilirsiniz.
+                Bir işletme sizi takımına davet etti ({inv.email}) - takıma katılırsanız o işletmenin tüm müşteri/teklif/destek verisini görüp düzenleyebilirsiniz.
                 {(customers.length > 0 || deals.length > 0) && " Mevcut verileriniz size özel kalacak, takıma taşınmayacak."}
               </p>
               <label style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 10, cursor: "pointer", fontSize: 12.5 }}>
@@ -13740,7 +13736,7 @@ export default function App() {
                 />
                 <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   Bu işletmenin çalışanı veya yetkilisi olduğumu beyan ederim.
-                  <InfoTip text="Bir hesap yalnızca aynı işletmenin çalışan/yetkilileri arasında paylaşılabilir (Kullanım Koşulları md. 3) — bu beyan, ilgisiz kişi/işletmelerin maliyet paylaşmak için bir hesabı ortak kullanmasını önlemek için isteniyor." />
+                  <InfoTip text="Bir hesap yalnızca aynı işletmenin çalışan/yetkilileri arasında paylaşılabilir (Kullanım Koşulları md. 3) - bu beyan, ilgisiz kişi/işletmelerin maliyet paylaşmak için bir hesabı ortak kullanmasını önlemek için isteniyor." />
                 </span>
               </label>
               <span style={{ display: "flex", gap: 8, flexShrink: 0 }}>
@@ -13880,7 +13876,7 @@ export default function App() {
                       style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", padding: "4px 0" }}
                     >
                       <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--fill-accent)", flexShrink: 0 }} />
-                      <span style={{ flex: 1 }}>{c?.name || "Bilinmeyen müşteri"} — {d.title}</span>
+                      <span style={{ flex: 1 }}>{c?.name || "Bilinmeyen müşteri"} - {d.title}</span>
                       <Badge tone="accent">Portaldan alındı</Badge>
                     </div>
                   );
@@ -13912,7 +13908,7 @@ export default function App() {
                       style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", padding: "4px 0" }}
                     >
                       <span style={{ width: 8, height: 8, borderRadius: "50%", background: overdue ? "var(--text-danger)" : "var(--fill-warning)", flexShrink: 0 }} />
-                      <span style={{ flex: 1 }}>{c?.name || "Bilinmeyen müşteri"} — {d.reminder}</span>
+                      <span style={{ flex: 1 }}>{c?.name || "Bilinmeyen müşteri"} - {d.reminder}</span>
                       <Badge tone={overdue ? "danger" : "warning"}>{overdue ? "Gecikti" : "Bugün"}</Badge>
                     </div>
                   );
@@ -13925,7 +13921,7 @@ export default function App() {
                     style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", padding: "4px 0" }}
                   >
                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--fill-warning)", flexShrink: 0 }} />
-                    <span style={{ flex: 1 }}>{customer.name} — genelde {typicalInterval} günde bir sipariş verirdi, {daysSinceLast} gündür yok</span>
+                    <span style={{ flex: 1 }}>{customer.name} - genelde {typicalInterval} günde bir sipariş verirdi, {daysSinceLast} gündür yok</span>
                     <Badge tone="warning">Sipariş ritmi bozuldu</Badge>
                   </div>
                 ))}
@@ -13936,7 +13932,7 @@ export default function App() {
                     style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", padding: "4px 0" }}
                   >
                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--text-danger)", flexShrink: 0 }} />
-                    <span style={{ flex: 1 }}>{item.name} — {item.quantityOnHand} {item.unit} kaldı (kritik seviye {item.reorderThreshold} {item.unit})</span>
+                    <span style={{ flex: 1 }}>{item.name} - {item.quantityOnHand} {item.unit} kaldı (kritik seviye {item.reorderThreshold} {item.unit})</span>
                     <Badge tone="danger">Stok azaldı</Badge>
                   </div>
                 ))}
@@ -13947,7 +13943,7 @@ export default function App() {
                   >
                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--fill-warning)", flexShrink: 0 }} />
                     <span style={{ flex: 1, cursor: "pointer" }} onClick={() => { setEditingDeal(alert.deal); setShowDealForm(true); }}>
-                      {alert.customer.name} — {alert.type === "session" ? `${alert.remaining} seans kaldı` : alert.daysLeft < 0 ? "üyelik süresi doldu" : `üyelik ${alert.daysLeft} gün sonra bitiyor`}
+                      {alert.customer.name} - {alert.type === "session" ? `${alert.remaining} seans kaldı` : alert.daysLeft < 0 ? "üyelik süresi doldu" : `üyelik ${alert.daysLeft} gün sonra bitiyor`}
                     </span>
                     {alert.customer.phone && (
                       <button
@@ -13972,7 +13968,7 @@ export default function App() {
                   >
                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--text-danger)", flexShrink: 0 }} />
                     <span style={{ flex: 1, cursor: "pointer" }} onClick={() => setViewingCustomer(alert.customer)}>
-                      {alert.customer.name} — {alert.daysSince} gündür derse gelmedi
+                      {alert.customer.name} - {alert.daysSince} gündür derse gelmedi
                     </span>
                     {alert.customer.phone && (
                       <button
@@ -13995,7 +13991,7 @@ export default function App() {
                     style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "4px 0" }}
                   >
                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--fill-accent)", flexShrink: 0 }} />
-                    <span style={{ flex: 1 }}>{group.name} dersinde yer açıldı — yedek listede {waitCount} kişi var</span>
+                    <span style={{ flex: 1 }}>{group.name} dersinde yer açıldı - yedek listede {waitCount} kişi var</span>
                     <button type="button" onClick={() => promoteFromWaitlistIfAny(group.id)} style={{ fontSize: 12, flexShrink: 0 }}>
                       Doldur
                     </button>
@@ -14009,7 +14005,7 @@ export default function App() {
                   >
                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--fill-warning)", flexShrink: 0 }} />
                     <span style={{ flex: 1 }}>
-                      {customerById(deal.customerId)?.name || "Bilinmeyen müşteri"} — {stageLabel(deal.stage, undefined, companySettings?.sector)} aşamasında {daysOpen} gündür bekliyor
+                      {customerById(deal.customerId)?.name || "Bilinmeyen müşteri"} - {stageLabel(deal.stage, undefined, companySettings?.sector)} aşamasında {daysOpen} gündür bekliyor
                     </span>
                     <Badge tone="warning">Takip gerekiyor</Badge>
                   </div>
@@ -14022,7 +14018,7 @@ export default function App() {
                   >
                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--fill-accent)", flexShrink: 0 }} />
                     <span style={{ flex: 1 }}>
-                      {apptTime.toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} {apptTime.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} — {customerById(deal.customerId)?.name || "Bilinmeyen müşteri"} ({deal.lostReason?.toLocaleLowerCase("tr")}) randevusu boşaldı
+                      {apptTime.toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} {apptTime.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} - {customerById(deal.customerId)?.name || "Bilinmeyen müşteri"} ({deal.lostReason?.toLocaleLowerCase("tr")}) randevusu boşaldı
                     </span>
                     <Badge tone="accent">Doldurulabilir</Badge>
                   </div>
@@ -14155,7 +14151,7 @@ export default function App() {
             <MetricCard label="Toplam tahsilat" value={formatTL(totalCollected)} />
             <MetricCard
               label={`Ortalama ${DEAL_WORD_FORMS[dealKind].bare} büyüklüğü`}
-              value={rangeAvgDealSize !== null ? formatTL(rangeAvgDealSize) : "—"}
+              value={rangeAvgDealSize !== null ? formatTL(rangeAvgDealSize) : "-"}
             />
             {noShowRate !== null && (
               <MetricCard label="Gelmeme oranı" value={`%${noShowRate}`} tone={noShowRate > 20 ? "danger" : undefined} />
@@ -14353,7 +14349,7 @@ export default function App() {
               <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem" }}>
                 <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 4px", display: "flex", alignItems: "center", gap: 4 }}>
                   Aşama Hunisi
-                  <InfoTip text={`Şu an açık olan (kapanmamış) ${DEAL_WORD_FORMS[dealKind].plural}, aşamalarına göre dağılımı — hangi aşamada ne kadar kayıt birikmiş, "tıkanma" olan yeri gösterir.`} />
+                  <InfoTip text={`Şu an açık olan (kapanmamış) ${DEAL_WORD_FORMS[dealKind].plural}, aşamalarına göre dağılımı - hangi aşamada ne kadar kayıt birikmiş, "tıkanma" olan yeri gösterir.`} />
                 </p>
                 {openDeals.length === 0 ? (
                   <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 10 }}>Şu an açık {DEAL_WORD_FORMS[dealKind].plural} yok.</p>
@@ -14544,7 +14540,7 @@ export default function App() {
                       )}
                     </td>
                     <td data-label="Bakiye" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                      {customerBalance > 0 ? <Badge tone="warning">{formatTL(customerBalance)}</Badge> : <span style={{ fontSize: 12, color: "var(--text-muted)" }}>—</span>}
+                      {customerBalance > 0 ? <Badge tone="warning">{formatTL(customerBalance)}</Badge> : <span style={{ fontSize: 12, color: "var(--text-muted)" }}>-</span>}
                     </td>
                     <td style={{ padding: "10px 12px", borderRadius: "0 var(--radius) var(--radius) 0" }}>
                       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -14787,7 +14783,7 @@ export default function App() {
                                     {
                                       icon: "ti-link",
                                       label: "Onay Linki",
-                                      title: c?.email ? "Müşterinin onaylayabileceği link — kopyala ve gönder" : "Onay linki için müşterinin e-postası kayıtlı olmalı",
+                                      title: c?.email ? "Müşterinin onaylayabileceği link - kopyala ve gönder" : "Onay linki için müşterinin e-postası kayıtlı olmalı",
                                       disabled: !c?.email,
                                       onClick: () => {
                                         if (!c?.email) { notify("Onay linki oluşturmak için önce müşterinin e-postasını ekleyin."); return; }
@@ -14921,7 +14917,7 @@ export default function App() {
                     <tr key={d.id} style={{ background: "var(--surface-1)" }}>
                       <td data-label={dealWords.columnHeader} onClick={() => { setEditingDeal(d); setShowDealForm(true); }} style={{ padding: "10px 12px", borderRadius: "var(--radius) 0 0 var(--radius)", cursor: "pointer" }}>
                         <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>
-                          {c?.name || "Bilinmeyen müşteri"} — {d.title}
+                          {c?.name || "Bilinmeyen müşteri"} - {d.title}
                         </p>
                         <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
                           {d.createdAt ? new Date(d.createdAt).toLocaleDateString("tr-TR") : ""}
@@ -14996,7 +14992,7 @@ export default function App() {
                         </select>
                       </td>
                       <td data-label="Ödeme" onClick={() => setPaymentsDeal(d)} style={{ padding: "10px 12px", whiteSpace: "nowrap", cursor: "pointer" }}>
-                        {paid > 0 ? <Badge tone={remaining <= 0 ? "success" : "warning"}>{remaining <= 0 ? "Ödendi" : "Kısmi ödeme"}</Badge> : <span style={{ fontSize: 12, color: "var(--text-muted)" }}>—</span>}
+                        {paid > 0 ? <Badge tone={remaining <= 0 ? "success" : "warning"}>{remaining <= 0 ? "Ödendi" : "Kısmi ödeme"}</Badge> : <span style={{ fontSize: 12, color: "var(--text-muted)" }}>-</span>}
                       </td>
                       <td data-label="Tutar" style={{ padding: "10px 12px", whiteSpace: "nowrap", textAlign: "right", fontSize: 13, fontWeight: 500 }}>{formatTL(d.value)}</td>
                       <td style={{ padding: "10px 12px", borderRadius: "0 var(--radius) var(--radius) 0" }}>
@@ -15008,7 +15004,7 @@ export default function App() {
                               {
                                 icon: "ti-link",
                                 label: "Onay Linki",
-                                title: c?.email ? "Müşterinin onaylayabileceği link — kopyala ve gönder" : "Onay linki için müşterinin e-postası kayıtlı olmalı",
+                                title: c?.email ? "Müşterinin onaylayabileceği link - kopyala ve gönder" : "Onay linki için müşterinin e-postası kayıtlı olmalı",
                                 disabled: !c?.email,
                                 onClick: () => {
                                   if (!c?.email) { notify("Onay linki oluşturmak için önce müşterinin e-postasını ekleyin."); return; }
@@ -15182,7 +15178,7 @@ export default function App() {
                 <MenuRow
                   icon="ti-package"
                   label="Stok & Malzeme"
-                  description="Malzeme envanteri ve hizmet başına reçete — kullanan sektörler için opsiyonel"
+                  description="Malzeme envanteri ve hizmet başına reçete - kullanan sektörler için opsiyonel"
                   onClick={() => { setShowSettingsHub(false); setShowStockManager(true); }}
                 />
                 <MenuRow
@@ -15194,7 +15190,7 @@ export default function App() {
                 <MenuRow
                   icon="ti-credit-card"
                   label="Ödeme Bağlantısı"
-                  description={paymentCredentials.length > 0 ? `Bağlı ✓ (${paymentCredentials[0].provider === "paytr" ? "PayTR" : "iyzico"}) — müşteriler onay linkinden kartla ödeyebilir` : "Onay linkinden kartla tahsilat almak için iyzico veya PayTR bağlayın"}
+                  description={paymentCredentials.length > 0 ? `Bağlı ✓ (${paymentCredentials[0].provider === "paytr" ? "PayTR" : "iyzico"}) - müşteriler onay linkinden kartla ödeyebilir` : "Onay linkinden kartla tahsilat almak için iyzico veya PayTR bağlayın"}
                   onClick={() => { setShowSettingsHub(false); setShowPaymentSettings(true); }}
                 />
                 {bookingModel(companySettings?.sector) === "slot" && (
@@ -15246,7 +15242,7 @@ export default function App() {
             <MenuRow
               icon="ti-users-group"
               label="Müşteri Portalı Linki"
-              description="Mevcut müşterileriniz için — kendi hesaplarıyla giriş yapıp takip etsinler"
+              description="Mevcut müşterileriniz için - kendi hesaplarıyla giriş yapıp takip etsinler"
               onClick={() => { setShowSettingsHub(false); setShowPortalLinkModal(true); }}
             />
             <MenuRow
@@ -15262,7 +15258,7 @@ export default function App() {
       {showPortalLinkModal && (
         <Modal title="Müşteri Portalı Linki" onClose={() => setShowPortalLinkModal(false)}>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px" }}>
-            Bu linki (veya QR kodu) mevcut müşterilerinizle paylaşın — kayıtlı e-postalarıyla kendi hesaplarını oluşturup teklif/randevu/üyelik durumlarını görebilir, destek talebi açabilirler. Belirli bir müşteriye özel paylaşmak isterseniz Müşteriler listesindeki "Linki paylaş" butonunu da kullanabilirsiniz.
+            Bu linki (veya QR kodu) mevcut müşterilerinizle paylaşın - kayıtlı e-postalarıyla kendi hesaplarını oluşturup teklif/randevu/üyelik durumlarını görebilir, destek talebi açabilirler. Belirli bir müşteriye özel paylaşmak isterseniz Müşteriler listesindeki "Linki paylaş" butonunu da kullanabilirsiniz.
           </p>
           <img
             src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(getPortalUrl())}`}
@@ -15285,7 +15281,7 @@ export default function App() {
       {leadCaptureLink && (
         <Modal title="Müşteri Kazanma Linki" onClose={() => setLeadCaptureLink(null)}>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px" }}>
-            Bu linki (veya QR kodu) fuarda, mağazada, kartvizitte paylaşın — müşteri kendi adı/telefonu/e-postasını/adresini kendisi girer, sizin elle eklemenize gerek kalmaz.
+            Bu linki (veya QR kodu) fuarda, mağazada, kartvizitte paylaşın - müşteri kendi adı/telefonu/e-postasını/adresini kendisi girer, sizin elle eklemenize gerek kalmaz.
           </p>
           <img
             src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(leadCaptureLink)}`}
@@ -15556,7 +15552,7 @@ export default function App() {
           items={filteredDeals}
           filename={DEAL_TAB_STRINGS[dealKind].exportFilename}
           columns={["Müşteri", "Başlık", "Tutar", "Gider", "Aşama", "Not", "Oluşturulma tarihi"]}
-          getLabel={(d) => `${customerById(d.customerId)?.name || "Bilinmeyen müşteri"} — ${d.title}`}
+          getLabel={(d) => `${customerById(d.customerId)?.name || "Bilinmeyen müşteri"} - ${d.title}`}
           getRow={(d) => [
             customerById(d.customerId)?.name || "",
             d.title,
@@ -15597,7 +15593,7 @@ export default function App() {
                   onClick={() => { setQuickList(null); setTab("firsat"); setEditingDeal(item); setShowDealForm(true); }}
                   style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.6rem 0.9rem", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}
                 >
-                  <span style={{ fontSize: 14 }}>{customerById(item.customerId)?.name || "Bilinmeyen müşteri"} — {item.title}</span>
+                  <span style={{ fontSize: 14 }}>{customerById(item.customerId)?.name || "Bilinmeyen müşteri"} - {item.title}</span>
                   <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-accent)", whiteSpace: "nowrap" }}>{formatTL(item.value)}</span>
                 </div>
               ) : (
@@ -15606,7 +15602,7 @@ export default function App() {
                   onClick={() => { setQuickList(null); setTab("destek"); setInitialViewTicketId(item.id); }}
                   style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.6rem 0.9rem", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}
                 >
-                  <span style={{ fontSize: 14 }}>{customerById(item.customerId)?.name || "Bilinmeyen müşteri"} — {item.subject}</span>
+                  <span style={{ fontSize: 14 }}>{customerById(item.customerId)?.name || "Bilinmeyen müşteri"} - {item.subject}</span>
                 </div>
               )
             )}
@@ -15650,7 +15646,7 @@ export default function App() {
       )}
 
       {emlakMatches && (
-        <Modal title="Gölge Avcı — Uyan alıcı/kiracı adayları" onClose={() => setEmlakMatches(null)}>
+        <Modal title="Gölge Avcı - Uyan alıcı/kiracı adayları" onClose={() => setEmlakMatches(null)}>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 12px" }}>
             "{emlakMatches.deal.title}" kaydı, müşterilerin daha önce girilmiş taleplerine göre otomatik tarandı.
           </p>
@@ -15681,7 +15677,7 @@ export default function App() {
       )}
 
       {listingTextDeal && (
-        <Modal wide title={`İlan Metni — ${listingTextDeal.title}`} onClose={() => setListingTextDeal(null)}>
+        <Modal wide title={`İlan Metni - ${listingTextDeal.title}`} onClose={() => setListingTextDeal(null)}>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 14px" }}>
             Teklifteki Mülk Tipi/Bölge/Oda Sayısı/Fiyat bilgilerinden üç platforma özel metin hazırlandı. Beğenmediğiniz kısmı kopyaladıktan sonra elle düzenleyebilirsiniz.
           </p>
@@ -15716,7 +15712,7 @@ export default function App() {
       )}
 
       {paymentsDeal && (
-        <Modal title={`Tahsilat — ${paymentsDeal.title}`} onClose={() => setPaymentsDeal(null)}>
+        <Modal title={`Tahsilat - ${paymentsDeal.title}`} onClose={() => setPaymentsDeal(null)}>
           <DealPayments
             deal={paymentsDeal}
             payments={paymentsByDeal[paymentsDeal.id] || []}
@@ -15810,7 +15806,7 @@ export default function App() {
       {confirmDeleteCustomer && (
         <ConfirmDialog
           title="Müşteriyi sil"
-          message={`"${confirmDeleteCustomer.name}" silinsin mi? Bu müşteriye ait ${DEAL_WORD_FORMS[dealKind].plural} ve destek talepleri de birlikte çöp kutusuna taşınır — dilediğiniz zaman Çöp Kutusu'ndan geri yükleyebilirsiniz.`}
+          message={`"${confirmDeleteCustomer.name}" silinsin mi? Bu müşteriye ait ${DEAL_WORD_FORMS[dealKind].plural} ve destek talepleri de birlikte çöp kutusuna taşınır - dilediğiniz zaman Çöp Kutusu'ndan geri yükleyebilirsiniz.`}
           onConfirm={() => { deleteCustomer(confirmDeleteCustomer.id); setConfirmDeleteCustomer(null); }}
           onClose={() => setConfirmDeleteCustomer(null)}
         />

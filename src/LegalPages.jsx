@@ -6,9 +6,9 @@ function LegalLayout({ title, updatedAt, children }) {
   // sonuçlarında hepsi "Binerly — KOBİ CRM Yazılımı..." olarak görünüyordu,
   // kendi içeriklerini yansıtmıyordu.
   useEffect(() => {
-    document.title = `${title} — Binerly`;
+    document.title = `${title} - Binerly`;
     const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.setAttribute("content", `Binerly ${title.toLowerCase()} — son güncelleme: ${updatedAt}.`);
+    if (meta) meta.setAttribute("content", `Binerly ${title.toLowerCase()} - son güncelleme: ${updatedAt}.`);
   }, [title, updatedAt]);
 
   return (
@@ -58,7 +58,7 @@ export function PrivacyPolicyPage() {
           talepleri ve mesajları. Müşteri Bilgi Sistemi (portal) kullanıcıları için: e-posta adresi ve
           portal üzerinden oluşturdukları destek talepleri/mesajlar. Hesap sahibinin tercihine bağlı olarak,
           bazı sektörlerde (örn. Sağlık/Klinik, Güzellik & Bakım) tedavi öncesi/sonrası fotoğraflar gibi
-          görsel veriler de sisteme yüklenebilir — bu özellik, hesap sahibinin kendi müşterisinden ayrıca
+          görsel veriler de sisteme yüklenebilir - bu özellik, hesap sahibinin kendi müşterisinden ayrıca
           açık rıza almasını gerektirecek şekilde tasarlanmıştır (bkz. KVKK Aydınlatma Metni m.2).
         </p>
       </Section>
@@ -75,7 +75,7 @@ export function PrivacyPolicyPage() {
           Supabase (veritabanı, kimlik doğrulama ve barındırma), Vercel (uygulama barındırma), Resend
           (e-posta gönderimi), Google (Google ile giriş/kayıt tercih ettiğinizde kimlik doğrulama), iyzico
           ve PayTR (hesap sahibi online ödeme bağlantısını aktif ettiğinde kredi/banka kartı ile ödeme
-          işlemleri — kart bilgileriniz bu sağlayıcılar üzerinden işlenir, Binerly sunucularında saklanmaz),
+          işlemleri - kart bilgileriniz bu sağlayıcılar üzerinden işlenir, Binerly sunucularında saklanmaz),
           Sentry (uygulamada oluşan teknik hataların otomatik tespiti için hata mesajı/oturum teknik
           bilgisi işlenir, kişisel veri içeriği en aza indirilecek şekilde yapılandırılmıştır).
           Bu sağlayıcılarla veri işleme sözleşmeleri kapsamında çalışılmaktadır.
@@ -84,7 +84,7 @@ export function PrivacyPolicyPage() {
       <Section title="5. Veri Güvenliği">
         <p>
           Verileriniz bizimle güvendedir. Her kullanıcı yalnızca kendi verisine erişebilir (satır düzeyinde
-          erişim kontrolü — Row Level Security) ve Binerly ekibi, verilerinize size destek olmak amacıyla
+          erişim kontrolü - Row Level Security) ve Binerly ekibi, verilerinize size destek olmak amacıyla
           yalnızca sizin talebiniz veya bilginiz dahilinde erişir. Müşteri Bilgi Sistemi kullanıcıları yalnızca kendi
           doğrulanmış e-postalarıyla eşleşen kayıtlara erişebilir. WhatsApp/Instagram gibi bağladığınız
           mesajlaşma hesapları için: bağladığınız hesaba gelen mesajlar hizmetin çalışması amacıyla
@@ -132,10 +132,10 @@ export function KvkkPage() {
       </Section>
       <Section title="4. Verilerin Aktarılması">
         <p>
-          Verileriniz, hizmetin sunulabilmesi için gerekli teknik altyapı sağlayıcılarımız (Supabase —
-          veritabanı ve kimlik doğrulama, Vercel — barındırma, Resend — e-posta gönderimi, Google — Google
-          ile giriş tercih edildiğinde kimlik doğrulama, iyzico/PayTR — online ödeme tercih edildiğinde
-          kredi/banka kartı ile ödeme işlemleri, Sentry — uygulama hatalarının teknik olarak tespiti) ile
+          Verileriniz, hizmetin sunulabilmesi için gerekli teknik altyapı sağlayıcılarımız (Supabase -
+          veritabanı ve kimlik doğrulama, Vercel - barındırma, Resend - e-posta gönderimi, Google - Google
+          ile giriş tercih edildiğinde kimlik doğrulama, iyzico/PayTR - online ödeme tercih edildiğinde
+          kredi/banka kartı ile ödeme işlemleri, Sentry - uygulama hatalarının teknik olarak tespiti) ile
           ve yasal olarak yetkili kamu kurum/kuruluşlarıyla, yalnızca talep edilmesi halinde paylaşılabilir.
         </p>
       </Section>
@@ -182,7 +182,7 @@ export function TermsPage() {
           yetkilisi olması gerekir. Bir hesap; birbirinden bağımsız, farklı işletmeler veya kişiler
           tarafından ortak kullanılamaz, kullanıcı başına maliyeti düşürmek amacıyla ilgisiz taraflarla
           paylaşılamaz. Takım daveti kabul edilirken bu husus ayrıca beyan edilir. Bu kurala aykırı
-          kullanım tespit edilirse hesap askıya alınabilir veya sonlandırılabilir (bkz. Madde 7 — Fesih).
+          kullanım tespit edilirse hesap askıya alınabilir veya sonlandırılabilir (bkz. Madde 7 - Fesih).
         </p>
       </Section>
       <Section title="4. Faturalandırma ve Vergi Yükümlülükleri">
@@ -204,7 +204,7 @@ export function TermsPage() {
         <p>
           Binerly'nin sunduğu "teklif onay linki" özelliği, müşterinizin bir bağlantıya tıklayarak teklifi
           onayladığını sisteme kaydeder ve size bildirim gönderir. Bu, 5070 sayılı Elektronik İmza Kanunu
-          anlamında "güvenli elektronik imza" NİTELİĞİNDE DEĞİLDİR ve kimlik doğrulaması içermez — sadece
+          anlamında "güvenli elektronik imza" NİTELİĞİNDE DEĞİLDİR ve kimlik doğrulaması içermez - sadece
           dahili takip ve iletişim kaydı amaçlıdır. Hukuki bağlayıcılığı önemli olan anlaşmalar için ıslak
           imza, nitelikli elektronik imza veya başka resmi bir onay yöntemi kullanmanızı öneririz.
         </p>

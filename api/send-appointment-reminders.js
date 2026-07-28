@@ -153,7 +153,7 @@ export default async function handler(req, res) {
           body: JSON.stringify({
             from: `${company} (Binerly ile) <noreply@binerly.com>`,
             to: customer.email,
-            subject: `Randevu hatırlatması — bugün saat ${timeLabel}`,
+            subject: `Randevu hatırlatması - bugün saat ${timeLabel}`,
             html,
             text,
             ...(settings.email ? { reply_to: settings.email } : {}),
