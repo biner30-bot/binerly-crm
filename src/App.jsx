@@ -13585,7 +13585,10 @@ export default function App() {
   // kimi arayacağına kobi kendi karar verir, sadece Müşteriler'e link verilir.
   const freedAppointmentAlerts = isAppointmentSector(companySettings?.sector) && appointmentDateTimeKey
     ? deals
-        .filter((d) => d.stage === "kaybedildi" && (d.lostReason === "İptal etti" || d.lostReason === "Geç iptal etti" || d.lostReason === "Randevuya gelmedi"))
+        // Hangi lostReason'la iptal edildiği fark etmez — ileri tarihli bir randevu
+        // kaybedildi'ye geçtiyse o saat boşalmıştır. "Diğer" bilerek hariç: çok
+        // genel/belirsiz bir kategori, gerçekten randevu iptali olmayabilir.
+        .filter((d) => d.stage === "kaybedildi" && d.lostReason !== "Diğer")
         .map((d) => {
           const raw = d.customFields?.[appointmentDateTimeKey];
           const apptTime = raw ? new Date(`${raw}:00+03:00`) : null;
@@ -14772,12 +14775,51 @@ export default function App() {
                             )}
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                               <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--text-accent)" }}>{formatTL(d.value)}</p>
-                              <IconButton
-                                icon="ti-file-text"
-                                title={dealPdfLabel}
-                                size="sm"
-                                onClick={(e) => { e.stopPropagation(); setTeklifDeal(d); }}
-                              />
+                              {/* Liste görünümündeki RowActionsMenu ile birebir aynı öğeler —
+                                  eskiden burada sadece PDF ikonu vardı, Sil/Kopyala/Onay Linki/
+                                  Tahsilat Kanban'dan hiç erişilemiyordu. Kart tıklaması Düzenle'yi
+                                  açtığı için (üstteki onClick) tıklamanın karta sızmaması gerekiyor. */}
+                              <div onClick={(e) => e.stopPropagation()}>
+                                <RowActionsMenu
+                                  items={[
+                                    { icon: "ti-file-text", label: dealPdfLabel, onClick: () => setTeklifDeal(d) },
+                                    companySettings?.sector === "emlak" && { icon: "ti-wand", label: "İlan Metni Oluştur", onClick: () => setListingTextDeal(d) },
+                                    {
+                                      icon: "ti-link",
+                                      label: "Onay Linki",
+                                      title: c?.email ? "Müşterinin onaylayabileceği link — kopyala ve gönder" : "Onay linki için müşterinin e-postası kayıtlı olmalı",
+                                      disabled: !c?.email,
+                                      onClick: () => {
+                                        if (!c?.email) { notify("Onay linki oluşturmak için önce müşterinin e-postasını ekleyin."); return; }
+                                        setPaymentModeDeal(d);
+                                      },
+                                    },
+                                    !!d.sessionTotal && d.sessionUsed < d.sessionTotal && { icon: "ti-plus", label: "Seans kullanıldı", onClick: () => incrementSessionUsage(d.id) },
+                                    { icon: "ti-cash", label: "Tahsilat", onClick: () => setPaymentsDeal(d) },
+                                    {
+                                      icon: "ti-copy",
+                                      label: "Kopyala",
+                                      title: `Bu ${DEAL_WORD_FORMS[dealKind].gen} bilgileriyle yeni bir ${DEAL_WORD_FORMS[dealKind].bare} oluştur`,
+                                      onClick: () => {
+                                        setEditingDeal({
+                                          customerId: d.customerId,
+                                          title: d.title,
+                                          value: d.value,
+                                          cost: d.cost,
+                                          kdvRate: d.kdvRate,
+                                          tags: d.tags,
+                                          customFields: d.customFields,
+                                          assignedTo: d.assignedTo,
+                                          createdAt: new Date().toISOString(),
+                                        });
+                                        setShowDealForm(true);
+                                      },
+                                    },
+                                    { icon: "ti-edit", label: "Düzenle", onClick: () => { setEditingDeal(d); setShowDealForm(true); } },
+                                    { icon: "ti-trash", label: "Sil", danger: true, onClick: () => setConfirmDeleteDeal(d) },
+                                  ]}
+                                />
+                              </div>
                             </div>
                             {(() => {
                               // "Online ödendi" rozeti zaten tam ödendiğini gösteriyor —

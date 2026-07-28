@@ -268,7 +268,12 @@ export default function DealApprovalPage() {
               const hasPendingAction = (isCompleted || isSelfBooked) ? needsPayment : (!state.deal.approved || needsPayment);
               return (
                 <>
-                  {state.deal.approved && (
+                  {/* Self-booked (kendi randevusunu/üyeliğini alan) kayıtlarda "onayladınız"
+                      demek yanlış — müşteri hiçbir onay adımından geçmedi, sadece ödedi.
+                      Ödeme approved_at'i otomatik set ettiği için (bkz. api/deal-approval.js)
+                      state.deal.approved self-booked'ta da true olabilir, ama metni buna göre
+                      ayırıyoruz. */}
+                  {state.deal.approved && !isSelfBooked && (
                     <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "14px 16px", marginBottom: hasPendingAction ? 12 : 0 }}>
                       <p style={{ color: "#15803d", fontWeight: 600, margin: "0 0 4px" }}>✓ Bu {APPROVAL_DEAL_WORDS[dealWordKind(state.deal.sector)].acc} onayladınız</p>
                       {isPaid && <p style={{ color: "#15803d", fontWeight: 600, margin: "0 0 4px" }}>✓ Ödeme alındı</p>}
@@ -277,7 +282,7 @@ export default function DealApprovalPage() {
                       )}
                     </div>
                   )}
-                  {!state.deal.approved && isPaid && (
+                  {isPaid && (isSelfBooked || !state.deal.approved) && (
                     <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "#15803d", fontWeight: 600 }}>
                       ✓ Ödemeniz alındı
                     </div>

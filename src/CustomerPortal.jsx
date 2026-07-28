@@ -559,11 +559,13 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
           : !isApproved
             ? (d.paymentMode === "required" ? "Onayla ve Öde" : d.paymentMode === "optional" ? "Onayla / Öde" : "Onayla")
             : "Öde";
-        // isSelfBooked'da isApproved zaten hep false kalır (approved_at hiç set
-        // edilmiyor) — isCompleted gibi ele alınmazsa, ödeme talep edilmeyen
-        // (paymentMode "none") self-booked kayıtlarda bile "!isApproved" true
-        // kalıp anlamsız bir "Öde" butonu çıkıyordu; tıklayınca /onay/ sayfası
-        // da yapacak bir şey bulamayıp boş bir onay ekranı gösteriyordu.
+        // Ödeyen müşteri artık kaynağı ne olursa olsun approved_at alıyor
+        // (api/deal-approval.js) — self-booked+ödenmiş bir kayıtta bile
+        // isApproved true olabilir. actionLabel/showAction bunu isCompleted
+        // gibi ele alıp needsPayment'a bakıyor, o yüzden buton mantığı
+        // etkilenmiyor; ama "✓ Onaylandı" rozeti self-booked'ta bilerek
+        // gösterilmiyor (bkz. aşağı) — müşteri kendi aldığı bir randevuyu
+        // "onaylamadı", sadece ödedi, o zaten ayrı bir rozetle belli oluyor.
         const showAction = d.approvalToken && ((isCompleted || isSelfBooked) ? needsPayment : (!isApproved || needsPayment));
         return (
           <div key={d.id} style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -579,7 +581,7 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <Badge tone={tone}>{stageText}</Badge>
               {d.customFields?.sevkiyat_durumu && <Badge tone="accent">{d.customFields.sevkiyat_durumu}</Badge>}
-              {isApproved && <Badge tone="success">✓ Onaylandı</Badge>}
+              {isApproved && !isSelfBooked && <Badge tone="success">✓ Onaylandı</Badge>}
               {isPaid && <Badge tone="success">✓ Ödendi</Badge>}
               {showAction && (
                 <a
