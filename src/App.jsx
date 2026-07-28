@@ -9574,7 +9574,7 @@ function StaffShiftDayEditor({ weekday, memberLabel, items, onAdd, onDelete, onC
 // StaffShiftDayEditor açılır. Hiç vardiya tanımlanmamış bir işletmede
 // randevu slotları eskisi gibi sadece Müsaitlik Saatleri'ne göre hesaplanır —
 // bu tablo boş kaldıkça mevcut davranış birebir korunur.
-function StaffShiftGrid({ people, staffShifts, onAdd, onDelete }) {
+function StaffShiftGrid({ people, staffShifts, onAdd, onDelete, readOnly = false }) {
   const [editingCell, setEditingCell] = useState(null); // { memberId, weekday, label }
 
   return (
@@ -9599,8 +9599,8 @@ function StaffShiftGrid({ people, staffShifts, onAdd, onDelete }) {
                   <td
                     key={weekday}
                     data-label={w}
-                    onClick={() => setEditingCell({ memberId: p.id, weekday, label: p.label })}
-                    style={{ padding: "8px 4px", fontSize: 11, textAlign: "center", cursor: "pointer", color: dayShifts.length ? "var(--text-accent)" : "var(--text-muted)" }}
+                    onClick={readOnly ? undefined : () => setEditingCell({ memberId: p.id, weekday, label: p.label })}
+                    style={{ padding: "8px 4px", fontSize: 11, textAlign: "center", cursor: readOnly ? "default" : "pointer", color: dayShifts.length ? "var(--text-accent)" : "var(--text-muted)" }}
                   >
                     {dayShifts.length === 0 ? "-" : dayShifts.map((s) => `${s.startTime}-${s.endTime}`).join(", ")}
                   </td>
@@ -9610,7 +9610,7 @@ function StaffShiftGrid({ people, staffShifts, onAdd, onDelete }) {
           ))}
         </tbody>
       </table>
-      {editingCell && (
+      {!readOnly && editingCell && (
         <StaffShiftDayEditor
           weekday={editingCell.weekday}
           memberLabel={editingCell.label}
@@ -9761,7 +9761,7 @@ function RoomInventoryManager({ items, roomTypeOptions, onAdd, onUpdate, onDelet
   );
 }
 
-function TeamModal({ session, activeTeamId, companySettings, onClose, notify, staffShifts, onAddStaffShift, onDeleteStaffShift }) {
+function TeamModal({ session, activeTeamId, companySettings, onClose, notify, staffShifts, onAddStaffShift, onDeleteStaffShift, teamRoster }) {
   const isOwner = activeTeamId === session.user.id;
   const [members, setMembers] = useState([]);
   const [invites, setInvites] = useState([]);
@@ -9851,11 +9851,23 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify, st
   };
 
   if (!isOwner) {
+    const ownerLabel = companySettings?.companyName ? `${companySettings.companyName} (İşletme Sahibi)` : "İşletme Sahibi";
+    const readOnlyPeople = [
+      { id: session.user.id, label: "Ben" },
+      { id: activeTeamId, label: ownerLabel },
+      ...(teamRoster || []).filter((m) => m.id !== session.user.id).map((m) => ({ id: m.id, label: m.name || m.email })),
+    ];
     return (
       <Modal title="Takım" onClose={onClose}>
         <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
           Bu hesap <strong>{companySettings?.companyName || "bir işletme"}</strong> takımının bir üyesi. Tüm müşteri, teklif ve destek verisi bu takımla paylaşılıyor.
         </p>
+        <div style={{ margin: "16px 0" }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
+            Vardiya <InfoTip placement="bottom" text="Sadece görüntüleme — vardiyayı düzenlemek için işletme sahibiyle konuşun." />
+          </label>
+          <StaffShiftGrid people={readOnlyPeople} staffShifts={staffShifts} readOnly />
+        </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
           <button onClick={onClose}>Kapat</button>
           <button onClick={() => setConfirmLeave(true)} style={{ color: "var(--text-danger)" }}>Takımdan ayrıl</button>
@@ -9880,7 +9892,7 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify, st
         <>
           <div style={{ marginBottom: 16 }}>
             <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
-              Vardiya <InfoTip placement="bottom" text="Vardiya tanımlarsanız müşteri portalında sadece en az bir kişinin (siz veya bir üye) vardiyada olduğu saatler randevu için sunulur. Kimse vardiya tanımlamazsa Müsaitlik Saatleri tek başına geçerli olmaya devam eder. Bir hücreye tıklayıp o günün saatini ekleyin/düzenleyin." />
+              Vardiya <InfoTip placement="bottom" text="Bu sadece ekip içi bir planlama görünümü — müşteri portalındaki randevu saatlerini etkilemez, orada tek geçerli olan Müsaitlik Saatleri'dir. Bir hücreye tıklayıp o günün saatini ekleyin/düzenleyin." />
             </label>
             <StaffShiftGrid
               people={[
@@ -11481,6 +11493,7 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
+  const [teamRoster, setTeamRoster] = useState([]);
 
   const notify = (message, tone = "danger") => setToast({ message, tone });
 
@@ -11658,6 +11671,9 @@ export default function App() {
 
   // "Sorumlu" seçimi ve Personel Performansı için takım üyesi listesi — bulk
   // fetch'in içinde olamaz çünkü activeTeamId o fetch'in SONUCUNDA belli oluyor.
+  // Bu sorgu RLS gereği owner için tüm takımı, normal üye için SADECE KENDİ
+  // satırını döner (bilerek — prim/koltuk kirası gibi hassas alanlar burada,
+  // başka üyelere hiç açılmasın diye team_roster()'a taşınmadı).
   useEffect(() => {
     if (!activeTeamId) { setTeamMembers([]); return; }
     supabase.from("team_members").select("member_id, email, name, can_edit_settings, commission_percent, chair_rental_fee").eq("team_id", activeTeamId).then(({ data }) => {
@@ -11666,6 +11682,18 @@ export default function App() {
         commissionPercent: m.commission_percent != null ? Number(m.commission_percent) : null,
         chairRentalFee: m.chair_rental_fee != null ? Number(m.chair_rental_fee) : null,
       })));
+    });
+  }, [activeTeamId]);
+
+  // team_roster(): sadece id+isim+e-posta — SECURITY DEFINER fonksiyon
+  // sayesinde owner VEYA normal üye fark etmeksizin takımın TAMAMI görünür.
+  // "Sorumlu" dropdown'u ve Vardiya'daki isim gösterimi burayı kullanır;
+  // Personel Performansı/canEditSettings gibi hassas alanlar hâlâ yukarıdaki
+  // kısıtlı teamMembers'tan geliyor.
+  useEffect(() => {
+    if (!activeTeamId) { setTeamRoster([]); return; }
+    supabase.rpc("team_roster").then(({ data }) => {
+      setTeamRoster((data || []).map((m) => ({ id: m.member_id, email: m.email, name: m.name || null })));
     });
   }, [activeTeamId]);
 
@@ -15478,6 +15506,7 @@ export default function App() {
           staffShifts={staffShifts}
           onAddStaffShift={addStaffShift}
           onDeleteStaffShift={deleteStaffShift}
+          teamRoster={teamRoster}
           onClose={() => setShowTeamModal(false)}
         />
       )}
@@ -15629,7 +15658,7 @@ export default function App() {
             roomInventory={roomInventory}
             customFieldDefs={customFieldDefs}
             sectorTags={SECTOR_PRESETS.find((p) => p.id === companySettings?.sector)?.tags || []}
-            teamMembers={teamMembers}
+            teamMembers={teamRoster}
             currentUserId={session.user.id}
             currentUserEmail={session.user.email}
             businessUserId={activeTeamId}
