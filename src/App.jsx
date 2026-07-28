@@ -13570,7 +13570,7 @@ export default function App() {
   const newPortalAppointments = deals.filter(
     (d) => d.customFields?.kaynak === "portal" && d.customFields?.portal_randevu_zamani && d.stage === "ilk_gorusme"
   );
-  const urgentTickets = tickets.filter((t) => {
+  const urgentTickets = supportTickets.filter((t) => {
     if (TERMINAL_STATUSES.includes(t.status)) return false;
     const s = getSlaStatus(t);
     return s.isBreached || s.isApproaching;

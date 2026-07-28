@@ -366,8 +366,9 @@ const SLA_INFO_TEXT =
   "Talep hâlâ açıksa, hedef süreye kalan zamana göre:\n" +
   "🟢 Zamanında — kalan süre hedefin %20'sinden fazla\n" +
   "🟠 Süre yaklaşıyor — kalan süre hedefin son %20'lik diliminde (Acil'de son 48 dk, Yüksek'te son ~5 sa, Orta'da son ~10 sa, Düşük'te son ~14 sa)\n" +
-  "🔴 SLA aşıldı — hedef süre geçti\n\n" +
-  "Talep Çözüldü/Kapatıldı ise: çözülme anı hedeften önceyse zamanında, sonraysa SLA aşıldı sayılır.";
+  "🔴 SLA aşıldı — hedef süre geçti, talep hâlâ açık\n\n" +
+  "Talep Çözüldü/Kapatıldı ise kırmızı alarm gösterilmez: çözülme anı hedeften önceyse \"Zamanında çözüldü\", " +
+  "sonraysa turuncu \"Geç çözüldü\" etiketiyle sadece geçmişe dönük bir kayıt olarak gösterilir — talep artık aktif değildir.";
 
 const MESSAGE_DIRECTIONS = [
   { id: "giden", label: "Giden (müşteriye)", icon: "ti-arrow-up-right" },
@@ -405,8 +406,8 @@ export function getSlaStatus(ticket) {
       dueAt,
       isBreached: !onTime,
       isApproaching: false,
-      tone: onTime ? "success" : "danger",
-      label: onTime ? "Zamanında çözüldü" : "SLA aşıldı",
+      tone: onTime ? "success" : "warning",
+      label: onTime ? "Zamanında çözüldü" : "Geç çözüldü",
     };
   }
 
