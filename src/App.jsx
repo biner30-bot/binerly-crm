@@ -8212,6 +8212,7 @@ function CampaignModal({ customers, replyTo, companyName, logoUrl, session, onRe
   const emailCustomers = customers.filter((c) => c.email);
   const consentedCustomers = emailCustomers.filter((c) => c.marketingConsent);
   const [selected, setSelected] = useState(() => new Set(consentedCustomers.map((c) => c.id)));
+  const [recipientQuery, setRecipientQuery] = useState("");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -8228,6 +8229,14 @@ function CampaignModal({ customers, replyTo, companyName, logoUrl, session, onRe
   };
 
   const selectedConsented = consentedCustomers.filter((c) => selected.has(c.id));
+
+  const recipientQueryLower = recipientQuery.trim().toLowerCase();
+  const visibleCustomers = recipientQueryLower
+    ? emailCustomers.filter((c) => (c.name || "").toLowerCase().includes(recipientQueryLower) || (c.email || "").toLowerCase().includes(recipientQueryLower))
+    : emailCustomers;
+
+  const selectAllConsented = () => setSelected(new Set(consentedCustomers.map((c) => c.id)));
+  const clearSelection = () => setSelected(new Set());
 
   const requestSend = (e) => {
     e.preventDefault();
@@ -8266,12 +8275,31 @@ function CampaignModal({ customers, replyTo, companyName, logoUrl, session, onRe
     <Modal title="E-posta kampanyası" onClose={onClose}>
       <form onSubmit={requestSend}>
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
-            Alıcılar ({selected.size}/{consentedCustomers.length} izinli)
-          </label>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+              Alıcılar ({selected.size}/{consentedCustomers.length} izinli)
+            </label>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button type="button" onClick={selectAllConsented} style={{ fontSize: 12, background: "none", border: "none", color: "var(--accent)", cursor: "pointer", padding: 0, textDecoration: "underline" }}>
+                Tümünü seç
+              </button>
+              <button type="button" onClick={clearSelection} style={{ fontSize: 12, background: "none", border: "none", color: "var(--accent)", cursor: "pointer", padding: 0, textDecoration: "underline" }}>
+                Seçimi temizle
+              </button>
+            </div>
+          </div>
+          {emailCustomers.length > 5 && (
+            <input
+              value={recipientQuery}
+              onChange={(e) => setRecipientQuery(e.target.value)}
+              placeholder="İsim veya e-postaya göre ara..."
+              style={{ width: "100%", marginBottom: 6, fontSize: 13 }}
+            />
+          )}
           <div style={{ maxHeight: 180, overflowY: "auto", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 8 }}>
             {emailCustomers.length === 0 && <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>E-postası kayıtlı müşteri yok.</p>}
-            {emailCustomers.map((c) => (
+            {emailCustomers.length > 0 && visibleCustomers.length === 0 && <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>Aramayla eşleşen müşteri yok.</p>}
+            {visibleCustomers.map((c) => (
               <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, flex: 1, cursor: c.marketingConsent ? "pointer" : "default", opacity: c.marketingConsent ? 1 : 0.55 }}>
                   <input type="checkbox" checked={selected.has(c.id)} disabled={!c.marketingConsent} onChange={() => toggle(c.id)} />
