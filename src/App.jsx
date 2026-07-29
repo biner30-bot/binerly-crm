@@ -445,20 +445,13 @@ const DEAL_TAB_STRINGS = {
   },
 };
 
-const dealActionsInfoText = (sector) => {
-  const forms = DEAL_WORD_FORMS[dealWordKind(sector)];
-  return (
-    `📄 ${forms.pdfLabel} - markalı, yazdırılabilir ${forms.bare} belgesi oluşturur.\n` +
-    `🔗 Onay linki - müşterinin "onaylıyorum" diyebileceği bir link kopyalar, siz WhatsApp/e-posta ile gönderirsiniz. Müşteri, ` +
-    `sisteme kayıtlı e-postasıyla giriş yapmadan ${forms.acc} göremez/onaylayamaz - bu yüzden müşterinin e-postası kayıtlı olmalı. ` +
-    `Müşteri linki açıp giriş yaptığı an "👁 Görüntülendi" rozeti ve size bir bildirim düşer - hâlâ onaylamadıysa arayıp hatırlatabilirsiniz. ` +
-    `Onaylayınca satırda yeşil "Onaylandı ✓" rozeti otomatik görünür. Bu, resmi/güvenli elektronik imza değildir - ` +
-    `sadece takip ve bildirim amaçlıdır, hukuki bağlayıcılığı önemli anlaşmalarda ıslak imza veya nitelikli e-imza kullanın.\n` +
-    `💵 Tahsilat - bu ${forms.dat} yapılan ödemeleri kaydedin/görün.\n` +
-    `📋 Kopyala - aynı müşteri/tutar/etiketlerle sıfırdan yeni bir ${forms.bare} formu açar (tekrar eden işler için), hiçbir şeyi otomatik kaydetmez.\n` +
-    "✏️ Düzenle · 🗑️ Sil"
-  );
-};
+// Menüdeki tek tek öğeler artık kendi etiketiyle kendini anlatıyor (eskiden
+// hepsi ikon-only butonlardı, tek bir dev InfoTip'te açıklanması gerekiyordu).
+// Sadece Onay Linki'nin davranışı (e-imza yerine geçmediği, e-posta şartı)
+// bariz olmadığı için o öğeye özel kısa bir InfoTip metni kaldı, bkz. aşağıda
+// "Onay Linki" item tanımlarındaki `info` alanı.
+const dealApprovalLinkInfoText =
+  "Müşterinin e-postası kayıtlı olmalı. Görüntüleme ve onay durumları satırda otomatik görünür ama bu resmi bir elektronik imza değildir - önemli anlaşmalarda ıslak/nitelikli e-imza kullanın.";
 
 const CUSTOMER_EMAIL_INFO_TEXT =
   "Güncel bir e-posta girmeniz önemli - teklif onay linki, müşteri portalı girişi ve hatırlatma e-postaları gibi " +
@@ -6839,23 +6832,36 @@ function RowActionsMenu({ items }) {
           }}
         >
           {visibleItems.map((item, i) => (
-            <button
+            <div
               key={item.label}
-              type="button"
-              disabled={item.disabled}
-              title={item.title}
-              onClick={() => { item.onClick(); setOpen(false); }}
               style={{
-                width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px",
-                background: "none", border: "none", borderBottom: i < visibleItems.length - 1 ? "0.5px solid var(--border)" : "none",
-                borderRadius: 0, textAlign: "left", fontSize: 13,
-                color: item.danger ? "var(--text-danger)" : "var(--text-primary)",
-                opacity: item.disabled ? 0.4 : 1, cursor: item.disabled ? "not-allowed" : "pointer",
+                display: "flex", alignItems: "center",
+                borderBottom: i < visibleItems.length - 1 ? "0.5px solid var(--border)" : "none",
               }}
             >
-              <i className={`ti ${item.icon}`} style={{ fontSize: 15, flexShrink: 0 }} aria-hidden="true"></i>
-              {item.label}
-            </button>
+              <button
+                type="button"
+                disabled={item.disabled}
+                title={item.title}
+                onClick={() => { item.onClick(); setOpen(false); }}
+                style={{
+                  flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, padding: "9px 12px",
+                  background: "none", border: "none", borderRadius: 0, textAlign: "left", fontSize: 13,
+                  color: item.danger ? "var(--text-danger)" : "var(--text-primary)",
+                  opacity: item.disabled ? 0.4 : 1, cursor: item.disabled ? "not-allowed" : "pointer",
+                }}
+              >
+                <i className={`ti ${item.icon}`} style={{ fontSize: 15, flexShrink: 0 }} aria-hidden="true"></i>
+                {item.label}
+              </button>
+              {/* Buton İÇİNE değil YANINA konuyor - aksi halde tıklamak (özellikle
+                  dokunmatik) native DOM bubble ile butonun onClick'ini de tetikler. */}
+              {item.info && (
+                <div style={{ paddingRight: 10, flexShrink: 0 }}>
+                  <InfoTip text={item.info} align="right" />
+                </div>
+              )}
+            </div>
           ))}
         </div>,
         document.body
@@ -8861,54 +8867,65 @@ function GroupClassRoster({ group, enrollments, customers, activeCustomerIds, se
       {enrollments.length === 0 ? (
         <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>{words.emptyRoster}</p>
       ) : (
-        <div style={{ marginBottom: 16 }}>
-          {showAttendance && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 52px 52px 30px", gap: 4, padding: "0 10px", marginBottom: 4 }}>
-              <span></span>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--text-muted)", textAlign: "center", textTransform: "uppercase" }}>Geldi</span>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--text-muted)", textAlign: "center", textTransform: "uppercase" }}>Gelmedi</span>
-              <span></span>
-            </div>
-          )}
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {enrollments.map((e) => {
-              const c = customers.find((cust) => cust.id === e.customerId);
-              const att = showAttendance ? attendance.find((a) => a.customerId === e.customerId) : null;
-              return (
-                <div
-                  key={e.id}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: showAttendance ? "1fr 52px 52px 30px" : "1fr auto",
-                    alignItems: "center", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "6px 10px",
-                  }}
-                >
-                  <span style={{ fontSize: 13 }}>{c?.name || "Bilinmeyen müşteri"}</span>
-                  {showAttendance && (
-                    <>
-                      <button
-                        type="button"
-                        title="Geldi olarak işaretle"
-                        onClick={() => onSetAttendance(e.customerId, "geldi")}
-                        style={{ justifySelf: "center", width: 28, height: 28, padding: 0, borderRadius: 6, border: att?.status === "geldi" ? "1.5px solid #15803d" : "0.5px solid var(--border)", background: att?.status === "geldi" ? "#15803d" : "var(--surface-2)", color: att?.status === "geldi" ? "#fff" : "transparent" }}
-                      >
-                        <i className="ti ti-check" aria-hidden="true"></i>
-                      </button>
-                      <button
-                        type="button"
-                        title="Gelmedi olarak işaretle"
-                        onClick={() => onSetAttendance(e.customerId, "gelmedi")}
-                        style={{ justifySelf: "center", width: 28, height: 28, padding: 0, borderRadius: 6, border: att?.status === "gelmedi" ? "1.5px solid #b91c1c" : "0.5px solid var(--border)", background: att?.status === "gelmedi" ? "#b91c1c" : "var(--surface-2)", color: att?.status === "gelmedi" ? "#fff" : "transparent" }}
-                      >
-                        <i className="ti ti-check" aria-hidden="true"></i>
-                      </button>
-                    </>
-                  )}
-                  <IconButton icon="ti-x" title="Dersten çıkar" size="sm" onClick={() => setConfirmRemove(e)} />
-                </div>
-              );
-            })}
-          </div>
+        <div style={{ marginBottom: 16, overflowX: "auto" }}>
+          {/* Sayfa genelindeki liste tablolarıyla (Üyelikler/Randevular vb.) aynı
+              görsel dil - üst büyük harf başlık, yuvarlak köşeli "hap" satırlar. */}
+          <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 6px" }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", padding: "0 10px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>
+                  {words.memberColLabel}
+                </th>
+                {showAttendance && (
+                  <>
+                    <th style={{ textAlign: "center", padding: "0 4px", fontSize: 10.5, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Geldi</th>
+                    <th style={{ textAlign: "center", padding: "0 4px", fontSize: 10.5, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Gelmedi</th>
+                  </>
+                )}
+                <th style={{ padding: "0 10px" }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {enrollments.map((e) => {
+                const c = customers.find((cust) => cust.id === e.customerId);
+                const att = showAttendance ? attendance.find((a) => a.customerId === e.customerId) : null;
+                return (
+                  <tr key={e.id} style={{ background: "var(--surface-1)" }}>
+                    <td style={{ padding: "8px 10px", borderRadius: "var(--radius) 0 0 var(--radius)", fontSize: 13 }}>
+                      {c?.name || "Bilinmeyen müşteri"}
+                    </td>
+                    {showAttendance && (
+                      <>
+                        <td style={{ textAlign: "center", padding: "6px 4px" }}>
+                          <button
+                            type="button"
+                            title="Geldi olarak işaretle"
+                            onClick={() => onSetAttendance(e.customerId, "geldi")}
+                            style={{ width: 28, height: 28, padding: 0, borderRadius: 6, border: att?.status === "geldi" ? "1.5px solid #15803d" : "0.5px solid var(--border)", background: att?.status === "geldi" ? "#15803d" : "var(--surface-2)", color: att?.status === "geldi" ? "#fff" : "transparent" }}
+                          >
+                            <i className="ti ti-check" aria-hidden="true"></i>
+                          </button>
+                        </td>
+                        <td style={{ textAlign: "center", padding: "6px 4px" }}>
+                          <button
+                            type="button"
+                            title="Gelmedi olarak işaretle"
+                            onClick={() => onSetAttendance(e.customerId, "gelmedi")}
+                            style={{ width: 28, height: 28, padding: 0, borderRadius: 6, border: att?.status === "gelmedi" ? "1.5px solid #b91c1c" : "0.5px solid var(--border)", background: att?.status === "gelmedi" ? "#b91c1c" : "var(--surface-2)", color: att?.status === "gelmedi" ? "#fff" : "transparent" }}
+                          >
+                            <i className="ti ti-check" aria-hidden="true"></i>
+                          </button>
+                        </td>
+                      </>
+                    )}
+                    <td style={{ textAlign: "right", padding: "6px 10px", borderRadius: "0 var(--radius) var(--radius) 0" }}>
+                      <IconButton icon="ti-x" title="Dersten çıkar" size="sm" onClick={() => setConfirmRemove(e)} />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -15047,6 +15064,7 @@ export default function App() {
                                       icon: "ti-link",
                                       label: "Onay Linki",
                                       title: c?.email ? "Müşterinin onaylayabileceği link - kopyala ve gönder" : "Onay linki için müşterinin e-postası kayıtlı olmalı",
+                                      info: dealApprovalLinkInfoText,
                                       disabled: !c?.email,
                                       onClick: () => {
                                         if (!c?.email) { notify("Onay linki oluşturmak için önce müşterinin e-postasını ekleyin."); return; }
@@ -15166,9 +15184,7 @@ export default function App() {
                   <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Aşama</th>
                   <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Ödeme</th>
                   <th style={{ textAlign: "right", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Tutar</th>
-                  <th style={{ textAlign: "right", padding: "0 12px" }}>
-                    <InfoTip text={dealActionsInfoText(companySettings?.sector)} />
-                  </th>
+                  <th style={{ textAlign: "right", padding: "0 12px" }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -15268,6 +15284,7 @@ export default function App() {
                                 icon: "ti-link",
                                 label: "Onay Linki",
                                 title: c?.email ? "Müşterinin onaylayabileceği link - kopyala ve gönder" : "Onay linki için müşterinin e-postası kayıtlı olmalı",
+                                info: dealApprovalLinkInfoText,
                                 disabled: !c?.email,
                                 onClick: () => {
                                   if (!c?.email) { notify("Onay linki oluşturmak için önce müşterinin e-postasını ekleyin."); return; }

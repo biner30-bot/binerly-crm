@@ -698,6 +698,7 @@ const GROUP_CLASS_WORDS = {
   egitim_kurs: {
     tabSubtitle: "Haftalık ders programınız ve kayıtlı öğrenciler",
     rosterTitle: "Kayıtlı öğrenciler",
+    memberColLabel: "Öğrenci",
     emptyRoster: "Henüz öğrenci yok.",
     fullMessage: "Ders dolu - yeni öğrenci eklemek için önce birini çıkarın.",
     addMemberLabel: "+ Öğrenci ekle",
@@ -714,6 +715,7 @@ const GROUP_CLASS_WORDS = {
   spor_merkezi: {
     tabSubtitle: "Haftalık grup dersi programınız ve kayıtlı üyeler",
     rosterTitle: "Kayıtlı üyeler",
+    memberColLabel: "Üye",
     emptyRoster: "Henüz üye yok.",
     fullMessage: "Ders dolu - yeni üye eklemek için önce birini çıkarın.",
     addMemberLabel: "+ Üye ekle",
