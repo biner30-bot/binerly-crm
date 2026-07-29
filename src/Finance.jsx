@@ -513,37 +513,46 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
       </div>
 
       {financeView === "defter" && (
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 12, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, width: "fit-content" }}>
-          {PANO_RANGES.map((r) => (
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, width: "fit-content" }}>
+            {PANO_RANGES.map((r) => (
+              <button
+                key={r.id}
+                onClick={() => setFinanceRange(r.id)}
+                style={{ border: "none", background: financeRange === r.id ? "var(--fill-accent)" : "transparent", color: financeRange === r.id ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: financeRange === r.id ? 600 : 400, fontSize: 13 }}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input
+              type="email"
+              value={accountantEmail}
+              onChange={(e) => { setAccountantEmail(e.target.value); localStorage.setItem("binerly_accountant_email", e.target.value); }}
+              placeholder="Muhasebeci e-postası"
+              style={{ fontSize: 12.5, width: 190 }}
+            />
             <button
-              key={r.id}
-              onClick={() => setFinanceRange(r.id)}
-              style={{ border: "none", background: financeRange === r.id ? "var(--fill-accent)" : "transparent", color: financeRange === r.id ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: financeRange === r.id ? 600 : 400, fontSize: 13 }}
+              type="button"
+              onClick={sendDefterToAccountant}
+              disabled={filteredLedger.length === 0}
+              style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 4 }}
             >
-              {r.label}
+              <i className="ti ti-download" style={{ fontSize: 14 }} aria-hidden="true"></i>
+              İndir ve E-posta Aç
             </button>
-          ))}
+            <InfoTip text={'Defteri .xlsx olarak indirir ve e-posta taslağı açar - mailto: dosyayı otomatik ekleyemediği için, az önce inen "gelir-gider-defteri.xlsx" dosyasını göndermeden önce e-postaya elle eklemeyi unutmayın.'} placement="bottom" />
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <input
-            type="email"
-            value={accountantEmail}
-            onChange={(e) => { setAccountantEmail(e.target.value); localStorage.setItem("binerly_accountant_email", e.target.value); }}
-            placeholder="Muhasebeci e-postası"
-            style={{ fontSize: 12.5, width: 190 }}
-          />
-          <button
-            type="button"
-            onClick={sendDefterToAccountant}
-            disabled={filteredLedger.length === 0}
-            style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 4 }}
-          >
-            <i className="ti ti-send" style={{ fontSize: 14 }} aria-hidden="true"></i>
-            Muhasebeciye Gönder
-          </button>
-          <InfoTip text={'Defteri .xlsx olarak indirir ve e-posta taslağı açar - mailto: dosyayı otomatik ekleyemediği için, az önce inen "gelir-gider-defteri.xlsx" dosyasını göndermeden önce e-postaya elle eklemeyi unutmayın.'} placement="bottom" />
-        </div>
+        {/* Bu bilgi eskiden sadece hover'da açılan InfoTip'teydi - "Gönder" adında
+            bir butona basıp hiçbir dosya eklenmeden boş bir taslak açılması
+            kafa karıştırıyordu, şimdi buton adı ("İndir ve E-posta Aç") ve bu
+            satır tıklamadan önce ne olacağını doğrudan söylüyor. */}
+        <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "6px 0 0", textAlign: "right" }}>
+          Excel dosyası inecek ve boş bir e-posta taslağı açılacak - göndermeden önce dosyayı e-postaya elle eklemeyi unutmayın.
+        </p>
       </div>
       )}
       {financeView === "kdv" && (
