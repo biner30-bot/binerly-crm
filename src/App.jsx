@@ -15181,6 +15181,22 @@ export default function App() {
                                 <Badge tone="success">✓ Katılım onayladı</Badge>
                               </div>
                             )}
+                            {/* Sürükle-bırak dokunmatik ekranda çalışmıyor (HTML5 DnG
+                                touch'ı desteklemiyor) - bu seçici mobilde aşama
+                                değiştirmenin tek yolu, masaüstünde de sürüklemeye
+                                alternatif. Liste görünümündeki seçiciyle aynı geçit
+                                (attemptMoveDealStage) kullanılır. */}
+                            <div style={{ marginTop: 6 }} onClick={(e) => e.stopPropagation()}>
+                              <select
+                                value={d.stage}
+                                onChange={(e) => attemptMoveDealStage(d.id, e.target.value)}
+                                style={{ width: "100%", fontSize: 11.5, fontWeight: 500, border: "none", ...TONE_COLORS[stageTone(d.stage)] }}
+                              >
+                                {STAGES.map((s) => (
+                                  <option key={s.id} value={s.id} style={TONE_COLORS[stageTone(s.id)]}>{stageLabel(s.id, c?.customerType || "kurumsal", companySettings?.sector)}</option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
                         );
                       })}
