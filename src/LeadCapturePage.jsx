@@ -37,14 +37,18 @@ export default function LeadCapturePage() {
     }
     setSubmitError("");
     setSending(true);
-    const res = await fetch("/api/lead-capture", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, name, phone, email, address, note, marketingConsent }),
-    });
-    const data = await res.json();
-    if (!res.ok) { setSubmitError(data.error || "Gönderilemedi."); setSending(false); return; }
-    setDone(true);
+    try {
+      const res = await fetch("/api/lead-capture", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, name, phone, email, address, note, marketingConsent }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setSubmitError(data.error || "Gönderilemedi."); setSending(false); return; }
+      setDone(true);
+    } catch {
+      setSubmitError("Bağlantı hatası, lütfen tekrar deneyin. İnternet bağlantınızı kontrol edin.");
+    }
     setSending(false);
   };
 

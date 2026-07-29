@@ -117,6 +117,30 @@ export function guessColumnMapping(headers, fieldDefs) {
 
 // ---- Satır doğrulama/normalize ----
 
+// Excel/CSV'den gelen tutarlar hem "1.234,56" (TR: nokta binlik, virgül ondalık)
+// hem "1234.56" (İngilizce ondalık) formatında gelebiliyor. Hangisinin ondalık
+// ayracı olduğunu son geçen "," veya "."ya bakarak, tek ayraç varsa da rakam
+// sayısına bakarak belirliyoruz - aksi halde "1.234" gibi bir tutar 1,234 yerine
+// sessizce 1 olarak okunuyordu.
+function parseLocaleNumber(raw) {
+  let s = String(raw ?? "").trim().replace(/[^0-9,.\-]/g, "");
+  if (!s) return { value: 0, invalid: false };
+  const hasComma = s.includes(",");
+  const hasDot = s.includes(".");
+  if (hasComma && hasDot) {
+    if (s.lastIndexOf(",") > s.lastIndexOf(".")) s = s.replace(/\./g, "").replace(",", ".");
+    else s = s.replace(/,/g, "");
+  } else if (hasComma) {
+    const parts = s.split(",");
+    s = parts.length > 2 ? parts.join("") : s.replace(",", ".");
+  } else if (hasDot) {
+    const parts = s.split(".");
+    if (parts.length > 2 || parts[1]?.length === 3) s = parts.join("");
+  }
+  const n = Number(s);
+  return Number.isFinite(n) ? { value: n, invalid: false } : { value: 0, invalid: true };
+}
+
 function normalizeRecord(rawObj, fieldDefs, customers) {
   const record = {};
   const errors = [];
@@ -132,7 +156,9 @@ function normalizeRecord(rawObj, fieldDefs, customers) {
       continue;
     }
     if (f.type === "number") {
-      record[f.key] = Number(val.replace(",", ".")) || 0;
+      const { value, invalid } = parseLocaleNumber(val);
+      if (invalid) errors.push(`${f.label} sayısal bir değer değil: "${val}"`);
+      record[f.key] = value;
       continue;
     }
     if (f.type === "enum") {
@@ -213,7 +239,7 @@ export function ImportModal({
       return { ...record, _errors: errors, _duplicate: duplicate };
     });
     setRecords(built);
-    setSelected(new Set(built.map((_, i) => i).filter((i) => built[i]._errors.length === 0)));
+    setSelected(new Set(built.map((_, i) => i).filter((i) => built[i]._errors.length === 0 && !built[i]._duplicate)));
   };
 
   const confirmMapping = () => {

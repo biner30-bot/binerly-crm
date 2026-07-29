@@ -6290,7 +6290,7 @@ const CUSTOMER_NOTE_EXAMPLES_KURUMSAL = {
   otel: "Yıl boyunca düzenli iş seyahati rezervasyonu yapıyor",
 };
 
-function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTags = [], preferredCustomerType, companySector, onSave, onCancel, onPreferredTypeChange }) {
+function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTags = [], preferredCustomerType, companySector, onSave, onCancel }) {
   const initialIsCustomSector = initial?.sector && !SECTORS.includes(initial.sector);
   const [customerType, setCustomerType] = useState(initial?.customerType || preferredCustomerType || "kurumsal");
   const [name, setName] = useState(initial?.name || "");
@@ -6327,8 +6327,8 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
         e.preventDefault();
         if (!name.trim()) return;
         if (isKurumsal && sector === "Diğer" && !customSector.trim()) return;
-        if (!email.trim()) {
-          setFormError("E-posta adresi zorunludur - pazarlama izni ve bildirimler için gereklidir.");
+        if (!email.trim() && !phone.trim()) {
+          setFormError("Telefon veya e-postadan en az biri girilmelidir.");
           return;
         }
         const payload = {
@@ -6359,10 +6359,7 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Müşteri tipi <InfoTip text={CUSTOMER_TYPE_INFO_TEXT} placement="bottom" align="left" /></label>
         <select
           value={customerType}
-          onChange={(e) => {
-            setCustomerType(e.target.value);
-            if (!initial?.id) onPreferredTypeChange?.(e.target.value);
-          }}
+          onChange={(e) => setCustomerType(e.target.value)}
           style={{ width: "100%" }}
         >
           <option value="kurumsal">Kurumsal</option>
@@ -6405,8 +6402,8 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
           <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0532 000 00 00" style={{ width: "100%" }} />
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>E-posta (zorunlu) <InfoTip align="right" text={CUSTOMER_EMAIL_INFO_TEXT} /></label>
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder={isKurumsal ? "info@firma.com" : "ayse@gmail.com"} style={{ width: "100%" }} />
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>E-posta <InfoTip align="right" text={CUSTOMER_EMAIL_INFO_TEXT} /></label>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={isKurumsal ? "info@firma.com" : "ayse@gmail.com"} style={{ width: "100%" }} />
         </div>
       </div>
       <div style={{ marginBottom: 12 }}>
@@ -12183,6 +12180,11 @@ export default function App() {
     setShowCustomerForm(false);
     setEditingCustomer(null);
     logAction("customers", customer.id, isNew ? "created" : "updated", `${customer.name} ${isNew ? "oluşturuldu" : "güncellendi"}`);
+    // Bir sonraki müşteri/teklif formunun hangi türle açılacağını belirler -
+    // formdaki dropdown değişince değil, kayıt gerçekten başarılı olunca
+    // güncellenir (aksi halde vazgeçilen bir form bile Fırsatlar sekmesinin
+    // görünümünü sessizce değiştiriyordu).
+    if (isNew) updatePreferredCustomerType(customer.customerType);
     // Sadece manuel "Yeni Müşteri" akışında otomatik tetiklenir - toplu içe
     // aktarma bulkInsertChunked kullanıyor, bu yüzden tek seferde yüzlerce izin
     // e-postası gitme riski yok.
@@ -15449,7 +15451,6 @@ export default function App() {
             companySector={companySettings?.sector}
             onSave={upsertCustomer}
             onCancel={() => { setShowCustomerForm(false); setEditingCustomer(null); }}
-            onPreferredTypeChange={updatePreferredCustomerType}
           />
         </Modal>
       )}

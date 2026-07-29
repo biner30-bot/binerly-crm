@@ -54,6 +54,7 @@ export default function DealApprovalPage() {
   const [paidParam] = useState(() => new URLSearchParams(window.location.search).get("paid"));
   const [paying, setPaying] = useState(false);
   const [paymentError, setPaymentError] = useState("");
+  const [approveError, setApproveError] = useState("");
   const [authMode, setAuthMode] = useState("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -150,15 +151,22 @@ export default function DealApprovalPage() {
   };
 
   const approve = async () => {
+    setApproveError("");
     setApproving(true);
-    const res = await fetch("/api/deal-approval", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ token, note: note.trim() || null }),
-    });
-    if (res.ok) {
+    try {
+      const res = await fetch("/api/deal-approval", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ token, note: note.trim() || null }),
+      });
       const data = await res.json().catch(() => ({}));
-      setState((s) => ({ ...s, deal: { ...s.deal, approved: true, approvedAt: data.approvedAt || new Date().toISOString() } }));
+      if (res.ok) {
+        setState((s) => ({ ...s, deal: { ...s.deal, approved: true, approvedAt: data.approvedAt || new Date().toISOString() } }));
+      } else {
+        setApproveError(data.error || "Onaylanamadı, lütfen tekrar deneyin.");
+      }
+    } catch {
+      setApproveError("Bağlantı hatası, lütfen tekrar deneyin. İnternet bağlantınızı kontrol edin.");
     }
     setApproving(false);
   };
@@ -166,17 +174,21 @@ export default function DealApprovalPage() {
   const payNow = async () => {
     setPaymentError("");
     setPaying(true);
-    const res = await fetch("/api/deal-approval", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ token, action: "checkout-init" }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && data.paymentPageUrl) {
-      window.location.href = data.paymentPageUrl;
-      return;
+    try {
+      const res = await fetch("/api/deal-approval", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ token, action: "checkout-init" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.paymentPageUrl) {
+        window.location.href = data.paymentPageUrl;
+        return;
+      }
+      setPaymentError(data.error || "Ödeme başlatılamadı, lütfen tekrar deneyin.");
+    } catch {
+      setPaymentError("Bağlantı hatası, lütfen tekrar deneyin. İnternet bağlantınızı kontrol edin.");
     }
-    setPaymentError(data.error || "Ödeme başlatılamadı, lütfen tekrar deneyin.");
     setPaying(false);
   };
 
@@ -320,6 +332,9 @@ export default function DealApprovalPage() {
                   )}
                   {showApproveOnly && (
                     <>
+                      {approveError && (
+                        <p style={{ fontSize: 12.5, color: "#b91c1c", margin: "0 0 10px" }}>{approveError}</p>
+                      )}
                       <textarea
                         value={note}
                         onChange={(e) => setNote(e.target.value)}
