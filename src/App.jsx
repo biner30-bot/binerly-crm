@@ -365,7 +365,8 @@ const MARKETING_CONSENT_INFO_TEXT =
   "Türkiye'de kampanya/değerlendirme isteği gibi e-postalar göndermek için müşterinin gerçek, kendi verdiği " +
   "izni (İYS) gerekiyor - siz adına veremezsiniz.\n\n" +
   "Var - müşteri izin verdi (Müşteri Kazanma Linki, Müşteri Portalı veya e-posta ile çift onaydan).\n" +
-  "İzin iste - bu müşteriye onay linkli bir e-posta gönderir. E-postası yoksa hiç gösterilmez.";
+  "İzin iste - müşteriye onay linkli bir e-posta gönderir.\n" +
+  "İzin linki paylaş - müşterinin e-postası kayıtlı değilse, aynı onay linkini WhatsApp'tan (telefon kayıtlıysa) ya da panoya kopyalayarak paylaşır - müşteri linkten hem e-postasını girip hem izin verebiliyor.";
 
 const DEAL_WORD_FORMS = {
   teklif: { bare: "teklif", pdfLabel: "Teklif PDF", acc: "teklifi", dat: "teklife", plural: "teklifler", pluralAcc: "teklifleri", gen: "teklifin", genPlural: "tekliflerin", loc: "teklifte", pluralLoc: "tekliflerde", ctaLabel: "Teklifi Görüntüle", possYours: "Teklifiniz", possYoursAcc: "teklifinizi" },
@@ -7949,24 +7950,22 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
             <Badge tone="accent">🎁 {customer.appointmentCreditCount} ücretsiz telafi hakkı</Badge>
           </div>
         )}
-        {customer.email && (
-          <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            {customer.marketingConsent ? (
-              <Badge tone="success">✓ Pazarlama e-postası izni var</Badge>
-            ) : (
-              <>
-                <Badge tone="warning">Pazarlama e-postası izni yok</Badge>
-                <button
-                  type="button"
-                  onClick={() => onRequestMarketingConsent(customer)}
-                  style={{ fontSize: 12, background: "none", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "2px 8px", cursor: "pointer" }}
-                >
-                  İzin e-postası gönder
-                </button>
-              </>
-            )}
-          </div>
-        )}
+        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {customer.marketingConsent ? (
+            <Badge tone="success">✓ Pazarlama e-postası izni var</Badge>
+          ) : (
+            <>
+              <Badge tone="warning">Pazarlama e-postası izni yok</Badge>
+              <button
+                type="button"
+                onClick={() => onRequestMarketingConsent(customer)}
+                style={{ fontSize: 12, background: "none", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "2px 8px", cursor: "pointer" }}
+              >
+                {customer.email ? "İzin e-postası gönder" : "İzin linki paylaş"}
+              </button>
+            </>
+          )}
+        </div>
         {customFieldDefs.filter((d) => d.entity === "customer" && customer.customFields?.[d.key]).length > 0 && (
           <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 2 }}>
             {customFieldDefs
@@ -11939,12 +11938,27 @@ export default function App() {
   // Yeni müşteri eklenirken otomatik, veya Müşteri Kayıtları/Kampanya Gönder'den
   // elle tekrar tetiklenebilir.
   const requestMarketingConsent = async (customer) => {
-    if (!customer?.email) { notify("Bu müşterinin e-postası yok."); return; }
     const token = uid();
     const { error } = await supabase.from("customers").update({ marketing_consent_token: token }).eq("id", customer.id);
     if (error) { notify(`İzin isteği gönderilemedi: ${error.message}`); return; }
     const consentUrl = `https://binerly.com/api/deal-approval?action=confirm-marketing-consent&token=${token}`;
     const company = companySettings?.companyName || "İşletmemiz";
+
+    // E-postası hiç yoksa e-posta gönderemeyiz — bunun yerine linki paylaşıyoruz
+    // (Portal linkindeki "Linki paylaş" ile aynı desen: telefon varsa WhatsApp,
+    // yoksa panoya kopyala). Linkteki sayfa (deal-approval.js) müşteriden hem
+    // e-postasını isteyip hem izni tek adımda kaydediyor.
+    if (!customer.email) {
+      const message = `Merhaba, ${company} olarak size kampanya ve değerlendirme isteği gibi e-postalar gönderebilmemiz için bu linkten e-postanızı girip izin verebilirsiniz: ${consentUrl}`;
+      if (customer.phone) {
+        window.open(`https://wa.me/${toWhatsAppNumber(customer.phone)}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+      } else {
+        navigator.clipboard.writeText(consentUrl);
+        notify("İzin linki kopyalandı - müşteriye paylaşabilirsiniz.", "success");
+      }
+      return;
+    }
+
     const sent = await notifyCustomerByEmail(
       customer,
       `${companySettings?.companyName || "Binerly"} - E-posta izninizi onaylar mısınız?`,
@@ -14697,18 +14711,16 @@ export default function App() {
                       )}
                     </td>
                     <td data-label="İzin" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                      {!c.email ? (
-                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>-</span>
-                      ) : c.marketingConsent ? (
+                      {c.marketingConsent ? (
                         <Badge tone="success">Var</Badge>
                       ) : (
                         <button
                           type="button"
-                          title="İzin e-postası gönder"
+                          title={c.email ? "İzin e-postası gönder" : "İzin linkini WhatsApp/kopyala ile paylaş"}
                           onClick={() => requestMarketingConsent(c)}
                           style={{ fontSize: 12, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
                         >
-                          İzin iste
+                          {c.email ? "İzin iste" : "İzin linki paylaş"}
                         </button>
                       )}
                     </td>

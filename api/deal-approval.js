@@ -160,13 +160,17 @@ function escapeAttendanceHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function renderAttendancePage({ logoUrl, title, message, formToken, formResponse, submitLabel, formAction = "confirm-attendance" }) {
+function renderAttendancePage({ logoUrl, title, message, formToken, formResponse, submitLabel, formAction = "confirm-attendance", collectEmail = false }) {
   const logo = logoUrl || "https://binerly.com/pwa-512x512.png";
+  const emailInput = collectEmail
+    ? `<input type="email" name="email" placeholder="E-posta adresiniz" required style="width:100%;box-sizing:border-box;padding:11px 12px;margin:4px 0 12px;border:1px solid #d5dde6;border-radius:8px;font-size:14px;" />`
+    : "";
   const form = formToken
     ? `<form method="POST" action="/api/deal-approval" style="margin-top:8px;">
         <input type="hidden" name="action" value="${escapeAttendanceHtml(formAction)}" />
         <input type="hidden" name="token" value="${escapeAttendanceHtml(formToken)}" />
         ${formResponse ? `<input type="hidden" name="response" value="${escapeAttendanceHtml(formResponse)}" />` : ""}
+        ${emailInput}
         <button type="submit" style="display:inline-block;background:#185fa5;color:#ffffff;border:none;cursor:pointer;padding:12px 28px;border-radius:8px;font-weight:600;font-size:14px;">${escapeAttendanceHtml(submitLabel)}</button>
       </form>`
     : "";
@@ -325,7 +329,7 @@ async function handleMarketingConsentConfirm(req, res, supabaseAdmin, token) {
 
   const { data: customer, error } = await supabaseAdmin
     .from("customers")
-    .select("id, user_id, name, marketing_consent")
+    .select("id, user_id, name, email, marketing_consent")
     .eq("marketing_consent_token", token)
     .is("deleted_at", null)
     .maybeSingle();
@@ -342,18 +346,39 @@ async function handleMarketingConsentConfirm(req, res, supabaseAdmin, token) {
     return res.status(200).send(renderAttendancePage({ logoUrl, title: "Zaten onaylanmış", message: `E-posta izniniz zaten kayıtlı, teşekkürler. - ${company}` }));
   }
 
+  // Bu link WhatsApp/panodan paylaşılmış olabilir (customers.email hiç yoksa) —
+  // bu durumda sayfa önce e-posta adresini de topluyor, tek adımda hem e-posta
+  // kaydediliyor hem izin veriliyor.
+  const needsEmail = !customer.email;
+
   if (req.method === "GET") {
     return res.status(200).send(renderAttendancePage({
       logoUrl,
       title: "Pazarlama e-postası izni",
-      message: `${company}, size kampanya ve değerlendirme isteği gibi e-postalar gönderebilmek için izninizi istiyor. Onaylamak için aşağıya tıklayın.`,
-      formToken: token, submitLabel: "Evet, izin veriyorum", formAction: "confirm-marketing-consent",
+      message: needsEmail
+        ? `${company}, size kampanya ve değerlendirme isteği gibi e-postalar gönderebilmek için e-posta adresinizi ve izninizi istiyor.`
+        : `${company}, size kampanya ve değerlendirme isteği gibi e-postalar gönderebilmek için izninizi istiyor. Onaylamak için aşağıya tıklayın.`,
+      formToken: token, submitLabel: needsEmail ? "Kaydet ve izin ver" : "Evet, izin veriyorum",
+      formAction: "confirm-marketing-consent", collectEmail: needsEmail,
     }));
   }
 
+  const providedEmail = ((req.body || {}).email || "").trim();
+  if (needsEmail && !providedEmail) {
+    return res.status(400).send(renderAttendancePage({ logoUrl, title: "E-posta gerekli", message: "Devam etmek için bir e-posta adresi girmeniz gerekiyor." }));
+  }
+
+  const updatePayload = {
+    marketing_consent: true,
+    marketing_consent_at: new Date().toISOString(),
+    marketing_consent_source: "email_confirmation",
+    marketing_consent_token: null,
+  };
+  if (needsEmail) updatePayload.email = providedEmail;
+
   await supabaseAdmin
     .from("customers")
-    .update({ marketing_consent: true, marketing_consent_at: new Date().toISOString(), marketing_consent_source: "email_confirmation", marketing_consent_token: null })
+    .update(updatePayload)
     .eq("id", customer.id)
     .eq("marketing_consent_token", token);
 
