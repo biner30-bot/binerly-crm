@@ -455,7 +455,8 @@ const dealActionsInfoText = (sector) => {
 const CUSTOMER_EMAIL_INFO_TEXT =
   "Güncel bir e-posta girmeniz önemli - teklif onay linki, müşteri portalı girişi ve hatırlatma e-postaları gibi " +
   "özellikler ancak müşterinin e-postası kayıtlıysa çalışır. Kaydettiğinizde müşteriye, kampanya/değerlendirme isteği " +
-  "gibi e-postalar için iznini onaylayabileceği bir e-posta gönderilir - bu izni siz adına veremezsiniz, İYS kuralları gereği.";
+  "gibi e-postalar için iznini onaylayabileceği bir e-posta gönderilir - bu izni siz adına veremezsiniz, İYS kuralları gereği. " +
+  "Bu izin e-postası ticari ileti sayılmadığı için Ayarlar'daki \"Müşterilere otomatik e-posta gönder\" kapalı olsa bile gönderilir.";
 
 const CUSTOMER_TYPE_INFO_TEXT =
   "Kurumsal/Bireysel seçimi sadece bir etiket değil - Sektör alanının görünüp görünmeyeceğini, hangi özel alanların çıkacağını " +
@@ -6595,7 +6596,8 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
             align="right"
             text={
               `Bir ${DEAL_WORD_FORMS[dealWordKind(initial?.sector)].gen} aşaması her değiştiğinde (${STAGES.map((s) => stageLabel(s.id, "kurumsal", initial?.sector)).join(", ")}) o aşamaya özel bir mail gider - 2. ve 3. aşamalarda onay linki de eklenir. Destek talebi durumu değiştiğinde, yeni bir yanıt yazıldığında ve ödeme alındığında da müşteriye bilgilendirme gider.\n\n` +
-              `Yanlışlıkla bir ${DEAL_WORD_FORMS[dealWordKind(initial?.sector)].acc} başka bir aşamaya sürüklerseniz endişelenmeyin: mail hemen gitmez, 45 saniye beklenir - bu süre içinde aşamayı düzeltirseniz mail hiç gitmez, sadece son karar verdiğiniz aşama için gider.`
+              `Yanlışlıkla bir ${DEAL_WORD_FORMS[dealWordKind(initial?.sector)].acc} başka bir aşamaya sürüklerseniz endişelenmeyin: mail hemen gitmez, 45 saniye beklenir - bu süre içinde aşamayı düzeltirseniz mail hiç gitmez, sadece son karar verdiğiniz aşama için gider.\n\n` +
+              `Bu kutu, yeni bir müşteri eklediğinizde gönderilen pazarlama izni onay e-postasını ETKİLEMEZ - o e-posta ticari ileti sayılmadığı için (yalnızca izin ister) bu kutu kapalıyken de gönderilir.`
             }
           />
         </label>
@@ -11894,10 +11896,16 @@ export default function App() {
   // asla engellemez, şirket ayarlarından kapatılabilir, e-postası olmayan
   // müşteriler için sessizce atlanır.
   const notifyCustomerByEmail = async (customer, subject, message, opts = {}) => {
-    if (companySettings?.customerNotificationsEnabled !== true) return;
-    if (!customer?.email) return;
+    // "Müşterilere önemli gelişmelerde otomatik e-posta gönder" kapalıysa, aşama
+    // değişikliği/ödeme/destek gibi OPERASYONEL bildirimler susturulur - ama
+    // pazarlama izni isteği bunlardan biri DEĞİL, ticari ileti bile sayılmıyor
+    // (bkz. requestMarketingConsent), o yüzden opts.ignoreNotificationToggle ile
+    // bu kontrolü atlayabiliyor. KOBİ'nin bu anahtarı kapatmış olması, müşteriden
+    // hiçbir zaman izin alamaması anlamına gelmemeli.
+    if (!opts.ignoreNotificationToggle && companySettings?.customerNotificationsEnabled !== true) return false;
+    if (!customer?.email) return false;
     try {
-      await fetch("/api/send-campaign", {
+      const res = await fetch("/api/send-campaign", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({
@@ -11911,8 +11919,9 @@ export default function App() {
           ctaLabel: opts.ctaLabel,
         }),
       });
+      return res.ok;
     } catch {
-      // yoksay — bildirim maili başarısız olsa da asıl işlemi bozmaz
+      return false; // bildirim maili başarısız olsa da asıl işlemi bozmaz
     }
   };
 
@@ -11929,13 +11938,14 @@ export default function App() {
     if (error) { notify(`İzin isteği gönderilemedi: ${error.message}`); return; }
     const consentUrl = `https://binerly.com/api/deal-approval?action=confirm-marketing-consent&token=${token}`;
     const company = companySettings?.companyName || "İşletmemiz";
-    await notifyCustomerByEmail(
+    const sent = await notifyCustomerByEmail(
       customer,
       `${companySettings?.companyName || "Binerly"} - E-posta izninizi onaylar mısınız?`,
       `Merhaba ${customer.name || ""},\n\n${company} olarak size kampanya, değerlendirme isteği gibi e-postalar gönderebilmemiz için izninize ihtiyacımız var. Onaylamak için aşağıdaki butona tıklayabilirsiniz.`,
-      { ctaUrl: consentUrl, ctaLabel: "İzin Ver" }
+      { ctaUrl: consentUrl, ctaLabel: "İzin Ver", ignoreNotificationToggle: true }
     );
-    notify(`${customer.name} adlı müşteriye izin e-postası gönderildi.`);
+    if (sent) notify(`${customer.name} adlı müşteriye izin e-postası gönderildi.`, "success");
+    else notify(`${customer.name} adlı müşteriye izin e-postası gönderilemedi - lütfen tekrar deneyin.`);
   };
 
   // Teklif/anlaşma her aşamaya geçtiğinde müşteriye o aşamaya özel bir mail —
