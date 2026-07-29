@@ -6399,7 +6399,7 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Telefon</label>
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0532 000 00 00" style={{ width: "100%" }} />
+          <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0532 000 00 00" style={{ width: "100%" }} />
         </div>
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>E-posta <InfoTip align="right" text={CUSTOMER_EMAIL_INFO_TEXT} /></label>
@@ -6543,7 +6543,7 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Telefon</label>
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0532 000 00 00" style={{ width: "100%" }} />
+          <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0532 000 00 00" style={{ width: "100%" }} />
         </div>
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>E-posta</label>
@@ -10034,6 +10034,9 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify, st
     const { error } = await supabase.from("team_members").update({ commission_percent, chair_rental_fee }).eq("member_id", memberId);
     if (error) { notify(`Prim bilgisi güncellenemedi: ${error.message}`); return; }
     setMembers((prev) => prev.map((m) => (m.member_id === memberId ? { ...m, commission_percent, chair_rental_fee } : m)));
+    // onBlur ile sessizce kaydediyordu - bir "Kaydet" butonu olmadigi icin
+    // kullanicinin degisikligin gercekten islendigini gorecegi tek an burasi.
+    notify("Prim bilgisi kaydedildi.", "success");
   };
 
   const leaveTeam = async () => {
@@ -15632,6 +15635,7 @@ export default function App() {
             </label>
             <div style={{ display: "flex", gap: 8 }}>
               <input
+                type="tel"
                 value={leadCaptureShareNumber}
                 onChange={(e) => setLeadCaptureShareNumber(e.target.value)}
                 placeholder="0532 000 00 00"

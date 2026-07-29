@@ -72,7 +72,7 @@ export default function LeadCapturePage() {
                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ad Soyad / Firma" required style={{ width: "100%" }} />
               </div>
               <div style={{ marginBottom: 10 }}>
-                <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Telefon" style={{ width: "100%" }} />
+                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Telefon" style={{ width: "100%" }} />
               </div>
               <div style={{ marginBottom: 10 }}>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-posta" style={{ width: "100%" }} />
