@@ -675,6 +675,7 @@ function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange
   const [content, setContent] = useState("");
   const [isInternal, setIsInternal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState("");
 
   const sla = getSlaStatus(ticket);
   const priorityInfo = PRIORITIES.find((p) => p.id === ticket.priority);
@@ -687,7 +688,15 @@ function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange
     e.preventDefault();
     if (!content.trim()) return;
     setSaving(true);
-    await onAddMessage({ ticketId: ticket.id, direction, content: content.trim(), isInternal });
+    setNotice("");
+    const result = await onAddMessage({ ticketId: ticket.id, direction, content: content.trim(), isInternal });
+    if (result && !result.notified) {
+      setNotice(
+        result.hasEmail
+          ? "Mesaj portala eklendi ama e-posta bildirimi gönderilemedi - müşteri portalı kontrol etmedikçe bu yanıttan haberi olmaz."
+          : "Bu müşterinin e-postası kayıtlı olmadığı için bildirim gönderilemedi - mesaj yalnızca portalda görünüyor, müşteriye başka bir yoldan (telefon/WhatsApp) haber vermeniz gerekebilir."
+      );
+    }
     setContent("");
     setIsInternal(false);
     setSaving(false);
@@ -734,6 +743,12 @@ function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange
         <button type="submit" disabled={saving || !content.trim()} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
           Ekle
         </button>
+        {notice && (
+          <p style={{ fontSize: 12, color: "var(--text-warning)", margin: "8px 0 0", display: "flex", alignItems: "flex-start", gap: 4 }}>
+            <i className="ti ti-alert-triangle" style={{ fontSize: 13, marginTop: 1, flexShrink: 0 }} aria-hidden="true"></i>
+            {notice}
+          </p>
+        )}
       </form>
 
       {sortedMessages.length === 0 ? (

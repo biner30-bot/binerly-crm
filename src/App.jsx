@@ -13035,15 +13035,19 @@ export default function App() {
       await markMessagesRead(ticketId, direction === "giden" ? "gelen" : "giden");
     }
     // Dahili notlar müşteriye asla gitmez — sadece şirketten müşteriye giden gerçek yanıtlar.
+    // Sonuç geriye döndürülür - aksi halde personel mesajı eklemenin müşteriye
+    // otomatik haber verdiğini sanıp geçebiliyordu (e-postası yok / bildirimler
+    // kapalı / gönderim başarısız olduğunda mesaj sadece portalda sessizce bekliyordu).
     if (direction === "giden" && !isInternal) {
       const ticket = tickets.find((t) => t.id === ticketId);
       const customer = customers.find((c) => c.id === ticket?.customerId);
       const company = companySettings?.companyName || "Binerly";
-      notifyCustomerByEmail(
+      const notified = await notifyCustomerByEmail(
         customer,
         `Yeni bir yanıtınız var - ${company}`,
         `Merhaba,\n\n"${ticket?.subject || "Destek talebiniz"}" konulu talebinize yeni bir yanıt geldi:\n\n"${content.slice(0, 300)}"\n\nTam görüşme için müşteri portalımıza giriş yapabilirsiniz: https://portal.binerly.com\n\n${company}`
       );
+      return { notified, hasEmail: !!customer?.email };
     }
   };
 
