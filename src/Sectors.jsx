@@ -38,7 +38,11 @@ export const SECTOR_PRESETS = [
       kazanildi: "Satış/Kiralama tamamlandı",
       kaybedildi: "Vazgeçildi",
     },
-    tags: ["Sıcak lead", "Alıcı adayı", "Kiracı", "Yatırımcı", "Kredi bekliyor", "Ekspertiz bekleniyor"],
+    tags: ["Sıcak lead", "Alıcı adayı", "Kiracı", "Yatırımcı"],
+    // Bunlar aktif bir işlemin süreç durumunu anlatır (kredi/ekspertiz süreci
+    // henüz başlamış bir teklif gerektirir) — yeni müşteri kaydında değil,
+    // sadece Teklif formunda öneri olarak çıkar (bkz. sectorDealTags).
+    dealOnlyTags: ["Kredi bekliyor", "Ekspertiz bekleniyor"],
     // "Bütçe / Kira aralığı" tek serbest metin alanıydı — Gölge Avcı (portföy
     // eşleştirme) gerçek bir karşılaştırma yapabilmek için yapılandırılmış
     // (sayısal/seçenekli) veri gerektiriyor, bu yüzden müşteri tarafına
@@ -79,7 +83,10 @@ export const SECTOR_PRESETS = [
       kazanildi: "Proje onaylandı",
       kaybedildi: "Kaybedildi",
     },
-    tags: ["Aylık abonelik", "Proje bazlı", "Reklam yönetimi", "Web tasarım", "SEO", "Rapor gecikti"],
+    tags: ["Aylık abonelik", "Proje bazlı", "Reklam yönetimi", "Web tasarım", "SEO"],
+    // "Rapor gecikti" bir projenin sürecine dair — yeni müşteri henüz hiç
+    // rapor almadıysa bu anlamsız, sadece Teklif formunda önerilir.
+    dealOnlyTags: ["Rapor gecikti"],
     customFields: [
       { entity: "deal", key: "hizmet_turu", label: "Hizmet Türü", type: "select", options: ["Sosyal medya yönetimi", "Web tasarım", "SEO", "Reklam yönetimi (Ads)", "İçerik üretimi"] },
       { entity: "deal", key: "sozlesme_suresi", label: "Sözleşme Süresi", type: "select", options: ["Tek seferlik", "Aylık", "3 Aylık", "Yıllık"] },
@@ -107,7 +114,10 @@ export const SECTOR_PRESETS = [
       kazanildi: "Tedavi tamamlandı",
       kaybedildi: "Vazgeçti",
     },
-    tags: ["Yeni hasta", "Kontrol randevusu", "Takip gerekiyor", "Sigortalı", "Acil", "Gelmedi"],
+    tags: ["Yeni hasta", "Kontrol randevusu", "Takip gerekiyor", "Sigortalı", "Acil"],
+    // "Gelmedi" bir randevunun geçmiş sonucunu anlatır — yeni hasta kaydında
+    // henüz hiç randevu olmadığı için anlamsız, sadece Teklif formunda önerilir.
+    dealOnlyTags: ["Gelmedi"],
     customFields: [
       { entity: "customer", key: "randevu_turu", label: "Randevu Türü", type: "select", options: ["Muayene", "Kontrol", "Tedavi", "Danışmanlık"], audience: "bireysel" },
       { entity: "customer", key: "sigorta_durumu", label: "Sigorta/SGK Durumu", type: "select", options: ["Özel sigorta", "SGK", "Sigortasız"], audience: "bireysel" },
@@ -140,7 +150,8 @@ export const SECTOR_PRESETS = [
       kazanildi: "Sipariş alındı",
       kaybedildi: "Sipariş kaybedildi",
     },
-    tags: ["Toptan", "Perakende", "Tekrarlayan müşteri", "Yeni bayi", "İhracat", "Numune gönderildi"],
+    tags: ["Toptan", "Perakende", "Tekrarlayan müşteri", "Yeni bayi", "İhracat"],
+    dealOnlyTags: ["Numune gönderildi"],
     customFields: [
       { entity: "deal", key: "urun_grubu", label: "Ürün / Ürün Grubu", type: "text" },
       { entity: "deal", key: "siparis_miktari", label: "Sipariş Miktarı", type: "number" },
@@ -173,7 +184,8 @@ export const SECTOR_PRESETS = [
       kazanildi: "Anlaşma imzalandı",
       kaybedildi: "Kaybedildi",
     },
-    tags: ["Kurumsal danışmanlık", "Bireysel koçluk", "Tek seferlik", "Sürekli hizmet", "Referans", "Sözleşme bekleniyor"],
+    tags: ["Kurumsal danışmanlık", "Bireysel koçluk", "Tek seferlik", "Sürekli hizmet", "Referans"],
+    dealOnlyTags: ["Sözleşme bekleniyor"],
     customFields: [
       { entity: "deal", key: "ucretlendirme_modeli", label: "Ücretlendirme Modeli", type: "select", options: ["Saatlik", "Proje bazlı", "Aylık paket"] },
       { entity: "deal", key: "teslimat_tarihi", label: "Rapor/Teslimat Tarihi", type: "date" },
@@ -200,7 +212,8 @@ export const SECTOR_PRESETS = [
       kazanildi: "Satış tamamlandı",
       kaybedildi: "Vazgeçti",
     },
-    tags: ["Sadık müşteri", "Kampanya", "Online sipariş", "Mağaza içi", "İade talebi"],
+    tags: ["Sadık müşteri", "Kampanya", "Online sipariş", "Mağaza içi"],
+    dealOnlyTags: ["İade talebi"],
     customFields: [
       { entity: "deal", key: "satis_kanali", label: "Satış Kanalı", type: "select", options: ["Mağaza", "Online", "Telefon"] },
       { entity: "customer", key: "uyelik_no", label: "Üyelik / Sadakat Kartı No", type: "text", audience: "bireysel" },
@@ -226,7 +239,9 @@ export const SECTOR_PRESETS = [
       kazanildi: "Hizmet tamamlandı",
       kaybedildi: "Randevuya gelmedi / iptal",
     },
-    tags: ["Yeni randevu", "Sadık müşteri", "Hatırlatma gerekiyor", "Geldi", "Gelmedi"],
+    tags: ["Yeni randevu", "Sadık müşteri", "Hatırlatma gerekiyor"],
+    // "Geldi"/"Gelmedi" bir randevunun sonucudur, yeni müşteride henüz yok.
+    dealOnlyTags: ["Geldi", "Gelmedi"],
     customFields: [
       // "Hizmet Türü" bilerek yok — fiyat listesinden hizmet seçilince başlık zaten
       // hizmet adını taşıyor, ayrı bir alan mükerrer oluyordu (2026-07-22).
@@ -259,7 +274,9 @@ export const SECTOR_PRESETS = [
       kazanildi: "Üye oldu",
       kaybedildi: "Üye olmadı",
     },
-    tags: ["Yeni üye", "Deneme üyeliği", "Üyelik yenileme", "PT (Personal Training)", "Dondurulmuş üyelik"],
+    tags: ["Yeni üye", "Deneme üyeliği", "PT (Personal Training)"],
+    // Yenileme/dondurma önceden var olan bir üyeliği gerektirir.
+    dealOnlyTags: ["Üyelik yenileme", "Dondurulmuş üyelik"],
     customFields: [
       { entity: "deal", key: "uyelik_paketi", label: "Üyelik Paketi", type: "select", options: ["Aylık", "3 Aylık", "6 Aylık", "Yıllık", "PT Paketi"] },
       { entity: "deal", key: "deneme_dersi_tarihi", label: "Deneme Dersi Tarihi", type: "datetime" },
@@ -286,7 +303,9 @@ export const SECTOR_PRESETS = [
       kazanildi: "Kursa kayıt oldu",
       kaybedildi: "Kayıt olmadı",
     },
-    tags: ["Yeni öğrenci", "Deneme dersi", "Kayıt yenileme", "Burslu/İndirimli", "Kurs tamamlandı"],
+    tags: ["Yeni öğrenci", "Deneme dersi", "Burslu/İndirimli"],
+    // Yenileme/tamamlanma önceden var olan bir kayıt gerektirir.
+    dealOnlyTags: ["Kayıt yenileme", "Kurs tamamlandı"],
     customFields: [
       { entity: "deal", key: "kurs_programi", label: "Kurs / Program", type: "select", options: ["Yabancı Dil", "Sürücü Kursu", "Müzik/Sanat", "Akademik Destek", "Mesleki Kurs", "Diğer"] },
       { entity: "deal", key: "deneme_dersi_tarihi", label: "Deneme Dersi Tarihi", type: "datetime" },
@@ -313,7 +332,8 @@ export const SECTOR_PRESETS = [
       kazanildi: "Rezervasyon onaylandı",
       kaybedildi: "İptal / Vazgeçti",
     },
-    tags: ["Yeni rezervasyon", "Kapora alındı", "Grup rezervasyonu", "Tekrar eden misafir", "Erken giriş/Geç çıkış talebi", "İptal"],
+    tags: ["Yeni rezervasyon", "Grup rezervasyonu", "Tekrar eden misafir"],
+    dealOnlyTags: ["Kapora alındı", "Erken giriş/Geç çıkış talebi", "İptal"],
     customFields: [
       { entity: "deal", key: "oda_tipi", label: "Oda Tipi", type: "select", options: ["Standart Oda", "Deluxe Oda", "Suit", "Aile Odası"] },
       { entity: "deal", key: "giris_tarihi", label: "Giriş Tarihi", type: "datetime" },
@@ -342,7 +362,8 @@ export const SECTOR_PRESETS = [
       kazanildi: "İşlem tamamlandı",
       kaybedildi: "Vazgeçildi",
     },
-    tags: ["Garantili işçilik", "Acil", "Sigorta işi", "Yedek parça bekleniyor", "Teslim edildi", "Fiyat onayı bekleniyor"],
+    tags: ["Garantili işçilik", "Acil", "Sigorta işi"],
+    dealOnlyTags: ["Yedek parça bekleniyor", "Teslim edildi", "Fiyat onayı bekleniyor"],
     customFields: [
       { entity: "deal", key: "arac_ekipman_bilgisi", label: "Araç/Ekipman Bilgisi (Plaka, Marka, Model)", type: "text" },
       { entity: "deal", key: "servis_turu", label: "Servis Türü", type: "select", options: ["Oto Tamir", "Oto Boya", "Kaynak İşi", "Elektrik İşi", "Tornacılık", "Diğer"] },
@@ -367,6 +388,23 @@ export const SECTOR_PRESETS = [
     customFields: [],
   },
 ];
+
+// Müşteri formunda önerilen etiketler: sadece kişi/kurumun kalıcı bir
+// özelliğini/segmentini anlatanlar (örn. "Sıcak lead", "Sigortalı"). Henüz
+// hiç işlem geçmişi olmayan yeni bir kayıtta da anlamlı olmaları gerekir.
+export function sectorCustomerTags(sector) {
+  return SECTOR_PRESETS.find((p) => p.id === sector)?.tags || [];
+}
+
+// Teklif/randevu formunda önerilen etiketler: müşteri etiketlerine ek olarak,
+// yalnızca aktif bir işlemin sürecini/sonucunu anlatan etiketler de (örn.
+// "Gelmedi", "Rapor gecikti") buraya eklenir — bunlar yeni müşteri kaydında
+// anlamsız kaldığı için sectorCustomerTags'te YOK (bkz. dealOnlyTags alanları).
+export function sectorDealTags(sector) {
+  const preset = SECTOR_PRESETS.find((p) => p.id === sector);
+  if (!preset) return [];
+  return [...(preset.tags || []), ...(preset.dealOnlyTags || [])];
+}
 
 // Şirketin sektörüne göre (varsa) ve kurumsal/bireysel müşteri tipine göre aşama
 // görünen metnini belirler. Aşama id'leri hiç değişmez — sadece bu fonksiyonun

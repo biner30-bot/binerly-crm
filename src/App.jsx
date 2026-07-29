@@ -39,6 +39,8 @@ import {
   matchEmlakListing,
   buildEmlakListingTexts,
   computeAppointmentPenaltyBurn,
+  sectorCustomerTags,
+  sectorDealTags,
 } from "./Sectors";
 
 // Beklenen Gelir tahmini için basit, sabit olasılık ağırlıkları — kullanıcı
@@ -15172,7 +15174,7 @@ export default function App() {
             initial={editingCustomer}
             customers={customers}
             customFieldDefs={customFieldDefs}
-            sectorTags={SECTOR_PRESETS.find((p) => p.id === companySettings?.sector)?.tags || []}
+            sectorTags={sectorCustomerTags(companySettings?.sector)}
             preferredCustomerType={companySettings?.preferredCustomerType}
             companySector={companySettings?.sector}
             onSave={upsertCustomer}
@@ -15657,7 +15659,7 @@ export default function App() {
             appointmentDateTimeKey={appointmentDateTimeKey}
             roomInventory={roomInventory}
             customFieldDefs={customFieldDefs}
-            sectorTags={SECTOR_PRESETS.find((p) => p.id === companySettings?.sector)?.tags || []}
+            sectorTags={sectorDealTags(companySettings?.sector)}
             teamMembers={teamRoster}
             currentUserId={session.user.id}
             currentUserEmail={session.user.email}
