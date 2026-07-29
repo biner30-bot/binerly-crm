@@ -581,6 +581,13 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
               {showCompany && (
                 <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{companyNameByCustomerId[d.customerId] || "Bilinmeyen firma"}</p>
               )}
+              {/* Eskiden sadece span'ın title tooltip'indeydi - dokunmatik ekranda
+                  hover olmadığı için bu bilgi mobilde hiç görünmüyordu. */}
+              {cancellable && !canCancel && (
+                <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--text-muted)" }}>
+                  Randevu saatine {hardBlockHours} saatten az kaldığı için iptal edilemez
+                </p>
+              )}
             </div>
             <div className="list-toolbar" style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <Badge tone={tone}>{stageText}</Badge>
@@ -607,7 +614,7 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
               {cancellable && (canCancel ? (
                 <button type="button" onClick={() => onCancelAppointment(d.id, isLate, willBurnSession, chargeZone)} style={{ fontSize: 13 }}>İptal Et</button>
               ) : (
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }} title={`Planlanan saate ${hardBlockHours} saatten az kaldığı için iptal edilemez`}>İptal edilemez</span>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>İptal edilemez</span>
               ))}
             </div>
           </div>
@@ -671,6 +678,13 @@ function PortalGroupClasses({ groupClasses, groupClassEnrollments, groupClassWai
                         : "Bu süreden az kala iptal ediyorsunuz"}
                     </p>
                   )}
+                  {/* Eskiden sadece span'ın title tooltip'indeydi - dokunmatik
+                      ekranda hover olmadığı için mobilde hiç görünmüyordu. */}
+                  {!canCancel && (
+                    <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--text-muted)" }}>
+                      Ders saatine {hardBlockHours} saatten az kaldığı için iptal edilemez
+                    </p>
+                  )}
                 </div>
                 {canCancel ? (
                   <button
@@ -689,7 +703,7 @@ function PortalGroupClasses({ groupClasses, groupClassEnrollments, groupClassWai
                     İptal Et
                   </button>
                 ) : (
-                  <span style={{ fontSize: 12, color: "var(--text-muted)" }} title={`Ders saatine ${hardBlockHours} saatten az kaldığı için iptal edilemez`}>İptal edilemez</span>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>İptal edilemez</span>
                 )}
               </div>
             );
