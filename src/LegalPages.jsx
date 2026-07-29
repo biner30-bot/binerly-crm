@@ -43,7 +43,7 @@ function Section({ title, children }) {
 
 export function PrivacyPolicyPage() {
   return (
-    <LegalLayout title="Gizlilik Politikası" updatedAt="27 Temmuz 2026">
+    <LegalLayout title="Gizlilik Politikası" updatedAt="29 Temmuz 2026">
       <Section title="1. Genel">
         <p>
           Bu Gizlilik Politikası, Binerly ("biz", "Binerly") tarafından işletilen KOBİ CRM hizmetinin
@@ -77,11 +77,25 @@ export function PrivacyPolicyPage() {
           ve PayTR (hesap sahibi online ödeme bağlantısını aktif ettiğinde kredi/banka kartı ile ödeme
           işlemleri - kart bilgileriniz bu sağlayıcılar üzerinden işlenir, Binerly sunucularında saklanmaz),
           Sentry (uygulamada oluşan teknik hataların otomatik tespiti için hata mesajı/oturum teknik
-          bilgisi işlenir, kişisel veri içeriği en aza indirilecek şekilde yapılandırılmıştır).
+          bilgisi işlenir, kişisel veri içeriği en aza indirilecek şekilde yapılandırılmıştır), Google
+          Analytics ve Meta (Facebook) Pixel (yalnızca herkese açık sayfalarda, çerez tercihlerinizde
+          analitik/pazarlama çerezlerine onay verdiğinizde kullanım istatistiği ve reklam ölçümü amacıyla).
           Bu sağlayıcılarla veri işleme sözleşmeleri kapsamında çalışılmaktadır.
         </p>
       </Section>
-      <Section title="5. Veri Güvenliği">
+      <Section title="5. Çerezler">
+        <p>
+          binerly.com üzerinde sitenin çalışması için gerekli zorunlu çerezlerin yanında, onayınız halinde
+          kullanım istatistiklerini ölçmek için Google Analytics ve size uygun kampanya/reklam göstermek
+          için Meta (Facebook) Pixel çerezleri kullanılabilir. Bu çerezler yalnızca herkese açık sayfalarda
+          (ana sayfa, yasal sayfalar) ve sayfa altındaki çerez bildirimini "Hepsini kabul et" ile
+          onayladığınızda veya tercihler ekranından ilgili kategoriyi seçtiğinizde yüklenir; giriş
+          yaptığınız panelde veya Müşteri Bilgi Sistemi (portal) içinde bu çerezler hiç çalışmaz. Onay
+          vermez veya reddederseniz bu çerezler hiç yüklenmez; tercihinizi tarayıcınızın çerez ayarlarından
+          silerek sıfırlayabilirsiniz.
+        </p>
+      </Section>
+      <Section title="6. Veri Güvenliği">
         <p>
           Verileriniz bizimle güvendedir. Her kullanıcı yalnızca kendi verisine erişebilir (satır düzeyinde
           erişim kontrolü - Row Level Security) ve Binerly ekibi, verilerinize size destek olmak amacıyla
@@ -91,7 +105,7 @@ export function PrivacyPolicyPage() {
           saklanır; işe özel, ayrı bir hesap/numara bağlamanız önerilir.
         </p>
       </Section>
-      <Section title="6. Haklarınız">
+      <Section title="7. Haklarınız">
         <p>
           Verilerinize erişim, düzeltme veya silme talebiniz için{" "}
           <a href="mailto:info@binerly.com" style={{ color: "#185fa5" }}>info@binerly.com</a> adresinden
@@ -104,7 +118,7 @@ export function PrivacyPolicyPage() {
 
 export function KvkkPage() {
   return (
-    <LegalLayout title="KVKK Aydınlatma Metni" updatedAt="27 Temmuz 2026">
+    <LegalLayout title="KVKK Aydınlatma Metni" updatedAt="29 Temmuz 2026">
       <Section title="1. Veri Sorumlusu">
         <p>
           6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") uyarınca, Binerly markası altında hizmet
@@ -135,8 +149,10 @@ export function KvkkPage() {
           Verileriniz, hizmetin sunulabilmesi için gerekli teknik altyapı sağlayıcılarımız (Supabase -
           veritabanı ve kimlik doğrulama, Vercel - barındırma, Resend - e-posta gönderimi, Google - Google
           ile giriş tercih edildiğinde kimlik doğrulama, iyzico/PayTR - online ödeme tercih edildiğinde
-          kredi/banka kartı ile ödeme işlemleri, Sentry - uygulama hatalarının teknik olarak tespiti) ile
-          ve yasal olarak yetkili kamu kurum/kuruluşlarıyla, yalnızca talep edilmesi halinde paylaşılabilir.
+          kredi/banka kartı ile ödeme işlemleri, Sentry - uygulama hatalarının teknik olarak tespiti,
+          Google Analytics/Meta Pixel - yalnızca herkese açık sayfalarda çerez onayı verdiğinizde kullanım
+          istatistiği ve reklam ölçümü) ile ve yasal olarak yetkili kamu kurum/kuruluşlarıyla, yalnızca
+          talep edilmesi halinde paylaşılabilir.
         </p>
       </Section>
       <Section title="5. Veri Sahibinin Hakları (KVKK m.11)">
