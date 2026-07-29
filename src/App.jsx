@@ -7569,6 +7569,25 @@ const REFUND_REASON_OPTIONS = [
   { value: "other", label: "Diğer" },
 ];
 
+// iyzico/PayTR'da işlem, alındığı gün gün sonu mutabakatından önce iptal
+// edilirse hiç gerçekleşmemiş sayılır ve komisyon kesilmez - ama gün sonu
+// kapanışı geçip muhasebeleştikten sonra yapılan bir iadede kesilen komisyon
+// sağlayıcı tarafından geri ödenmez (bu maliyet üye işyerinde kalır). Bu not,
+// KOBİ iade tutarını girmeden ÖNCE bu maliyeti görsün diye ödemenin gerçek
+// tarihine göre otomatik hesaplanıyor - PayTR'nin gün-sonrası politikası
+// sözleşmeye bağlı olduğu için (iyzico'nun aksine kesin değil) ayrı ifade edildi.
+function refundCommissionNote(payment) {
+  const providerLabel = payment.provider === "paytr" ? "PayTR" : "iyzico";
+  const isSameDay = (payment.paidAt || "").slice(0, 10) === new Date().toISOString().slice(0, 10);
+  if (isSameDay) {
+    return `Bugün alınan bir ödeme - gün sonu kapanışından önce iptal ederseniz ${providerLabel} komisyon kesmez.`;
+  }
+  if (payment.provider === "paytr") {
+    return `Bu ödeme ${paymentDateLabel(payment.paidAt)} tarihinde alındı - gün sonu kapanışı geçtiği için komisyon iadesi üye işyeri sözleşmenizin şartlarına bağlı, genel uygulamada geri ödenmez.`;
+  }
+  return `Bu ödeme ${paymentDateLabel(payment.paidAt)} tarihinde alındı - gün sonu kapanışı geçtiği için iyzico, satıştan kesilen komisyonu iade etmez, bu maliyet üzerinizde kalır.`;
+}
+
 function DealPayments({ deal, payments, sector, onAddPayment, onUpdatePayment, onDeletePayment, onRefundPayment }) {
   const [amount, setAmount] = useState("");
   const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10));
@@ -7734,6 +7753,7 @@ function DealPayments({ deal, payments, sector, onAddPayment, onUpdatePayment, o
                 )}
                 {refundingId === p.id && (
                   <div style={{ marginTop: 6, padding: 8, border: "0.5px solid var(--border)", borderRadius: "var(--radius)" }}>
+                    <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "0 0 8px" }}>{refundCommissionNote(p)}</p>
                     <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
                       <input
                         type="number" min="0" step="0.01" max={refundable}
