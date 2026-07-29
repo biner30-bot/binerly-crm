@@ -11595,6 +11595,7 @@ export default function App() {
   const [paymentsDeal, setPaymentsDeal] = useState(null);
   const [paymentModeDeal, setPaymentModeDeal] = useState(null);
   const [leadCaptureLink, setLeadCaptureLink] = useState(null);
+  const [leadCaptureShareNumber, setLeadCaptureShareNumber] = useState("");
   const [showPortalLinkModal, setShowPortalLinkModal] = useState(false);
   const [quickList, setQuickList] = useState(null);
   const [initialViewTicketId, setInitialViewTicketId] = useState(null);
@@ -15515,6 +15516,36 @@ export default function App() {
             >
               Kopyala
             </button>
+          </div>
+
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
+              Numara yazıp doğrudan WhatsApp'tan gönder
+            </label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                value={leadCaptureShareNumber}
+                onChange={(e) => setLeadCaptureShareNumber(e.target.value)}
+                placeholder="0532 000 00 00"
+                style={{ flex: 1, fontSize: 13 }}
+              />
+              <button
+                type="button"
+                disabled={!leadCaptureShareNumber.trim()}
+                onClick={() => {
+                  const message = `Merhaba, ${companySettings?.companyName || "işletmemiz"} ile iletişime geçebilmeniz için bilgilerinizi bu linkten bırakabilirsiniz: ${leadCaptureLink}`;
+                  window.open(`https://wa.me/${toWhatsAppNumber(leadCaptureShareNumber)}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+                }}
+                style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
+              >
+                <WhatsAppIcon /> Gönder
+              </button>
+            </div>
+            <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "6px 0 0" }}>
+              WhatsApp'ınızda hazır mesajla bir sohbet açılır, gönderimi siz onaylarsınız. Bunu sadece sizinle gerçekten
+              teması olan kişiler için kullanın (kartvizit bıraktı, telefonla görüştünüz vb.) - rastgele/toplu numara
+              listelerine göndermek önerilmez.
+            </p>
           </div>
         </Modal>
       )}
