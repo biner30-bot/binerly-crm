@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
-import { Badge, TONE_COLORS, Modal, MetricCard, InfoTip, isFullNameValid, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, WEEKDAYS_SHORT, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl } from "./shared";
+import { Badge, TONE_COLORS, Modal, MetricCard, InfoTip, isFullNameValid, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, WEEKDAYS_SHORT, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl, translateAuthError } from "./shared";
 import Finance, { rowToCompanyExpense, expandExpenseOccurrences } from "./Finance";
 import { rowToChannelCredential, rowToChannelMessage } from "./Messages";
 import Support, {
@@ -10919,7 +10919,7 @@ function AppSettingsModal({ session, theme, onThemeChange, pushSubscribed, onSub
     setSavingName(true);
     const { error } = await supabase.auth.updateUser({ data: { full_name: name.trim() } });
     setSavingName(false);
-    if (error) { notify(`Kaydedilemedi: ${error.message}`); return; }
+    if (error) { notify(`Kaydedilemedi: ${translateAuthError(error.message)}`); return; }
     notify("Adınız güncellendi.", "success");
   };
 
@@ -10936,7 +10936,7 @@ function AppSettingsModal({ session, theme, onThemeChange, pushSubscribed, onSub
     }
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     setSaving(false);
-    if (error) { notify(`Şifre değiştirilemedi: ${error.message}`); return; }
+    if (error) { notify(`Şifre değiştirilemedi: ${translateAuthError(error.message)}`); return; }
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
@@ -11085,11 +11085,11 @@ function AuthModal({ initialMode = "login", onClose }) {
     setLoading(true);
     if (mode === "login") {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setMessage(error.message);
+      if (error) setMessage(translateAuthError(error.message));
     } else {
       if (!isFullNameValid(name)) { setMessage("Lütfen ad ve soyadınızı girin."); setLoading(false); return; }
       const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name.trim() } } });
-      if (error) setMessage(error.message);
+      if (error) setMessage(translateAuthError(error.message));
       else setMessage("Kayıt başarılı! E-postanıza gelen doğrulama linkine tıklayın.");
     }
     setLoading(false);
@@ -11102,12 +11102,12 @@ function AuthModal({ initialMode = "login", onClose }) {
       redirectTo: `${window.location.origin}/`,
     });
     setLoading(false);
-    setMessage(error ? error.message : "E-postanıza bir şifre sıfırlama bağlantısı gönderdik.");
+    setMessage(error ? translateAuthError(error.message) : "E-postanıza bir şifre sıfırlama bağlantısı gönderdik.");
   };
 
   const handleGoogleCredential = async (idToken, nonce) => {
     const { error } = await supabase.auth.signInWithIdToken({ provider: "google", token: idToken, nonce });
-    if (error) setMessage(error.message);
+    if (error) setMessage(translateAuthError(error.message));
   };
 
   return (
@@ -11131,7 +11131,8 @@ function AuthModal({ initialMode = "login", onClose }) {
           </div>
           <div style={{ marginBottom: 8 }}>
             <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>Şifre</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ width: "100%", padding: "10px 12px", border: "1px solid #e1e8f0", borderRadius: 8, fontSize: 14, boxSizing: "border-box" }} />
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={mode === "register" ? 6 : undefined} style={{ width: "100%", padding: "10px 12px", border: "1px solid #e1e8f0", borderRadius: 8, fontSize: 14, boxSizing: "border-box" }} />
+            {mode === "register" && <p style={{ fontSize: 11.5, color: "#94a7bb", margin: "4px 0 0" }}>En az 6 karakter olmalı.</p>}
           </div>
           {mode === "login" && (
             <p style={{ margin: "0 0 16px" }}>

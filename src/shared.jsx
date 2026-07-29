@@ -13,6 +13,28 @@ export function isFullNameValid(name) {
   return name.trim().split(/\s+/).filter(Boolean).length >= 2;
 }
 
+// Supabase Auth hataları İngilizce ve teknik geliyor ("Invalid login
+// credentials" vb.) — hem KOBİ girişinde hem müşteri portalında bunu olduğu
+// gibi göstermek kafa karıştırıyor/güvensizlik veriyordu. Bilinen mesajlar
+// Türkçeye çevrilir, tanınmayanlar için genel ama anlaşılır bir metin döner.
+const AUTH_ERROR_MAP = [
+  [/invalid login credentials/i, "E-posta veya şifre hatalı."],
+  [/email not confirmed/i, "E-posta adresiniz henüz doğrulanmadı. Gelen kutunuzu kontrol edip doğrulama linkine tıklayın."],
+  [/user already registered/i, "Bu e-posta adresiyle zaten bir hesap var. Giriş yapmayı deneyin."],
+  [/password should be at least/i, "Şifre en az 6 karakter olmalıdır."],
+  [/unable to validate email address/i, "Geçerli bir e-posta adresi girin."],
+  [/valid password/i, "Geçerli bir şifre girin."],
+  [/new password should be different/i, "Yeni şifre, eski şifrenizden farklı olmalıdır."],
+  [/security purposes|rate limit/i, "Çok sık deneme yapıldı, lütfen biraz sonra tekrar deneyin."],
+  [/failed to fetch|network|load failed/i, "Bağlantı hatası, lütfen internet bağlantınızı kontrol edip tekrar deneyin."],
+];
+
+export function translateAuthError(message) {
+  if (!message) return "İşlem tamamlanamadı, lütfen tekrar deneyin.";
+  const match = AUTH_ERROR_MAP.find(([pattern]) => pattern.test(message));
+  return match ? match[1] : "İşlem tamamlanamadı, lütfen tekrar deneyin.";
+}
+
 export const WEEKDAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 // WEEKDAYS.map(w => w.slice(0,3)) "Cuma"/"Cumartesi" ve "Pazartesi"/"Pazar"
 // için aynı "CUM"/"PAZ" kısaltmasını üretiyordu — ajanda başlığında iki gün

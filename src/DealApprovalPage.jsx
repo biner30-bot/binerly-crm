@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
-import { GoogleAuthButton, AuthDivider, isFullNameValid } from "./shared";
+import { GoogleAuthButton, AuthDivider, isFullNameValid, translateAuthError } from "./shared";
 import { dealWordKind } from "./Sectors";
 
 const APPROVAL_DEAL_WORDS = {
@@ -135,11 +135,11 @@ export default function DealApprovalPage() {
     setAuthLoading(true);
     if (authMode === "login") {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setAuthMessage(error.message);
+      if (error) setAuthMessage(translateAuthError(error.message));
     } else {
       if (!isFullNameValid(name)) { setAuthMessage("Lütfen ad ve soyadınızı girin."); setAuthLoading(false); return; }
       const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name.trim() }, emailRedirectTo: window.location.href } });
-      if (error) setAuthMessage(error.message);
+      if (error) setAuthMessage(translateAuthError(error.message));
       else setAuthMessage("Kayıt başarılı! E-postanıza gelen doğrulama linkine tıklayıp bu sayfaya geri dönün.");
     }
     setAuthLoading(false);
@@ -147,7 +147,7 @@ export default function DealApprovalPage() {
 
   const handleGoogleCredential = async (idToken, nonce) => {
     const { error } = await supabase.auth.signInWithIdToken({ provider: "google", token: idToken, nonce });
-    if (error) setAuthMessage(error.message);
+    if (error) setAuthMessage(translateAuthError(error.message));
   };
 
   const approve = async () => {
@@ -224,7 +224,8 @@ export default function DealApprovalPage() {
               </div>
               <div style={{ marginBottom: 12 }}>
                 <label style={{ fontSize: 12, color: "#5b7088", display: "block", marginBottom: 4 }}>Şifre</label>
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ width: "100%", padding: "9px 10px", border: "1px solid #e1e8f0", borderRadius: 8, fontSize: 14, boxSizing: "border-box" }} />
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={authMode === "register" ? 6 : undefined} style={{ width: "100%", padding: "9px 10px", border: "1px solid #e1e8f0", borderRadius: 8, fontSize: 14, boxSizing: "border-box" }} />
+                {authMode === "register" && <p style={{ fontSize: 11, color: "#94a7bb", margin: "4px 0 0" }}>En az 6 karakter olmalı.</p>}
               </div>
               {authMessage && <p style={{ fontSize: 12.5, color: "#b45309", marginBottom: 12 }}>{authMessage}</p>}
               <button type="submit" disabled={authLoading} style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>

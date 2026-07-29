@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import AdminPanel from "./Admin";
+import { translateAuthError } from "./shared";
 
 // Sadece bu e-postayla giriş yapan (kurucu) buraya erişebilir — gerçek yetki
 // kontrolü api/admin-data.js'te sunucu tarafında yapılıyor, bu sadece sayfayı
@@ -18,7 +19,7 @@ function AdminLogin({ notify }) {
     e.preventDefault();
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) notify(error.message);
+    if (error) notify(translateAuthError(error.message));
     setLoading(false);
   };
 
