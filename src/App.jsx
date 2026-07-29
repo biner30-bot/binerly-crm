@@ -361,6 +361,12 @@ const PORTAL_INFO_TEXT =
   "portal üzerinden kendi hesabını oluşturması yeterli, özel bir davet göndermenize gerek yok - " +
   "isterseniz \"Linki paylaş\"a tıklayıp portal adresini WhatsApp'tan hatırlatabilirsiniz.";
 
+const MARKETING_CONSENT_INFO_TEXT =
+  "Türkiye'de kampanya/değerlendirme isteği gibi e-postalar göndermek için müşterinin gerçek, kendi verdiği " +
+  "izni (İYS) gerekiyor - siz adına veremezsiniz.\n\n" +
+  "Var - müşteri izin verdi (Müşteri Kazanma Linki, Müşteri Portalı veya e-posta ile çift onaydan).\n" +
+  "İzin iste - bu müşteriye onay linkli bir e-posta gönderir. E-postası yoksa hiç gösterilmez.";
+
 const DEAL_WORD_FORMS = {
   teklif: { bare: "teklif", pdfLabel: "Teklif PDF", acc: "teklifi", dat: "teklife", plural: "teklifler", pluralAcc: "teklifleri", gen: "teklifin", genPlural: "tekliflerin", loc: "teklifte", pluralLoc: "tekliflerde", ctaLabel: "Teklifi Görüntüle", possYours: "Teklifiniz", possYoursAcc: "teklifinizi" },
   randevu: { bare: "randevu", pdfLabel: "Randevu Özeti PDF", acc: "randevuyu", dat: "randevuya", plural: "randevular", pluralAcc: "randevuları", gen: "randevunun", genPlural: "randevuların", loc: "randevuda", pluralLoc: "randevularda", ctaLabel: "Randevuyu Görüntüle", possYours: "Randevunuz", possYoursAcc: "randevunuzu" },
@@ -11536,6 +11542,7 @@ export default function App() {
   const [customerToDate, setCustomerToDate] = useState("");
   const [customerSectorFilter, setCustomerSectorFilter] = useState("all");
   const [customerTypeFilter, setCustomerTypeFilter] = useState("all");
+  const [customerConsentFilter, setCustomerConsentFilter] = useState("all");
   const [customerSort, setCustomerSort] = useState("newest");
   const [dealSearch, setDealSearch] = useState("");
   const [dealFromDate, setDealFromDate] = useState("");
@@ -13576,6 +13583,8 @@ export default function App() {
       if (!matchesDateRange(c.lastContact, customerFromDate, customerToDate)) return false;
       if (customerSectorFilter !== "all" && c.sector !== customerSectorFilter) return false;
       if (customerTypeFilter !== "all" && c.customerType !== customerTypeFilter) return false;
+      if (customerConsentFilter === "verildi" && !c.marketingConsent) return false;
+      if (customerConsentFilter === "verilmedi" && c.marketingConsent) return false;
       if (!customerQuery) return true;
       return [c.name, c.sector, c.region, c.address, c.phone, c.email].some((f) => (f || "").toLowerCase().includes(customerQuery));
     })
@@ -14588,6 +14597,11 @@ export default function App() {
               <option value="all">Tüm sektörler</option>
               {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
+            <select value={customerConsentFilter} onChange={(e) => setCustomerConsentFilter(e.target.value)} style={{ fontSize: 13 }}>
+              <option value="all">Pazarlama izni: hepsi</option>
+              <option value="verildi">İzin verildi</option>
+              <option value="verilmedi">İzin verilmedi</option>
+            </select>
             <select value={customerSort} onChange={(e) => setCustomerSort(e.target.value)} style={{ fontSize: 13 }}>
               <option value="newest">En yeni müşteri</option>
               <option value="oldest">En eski müşteri</option>
@@ -14624,6 +14638,9 @@ export default function App() {
                   <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Son temas</th>
                   <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Portal <InfoTip text={PORTAL_INFO_TEXT} /></span>
+                  </th>
+                  <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>İzin <InfoTip text={MARKETING_CONSENT_INFO_TEXT} /></span>
                   </th>
                   <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Bakiye <InfoTip text={cariBakiyeInfoText(companySettings?.sector)} /></span>
@@ -14676,6 +14693,22 @@ export default function App() {
                           style={{ fontSize: 12, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
                         >
                           Linki paylaş
+                        </button>
+                      )}
+                    </td>
+                    <td data-label="İzin" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                      {!c.email ? (
+                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>-</span>
+                      ) : c.marketingConsent ? (
+                        <Badge tone="success">Var</Badge>
+                      ) : (
+                        <button
+                          type="button"
+                          title="İzin e-postası gönder"
+                          onClick={() => requestMarketingConsent(c)}
+                          style={{ fontSize: 12, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
+                        >
+                          İzin iste
                         </button>
                       )}
                     </td>
