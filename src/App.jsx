@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 import { Badge, TONE_COLORS, Modal, MetricCard, InfoTip, isFullNameValid, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, WEEKDAYS_SHORT, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl } from "./shared";
 import Finance, { rowToCompanyExpense, expandExpenseOccurrences } from "./Finance";
@@ -6765,13 +6766,55 @@ function AppointmentDateTimeField({ businessUserId, label, value, onChange }) {
 // deseni kullanılıyor.
 function RowActionsMenu({ items }) {
   const [open, setOpen] = useState(false);
-  const containerRef = useRef(null);
+  const [coords, setCoords] = useState(null);
+  const buttonRef = useRef(null);
+  const menuRef = useRef(null);
   const visibleItems = items.filter(Boolean);
+
+  // Menü eskiden butonun içinde position:absolute ile açılıyordu — tablo
+  // gövdesi gibi overflow-y:auto olan bir üst öğe içindeyse menü kırpılıp
+  // görünmez oluyordu (InfoTip'te yaşanan aynı kök neden, bkz. shared.jsx
+  // InfoTip). document.body'ye portal + fixed konumlandırma ile üst öğe
+  // overflow'undan bağımsız hale getiriliyor.
+  const reposition = () => {
+    const btnEl = buttonRef.current;
+    const menuEl = menuRef.current;
+    if (!btnEl || !menuEl) return;
+    const rect = btnEl.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const margin = 8;
+    const mw = menuEl.offsetWidth;
+    const mh = menuEl.offsetHeight;
+
+    let top = rect.bottom + 4;
+    if (top + mh > vh - margin) top = Math.max(margin, rect.top - 4 - mh);
+
+    let right = vw - rect.right;
+    if (vw - right - mw < margin) right = Math.max(margin, vw - mw - margin);
+
+    setCoords({ top, right });
+  };
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    reposition();
+    const onScrollOrResize = () => reposition();
+    window.addEventListener("scroll", onScrollOrResize, true);
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      window.removeEventListener("scroll", onScrollOrResize, true);
+      window.removeEventListener("resize", onScrollOrResize);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const handleClickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false);
+      if (buttonRef.current?.contains(e.target)) return;
+      if (menuRef.current?.contains(e.target)) return;
+      setOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -6780,14 +6823,19 @@ function RowActionsMenu({ items }) {
   if (visibleItems.length === 0) return null;
 
   return (
-    <div ref={containerRef} style={{ position: "relative" }}>
+    <div ref={buttonRef} style={{ display: "inline-block" }}>
       <IconButton icon="ti-dots-vertical" title="İşlemler" onClick={() => setOpen((v) => !v)} active={open} />
-      {open && (
+      {open && createPortal(
         <div
+          ref={menuRef}
           style={{
-            position: "absolute", top: "calc(100% + 4px)", right: 0, minWidth: 210,
+            position: "fixed",
+            // İlk mount'ta coords henüz yok — ekran dışına (ama ölçülebilir
+            // şekilde) konumlanır, reposition() gerçek boyutu ölçüp doğru yere taşır.
+            top: coords ? coords.top : -9999, right: coords ? coords.right : -9999,
+            minWidth: 210,
             background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.15)", zIndex: 60, overflow: "hidden",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.15)", zIndex: 2000, overflow: "hidden",
           }}
         >
           {visibleItems.map((item, i) => (
@@ -6809,7 +6857,8 @@ function RowActionsMenu({ items }) {
               {item.label}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
