@@ -11230,7 +11230,7 @@ function LandingPage() {
             Ekibiniz büyüsün, faturanız büyümesin
           </h2>
           <p style={{ maxWidth: 680, fontSize: 16, color: "#5b7088", lineHeight: 1.8, margin: "0 0 2.5rem" }}>
-            Türkiye'deki CRM'lerin çoğu kullanıcı başına ücretlendiriyor, bazıları da dolar/euro bazlı - ekibiniz büyüdükçe faturanız da büyüyor, kur dalgalandıkça bütçeniz sarsılıyor. Binerly'de öyle değil: 10 kullanıcıya kadar sabit bir ücretle çalışacağız, her zaman TL bazlı.
+            Türkiye'deki CRM'lerin çoğu kullanıcı başına ücretlendiriyor, bazıları da dolar/euro bazlı - ekibiniz büyüdükçe faturanız da büyüyor, kur dalgalandıkça bütçeniz sarsılıyor. Binerly'de öyle değil: 5 kullanıcıya kadar sabit bir ücretle çalışacağız, her zaman TL bazlı. Ekibiniz daha büyükse bize ulaşın, birlikte bir çözüm bulalım.
           </p>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 2.5 + "rem" }}>
@@ -11412,9 +11412,9 @@ export default function App() {
   const [activationChecklistDismissedClick, setActivationChecklistDismissedClick] = useState(false);
   const [showAskDock, setShowAskDock] = useState(false);
   // v1: üye sayısı kod tarafında henüz sınırlanmıyor, henüz billing yok.
-  // Hedef fiyatlandırma "10 kullanıcıya kadar sabit ücret" olarak siteye
+  // Hedef fiyatlandırma "5 kullanıcıya kadar sabit ücret" olarak siteye
   // yazıldı (App.jsx LandingPage, "Neden Binerly" bölümü) — billing
-  // eklendiğinde davet oluşturma burada 10 üyeyle sınırlanmalı.
+  // eklendiğinde davet oluşturma burada 5 üyeyle sınırlanmalı.
   const [activeTeamId, setActiveTeamId] = useState(undefined);
   const [pendingInvites, setPendingInvites] = useState([]);
   const [dismissedInviteIds, setDismissedInviteIds] = useState([]);
