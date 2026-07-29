@@ -474,14 +474,16 @@ function TicketForm({ customers, initial, onSave, onCancel, sector }) {
   const [description, setDescription] = useState(initial?.description || "");
   const [priority, setPriority] = useState(initial?.priority || "orta");
   const [status, setStatus] = useState(initial?.status || "acik");
+  const [saving, setSaving] = useState(false);
 
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        if (!customerId || !subject.trim()) return;
+        if (!customerId || !subject.trim() || saving) return;
+        setSaving(true);
         const isTerminal = TERMINAL_STATUSES.includes(status);
-        onSave({
+        await onSave({
           id: initial?.id || uid(),
           customerId,
           subject: subject.trim(),
@@ -491,6 +493,7 @@ function TicketForm({ customers, initial, onSave, onCancel, sector }) {
           resolvedAt: isTerminal ? (initial?.resolvedAt || new Date().toISOString()) : null,
           createdAt: initial?.createdAt || new Date().toISOString(),
         });
+        setSaving(false);
       }}
     >
       <div style={{ marginBottom: 12 }}>
@@ -529,7 +532,9 @@ function TicketForm({ customers, initial, onSave, onCancel, sector }) {
       </div>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button type="button" onClick={onCancel}>Vazgeç</button>
-        <button type="submit" disabled={customers.length === 0} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
+        <button type="submit" disabled={customers.length === 0 || saving} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+          {saving ? "Kaydediliyor…" : "Kaydet"}
+        </button>
       </div>
     </form>
   );
