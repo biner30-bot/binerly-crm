@@ -838,6 +838,7 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
   const [audience, setAudience] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [editingDef, setEditingDef] = useState(null);
+  const [formError, setFormError] = useState("");
 
   const activeDefs = customFieldDefs.filter((d) => d.active);
   const customerDefs = activeDefs.filter((d) => d.entity === "customer");
@@ -850,6 +851,7 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
     setType(d.type);
     setOptions((d.options || []).join(", "));
     setAudience(d.audience || "");
+    setFormError("");
   };
 
   const cancelEdit = () => {
@@ -858,10 +860,12 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
     setOptions("");
     setAudience("");
     setType("text");
+    setFormError("");
   };
 
   const submit = (e) => {
     e.preventDefault();
+    setFormError("");
     const trimmedLabel = label.trim();
     if (!trimmedLabel) return;
     const parsedOptions = type === "select" ? options.split(",").map((o) => o.trim()).filter(Boolean) : null;
@@ -874,7 +878,12 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
     // customFieldDefs (sadece activeDefs değil) kontrol ediliyor — aksi halde başka
     // bir sektöre etiketlenmiş, şu an gizli (inactive) bir satırla aynı key'e sahip
     // ikinci bir tanım oluşturulabilir (aynı JSONB anahtarını paylaşan iki kayıt).
-    if (!key || RESERVED_CUSTOM_FIELD_KEYS.has(key) || customFieldDefs.some((d) => d.entity === entity && d.key === key)) return;
+    // Bu üç durum eskiden formu sessizce hiçbir şey yapmadan bırakıyordu -
+    // kullanıcı "Ekle"ye basıp hiçbir tepki görmeyince neden çalışmadığını
+    // anlayamıyordu.
+    if (!key) { setFormError("Bu alan adından geçerli bir anahtar oluşturulamadı - lütfen en az bir harf/rakam içeren bir ad girin."); return; }
+    if (RESERVED_CUSTOM_FIELD_KEYS.has(key)) { setFormError(`"${trimmedLabel}" adı sistem tarafından kullanılıyor - lütfen farklı bir ad deneyin.`); return; }
+    if (customFieldDefs.some((d) => d.entity === entity && d.key === key)) { setFormError(`Bu isimde bir alan zaten var (pasif olsa bile) - lütfen farklı bir ad deneyin.`); return; }
     onAdd({
       entity,
       key,
@@ -970,6 +979,7 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
           </button>
         )}
       </form>
+      {formError && <p style={{ fontSize: 12.5, color: "var(--text-danger)", margin: "6px 0 0" }}>{formError}</p>}
 
       {confirmDelete && (
         <ConfirmDialog
