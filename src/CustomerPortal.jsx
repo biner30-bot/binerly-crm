@@ -1073,7 +1073,7 @@ function PasswordRecoveryModal({ notify, onClose }) {
   );
 }
 
-function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubscribe, onUnsubscribe, notify }) {
+function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubscribe, onUnsubscribe, marketingConsent, onMarketingConsentChange, notify }) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -1135,6 +1135,17 @@ function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubsc
         </div>
         <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "8px 0 0" }}>
           iPhone'da bildirim almak için önce uygulamayı Ana Ekrana eklemeniz gerekir.
+        </p>
+      </div>
+
+      <div style={{ marginBottom: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
+        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Pazarlama İzni</p>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+          <input type="checkbox" checked={!!marketingConsent} onChange={(e) => onMarketingConsentChange(e.target.checked)} />
+          Bu işletmeden kampanya ve değerlendirme isteği gibi e-postalar almak istiyorum
+        </label>
+        <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "8px 0 0" }}>
+          Bu izin dilediğiniz zaman geri çekilebilir. Birden fazla işletmeye bağlıysanız, sadece şu an seçili olan işletme için geçerlidir.
         </p>
       </div>
 
@@ -1317,6 +1328,8 @@ export default function CustomerPortal() {
           companyAppointmentPenaltyStrikeLimit: r.company_appointment_penalty_strike_limit ?? null,
           companyAppointmentPenaltyBurnsSession: r.company_appointment_penalty_burns_session === true,
           companyAppointmentPartialChargeHours: r.company_appointment_partial_charge_hours ?? null,
+          marketingConsent: r.marketing_consent === true,
+          marketingConsentAt: r.marketing_consent_at || null,
         }));
         setCustomerRows(rows);
         const customerIds = rows.map((r) => r.id);
@@ -1689,6 +1702,18 @@ export default function CustomerPortal() {
   const activeCustomerRow = customerRows.find((r) => r.id === selectedCompanyId) || null;
   const showCompanyPicker = customerRows.length > 1 && !activeCustomerRow;
 
+  // İzin İŞLETME BAZINDA — müşteri birden fazla firmaya bağlıysa (çoklu işletme
+  // portalı), sadece o an seçili olan firma için izin değişir, diğerleri etkilenmez.
+  const setMarketingConsent = async (consent) => {
+    if (!activeCustomerRow) return;
+    const { error } = await supabase.rpc("set_my_marketing_consent", { p_customer_id: activeCustomerRow.id, p_consent: consent });
+    if (error) { notify(`Güncellenemedi: ${error.message}`); return; }
+    setCustomerRows((prev) =>
+      prev.map((r) => (r.id === activeCustomerRow.id ? { ...r, marketingConsent: consent, marketingConsentAt: consent ? new Date().toISOString() : r.marketingConsentAt } : r))
+    );
+    notify(consent ? "Pazarlama e-postası izniniz kaydedildi." : "İzniniz kaldırıldı.", "success");
+  };
+
   const visibleCustomerRows = activeCustomerRow ? [activeCustomerRow] : [];
   // "Mesajlar" sohbeti (is_general_chat) Taleplerim listesinde görünmez — kendi
   // sekmesinde, konu/durum olmadan düz bir sohbet olarak gösteriliyor.
@@ -1930,6 +1955,8 @@ export default function CustomerPortal() {
               pushSubscribed={pushSubscribed}
               onSubscribe={subscribeToPush}
               onUnsubscribe={unsubscribeFromPush}
+              marketingConsent={activeCustomerRow?.marketingConsent}
+              onMarketingConsentChange={setMarketingConsent}
               notify={notify}
             />
           )}

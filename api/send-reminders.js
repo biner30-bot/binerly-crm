@@ -38,14 +38,47 @@ export default async function handler(req, res) {
     if (dealsError) {
       return res.status(500).json({ error: dealsError.message });
     }
-    if (!dueDeals || dueDeals.length === 0) {
-      return res.status(200).json({ usersNotified: 0 });
+
+    // Google değerlendirme isteği: "kazanildi" aşamasına DÜN geçmiş (Europe/Istanbul
+    // takvim günü) ve daha önce hiç istek gönderilmemiş kayıtlar. Türkiye 2016'dan beri
+    // kalıcı olarak UTC+3'te (DST yok), bu yüzden sabit ofsetle gün sınırını güvenle
+    // UTC'ye çevirebiliyoruz (bkz. appointment-availability.js'teki Europe/Istanbul
+    // hesaplaması — aynı UTC-yanlışı tuzağına düşmemek için).
+    const istanbulParts = Object.fromEntries(
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Istanbul",
+        year: "numeric", month: "2-digit", day: "2-digit",
+      }).formatToParts(new Date()).map((p) => [p.type, p.value])
+    );
+    const todayIstanbul = `${istanbulParts.year}-${istanbulParts.month}-${istanbulParts.day}`;
+    const yesterdayDateObj = new Date(`${todayIstanbul}T00:00:00Z`);
+    yesterdayDateObj.setUTCDate(yesterdayDateObj.getUTCDate() - 1);
+    const yesterdayIstanbul = yesterdayDateObj.toISOString().slice(0, 10);
+
+    const { data: reviewDeals, error: reviewDealsError } = await supabaseAdmin
+      .from("deals")
+      .select("id, user_id, customer_id, title")
+      .is("deleted_at", null)
+      .eq("stage", "kazanildi")
+      .is("review_requested_at", null)
+      .gte("closed_at", `${yesterdayIstanbul}T00:00:00+03:00`)
+      .lt("closed_at", `${todayIstanbul}T00:00:00+03:00`);
+    if (reviewDealsError) {
+      console.error("send-reminders review query error:", reviewDealsError.message);
     }
 
-    const customerIds = [...new Set(dueDeals.map((d) => d.customer_id))];
+    const hasReminders = dueDeals && dueDeals.length > 0;
+    const hasReviewRequests = reviewDeals && reviewDeals.length > 0;
+    if (!hasReminders && !hasReviewRequests) {
+      return res.status(200).json({ usersNotified: 0, customersNotified: 0, reviewsRequested: 0 });
+    }
+
+    const customerIds = [
+      ...new Set([...(dueDeals || []).map((d) => d.customer_id), ...(reviewDeals || []).map((d) => d.customer_id)]),
+    ];
     const { data: customers } = await supabaseAdmin
       .from("customers")
-      .select("id, name, email")
+      .select("id, name, email, marketing_consent")
       .in("id", customerIds);
     const customerById = Object.fromEntries((customers || []).map((c) => [c.id, c]));
     const customerNameById = Object.fromEntries((customers || []).map((c) => [c.id, c.name]));
@@ -54,19 +87,25 @@ export default async function handler(req, res) {
     // geliyor (bkz. team_members) — bu yüzden gruplama zaten doğal olarak takım
     // başına tek e-posta, sahibe gönderiliyor; ekstra bir değişiklik gerekmiyor.
     const dealsByUser = {};
-    for (const deal of dueDeals) {
+    for (const deal of dueDeals || []) {
       (dealsByUser[deal.user_id] ||= []).push(deal);
     }
+    const reviewDealsByUser = {};
+    for (const deal of reviewDeals || []) {
+      (reviewDealsByUser[deal.user_id] ||= []).push(deal);
+    }
 
+    const settingsUserIds = [...new Set([...Object.keys(dealsByUser), ...Object.keys(reviewDealsByUser)])];
     const { data: settingsRows } = await supabaseAdmin
       .from("company_settings")
-      .select("user_id, company_name, logo_url, email")
-      .in("user_id", Object.keys(dealsByUser));
+      .select("user_id, company_name, logo_url, email, google_review_link, google_review_requests_enabled")
+      .in("user_id", settingsUserIds);
     const settingsByUser = Object.fromEntries((settingsRows || []).map((s) => [s.user_id, s]));
 
     let usersNotified = 0;
     let failed = 0;
     let customersNotified = 0;
+    let reviewsRequested = 0;
 
     for (const [userId, userDeals] of Object.entries(dealsByUser)) {
       const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
@@ -130,7 +169,50 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(200).json({ usersNotified, failed, customersNotified });
+    // Google değerlendirme istekleri — ayrı bir döngü, çünkü hatırlatması olmayan
+    // ama dün tamamlanmış bir kayıt için de tetiklenmesi gerekiyor (yukarıdaki
+    // dealsByUser sadece hatırlatmalı kayıtları içeriyor).
+    for (const [userId, userDeals] of Object.entries(reviewDealsByUser)) {
+      const settings = settingsByUser[userId] || {};
+      const reviewLink = settings.google_review_link;
+      const reviewEnabled = settings.google_review_requests_enabled !== false;
+      const company = settings.company_name || "Binerly";
+
+      for (const deal of userDeals) {
+        if (reviewLink && reviewEnabled) {
+          const customer = customerById[deal.customer_id];
+          // Tam otomatik, insan onayı olmayan bir akış - izin yoksa sessizce
+          // atlanır (Kampanya Gönder'deki gibi "İzin iste" seçeneği burada yok,
+          // çünkü devrede bir KOBİ beyanı da yok).
+          if (customer?.email && customer.marketing_consent) {
+            const bodyText = `Merhaba ${customer.name || ""},\n\n${company} ile yaşadığınız deneyim hakkında görüşünüzü bizimle paylaşır mısınız? Birkaç dakikanız bizim için çok değerli.`;
+            const footerLines = [`${company} (Binerly ile)`, "Bu e-posta Binerly (binerly.com) altyapısıyla gönderildi."];
+            const reviewRes = await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${resendApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                from: `${company} (Binerly ile) <noreply@binerly.com>`,
+                to: customer.email,
+                subject: `${company} hakkındaki görüşünüz`,
+                html: renderEmailHtml({ logoUrl: settings.logo_url, bodyText, ctaLabel: "Değerlendirin", ctaUrl: reviewLink, footerLines }),
+                text: plainTextFallback(bodyText, "Değerlendirin", reviewLink, footerLines),
+                ...(settings.email ? { reply_to: settings.email } : {}),
+              }),
+            });
+            if (reviewRes.ok) reviewsRequested++;
+          }
+        }
+        // Gönderilsin ya da gönderilmesin (link yok/kapalı/müşteri e-postası yok),
+        // bu deal için tekrar denenmesin diye her durumda damgalanıyor —
+        // appointment_reminder_sent_at ile aynı desen.
+        await supabaseAdmin.from("deals").update({ review_requested_at: new Date().toISOString() }).eq("id", deal.id);
+      }
+    }
+
+    return res.status(200).json({ usersNotified, failed, customersNotified, reviewsRequested });
   } catch (err) {
     console.error("send-reminders fatal error:", err.message);
     return res.status(500).json({ error: "Gönderim sırasında hata oluştu." });

@@ -454,7 +454,8 @@ const dealActionsInfoText = (sector) => {
 
 const CUSTOMER_EMAIL_INFO_TEXT =
   "Güncel bir e-posta girmeniz önemli - teklif onay linki, müşteri portalı girişi ve hatırlatma e-postaları gibi " +
-  "özellikler ancak müşterinin e-postası kayıtlıysa çalışır. E-posta yoksa bu özellikler o müşteri için kullanılamaz.";
+  "özellikler ancak müşterinin e-postası kayıtlıysa çalışır. Kaydettiğinizde müşteriye, kampanya/değerlendirme isteği " +
+  "gibi e-postalar için iznini onaylayabileceği bir e-posta gönderilir - bu izni siz adına veremezsiniz, İYS kuralları gereği.";
 
 const CUSTOMER_TYPE_INFO_TEXT =
   "Kurumsal/Bireysel seçimi sadece bir etiket değil - Sektör alanının görünüp görünmeyeceğini, hangi özel alanların çıkacağını " +
@@ -521,6 +522,9 @@ function rowToCustomer(r) {
     tags: r.tags || [],
     customFields: r.custom_fields || {},
     appointmentCreditCount: r.appointment_credit_count || 0,
+    marketingConsent: r.marketing_consent === true,
+    marketingConsentAt: r.marketing_consent_at || null,
+    marketingConsentSource: r.marketing_consent_source || null,
   };
 }
 
@@ -6265,6 +6269,8 @@ function rowToCompanySettings(r) {
     appointmentPenaltyStrikeLimit: r.appointment_penalty_strike_limit ?? null,
     appointmentPenaltyBurnsSession: r.appointment_penalty_burns_session === true,
     appointmentPartialChargeHours: r.appointment_partial_charge_hours ?? null,
+    googleReviewLink: r.google_review_link || "",
+    googleReviewRequestsEnabled: r.google_review_requests_enabled !== false,
   };
 }
 
@@ -6295,7 +6301,7 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
   const [notes, setNotes] = useState(initial?.notes || "");
   const [tags, setTags] = useState(initial?.tags || []);
   const [customFields, setCustomFields] = useState(initial?.customFields || {});
-  const [duplicateError, setDuplicateError] = useState("");
+  const [formError, setFormError] = useState("");
   const isKurumsal = customerType === "kurumsal";
   const defsForEntity = customFieldDefs.filter((d) => d.entity === "customer" && (!d.audience || d.audience === customerType));
 
@@ -6319,6 +6325,10 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
         e.preventDefault();
         if (!name.trim()) return;
         if (isKurumsal && sector === "Diğer" && !customSector.trim()) return;
+        if (!email.trim()) {
+          setFormError("E-posta adresi zorunludur - pazarlama izni ve bildirimler için gereklidir.");
+          return;
+        }
         const payload = {
           id: initial?.id || uid(),
           customerType,
@@ -6336,10 +6346,10 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
         };
         const duplicateWith = findDuplicateCustomer(payload.email, payload.phone);
         if (duplicateWith) {
-          setDuplicateError(`"${duplicateWith.name}" adlı müşteride aynı e-posta veya telefon zaten kayıtlı - aynı telefon/e-posta ile ikinci bir müşteri eklenemez.`);
+          setFormError(`"${duplicateWith.name}" adlı müşteride aynı e-posta veya telefon zaten kayıtlı - aynı telefon/e-posta ile ikinci bir müşteri eklenemez.`);
           return;
         }
-        setDuplicateError("");
+        setFormError("");
         onSave(payload);
       }}
     >
@@ -6393,8 +6403,8 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
           <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0532 000 00 00" style={{ width: "100%" }} />
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>E-posta (Önemli) <InfoTip align="right" text={CUSTOMER_EMAIL_INFO_TEXT} /></label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={isKurumsal ? "info@firma.com" : "ayse@gmail.com"} style={{ width: "100%" }} />
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>E-posta (zorunlu) <InfoTip align="right" text={CUSTOMER_EMAIL_INFO_TEXT} /></label>
+          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder={isKurumsal ? "info@firma.com" : "ayse@gmail.com"} style={{ width: "100%" }} />
         </div>
       </div>
       <div style={{ marginBottom: 12 }}>
@@ -6409,7 +6419,7 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
         <TagInput tags={tags} onChange={setTags} suggestions={sectorTags} />
       </div>
       <CustomFieldsSection defs={defsForEntity} values={customFields} onChange={setCustomFields} />
-      {duplicateError && <p style={{ fontSize: 12.5, color: "var(--text-danger)", margin: "0 0 8px" }}>{duplicateError}</p>}
+      {formError && <p style={{ fontSize: 12.5, color: "var(--text-danger)", margin: "0 0 8px" }}>{formError}</p>}
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button type="button" onClick={onCancel}>Vazgeç</button>
         <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
@@ -6480,6 +6490,8 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
   const [defaultKdvRate, setDefaultKdvRate] = useState(initial?.defaultKdvRate ?? 20);
   const [customerNotificationsEnabled, setCustomerNotificationsEnabled] = useState(initial?.customerNotificationsEnabled === true);
   const [appointmentRemindersEnabled, setAppointmentRemindersEnabled] = useState(initial?.appointmentRemindersEnabled !== false);
+  const [googleReviewLink, setGoogleReviewLink] = useState(initial?.googleReviewLink || "");
+  const [googleReviewRequestsEnabled, setGoogleReviewRequestsEnabled] = useState(initial?.googleReviewRequestsEnabled !== false);
 
   const handleLogoFile = async (e) => {
     const file = e.target.files?.[0];
@@ -6511,6 +6523,8 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
           defaultKdvRate,
           customerNotificationsEnabled,
           appointmentRemindersEnabled,
+          googleReviewLink: googleReviewLink.trim(),
+          googleReviewRequestsEnabled,
           sector: initial?.sector || null,
           lateCancelHours: initial?.lateCancelHours ?? null,
           hardBlockHours: initial?.hardBlockHours ?? null,
@@ -6597,6 +6611,31 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
             Randevu hatırlatma e-postası gönder
             <InfoTip align="right" text="Tarih & Saat tipindeki özel alanı olan kayıtlarda, o saatten 2 saat önce müşteriye otomatik bir hatırlatma e-postası gider. Bu kutuyu kapatırsanız hiçbir hatırlatma e-postası gönderilmez - diğer bildirimler (aşama değişikliği, destek talebi, ödeme) bundan etkilenmez." />
           </label>
+        </div>
+      )}
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+          Google değerlendirme linki
+          <InfoTip
+            align="right"
+            text="Google İşletme Profilinizde 'Değerlendirme iste' seçeneğinden aldığınız bağlantıyı buraya yapıştırın. Bu link doluysa ve aşağıdaki seçenek açıksa, tamamlanan her kayıttan bir gün sonra müşteriye bu linkle bir değerlendirme isteği e-postası gider."
+          />
+        </label>
+        <input value={googleReviewLink} onChange={(e) => setGoogleReviewLink(e.target.value)} placeholder="https://g.page/r/xxxxxxxxxxxx/review" style={{ width: "100%" }} />
+      </div>
+      {googleReviewLink.trim() && (
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={googleReviewRequestsEnabled}
+              onChange={(e) => setGoogleReviewRequestsEnabled(e.target.checked)}
+            />
+            Tamamlanan {DEAL_WORD_FORMS[dealWordKind(initial?.sector)].bare} sonrası müşteriden Google değerlendirmesi iste
+          </label>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0 26px" }}>
+Ertesi gün otomatik gönderilir. İptal edilen veya gelinmeyen kayıtlar için asla gönderilmez. Türkiye'de ticari elektronik ileti göndermek için İYS/açık onay yasal bir zorunluluktur - bu yüzden sadece pazarlama izni onaylanmış müşterilere gönderilir, izni olmayanlara otomatik olarak hiç gitmez. İzin, Müşteri Kayıtları'ndan (İzin e-postası gönder), Müşteri Kazanma Linki'nden veya Müşteri Portalı'ndan alınabilir.
+          </p>
         </div>
       )}
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -7830,7 +7869,7 @@ function activityDateLabel(dateStr) {
     " · " + d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 }
 
-function CustomerDetail({ customer, deals, payments, activities, sector, customFieldDefs = [], groupClasses = [], groupClassEnrollments = [], attachments = [], onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onAddActivity, onClose }) {
+function CustomerDetail({ customer, deals, payments, activities, sector, customFieldDefs = [], groupClasses = [], groupClassEnrollments = [], attachments = [], onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onAddActivity, onRequestMarketingConsent, onClose }) {
   const [type, setType] = useState("note");
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
@@ -7900,6 +7939,24 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
         {customer.appointmentCreditCount > 0 && (
           <div style={{ marginTop: 8 }}>
             <Badge tone="accent">🎁 {customer.appointmentCreditCount} ücretsiz telafi hakkı</Badge>
+          </div>
+        )}
+        {customer.email && (
+          <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {customer.marketingConsent ? (
+              <Badge tone="success">✓ Pazarlama e-postası izni var</Badge>
+            ) : (
+              <>
+                <Badge tone="warning">Pazarlama e-postası izni yok</Badge>
+                <button
+                  type="button"
+                  onClick={() => onRequestMarketingConsent(customer)}
+                  style={{ fontSize: 12, background: "none", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "2px 8px", cursor: "pointer" }}
+                >
+                  İzin e-postası gönder
+                </button>
+              </>
+            )}
           </div>
         )}
         {customFieldDefs.filter((d) => d.entity === "customer" && customer.customFields?.[d.key]).length > 0 && (
@@ -8140,17 +8197,22 @@ function TeklifPrint({ deal, customer, companySettings, pdfTemplates, dealLineIt
   );
 }
 
-function CampaignModal({ customers, replyTo, companyName, logoUrl, session, onClose }) {
+function CampaignModal({ customers, replyTo, companyName, logoUrl, session, onRequestConsent, onClose }) {
+  // İYS/ticari elektronik ileti gerçek bir engel (uyarı değil) — sadece
+  // marketing_consent=true olan müşteriler seçilebilir/gönderilebilir. Bu izin
+  // KOBİ'nin kendi beyanıyla değil, Müşteri Kazanma Linki/Müşteri Portalı/e-posta
+  // ile çift onaydan (bkz. requestMarketingConsent) geliyor.
   const emailCustomers = customers.filter((c) => c.email);
-  const [selected, setSelected] = useState(() => new Set(emailCustomers.map((c) => c.id)));
+  const consentedCustomers = emailCustomers.filter((c) => c.marketingConsent);
+  const [selected, setSelected] = useState(() => new Set(consentedCustomers.map((c) => c.id)));
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState("");
-  const [consentConfirmed, setConsentConfirmed] = useState(false);
   const [confirmSend, setConfirmSend] = useState(false);
 
   const toggle = (id) => {
+    if (!consentedCustomers.some((c) => c.id === id)) return;
     setSelected((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
@@ -8158,25 +8220,34 @@ function CampaignModal({ customers, replyTo, companyName, logoUrl, session, onCl
     });
   };
 
+  const selectedConsented = consentedCustomers.filter((c) => selected.has(c.id));
+
   const requestSend = (e) => {
     e.preventDefault();
-    const recipients = emailCustomers.filter((c) => selected.has(c.id)).map((c) => c.email);
-    if (recipients.length === 0 || !subject.trim() || !message.trim() || !consentConfirmed) return;
+    if (selectedConsented.length === 0 || !subject.trim() || !message.trim()) return;
     setConfirmSend(true);
   };
 
   const send = async () => {
-    const recipients = emailCustomers.filter((c) => selected.has(c.id)).map((c) => c.email);
     setSending(true);
     setResult("");
     try {
       const res = await fetch("/api/send-campaign", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ recipients, subject, message, replyTo, companyName, logoUrl }),
+        body: JSON.stringify({
+          recipients: selectedConsented.map((c) => c.email),
+          customerIds: selectedConsented.map((c) => c.id),
+          requireConsent: true,
+          subject,
+          message,
+          replyTo,
+          companyName,
+          logoUrl,
+        }),
       });
       const data = await res.json();
-      if (res.ok) setResult(`${recipients.length} kişiye gönderildi.`);
+      if (res.ok) setResult(`${data.sent ?? selectedConsented.length} kişiye gönderildi.`);
       else setResult(data.error || "Gönderim başarısız oldu.");
     } catch {
       setResult("Gönderim başarısız oldu.");
@@ -8189,14 +8260,25 @@ function CampaignModal({ customers, replyTo, companyName, logoUrl, session, onCl
       <form onSubmit={requestSend}>
         <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
-            Alıcılar ({selected.size}/{emailCustomers.length})
+            Alıcılar ({selected.size}/{consentedCustomers.length} izinli)
           </label>
-          <div style={{ maxHeight: 140, overflowY: "auto", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 8 }}>
+          <div style={{ maxHeight: 180, overflowY: "auto", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 8 }}>
+            {emailCustomers.length === 0 && <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>E-postası kayıtlı müşteri yok.</p>}
             {emailCustomers.map((c) => (
-              <label key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "4px 0", cursor: "pointer" }}>
-                <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
-                {c.name} <span style={{ color: "var(--text-muted)" }}>({c.email})</span>
-              </label>
+              <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, flex: 1, cursor: c.marketingConsent ? "pointer" : "default", opacity: c.marketingConsent ? 1 : 0.55 }}>
+                  <input type="checkbox" checked={selected.has(c.id)} disabled={!c.marketingConsent} onChange={() => toggle(c.id)} />
+                  {c.name} <span style={{ color: "var(--text-muted)" }}>({c.email})</span>
+                </label>
+                {!c.marketingConsent && (
+                  <>
+                    <span style={{ fontSize: 11, color: "var(--text-warning)" }}>İzin yok</span>
+                    <button type="button" onClick={() => onRequestConsent(c)} style={{ fontSize: 11, background: "none", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "1px 6px", cursor: "pointer" }}>
+                      İzin iste
+                    </button>
+                  </>
+                )}
+              </div>
             ))}
           </div>
         </div>
@@ -8208,23 +8290,13 @@ function CampaignModal({ customers, replyTo, companyName, logoUrl, session, onCl
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Mesaj</label>
           <textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Merhaba, size özel..." style={{ width: "100%", minHeight: 100, resize: "vertical" }} />
         </div>
-        <div style={{ marginBottom: 16, background: "var(--bg-warning)", borderRadius: "var(--radius)", padding: "0.75rem 1rem" }}>
-          <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12.5, color: "var(--text-warning)", cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={consentConfirmed}
-              onChange={(e) => setConsentConfirmed(e.target.checked)}
-              style={{ marginTop: 2 }}
-            />
-            <span>
-              Türkiye'de ticari elektronik ileti (reklam/pazarlama e-postası) göndermek için alıcıdan önceden açık onay alınması ve İYS (İleti Yönetim Sistemi) kurallarına uyulması yasal bir zorunluluktur. Seçtiğim müşterilerden bu izni aldığımı onaylıyorum.
-            </span>
-          </label>
+        <div style={{ marginBottom: 16, background: "var(--bg-warning)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", fontSize: 12.5, color: "var(--text-warning)" }}>
+          Türkiye'de ticari elektronik ileti (reklam/pazarlama e-postası) göndermek için alıcıdan önceden açık onay alınması İYS (İleti Yönetim Sistemi) kurallarına uyulması yasal bir zorunluluktur - bu yüzden sadece pazarlama izni onaylanmış müşteriler seçilebiliyor. İzni olmayan bir müşteriye "İzin iste" ile bir onay e-postası gönderebilir, veya Müşteri Kazanma Linki/Müşteri Portalı üzerinden otomatik izin toplayabilirsiniz.
         </div>
         {result && <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 12 }}>{result}</p>}
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button type="button" onClick={onClose}>Kapat</button>
-          <button type="submit" disabled={sending || selected.size === 0 || !consentConfirmed} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+          <button type="submit" disabled={sending || selected.size === 0} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
             {sending ? "Gönderiliyor…" : "Gönder"}
           </button>
         </div>
@@ -11844,6 +11916,28 @@ export default function App() {
     }
   };
 
+  // KOBİ'nin kendi eklediği bir müşteri için pazarlama izni — KOBİ'nin kendi
+  // beyanı (bir kutuyu işaretlemesi) İYS anlamında gerçek bir onay sayılmıyor,
+  // bu yüzden müşteriye kendisinin tıklayıp onaylayacağı bir link gönderiliyor
+  // (çift onay/double opt-in, deal-approval.js action=confirm-marketing-consent).
+  // Yeni müşteri eklenirken otomatik, veya Müşteri Kayıtları/Kampanya Gönder'den
+  // elle tekrar tetiklenebilir.
+  const requestMarketingConsent = async (customer) => {
+    if (!customer?.email) { notify("Bu müşterinin e-postası yok."); return; }
+    const token = uid();
+    const { error } = await supabase.from("customers").update({ marketing_consent_token: token }).eq("id", customer.id);
+    if (error) { notify(`İzin isteği gönderilemedi: ${error.message}`); return; }
+    const consentUrl = `https://binerly.com/api/deal-approval?action=confirm-marketing-consent&token=${token}`;
+    const company = companySettings?.companyName || "İşletmemiz";
+    await notifyCustomerByEmail(
+      customer,
+      `${companySettings?.companyName || "Binerly"} - E-posta izninizi onaylar mısınız?`,
+      `Merhaba ${customer.name || ""},\n\n${company} olarak size kampanya, değerlendirme isteği gibi e-postalar gönderebilmemiz için izninize ihtiyacımız var. Onaylamak için aşağıdaki butona tıklayabilirsiniz.`,
+      { ctaUrl: consentUrl, ctaLabel: "İzin Ver" }
+    );
+    notify(`${customer.name} adlı müşteriye izin e-postası gönderildi.`);
+  };
+
   // Teklif/anlaşma her aşamaya geçtiğinde müşteriye o aşamaya özel bir mail —
   // "Teklif" ve "Müzakere" aşamalarında onay linki de eklenir (generateApprovalLink
   // token'ı idempotent üretir/döner, tekrar tekrar çağırmak güvenli).
@@ -11943,6 +12037,10 @@ export default function App() {
     setShowCustomerForm(false);
     setEditingCustomer(null);
     logAction("customers", customer.id, isNew ? "created" : "updated", `${customer.name} ${isNew ? "oluşturuldu" : "güncellendi"}`);
+    // Sadece manuel "Yeni Müşteri" akışında otomatik tetiklenir - toplu içe
+    // aktarma bulkInsertChunked kullanıyor, bu yüzden tek seferde yüzlerce izin
+    // e-postası gitme riski yok.
+    if (isNew && customer.email) requestMarketingConsent(customer);
   };
 
   const deleteCustomer = async (id) => {
@@ -12995,6 +13093,8 @@ export default function App() {
       appointment_penalty_strike_limit: s.appointmentPenaltyStrikeLimit || null,
       appointment_penalty_burns_session: s.appointmentPenaltyBurnsSession === true,
       appointment_partial_charge_hours: s.appointmentPartialChargeHours || null,
+      google_review_link: s.googleReviewLink || null,
+      google_review_requests_enabled: s.googleReviewRequestsEnabled !== false,
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase.from("company_settings").upsert(row).select().single();
@@ -15776,7 +15876,7 @@ export default function App() {
       )}
 
       {showCampaignModal && (
-        <CampaignModal customers={customers} replyTo={session.user.email} companyName={companySettings?.companyName} logoUrl={companySettings?.logoUrl} session={session} onClose={() => setShowCampaignModal(false)} />
+        <CampaignModal customers={customers} replyTo={session.user.email} companyName={companySettings?.companyName} logoUrl={companySettings?.logoUrl} session={session} onRequestConsent={requestMarketingConsent} onClose={() => setShowCampaignModal(false)} />
       )}
 
       {pendingLostReasonMove && (() => {
@@ -15835,6 +15935,7 @@ export default function App() {
           onDownloadAttachment={downloadAttachment}
           onDeleteAttachment={deleteAttachment}
           onAddActivity={addActivity}
+          onRequestMarketingConsent={requestMarketingConsent}
           onClose={() => setViewingCustomer(null)}
         />
       )}

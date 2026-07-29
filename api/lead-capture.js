@@ -32,13 +32,19 @@ export default async function handler(req, res) {
 
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { name, phone, email, address, note } = req.body || {};
+  const { name, phone, email, address, note, marketingConsent } = req.body || {};
   const trimmedName = (name || "").trim();
   const trimmedPhone = (phone || "").trim();
   const trimmedEmail = (email || "").trim();
   const trimmedAddress = (address || "").trim();
   if (!trimmedName) return res.status(400).json({ error: "İsim gerekli." });
   if (!trimmedPhone && !trimmedEmail) return res.status(400).json({ error: "Telefon veya e-posta gerekli." });
+
+  // Pazarlama izni burada gerçek bir opt-in — potansiyel müşteri kendi bilgisini
+  // gönderirken kendi eliyle işaretliyor (e-posta yoksa kutu hiç gösterilmiyor,
+  // form tarafında). KOBİ'nin manuel eklediği müşterilerden farklı olarak burada
+  // ayrıca bir e-posta ile çift onay gerekmiyor - eylemin kendisi zaten doğrudan.
+  const consented = trimmedEmail && marketingConsent === true;
 
   const { error: insertError } = await supabaseAdmin.from("customers").insert({
     id: crypto.randomUUID(),
@@ -51,6 +57,7 @@ export default async function handler(req, res) {
     notes: `Web formundan eklendi.${note ? ` Not: ${note.trim()}` : ""}`,
     last_contact: new Date().toISOString(),
     created_at: new Date().toISOString(),
+    ...(consented ? { marketing_consent: true, marketing_consent_at: new Date().toISOString(), marketing_consent_source: "lead_capture" } : {}),
   });
   if (insertError) return res.status(500).json({ error: insertError.message });
 

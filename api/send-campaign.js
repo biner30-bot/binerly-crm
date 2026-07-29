@@ -24,12 +24,48 @@ export default async function handler(req, res) {
   const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
   if (userError || !userData?.user) return res.status(401).json({ error: "Unauthorized" });
 
-  const { recipients, subject, message, replyTo, companyName, ctaUrl, ctaLabel, logoUrl } = req.body || {};
-  if (!Array.isArray(recipients) || recipients.length === 0 || !subject || !message) {
+  const { recipients: rawRecipients, customerIds, requireConsent, subject, message, replyTo, companyName, ctaUrl, ctaLabel, logoUrl } = req.body || {};
+  if (!Array.isArray(rawRecipients) || rawRecipients.length === 0 || !subject || !message) {
     return res.status(400).json({ error: "Eksik bilgi." });
   }
-  if (recipients.length > MAX_RECIPIENTS) {
+  if (rawRecipients.length > MAX_RECIPIENTS) {
     return res.status(400).json({ error: `Tek seferde en fazla ${MAX_RECIPIENTS} alıcıya gönderilebilir.` });
+  }
+
+  // Kampanya Gönder buradan gerçek pazarlama e-postası gönderiyor — istemci
+  // tarafındaki seçim/işaretleme her ne olursa olsun, İYS/ticari elektronik
+  // ileti onayı burada TEKRAR (service-role ile) doğrulanmadan hiçbir alıcıya
+  // gönderilmiyor. notifyCustomerByEmail'in transactional çağrıları (aşama
+  // değişikliği, ödeme, izin isteğinin kendisi vb.) requireConsent göndermediği
+  // için bu kontrolden hiç etkilenmiyor.
+  let recipients = rawRecipients;
+  if (requireConsent) {
+    if (!Array.isArray(customerIds) || customerIds.length !== rawRecipients.length) {
+      return res.status(400).json({ error: "Eksik müşteri bilgisi." });
+    }
+    const { data: rows, error: customersError } = await supabaseAdmin
+      .from("customers")
+      .select("id, email, user_id, marketing_consent")
+      .in("id", customerIds);
+    if (customersError) return res.status(500).json({ error: customersError.message });
+    const byId = Object.fromEntries((rows || []).map((r) => [r.id, r]));
+
+    // Yetki: alıcı sadece çağıran kullanıcının sahibi/üyesi olduğu bir hesabın
+    // müşterisiyse gönderilir - handleRefund'daki (deal-approval.js) sahiplik
+    // deseniyle aynı.
+    const { data: teamRows } = await supabaseAdmin.from("team_members").select("team_id").eq("member_id", userData.user.id);
+    const ownedTeamIds = new Set([userData.user.id, ...(teamRows || []).map((t) => t.team_id)]);
+
+    recipients = [];
+    for (let i = 0; i < rawRecipients.length; i++) {
+      const row = byId[customerIds[i]];
+      if (row && row.email === rawRecipients[i] && row.marketing_consent === true && ownedTeamIds.has(row.user_id)) {
+        recipients.push(rawRecipients[i]);
+      }
+    }
+    if (recipients.length === 0) {
+      return res.status(400).json({ error: "Seçili müşterilerin hiçbirinden pazarlama izni alınmamış." });
+    }
   }
 
   const apiKey = process.env.RESEND_API_KEY;

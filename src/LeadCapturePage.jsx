@@ -12,6 +12,7 @@ export default function LeadCapturePage() {
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [note, setNote] = useState("");
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -39,7 +40,7 @@ export default function LeadCapturePage() {
     const res = await fetch("/api/lead-capture", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, name, phone, email, address, note }),
+      body: JSON.stringify({ token, name, phone, email, address, note, marketingConsent }),
     });
     const data = await res.json();
     if (!res.ok) { setSubmitError(data.error || "Gönderilemedi."); setSending(false); return; }
@@ -78,6 +79,14 @@ export default function LeadCapturePage() {
               <div style={{ marginBottom: 16 }}>
                 <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Not (opsiyonel)" style={{ width: "100%", minHeight: 60, resize: "vertical" }} />
               </div>
+              {email.trim() && (
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12.5, color: "#5b7088", cursor: "pointer" }}>
+                    <input type="checkbox" checked={marketingConsent} onChange={(e) => setMarketingConsent(e.target.checked)} style={{ marginTop: 2 }} />
+                    Kampanya ve değerlendirme isteği gibi e-postalar almak istiyorum (opsiyonel)
+                  </label>
+                </div>
+              )}
               {submitError && <p style={{ color: "#b91c1c", fontSize: 13, margin: "0 0 12px" }}>{submitError}</p>}
               <button
                 type="submit"

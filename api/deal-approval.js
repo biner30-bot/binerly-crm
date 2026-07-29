@@ -160,13 +160,13 @@ function escapeAttendanceHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function renderAttendancePage({ logoUrl, title, message, formToken, formResponse, submitLabel }) {
+function renderAttendancePage({ logoUrl, title, message, formToken, formResponse, submitLabel, formAction = "confirm-attendance" }) {
   const logo = logoUrl || "https://binerly.com/pwa-512x512.png";
   const form = formToken
     ? `<form method="POST" action="/api/deal-approval" style="margin-top:8px;">
-        <input type="hidden" name="action" value="confirm-attendance" />
+        <input type="hidden" name="action" value="${escapeAttendanceHtml(formAction)}" />
         <input type="hidden" name="token" value="${escapeAttendanceHtml(formToken)}" />
-        <input type="hidden" name="response" value="${escapeAttendanceHtml(formResponse)}" />
+        ${formResponse ? `<input type="hidden" name="response" value="${escapeAttendanceHtml(formResponse)}" />` : ""}
         <button type="submit" style="display:inline-block;background:#185fa5;color:#ffffff;border:none;cursor:pointer;padding:12px 28px;border-radius:8px;font-weight:600;font-size:14px;">${escapeAttendanceHtml(submitLabel)}</button>
       </form>`
     : "";
@@ -307,6 +307,57 @@ async function handleConfirmAttendance(req, res, supabaseAdmin, deal, settings, 
   }
 
   return res.status(200).send(renderAttendancePage({ logoUrl, title: "Randevunuz iptal edildi", message: `Bize haber verdiğiniz için teşekkürler.${burnMessage} - ${company}` }));
+}
+
+// Müşteri Kayıtları'ndan "İzin e-postası gönder" veya bir müşteri ilk kez
+// e-postalı olarak eklendiğinde otomatik giden e-postadaki linkin hedefi —
+// KOBİ'nin kendi beyanı değil, müşterinin kendisinin tıklayarak verdiği gerçek
+// bir onay (çift onay/double opt-in). Portal girişi GEREKTİRMEZ, token tek
+// başına yeterli. confirm-attendance ile AYNI güvenlik önlemi: gerçek mutasyon
+// SADECE POST'ta olur, GET sadece bir buton gösterir — e-posta güvenlik
+// botlarının linki otomatik "tıklayıp" yanlışlıkla izin vermiş gibi görünmesini
+// engellemek için.
+async function handleMarketingConsentConfirm(req, res, supabaseAdmin, token) {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  if (!token) {
+    return res.status(400).send(renderAttendancePage({ title: "Geçersiz bağlantı", message: "Bu bağlantı eksik ya da hatalı görünüyor." }));
+  }
+
+  const { data: customer, error } = await supabaseAdmin
+    .from("customers")
+    .select("id, user_id, name, marketing_consent")
+    .eq("marketing_consent_token", token)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error) console.error("marketing-consent-confirm query error:", error.message);
+  if (error || !customer) {
+    return res.status(404).send(renderAttendancePage({ title: "Bağlantı bulunamadı", message: "Bu bağlantı geçersiz ya da süresi dolmuş görünüyor." }));
+  }
+
+  const { data: settings } = await supabaseAdmin.from("company_settings").select("company_name, logo_url").eq("user_id", customer.user_id).maybeSingle();
+  const company = settings?.company_name || "Binerly";
+  const logoUrl = settings?.logo_url || null;
+
+  if (customer.marketing_consent) {
+    return res.status(200).send(renderAttendancePage({ logoUrl, title: "Zaten onaylanmış", message: `E-posta izniniz zaten kayıtlı, teşekkürler. - ${company}` }));
+  }
+
+  if (req.method === "GET") {
+    return res.status(200).send(renderAttendancePage({
+      logoUrl,
+      title: "Pazarlama e-postası izni",
+      message: `${company}, size kampanya ve değerlendirme isteği gibi e-postalar gönderebilmek için izninizi istiyor. Onaylamak için aşağıya tıklayın.`,
+      formToken: token, submitLabel: "Evet, izin veriyorum", formAction: "confirm-marketing-consent",
+    }));
+  }
+
+  await supabaseAdmin
+    .from("customers")
+    .update({ marketing_consent: true, marketing_consent_at: new Date().toISOString(), marketing_consent_source: "email_confirmation", marketing_consent_token: null })
+    .eq("id", customer.id)
+    .eq("marketing_consent_token", token);
+
+  return res.status(200).send(renderAttendancePage({ logoUrl, title: "Teşekkürler!", message: `E-posta izniniz kaydedildi. - ${company}` }));
 }
 
 async function fetchSector(supabaseAdmin, userId) {
@@ -819,6 +870,16 @@ export default async function handler(req, res) {
   // İşletme sahibinin iade isteği — token bazlı değil, ayrı ele alınır.
   if (req.method === "POST" && (req.body || {}).action === "refund") {
     return handleRefund(req, res, supabaseAdmin);
+  }
+
+  // Pazarlama izni onay linki — deal/approval_token akışından tamamen bağımsız,
+  // kendi token'ı (customers.marketing_consent_token) üzerinden çalışır.
+  if (
+    (req.method === "GET" && url.searchParams.get("action") === "confirm-marketing-consent") ||
+    (req.method === "POST" && (req.body || {}).action === "confirm-marketing-consent")
+  ) {
+    const consentToken = req.method === "GET" ? url.searchParams.get("token") : (req.body || {}).token;
+    return handleMarketingConsentConfirm(req, res, supabaseAdmin, consentToken);
   }
 
   const token = req.method === "GET" ? url.searchParams.get("token") : (req.body || {}).token;
