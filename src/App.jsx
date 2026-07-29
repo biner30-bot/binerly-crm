@@ -15858,7 +15858,23 @@ export default function App() {
           entityLabel="Müşteriler"
           fieldDefs={CUSTOMER_IMPORT_FIELDS}
           allowVcf
-          checkDuplicate={(r) => customers.some((c) => c.name.trim().toLowerCase() === (r.name || "").trim().toLowerCase())}
+          // Manuel müşteri formundaki gerçek engelle (findDuplicateCustomer) aynı
+          // mantık: isim değil e-posta/telefon eşleşmesi bakılır - aynı isimde iki
+          // farklı gerçek müşteri olabilir ama aynı telefonu/e-postayı paylaşmaları
+          // gerçekçi değil. Dosyanın kendi içindeki (priorRows) tekrarlar da yakalanır.
+          checkDuplicate={(r, priorRows) => {
+            const email = (r.email || "").trim().toLowerCase();
+            const phone = (r.phone || "").trim();
+            if (!email && !phone) return false;
+            const existing = customers.find((c) =>
+              (email && c.email?.trim().toLowerCase() === email) || (phone && c.phone?.trim() === phone)
+            );
+            if (existing) return `"${existing.name}" ile aynı e-posta/telefon`;
+            const dupInFile = priorRows.some((p) =>
+              (email && (p.email || "").trim().toLowerCase() === email) || (phone && (p.phone || "").trim() === phone)
+            );
+            return dupInFile ? "Dosyada aynı e-posta/telefonla başka bir satır var" : false;
+          }}
           onImport={bulkImportCustomers}
           onClose={() => setShowImportCustomers(false)}
         />

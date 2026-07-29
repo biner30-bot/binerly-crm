@@ -232,12 +232,23 @@ export function ImportModal({
     }
   };
 
+  // Mükerrer kontrolü diğer engellerle (hatalı satır) aynı gerçek engel
+  // seviyesinde - "uyar ama izin ver" değil. checkDuplicate hem mevcut
+  // kayıtlara hem AYNI dosyadaki önceki satırlara (built) bakabilsin diye
+  // sırayla işleniyor - aksi halde aynı müşteri dosyada iki kez geçince
+  // ikisi de "geçerli" görünüp iki ayrı kayıt olarak eklenebiliyordu.
   const buildRecordsFromRaw = (rawObjs) => {
-    const built = rawObjs.map((rawObj) => {
+    const built = [];
+    for (const rawObj of rawObjs) {
       const { record, errors } = normalizeRecord(rawObj, fieldDefs, customers);
-      const duplicate = errors.length === 0 && checkDuplicate ? checkDuplicate(record) : false;
-      return { ...record, _errors: errors, _duplicate: duplicate };
-    });
+      const duplicateResult = errors.length === 0 && checkDuplicate ? checkDuplicate(record, built) : false;
+      built.push({
+        ...record,
+        _errors: errors,
+        _duplicate: !!duplicateResult,
+        _duplicateReason: typeof duplicateResult === "string" ? duplicateResult : null,
+      });
+    }
     setRecords(built);
     setSelected(new Set(built.map((_, i) => i).filter((i) => built[i]._errors.length === 0 && !built[i]._duplicate)));
   };
@@ -265,7 +276,7 @@ export function ImportModal({
   };
 
   const runImport = async () => {
-    const toImport = records.filter((r, i) => selected.has(i) && r._errors.length === 0);
+    const toImport = records.filter((r, i) => selected.has(i) && r._errors.length === 0 && !r._duplicate);
     if (toImport.length === 0) return;
     setStep("importing");
     setProgress({ done: 0, total: toImport.length });
@@ -342,7 +353,7 @@ export function ImportModal({
                 <input
                   type="checkbox"
                   checked={selected.has(i)}
-                  disabled={r._errors.length > 0}
+                  disabled={r._errors.length > 0 || r._duplicate}
                   onChange={() => toggleRow(i)}
                   style={{ marginTop: 3 }}
                 />
@@ -358,7 +369,7 @@ export function ImportModal({
                       </span>
                     );
                   })}
-                  {r._duplicate && <div style={{ fontSize: 11, color: "var(--text-warning)", marginTop: 2 }}>⚠ Bu isimde bir kayıt zaten var</div>}
+                  {r._duplicate && <div style={{ fontSize: 11, color: "var(--text-danger)", marginTop: 2 }}>✗ {r._duplicateReason || "Bu isimde bir kayıt zaten var"} - içe aktarılamaz</div>}
                   {r._errors.length > 0 && (
                     <div style={{ fontSize: 11, color: "var(--text-danger)", marginTop: 2 }}>✗ {r._errors.join(", ")}</div>
                   )}
