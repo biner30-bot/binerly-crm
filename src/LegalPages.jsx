@@ -178,7 +178,7 @@ export function KvkkPage() {
 
 export function TermsPage() {
   return (
-    <LegalLayout title="Kullanım Koşulları" updatedAt="10 Temmuz 2026">
+    <LegalLayout title="Kullanım Koşulları" updatedAt="29 Temmuz 2026">
       <Section title="1. Hizmetin Kapsamı">
         <p>
           Binerly, KOBİ'ler için müşteri ilişkileri yönetimi (CRM), satış takibi, destek talebi ve
@@ -190,6 +190,14 @@ export function TermsPage() {
           Hesabınızın güvenliğinden (şifre gizliliği dahil) siz sorumlusunuz. Sisteme girdiğiniz müşteri
           verilerinin doğruluğundan ve ilgili kişilerin (müşterilerinizin) verilerini işlerken kendi yasal
           yükümlülüklerinizi (KVKK dahil) yerine getirmekten siz sorumlusunuz.
+        </p>
+        <p>
+          Binerly üzerinden müşterilerinize e-posta, WhatsApp veya benzeri kanallardan pazarlama/tanıtım
+          amaçlı mesaj (ticari elektronik ileti) göndermeniz halinde, İleti Yönetim Sistemi (İYS) dahil
+          ilgili mevzuata ve kullandığınız üçüncü taraf platformların kurallarına (WhatsApp Business
+          Politikası dahil) uymak tamamen sizin sorumluluğunuzdadır. Binerly bu iletileri sizin adınıza
+          göndermez; ilgili özellikler (WhatsApp'tan yazma linki, kampanya gönderme aracı vb.) yalnızca bir
+          kolaylık aracıdır ve gönderim kararı/onayı her zaman size aittir.
         </p>
       </Section>
       <Section title="3. Takım Üyeliği ve Hesap Paylaşımı">
