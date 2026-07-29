@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { uid } from "./shared";
+import { uid, ConfirmDialog } from "./shared";
 import { renderTemplateBlocks, MERGE_FIELD_OPTIONS, buildSampleMergeData, SAMPLE_LINE_ITEMS } from "./PdfTemplates";
 
 const DEFAULT_TEXT_HEIGHT = 24;
@@ -71,9 +71,21 @@ export function TemplateEditor({ initialTemplate, companySettings, onSave, onClo
   // açılan çekmecelere dönüşüyor (bkz. index.html .pdf-*-panel medya sorgusu).
   const [showBlockPanel, setShowBlockPanel] = useState(false);
   const [showInspectorPanel, setShowInspectorPanel] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const { width, height } = initialTemplate;
 
   const selectedBlock = blocks.find((b) => b.id === selectedId) || null;
+  // Kapat'a basınca sessizce kaybolmasın diye - başlangıç şablonuyla karşılaştırıp
+  // gerçekten bir değişiklik var mı bakıyoruz, her tekil düzenleme noktasını
+  // (sürükleme, ok tuşu, blok silme vb.) ayrı ayrı işaretlemek yerine.
+  const hasUnsavedChanges =
+    name !== (initialTemplate.name || "") || JSON.stringify(blocks) !== JSON.stringify(initialTemplate.blocks);
+
+  const requestClose = () => {
+    if (hasUnsavedChanges) setShowCloseConfirm(true);
+    else onClose();
+  };
 
   const updateSelectedBlock = (patch) => {
     setBlocks((prev) => prev.map((b) => (b.id === selectedId ? { ...b, ...patch } : b)));
@@ -90,6 +102,7 @@ export function TemplateEditor({ initialTemplate, companySettings, onSave, onClo
   const deleteSelected = () => {
     setBlocks((prev) => prev.filter((b) => b.id !== selectedId));
     setSelectedId(null);
+    setConfirmingDelete(false);
   };
 
   // Seçili blokta ok tuşlarıyla hassas kaydırma (Shift ile 10px) — fareyle
@@ -141,7 +154,7 @@ export function TemplateEditor({ initialTemplate, companySettings, onSave, onClo
           >
             {saving ? "Kaydediliyor…" : "Kaydet"}
           </button>
-          <button type="button" onClick={onClose}>Kapat</button>
+          <button type="button" onClick={requestClose}>Kapat</button>
         </div>
       </div>
 
@@ -296,7 +309,7 @@ export function TemplateEditor({ initialTemplate, companySettings, onSave, onClo
 
               <button
                 type="button"
-                onClick={deleteSelected}
+                onClick={() => setConfirmingDelete(true)}
                 style={{ width: "100%", marginTop: 14, background: "var(--bg-danger)", color: "var(--text-danger)", border: "none" }}
               >
                 Bloğu Sil
@@ -305,6 +318,26 @@ export function TemplateEditor({ initialTemplate, companySettings, onSave, onClo
           )}
         </div>
       </div>
+
+      {confirmingDelete && (
+        <ConfirmDialog
+          title="Bloğu sil"
+          message="Bu bloğu silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
+          confirmLabel="Sil"
+          onConfirm={deleteSelected}
+          onClose={() => setConfirmingDelete(false)}
+        />
+      )}
+
+      {showCloseConfirm && (
+        <ConfirmDialog
+          title="Kaydedilmemiş değişiklikler var"
+          message="Kapatırsanız yaptığınız değişiklikler kaybolur. Yine de kapatmak istiyor musunuz?"
+          confirmLabel="Kaydetmeden kapat"
+          onConfirm={onClose}
+          onClose={() => setShowCloseConfirm(false)}
+        />
+      )}
     </div>
   );
 }
