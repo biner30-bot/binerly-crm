@@ -6947,10 +6947,19 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   // gösteriliyorsa, Özel alanlar listesinde mükerrer çıkmasın diye çıkarılır —
   // sadece bookingModel "slot" olan sektörlerde geçerli (Otel'in giriş tarihi
   // gibi "inventory" modelindeki alanlar Özel alanlar'da kalmaya devam eder).
-  const otherDefsForEntity =
+  const otherDefsForEntity = (
     bookingModel(sector) === "slot" && appointmentDateTimeKey
       ? defsForEntity.filter((d) => d.key !== appointmentDateTimeKey)
-      : defsForEntity;
+      : defsForEntity
+  ).filter((d) => !(sector === "spor_merkezi" && d.key === "uyelik_bitis_tarihi"));
+  // Üyelik Bitiş Tarihi Spor Merkezi'nde kritik bir alan (üyelik geçmişte "Ek
+  // Bilgiler"in içinde gömülüydü, kolayca gözden kaçıyordu) — Randevu Tarihi'nin
+  // slot sektörlerinde aldığı muameleyle aynı şekilde forma özel olarak yukarıya,
+  // Ürün/Hizmet'in yanına taşındı; sadece bu sektör için, diğerlerinde Özel
+  // alanlar'da kalmaya devam ediyor.
+  const membershipEndDef = sector === "spor_merkezi"
+    ? customFieldDefs.find((d) => d.entity === "deal" && d.key === "uyelik_bitis_tarihi" && d.active)
+    : null;
   const selectedCustomerEmail = customers.find((c) => c.id === customerId)?.email || "";
 
   // Aynı tarih/saate iki aktif randevu düşerse (örn. biri iptal edilip slot
@@ -7140,7 +7149,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           {initial?.paymentStatus === "paid" && <Badge tone="success">✓ Online ödendi</Badge>}
         </div>
       )}
-      {(priceListItems.length > 0 || (bookingModel(sector) === "slot" && appointmentDateTimeKey)) && (
+      {(priceListItems.length > 0 || (bookingModel(sector) === "slot" && appointmentDateTimeKey) || membershipEndDef) && (
         <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
           {priceListItems.length > 0 && (
             <div style={{ flex: 1, minWidth: 200 }}>
@@ -7173,6 +7182,17 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
                 label={customFieldDefs.find((d) => d.entity === "deal" && d.key === appointmentDateTimeKey)?.label || "Randevu Tarihi"}
                 value={customFields[appointmentDateTimeKey]}
                 onChange={(v) => setCustomFields({ ...customFields, [appointmentDateTimeKey]: v })}
+              />
+            </div>
+          )}
+          {membershipEndDef && (
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>{membershipEndDef.label}</label>
+              <input
+                type="date"
+                value={customFields[membershipEndDef.key] || ""}
+                onChange={(e) => setCustomFields({ ...customFields, [membershipEndDef.key]: e.target.value })}
+                style={{ width: "100%" }}
               />
             </div>
           )}

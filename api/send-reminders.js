@@ -55,6 +55,41 @@ export default async function handler(req, res) {
     yesterdayDateObj.setUTCDate(yesterdayDateObj.getUTCDate() - 1);
     const yesterdayIstanbul = yesterdayDateObj.toISOString().slice(0, 10);
 
+    // Spor Merkezi: "Üye oldu" aşamasında duran ama Üyelik Bitiş Tarihi geçmiş
+    // kayıtları otomatik "Paket görüşülüyor" aşamasına taşı — send-appointment-
+    // reminders.js'deki Güzellik & Bakım'ın "Hatırlatma gönderildi" otomatik
+    // geçişiyle aynı desen. Bilinçli olarak SADECE Spor Merkezi: uyelik_bitis_tarihi
+    // bu sektöre özel bir alan, Eğitim/Kurs'taki kurs_bitis_tarihi kapsam dışı.
+    let membershipsMoved = 0;
+    const { data: gymSettings, error: gymSettingsError } = await supabaseAdmin
+      .from("company_settings")
+      .select("user_id")
+      .eq("sector", "spor_merkezi");
+    if (gymSettingsError) {
+      console.error("gym settings query error:", gymSettingsError.message);
+    } else if (gymSettings && gymSettings.length > 0) {
+      const { data: expiredMemberships, error: expiredError } = await supabaseAdmin
+        .from("deals")
+        .select("id")
+        .in("user_id", gymSettings.map((s) => s.user_id))
+        .eq("stage", "kazanildi")
+        .is("deleted_at", null)
+        .not("custom_fields->>uyelik_bitis_tarihi", "is", null)
+        .lt("custom_fields->>uyelik_bitis_tarihi", todayIstanbul);
+      if (expiredError) {
+        console.error("membership expiry query error:", expiredError.message);
+      } else {
+        for (const deal of expiredMemberships || []) {
+          const { error: moveError } = await supabaseAdmin
+            .from("deals")
+            .update({ stage: "muzakere", closed_at: null })
+            .eq("id", deal.id);
+          if (moveError) console.error("membership stage move error, deal.id:", deal.id, moveError.message);
+          else membershipsMoved++;
+        }
+      }
+    }
+
     const { data: reviewDeals, error: reviewDealsError } = await supabaseAdmin
       .from("deals")
       .select("id, user_id, customer_id, title")
@@ -70,7 +105,7 @@ export default async function handler(req, res) {
     const hasReminders = dueDeals && dueDeals.length > 0;
     const hasReviewRequests = reviewDeals && reviewDeals.length > 0;
     if (!hasReminders && !hasReviewRequests) {
-      return res.status(200).json({ usersNotified: 0, customersNotified: 0, reviewsRequested: 0 });
+      return res.status(200).json({ usersNotified: 0, customersNotified: 0, reviewsRequested: 0, membershipsMoved });
     }
 
     const customerIds = [
@@ -212,7 +247,7 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(200).json({ usersNotified, failed, customersNotified, reviewsRequested });
+    return res.status(200).json({ usersNotified, failed, customersNotified, reviewsRequested, membershipsMoved });
   } catch (err) {
     console.error("send-reminders fatal error:", err.message);
     return res.status(500).json({ error: "Gönderim sırasında hata oluştu." });
