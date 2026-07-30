@@ -13941,6 +13941,24 @@ export default function App() {
         .filter((x) => x.apptTime && !isNaN(x.apptTime.getTime()) && x.apptTime.getTime() > Date.now())
         .sort((a, b) => a.apptTime - b.apptTime)
     : [];
+  // Randevu sektörlerinde (anlık işlem yapılıp aynı gün kapanan randevular)
+  // aşama değişikliği elle kanban/liste ile uğraşmak yerine tek tık onaya
+  // indirgeniyor — saati geçmiş, hâlâ açık randevular burada toplanır. Paket
+  // teklifleri (sessionTotal>0) BİLEREK hariç: bir paketin "kazanıldı"ya
+  // taşınması tüm paketi kapatır, tek bir seansın kullanımını değil — paket
+  // seans sayacı ayrı bir akışla (incrementSessionUsage) yönetilmeye devam
+  // ediyor, bkz. project_binerly_beauty_pipeline_fit_question.
+  const pendingArrivalConfirmations = isAppointmentSector(companySettings?.sector) && appointmentDateTimeKey
+    ? deals
+        .filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi" && !(d.sessionTotal > 0))
+        .map((d) => {
+          const raw = d.customFields?.[appointmentDateTimeKey];
+          const apptTime = raw ? new Date(`${raw}:00+03:00`) : null;
+          return { deal: d, apptTime };
+        })
+        .filter((x) => x.apptTime && !isNaN(x.apptTime.getTime()) && x.apptTime.getTime() <= Date.now())
+        .sort((a, b) => a.apptTime - b.apptTime)
+    : [];
   const lowStockItems = stockItems.filter((s) => s.reorderThreshold != null && s.quantityOnHand <= s.reorderThreshold);
   const membershipAlerts = computeMembershipAlerts(deals, customers);
   const churnAlerts = supportsGroupClasses(companySettings?.sector) ? computeAttendanceChurnRisk(customers, deals, groupClassEnrollments, classAttendance) : [];
@@ -14205,6 +14223,41 @@ export default function App() {
               </div>
             );
           })()}
+          {pendingArrivalConfirmations.length > 0 && (
+            <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", marginBottom: "1.5rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>Bugünün Randevuları ({pendingArrivalConfirmations.length})</p>
+                {pendingArrivalConfirmations.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => pendingArrivalConfirmations.forEach(({ deal }) => attemptMoveDealStage(deal.id, "kazanildi"))}
+                    style={{ fontSize: 12 }}
+                  >
+                    Hepsini Geldi işaretle
+                  </button>
+                )}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
+                {pendingArrivalConfirmations.map(({ deal, apptTime }) => {
+                  const c = customerById(deal.customerId);
+                  return (
+                    <div key={`arrival-${deal.id}`} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "4px 0" }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--fill-warning)", flexShrink: 0 }} />
+                      <span style={{ flex: 1, cursor: "pointer" }} onClick={() => { setTab("firsat"); setEditingDeal(deal); setShowDealForm(true); }}>
+                        {apptTime.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} - {c?.name || "Bilinmeyen müşteri"} ({deal.title})
+                      </span>
+                      <button type="button" onClick={() => attemptMoveDealStage(deal.id, "kazanildi")} style={{ fontSize: 12, flexShrink: 0 }}>
+                        Geldi ✓
+                      </button>
+                      <button type="button" onClick={() => attemptMoveDealStage(deal.id, "kaybedildi")} style={{ fontSize: 12, flexShrink: 0 }}>
+                        Gelmedi/İptal
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", marginBottom: "1.5rem" }}>
             <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 10px" }}>Bugün ne yapmalıyım</p>
             {dueReminderDeals.length === 0 && urgentTickets.length === 0 && newPortalAppointments.length === 0 && orderRhythmAlerts.length === 0 && lowStockItems.length === 0 && membershipAlerts.length === 0 && churnAlerts.length === 0 && waitlistFillableAlerts.length === 0 && stuckDeals.length === 0 && freedAppointmentAlerts.length === 0 ? (
