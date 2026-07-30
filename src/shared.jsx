@@ -717,8 +717,6 @@ export function Modal({ title, onClose, wide, children }) {
           maxHeight: "85vh",
           display: "flex",
           flexDirection: "column",
-          overflowY: "auto",
-          overflowX: "hidden",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexShrink: 0 }}>
@@ -727,7 +725,9 @@ export function Modal({ title, onClose, wide, children }) {
             <i className="ti ti-x" aria-hidden="true"></i>
           </button>
         </div>
-        {children}
+        <div style={{ overflowY: "auto", overflowX: "hidden", minHeight: 0 }}>
+          {children}
+        </div>
       </div>
     </div>
   );
