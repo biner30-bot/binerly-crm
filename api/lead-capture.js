@@ -20,14 +20,19 @@ export default async function handler(req, res) {
 
   const { data: settings, error: settingsError } = await supabaseAdmin
     .from("company_settings")
-    .select("user_id, company_name, logo_url")
+    .select("user_id, company_name, logo_url, sector")
     .eq("lead_capture_token", token)
     .maybeSingle();
   if (settingsError) console.error("lead-capture query error:", settingsError.message);
   if (settingsError || !settings) return res.status(404).json({ error: "Bağlantı geçersiz." });
 
+  // Sectors.jsx JSX içerdiği için api/*.js'e import edilemiyor (deal-approval.js'deki
+  // APPOINTMENT_SECTORS kopyalama deseniyle aynı) — sadece randevu sektörlerinde
+  // (guzellik_bakim/saglik_klinik) fotoğraf saklama izni de anlamlı.
+  const needsPhoto = settings.sector === "guzellik_bakim" || settings.sector === "saglik_klinik";
+
   if (req.method === "GET") {
-    return res.status(200).json({ companyName: settings.company_name || "Binerly", logoUrl: settings.logo_url || null });
+    return res.status(200).json({ companyName: settings.company_name || "Binerly", logoUrl: settings.logo_url || null, needsPhotoConsent: needsPhoto });
   }
 
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -44,7 +49,10 @@ export default async function handler(req, res) {
   // gönderirken kendi eliyle işaretliyor (e-posta yoksa kutu hiç gösterilmiyor,
   // form tarafında). KOBİ'nin manuel eklediği müşterilerden farklı olarak burada
   // ayrıca bir e-posta ile çift onay gerekmiyor - eylemin kendisi zaten doğrudan.
+  // Randevu sektörlerinde aynı checkbox/aynı onay fotoğraf saklama iznini de kapsıyor
+  // (bkz. sql/2026-07-30_customer_photo_consent.sql) — ayrı bir soru YOK, tek metin.
   const consented = trimmedEmail && marketingConsent === true;
+  const consentedAt = new Date().toISOString();
 
   const { error: insertError } = await supabaseAdmin.from("customers").insert({
     id: crypto.randomUUID(),
@@ -57,7 +65,8 @@ export default async function handler(req, res) {
     notes: `Web formundan eklendi.${note ? ` Not: ${note.trim()}` : ""}`,
     last_contact: new Date().toISOString(),
     created_at: new Date().toISOString(),
-    ...(consented ? { marketing_consent: true, marketing_consent_at: new Date().toISOString(), marketing_consent_source: "lead_capture" } : {}),
+    ...(consented ? { marketing_consent: true, marketing_consent_at: consentedAt, marketing_consent_source: "lead_capture" } : {}),
+    ...(consented && needsPhoto ? { photo_consent: true, photo_consent_at: consentedAt, photo_consent_source: "lead_capture" } : {}),
   });
   if (insertError) return res.status(500).json({ error: insertError.message });
 

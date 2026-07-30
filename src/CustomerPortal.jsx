@@ -1088,7 +1088,7 @@ function PasswordRecoveryModal({ notify, onClose }) {
   );
 }
 
-function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubscribe, onUnsubscribe, marketingConsent, onMarketingConsentChange, notify }) {
+function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubscribe, onUnsubscribe, marketingConsent, onMarketingConsentChange, companyName, companySector, photoConsent, onPhotoConsentChange, notify }) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -1154,6 +1154,9 @@ function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubsc
       </div>
 
       <div style={{ marginBottom: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
+        <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 12px" }}>
+          Bilgileriniz {companyName || "bu işletme"} tarafından yalnızca hizmet/randevu takibi amacıyla saklanır ve işlenir. Aşağıdaki izinler bunun dışında, dilediğiniz zaman değiştirebileceğiniz ek tercihlerdir.
+        </p>
         <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Pazarlama İzni</p>
         <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
           <input type="checkbox" checked={!!marketingConsent} onChange={(e) => onMarketingConsentChange(e.target.checked)} />
@@ -1163,6 +1166,19 @@ function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubsc
           Bu izin dilediğiniz zaman geri çekilebilir. Birden fazla işletmeye bağlıysanız, sadece şu an seçili olan işletme için geçerlidir.
         </p>
       </div>
+
+      {isAppointmentSector(companySector) && (
+        <div style={{ marginBottom: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
+          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Fotoğraf İzni</p>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+            <input type="checkbox" checked={!!photoConsent} onChange={(e) => onPhotoConsentChange(e.target.checked)} />
+            Hizmet öncesi/sonrası fotoğraflarımın çekilip saklanmasına izin veriyorum
+          </label>
+          <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "8px 0 0" }}>
+            Bu izin dilediğiniz zaman geri çekilebilir. Birden fazla işletmeye bağlıysanız, sadece şu an seçili olan işletme için geçerlidir.
+          </p>
+        </div>
+      )}
 
       <div style={{ paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
         <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Hesap</p>
@@ -1345,6 +1361,8 @@ export default function CustomerPortal() {
           companyAppointmentPartialChargeHours: r.company_appointment_partial_charge_hours ?? null,
           marketingConsent: r.marketing_consent === true,
           marketingConsentAt: r.marketing_consent_at || null,
+          photoConsent: r.photo_consent === true,
+          photoConsentAt: r.photo_consent_at || null,
         }));
         setCustomerRows(rows);
         const customerIds = rows.map((r) => r.id);
@@ -1729,6 +1747,16 @@ export default function CustomerPortal() {
     notify(consent ? "Pazarlama e-postası izniniz kaydedildi." : "İzniniz kaldırıldı.", "success");
   };
 
+  const setPhotoConsent = async (consent) => {
+    if (!activeCustomerRow) return;
+    const { error } = await supabase.rpc("set_my_photo_consent", { p_customer_id: activeCustomerRow.id, p_consent: consent });
+    if (error) { notify(`Güncellenemedi: ${error.message}`); return; }
+    setCustomerRows((prev) =>
+      prev.map((r) => (r.id === activeCustomerRow.id ? { ...r, photoConsent: consent, photoConsentAt: consent ? new Date().toISOString() : r.photoConsentAt } : r))
+    );
+    notify(consent ? "Fotoğraf izniniz kaydedildi." : "İzniniz kaldırıldı.", "success");
+  };
+
   const visibleCustomerRows = activeCustomerRow ? [activeCustomerRow] : [];
   // "Mesajlar" sohbeti (is_general_chat) Taleplerim listesinde görünmez — kendi
   // sekmesinde, konu/durum olmadan düz bir sohbet olarak gösteriliyor.
@@ -1972,6 +2000,10 @@ export default function CustomerPortal() {
               onUnsubscribe={unsubscribeFromPush}
               marketingConsent={activeCustomerRow?.marketingConsent}
               onMarketingConsentChange={setMarketingConsent}
+              companyName={activeCustomerRow?.companyName}
+              companySector={activeCustomerRow?.companySector}
+              photoConsent={activeCustomerRow?.photoConsent}
+              onPhotoConsentChange={setPhotoConsent}
               notify={notify}
             />
           )}

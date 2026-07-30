@@ -160,7 +160,7 @@ function escapeAttendanceHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function renderAttendancePage({ logoUrl, title, message, formToken, formResponse, submitLabel, formAction = "confirm-attendance", collectEmail = false }) {
+function renderAttendancePage({ logoUrl, title, message, note, formToken, formResponse, submitLabel, formAction = "confirm-attendance", collectEmail = false }) {
   const logo = logoUrl || "https://binerly.com/pwa-512x512.png";
   const emailInput = collectEmail
     ? `<input type="email" name="email" placeholder="E-posta adresiniz" required style="width:100%;box-sizing:border-box;padding:11px 12px;margin:4px 0 12px;border:1px solid #d5dde6;border-radius:8px;font-size:14px;" />`
@@ -184,6 +184,7 @@ function renderAttendancePage({ logoUrl, title, message, formToken, formResponse
       <div style="padding:28px 32px;color:#0c2540;font-size:15px;line-height:1.7;">
         <p style="margin:0 0 16px;font-size:17px;font-weight:600;">${escapeAttendanceHtml(title)}</p>
         <p style="margin:0 0 8px;">${escapeAttendanceHtml(message)}</p>
+        ${note ? `<p style="margin:0 0 8px;font-size:12px;color:#8a97a8;">${escapeAttendanceHtml(note)}</p>` : ""}
         ${form}
       </div>
     </div>
@@ -321,6 +322,10 @@ async function handleConfirmAttendance(req, res, supabaseAdmin, deal, settings, 
 // SADECE POST'ta olur, GET sadece bir buton gösterir — e-posta güvenlik
 // botlarının linki otomatik "tıklayıp" yanlışlıkla izin vermiş gibi görünmesini
 // engellemek için.
+// Randevu sektörlerinde (guzellik_bakim/saglik_klinik) bu TEK link/TEK onayla
+// fotoğraf saklama iznini de birlikte alır (bkz. sql/2026-07-30_customer_photo_consent.sql) —
+// KOBİ'yi/müşteriyi her izin için ayrı ayrı sormak yerine bilinçli olarak birleştirildi,
+// ayrı bir token'a gerek yok çünkü ikisi her zaman aynı anda istenip aynı anda onaylanıyor.
 async function handleMarketingConsentConfirm(req, res, supabaseAdmin, token) {
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   if (!token) {
@@ -329,7 +334,7 @@ async function handleMarketingConsentConfirm(req, res, supabaseAdmin, token) {
 
   const { data: customer, error } = await supabaseAdmin
     .from("customers")
-    .select("id, user_id, name, email, marketing_consent")
+    .select("id, user_id, name, email, marketing_consent, photo_consent")
     .eq("marketing_consent_token", token)
     .is("deleted_at", null)
     .maybeSingle();
@@ -338,26 +343,32 @@ async function handleMarketingConsentConfirm(req, res, supabaseAdmin, token) {
     return res.status(404).send(renderAttendancePage({ title: "Bağlantı bulunamadı", message: "Bu bağlantı geçersiz ya da süresi dolmuş görünüyor." }));
   }
 
-  const { data: settings } = await supabaseAdmin.from("company_settings").select("company_name, logo_url").eq("user_id", customer.user_id).maybeSingle();
+  const { data: settings } = await supabaseAdmin.from("company_settings").select("company_name, logo_url, sector").eq("user_id", customer.user_id).maybeSingle();
   const company = settings?.company_name || "Binerly";
   const logoUrl = settings?.logo_url || null;
+  // Fotoğraf izni ayrı bir istek/token akışı DEĞİL — aynı anda, aynı metinle, aynı linkle
+  // isteniyor (bkz. sql/2026-07-30_customer_photo_consent.sql). APPOINTMENT_SECTORS zaten
+  // yukarıda (handleConfirmAttendance için) tanımlı, burada da aynısı kullanılıyor.
+  const needsPhoto = APPOINTMENT_SECTORS.has(settings?.sector);
 
-  if (customer.marketing_consent) {
-    return res.status(200).send(renderAttendancePage({ logoUrl, title: "Zaten onaylanmış", message: `E-posta izniniz zaten kayıtlı, teşekkürler. - ${company}` }));
+  if (customer.marketing_consent && (!needsPhoto || customer.photo_consent)) {
+    return res.status(200).send(renderAttendancePage({ logoUrl, title: "Zaten onaylanmış", message: `İzniniz zaten kayıtlı, teşekkürler. - ${company}` }));
   }
 
   // Bu link WhatsApp/panodan paylaşılmış olabilir (customers.email hiç yoksa) —
   // bu durumda sayfa önce e-posta adresini de topluyor, tek adımda hem e-posta
   // kaydediliyor hem izin veriliyor.
   const needsEmail = !customer.email;
+  const photoClause = needsPhoto ? " ve hizmet öncesi/sonrası fotoğraflarınızı çekip saklayabilmemiz için fotoğraf iznine" : "";
 
   if (req.method === "GET") {
     return res.status(200).send(renderAttendancePage({
       logoUrl,
-      title: "Pazarlama e-postası izni",
+      title: "İzniniz gerekiyor",
       message: needsEmail
-        ? `${company}, size kampanya ve değerlendirme isteği gibi e-postalar gönderebilmek için e-posta adresinizi ve izninizi istiyor.`
-        : `${company}, size kampanya ve değerlendirme isteği gibi e-postalar gönderebilmek için izninizi istiyor. Onaylamak için aşağıya tıklayın.`,
+        ? `${company}, size kampanya ve değerlendirme isteği gibi e-postalar gönderebilmek için e-posta adresinizi ve izninizi${photoClause} ihtiyaç duyuyor.`
+        : `${company}, size kampanya ve değerlendirme isteği gibi e-postalar gönderebilmek için izninize${photoClause} ihtiyaç duyuyor. Onaylamak için aşağıya tıklayın.`,
+      note: `Bilgileriniz ${company} tarafından yalnızca hizmet/randevu takibi amacıyla saklanır ve işlenir - bu ayrı, zaten geçerli olan bir durumdur; yukarıdaki izin sadece ek olarak istenen tercihler içindir.`,
       formToken: token, submitLabel: needsEmail ? "Kaydet ve izin ver" : "Evet, izin veriyorum",
       formAction: "confirm-marketing-consent", collectEmail: needsEmail,
     }));
@@ -368,12 +379,18 @@ async function handleMarketingConsentConfirm(req, res, supabaseAdmin, token) {
     return res.status(400).send(renderAttendancePage({ logoUrl, title: "E-posta gerekli", message: "Devam etmek için bir e-posta adresi girmeniz gerekiyor." }));
   }
 
+  const nowIso = new Date().toISOString();
   const updatePayload = {
     marketing_consent: true,
-    marketing_consent_at: new Date().toISOString(),
+    marketing_consent_at: nowIso,
     marketing_consent_source: "email_confirmation",
     marketing_consent_token: null,
   };
+  if (needsPhoto) {
+    updatePayload.photo_consent = true;
+    updatePayload.photo_consent_at = nowIso;
+    updatePayload.photo_consent_source = "email_confirmation";
+  }
   if (needsEmail) updatePayload.email = providedEmail;
 
   await supabaseAdmin
@@ -382,7 +399,7 @@ async function handleMarketingConsentConfirm(req, res, supabaseAdmin, token) {
     .eq("id", customer.id)
     .eq("marketing_consent_token", token);
 
-  return res.status(200).send(renderAttendancePage({ logoUrl, title: "Teşekkürler!", message: `E-posta izniniz kaydedildi. - ${company}` }));
+  return res.status(200).send(renderAttendancePage({ logoUrl, title: "Teşekkürler!", message: `İzniniz kaydedildi. - ${company}` }));
 }
 
 async function fetchSector(supabaseAdmin, userId) {

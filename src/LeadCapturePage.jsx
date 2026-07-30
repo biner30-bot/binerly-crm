@@ -92,9 +92,12 @@ export default function LeadCapturePage() {
                     onChange={(e) => setMarketingConsent(e.target.checked)}
                     style={{ marginTop: 2 }}
                   />
-                  Kampanya ve değerlendirme isteği gibi e-postalar almak istiyorum (opsiyonel){!email.trim() && " - e-posta gerekli"}
+                  Kampanya ve değerlendirme isteği gibi e-postalar almak istiyorum{company.needsPhotoConsent ? " ve hizmet öncesi/sonrası fotoğraflarımın çekilip saklanmasına izin veriyorum" : ""} (opsiyonel){!email.trim() && " - e-posta gerekli"}
                 </label>
               </div>
+              <p style={{ fontSize: 11, color: "#9aa8b8", margin: "0 0 16px" }}>
+                Bilgileriniz {company.companyName} tarafından yalnızca hizmet/randevu takibi amacıyla saklanır ve işlenir.
+              </p>
               {submitError && <p style={{ color: "#b91c1c", fontSize: 13, margin: "0 0 12px" }}>{submitError}</p>}
               <button
                 type="submit"

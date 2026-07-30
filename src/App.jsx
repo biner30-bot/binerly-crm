@@ -535,6 +535,9 @@ function rowToCustomer(r) {
     marketingConsent: r.marketing_consent === true,
     marketingConsentAt: r.marketing_consent_at || null,
     marketingConsentSource: r.marketing_consent_source || null,
+    photoConsent: r.photo_consent === true,
+    photoConsentAt: r.photo_consent_at || null,
+    photoConsentSource: r.photo_consent_source || null,
   };
 }
 
@@ -6875,7 +6878,7 @@ function RowActionsMenu({ items }) {
   );
 }
 
-function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], payments = [], appointmentDateTimeKey = null, roomInventory = [], customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, businessUserId, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], appointmentPenaltyStrikeLimit = null, appointmentPenaltyBurnsSession = false, onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onSave, onCancel }) {
+function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], payments = [], appointmentDateTimeKey = null, roomInventory = [], customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, businessUserId, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], appointmentPenaltyStrikeLimit = null, appointmentPenaltyBurnsSession = false, onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onRequestConsent, onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(
     initial?.customerId || customers.find((c) => c.customerType === preferredCustomerType)?.id || customers[0]?.id || ""
   );
@@ -7557,9 +7560,11 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           {initial?.id && isAppointmentSector(sector) && (
             <BeforeAfterPhotos
               dealId={initial.id}
+              customer={customers.find((c) => c.id === customerId)}
               attachments={attachments}
               onUpload={onUploadAttachment}
               onDelete={onDeleteAttachment}
+              onRequestConsent={onRequestConsent}
             />
           )}
           {initial?.id && (
@@ -7821,8 +7826,6 @@ function DealPayments({ deal, payments, sector, onAddPayment, onUpdatePayment, o
   );
 }
 
-const BEFORE_AFTER_CONSENT_TEXT = "Bu görsellerin çekilip saklanması için müşteriden KVKK kapsamında açık rıza alındığını onaylıyorum.";
-
 function BeforeAfterPhotoThumb({ attachment, onDelete }) {
   const [url, setUrl] = useState(null);
 
@@ -7856,21 +7859,22 @@ function BeforeAfterPhotoThumb({ attachment, onDelete }) {
 }
 
 // AI'siz basit versiyon — otomatik eşleştirme/analiz yok, ekip elle "Öncesi"/"Sonrası"
-// olarak yükler, yan yana bakıp kendi gözüyle karşılaştırır. KVKK onay kutusu
-// işaretlenmeden yükleme alanları kilitli kalır (bkz. isAppointmentSector — sadece
-// Sağlık/Klinik ve Güzellik & Bakım'da anlamlı).
-function BeforeAfterPhotos({ dealId, attachments, onUpload, onDelete }) {
-  const [consentChecked, setConsentChecked] = useState(false);
+// olarak yükler, yan yana bakıp kendi gözüyle karşılaştırır. Yükleme, personelin kendi
+// beyanıyla değil, müşterinin customers.photo_consent üzerinden GERÇEKTEN verdiği izinle
+// kilitli/açık olur (bkz. requestCustomerConsent, sql/2026-07-30_customer_photo_consent.sql)
+// — sadece isAppointmentSector sektörlerinde anlamlı, DealForm zaten öyle gate'liyor.
+function BeforeAfterPhotos({ dealId, customer, attachments, onUpload, onDelete, onRequestConsent }) {
   const [uploadingSlot, setUploadingSlot] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const items = attachments.filter((a) => a.entityType === "deal_photos" && a.entityId === dealId);
   const beforePhotos = items.filter((a) => a.photoType === "before");
   const afterPhotos = items.filter((a) => a.photoType === "after");
+  const consentGranted = customer?.photoConsent === true;
 
   const handleFile = async (slot, e) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file || !consentChecked) return;
+    if (!file || !consentGranted) return;
     setUploadingSlot(slot);
     await onUpload("deal_photos", dealId, file, { photoType: slot, consentConfirmed: true });
     setUploadingSlot(null);
@@ -7890,12 +7894,12 @@ function BeforeAfterPhotos({ dealId, attachments, onUpload, onDelete }) {
         style={{
           background: "var(--surface-1)", border: "0.5px dashed var(--border)", borderRadius: "var(--radius)",
           padding: "6px 10px", fontSize: 12, display: "inline-block",
-          cursor: consentChecked && uploadingSlot === null ? "pointer" : "not-allowed",
-          opacity: consentChecked ? 1 : 0.5,
+          cursor: consentGranted && uploadingSlot === null ? "pointer" : "not-allowed",
+          opacity: consentGranted ? 1 : 0.5,
         }}
       >
         {uploadingSlot === slot ? "Yükleniyor…" : `+ ${label} fotoğrafı`}
-        <input type="file" accept="image/*" onChange={(e) => handleFile(slot, e)} disabled={!consentChecked || uploadingSlot !== null} style={{ display: "none" }} />
+        <input type="file" accept="image/*" onChange={(e) => handleFile(slot, e)} disabled={!consentGranted || uploadingSlot !== null} style={{ display: "none" }} />
       </label>
     </div>
   );
@@ -7903,10 +7907,22 @@ function BeforeAfterPhotos({ dealId, attachments, onUpload, onDelete }) {
   return (
     <div style={{ marginBottom: 16 }}>
       <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>Öncesi / Sonrası Fotoğrafları</label>
-      <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer", marginBottom: 10 }}>
-        <input type="checkbox" checked={consentChecked} onChange={(e) => setConsentChecked(e.target.checked)} style={{ marginTop: 2, flexShrink: 0 }} />
-        {BEFORE_AFTER_CONSENT_TEXT}
-      </label>
+      {consentGranted ? (
+        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 10px" }}>
+          ✓ Fotoğraf saklama izni alındı{customer?.photoConsentAt ? ` (${new Date(customer.photoConsentAt).toLocaleDateString("tr-TR")})` : ""}
+        </p>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10, fontSize: 12, color: "var(--text-secondary)" }}>
+          <span>Bu müşteri için fotoğraf saklama izni alınmamış - yükleme kilitli.</span>
+          <button
+            type="button"
+            onClick={() => onRequestConsent(customer)}
+            style={{ fontSize: 12, background: "none", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "2px 8px", cursor: "pointer" }}
+          >
+            {customer?.email ? "İzin e-postası gönder" : "İzin linki paylaş"}
+          </button>
+        </div>
+      )}
       <div style={{ display: "flex", gap: 12 }}>
         {renderColumn("Öncesi", "before", beforePhotos)}
         {renderColumn("Sonrası", "after", afterPhotos)}
@@ -7978,7 +7994,7 @@ function activityDateLabel(dateStr) {
     " · " + d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 }
 
-function CustomerDetail({ customer, deals, payments, activities, sector, customFieldDefs = [], groupClasses = [], groupClassEnrollments = [], attachments = [], onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onAddActivity, onRequestMarketingConsent, onClose }) {
+function CustomerDetail({ customer, deals, payments, activities, sector, customFieldDefs = [], groupClasses = [], groupClassEnrollments = [], attachments = [], onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onAddActivity, onRequestConsent, onClose }) {
   const [type, setType] = useState("note");
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
@@ -8054,16 +8070,23 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
           {customer.marketingConsent ? (
             <Badge tone="success">✓ Pazarlama e-postası izni var</Badge>
           ) : (
-            <>
-              <Badge tone="warning">Pazarlama e-postası izni yok</Badge>
-              <button
-                type="button"
-                onClick={() => onRequestMarketingConsent(customer)}
-                style={{ fontSize: 12, background: "none", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "2px 8px", cursor: "pointer" }}
-              >
-                {customer.email ? "İzin e-postası gönder" : "İzin linki paylaş"}
-              </button>
-            </>
+            <Badge tone="warning">Pazarlama e-postası izni yok</Badge>
+          )}
+          {isAppointmentSector(sector) && (
+            customer.photoConsent ? (
+              <Badge tone="success">✓ Fotoğraf saklama izni var</Badge>
+            ) : (
+              <Badge tone="warning">Fotoğraf saklama izni yok</Badge>
+            )
+          )}
+          {(!customer.marketingConsent || (isAppointmentSector(sector) && !customer.photoConsent)) && (
+            <button
+              type="button"
+              onClick={() => onRequestConsent(customer)}
+              style={{ fontSize: 12, background: "none", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "2px 8px", cursor: "pointer" }}
+            >
+              {customer.email ? "İzin e-postası gönder" : "İzin linki paylaş"}
+            </button>
           )}
         </div>
         {customFieldDefs.filter((d) => d.entity === "customer" && customer.customFields?.[d.key]).length > 0 && (
@@ -8308,7 +8331,7 @@ function CampaignModal({ customers, replyTo, companyName, logoUrl, session, onRe
   // İYS/ticari elektronik ileti gerçek bir engel (uyarı değil) — sadece
   // marketing_consent=true olan müşteriler seçilebilir/gönderilebilir. Bu izin
   // KOBİ'nin kendi beyanıyla değil, Müşteri Kazanma Linki/Müşteri Portalı/e-posta
-  // ile çift onaydan (bkz. requestMarketingConsent) geliyor.
+  // ile çift onaydan (bkz. requestCustomerConsent) geliyor.
   const emailCustomers = customers.filter((c) => c.email);
   const consentedCustomers = emailCustomers.filter((c) => c.marketingConsent);
   const [selected, setSelected] = useState(() => new Set(consentedCustomers.map((c) => c.id)));
@@ -12048,8 +12071,8 @@ export default function App() {
   const notifyCustomerByEmail = async (customer, subject, message, opts = {}) => {
     // "Müşterilere önemli gelişmelerde otomatik e-posta gönder" kapalıysa, aşama
     // değişikliği/ödeme/destek gibi OPERASYONEL bildirimler susturulur - ama
-    // pazarlama izni isteği bunlardan biri DEĞİL, ticari ileti bile sayılmıyor
-    // (bkz. requestMarketingConsent), o yüzden opts.ignoreNotificationToggle ile
+    // izin isteği bunlardan biri DEĞİL, ticari ileti bile sayılmıyor
+    // (bkz. requestCustomerConsent), o yüzden opts.ignoreNotificationToggle ile
     // bu kontrolü atlayabiliyor. KOBİ'nin bu anahtarı kapatmış olması, müşteriden
     // hiçbir zaman izin alamaması anlamına gelmemeli.
     if (!opts.ignoreNotificationToggle && companySettings?.customerNotificationsEnabled !== true) return false;
@@ -12075,25 +12098,30 @@ export default function App() {
     }
   };
 
-  // KOBİ'nin kendi eklediği bir müşteri için pazarlama izni — KOBİ'nin kendi
-  // beyanı (bir kutuyu işaretlemesi) İYS anlamında gerçek bir onay sayılmıyor,
-  // bu yüzden müşteriye kendisinin tıklayıp onaylayacağı bir link gönderiliyor
-  // (çift onay/double opt-in, deal-approval.js action=confirm-marketing-consent).
-  // Yeni müşteri eklenirken otomatik, veya Müşteri Kayıtları/Kampanya Gönder'den
-  // elle tekrar tetiklenebilir.
-  const requestMarketingConsent = async (customer) => {
+  // KOBİ'nin kendi eklediği bir müşteri için izin(ler) — KOBİ'nin kendi beyanı
+  // (bir kutuyu işaretlemesi) tek başına gerçek bir onay sayılmıyor, bu yüzden
+  // müşteriye kendisinin tıklayıp onaylayacağı bir link gönderiliyor (çift
+  // onay/double opt-in, deal-approval.js action=confirm-marketing-consent).
+  // Randevu sektörlerinde (isAppointmentSector) bu AYNI link fotoğraf saklama
+  // iznini de kapsar — ayrı bir "sor-cevap" akışı KURULMADI, bilinçli olarak
+  // tek metin/tek an (bkz. sql/2026-07-30_customer_photo_consent.sql). Yeni
+  // müşteri eklenirken otomatik, veya Müşteri Kayıtları/Kampanya Gönder/Randevu
+  // formundan elle tekrar tetiklenebilir.
+  const requestCustomerConsent = async (customer) => {
     const token = uid();
     const { error } = await supabase.from("customers").update({ marketing_consent_token: token }).eq("id", customer.id);
     if (error) { notify(`İzin isteği gönderilemedi: ${error.message}`); return; }
     const consentUrl = `https://binerly.com/api/deal-approval?action=confirm-marketing-consent&token=${token}`;
     const company = companySettings?.companyName || "İşletmemiz";
+    const needsPhoto = isAppointmentSector(companySettings?.sector);
+    const photoClause = needsPhoto ? " ve hizmet öncesi/sonrası fotoğraflarınızı çekip saklayabilmemiz için fotoğraf iznine" : "";
 
     // E-postası hiç yoksa e-posta gönderemeyiz — bunun yerine linki paylaşıyoruz
     // (Portal linkindeki "Linki paylaş" ile aynı desen: telefon varsa WhatsApp,
     // yoksa panoya kopyala). Linkteki sayfa (deal-approval.js) müşteriden hem
     // e-postasını isteyip hem izni tek adımda kaydediyor.
     if (!customer.email) {
-      const message = `Merhaba, ${company} olarak size kampanya ve değerlendirme isteği gibi e-postalar gönderebilmemiz için bu linkten e-postanızı girip izin verebilirsiniz: ${consentUrl}`;
+      const message = `Merhaba, ${company} olarak size kampanya ve değerlendirme isteği gibi e-postalar gönderebilmemiz${photoClause ? "," : " için"}${photoClause} ihtiyacımız var, bu linkten e-postanızı girip izin verebilirsiniz: ${consentUrl}`;
       if (customer.phone) {
         window.open(`https://wa.me/${toWhatsAppNumber(customer.phone)}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
       } else {
@@ -12105,8 +12133,8 @@ export default function App() {
 
     const sent = await notifyCustomerByEmail(
       customer,
-      `${companySettings?.companyName || "Binerly"} - E-posta izninizi onaylar mısınız?`,
-      `Merhaba ${customer.name || ""},\n\n${company} olarak size kampanya, değerlendirme isteği gibi e-postalar gönderebilmemiz için izninize ihtiyacımız var. Onaylamak için aşağıdaki butona tıklayabilirsiniz.`,
+      `${companySettings?.companyName || "Binerly"} - İzninizi onaylar mısınız?`,
+      `Merhaba ${customer.name || ""},\n\n${company} olarak size kampanya, değerlendirme isteği gibi e-postalar gönderebilmemiz için izninize${photoClause} ihtiyacımız var. Onaylamak için aşağıdaki butona tıklayabilirsiniz.`,
       { ctaUrl: consentUrl, ctaLabel: "İzin Ver", ignoreNotificationToggle: true }
     );
     if (sent) notify(`${customer.name} adlı müşteriye izin e-postası gönderildi.`, "success");
@@ -12220,7 +12248,7 @@ export default function App() {
     // Sadece manuel "Yeni Müşteri" akışında otomatik tetiklenir - toplu içe
     // aktarma bulkInsertChunked kullanıyor, bu yüzden tek seferde yüzlerce izin
     // e-postası gitme riski yok.
-    if (isNew && customer.email) requestMarketingConsent(customer);
+    if (isNew && customer.email) requestCustomerConsent(customer);
   };
 
   const deleteCustomer = async (id) => {
@@ -12724,7 +12752,7 @@ export default function App() {
       entityType,
       entityId,
       "updated",
-      extra.photoType ? `"${file.name}" (${extra.photoType === "before" ? "öncesi" : "sonrası"} fotoğrafı) eklendi - KVKK onayı alındı` : `"${file.name}" dosyası eklendi`
+      extra.photoType ? `"${file.name}" (${extra.photoType === "before" ? "öncesi" : "sonrası"} fotoğrafı) eklendi` : `"${file.name}" dosyası eklendi`
     );
   };
 
@@ -14881,7 +14909,7 @@ export default function App() {
                         <button
                           type="button"
                           title={c.email ? "İzin e-postası gönder" : "İzin linkini WhatsApp/kopyala ile paylaş"}
-                          onClick={() => requestMarketingConsent(c)}
+                          onClick={() => requestCustomerConsent(c)}
                           style={{ fontSize: 12, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
                         >
                           {c.email ? "İzin iste" : "İzin linki paylaş"}
@@ -16056,6 +16084,7 @@ export default function App() {
             onUploadAttachment={uploadAttachment}
             onDownloadAttachment={downloadAttachment}
             onDeleteAttachment={deleteAttachment}
+            onRequestConsent={requestCustomerConsent}
             onSave={upsertDeal}
             onCancel={() => { setShowDealForm(false); setEditingDeal(null); }}
           />
@@ -16157,7 +16186,7 @@ export default function App() {
       )}
 
       {showCampaignModal && (
-        <CampaignModal customers={customers} replyTo={session.user.email} companyName={companySettings?.companyName} logoUrl={companySettings?.logoUrl} session={session} onRequestConsent={requestMarketingConsent} onClose={() => setShowCampaignModal(false)} />
+        <CampaignModal customers={customers} replyTo={session.user.email} companyName={companySettings?.companyName} logoUrl={companySettings?.logoUrl} session={session} onRequestConsent={requestCustomerConsent} onClose={() => setShowCampaignModal(false)} />
       )}
 
       {pendingLostReasonMove && (() => {
@@ -16216,7 +16245,7 @@ export default function App() {
           onDownloadAttachment={downloadAttachment}
           onDeleteAttachment={deleteAttachment}
           onAddActivity={addActivity}
-          onRequestMarketingConsent={requestMarketingConsent}
+          onRequestConsent={requestCustomerConsent}
           onClose={() => setViewingCustomer(null)}
         />
       )}
