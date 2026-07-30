@@ -13959,6 +13959,19 @@ export default function App() {
         .filter((x) => x.apptTime && !isNaN(x.apptTime.getTime()) && x.apptTime.getTime() <= Date.now())
         .sort((a, b) => a.apptTime - b.apptTime)
     : [];
+  // Otel'de "kazanıldı" (rezervasyon onaylandı) haftalar önce gerçekleşebilir —
+  // asıl operasyonel an giriş/çıkış GÜNÜ, aşama değişikliğiyle ilgisi yok. Bu
+  // yüzden randevu sektörlerindeki gibi bir aşama-onayı değil, sadece bugünün
+  // giriş/çıkışlarını toplayan bilgilendirici bir liste (bkz.
+  // project_binerly_beauty_pipeline_fit_question — aynı "günün operasyonel
+  // işi" ihtiyacı, farklı sektörde farklı çözüm).
+  const otelTodayStr = new Date().toISOString().slice(0, 10);
+  const otelArrivalsToday = companySettings?.sector === "otel"
+    ? deals.filter((d) => d.stage === "kazanildi" && (d.customFields?.giris_tarihi || "").slice(0, 10) === otelTodayStr)
+    : [];
+  const otelDeparturesToday = companySettings?.sector === "otel"
+    ? deals.filter((d) => d.stage === "kazanildi" && (d.customFields?.cikis_tarihi || "").slice(0, 10) === otelTodayStr)
+    : [];
   const lowStockItems = stockItems.filter((s) => s.reorderThreshold != null && s.quantityOnHand <= s.reorderThreshold);
   const membershipAlerts = computeMembershipAlerts(deals, customers);
   const churnAlerts = supportsGroupClasses(companySettings?.sector) ? computeAttendanceChurnRisk(customers, deals, groupClassEnrollments, classAttendance) : [];
@@ -14255,6 +14268,35 @@ export default function App() {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+          {(otelArrivalsToday.length > 0 || otelDeparturesToday.length > 0) && (
+            <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", marginBottom: "1.5rem" }}>
+              <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 10px" }}>Bugünün Giriş/Çıkışları</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
+                {otelArrivalsToday.map((d) => (
+                  <div
+                    key={`arrival-${d.id}`}
+                    onClick={() => { setTab("firsat"); setEditingDeal(d); setShowDealForm(true); }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", padding: "4px 0" }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--fill-accent)", flexShrink: 0 }} />
+                    <span style={{ flex: 1 }}>{customerById(d.customerId)?.name || "Bilinmeyen müşteri"} - {d.customFields?.oda_tipi || d.title}</span>
+                    <Badge tone="accent">Bugün giriş</Badge>
+                  </div>
+                ))}
+                {otelDeparturesToday.map((d) => (
+                  <div
+                    key={`departure-${d.id}`}
+                    onClick={() => { setTab("firsat"); setEditingDeal(d); setShowDealForm(true); }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", padding: "4px 0" }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--fill-warning)", flexShrink: 0 }} />
+                    <span style={{ flex: 1 }}>{customerById(d.customerId)?.name || "Bilinmeyen müşteri"} - {d.customFields?.oda_tipi || d.title}</span>
+                    <Badge tone="warning">Bugün çıkış</Badge>
+                  </div>
+                ))}
               </div>
             </div>
           )}
