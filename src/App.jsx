@@ -102,6 +102,14 @@ function buildWinBackMessage(customer, daysSince, companySettings) {
   return `Merhaba ${firstName}, sizi ${daysSince} gündür derslerde göremedik, sizi özledik! ${firma}bir sonraki dersinizde görüşmeyi çok isteriz - uygun bir saat için bize yazabilirsiniz.`;
 }
 
+// Sipariş ritmi bozulan müşteriye "her şey yolunda mı" kontrolü — renewal/win-back
+// ile aynı desen: hazır metni tek tıkla WhatsApp'a taşır, gönderim yine kullanıcının elinde.
+function buildOrderCheckInMessage(customer, typicalInterval, daysSinceLast, companySettings) {
+  const firstName = (customer.name || "").split(" ")[0] || customer.name;
+  const firma = companySettings?.companyName ? `${companySettings.companyName} olarak ` : "";
+  return `Merhaba ${firstName}, genelde ${typicalInterval} günde bir sipariş verirdiniz, ${daysSinceLast} gündür sizden yeni bir sipariş almadık. ${firma}her şey yolunda mı diye sormak istedik, ihtiyacınız varsa buradayız.`;
+}
+
 function median(nums) {
   const sorted = [...nums].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
@@ -6402,7 +6410,7 @@ function CustomerForm({ initial, customers = [], customFieldDefs = [], sectorTag
           <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0532 000 00 00" style={{ width: "100%" }} />
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>E-posta <InfoTip align="right" text={CUSTOMER_EMAIL_INFO_TEXT} /></label>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>E-posta <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text-warning)" }}>(önemli)</span> <InfoTip align="right" text={CUSTOMER_EMAIL_INFO_TEXT} /></label>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={isKurumsal ? "info@firma.com" : "ayse@gmail.com"} style={{ width: "100%" }} />
         </div>
       </div>
@@ -14224,12 +14232,23 @@ export default function App() {
                 {orderRhythmAlerts.map(({ customer, typicalInterval, daysSinceLast, orderCount }) => (
                   <div
                     key={`rhythm-${customer.id}`}
-                    onClick={() => setViewingCustomer(customer)}
                     title={`Geçmiş ${orderCount} siparişine göre tipik olarak ${typicalInterval} günde bir sipariş veriyor`}
-                    style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", padding: "4px 0" }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "4px 0" }}
                   >
                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--fill-warning)", flexShrink: 0 }} />
-                    <span style={{ flex: 1 }}>{customer.name} - genelde {typicalInterval} günde bir sipariş verirdi, {daysSinceLast} gündür yok</span>
+                    <span style={{ flex: 1, cursor: "pointer" }} onClick={() => setViewingCustomer(customer)}>{customer.name} - genelde {typicalInterval} günde bir sipariş verirdi, {daysSinceLast} gündür yok</span>
+                    {customer.phone && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const message = buildOrderCheckInMessage(customer, typicalInterval, daysSinceLast, companySettings);
+                          window.open(`https://wa.me/${toWhatsAppNumber(customer.phone)}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+                        }}
+                        style={{ fontSize: 12, flexShrink: 0 }}
+                      >
+                        WhatsApp
+                      </button>
+                    )}
                     <Badge tone="warning">Sipariş ritmi bozuldu</Badge>
                   </div>
                 ))}
