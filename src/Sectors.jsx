@@ -38,7 +38,7 @@ export const SECTOR_PRESETS = [
       kazanildi: "Satış/Kiralama tamamlandı",
       kaybedildi: "Vazgeçildi",
     },
-    tags: ["Sıcak lead", "Alıcı adayı", "Kiracı", "Yatırımcı"],
+    tags: ["Sıcak lead", "Alıcı adayı", "Kiracı", "Yatırımcı", "Satıcı", "Kiraya veren"],
     // Bunlar aktif bir işlemin süreç durumunu anlatır (kredi/ekspertiz süreci
     // henüz başlamış bir teklif gerektirir) — yeni müşteri kaydında değil,
     // sadece Teklif formunda öneri olarak çıkar (bkz. sectorDealTags).
