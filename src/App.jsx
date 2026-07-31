@@ -49,6 +49,15 @@ import {
 // zaten "openDeals" dışında tutulduğu için burada yer almıyor.
 const STAGE_PROBABILITY = { ilk_gorusme: 0.1, teklif: 0.3, muzakere: 0.6 };
 
+// Müşterinin kendi kendine aldığı randevu için iki olası kaynak: müşteri
+// portalından giriş yapıp alan (bookAppointment, "portal") veya hiç kaydı
+// olmadan /randevu-al/{token} public widget'ından alan ("randevu_widget",
+// lead-capture.js). İkisi de aynı "KOBİ'nin henüz dokunmadığı, gözden
+// kaçmaması gereken talep" muamelesini görür. api/send-push.js'te AYNI liste
+// ayrıca tutuluyor (src/ ile api/ arasında paylaşılan import yok) — biri
+// değişirse diğeri de güncellenmeli.
+const SELF_BOOKED_SOURCES = ["portal", "randevu_widget"];
+
 const SECTORS = [
   "İnşaat", "Medikal / Sağlık", "Gıda", "Tekstil", "Elektrik / Elektronik",
   "Otomotiv", "Mobilya", "Perakende / Mağazacılık", "Toptan Ticaret",
@@ -4174,18 +4183,21 @@ const ANSWER_LIBRARY = [
   {
     id: "diagnosis_portal_lead_quality",
     category: "Analiz",
-    label: "Portaldan kendi gelen kayıtlarım ne kadar iyi dönüşüyor?",
-    keywords: ["portal kaydı kalitesi", "kendi randevusunu alan müşteri", "portal dönüşüm oranı"],
+    label: "Kendi kendine alınan randevularım ne kadar iyi dönüşüyor?",
+    keywords: ["portal kaydı kalitesi", "kendi randevusunu alan müşteri", "portal dönüşüm oranı", "web randevu widget kalitesi"],
     visibleIf: (sector) => supportsSelfBooking(sector),
     compute: (ctx) => {
-      const portalDeals = ctx.deals.filter((d) => d.customFields?.kaynak === "portal" && (d.stage === "kazanildi" || d.stage === "kaybedildi"));
-      const manualDeals = ctx.deals.filter((d) => d.customFields?.kaynak !== "portal" && (d.stage === "kazanildi" || d.stage === "kaybedildi"));
-      if (portalDeals.length < 3) return "Portaldan yeterli sayıda sonuçlanmış kaydınız yok, karşılaştırma için erken.";
-      const portalWinRate = Math.round((portalDeals.filter((d) => d.stage === "kazanildi").length / portalDeals.length) * 100);
-      if (manualDeals.length < 3) return `Portaldan gelen kayıtlarınızın kazanma oranı %${portalWinRate} - elle eklediğiniz kayıt sayınız karşılaştırma için henüz yetersiz.`;
+      // Müşteri portalından (giriş yapıp) veya herkese açık randevu-al widget'ından
+      // (hiç kaydı olmadan) gelenler burada birlikte sayılır — ikisi de "KOBİ'nin
+      // elle eklemediği" aynı kalite sorusuna cevap arıyor.
+      const selfBookedDeals = ctx.deals.filter((d) => SELF_BOOKED_SOURCES.includes(d.customFields?.kaynak) && (d.stage === "kazanildi" || d.stage === "kaybedildi"));
+      const manualDeals = ctx.deals.filter((d) => !SELF_BOOKED_SOURCES.includes(d.customFields?.kaynak) && (d.stage === "kazanildi" || d.stage === "kaybedildi"));
+      if (selfBookedDeals.length < 3) return "Kendi kendine alınan yeterli sayıda sonuçlanmış kaydınız yok, karşılaştırma için erken.";
+      const selfBookedWinRate = Math.round((selfBookedDeals.filter((d) => d.stage === "kazanildi").length / selfBookedDeals.length) * 100);
+      if (manualDeals.length < 3) return `Kendi kendine alınan kayıtlarınızın kazanma oranı %${selfBookedWinRate} - elle eklediğiniz kayıt sayınız karşılaştırma için henüz yetersiz.`;
       const manualWinRate = Math.round((manualDeals.filter((d) => d.stage === "kazanildi").length / manualDeals.length) * 100);
-      if (portalWinRate < manualWinRate - 15) return `Portaldan gelen kayıtlarınızın kazanma oranı %${portalWinRate}, elle eklediklerinizde ise %${manualWinRate} - portaldan gelen taleplerin kalitesi biraz daha düşük olabilir, bu kayıtlara daha hızlı geri dönmeyi deneyin.`;
-      return `Portaldan gelen kayıtlarınızın kazanma oranı %${portalWinRate}, elle eklediklerinizde %${manualWinRate} - aralarında belirgin bir kalite farkı görünmüyor.`;
+      if (selfBookedWinRate < manualWinRate - 15) return `Kendi kendine alınan kayıtlarınızın kazanma oranı %${selfBookedWinRate}, elle eklediklerinizde ise %${manualWinRate} - kendi kendine alınan taleplerin kalitesi biraz daha düşük olabilir, bu kayıtlara daha hızlı geri dönmeyi deneyin.`;
+      return `Kendi kendine alınan kayıtlarınızın kazanma oranı %${selfBookedWinRate}, elle eklediklerinizde %${manualWinRate} - aralarında belirgin bir kalite farkı görünmüyor.`;
     },
   },
   {
@@ -8141,6 +8153,9 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
                   {d.customFields?.kaynak === "portal" && d.customFields?.portal_randevu_zamani && (
                     <span style={{ color: "var(--text-muted)" }}> · Portaldan alındı</span>
                   )}
+                  {d.customFields?.kaynak === "randevu_widget" && d.customFields?.portal_randevu_zamani && (
+                    <span style={{ color: "var(--text-muted)" }}> · Web'den alındı</span>
+                  )}
                 </span>
                 <span style={{ color: "var(--text-secondary)" }}>{stageLabel(d.stage, customer.customerType || "kurumsal", sector)} · {formatTL(d.value)}</span>
               </div>
@@ -11734,6 +11749,7 @@ export default function App() {
   const [paymentModeDeal, setPaymentModeDeal] = useState(null);
   const [leadCaptureLink, setLeadCaptureLink] = useState(null);
   const [leadCaptureShareNumber, setLeadCaptureShareNumber] = useState("");
+  const [appointmentLink, setAppointmentLink] = useState(null);
   const [showPortalLinkModal, setShowPortalLinkModal] = useState(false);
   const [quickList, setQuickList] = useState(null);
   const [initialViewTicketId, setInitialViewTicketId] = useState(null);
@@ -13912,7 +13928,7 @@ export default function App() {
   // dokunulmamış (hâlâ "ilk_gorusme" aşamasında) randevu talepleri — gözden
   // kaçmasınlar diye "Bugün ne yapmalıyım" widget'ında en üstte gösterilir.
   const newPortalAppointments = deals.filter(
-    (d) => d.customFields?.kaynak === "portal" && d.customFields?.portal_randevu_zamani && d.stage === "ilk_gorusme"
+    (d) => SELF_BOOKED_SOURCES.includes(d.customFields?.kaynak) && d.customFields?.portal_randevu_zamani && d.stage === "ilk_gorusme"
   );
   const urgentTickets = supportTickets.filter((t) => {
     if (TERMINAL_STATUSES.includes(t.status)) return false;
@@ -14866,6 +14882,18 @@ export default function App() {
               <i className="ti ti-qrcode" style={{ fontSize: 16 }} aria-hidden="true"></i>
               Müşteri Kazanma Linki
             </button>
+            {supportsSelfBooking(companySettings?.sector) && bookingModel(companySettings?.sector) === "slot" && (
+              <button
+                onClick={async () => {
+                  const link = await generateLeadCaptureLink();
+                  if (link) setAppointmentLink(link.replace("/lead/", "/randevu-al/"));
+                }}
+                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                <i className="ti ti-calendar-event" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                Randevu Alma Linki
+              </button>
+            )}
             <button
               onClick={() => setShowPortalLinkModal(true)}
               style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
@@ -15236,6 +15264,11 @@ export default function App() {
                                 <Badge tone="accent">Portaldan alındı</Badge>
                               </div>
                             )}
+                            {d.customFields?.kaynak === "randevu_widget" && d.customFields?.portal_randevu_zamani && (
+                              <div style={{ marginBottom: 4 }}>
+                                <Badge tone="accent">Web'den alındı</Badge>
+                              </div>
+                            )}
                             {d.paymentStatus === "paid" && (
                               <div style={{ marginBottom: 4 }}>
                                 <Badge tone="success">✓ Online ödendi</Badge>
@@ -15426,6 +15459,11 @@ export default function App() {
                         {d.customFields?.kaynak === "portal" && d.customFields?.portal_randevu_zamani && (
                           <div style={{ marginTop: 4 }}>
                             <Badge tone="accent">Portaldan alındı</Badge>
+                          </div>
+                        )}
+                        {d.customFields?.kaynak === "randevu_widget" && d.customFields?.portal_randevu_zamani && (
+                          <div style={{ marginTop: 4 }}>
+                            <Badge tone="accent">Web'den alındı</Badge>
                           </div>
                         )}
                         {d.paymentStatus === "paid" && (
@@ -15731,6 +15769,18 @@ export default function App() {
                 if (link) setLeadCaptureLink(link);
               }}
             />
+            {supportsSelfBooking(companySettings?.sector) && bookingModel(companySettings?.sector) === "slot" && (
+              <MenuRow
+                icon="ti-calendar-event"
+                label="Randevu Alma Linki"
+                description="Müşteri girişsiz kendi randevusunu seçip talep etsin"
+                onClick={async () => {
+                  setShowSettingsHub(false);
+                  const link = await generateLeadCaptureLink();
+                  if (link) setAppointmentLink(link.replace("/lead/", "/randevu-al/"));
+                }}
+              />
+            )}
             <MenuRow
               icon="ti-users-group"
               label="Müşteri Portalı Linki"
@@ -15820,6 +15870,55 @@ export default function App() {
               teması olan kişiler için kullanın (kartvizit bıraktı, telefonla görüştünüz vb.) - rastgele/toplu numara
               listelerine göndermek önerilmez.
             </p>
+          </div>
+        </Modal>
+      )}
+
+      {appointmentLink && (
+        <Modal title="Randevu Alma Linki" onClose={() => setAppointmentLink(null)}>
+          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px" }}>
+            Bu linki (veya QR kodu) Instagram bio'nuza, sitenize veya kartvizitinize koyun - hiç kaydı olmayan bir müşteri bile giriş yapmadan uygun bir saat seçip randevu talep edebilir.
+          </p>
+          <img
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(appointmentLink)}`}
+            alt="QR kod"
+            style={{ display: "block", margin: "0 auto 16px" }}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <input readOnly value={appointmentLink} style={{ flex: 1, fontSize: 13 }} onFocus={(e) => e.target.select()} />
+            <button
+              type="button"
+              onClick={() => { navigator.clipboard.writeText(appointmentLink); notify("Link kopyalandı.", "success"); }}
+              style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+            >
+              Kopyala
+            </button>
+          </div>
+
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
+              Numara yazıp doğrudan WhatsApp'tan gönder
+            </label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                type="tel"
+                value={leadCaptureShareNumber}
+                onChange={(e) => setLeadCaptureShareNumber(e.target.value)}
+                placeholder="0532 000 00 00"
+                style={{ flex: 1, fontSize: 13 }}
+              />
+              <button
+                type="button"
+                disabled={!leadCaptureShareNumber.trim()}
+                onClick={() => {
+                  const message = `Merhaba, ${companySettings?.companyName || "işletmemiz"} için müsait bir saat seçip randevu talep edebilirsiniz: ${appointmentLink}`;
+                  window.open(`https://wa.me/${toWhatsAppNumber(leadCaptureShareNumber)}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+                }}
+                style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
+              >
+                <WhatsAppIcon /> Gönder
+              </button>
+            </div>
           </div>
         </Modal>
       )}

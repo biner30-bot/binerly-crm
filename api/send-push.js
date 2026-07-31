@@ -89,16 +89,19 @@ async function handleTicketMessagePush(req, res, supabaseAdmin) {
   });
 }
 
-// Müşteri portalından kendi kendine alınan/iptal edilen randevular için KOBİ'ye
-// push bildirimi. Sadece bookAppointment'ın işaretlediği
-// (custom_fields.kaynak === "portal") kayıtlarla ilgilenir — KOBİ'nin kendi elle
+// Müşteri portalından veya herkese açık randevu widget'ından (/randevu-al/{token})
+// kendi kendine alınan/iptal edilen randevular için KOBİ'ye push bildirimi. Sadece
+// bookAppointment'ın ("portal") veya lead-capture.js'in randevu dalının
+// ("randevu_widget") işaretlediği kayıtlarla ilgilenir — KOBİ'nin kendi elle
 // oluşturduğu/güncellediği tekliflerde (aynı stage geçişlerinde bile) hiçbir
-// bildirim gitmez.
+// bildirim gitmez. src/App.jsx'teki SELF_BOOKED_SOURCES ile aynı liste — biri
+// değişirse diğeri de güncellenmeli (src/ ile api/ arasında paylaşılan import yok).
+const SELF_BOOKED_SOURCES = ["portal", "randevu_widget"];
 async function handleAppointmentPush(req, res, supabaseAdmin) {
   const type = req.body?.type;
   const record = req.body?.record;
   const oldRecord = req.body?.old_record;
-  if (!record || record.custom_fields?.kaynak !== "portal" || !record.custom_fields?.portal_randevu_zamani) {
+  if (!record || !SELF_BOOKED_SOURCES.includes(record.custom_fields?.kaynak) || !record.custom_fields?.portal_randevu_zamani) {
     return res.status(200).json({ skipped: true });
   }
 
