@@ -94,14 +94,18 @@ export default async function handler(req, res) {
     // Aynı işletmede telefon/e-posta eşleşen bir müşteri varsa onu kullan — her
     // randevu talebinde yinelenen customers satırı oluşmasın (bkz. Gerçek engel
     // istisnaları: mükerrer telefon/e-posta zaten hard-block sayılıyor, burada da
-    // aynı ruhla mükerrer kayıt yerine mevcut kayıt kullanılır).
+    // aynı ruhla mükerrer kayıt yerine mevcut kayıt kullanılır). deleted_at IS
+    // NULL şart — çöp kutusundaki bir müşteriyle eşleşirse deal ona bağlanıyor
+    // ama ana ekranın customers listesi (deleted_at IS NULL filtreli) onu hiç
+    // göstermiyor: "Bilinmeyen müşteri" + customerType okunamadığı için "kurumsal"
+    // sekmesine düşme bugı buradan geliyordu (canlıda görüldü, 2026-07-31).
     let customerId = null;
     if (trimmedPhone) {
-      const { data } = await supabaseAdmin.from("customers").select("id").eq("user_id", settings.user_id).eq("phone", trimmedPhone).limit(1).maybeSingle();
+      const { data } = await supabaseAdmin.from("customers").select("id").eq("user_id", settings.user_id).eq("phone", trimmedPhone).is("deleted_at", null).limit(1).maybeSingle();
       customerId = data?.id || null;
     }
     if (!customerId && trimmedEmail) {
-      const { data } = await supabaseAdmin.from("customers").select("id").eq("user_id", settings.user_id).eq("email", trimmedEmail).limit(1).maybeSingle();
+      const { data } = await supabaseAdmin.from("customers").select("id").eq("user_id", settings.user_id).eq("email", trimmedEmail).is("deleted_at", null).limit(1).maybeSingle();
       customerId = data?.id || null;
     }
 
