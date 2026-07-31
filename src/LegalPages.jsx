@@ -178,7 +178,7 @@ export function KvkkPage() {
 
 export function TermsPage() {
   return (
-    <LegalLayout title="Kullanım Koşulları" updatedAt="29 Temmuz 2026">
+    <LegalLayout title="Kullanım Koşulları" updatedAt="1 Ağustos 2026">
       <Section title="1. Hizmetin Kapsamı">
         <p>
           Binerly, KOBİ'ler için müşteri ilişkileri yönetimi (CRM), satış takibi, destek talebi ve
@@ -200,7 +200,16 @@ export function TermsPage() {
           kolaylık aracıdır ve gönderim kararı/onayı her zaman size aittir.
         </p>
       </Section>
-      <Section title="3. Takım Üyeliği ve Hesap Paylaşımı">
+      <Section title="3. Kalıcı Silme">
+        <p>
+          Çöp Kutusu'ndaki kayıtları kalıcı olarak silme yetkisi sadece hesap sahibine aittir ve bu işlem
+          geri alınamaz. Kalıcı silme talimatı tamamen size (veri sorumlusuna) aittir; sildiğiniz kayıtların,
+          varsa geçerli yasal saklama yükümlülüklerinize (vergi mevzuatı dahil) uygun olmasından siz
+          sorumlusunuz. Tahsilat ve işletme gideri kayıtları, yasal saklama süreleri nedeniyle bu özellik
+          kapsamı dışında tutulur ve kalıcı silinemez.
+        </p>
+      </Section>
+      <Section title="4. Takım Üyeliği ve Hesap Paylaşımı">
         <p>
           Bir hesaba takım üyesi olarak eklenen kişilerin, o hesabı oluşturan işletmenin çalışanı veya
           yetkilisi olması gerekir. Bir hesap; birbirinden bağımsız, farklı işletmeler veya kişiler
@@ -209,7 +218,7 @@ export function TermsPage() {
           kullanım tespit edilirse hesap askıya alınabilir veya sonlandırılabilir (bkz. Madde 7 - Fesih).
         </p>
       </Section>
-      <Section title="4. Faturalandırma ve Vergi Yükümlülükleri">
+      <Section title="5. Faturalandırma ve Vergi Yükümlülükleri">
         <p>
           Binerly bir müşteri ilişkileri yönetimi (kayıt ve takip) aracıdır; fatura kesme, vergi dairesine
           bildirim veya benzeri resmi işlemleri gerçekleştirmez. Sattığınız ürün/hizmetler için fatura
@@ -218,13 +227,13 @@ export function TermsPage() {
           özellikler sadece bir kolaylık aracıdır, bu konudaki sorumluluğunuzu ortadan kaldırmaz.
         </p>
       </Section>
-      <Section title="5. Kabul Edilebilir Kullanım">
+      <Section title="6. Kabul Edilebilir Kullanım">
         <p>
           Hizmeti yasa dışı amaçlarla, izinsiz veri toplama veya üçüncü kişilerin haklarını ihlal edecek
           şekilde kullanamazsınız.
         </p>
       </Section>
-      <Section title="6. Teklif Onay Linki">
+      <Section title="7. Teklif Onay Linki">
         <p>
           Binerly'nin sunduğu "teklif onay linki" özelliği, müşterinizin bir bağlantıya tıklayarak teklifi
           onayladığını sisteme kaydeder ve size bildirim gönderir. Bu, 5070 sayılı Elektronik İmza Kanunu
@@ -233,7 +242,7 @@ export function TermsPage() {
           imza, nitelikli elektronik imza veya başka resmi bir onay yöntemi kullanmanızı öneririz.
         </p>
       </Section>
-      <Section title="7. Ücretlendirme">
+      <Section title="8. Ücretlendirme">
         <p>
           Güncel fiyatlandırma ve deneme süresi koşulları binerly.com üzerinden veya tarafımızca ayrıca
           bildirilir. Ödeme koşulları ve iptal politikası ayrıca paylaşılacaktır. Hizmet ücretli bir plana
@@ -242,19 +251,19 @@ export function TermsPage() {
           bir süre öncesinden bildirim yapılır.
         </p>
       </Section>
-      <Section title="8. Sorumluluğun Sınırlandırılması">
+      <Section title="9. Sorumluluğun Sınırlandırılması">
         <p>
           Binerly, hizmetin kesintisiz veya hatasız olacağını garanti etmez. Yasaların izin verdiği azami
           ölçüde, dolaylı zararlardan sorumlu tutulamaz.
         </p>
       </Section>
-      <Section title="9. Fesih">
+      <Section title="10. Fesih">
         <p>
           Hesabınızı istediğiniz zaman kapatabilirsiniz. Kullanım koşullarının ihlali halinde (Madde 3'teki
           takım üyeliği kuralı dahil) hizmete erişiminiz askıya alınabilir veya sonlandırılabilir.
         </p>
       </Section>
-      <Section title="10. İletişim">
+      <Section title="11. İletişim">
         <p>
           Sorularınız için: <a href="mailto:info@binerly.com" style={{ color: "#185fa5" }}>info@binerly.com</a>
         </p>

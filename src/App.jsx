@@ -10405,12 +10405,15 @@ const TRASH_TABLE_LABELS = {
   attachments: "Dosya",
 };
 
-function TrashHistoryModal({ notify, onRestore, onClose, activeTeamId, session, teamMembers }) {
+function TrashHistoryModal({ notify, onRestore, onPermanentDelete, isOwner, onClose, activeTeamId, session, teamMembers }) {
   const [tab, setTab] = useState("trash");
   const [loading, setLoading] = useState(true);
   const [trashGroups, setTrashGroups] = useState([]);
   const [historyRows, setHistoryRows] = useState([]);
   const [restoringBatch, setRestoringBatch] = useState(null);
+  const [deletingBatch, setDeletingBatch] = useState(null);
+  const [confirmDeleteBatch, setConfirmDeleteBatch] = useState(null);
+  const [confirmDeleteText, setConfirmDeleteText] = useState("");
   const [query, setQuery] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -10467,6 +10470,18 @@ function TrashHistoryModal({ notify, onRestore, onClose, activeTeamId, session, 
     await onRestore(batchId);
     await load();
     setRestoringBatch(null);
+  };
+
+  const confirmPermanentDelete = async () => {
+    const batchId = confirmDeleteBatch;
+    setDeletingBatch(batchId);
+    setConfirmDeleteBatch(null);
+    setConfirmDeleteText("");
+    const { deletedCount, skipped } = await onPermanentDelete(batchId);
+    await load();
+    setDeletingBatch(null);
+    if (skipped.length > 0) notify(`${deletedCount} kayıt kalıcı olarak silindi. ${skipped.join(" ")}`);
+    else notify(`${deletedCount} kayıt kalıcı olarak silindi.`, "success");
   };
 
   const actorLabel = (actorId, actorEmail) => {
@@ -10552,14 +10567,51 @@ function TrashHistoryModal({ notify, onRestore, onClose, activeTeamId, session, 
                       {daysAgo(g.deletedAt)} silindi{g.deletedAt ? ` · ${new Date(g.deletedAt).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}` : ""}
                     </div>
                   </div>
-                  <button
-                    onClick={() => restore(g.batchId)}
-                    disabled={restoringBatch === g.batchId}
-                    style={{ fontSize: 12, whiteSpace: "nowrap" }}
-                  >
-                    {restoringBatch === g.batchId ? "Geri yükleniyor…" : "Geri Yükle"}
-                  </button>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      onClick={() => restore(g.batchId)}
+                      disabled={restoringBatch === g.batchId}
+                      style={{ fontSize: 12, whiteSpace: "nowrap" }}
+                    >
+                      {restoringBatch === g.batchId ? "Geri yükleniyor…" : "Geri Yükle"}
+                    </button>
+                    {isOwner && (
+                      <button
+                        onClick={() => { setConfirmDeleteBatch(g.batchId); setConfirmDeleteText(""); }}
+                        disabled={deletingBatch === g.batchId}
+                        style={{ fontSize: 12, whiteSpace: "nowrap", background: "var(--surface-1)", color: "var(--danger, #b91c1c)", border: "0.5px solid var(--border)" }}
+                      >
+                        {deletingBatch === g.batchId ? "Siliniyor…" : "Kalıcı Olarak Sil"}
+                      </button>
+                    )}
+                  </div>
                 </div>
+                {confirmDeleteBatch === g.batchId && (
+                  <div style={{ marginTop: 8, padding: 10, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)" }}>
+                    <p style={{ fontSize: 12, margin: "0 0 8px", color: "var(--text-secondary)" }}>
+                      Bu işlem GERİ ALINAMAZ - bu kayıtlar bir daha geri yüklenemez. Tahsilat/fatura kaydı olan teklif veya müşteriler (varsa) yasal saklama süresi nedeniyle otomatik olarak hariç tutulur.
+                      Onaylamak için aşağıya <strong>SİL</strong> yazın.
+                    </p>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <input
+                        value={confirmDeleteText}
+                        onChange={(e) => setConfirmDeleteText(e.target.value)}
+                        placeholder="SİL"
+                        style={{ flex: 1, fontSize: 13 }}
+                      />
+                      <button
+                        onClick={confirmPermanentDelete}
+                        disabled={confirmDeleteText.trim().toLocaleUpperCase("tr-TR") !== "SİL"}
+                        style={{ fontSize: 12, whiteSpace: "nowrap", background: "var(--danger, #b91c1c)", color: "#fff", border: "none" }}
+                      >
+                        Kalıcı Olarak Sil
+                      </button>
+                      <button onClick={() => { setConfirmDeleteBatch(null); setConfirmDeleteText(""); }} style={{ fontSize: 12, whiteSpace: "nowrap" }}>
+                        Vazgeç
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -13384,6 +13436,81 @@ export default function App() {
     }
     if (anyError) notify(`Geri yükleme sırasında hata: ${anyError.message}`);
     else notify("Kayıtlar geri yüklendi.", "success");
+  };
+
+  // Çöp kutusundan KALICI silme — restoreBatch'in tersi ama SADECE belirli
+  // tablolar için. payments/company_expenses'e BİLEREK hiç dokunulmuyor (bkz.
+  // sql/2026-08-01_trash_permanent_delete.sql'deki gerekçe - Vergi Usul
+  // Kanunu/TTK saklama süresi netleşmeden bu kayıtlar silinmiyor, ayrıca DB
+  // seviyesinde de bu iki tabloya DELETE hiç verilmedi). Bir teklif/müşteri
+  // hâlâ silinmemiş bir tahsilata (aynı batch içinde payments kalmışsa) bağlıysa
+  // o teklif/müşteri de atlanır - dangling deal_id/customer_id bırakmamak için.
+  // activities/ticket_messages/deal_line_items'ın kendi deleted_at'i yok (restore
+  // akışındaki AYNI not burada da geçerli) - bu yüzden üst kayıt (customer/
+  // ticket/deal) silinmeden önce onlar açıkça temizleniyor, hem öksüz satır hem
+  // olası FK hatası bırakmamak için.
+  const permanentlyDeleteBatch = async (batchId) => {
+    const skipped = [];
+    let deletedCount = 0;
+
+    const { data: batchPayments } = await supabase.from("payments").select("deal_id").eq("deleted_batch_id", batchId);
+    const blockedDealIds = new Set((batchPayments || []).map((p) => p.deal_id).filter(Boolean));
+
+    const { data: batchAttachments } = await supabase.from("attachments").select("id, storage_path").eq("deleted_batch_id", batchId);
+    if (batchAttachments && batchAttachments.length > 0) {
+      const paths = batchAttachments.map((a) => a.storage_path).filter(Boolean);
+      if (paths.length > 0) {
+        const { error: storageError } = await supabase.storage.from("attachments").remove(paths);
+        if (storageError) skipped.push(`Dosya(lar) depodan silinemedi: ${storageError.message}`);
+      }
+      const { data, error } = await supabase.from("attachments").delete().eq("deleted_batch_id", batchId).select();
+      if (error) skipped.push(`Dosyalar silinemedi: ${error.message}`); else deletedCount += data?.length || 0;
+    }
+
+    const { data: batchTickets } = await supabase.from("tickets").select("id").eq("deleted_batch_id", batchId);
+    if (batchTickets && batchTickets.length > 0) {
+      const ticketIds = batchTickets.map((t) => t.id);
+      await supabase.from("ticket_messages").delete().in("ticket_id", ticketIds);
+      const { data, error } = await supabase.from("tickets").delete().eq("deleted_batch_id", batchId).select();
+      if (error) skipped.push(`Talepler silinemedi: ${error.message}`); else deletedCount += data?.length || 0;
+    }
+
+    for (const table of ["kb_articles", "group_classes"]) {
+      const { data, error } = await supabase.from(table).delete().eq("deleted_batch_id", batchId).select();
+      if (error) skipped.push(`${TRASH_TABLE_LABELS[table]}: ${error.message}`); else deletedCount += data?.length || 0;
+    }
+
+    const { data: batchDeals } = await supabase.from("deals").select("id").eq("deleted_batch_id", batchId);
+    const deletableDealIds = (batchDeals || []).map((d) => d.id).filter((id) => !blockedDealIds.has(id));
+    if (deletableDealIds.length > 0) {
+      await supabase.from("deal_line_items").delete().in("deal_id", deletableDealIds);
+      const { data, error } = await supabase.from("deals").delete().in("id", deletableDealIds).select();
+      if (error) skipped.push(`Teklifler silinemedi: ${error.message}`); else deletedCount += data?.length || 0;
+    }
+    if (blockedDealIds.size > 0) skipped.push(`${blockedDealIds.size} teklif, bağlı tahsilat kaydı olduğu için kalıcı silinemedi`);
+
+    const { data: batchCustomers } = await supabase.from("customers").select("id").eq("deleted_batch_id", batchId);
+    let remainingDealCustomerIds = new Set();
+    if (blockedDealIds.size > 0) {
+      const { data: blockedDealsFull } = await supabase.from("deals").select("id, customer_id").in("id", [...blockedDealIds]);
+      remainingDealCustomerIds = new Set((blockedDealsFull || []).map((d) => d.customer_id).filter(Boolean));
+    }
+    const deletableCustomerIds = (batchCustomers || []).map((c) => c.id).filter((id) => !remainingDealCustomerIds.has(id));
+    if (deletableCustomerIds.length > 0) {
+      await supabase.from("activities").delete().in("customer_id", deletableCustomerIds);
+      const { data, error } = await supabase.from("customers").delete().in("id", deletableCustomerIds).select();
+      if (error) skipped.push(`Müşteriler silinemedi: ${error.message}`); else deletedCount += data?.length || 0;
+    }
+    if (remainingDealCustomerIds.size > 0) skipped.push(`${remainingDealCustomerIds.size} müşteri, bağlı tahsilat kaydı olduğu için kalıcı silinemedi`);
+
+    logAction(
+      "trash",
+      batchId,
+      "permanently_deleted",
+      `Çöp kutusundan ${deletedCount} kayıt kalıcı olarak silindi${skipped.length > 0 ? ` - ${skipped.join("; ")}` : ""}`
+    );
+
+    return { deletedCount, skipped };
   };
 
   const IMPORT_CHUNK_SIZE = 200;
@@ -16327,7 +16454,7 @@ export default function App() {
       )}
 
       {showTrashHistory && (
-        <TrashHistoryModal notify={notify} onRestore={restoreBatch} onClose={() => setShowTrashHistory(false)} activeTeamId={activeTeamId} session={session} teamMembers={teamMembers} />
+        <TrashHistoryModal notify={notify} onRestore={restoreBatch} onPermanentDelete={permanentlyDeleteBatch} isOwner={isOwner} onClose={() => setShowTrashHistory(false)} activeTeamId={activeTeamId} session={session} teamMembers={teamMembers} />
       )}
 
       {showImportCustomers && (
