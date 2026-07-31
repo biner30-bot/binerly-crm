@@ -42,6 +42,7 @@ import {
   computeAppointmentPenaltyBurn,
   sectorCustomerTags,
   sectorDealTags,
+  appointmentPrepNoteExample,
 } from "./Sectors";
 
 // Beklenen Gelir tahmini için basit, sabit olasılık ağırlıkları — kullanıcı
@@ -9307,7 +9308,7 @@ function AppointmentPrepNoteBox({ companySettings, onSave }) {
     <div style={{ marginBottom: 16, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 12 }}>
       <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>Randevu öncesi not (opsiyonel)</p>
       <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 8px" }}>
-        Randevu günü gönderilen hatırlatma e-postasının sonuna eklenir - "aç karnına gelin", "kimliğinizi getirin" gibi.
+        Randevu günü gönderilen hatırlatma e-postasının sonuna eklenir - {appointmentPrepNoteExample(companySettings?.sector)}
       </p>
       <textarea
         value={note}

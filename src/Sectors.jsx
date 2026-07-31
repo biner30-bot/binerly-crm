@@ -690,6 +690,18 @@ const APPOINTMENT_NOTE_EXAMPLES = {
 };
 export const appointmentNoteExample = (sector) => APPOINTMENT_NOTE_EXAMPLES[sector] || "Randevu sebebinizi kısaca yazın...";
 
+// Randevu öncesi hazırlık notu (AppointmentPrepNoteBox, App.jsx) için sektöre
+// göre örnek — "aç karnına gelin" Sağlık/Klinik'te anlamlı ama Güzellik &
+// Bakım/Spor Merkezi'nde yersiz kaçar, APPOINTMENT_NOTE_EXAMPLES'taki aynı
+// gerekçeyle sektöre ayrıldı.
+const APPOINTMENT_PREP_NOTE_EXAMPLES = {
+  guzellik_bakim: "\"Makyajsız gelin\", \"saçınızı yıkamadan gelin\" gibi.",
+  saglik_klinik: "\"Aç karnına gelin\", \"kimliğinizi getirin\" gibi.",
+  spor_merkezi: "\"Spor kıyafetleriyle gelin\", \"su şişenizi getirin\" gibi.",
+  emlak: "\"Tapu/kimlik fotokopisi getirin\" gibi.",
+};
+export const appointmentPrepNoteExample = (sector) => APPOINTMENT_PREP_NOTE_EXAMPLES[sector] || "\"Randevunuzdan 15 dakika önce gelin\" gibi.";
+
 // Grup Dersleri hem Spor Merkezi (üye/üyelik dili) hem Eğitim/Kurs Merkezi (öğrenci/kayıt
 // dili) için kullanılıyor — Türkçe'de "üyeliği"/"kaydı" gibi çekimler farklı olduğu için
 // (STAGE_LABELS/SUPPORT_EXAMPLES'taki gibi) kelime birleştirmek yerine tam cümleler
