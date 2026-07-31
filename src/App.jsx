@@ -606,6 +606,7 @@ function rowToAttachment(r) {
     uploadedBy: r.uploaded_by || "",
     photoType: r.photo_type || null,
     consentConfirmed: r.consent_confirmed === true,
+    sharedWithCustomer: r.shared_with_customer === true,
     createdAt: r.created_at,
     deletedAt: r.deleted_at || null,
     deletedBatchId: r.deleted_batch_id || null,
@@ -6891,7 +6892,7 @@ function RowActionsMenu({ items }) {
   );
 }
 
-function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], payments = [], appointmentDateTimeKey = null, roomInventory = [], customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, businessUserId, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], appointmentPenaltyStrikeLimit = null, appointmentPenaltyBurnsSession = false, onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onRequestConsent, onSave, onCancel }) {
+function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], payments = [], appointmentDateTimeKey = null, roomInventory = [], customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, businessUserId, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], appointmentPenaltyStrikeLimit = null, appointmentPenaltyBurnsSession = false, onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onToggleAttachmentShare, onRequestConsent, onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(
     initial?.customerId || customers.find((c) => c.customerType === preferredCustomerType)?.id || customers[0]?.id || ""
   );
@@ -7588,6 +7589,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
               onUpload={onUploadAttachment}
               onDownload={onDownloadAttachment}
               onDelete={onDeleteAttachment}
+              onToggleShare={onToggleAttachmentShare}
             />
           )}
         </div>
@@ -7953,7 +7955,7 @@ function BeforeAfterPhotos({ dealId, customer, attachments, onUpload, onDelete, 
   );
 }
 
-function AttachmentList({ entityType, entityId, attachments, onUpload, onDownload, onDelete }) {
+function AttachmentList({ entityType, entityId, attachments, onUpload, onDownload, onDelete, onToggleShare }) {
   const [uploading, setUploading] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const items = attachments.filter((a) => a.entityType === entityType && a.entityId === entityId);
@@ -7974,9 +7976,17 @@ function AttachmentList({ entityType, entityId, attachments, onUpload, onDownloa
       {items.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
           {items.map((a) => (
-            <div key={a.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12.5, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "6px 10px" }}>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.fileName} <span style={{ color: "var(--text-muted)" }}>· {formatFileSize(a.fileSize)}</span></span>
+            <div key={a.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12.5, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "6px 10px", flexWrap: "wrap" }}>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {a.fileName} <span style={{ color: "var(--text-muted)" }}>· {formatFileSize(a.fileSize)}</span>
+                {a.sharedWithCustomer && <span style={{ marginLeft: 6 }}><Badge tone="accent">Müşteriyle paylaşıldı</Badge></span>}
+              </span>
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                {entityType === "deals" && onToggleShare && (
+                  <button type="button" onClick={() => onToggleShare(a.id, !a.sharedWithCustomer)} style={{ fontSize: 12 }}>
+                    {a.sharedWithCustomer ? "Paylaşımı Kaldır" : "Müşteriyle Paylaş"}
+                  </button>
+                )}
                 <button type="button" onClick={() => onDownload(a)} style={{ fontSize: 12 }}>İndir</button>
                 <button type="button" onClick={() => setConfirmDeleteId(a.id)} style={{ fontSize: 12, color: "var(--text-danger)" }}>Sil</button>
               </div>
@@ -12898,6 +12908,12 @@ export default function App() {
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   };
 
+  const toggleAttachmentShare = async (id, shared) => {
+    const { error } = await supabase.from("attachments").update({ shared_with_customer: shared }).eq("id", id);
+    if (error) { notify(`Paylaşım durumu güncellenemedi: ${error.message}`); return; }
+    setAttachments((prev) => prev.map((a) => (a.id === id ? { ...a, sharedWithCustomer: shared } : a)));
+  };
+
   const deleteAttachment = async (id) => {
     const attachment = attachments.find((a) => a.id === id);
     const batchId = uid();
@@ -16427,6 +16443,7 @@ export default function App() {
             onUploadAttachment={uploadAttachment}
             onDownloadAttachment={downloadAttachment}
             onDeleteAttachment={deleteAttachment}
+            onToggleAttachmentShare={toggleAttachmentShare}
             onRequestConsent={requestCustomerConsent}
             onSave={upsertDeal}
             onCancel={() => { setShowDealForm(false); setEditingDeal(null); }}

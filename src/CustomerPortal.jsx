@@ -115,6 +115,13 @@ function rowToPriceListItem(r) {
   return { id: r.id, userId: r.user_id, name: r.name, price: r.price };
 }
 
+// Sadece işletmenin açıkça "Müşteriyle Paylaş" dediği dosyalar buraya düşer -
+// RLS zaten shared_with_customer=true VE kendi deal'i şartını uyguluyor
+// (bkz. sql/2026-07-31_attachment_customer_sharing.sql), burada sadece alan eşlemesi var.
+function rowToPortalAttachment(r) {
+  return { id: r.id, dealId: r.entity_id, fileName: r.file_name, storagePath: r.storage_path, fileSize: r.file_size || 0 };
+}
+
 function formatDateTime(dateStr) {
   const d = new Date(dateStr);
   return d.toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" }) +
@@ -454,7 +461,7 @@ function PortalMessagesPanel({ messages, onSend, sending, companyName }) {
   );
 }
 
-function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, hardBlockHoursByCustomerId = {}, appointmentPenaltyHoursByCustomerId = {}, appointmentPenaltyStrikeLimitByCustomerId = {}, appointmentPenaltyBurnsSessionByCustomerId = {}, appointmentPartialChargeHoursByCustomerId = {}, sector, showCompany, dealKind, onCancelAppointment }) {
+function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, hardBlockHoursByCustomerId = {}, appointmentPenaltyHoursByCustomerId = {}, appointmentPenaltyStrikeLimitByCustomerId = {}, appointmentPenaltyBurnsSessionByCustomerId = {}, appointmentPartialChargeHoursByCustomerId = {}, sector, showCompany, dealKind, onCancelAppointment, sharedAttachments = [], onDownloadAttachment }) {
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
@@ -571,6 +578,7 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
         // gösterilmiyor (bkz. aşağı) — müşteri kendi aldığı bir randevuyu
         // "onaylamadı", sadece ödedi, o zaten ayrı bir rozetle belli oluyor.
         const showAction = d.approvalToken && ((isCompleted || isSelfBooked) ? needsPayment : (!isApproved || needsPayment));
+        const dealDocs = sharedAttachments.filter((a) => a.dealId === d.id);
         return (
           <div key={d.id} style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <div>
@@ -587,6 +595,21 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
                 <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--text-muted)" }}>
                   Randevu saatine {hardBlockHours} saatten az kaldığı için iptal edilemez
                 </p>
+              )}
+              {dealDocs.length > 0 && (
+                <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 2 }}>
+                  {dealDocs.map((doc) => (
+                    <button
+                      key={doc.id}
+                      type="button"
+                      onClick={() => onDownloadAttachment(doc)}
+                      style={{ background: "none", border: "none", padding: 0, color: "var(--text-accent)", fontSize: 12, textAlign: "left", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
+                    >
+                      <i className="ti ti-file-download" style={{ fontSize: 14 }} aria-hidden="true"></i>
+                      {doc.fileName}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
             <div className="list-toolbar" style={{ display: "flex", gap: 12, alignItems: "center" }}>
@@ -1217,6 +1240,7 @@ export default function CustomerPortal() {
   const [groupClassEnrollments, setGroupClassEnrollments] = useState([]);
   const [groupClassWaitlist, setGroupClassWaitlist] = useState([]);
   const [priceListItems, setPriceListItems] = useState([]);
+  const [sharedAttachments, setSharedAttachments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNewTicketForm, setShowNewTicketForm] = useState(false);
   const [bookingFor, setBookingFor] = useState(null);
@@ -1410,6 +1434,16 @@ export default function CustomerPortal() {
         setTickets((t || []).map(rowToTicket));
         setTicketMessages((tm || []).map(rowToTicketMessage));
         setDeals((d || []).map(rowToDeal));
+
+        // İşletmenin açıkça "Müşteriyle Paylaş" dediği dosyalar - RLS zaten
+        // shared_with_customer=true VE kendi deal'i şartını uyguluyor (bkz.
+        // sql/2026-07-31_attachment_customer_sharing.sql), .in() diğer
+        // sorgularla aynı savunmacı desen.
+        const dealIds = (d || []).map((row) => row.id);
+        const { data: att } = dealIds.length
+          ? await supabase.from("attachments").select("*").eq("entity_type", "deals").eq("shared_with_customer", true).in("entity_id", dealIds)
+          : { data: [] };
+        setSharedAttachments((att || []).map(rowToPortalAttachment));
       } catch (err) {
         console.error("customer portal load fatal error:", err.message);
         setLoadError(true);
@@ -1567,6 +1601,12 @@ export default function CustomerPortal() {
     setDeals((prev) => [...prev, rowToDeal(data)]);
     notify("Randevunuz alındı.", "success");
     return true;
+  };
+
+  const downloadSharedAttachment = async (attachment) => {
+    const { data, error } = await supabase.storage.from("attachments").createSignedUrl(attachment.storagePath, 60);
+    if (error || !data?.signedUrl) { notify(`Dosya indirilemedi: ${error?.message || ""}`); return; }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   };
 
   const cancelAppointment = async (dealId, isLate = false) => {
@@ -1985,7 +2025,7 @@ export default function CustomerPortal() {
                   ))}
                 </div>
               )}
-              <PortalDealList deals={visibleDeals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} hardBlockHoursByCustomerId={hardBlockHoursByCustomerId} appointmentPenaltyHoursByCustomerId={appointmentPenaltyHoursByCustomerId} appointmentPenaltyStrikeLimitByCustomerId={appointmentPenaltyStrikeLimitByCustomerId} appointmentPenaltyBurnsSessionByCustomerId={appointmentPenaltyBurnsSessionByCustomerId} appointmentPartialChargeHoursByCustomerId={appointmentPartialChargeHoursByCustomerId} sector={activeCustomerRow?.companySector} showCompany={false} dealKind={dealKind} onCancelAppointment={(id, isLate, willBurnSession, chargeZone) => setConfirmCancel({ type: "appointment", id, isLate, willBurnSession, chargeZone })} />
+              <PortalDealList deals={visibleDeals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} hardBlockHoursByCustomerId={hardBlockHoursByCustomerId} appointmentPenaltyHoursByCustomerId={appointmentPenaltyHoursByCustomerId} appointmentPenaltyStrikeLimitByCustomerId={appointmentPenaltyStrikeLimitByCustomerId} appointmentPenaltyBurnsSessionByCustomerId={appointmentPenaltyBurnsSessionByCustomerId} appointmentPartialChargeHoursByCustomerId={appointmentPartialChargeHoursByCustomerId} sector={activeCustomerRow?.companySector} showCompany={false} dealKind={dealKind} onCancelAppointment={(id, isLate, willBurnSession, chargeZone) => setConfirmCancel({ type: "appointment", id, isLate, willBurnSession, chargeZone })} sharedAttachments={sharedAttachments} onDownloadAttachment={downloadSharedAttachment} />
             </div>
           )}
 
