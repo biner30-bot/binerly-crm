@@ -328,6 +328,11 @@
         .responsive-table td:empty { display: none !important; }
         .responsive-table td:first-child { padding-top: 10px !important; }
         .responsive-table td:last-child { padding-bottom: 10px !important; }
+        /* Son sütundaki aksiyon butonları (Düzenle/Sil/3 nokta menüsü) masaüstünde
+           sağa yaslanıyordu (justifyContent: flex-end) - td artık tam genişlikte
+           bir kart satırı olduğu için bu, butonları kartın sağ ucuna itip diğer
+           tüm içerikle (soldan başlayan) tutarsız/uzak duruyordu. Mobilde sola çeker. */
+        .responsive-table td:last-child > div { justify-content: flex-start !important; }
       }
       /* Liste ekranlarındaki buton/filtre satırları (Dışa aktar, İçe aktar,
          Kurumsal/Bireysel, Liste/Kanban vb.) sınırsız flex-wrap ile her biri
