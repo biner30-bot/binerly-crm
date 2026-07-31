@@ -853,6 +853,7 @@ const HELP_TOPICS = [
   { category: "Randevu & Program", q: "Müşteri randevusunu portaldan iptal ederken bir süre sınırı var mı?", a: "Bunu tamamen siz belirlersiniz - Ayarlar → Müsaitlik Saatleri'ndeki \"Randevu iptal / gelmeme politikası\"ndan hiç kısıtlama uygulamayabilir, belirli bir süreden az kala iptali tamamen kilitleyebilir ve/veya geç iptal + gelmeme sayısı bir eşiği geçince sonraki randevuda ödemeyi otomatik zorunlu hale getirebilirsiniz. Hiçbir şey ayarlamazsanız müşteri istediği an iptal edebilir.", visibleIf: (sector) => supportsSelfBooking(sector) },
   { category: "Randevu & Program", q: "Müşteri ders kaydını portaldan iptal ederken bir süre sınırı var mı?", a: "Evet, varsayılan olarak ders saatine en az 2 saat kala portaldan iptal edilebilir; bunu Dersler sekmesindeki \"Geç iptal / seans yakma politikası\"ndan tamamen kendiniz özelleştirebilirsiniz (kilitleme süresi, geç iptal penceresi, kaçıncı geç iptalde seansın yanacağı).", visibleIf: (sector) => supportsGroupClasses(sector) },
   { category: "Randevu & Program", q: "Müşteri portaldan randevu alırken hizmet/fiyat seçebilir mi?", a: "Evet, Ayarlar → Ürün & Hizmet Fiyat Listesi'nde kayıtlı kalemleriniz varsa müşteri randevu formunda listeden seçebilir, açıklama ve tutar otomatik dolar; isterse yine elle de yazabilir.", visibleIf: (sector) => supportsSelfBooking(sector) },
+  { category: "Randevu & Program", q: "Ücretsiz ilk görüşme/deneme randevusunu nasıl vurgularım?", a: "Ayarlar → Ürün & Hizmet Fiyat Listesi'ne fiyatı 0 TL olan bir kalem ekleyin (örn. \"Ücretsiz İlk Görüşme\") - Ayarlar → Randevu Alma Linki ile paylaştığınız widget'ta bu otomatik olarak ayrı, vurgulu bir buton olarak öne çıkar, ekstra bir ayar gerekmez.", visibleIf: (sector) => supportsSelfBooking(sector) && bookingModel(sector) === "slot" },
   { category: "Randevu & Program", q: "Bir grup dersine kaç kişi kaydolabilir, bunu nasıl sınırlarım?", a: "Ders oluştururken girdiğiniz \"Kapasite\" değeri sınırı belirler; kapasite dolunca portalda ders \"dolu\" görünür ve yeni kayıt alınamaz. Kapasiteyi zaten kayıtlı kişi sayısının altına düşüremezsiniz.", visibleIf: (sector) => supportsGroupClasses(sector) },
   { category: "Randevu & Program", q: "Müşterinin bir derse kaydolabilmesi için aktif üyeliği/kaydı olması gerekir mi?", a: "Evet - sadece kazanılmış ve süresi (varsa) dolmamış bir kaydı olan müşteriler derse kaydolabilir; uygun olmayan müşteriler için portalda kısa bir uyarı metni gösterilir.", visibleIf: (sector) => supportsGroupClasses(sector) },
   { category: "Randevu & Program", q: "Randevu/görüşme tarihi alanı nereden geliyor, ben mi ekliyorum?", a: "Bu, Sektör & Özel Alanlar'da \"Tarih & Saat\" tipinde tanımlanan bir özel alandır - randevu sektörlerinde hazır gelir, diğer sektörlerde isterseniz kendiniz ekleyebilirsiniz.", visibleIf: (sector) => supportsSelfBooking(sector) },
@@ -8573,7 +8574,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
     <div>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px", display: "flex", alignItems: "center", gap: 4 }}>
         Sabit fiyatlı ürün/hizmetlerinizi buraya kaydedin
-        <InfoTip placement="bottom" align="right" text={`Bu tamamen opsiyonel - kaydettikleriniz, yeni ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} formunda hızlı seçim olarak çıkar; seçince başlık ve tutar otomatik dolar, sonrasında yine de değiştirebilirsiniz. Bir kalemi silmek veya fiyatını güncellemek, daha önce oluşturulmuş ${DEAL_WORD_FORMS[dealWordKind(sector)].pluralAcc} etkilemez - sadece o ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} kaydedildiği andaki başlık/tutarı taşır.`} />
+        <InfoTip placement="bottom" align="right" text={`Bu tamamen opsiyonel - kaydettikleriniz, yeni ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} formunda hızlı seçim olarak çıkar; seçince başlık ve tutar otomatik dolar, sonrasında yine de değiştirebilirsiniz. Bir kalemi silmek veya fiyatını güncellemek, daha önce oluşturulmuş ${DEAL_WORD_FORMS[dealWordKind(sector)].pluralAcc} etkilemez - sadece o ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} kaydedildiği andaki başlık/tutarı taşır.${supportsSelfBooking(sector) && bookingModel(sector) === "slot" ? " Fiyatı 0 TL olan bir kalem (örn. \"Ücretsiz İlk Görüşme\"), Randevu Alma Linki widget'ında ayrı, vurgulu bir buton olarak öne çıkar." : ""}`} />
       </p>
 
       {items.length === 0 ? (
@@ -16050,6 +16051,15 @@ export default function App() {
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px" }}>
             Bu linki (veya QR kodu) Instagram bio'nuza, sitenize veya kartvizitinize koyun - hiç kaydı olmayan bir müşteri bile giriş yapmadan uygun bir saat seçip randevu talep edebilir.
           </p>
+          {priceListItems.some((item) => Number(item.price) === 0) ? (
+            <p style={{ fontSize: 12, color: "var(--text-secondary)", background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 10px", margin: "0 0 16px" }}>
+              🎁 Fiyat listenizde 0 TL'lik bir hizmet olduğu için bu widget'ta ayrı, vurgulu bir "ücretsiz" butonu olarak öne çıkıyor.
+            </p>
+          ) : (
+            <p style={{ fontSize: 12, color: "var(--text-secondary)", background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 10px", margin: "0 0 16px" }}>
+              💡 İpucu: Ayarlar → Ürün & Hizmet Fiyat Listesi'ne 0 TL'lik bir hizmet eklerseniz (örn. "Ücretsiz İlk Görüşme"), bu widget'ta ayrı, vurgulu bir "ücretsiz" butonu olarak öne çıkar.
+            </p>
+          )}
           <img
             src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(appointmentLink)}`}
             alt="QR kod"
