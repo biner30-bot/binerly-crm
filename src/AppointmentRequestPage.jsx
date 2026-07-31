@@ -16,8 +16,19 @@ function istanbulDateStr(date) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
 
+// shared.jsx'teki getPortalUrl ile AYNI mantık (kasıtlı kopya, aynı gerekçeyle
+// import edilmedi - bkz. istanbulDateStr). Portale davet, randevu alan kişiye
+// zorunlu değil sadece opsiyonel bir bağlantı olarak gösteriliyor.
+function portalUrlFor() {
+  const host = window.location.hostname;
+  if (host.split(".")[0] === "portal") return window.location.origin + "/";
+  if (host === "binerly.com" || host === "www.binerly.com") return "https://portal.binerly.com/";
+  return window.location.origin + "/portal";
+}
+
 export default function AppointmentRequestPage() {
   const token = window.location.pathname.split("/")[2] || "";
+  const portalUrl = portalUrlFor();
   const [company, setCompany] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -107,7 +118,13 @@ export default function AppointmentRequestPage() {
         ) : error ? (
           <p style={{ textAlign: "center", color: "#b91c1c" }}>{error}</p>
         ) : done ? (
-          <p style={{ textAlign: "center", color: "#15803d", fontWeight: 600 }}>✓ Randevu talebiniz alındı, işletme sizinle iletişime geçecek.</p>
+          <>
+            <p style={{ textAlign: "center", color: "#15803d", fontWeight: 600 }}>✓ Randevu talebiniz alındı, işletme sizinle iletişime geçecek.</p>
+            <p style={{ textAlign: "center", color: "#9aa8b8", fontSize: 12.5, margin: "16px 0 0" }}>
+              Randevularınızı buradan takip etmek isterseniz{" "}
+              <a href={portalUrl} style={{ color: "#185fa5" }}>hesap oluşturabilirsiniz</a> (opsiyonel).
+            </p>
+          </>
         ) : !company.acceptsAppointments ? (
           <>
             {company.logoUrl && <img src={company.logoUrl} alt="" style={{ maxHeight: 48, display: "block", margin: "0 auto 12px" }} />}

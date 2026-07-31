@@ -15920,6 +15920,29 @@ export default function App() {
               </button>
             </div>
           </div>
+
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
+              Kendi web sitenize ekleyin - bu kodu sitenizin HTML'ine yapıştırın, ziyaretçileriniz sizden mesaj beklemeden doğrudan randevu alabilsin
+            </label>
+            <textarea
+              readOnly
+              value={`<a href="${appointmentLink}" target="_blank" rel="noopener" style="display:inline-block;background:#185fa5;color:#fff;padding:12px 20px;border-radius:8px;font-family:system-ui,-apple-system,sans-serif;font-weight:700;font-size:15px;text-decoration:none;">Randevu Al</a>`}
+              onFocus={(e) => e.target.select()}
+              style={{ width: "100%", minHeight: 70, fontSize: 12, fontFamily: "monospace", resize: "vertical" }}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const code = `<a href="${appointmentLink}" target="_blank" rel="noopener" style="display:inline-block;background:#185fa5;color:#fff;padding:12px 20px;border-radius:8px;font-family:system-ui,-apple-system,sans-serif;font-weight:700;font-size:15px;text-decoration:none;">Randevu Al</a>`;
+                navigator.clipboard.writeText(code);
+                notify("Kod kopyalandı.", "success");
+              }}
+              style={{ marginTop: 8, background: "var(--surface-1)", border: "0.5px solid var(--border)" }}
+            >
+              Kodu Kopyala
+            </button>
+          </div>
         </Modal>
       )}
 

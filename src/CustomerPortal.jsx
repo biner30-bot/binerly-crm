@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
 import { Badge, Modal, Toast, ConfirmDialog, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, isFullNameValid, WEEKDAYS, nextWeeklyOccurrence, NotificationBell, getPortalUrl, EmojiPickerButton, IconButton, translateAuthError } from "./shared";
 import { STAGES, stageLabel, dealWordKind, isAppointmentSector, supportsSelfBooking, bookingModel, supportsGroupClasses, groupClassWords, supportExamples, appointmentNoteExample, SECTOR_PRESETS, computeAppointmentPenaltyBurn } from "./Sectors";
@@ -1719,6 +1719,21 @@ export default function CustomerPortal() {
     if (chat) markMessagesRead(chat.id, "giden");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portalTab, tickets, selectedCompanyId]);
+
+  // Randevu alabilen bir müşteri portala girdiğinde varsayılan "Taleplerim"
+  // sekmesi yerine doğrudan "Randevu Al" butonunun olduğu sekmeye düşsün -
+  // buton zaten vardı ama Taleplerim'in arkasında kalıp fark edilmiyordu.
+  // Ref guard: sadece İLK yüklemede bir kez çalışır, kullanıcı sonradan başka
+  // bir sekmeye geçerse bunu geri almaz.
+  const initialAppointmentTabRef = useRef(false);
+  useEffect(() => {
+    if (initialAppointmentTabRef.current) return;
+    const row = customerRows.find((r) => r.id === selectedCompanyId);
+    if (!row || !supportsSelfBooking(row.companySector)) return;
+    initialAppointmentTabRef.current = true;
+    setPortalTab("teklifler");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerRows, selectedCompanyId]);
 
   if (session === undefined) return <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
   if (!session) return <CustomerPortalEntry />;
