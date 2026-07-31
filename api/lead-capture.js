@@ -1,6 +1,20 @@
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
 
+// KVKK ispat kaydı için — deal-approval.js'teki AYNI fonksiyon, aralarında
+// import olmadığı için kopyalanmış (bkz. sql/2026-07-31_consent_ip_and_text.sql).
+function getClientIp(req) {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (forwarded) return forwarded.split(",")[0].trim();
+  return req.socket?.remoteAddress || "203.0.113.1";
+}
+
+// İzin verilirken gösterilen TAM metin — istemciden ASLA alınmaz (client
+// kendi metnini uydurup gönderebilirdi, kanıtı değersizleştirirdi). Bu metin
+// AppointmentRequestPage.jsx/LeadCapturePage.jsx'teki checkbox etiketiyle
+// birebir aynı tutulmalı (deal-approval.js'te de aynı sabit var, elle senkron).
+const MARKETING_CONSENT_TEXT = "Kampanya ve değerlendirme isteği gibi e-postalar almak istiyorum";
+
 // Müşterinin kendi bilgisini bırakabildiği kamuya açık form — Supabase auth
 // gerektirmez, hesaba özel sabit bir token yetki kanıtı. GET sadece şirket
 // adı/logosu döner, POST yeni bir customers satırı oluşturur (hesap sahibinin
@@ -26,11 +40,6 @@ export default async function handler(req, res) {
   if (settingsError) console.error("lead-capture query error:", settingsError.message);
   if (settingsError || !settings) return res.status(404).json({ error: "Bağlantı geçersiz." });
 
-  // Sectors.jsx JSX içerdiği için api/*.js'e import edilemiyor (deal-approval.js'deki
-  // APPOINTMENT_SECTORS kopyalama deseniyle aynı) — sadece randevu sektörlerinde
-  // (guzellik_bakim/saglik_klinik) fotoğraf saklama izni de anlamlı.
-  const needsPhoto = settings.sector === "guzellik_bakim" || settings.sector === "saglik_klinik";
-
   if (req.method === "GET") {
     // /randevu-al/{token} (AppointmentRequestPage) aynı token'ı, aynı endpoint'i
     // kullanıyor — appointment-availability.js'teki AYNI sorguyla "bu işletmenin
@@ -43,7 +52,6 @@ export default async function handler(req, res) {
     return res.status(200).json({
       companyName: settings.company_name || "Binerly",
       logoUrl: settings.logo_url || null,
-      needsPhotoConsent: needsPhoto,
       businessUserId: settings.user_id,
       acceptsAppointments: !!fieldDefs?.[0]?.key,
       services: services || [],
@@ -64,10 +72,13 @@ export default async function handler(req, res) {
   // gönderirken kendi eliyle işaretliyor (e-posta yoksa kutu hiç gösterilmiyor,
   // form tarafında). KOBİ'nin manuel eklediği müşterilerden farklı olarak burada
   // ayrıca bir e-posta ile çift onay gerekmiyor - eylemin kendisi zaten doğrudan.
-  // Randevu sektörlerinde aynı checkbox/aynı onay fotoğraf saklama iznini de kapsıyor
-  // (bkz. sql/2026-07-30_customer_photo_consent.sql) — ayrı bir soru YOK, tek metin.
+  // Fotoğraf izni burada BİLEREK sorulmuyor — henüz hiç müşteri olmamış, ilk kez
+  // randevu talep eden birine bunu sormak korkutucu bulundu (2026-07-31). Fotoğraf
+  // izni artık sadece BeforeAfterPhotos panelinden (requestPhotoConsent, App.jsx),
+  // yani işletme gerçekten fotoğraf çekecekken, o müşteriye özel istenir.
   const consented = trimmedEmail && marketingConsent === true;
   const consentedAt = new Date().toISOString();
+  const consentIp = consented ? getClientIp(req) : null;
 
   // --- Randevu talebi (AppointmentRequestPage, /randevu-al/{token}) ---
   // Sadece dateTime+dateTimeKey gönderildiğinde bu dal çalışır; düz /lead/ formu
@@ -123,8 +134,7 @@ export default async function handler(req, res) {
         notes: `Randevu talebi formundan eklendi.${note ? ` Not: ${note.trim()}` : ""}`,
         last_contact: new Date().toISOString(),
         created_at: new Date().toISOString(),
-        ...(consented ? { marketing_consent: true, marketing_consent_at: consentedAt, marketing_consent_source: "lead_capture" } : {}),
-        ...(consented && needsPhoto ? { photo_consent: true, photo_consent_at: consentedAt, photo_consent_source: "lead_capture" } : {}),
+        ...(consented ? { marketing_consent: true, marketing_consent_at: consentedAt, marketing_consent_source: "lead_capture", marketing_consent_ip: consentIp, marketing_consent_text: MARKETING_CONSENT_TEXT } : {}),
       });
       if (customerInsertError) return res.status(500).json({ error: customerInsertError.message });
     }
@@ -161,8 +171,7 @@ export default async function handler(req, res) {
     notes: `Web formundan eklendi.${note ? ` Not: ${note.trim()}` : ""}`,
     last_contact: new Date().toISOString(),
     created_at: new Date().toISOString(),
-    ...(consented ? { marketing_consent: true, marketing_consent_at: consentedAt, marketing_consent_source: "lead_capture" } : {}),
-    ...(consented && needsPhoto ? { photo_consent: true, photo_consent_at: consentedAt, photo_consent_source: "lead_capture" } : {}),
+    ...(consented ? { marketing_consent: true, marketing_consent_at: consentedAt, marketing_consent_source: "lead_capture", marketing_consent_ip: consentIp, marketing_consent_text: MARKETING_CONSENT_TEXT } : {}),
   });
   if (insertError) return res.status(500).json({ error: insertError.message });
 

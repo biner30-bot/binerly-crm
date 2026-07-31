@@ -6893,7 +6893,7 @@ function RowActionsMenu({ items }) {
   );
 }
 
-function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], payments = [], appointmentDateTimeKey = null, roomInventory = [], customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, businessUserId, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], appointmentPenaltyStrikeLimit = null, appointmentPenaltyBurnsSession = false, onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onToggleAttachmentShare, onRequestConsent, onSave, onCancel }) {
+function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], payments = [], appointmentDateTimeKey = null, roomInventory = [], customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, businessUserId, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], appointmentPenaltyStrikeLimit = null, appointmentPenaltyBurnsSession = false, onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onToggleAttachmentShare, onRequestPhotoConsent, onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(
     initial?.customerId || customers.find((c) => c.customerType === preferredCustomerType)?.id || customers[0]?.id || ""
   );
@@ -7579,7 +7579,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
               attachments={attachments}
               onUpload={onUploadAttachment}
               onDelete={onDeleteAttachment}
-              onRequestConsent={onRequestConsent}
+              onRequestConsent={onRequestPhotoConsent}
             />
           )}
           {initial?.id && (
@@ -7877,7 +7877,7 @@ function BeforeAfterPhotoThumb({ attachment, onDelete }) {
 // AI'siz basit versiyon — otomatik eşleştirme/analiz yok, ekip elle "Öncesi"/"Sonrası"
 // olarak yükler, yan yana bakıp kendi gözüyle karşılaştırır. Yükleme, personelin kendi
 // beyanıyla değil, müşterinin customers.photo_consent üzerinden GERÇEKTEN verdiği izinle
-// kilitli/açık olur (bkz. requestCustomerConsent, sql/2026-07-30_customer_photo_consent.sql)
+// kilitli/açık olur (bkz. requestPhotoConsent, sql/2026-07-30_customer_photo_consent.sql)
 // — sadece isAppointmentSector sektörlerinde anlamlı, DealForm zaten öyle gate'liyor.
 function BeforeAfterPhotos({ dealId, customer, attachments, onUpload, onDelete, onRequestConsent }) {
   const [uploadingSlot, setUploadingSlot] = useState(null);
@@ -8103,7 +8103,7 @@ function CustomerDetail({ customer, deals, payments, activities, sector, customF
               <Badge tone="warning">Fotoğraf saklama izni yok</Badge>
             )
           )}
-          {(!customer.marketingConsent || (isAppointmentSector(sector) && !customer.photoConsent)) && (
+          {!customer.marketingConsent && (
             <button
               type="button"
               onClick={() => onRequestConsent(customer)}
@@ -12245,30 +12245,28 @@ export default function App() {
     }
   };
 
-  // KOBİ'nin kendi eklediği bir müşteri için izin(ler) — KOBİ'nin kendi beyanı
-  // (bir kutuyu işaretlemesi) tek başına gerçek bir onay sayılmıyor, bu yüzden
-  // müşteriye kendisinin tıklayıp onaylayacağı bir link gönderiliyor (çift
-  // onay/double opt-in, deal-approval.js action=confirm-marketing-consent).
-  // Randevu sektörlerinde (isAppointmentSector) bu AYNI link fotoğraf saklama
-  // iznini de kapsar — ayrı bir "sor-cevap" akışı KURULMADI, bilinçli olarak
-  // tek metin/tek an (bkz. sql/2026-07-30_customer_photo_consent.sql). Yeni
-  // müşteri eklenirken otomatik, veya Müşteri Kayıtları/Kampanya Gönder/Randevu
-  // formundan elle tekrar tetiklenebilir.
+  // KOBİ'nin kendi eklediği bir müşteri için pazarlama izni — KOBİ'nin kendi
+  // beyanı (bir kutuyu işaretlemesi) tek başına gerçek bir onay sayılmıyor, bu
+  // yüzden müşteriye kendisinin tıklayıp onaylayacağı bir link gönderiliyor (çift
+  // onay/double opt-in, deal-approval.js action=confirm-marketing-consent). Yeni
+  // müşteri eklenirken otomatik, veya Müşteri Kayıtları/Kampanya Gönder ekranından
+  // elle tekrar tetiklenebilir. SADECE pazarlama izni içindir — fotoğraf izni ayrı
+  // bir akış (bkz. requestPhotoConsent), 2026-07-31'de BİLEREK ayrıldı: alakasız
+  // iki izni (e-posta + fotoğraf) tek kutuya bağlamak hem KVKK'da "belirli rıza"
+  // ilkesine aykırıydı hem de ilk temasta müşterinin gözünü korkutuyordu.
   const requestCustomerConsent = async (customer) => {
     const token = uid();
     const { error } = await supabase.from("customers").update({ marketing_consent_token: token }).eq("id", customer.id);
     if (error) { notify(`İzin isteği gönderilemedi: ${error.message}`); return; }
     const consentUrl = `https://binerly.com/api/deal-approval?action=confirm-marketing-consent&token=${token}`;
     const company = companySettings?.companyName || "İşletmemiz";
-    const needsPhoto = isAppointmentSector(companySettings?.sector);
-    const photoClause = needsPhoto ? " ve hizmet öncesi/sonrası fotoğraflarınızı çekip saklayabilmemiz için fotoğraf iznine" : "";
 
     // E-postası hiç yoksa e-posta gönderemeyiz — bunun yerine linki paylaşıyoruz
     // (Portal linkindeki "Linki paylaş" ile aynı desen: telefon varsa WhatsApp,
     // yoksa panoya kopyala). Linkteki sayfa (deal-approval.js) müşteriden hem
     // e-postasını isteyip hem izni tek adımda kaydediyor.
     if (!customer.email) {
-      const message = `Merhaba, ${company} olarak size kampanya ve değerlendirme isteği gibi e-postalar gönderebilmemiz${photoClause ? "," : " için"}${photoClause} ihtiyacımız var, bu linkten e-postanızı girip izin verebilirsiniz: ${consentUrl}`;
+      const message = `Merhaba, ${company} olarak size kampanya ve değerlendirme isteği gibi e-postalar gönderebilmemiz için izninize ihtiyacımız var, bu linkten e-postanızı girip izin verebilirsiniz: ${consentUrl}`;
       if (customer.phone) {
         window.open(`https://wa.me/${toWhatsAppNumber(customer.phone)}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
       } else {
@@ -12281,10 +12279,45 @@ export default function App() {
     const sent = await notifyCustomerByEmail(
       customer,
       `${companySettings?.companyName || "Binerly"} - İzninizi onaylar mısınız?`,
-      `Merhaba ${customer.name || ""},\n\n${company} olarak size kampanya, değerlendirme isteği gibi e-postalar gönderebilmemiz için izninize${photoClause} ihtiyacımız var. Onaylamak için aşağıdaki butona tıklayabilirsiniz.`,
+      `Merhaba ${customer.name || ""},\n\n${company} olarak size kampanya, değerlendirme isteği gibi e-postalar gönderebilmemiz için izninize ihtiyacımız var. Onaylamak için aşağıdaki butona tıklayabilirsiniz.`,
       { ctaUrl: consentUrl, ctaLabel: "İzin Ver", ignoreNotificationToggle: true }
     );
     if (sent) notify(`${customer.name} adlı müşteriye izin e-postası gönderildi.`, "success");
+    else notify(`${customer.name} adlı müşteriye izin e-postası gönderilemedi - lütfen tekrar deneyin.`);
+  };
+
+  // Fotoğraf saklama izni — SADECE öncesi/sonrası fotoğrafını gerçekten çekecek
+  // olan yerden (BeforeAfterPhotos paneli, DealForm) tetiklenir, çünkü işletme her
+  // müşterisinin fotoğrafını çekmeyecektir; bunu baştan herkese sormak yerine tam
+  // o an, o müşteriye özel istemek daha doğru. Aynı marketing_consent_token
+  // kolonunu paylaşır (aynı anda ikisi birden istenmediği için çakışma riski yok),
+  // ama onay linki AYRI bir action'a (confirm-photo-consent) gider ve SADECE
+  // photo_consent'i işaretler — marketing_consent'e hiç dokunmaz.
+  const requestPhotoConsent = async (customer) => {
+    const token = uid();
+    const { error } = await supabase.from("customers").update({ marketing_consent_token: token }).eq("id", customer.id);
+    if (error) { notify(`İzin isteği gönderilemedi: ${error.message}`); return; }
+    const consentUrl = `https://binerly.com/api/deal-approval?action=confirm-photo-consent&token=${token}`;
+    const company = companySettings?.companyName || "İşletmemiz";
+
+    if (!customer.email) {
+      const message = `Merhaba, ${company} olarak hizmet öncesi/sonrası fotoğraflarınızı çekip saklayabilmemiz için izninize ihtiyacımız var, bu linkten e-postanızı girip izin verebilirsiniz: ${consentUrl}`;
+      if (customer.phone) {
+        window.open(`https://wa.me/${toWhatsAppNumber(customer.phone)}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+      } else {
+        navigator.clipboard.writeText(consentUrl);
+        notify("İzin linki kopyalandı - müşteriye paylaşabilirsiniz.", "success");
+      }
+      return;
+    }
+
+    const sent = await notifyCustomerByEmail(
+      customer,
+      `${companySettings?.companyName || "Binerly"} - Fotoğraf izniniz`,
+      `Merhaba ${customer.name || ""},\n\n${company} olarak hizmet öncesi/sonrası fotoğraflarınızı çekip saklayabilmemiz için izninize ihtiyacımız var. Onaylamak için aşağıdaki butona tıklayabilirsiniz.`,
+      { ctaUrl: consentUrl, ctaLabel: "İzin Ver", ignoreNotificationToggle: true }
+    );
+    if (sent) notify(`${customer.name} adlı müşteriye fotoğraf izni e-postası gönderildi.`, "success");
     else notify(`${customer.name} adlı müşteriye izin e-postası gönderilemedi - lütfen tekrar deneyin.`);
   };
 
@@ -16445,7 +16478,7 @@ export default function App() {
             onDownloadAttachment={downloadAttachment}
             onDeleteAttachment={deleteAttachment}
             onToggleAttachmentShare={toggleAttachmentShare}
-            onRequestConsent={requestCustomerConsent}
+            onRequestPhotoConsent={requestPhotoConsent}
             onSave={upsertDeal}
             onCancel={() => { setShowDealForm(false); setEditingDeal(null); }}
           />

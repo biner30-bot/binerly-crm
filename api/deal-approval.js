@@ -8,6 +8,13 @@ const PAYTR_GET_TOKEN_URL = "https://www.paytr.com/odeme/api/get-token";
 const PAYTR_REFUND_URL = "https://www.paytr.com/odeme/iade";
 const INSTALLMENT_TIERS = [1, 2, 3, 6, 9, 12]; // Türkiye'deki standart taksit kademeleri
 
+// İzin verilirken kaydedilen TAM metin — istemciden ASLA alınmaz (client kendi
+// metnini uydurup gönderebilirdi, kanıtı değersizleştirirdi). lead-capture.js'te
+// de aynı MARKETING_CONSENT_TEXT sabiti var, aralarında import olmadığı için elle
+// senkron tutulmalı (bkz. sql/2026-07-31_consent_ip_and_text.sql).
+const MARKETING_CONSENT_TEXT = "Kampanya ve değerlendirme isteği gibi e-postalar almak istiyorum";
+const PHOTO_CONSENT_TEXT = "Hizmet öncesi/sonrası fotoğraflarımın çekilip saklanmasına izin veriyorum";
+
 function hmacSha256Base64(str, key) {
   return crypto.createHmac("sha256", key).update(str).digest("base64");
 }
@@ -322,10 +329,10 @@ async function handleConfirmAttendance(req, res, supabaseAdmin, deal, settings, 
 // SADECE POST'ta olur, GET sadece bir buton gösterir — e-posta güvenlik
 // botlarının linki otomatik "tıklayıp" yanlışlıkla izin vermiş gibi görünmesini
 // engellemek için.
-// Randevu sektörlerinde (guzellik_bakim/saglik_klinik) bu TEK link/TEK onayla
-// fotoğraf saklama iznini de birlikte alır (bkz. sql/2026-07-30_customer_photo_consent.sql) —
-// KOBİ'yi/müşteriyi her izin için ayrı ayrı sormak yerine bilinçli olarak birleştirildi,
-// ayrı bir token'a gerek yok çünkü ikisi her zaman aynı anda istenip aynı anda onaylanıyor.
+// SADECE pazarlama iznini kapsar — fotoğraf izni 2026-07-31'de ayrı bir action'a
+// (confirm-photo-consent, handlePhotoConsentConfirm) taşındı, bkz. o fonksiyonun
+// yorumu. Öncesinde ikisi aynı linkle birlikte isteniyordu, KVKK'daki "belirli
+// rıza" ilkesine aykırıydı ve ilk temasta müşteriyi ürkütüyordu.
 async function handleMarketingConsentConfirm(req, res, supabaseAdmin, token) {
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   if (!token) {
@@ -334,7 +341,7 @@ async function handleMarketingConsentConfirm(req, res, supabaseAdmin, token) {
 
   const { data: customer, error } = await supabaseAdmin
     .from("customers")
-    .select("id, user_id, name, email, marketing_consent, photo_consent")
+    .select("id, user_id, name, email, marketing_consent")
     .eq("marketing_consent_token", token)
     .is("deleted_at", null)
     .maybeSingle();
@@ -343,15 +350,11 @@ async function handleMarketingConsentConfirm(req, res, supabaseAdmin, token) {
     return res.status(404).send(renderAttendancePage({ title: "Bağlantı bulunamadı", message: "Bu bağlantı geçersiz ya da süresi dolmuş görünüyor." }));
   }
 
-  const { data: settings } = await supabaseAdmin.from("company_settings").select("company_name, logo_url, sector").eq("user_id", customer.user_id).maybeSingle();
+  const { data: settings } = await supabaseAdmin.from("company_settings").select("company_name, logo_url").eq("user_id", customer.user_id).maybeSingle();
   const company = settings?.company_name || "Binerly";
   const logoUrl = settings?.logo_url || null;
-  // Fotoğraf izni ayrı bir istek/token akışı DEĞİL — aynı anda, aynı metinle, aynı linkle
-  // isteniyor (bkz. sql/2026-07-30_customer_photo_consent.sql). APPOINTMENT_SECTORS zaten
-  // yukarıda (handleConfirmAttendance için) tanımlı, burada da aynısı kullanılıyor.
-  const needsPhoto = APPOINTMENT_SECTORS.has(settings?.sector);
 
-  if (customer.marketing_consent && (!needsPhoto || customer.photo_consent)) {
+  if (customer.marketing_consent) {
     return res.status(200).send(renderAttendancePage({ logoUrl, title: "Zaten onaylanmış", message: `İzniniz zaten kayıtlı, teşekkürler. - ${company}` }));
   }
 
@@ -359,15 +362,14 @@ async function handleMarketingConsentConfirm(req, res, supabaseAdmin, token) {
   // bu durumda sayfa önce e-posta adresini de topluyor, tek adımda hem e-posta
   // kaydediliyor hem izin veriliyor.
   const needsEmail = !customer.email;
-  const photoClause = needsPhoto ? " ve hizmet öncesi/sonrası fotoğraflarınızı çekip saklayabilmemiz için fotoğraf iznine" : "";
 
   if (req.method === "GET") {
     return res.status(200).send(renderAttendancePage({
       logoUrl,
       title: "İzniniz gerekiyor",
       message: needsEmail
-        ? `${company}, size kampanya ve değerlendirme isteği gibi e-postalar gönderebilmek için e-posta adresinizi ve izninizi${photoClause} ihtiyaç duyuyor.`
-        : `${company}, size kampanya ve değerlendirme isteği gibi e-postalar gönderebilmek için izninize${photoClause} ihtiyaç duyuyor. Onaylamak için aşağıya tıklayın.`,
+        ? `${company}, size kampanya ve değerlendirme isteği gibi e-postalar gönderebilmek için e-posta adresinizi ve izninizi ihtiyaç duyuyor.`
+        : `${company}, size kampanya ve değerlendirme isteği gibi e-postalar gönderebilmek için izninize ihtiyaç duyuyor. Onaylamak için aşağıya tıklayın.`,
       note: `Bilgileriniz ${company} tarafından yalnızca hizmet/randevu takibi amacıyla saklanır ve işlenir - bu ayrı, zaten geçerli olan bir durumdur; yukarıdaki izin sadece ek olarak istenen tercihler içindir.`,
       formToken: token, submitLabel: needsEmail ? "Kaydet ve izin ver" : "Evet, izin veriyorum",
       formAction: "confirm-marketing-consent", collectEmail: needsEmail,
@@ -384,13 +386,81 @@ async function handleMarketingConsentConfirm(req, res, supabaseAdmin, token) {
     marketing_consent: true,
     marketing_consent_at: nowIso,
     marketing_consent_source: "email_confirmation",
+    marketing_consent_ip: getClientIp(req),
+    marketing_consent_text: MARKETING_CONSENT_TEXT,
     marketing_consent_token: null,
   };
-  if (needsPhoto) {
-    updatePayload.photo_consent = true;
-    updatePayload.photo_consent_at = nowIso;
-    updatePayload.photo_consent_source = "email_confirmation";
+  if (needsEmail) updatePayload.email = providedEmail;
+
+  await supabaseAdmin
+    .from("customers")
+    .update(updatePayload)
+    .eq("id", customer.id)
+    .eq("marketing_consent_token", token);
+
+  return res.status(200).send(renderAttendancePage({ logoUrl, title: "Teşekkürler!", message: `İzniniz kaydedildi. - ${company}` }));
+}
+
+// requestPhotoConsent'in (App.jsx) gönderdiği linkin hedefi — SADECE fotoğraf
+// saklama izni içindir, marketing_consent'e hiç dokunmaz. handleMarketingConsentConfirm
+// ile aynı güvenlik deseni (gerçek mutasyon sadece POST'ta) ve aynı paylaşılan
+// customers.marketing_consent_token kolonu üzerinden çalışır — iki istek aynı anda
+// açık olmadığı için (biri diğerini token'ı değiştirerek geçersiz kılar) çakışma
+// riski yok, ayrı bir kolon açmaya gerek görülmedi.
+async function handlePhotoConsentConfirm(req, res, supabaseAdmin, token) {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  if (!token) {
+    return res.status(400).send(renderAttendancePage({ title: "Geçersiz bağlantı", message: "Bu bağlantı eksik ya da hatalı görünüyor." }));
   }
+
+  const { data: customer, error } = await supabaseAdmin
+    .from("customers")
+    .select("id, user_id, name, email, photo_consent")
+    .eq("marketing_consent_token", token)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error) console.error("photo-consent-confirm query error:", error.message);
+  if (error || !customer) {
+    return res.status(404).send(renderAttendancePage({ title: "Bağlantı bulunamadı", message: "Bu bağlantı geçersiz ya da süresi dolmuş görünüyor." }));
+  }
+
+  const { data: settings } = await supabaseAdmin.from("company_settings").select("company_name, logo_url").eq("user_id", customer.user_id).maybeSingle();
+  const company = settings?.company_name || "Binerly";
+  const logoUrl = settings?.logo_url || null;
+
+  if (customer.photo_consent) {
+    return res.status(200).send(renderAttendancePage({ logoUrl, title: "Zaten onaylanmış", message: `İzniniz zaten kayıtlı, teşekkürler. - ${company}` }));
+  }
+
+  const needsEmail = !customer.email;
+
+  if (req.method === "GET") {
+    return res.status(200).send(renderAttendancePage({
+      logoUrl,
+      title: "Fotoğraf izniniz gerekiyor",
+      message: needsEmail
+        ? `${company}, hizmet öncesi/sonrası fotoğraflarınızı çekip saklayabilmek için e-posta adresinizi ve izninizi ihtiyaç duyuyor.`
+        : `${company}, hizmet öncesi/sonrası fotoğraflarınızı çekip saklayabilmek için izninize ihtiyaç duyuyor. Onaylamak için aşağıya tıklayın.`,
+      note: `Bilgileriniz ${company} tarafından yalnızca hizmet/randevu takibi amacıyla saklanır ve işlenir - bu ayrı, zaten geçerli olan bir durumdur; yukarıdaki izin sadece ek olarak istenen bir tercihtir.`,
+      formToken: token, submitLabel: needsEmail ? "Kaydet ve izin ver" : "Evet, izin veriyorum",
+      formAction: "confirm-photo-consent", collectEmail: needsEmail,
+    }));
+  }
+
+  const providedEmail = ((req.body || {}).email || "").trim();
+  if (needsEmail && !providedEmail) {
+    return res.status(400).send(renderAttendancePage({ logoUrl, title: "E-posta gerekli", message: "Devam etmek için bir e-posta adresi girmeniz gerekiyor." }));
+  }
+
+  const nowIso = new Date().toISOString();
+  const updatePayload = {
+    photo_consent: true,
+    photo_consent_at: nowIso,
+    photo_consent_source: "email_confirmation",
+    photo_consent_ip: getClientIp(req),
+    photo_consent_text: PHOTO_CONSENT_TEXT,
+    marketing_consent_token: null,
+  };
   if (needsEmail) updatePayload.email = providedEmail;
 
   await supabaseAdmin
@@ -922,6 +992,16 @@ export default async function handler(req, res) {
   ) {
     const consentToken = req.method === "GET" ? url.searchParams.get("token") : (req.body || {}).token;
     return handleMarketingConsentConfirm(req, res, supabaseAdmin, consentToken);
+  }
+
+  // Fotoğraf saklama izni onay linki — 2026-07-31'de marketing-consent'ten AYRILDI
+  // (bkz. handlePhotoConsentConfirm), aynı token kolonunu paylaşır ama ayrı action.
+  if (
+    (req.method === "GET" && url.searchParams.get("action") === "confirm-photo-consent") ||
+    (req.method === "POST" && (req.body || {}).action === "confirm-photo-consent")
+  ) {
+    const consentToken = req.method === "GET" ? url.searchParams.get("token") : (req.body || {}).token;
+    return handlePhotoConsentConfirm(req, res, supabaseAdmin, consentToken);
   }
 
   const token = req.method === "GET" ? url.searchParams.get("token") : (req.body || {}).token;
