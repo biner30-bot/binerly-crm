@@ -110,6 +110,10 @@ export default function AppointmentRequestPage() {
     setSending(false);
   };
 
+  // 0 TL'lik bir fiyat kalemi zaten "ücretsiz" demek - ayrı bir "deneme" alanı
+  // eklemek yerine bu sinyali widget'ta öne çıkarıyoruz (yeni kolon yok).
+  const freeServices = (company?.services || []).filter((s) => Number(s.price) === 0);
+
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5f8fc", fontFamily: "system-ui, -apple-system, sans-serif", padding: "1rem" }}>
       <div style={{ background: "#fff", borderRadius: 12, padding: "2rem", width: "100%", maxWidth: 420, border: "1px solid #e1e8f0" }}>
@@ -139,6 +143,24 @@ export default function AppointmentRequestPage() {
               {company.companyName} - Randevu Al
             </h1>
             <form onSubmit={submit}>
+              {freeServices.length > 0 && (
+                <div style={{ marginBottom: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+                  {freeServices.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setServiceId(s.id)}
+                      style={{
+                        width: "100%", textAlign: "left", padding: "12px 14px", borderRadius: 8, cursor: "pointer",
+                        border: serviceId === s.id ? "2px solid #15803d" : "1px solid #bbf7d0",
+                        background: serviceId === s.id ? "#dcfce7" : "#f0fdf4", color: "#15803d", fontWeight: 700, fontSize: 14,
+                      }}
+                    >
+                      🎁 {s.name} - Ücretsiz{serviceId === s.id ? " ✓" : ""}
+                    </button>
+                  ))}
+                </div>
+              )}
               {company.services?.length > 0 && (
                 <div style={{ marginBottom: 10 }}>
                   <select value={serviceId} onChange={(e) => setServiceId(e.target.value)} style={{ width: "100%" }}>

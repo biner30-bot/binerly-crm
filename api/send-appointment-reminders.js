@@ -60,7 +60,7 @@ export default async function handler(req, res) {
         .is("deleted_at", null)
         .not("stage", "in", "(kazanildi,kaybedildi)")
         .is("appointment_reminder_sent_at", null),
-      supabaseAdmin.from("company_settings").select("user_id, company_name, logo_url, email, sector, appointment_reminders_enabled").in("user_id", userIds),
+      supabaseAdmin.from("company_settings").select("user_id, company_name, logo_url, email, sector, appointment_reminders_enabled, appointment_prep_note").in("user_id", userIds),
     ]);
 
     if (dealsError) return res.status(500).json({ error: dealsError.message });
@@ -134,11 +134,14 @@ export default async function handler(req, res) {
         const yesUrl = isAppointmentSector ? `https://binerly.com/api/deal-approval?action=confirm-attendance&token=${token}&response=yes` : null;
         const noUrl = isAppointmentSector ? `https://binerly.com/api/deal-approval?action=confirm-attendance&token=${token}&response=no` : null;
 
-        const bodyText = isAppointmentSector
+        // İşletmenin kendi yazdığı, opsiyonel hazırlık notu ("aç karnına gelin" gibi) -
+        // varsa gövde metninin sonuna eklenir, yoksa metin hiç değişmez.
+        const prepNote = (settings.appointment_prep_note || "").trim();
+        const bodyText = (isAppointmentSector
           ? `Merhaba ${customer.name || ""},\n\n${company} bünyesindeki "${deal.title}" randevunuz ` +
             `bugün saat ${timeLabel}'de. Geleceğinizi onaylar mısınız?`
           : `Merhaba ${customer.name || ""},\n\n${company} bünyesindeki "${deal.title}" randevunuz ` +
-            `bugün saat ${timeLabel}'de. Sizi görmekten mutluluk duyarız.`;
+            `bugün saat ${timeLabel}'de. Sizi görmekten mutluluk duyarız.`) + (prepNote ? `\n\n${prepNote}` : "");
         const footerLines = [`${company} (Binerly ile)`, "Bu e-posta Binerly (binerly.com) altyapısıyla gönderildi."];
         const html = isAppointmentSector
           ? renderEmailHtml({ logoUrl: settings.logo_url, bodyText, ctaLabel: "✓ Evet, geliyorum", ctaUrl: yesUrl, secondaryCtaLabel: "Hayır, gelemeyeceğim", secondaryCtaUrl: noUrl, footerLines })

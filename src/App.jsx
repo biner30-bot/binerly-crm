@@ -6296,6 +6296,7 @@ function rowToCompanySettings(r) {
     appointmentPartialChargeHours: r.appointment_partial_charge_hours ?? null,
     googleReviewLink: r.google_review_link || "",
     googleReviewRequestsEnabled: r.google_review_requests_enabled !== false,
+    appointmentPrepNote: r.appointment_prep_note || "",
   };
 }
 
@@ -9275,6 +9276,47 @@ function AppointmentCancelPolicyBox({ companySettings, onSave }) {
   );
 }
 
+// Randevu hatırlatma e-postasının sonuna eklenen, işletmenin kendi yazdığı
+// serbest metin - "aç karnına gelin" gibi. Opsiyonel, boşsa hatırlatma metni
+// hiç değişmez (bkz. api/send-appointment-reminders.js).
+function AppointmentPrepNoteBox({ companySettings, onSave }) {
+  const [note, setNote] = useState(companySettings?.appointmentPrepNote || "");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setNote(companySettings?.appointmentPrepNote || "");
+  }, [companySettings?.appointmentPrepNote]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onSave({ appointmentPrepNote: note.trim() || null });
+    setSaving(false);
+  };
+
+  return (
+    <div style={{ marginBottom: 16, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 12 }}>
+      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>Randevu öncesi not (opsiyonel)</p>
+      <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 8px" }}>
+        Randevu günü gönderilen hatırlatma e-postasının sonuna eklenir - "aç karnına gelin", "kimliğinizi getirin" gibi.
+      </p>
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="Örn. Lütfen randevunuzdan 15 dakika önce gelin."
+        style={{ width: "100%", minHeight: 70, fontSize: 13, resize: "vertical" }}
+      />
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={saving}
+        style={{ marginTop: 8, background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+      >
+        {saving ? "Kaydediliyor…" : "Kaydet"}
+      </button>
+    </div>
+  );
+}
+
 function GroupClassesTab({ groupClasses, groupClassEnrollments, customers, activeCustomerIds, sector, companySettings, onAdd, onUpdate, onDelete, onEnroll, onRemove, onSaveCancelPolicy }) {
   const words = groupClassWords(sector);
   const [showForm, setShowForm] = useState(false);
@@ -10019,7 +10061,84 @@ function RoomInventoryManager({ items, roomTypeOptions, onAdd, onUpdate, onDelet
   );
 }
 
-function TeamModal({ session, activeTeamId, companySettings, onClose, notify, staffShifts, onAddStaffShift, onDeleteStaffShift, teamRoster }) {
+// staff_shifts (vardiya) ve deals.assigned_to (KOBİ'nin elle atadığı "Sorumlu")
+// arasında zaten mevcut olan bağı (aynı member_id) kullanarak "bugün kim ne
+// kadar dolu" görünümü. Yeni bir tablo/kolon YOK. Herkese açık widget'tan veya
+// müşteri portalından kendi kendine alınan randevularda assigned_to hiç set
+// edilmediği için (bkz. api/lead-capture.js, CustomerPortal.jsx bookAppointment)
+// bunlar "Atanmamış" altında toplanır - personel seçimi müşteri tarafına henüz
+// eklenmedi (appointment-availability.js'teki mevcut yorum bunu bilinçli olarak
+// ertelemişti).
+function TeamDailyLoadPanel({ members, staffShifts, deals, customers, customFieldDefs, sessionUserId }) {
+  const dateTimeKey = customFieldDefs.find((d) => d.entity === "deal" && d.type === "datetime" && d.active)?.key;
+  if (!dateTimeKey) return null;
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const jsWeekday = new Date().getDay();
+  const isoWeekday = jsWeekday === 0 ? 7 : jsWeekday;
+
+  const todayDeals = deals.filter((d) => {
+    const raw = d.customFields?.[dateTimeKey];
+    return raw && raw.startsWith(todayStr) && d.stage !== "kaybedildi";
+  });
+  if (todayDeals.length === 0) return null;
+
+  const people = [{ id: sessionUserId, label: "Ben" }, ...members.map((m) => ({ id: m.member_id, label: m.name || m.email }))];
+  const dealsByAssignee = {};
+  const unassigned = [];
+  for (const d of todayDeals) {
+    if (d.assignedTo) (dealsByAssignee[d.assignedTo] ||= []).push(d);
+    else unassigned.push(d);
+  }
+  const customerName = (id) => customers.find((c) => c.id === id)?.name || "Bilinmeyen müşteri";
+  const timeOf = (d) => (d.customFields?.[dateTimeKey] || "").slice(11, 16);
+  const sortByTime = (list) => [...list].sort((a, b) => timeOf(a).localeCompare(timeOf(b)));
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
+        Bugünün Doluluğu <InfoTip placement="bottom" text="Bugüne ait randevular, her randevunun 'Sorumlu' alanına göre gruplanır. Herkese açık randevu linkinden veya müşteri portalından gelen randevularda henüz kimse atanmamışsa 'Atanmamış' altında görünür." />
+      </label>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {people.map((p) => {
+          const dayShifts = staffShifts.filter((s) => s.memberId === p.id && s.weekday === isoWeekday).sort((a, b) => a.startTime.localeCompare(b.startTime));
+          const list = dealsByAssignee[p.id] || [];
+          return (
+            <div key={p.id} style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 500, flexWrap: "wrap", gap: 6 }}>
+                <span>{p.label}</span>
+                <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
+                  {dayShifts.length ? dayShifts.map((s) => `${s.startTime}-${s.endTime}`).join(", ") : "Bugün vardiyası yok"}
+                </span>
+              </div>
+              {list.length === 0 ? (
+                <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Bugüne atanmış randevusu yok.</p>
+              ) : (
+                <ul style={{ margin: "4px 0 0", paddingLeft: 16, fontSize: 12 }}>
+                  {sortByTime(list).map((d) => (
+                    <li key={d.id}>{timeOf(d)} - {customerName(d.customerId)} ({d.title})</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })}
+        {unassigned.length > 0 && (
+          <div style={{ background: "var(--surface-1)", border: "0.5px dashed var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
+            <p style={{ fontSize: 13, fontWeight: 500, margin: 0, color: "var(--text-warning)" }}>Atanmamış ({unassigned.length})</p>
+            <ul style={{ margin: "4px 0 0", paddingLeft: 16, fontSize: 12 }}>
+              {sortByTime(unassigned).map((d) => (
+                <li key={d.id}>{timeOf(d)} - {customerName(d.customerId)} ({d.title})</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TeamModal({ session, activeTeamId, companySettings, onClose, notify, staffShifts, onAddStaffShift, onDeleteStaffShift, teamRoster, deals, customers, customFieldDefs }) {
   const isOwner = activeTeamId === session.user.id;
   const [members, setMembers] = useState([]);
   const [invites, setInvites] = useState([]);
@@ -10165,6 +10284,7 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify, st
               onDelete={onDeleteStaffShift}
             />
           </div>
+          <TeamDailyLoadPanel members={members} staffShifts={staffShifts} deals={deals} customers={customers} customFieldDefs={customFieldDefs} sessionUserId={session.user.id} />
           <div style={{ marginBottom: 16 }}>
             <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>Üyeler</label>
             {members.length === 0 ? (
@@ -13323,6 +13443,7 @@ export default function App() {
       appointment_partial_charge_hours: s.appointmentPartialChargeHours || null,
       google_review_link: s.googleReviewLink || null,
       google_review_requests_enabled: s.googleReviewRequestsEnabled !== false,
+      appointment_prep_note: s.appointmentPrepNote || null,
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase.from("company_settings").upsert(row).select().single();
@@ -16062,7 +16183,7 @@ export default function App() {
       {showBusinessHours && (
         <Modal title="Müsaitlik Saatleri" wide onClose={() => setShowBusinessHours(false)}>
           <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: 16, flexWrap: "wrap" }}>
-            {[["saatler", "Müsaitlik Saatleri"], ["politika", "Randevu iptal / gelmeme politikası"]].map(([id, label]) => (
+            {[["saatler", "Müsaitlik Saatleri"], ["politika", "Randevu iptal / gelmeme politikası"], ["hazirlik_notu", "Randevu Öncesi Not"]].map(([id, label]) => (
               <button
                 key={id}
                 type="button"
@@ -16075,8 +16196,10 @@ export default function App() {
           </div>
           {businessHoursTab === "saatler" ? (
             <BusinessHoursManager items={businessHours} onAdd={addBusinessHours} onDelete={deleteBusinessHours} />
-          ) : (
+          ) : businessHoursTab === "politika" ? (
             <AppointmentCancelPolicyBox companySettings={companySettings} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
+          ) : (
+            <AppointmentPrepNoteBox companySettings={companySettings} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
           )}
         </Modal>
       )}
@@ -16119,6 +16242,9 @@ export default function App() {
           onAddStaffShift={addStaffShift}
           onDeleteStaffShift={deleteStaffShift}
           teamRoster={teamRoster}
+          deals={deals}
+          customers={customers}
+          customFieldDefs={customFieldDefs}
           onClose={() => setShowTeamModal(false)}
         />
       )}
