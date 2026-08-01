@@ -14751,7 +14751,7 @@ export default function App() {
                     >
                       <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--fill-accent)", flexShrink: 0 }} />
                       <span style={{ flex: 1 }}>{c?.name || "Bilinmeyen müşteri"} - {d.title}</span>
-                      <Badge tone="accent">Portaldan alındı</Badge>
+                      <Badge tone="accent">{d.customFields?.kaynak === "randevu_widget" ? "Web'den alındı" : "Portaldan alındı"}</Badge>
                     </div>
                   );
                 })}
