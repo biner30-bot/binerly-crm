@@ -9445,12 +9445,22 @@ function AppointmentPrepNoteBox({ companySettings, onSave }) {
     setSaving(false);
   };
 
+  // Bu not, İşletme Bilgileri formundaki "Randevu hatırlatma e-postası gönder"
+  // anahtarı AÇIKKEN gönderilen hatırlatma mailine ekleniyor - o anahtar
+  // kapalıysa not hiçbir yere gitmiyor ama bu kutunun kendisi bunu hiç
+  // söylemiyordu, KOBİ notu yazıp kaydedip fark etmeden boşa bekleyebilirdi.
+  const remindersOff = companySettings?.appointmentRemindersEnabled === false;
   return (
     <div style={{ marginBottom: 16, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 12 }}>
       <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>Randevu öncesi not (opsiyonel)</p>
       <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 8px" }}>
-        Randevu günü gönderilen hatırlatma e-postasının sonuna eklenir - {appointmentPrepNoteExample(companySettings?.sector)}
+        İşletme Bilgileri'ndeki "Randevu hatırlatma e-postası gönder" ayarı açıkken, randevu saatinden 2 saat önce müşteriye giden hatırlatma e-postasının sonuna eklenir - {appointmentPrepNoteExample(companySettings?.sector)}
       </p>
+      {remindersOff && (
+        <p style={{ fontSize: 12, color: "var(--text-warning)", background: "var(--bg-warning)", border: "0.5px solid var(--text-warning)", borderRadius: 6, padding: "6px 8px", margin: "0 0 8px" }}>
+          Şu an randevu hatırlatma e-postaları kapalı - bu notu kaydetseniz bile hiçbir yere gönderilmez. Açmak için Ayarlar → İşletme Bilgileri'ne gidin.
+        </p>
+      )}
       <textarea
         value={note}
         onChange={(e) => setNote(e.target.value)}
