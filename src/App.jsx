@@ -8575,6 +8575,17 @@ const PRICE_ITEM_NAME_EXAMPLES = {
   otel: "Standart Oda (Gecelik)",
 };
 
+// FreeServiceModal'daki isim örneği — sadece randevu bazlı (slot) sektörlerde
+// gösterildiği için otel/üretim/perakende gibi ilgisiz sektörler burada yok.
+const FREE_SERVICE_NAME_EXAMPLES = {
+  guzellik_bakim: "Ücretsiz Cilt Analizi",
+  saglik_klinik: "Ücretsiz Ön Muayene",
+  spor_merkezi: "Ücretsiz Deneme Antrenmanı",
+  emlak: "Ücretsiz Ekspertiz Görüşmesi",
+  dijital_ajans: "Ücretsiz Strateji Görüşmesi",
+  hizmet_danismanlik: "Ücretsiz İlk Görüşme",
+};
+
 // Yeni teklif/kayıt formundaki "Başlık" alanı için sektöre göre örnek —
 // kullanıcı fark etti: sektör ne olursa olsun sadece bireysel/kurumsal ayrımına
 // göre iki sabit örnek (biri sağlık diline yakın "İlk randevu / danışmanlık")
@@ -8592,6 +8603,56 @@ const DEAL_TITLE_EXAMPLES = {
   sanayi_esnaf: "Motor bakımı / yağ değişimi",
   otel: "Hafta sonu 2 kişilik rezervasyon",
 };
+
+// 0 TL'lik bir fiyat kalemi Randevu Alma Linki widget'ında ayrı/vurgulu bir
+// buton olarak öne çıkıyor (tereddütlü müşteriyi ilk adıma teşvik) - önceden
+// bu SADECE normal "Yeni ürün/hizmet ekle" formundaki Fiyat alanına 0 yazarak
+// keşfedilebiliyordu, bir InfoTip'in içinde gömülüydü (kullanıcı geri
+// bildirimi: "0 TL'lik ürünü burada iyi anlatamamışız"). Ayrı, adı konmuş bir
+// buton/modal ile artık açıkça sunuluyor - fiyat alanı hiç gösterilmiyor,
+// kaydedilen kalem zaten normal fiyat listesinde (0 TL rozetiyle) görünür.
+function FreeServiceModal({ sector, onAdd, onClose }) {
+  const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setSaving(true);
+    await onAdd({ name: trimmed, price: 0, refreshDays: null, durationMinutes: null });
+    setSaving(false);
+    onClose();
+  };
+
+  return (
+    <Modal title="Ücretsiz Hizmet Tanımla" onClose={onClose}>
+      <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px", lineHeight: 1.6 }}>
+        Randevu almadan önce sizinle tanışmak isteyen tereddütlü müşterileri ilk adımı atmaya teşvik edin - tanımladığınız
+        ücretsiz hizmet (örn. "Ücretsiz İlk Görüşme", "Deneme Seansı") Randevu Alma Linki'nde müşterilerinize ayrı,
+        vurgulu bir buton olarak gösterilir. Fiyat listenize otomatik olarak 0 TL ile eklenir.
+      </p>
+      <form onSubmit={submit}>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Hizmet adı</label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={`Örn. ${FREE_SERVICE_NAME_EXAMPLES[sector] || "Ücretsiz İlk Görüşme"}`}
+            autoFocus
+            style={{ width: "100%" }}
+          />
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button type="button" onClick={onClose}>Vazgeç</button>
+          <button type="submit" disabled={!name.trim() || saving} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+            {saving ? "Ekleniyor…" : "+ Ekle"}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
 
 function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
   const [name, setName] = useState("");
@@ -8640,7 +8701,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
     <div>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px", display: "flex", alignItems: "center", gap: 4 }}>
         Sabit fiyatlı ürün/hizmetlerinizi buraya kaydedin
-        <InfoTip placement="bottom" align="right" text={`Bu tamamen opsiyonel - kaydettikleriniz, yeni ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} formunda hızlı seçim olarak çıkar; seçince başlık ve tutar otomatik dolar, sonrasında yine de değiştirebilirsiniz. Bir kalemi silmek veya fiyatını güncellemek, daha önce oluşturulmuş ${DEAL_WORD_FORMS[dealWordKind(sector)].pluralAcc} etkilemez - sadece o ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} kaydedildiği andaki başlık/tutarı taşır.${supportsSelfBooking(sector) && bookingModel(sector) === "slot" ? " Fiyatı 0 TL olan bir kalem (örn. \"Ücretsiz İlk Görüşme\"), Randevu Alma Linki widget'ında ayrı, vurgulu bir buton olarak öne çıkar." : ""}`} />
+        <InfoTip placement="bottom" align="right" text={`Bu tamamen opsiyonel - kaydettikleriniz, yeni ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} formunda hızlı seçim olarak çıkar; seçince başlık ve tutar otomatik dolar, sonrasında yine de değiştirebilirsiniz. Bir kalemi silmek veya fiyatını güncellemek, daha önce oluşturulmuş ${DEAL_WORD_FORMS[dealWordKind(sector)].pluralAcc} etkilemez - sadece o ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} kaydedildiği andaki başlık/tutarı taşır.`} />
       </p>
 
       {items.length === 0 ? (
@@ -12086,6 +12147,7 @@ export default function App() {
   const [showSectorFields, setShowSectorFields] = useState(false);
   const [showImportPriceList, setShowImportPriceList] = useState(false);
   const [showPriceListExport, setShowPriceListExport] = useState(false);
+  const [showFreeServiceModal, setShowFreeServiceModal] = useState(false);
   const [showBusinessHours, setShowBusinessHours] = useState(false);
   const [businessHoursTab, setBusinessHoursTab] = useState("saatler");
   const [showRoomInventory, setShowRoomInventory] = useState(false);
@@ -16203,9 +16265,21 @@ export default function App() {
                 <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
                 İçe aktar
               </button>
+              {supportsSelfBooking(companySettings?.sector) && bookingModel(companySettings?.sector) === "slot" && (
+                <button
+                  onClick={() => setShowFreeServiceModal(true)}
+                  style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+                >
+                  <i className="ti ti-gift" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                  Ücretsiz Hizmet Tanımla
+                </button>
+              )}
             </div>
           </div>
           <PriceListManager items={priceListItems} onAdd={addPriceListItem} onUpdate={updatePriceListItem} onDelete={deletePriceListItem} sector={companySettings?.sector} />
+          {showFreeServiceModal && (
+            <FreeServiceModal sector={companySettings?.sector} onAdd={addPriceListItem} onClose={() => setShowFreeServiceModal(false)} />
+          )}
         </div>
       )}
 
