@@ -1,5 +1,24 @@
 import { createClient } from "@supabase/supabase-js";
 
+// Bir günün (weekday'e karşılık gelen mesai pencereleri) boş saatlerini
+// hesaplar - hem tek-günlük sorguda hem çok-günlük önizleme şeridinde AYNI
+// mantık kullanılsın diye ortak fonksiyon.
+function computeDaySlots(windows, isToday, nowMinutes, takenTimes) {
+  const slots = [];
+  for (const window of windows) {
+    const [startH, startM] = window.start_time.slice(0, 5).split(":").map(Number);
+    const [endH, endM] = window.end_time.slice(0, 5).split(":").map(Number);
+    const step = window.slot_duration_minutes;
+    const end = endH * 60 + endM;
+    for (let cursor = startH * 60 + startM; cursor + step <= end; cursor += step) {
+      if (isToday && cursor <= nowMinutes) continue;
+      const time = `${String(Math.floor(cursor / 60)).padStart(2, "0")}:${String(cursor % 60).padStart(2, "0")}`;
+      if (!takenTimes.has(time)) slots.push(time);
+    }
+  }
+  return slots.sort();
+}
+
 // Müşteri portalındaki bir kullanıcı, RLS gereği sadece KENDİ randevularını
 // görebilir — başka müşterilerin randevu saatlerini görüp "bu saat dolu mu"
 // diye client-side hesaplayamaz (haklı bir gizlilik kısıtı). Bu yüzden
@@ -72,6 +91,55 @@ export default async function handler(req, res) {
     return res.status(200).json({ rooms, hasPaymentProvider: !!cred });
   }
 
+  // Önizleme şeridi (AppointmentRequestPage) - müşteri tek tek tarih deneyip
+  // "bu gün boş mu" diye uğraşmasın diye önümüzdeki N günün her biri için kaç
+  // boş saat olduğunu TEK istekte döner. Tek-günlük slot hesabıyla (aşağıda)
+  // AYNI mantığı (computeDaySlots) kullanır - iki yerde ayrı ayrı bakım
+  // gerektiren bir kopya oluşmasın diye.
+  const overviewDays = req.query.overview ? Math.min(Math.max(parseInt(req.query.overview, 10) || 14, 1), 30) : 0;
+  if (overviewDays > 0) {
+    const [{ data: fieldDefs, error: fieldDefsError }, { data: allHours, error: hoursError }, { data: deals, error: dealsError }, { data: cred, error: credError }] = await Promise.all([
+      supabaseAdmin.from("custom_field_defs").select("key").eq("user_id", businessUserId).eq("entity", "deal").eq("field_type", "datetime").eq("active", true).limit(1),
+      supabaseAdmin.from("business_hours").select("weekday, start_time, end_time, slot_duration_minutes").eq("user_id", businessUserId),
+      supabaseAdmin.from("deals").select("custom_fields").eq("user_id", businessUserId).is("deleted_at", null).neq("stage", "kaybedildi"),
+      supabaseAdmin.from("payment_credentials").select("id").eq("user_id", businessUserId).maybeSingle(),
+    ]);
+    if (fieldDefsError || hoursError || dealsError || credError) return res.status(500).json({ error: (fieldDefsError || hoursError || dealsError || credError).message });
+
+    const dateTimeKey = fieldDefs?.[0]?.key || null;
+    const hasPaymentProvider = !!cred;
+    if (!dateTimeKey) return res.status(200).json({ days: [], dateTimeKey: null, hasPaymentProvider });
+
+    const hoursByWeekday = new Map();
+    for (const h of allHours || []) {
+      if (!hoursByWeekday.has(h.weekday)) hoursByWeekday.set(h.weekday, []);
+      hoursByWeekday.get(h.weekday).push(h);
+    }
+    const takenByDate = new Map();
+    for (const dl of deals || []) {
+      const dt = dl.custom_fields?.[dateTimeKey];
+      if (typeof dt !== "string" || dt.length < 16) continue;
+      const dateStr = dt.slice(0, 10);
+      if (!takenByDate.has(dateStr)) takenByDate.set(dateStr, new Set());
+      takenByDate.get(dateStr).add(dt.slice(11, 16));
+    }
+
+    const nowMinutes = (Number(nowParts.hour) % 24) * 60 + Number(nowParts.minute);
+    const startY = Number(nowParts.year), startM = Number(nowParts.month), startD = Number(nowParts.day);
+    const days = [];
+    for (let i = 0; i < overviewDays; i++) {
+      const cursorDate = new Date(Date.UTC(startY, startM - 1, startD + i));
+      const dateStr = `${cursorDate.getUTCFullYear()}-${String(cursorDate.getUTCMonth() + 1).padStart(2, "0")}-${String(cursorDate.getUTCDate()).padStart(2, "0")}`;
+      const jsWeekday = cursorDate.getUTCDay();
+      const isoWeekday = jsWeekday === 0 ? 7 : jsWeekday;
+      const windows = hoursByWeekday.get(isoWeekday) || [];
+      const taken = takenByDate.get(dateStr) || new Set();
+      const slotCount = computeDaySlots(windows, dateStr === todayIstanbul, nowMinutes, taken).length;
+      days.push({ date: dateStr, slotCount });
+    }
+    return res.status(200).json({ days, dateTimeKey, hasPaymentProvider });
+  }
+
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return res.status(400).json({ error: "businessUserId ve date (YYYY-MM-DD) gerekli." });
   }
@@ -129,19 +197,7 @@ export default async function handler(req, res) {
   // SlotBookingModal), bu yüzden burada tek referans Müsaitlik Saatleri'dir;
   // müşteri belirli bir uzman istiyorsa not alanına yazıp işletmeyle
   // konuşuyor. Personel seçimi eklenirse vardiya buraya yeniden bağlanacak.
-  const slots = [];
-  for (const window of hours || []) {
-    const [startH, startM] = window.start_time.slice(0, 5).split(":").map(Number);
-    const [endH, endM] = window.end_time.slice(0, 5).split(":").map(Number);
-    const step = window.slot_duration_minutes;
-    const end = endH * 60 + endM;
-    for (let cursor = startH * 60 + startM; cursor + step <= end; cursor += step) {
-      if (isToday && cursor <= nowMinutes) continue;
-      const time = `${String(Math.floor(cursor / 60)).padStart(2, "0")}:${String(cursor % 60).padStart(2, "0")}`;
-      if (!takenTimes.has(time)) slots.push(time);
-    }
-  }
-  slots.sort();
+  const slots = computeDaySlots(hours || [], isToday, nowMinutes, takenTimes);
 
   return res.status(200).json({ slots, dateTimeKey, hasPaymentProvider });
 }

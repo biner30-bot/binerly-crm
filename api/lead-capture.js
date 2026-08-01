@@ -68,7 +68,8 @@ export default async function handler(req, res) {
 
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { name, phone, email, address, note, marketingConsent, dateTime, dateTimeKey, serviceId } = req.body || {};
+  const { name, phone, email, address, note, marketingConsent, dateTime, dateTimeKey, serviceIds } = req.body || {};
+  const cleanServiceIds = Array.isArray(serviceIds) ? serviceIds.filter((id) => typeof id === "string" && id) : [];
   const trimmedName = (name || "").trim();
   const trimmedPhone = (phone || "").trim();
   const trimmedEmail = (email || "").trim();
@@ -149,9 +150,12 @@ export default async function handler(req, res) {
 
     let serviceName = null;
     let servicePrice = 0;
-    if (serviceId) {
-      const { data: service } = await supabaseAdmin.from("price_list_items").select("name, price").eq("id", serviceId).eq("user_id", settings.user_id).maybeSingle();
-      if (service) { serviceName = service.name; servicePrice = Number(service.price) || 0; }
+    if (cleanServiceIds.length > 0) {
+      const { data: services } = await supabaseAdmin.from("price_list_items").select("name, price").eq("user_id", settings.user_id).in("id", cleanServiceIds);
+      if (services?.length) {
+        serviceName = services.map((s) => s.name).join(", ");
+        servicePrice = services.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
+      }
     }
 
     // Kapora - KOBİ Ayarlar'dan açtıysa VE Ödeme Bağlantısı gerçekten kuruluysa,
@@ -159,8 +163,13 @@ export default async function handler(req, res) {
     // yanıtla birlikte bir approval_token dönülür - müşteri tarayıcıda hemen
     // deposit-checkout-init'e yönlendirilir (bkz. api/deal-approval.js). Ödemeyi
     // yarıda bırakırsa da bu kayıt kalıcı olarak durur, KOBİ talebi kaybetmez.
+    // Hizmet fiyatı biliniyorsa (servicePrice > 0) kapora bu tutarı aşamaz -
+    // aksi halde 3000 TL'lik bir hizmete 50 TL'lik bir hizmetle aynı sabit
+    // kapora istenir, hatta hizmet bedelinden yüksek kapora istenmiş olurdu.
     let approvalToken = null;
+    let effectiveDepositAmount = null;
     if (settings.appointment_deposit_amount > 0) {
+      effectiveDepositAmount = servicePrice > 0 ? Math.min(settings.appointment_deposit_amount, servicePrice) : settings.appointment_deposit_amount;
       const { data: cred } = await supabaseAdmin.from("payment_credentials").select("id").eq("user_id", settings.user_id).maybeSingle();
       if (cred) approvalToken = crypto.randomUUID();
     }
@@ -178,7 +187,7 @@ export default async function handler(req, res) {
     if (dealInsertError) return res.status(500).json({ error: dealInsertError.message });
 
     if (approvalToken) {
-      return res.status(200).json({ ok: true, booked: true, needsDeposit: true, approvalToken, depositAmount: settings.appointment_deposit_amount });
+      return res.status(200).json({ ok: true, booked: true, needsDeposit: true, approvalToken, depositAmount: effectiveDepositAmount });
     }
     return res.status(200).json({ ok: true, booked: true });
   }

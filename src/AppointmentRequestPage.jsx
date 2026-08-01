@@ -16,6 +16,15 @@ function istanbulDateStr(date) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
 
+// "YYYY-MM-DD" -> "Sal", "15" gibi kısa gün/tarih etiketleri - müsaitlik
+// şeridindeki her gün butonu için. Öğlen saatiyle (12:00 UTC) parse edilir,
+// gece yarısı yakınında gün kaymasın diye (bkz. istanbulDateStr'daki AYNI risk).
+function shortDayLabel(dateStr) {
+  const d = new Date(`${dateStr}T12:00:00Z`);
+  const weekday = new Intl.DateTimeFormat("tr-TR", { weekday: "short" }).format(d);
+  return { weekday: weekday.charAt(0).toUpperCase() + weekday.slice(1), day: String(d.getUTCDate()) };
+}
+
 // shared.jsx'teki getPortalUrl ile AYNI mantık (kasıtlı kopya, aynı gerekçeyle
 // import edilmedi - bkz. istanbulDateStr). Portale davet, randevu alan kişiye
 // zorunlu değil sadece opsiyonel bir bağlantı olarak gösteriliyor.
@@ -35,13 +44,14 @@ export default function AppointmentRequestPage() {
 
   const todayStr = istanbulDateStr(new Date());
   const maxDateStr = istanbulDateStr(new Date(Date.now() + 60 * 24 * 60 * 60 * 1000));
-  const [serviceId, setServiceId] = useState("");
+  const [serviceIds, setServiceIds] = useState([]);
   const [date, setDate] = useState(todayStr);
   const [slots, setSlots] = useState([]);
   const [dateTimeKey, setDateTimeKey] = useState(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [slotsError, setSlotsError] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
+  const [dayOverview, setDayOverview] = useState(null); // [{ date, slotCount }] - hangi günlerde boşluk olduğunu tek tek denemeden görebilsinler diye
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -83,6 +93,17 @@ export default function AppointmentRequestPage() {
       .finally(() => setLoadingSlots(false));
   }, [company?.acceptsAppointments, company?.businessUserId, date]);
 
+  // Önümüzdeki 14 günün boş saat sayısını TEK istekte çeker - müşteri hangi
+  // günün müsait olduğunu tek tek tarih deneyerek bulmak zorunda kalmasın.
+  // date state'inden bağımsız, işletme yüklenince bir kere çalışır.
+  useEffect(() => {
+    if (!company?.acceptsAppointments || !company?.businessUserId) return;
+    fetch(`/api/appointment-availability?businessUserId=${company.businessUserId}&overview=14`)
+      .then((r) => r.json())
+      .then((data) => setDayOverview(data.days || []))
+      .catch(() => setDayOverview([]));
+  }, [company?.acceptsAppointments, company?.businessUserId]);
+
   const submit = async (e) => {
     e.preventDefault();
     if (!name.trim() || (!phone.trim() && !email.trim())) {
@@ -101,7 +122,7 @@ export default function AppointmentRequestPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           token, name, phone, email, note, marketingConsent,
-          dateTime: `${date}T${selectedTime}:00`, dateTimeKey, serviceId: serviceId || undefined,
+          dateTime: `${date}T${selectedTime}:00`, dateTimeKey, serviceIds: serviceIds.length ? serviceIds : undefined,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -144,7 +165,26 @@ export default function AppointmentRequestPage() {
 
   // 0 TL'lik bir fiyat kalemi zaten "ücretsiz" demek - ayrı bir "deneme" alanı
   // eklemek yerine bu sinyali widget'ta öne çıkarıyoruz (yeni kolon yok).
+  // Ücretsiz kalemler kendi buton bölümünde ayrıca gösterildiği için normal
+  // listeden çıkarılır - aksi halde aynı hizmet iki yerde birden görünür.
   const freeServices = (company?.services || []).filter((s) => Number(s.price) === 0);
+  const paidServices = (company?.services || []).filter((s) => Number(s.price) !== 0);
+
+  const toggleService = (id) => {
+    setServiceIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  // KOBİ'nin fiyat listesinde ücretsiz kalemi zaten "Ücretsiz ..." diye
+  // adlandırmış olması sık görülüyor - butonun kendisi de "- Ücretsiz" ekliyor,
+  // ikisi üst üste bindiğinde tekrar görünüyor. Kelimeyi ismin içinden söküp
+  // gösterim tarafında tekilleştiriyoruz, fiyat listesindeki gerçek isme dokunmuyoruz.
+  const stripFreeWord = (name) => {
+    // \b regex sınırı Türkçe "ü" harfini \w saymadığı için kelime başındaki
+    // "Ücretsiz"i yakalamıyor (2026-08-01, canlı testte görüldü) - kelime bazlı
+    // bölme/karşılaştırma bu sorunu tamamen atlıyor.
+    const words = (name || "").split(/\s+/).filter((w) => w && w.localeCompare("ücretsiz", "tr", { sensitivity: "base" }) !== 0);
+    return words.join(" ").trim() || name || "";
+  };
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5f8fc", fontFamily: "system-ui, -apple-system, sans-serif", padding: "1rem" }}>
@@ -202,30 +242,63 @@ export default function AppointmentRequestPage() {
                     <button
                       key={s.id}
                       type="button"
-                      onClick={() => setServiceId(s.id)}
+                      onClick={() => toggleService(s.id)}
                       style={{
                         width: "100%", textAlign: "left", padding: "12px 14px", borderRadius: 8, cursor: "pointer",
-                        border: serviceId === s.id ? "2px solid #15803d" : "1px solid #bbf7d0",
-                        background: serviceId === s.id ? "#dcfce7" : "#f0fdf4", color: "#15803d", fontWeight: 700, fontSize: 14,
+                        border: serviceIds.includes(s.id) ? "2px solid #15803d" : "1px solid #bbf7d0",
+                        background: serviceIds.includes(s.id) ? "#dcfce7" : "#f0fdf4", color: "#15803d", fontWeight: 700, fontSize: 14,
                       }}
                     >
-                      🎁 {s.name} - Ücretsiz{serviceId === s.id ? " ✓" : ""}
+                      🎁 {stripFreeWord(s.name)} - Ücretsiz{serviceIds.includes(s.id) ? " ✓" : ""}
                     </button>
                   ))}
                 </div>
               )}
-              {company.services?.length > 0 && (
+              {paidServices.length > 0 && (
                 <div style={{ marginBottom: 10 }}>
-                  <select value={serviceId} onChange={(e) => setServiceId(e.target.value)} style={{ width: "100%" }}>
-                    <option value="">Hizmet seçin (opsiyonel)</option>
-                    {company.services.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}{s.price ? ` - ${s.price} TL` : ""}</option>
+                  <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>Hizmet seçin (opsiyonel, birden fazla seçebilirsiniz)</label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2, maxHeight: 190, overflowY: "auto", border: "1px solid #e1e8f0", borderRadius: 8, padding: 4 }}>
+                    {paidServices.map((s) => (
+                      <label key={s.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, color: "#0c2540", padding: "6px 6px", borderRadius: 6, cursor: "pointer" }}>
+                        <input type="checkbox" checked={serviceIds.includes(s.id)} onChange={() => toggleService(s.id)} />
+                        {s.name}{s.price ? ` - ${s.price} TL` : ""}
+                      </label>
                     ))}
-                  </select>
+                  </div>
+                </div>
+              )}
+              {dayOverview && dayOverview.length > 0 && (
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>Müsait günler</label>
+                  <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
+                    {dayOverview.map((d) => {
+                      const { weekday, day } = shortDayLabel(d.date);
+                      const selected = d.date === date;
+                      const empty = d.slotCount === 0;
+                      return (
+                        <button
+                          key={d.date}
+                          type="button"
+                          disabled={empty}
+                          onClick={() => setDate(d.date)}
+                          style={{
+                            flex: "0 0 auto", width: 52, padding: "8px 4px", borderRadius: 8, textAlign: "center", cursor: empty ? "default" : "pointer",
+                            border: selected ? "2px solid #185fa5" : "1px solid #e1e8f0",
+                            background: selected ? "#eaf2fb" : empty ? "#f5f8fc" : "#fff",
+                            opacity: empty ? 0.45 : 1,
+                          }}
+                        >
+                          <div style={{ fontSize: 11, color: "#5b7088" }}>{weekday}</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "#0c2540" }}>{day}</div>
+                          <div style={{ fontSize: 10, color: empty ? "#9aa8b8" : "#15803d" }}>{empty ? "Dolu" : `${d.slotCount} boş`}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
               <div style={{ marginBottom: 10 }}>
-                <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>Tarih</label>
+                <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>Ya da farklı bir tarih seçin</label>
                 <input type="date" min={todayStr} max={maxDateStr} value={date} onChange={(e) => setDate(e.target.value)} style={{ width: "100%" }} />
               </div>
               <div style={{ marginBottom: 10 }}>

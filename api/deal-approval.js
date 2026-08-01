@@ -1070,8 +1070,13 @@ export default async function handler(req, res) {
     if (deal.custom_fields?.kaynak !== "randevu_widget" || deal.payment_mode !== "required" || deal.payment_status === "paid") {
       return res.status(400).json({ error: "Bu işlem için uygun değil." });
     }
-    const { data: freshSettings } = await supabaseAdmin.from("company_settings").select("appointment_deposit_amount").eq("user_id", deal.user_id).maybeSingle();
-    const depositAmount = freshSettings?.appointment_deposit_amount;
+    // settings biraz yukarıda (deal ile birlikte) zaten aynı istekte taze
+    // okundu - burada tekrar sorgulamıyoruz. Hizmet fiyatı biliniyorsa
+    // (deal.value > 0) kapora bu tutarı aşamaz - lead-capture.js POST'taki
+    // AYNI sınırlama, tahsilatı başlatan asıl yerde de tekrarlanıyor çünkü
+    // tutar istemciden asla alınmıyor, her seferinde burada belirleniyor.
+    const rawDepositAmount = settings?.appointment_deposit_amount;
+    const depositAmount = deal.value > 0 ? Math.min(rawDepositAmount || 0, deal.value) : rawDepositAmount;
     if (!(depositAmount > 0)) return res.status(400).json({ error: "Kapora tanımlı değil." });
     const result = await initCheckout(req, supabaseAdmin, deal, customer, token, depositAmount);
     if (result.error) return res.status(502).json({ error: result.error });
@@ -1123,8 +1128,14 @@ export default async function handler(req, res) {
       selfBooked: deal.custom_fields?.kaynak === "portal" || deal.custom_fields?.kaynak === "randevu_widget",
       // Sadece randevu widget'ından gelen, henüz tam ödenmemiş "ödeme bekleniyor"
       // kayıtlarda anlamlı — sayfa "Kaporanız X TL alındı" yerine "Kaporanızı
-      // ödeyin" gösterebilsin diye.
-      depositAmount: deal.custom_fields?.kaynak === "randevu_widget" && deal.payment_mode === "required" ? settings?.appointment_deposit_amount || null : null,
+      // ödeyin" gösterebilsin diye. deposit-checkout-init'teki AYNI sınırlama
+      // (kapora hizmet fiyatını aşamaz) burada da uygulanır, yoksa gösterilen
+      // tutar gerçekte tahsil edilenden farklı olurdu.
+      depositAmount: (() => {
+        if (deal.custom_fields?.kaynak !== "randevu_widget" || deal.payment_mode !== "required") return null;
+        const raw = settings?.appointment_deposit_amount;
+        return (deal.value > 0 ? Math.min(raw || 0, deal.value) : raw) || null;
+      })(),
       ...branding,
     });
   }

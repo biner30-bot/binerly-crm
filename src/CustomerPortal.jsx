@@ -787,6 +787,15 @@ function istanbulDateStr(date) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
 
+// AppointmentRequestPage.jsx'teki AYNI fonksiyon (kasıtlı kopya, route bazlı
+// kod bölmenin amacını korumak için import edilmedi). "YYYY-MM-DD" -> "Sal",
+// "15" gibi kısa gün/tarih etiketleri, müsaitlik şeridindeki her gün butonu için.
+function shortDayLabel(dateStr) {
+  const d = new Date(`${dateStr}T12:00:00Z`);
+  const weekday = new Intl.DateTimeFormat("tr-TR", { weekday: "short" }).format(d);
+  return { weekday: weekday.charAt(0).toUpperCase() + weekday.slice(1), day: String(d.getUTCDate()) };
+}
+
 // Otel gibi oda-stoklu (bookingModel === "inventory") sektörlerde müsaitlik bir
 // SAAT SLOTU değil, GİRİŞ/ÇIKIŞ TARİH ARALIĞI + oda tipi stoku bazlıdır — alanların
 // neredeyse tamamı (tarih/saat slotu yerine tarih aralığı, oda tipi seçimi) farklı
@@ -813,6 +822,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose }) {
   const [booking, setBooking] = useState(false);
   const [dateTimeKey, setDateTimeKey] = useState(null);
   const [hasPaymentProvider, setHasPaymentProvider] = useState(false);
+  const [dayOverview, setDayOverview] = useState(null); // [{ date, slotCount }] - hangi günlerde boşluk olduğunu tek tek denemeden görebilsin diye
 
   useEffect(() => {
     if (!date || !customerRow.userId) { setSlotsError("İşletme bilgisi eksik, müsaitlik sorgulanamadı."); return; }
@@ -831,6 +841,17 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose }) {
       .finally(() => setLoadingSlots(false));
   }, [date, customerRow.userId]);
 
+  // Önümüzdeki 14 günün boş saat sayısını TEK istekte çeker - AppointmentRequestPage'teki
+  // AYNI mantık (bkz. api/appointment-availability.js overview dalı). date state'inden
+  // bağımsız, modal açılınca bir kere çalışır.
+  useEffect(() => {
+    if (!customerRow.userId) return;
+    fetch(`/api/appointment-availability?businessUserId=${customerRow.userId}&overview=14`)
+      .then((r) => r.json())
+      .then((data) => setDayOverview(data.days || []))
+      .catch(() => setDayOverview([]));
+  }, [customerRow.userId]);
+
   const confirm = async () => {
     if (!selectedTime || !note.trim() || !dateTimeKey) return;
     setBooking(true);
@@ -841,8 +862,38 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose }) {
 
   return (
     <Modal title={`${customerRow.companyName || customerRow.name} - Randevu Al`} onClose={onClose}>
+      {dayOverview && dayOverview.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Müsait günler</label>
+          <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
+            {dayOverview.map((d) => {
+              const { weekday, day } = shortDayLabel(d.date);
+              const selected = d.date === date;
+              const empty = d.slotCount === 0;
+              return (
+                <button
+                  key={d.date}
+                  type="button"
+                  disabled={empty}
+                  onClick={() => setDate(d.date)}
+                  style={{
+                    flex: "0 0 auto", width: 52, padding: "8px 4px", borderRadius: 8, textAlign: "center", cursor: empty ? "default" : "pointer",
+                    border: selected ? "2px solid var(--fill-accent)" : "0.5px solid var(--border)",
+                    background: selected ? "var(--surface-2)" : "var(--surface-1)",
+                    opacity: empty ? 0.45 : 1,
+                  }}
+                >
+                  <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{weekday}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{day}</div>
+                  <div style={{ fontSize: 10, color: empty ? "var(--text-muted)" : "var(--text-success)" }}>{empty ? "Dolu" : `${d.slotCount} boş`}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tarih</label>
+        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ya da farklı bir tarih seçin</label>
         <input type="date" min={todayStr} max={maxDateStr} value={date} onChange={(e) => setDate(e.target.value)} style={{ width: "100%" }} />
       </div>
       <div style={{ marginBottom: 12 }}>
