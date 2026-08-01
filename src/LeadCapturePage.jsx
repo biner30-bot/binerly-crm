@@ -53,7 +53,7 @@ export default function LeadCapturePage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5f8fc", fontFamily: "system-ui, -apple-system, sans-serif", padding: "1rem" }}>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#f5f8fc", fontFamily: "system-ui, -apple-system, sans-serif", padding: "1rem" }}>
       <div style={{ background: "#fff", borderRadius: 12, padding: "2rem", width: "100%", maxWidth: 380, border: "1px solid #e1e8f0" }}>
         {loading ? (
           <p style={{ textAlign: "center", color: "#5b7088" }}>Yükleniyor…</p>
@@ -110,6 +110,10 @@ export default function LeadCapturePage() {
           </>
         )}
       </div>
+      <a href="https://binerly.com" target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 20, opacity: 0.6, textDecoration: "none" }}>
+        <img src="/favicon.svg" alt="" style={{ width: 16, height: 16 }} />
+        <span style={{ fontSize: 12, color: "#5b7088" }}>Binerly ile güvenle yönetiliyor</span>
+      </a>
     </div>
   );
 }

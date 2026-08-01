@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
-import { Badge, TONE_COLORS, Modal, MetricCard, InfoTip, isFullNameValid, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, WEEKDAYS_SHORT, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl, translateAuthError } from "./shared";
+import { Badge, TONE_COLORS, Modal, MetricCard, InfoTip, isFullNameValid, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, WEEKDAYS_SHORT, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl, translateAuthError, humanizeDbMessage } from "./shared";
 import Finance, { rowToCompanyExpense, expandExpenseOccurrences } from "./Finance";
 import { rowToChannelCredential, rowToChannelMessage } from "./Messages";
 import Support, {
@@ -5883,11 +5883,16 @@ const UNIFIED_LIBRARY = [
 ];
 
 function AskBubble({ open, onToggle }) {
+  // Önceden sohbet balonu ikonuydu (ti-message-circle-2) - sitede ayrıca bir
+  // "Mesajlar" sekmesi ve KOBİ'nin kendi müşteri "Destek" modülü de olduğu
+  // için yeni kullanıcılar bu üçünü karıştırıp burayı canlı destek/insan
+  // sohbeti sanabiliyordu. "Yardım" ikonu/etiketi bunun aslında bir soru-
+  // cevap/nasıl-yapılır aracı olduğunu daha net anlatıyor.
   return (
     <button
       onClick={onToggle}
-      title="Soru Sor"
-      aria-label="Soru Sor"
+      title="Yardım"
+      aria-label="Yardım"
       data-tour="ask-bubble"
       style={{
         position: "fixed", bottom: 24, right: 24, width: 56, height: 56, borderRadius: "50%",
@@ -5896,7 +5901,7 @@ function AskBubble({ open, onToggle }) {
         boxShadow: "0 4px 16px rgba(0,0,0,0.25)", zIndex: 950, cursor: "pointer", fontSize: 24,
       }}
     >
-      <i className={`ti ${open ? "ti-x" : "ti-message-circle-2"}`} aria-hidden="true"></i>
+      <i className={`ti ${open ? "ti-x" : "ti-help"}`} aria-hidden="true"></i>
     </button>
   );
 }
@@ -5976,7 +5981,7 @@ function AskDock({ open, onClose, sector, ctx }) {
 
     const userMsg = { id: uid(), role: "user", text: trimmed };
     const assistantMsg = scored.length === 0
-      ? { id: uid(), role: "assistant", text: "Bunu şu an bilmiyorum - farklı bir ifadeyle sorabilir ya da aşağıdaki örneklerden birini deneyebilirsiniz.", suggestions: starters.map((e) => e.resolvedLabel) }
+      ? { id: uid(), role: "assistant", unresolved: true, text: "Bunu şu an bilmiyorum - farklı bir ifadeyle sorabilir ya da aşağıdaki örneklerden birini deneyebilirsiniz.", suggestions: starters.map((e) => e.resolvedLabel) }
       : { id: uid(), role: "assistant", category: scored[0].category, text: scored[0].compute(ctx), suggestions: scored.slice(1, 4).map((e) => e.resolvedLabel) };
     setMessages((prev) => [...prev, userMsg, assistantMsg]);
     setQuery("");
@@ -5992,7 +5997,7 @@ function AskDock({ open, onClose, sector, ctx }) {
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderBottom: "0.5px solid var(--border)", flexShrink: 0 }}>
         <div>
-          <h3 style={{ margin: 0, fontSize: 15 }}>Soru Sor</h3>
+          <h3 style={{ margin: 0, fontSize: 15 }}>Yardım</h3>
           <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--text-muted)" }}>Hiçbir soru/veri dışarı gönderilmez</p>
         </div>
         <button onClick={onClose} aria-label="Kapat" style={{ width: 28, height: 28, padding: 0, flexShrink: 0 }}>
@@ -6031,6 +6036,11 @@ function AskDock({ open, onClose, sector, ctx }) {
               <div style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "4px 12px 12px 12px", padding: "10px 12px" }}>
                 {m.category && <p style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5, margin: "0 0 4px" }}>{m.category}</p>}
                 <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{m.text}</p>
+                {m.unresolved && (
+                  <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>
+                    Cevap bulamadıysanız <a href="mailto:info@binerly.com">info@binerly.com</a> adresinden bize yazabilirsiniz.
+                  </p>
+                )}
               </div>
               {m.suggestions?.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -6477,7 +6487,9 @@ const COMPANY_NAME_EXAMPLES = {
 function SectorPicker({ companySettings, onSave, onFetchFields }) {
   const currentSector = companySettings?.sector || "";
   const [pendingSector, setPendingSector] = useState(currentSector);
+  const [confirmSwitch, setConfirmSwitch] = useState(false);
   const dirty = pendingSector !== currentSector;
+  const currentLabel = SECTOR_PRESETS.find((p) => p.id === currentSector)?.label || currentSector;
 
   return (
     <div style={{ marginBottom: 8 }}>
@@ -6495,11 +6507,25 @@ function SectorPicker({ companySettings, onSave, onFetchFields }) {
       {dirty && pendingSector && (
         <button
           type="button"
-          onClick={() => onSave(pendingSector)}
+          // Zaten bir sektör seçiliyken DEĞİŞTİRMEK, eski sektöre özel alanları
+          // formlardan gizliyor (silmiyor - applySectorCustomFields active:false
+          // yapıyor, eski sektöre geri dönülürse otomatik tekrar görünür) ama bu
+          // hiçbir yerde açıkça söylenmiyordu - kullanıcı "verilerim kayboldu"
+          // sanabilirdi. İlk kurulumda (currentSector boş) uyarı gereksiz sürtünme
+          // olur, sadece gerçek bir DEĞİŞİMDE gösterilir.
+          onClick={() => (currentSector ? setConfirmSwitch(true) : onSave(pendingSector))}
           style={{ fontSize: 13, marginTop: 8, display: "block", background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
         >
           Kaydet
         </button>
+      )}
+      {confirmSwitch && (
+        <ConfirmDialog
+          title="Sektörü değiştir"
+          message={`"${currentLabel}" sektörüne özel alanlar (form/kayıtlardan) gizlenecek - silinmeyecek, tekrar bu sektöre dönerseniz otomatik geri gelirler. Yeni sektörün kendi alanları/aşama isimleri uygulanacak. Devam edilsin mi?`}
+          onConfirm={() => { setConfirmSwitch(false); onSave(pendingSector); }}
+          onClose={() => setConfirmSwitch(false)}
+        />
       )}
     </div>
   );
@@ -9867,16 +9893,35 @@ function BusinessHoursManager({ items, onAdd, onDelete }) {
       {sorted.length === 0 ? (
         <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Henüz müsaitlik saati eklenmedi.</p>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
-          {sorted.map((b) => (
-            <div key={b.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
-              <span style={{ fontSize: 13, fontWeight: 500 }}>{WEEKDAYS[b.weekday - 1]}</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                <Badge tone="accent">{b.startTime}-{b.endTime} · {b.slotDurationMinutes} dk aralıklarla</Badge>
-                <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(b)} />
-              </div>
-            </div>
-          ))}
+        // Haftanın 7 gününü yan yana sütun yapan bir ızgara — önceden her
+        // aralık (öğle arasıyla bölünmüş günlerde 2+ satır) tek bir dikey
+        // listede alt alta sıralanıyordu, haftanın genel görünümünü tek
+        // bakışta kavramak zordu (kullanıcı geri bildirimi, 2026-08-01).
+        <div style={{ overflowX: "auto", marginBottom: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(122px, 1fr))", gap: 6, minWidth: 780 }}>
+            {WEEKDAYS.map((w, i) => {
+              const weekday = i + 1;
+              const dayItems = sorted.filter((b) => b.weekday === weekday);
+              return (
+                <div key={weekday} style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 8, display: "flex", flexDirection: "column", gap: 6, minHeight: 56 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>{w}</div>
+                  {dayItems.length === 0 ? (
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Kapalı</span>
+                  ) : (
+                    dayItems.map((b) => (
+                      <div key={b.id} style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 4, background: "var(--surface-2)", borderRadius: 6, padding: "4px 6px" }}>
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-accent)" }}>{b.startTime}-{b.endTime}</div>
+                          <div style={{ fontSize: 10.5, color: "var(--text-muted)" }}>{b.slotDurationMinutes} dk aralık</div>
+                        </div>
+                        <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(b)} />
+                      </div>
+                    ))
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -11526,6 +11571,45 @@ function AuthModal({ initialMode = "login", onClose }) {
   );
 }
 
+// Ziyaretçinin abonelik/güvenlik/kurulum hakkındaki tipik tereddütlerine
+// (satın alma öncesi itiraz) landing page'de taranabilir bir soru-cevap
+// formatında cevap yok - bu bilgiler önceden ya hiç yoktu ya da "Hakkımızda"
+// kartlarının içine düz metin olarak gömülüydü.
+const LANDING_FAQS = [
+  { q: "Kredi kartı bilgisi girmem gerekiyor mu?", a: "Hayır. Kayıt olurken kart bilgisi istenmez, erken erişim aşamasında kullanım tamamen ücretsizdir." },
+  { q: "Verilerim ne kadar güvende?", a: "Her hesap yalnızca kendi kayıtlarına erişebilir (satır bazlı erişim kuralları) - başka bir işletmenin verisine teknik olarak erişim mümkün değildir. Veriler KVKK'ya uygun işlenir, asla üçüncü taraflarla paylaşılmaz." },
+  { q: "İstediğim zaman ayrılabilir miyim?", a: "Evet, herhangi bir taahhüt veya cayma bedeli yoktur. Ayarlar bölümünden istediğiniz zaman hesabınızı kapatabilirsiniz." },
+  { q: "Kullanmayı öğrenmek zor mu, teknik bilgi gerekir mi?", a: "Hayır - Binerly günlük kullanılan basit programlar kadar sade olacak şekilde tasarlandı. Sektörünüzü seçtiğinizde arayüz otomatik şekillenir, ekranın içindeki Yardım bölümünden anlık soru sorabilirsiniz." },
+  { q: "Ekip arkadaşlarımla birlikte kullanabilir miyim?", a: "Evet, sınırsız takım üyesi davet edebilirsiniz - herkes aynı müşteri/teklif/randevu verisini görüp güncelleyebilir." },
+  { q: "Sadece benim sektörüme mi uygun, yoksa genel bir CRM mi?", a: "Binerly genel bir CRM'dir ama sektörünüzü seçtiğinizde (Güzellik & Bakım, Sağlık/Klinik, Emlak, Spor Merkezi ve daha fazlası) form alanları, aşama isimleri ve randevu/üyelik gibi özellikler otomatik olarak sektörünüze göre şekillenir." },
+];
+
+function LandingFaq() {
+  const [openIndex, setOpenIndex] = useState(null);
+  return (
+    <div style={{ maxWidth: 720, margin: "0 auto" }}>
+      {LANDING_FAQS.map((item, i) => {
+        const open = openIndex === i;
+        return (
+          <div key={item.q} style={{ borderBottom: "1px solid #e1e8f0" }}>
+            <button
+              type="button"
+              onClick={() => setOpenIndex(open ? null : i)}
+              style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, background: "none", border: "none", padding: "16px 4px", textAlign: "left", cursor: "pointer" }}
+            >
+              <span style={{ fontSize: 15, fontWeight: 600, color: "#0c2540" }}>{item.q}</span>
+              <i className={`ti ${open ? "ti-chevron-up" : "ti-chevron-down"}`} style={{ color: "#5b7088", flexShrink: 0 }} aria-hidden="true"></i>
+            </button>
+            {open && (
+              <p style={{ margin: "0 0 16px", fontSize: 14, color: "#5b7088", lineHeight: 1.7 }}>{item.a}</p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function LandingPage() {
   const [authModal, setAuthModal] = useState(null);
 
@@ -11535,7 +11619,7 @@ function LandingPage() {
       {authModal && <AuthModal initialMode={authModal} onClose={() => setAuthModal(null)} />}
 
       {/* Navbar */}
-      <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 2rem", height: 64, background: "#fff", borderBottom: "1px solid #e1e8f0", position: "sticky", top: 0, zIndex: 100 }}>
+      <nav className="landing-navbar" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 2rem", height: 64, background: "#fff", borderBottom: "1px solid #e1e8f0", position: "sticky", top: 0, zIndex: 100 }}>
         <div onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
           <img src="/favicon.svg" alt="Binerly" style={{ width: 39, height: 39 }} />
           <span style={{ fontWeight: 700, fontSize: 18, color: "#0c2540" }}>Binerly</span>
@@ -11548,11 +11632,11 @@ function LandingPage() {
             <a href="#hakkimizda" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Hakkımızda</a>
             <a href="/blog" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Blog</a>
           </div>
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <button onClick={() => setAuthModal("login")} style={{ background: "none", border: "none", color: "#185fa5", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "8px 12px" }}>
+          <div className="landing-nav-actions" style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <button className="landing-nav-login" onClick={() => setAuthModal("login")} style={{ background: "none", border: "none", color: "#185fa5", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "8px 12px" }}>
               Giriş Yap
             </button>
-            <button onClick={() => setAuthModal("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
+            <button className="landing-nav-cta" onClick={() => setAuthModal("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
               Ücretsiz Kullan
             </button>
           </div>
@@ -11600,8 +11684,8 @@ function LandingPage() {
               <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#ffbd2e" }} />
               <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#28c840" }} />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
-              {[["Açık Teklifler", "12"], ["Toplam Değer", "₺940K"], ["Bekleyen Randevular", "5"], ["Aktif Üyelikler", "37"]].map(([label, val]) => (
+            <div className="landing-hero-stats" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
+              {[["Açık Teklifler", "12"], ["Toplam Değer", "₺940.000"], ["Bekleyen Randevular", "5"], ["Aktif Üyelikler", "37"]].map(([label, val]) => (
                 <div key={label} style={{ background: "#1a3a5c", borderRadius: 8, padding: "8px 10px" }}>
                   <div style={{ fontSize: 9.5, color: "#94a7bb", marginBottom: 3 }}>{label}</div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{val}</div>
@@ -11719,7 +11803,7 @@ function LandingPage() {
             {
               id: "musteri-portali",
               icon: "ti-users-group",
-              title: "Müşteri Bilgi Sistemi",
+              title: "Kendi Müşteri Portalınız",
               desc: "Müşterileriniz kendi hesaplarıyla giriş yapıp destek taleplerini açabilir, sizinle mesajlaşabilir ve teklif/randevu/üyelik kayıtlarının durumunu görebilir. Güzellik salonu veya klinikseniz müşteri, sizin tanımladığınız müsaitlik saatlerinden kendi randevusunu alıp gerekirse iptal edebilir; spor merkeziyseniz üyeleriniz grup derslerinize kendi kaydolup çıkabilir - siz her yeni işlemde anında bildirim alırsınız. Telefon trafiğinizi azaltır.",
               tags: ["Müşteri Portalı", "Kendi Randevusunu Alır", "Grup Dersi Kaydı", "Kendi Talebini Takip"],
             },
@@ -11868,6 +11952,14 @@ function LandingPage() {
         </div>
       </div>
 
+      {/* SSS */}
+      <div style={{ background: "#f5f8fc", padding: "4rem 2rem" }}>
+        <h2 style={{ textAlign: "center", fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: "0 0 2rem" }}>
+          Sıkça Sorulan Sorular
+        </h2>
+        <LandingFaq />
+      </div>
+
       {/* CTA */}
       <div style={{ background: "#185fa5", padding: "4rem 2rem", textAlign: "center" }}>
         <h2 style={{ fontSize: "1.75rem", fontWeight: 800, color: "#fff", margin: "0 0 1rem" }}>
@@ -11900,7 +11992,7 @@ function LandingPage() {
               <a href="#musteri-yonetimi" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Müşteri Yönetimi</a>
               <a href="#satis-firsat" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Satış & Teklif Yönetimi</a>
               <a href="#destek" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Satış Sonrası Destek</a>
-              <a href="#musteri-portali" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Müşteri Bilgi Sistemi</a>
+              <a href="#musteri-portali" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Kendi Müşteri Portalınız</a>
               <a href="#raporlama" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Raporlama & Analitik</a>
             </div>
           </div>
@@ -11912,7 +12004,7 @@ function LandingPage() {
               <a href="#hakkimizda" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Hakkımızda</a>
               <a href="/blog" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Blog</a>
               <a href="mailto:info@binerly.com" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>İletişim</a>
-              <a href={getPortalUrl()} style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Müşteri Portalı</a>
+              <a href={getPortalUrl()} style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Müşteri misiniz? Giriş yapın →</a>
             </div>
           </div>
           <div>
@@ -11925,7 +12017,7 @@ function LandingPage() {
           </div>
         </div>
         <div style={{ maxWidth: 1100, margin: "2rem auto 0", paddingTop: "1.5rem", borderTop: "1px solid #e1e8f0", fontSize: 13, color: "#94a7bb" }}>
-          © 2026 Binerly · KOBİ Satış Takip Sistemi · Tüm hakları saklıdır.
+          © 2026 Binerly · KOBİ'ler için CRM · Tüm hakları saklıdır.
         </div>
       </div>
     </div>
@@ -12056,7 +12148,11 @@ export default function App() {
   const [teamMembers, setTeamMembers] = useState([]);
   const [teamRoster, setTeamRoster] = useState([]);
 
-  const notify = (message, tone = "danger") => setToast({ message, tone });
+  // Ham Postgres/ağ hataları (ör. "violates foreign key constraint") 89+
+  // notify() çağrısına ${error.message} olarak sızıyordu - tek merkezi bu
+  // noktadan (bkz. shared.jsx humanizeDbMessage) bilinen kalıplar Türkçeye
+  // çevrilir, tanınmayanlar olduğu gibi kalır.
+  const notify = (message, tone = "danger") => setToast({ message: humanizeDbMessage(message), tone });
 
   useEffect(() => {
     if (!toast) return;
@@ -15623,9 +15719,21 @@ export default function App() {
           )}
 
           {filteredDeals.length === 0 ? (
-            <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
-              {deals.length === 0 ? dealWords.emptyDefault : dealWords.emptySearch}
-            </p>
+            deals.length === 0 ? (
+              <div style={{ background: "var(--surface-1)", borderRadius: 12, padding: "2rem 1.5rem", textAlign: "center" }}>
+                <p style={{ fontWeight: 500, margin: "0 0 4px" }}>{dealWords.emptyDefault}</p>
+                <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px" }}>Başlamak için ilk kaydınızı ekleyin.</p>
+                <button
+                  onClick={() => { setEditingDeal(null); setShowDealForm(true); }}
+                  disabled={customers.length === 0}
+                  style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+                >
+                  + {dealWords.addLabel}
+                </button>
+              </div>
+            ) : (
+              <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>{dealWords.emptySearch}</p>
+            )
           ) : dealView === "kanban" ? (
             <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
               {STAGES.map((stage) => {

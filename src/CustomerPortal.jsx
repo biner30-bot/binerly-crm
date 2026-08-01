@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, Toast, ConfirmDialog, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, isFullNameValid, WEEKDAYS, nextWeeklyOccurrence, NotificationBell, getPortalUrl, EmojiPickerButton, IconButton, translateAuthError } from "./shared";
+import { Badge, Modal, Toast, ConfirmDialog, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, isFullNameValid, WEEKDAYS, nextWeeklyOccurrence, NotificationBell, getPortalUrl, EmojiPickerButton, IconButton, translateAuthError, humanizeDbMessage } from "./shared";
 import { STAGES, stageLabel, dealWordKind, isAppointmentSector, supportsSelfBooking, bookingModel, supportsGroupClasses, groupClassWords, supportExamples, appointmentNoteExample, SECTOR_PRESETS, computeAppointmentPenaltyBurn } from "./Sectors";
 
 const PORTAL_DEAL_WORDS = {
@@ -818,7 +818,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose }) {
   const [slotsError, setSlotsError] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [note, setNote] = useState("");
-  const [value, setValue] = useState("");
+  const [serviceIds, setServiceIds] = useState([]);
   const [booking, setBooking] = useState(false);
   const [dateTimeKey, setDateTimeKey] = useState(null);
   const [hasPaymentProvider, setHasPaymentProvider] = useState(false);
@@ -829,7 +829,12 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose }) {
     setLoadingSlots(true);
     setSlotsError("");
     setSelectedTime("");
-    fetch(`/api/appointment-availability?businessUserId=${customerRow.userId}&date=${date}`)
+    // serviceIds, sunucunun toplam süreyi hesaplayıp (candidateDuration) sadece
+    // TAM saat eşleşmesine değil gerçek aralık çakışmasına bakmasını sağlar -
+    // seçim değişince (hizmet eklenip/çıkarılınca) liste yeniden hesaplanmalı,
+    // bkz. api/appointment-availability.js computeDaySlots.
+    const serviceQuery = serviceIds.length ? `&serviceIds=${encodeURIComponent(serviceIds.join(","))}` : "";
+    fetch(`/api/appointment-availability?businessUserId=${customerRow.userId}&date=${date}${serviceQuery}`)
       .then(async (r) => {
         const data = await r.json();
         if (!r.ok) throw new Error(data?.error || "Müsaitlik alınamadı.");
@@ -839,7 +844,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose }) {
       })
       .catch((err) => { setSlots([]); setSlotsError(err.message || "Müsaitlik alınamadı."); })
       .finally(() => setLoadingSlots(false));
-  }, [date, customerRow.userId]);
+  }, [date, customerRow.userId, serviceIds]);
 
   // Önümüzdeki 14 günün boş saat sayısını TEK istekte çeker - AppointmentRequestPage'teki
   // AYNI mantık (bkz. api/appointment-availability.js overview dalı). date state'inden
@@ -852,10 +857,34 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose }) {
       .catch(() => setDayOverview([]));
   }, [customerRow.userId]);
 
+  // 0 TL'lik bir fiyat kalemi "ücretsiz" demek - AppointmentRequestPage.jsx'teki
+  // (widget) AYNI ayrım/deseni (kasıtlı kopya) burada da uyguluyoruz, tutarlı olsun.
+  const freeServices = (priceListItems || []).filter((s) => Number(s.price) === 0);
+  const paidServices = (priceListItems || []).filter((s) => Number(s.price) !== 0);
+  const toggleService = (id) => {
+    setServiceIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      // Not alanı hâlâ boşsa (kullanıcı henüz kendi notunu yazmadıysa) seçilen
+      // hizmetlerin isimleriyle otomatik doldurulur - zorunlu bu alanı her
+      // hizmet seçiminde ayrıca elle yazmak zorunda kalmasınlar diye.
+      setNote((currentNote) => {
+        if (currentNote.trim()) return currentNote;
+        const names = (priceListItems || []).filter((p) => next.includes(p.id)).map((p) => p.name);
+        return names.length ? names.join(", ") : currentNote;
+      });
+      return next;
+    });
+  };
+  const stripFreeWord = (name) => {
+    const words = (name || "").split(/\s+/).filter((w) => w && w.localeCompare("ücretsiz", "tr", { sensitivity: "base" }) !== 0);
+    return words.join(" ").trim() || name || "";
+  };
+  const selectedTotal = (priceListItems || []).filter((p) => serviceIds.includes(p.id)).reduce((sum, p) => sum + (Number(p.price) || 0), 0);
+
   const confirm = async () => {
     if (!selectedTime || !note.trim() || !dateTimeKey) return;
     setBooking(true);
-    const ok = await onBook({ customerId: customerRow.id, businessUserId: customerRow.userId, dateTime: `${date}T${selectedTime}:00`, dateTimeKey, note, value: Number(value) || 0, hasPaymentProvider });
+    const ok = await onBook({ customerId: customerRow.id, businessUserId: customerRow.userId, dateTime: `${date}T${selectedTime}:00`, dateTimeKey, note, serviceIds, hasPaymentProvider });
     setBooking(false);
     if (ok) onClose();
   };
@@ -925,23 +954,51 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose }) {
       </div>
       {priceListItems && priceListItems.length > 0 && (
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Hizmet</label>
-          <select
-            value=""
-            onChange={(e) => {
-              const item = priceListItems.find((p) => p.id === e.target.value);
-              if (item) { setNote(item.name); setValue(String(item.price)); }
-            }}
-            style={{ width: "100%" }}
-          >
-            <option value="">Elle gir / listeden seç</option>
-            {priceListItems.map((p) => (
-              <option key={p.id} value={p.id}>{p.name} - {formatTL(p.price)}</option>
-            ))}
-          </select>
-          {Number(value) > 0 && hasPaymentProvider && (
-            <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0 0" }}>
-              Randevunuzu aldıktan sonra dilerseniz kartla online ödeme yapabilirsiniz.
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Hizmet (opsiyonel, birden fazla seçebilirsiniz)</label>
+          {freeServices.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+              {freeServices.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => toggleService(s.id)}
+                  style={{
+                    background: serviceIds.includes(s.id) ? "var(--fill-accent)" : "var(--surface-1)",
+                    color: serviceIds.includes(s.id) ? "var(--on-accent)" : "var(--text-primary)",
+                    border: "0.5px solid var(--border)", fontSize: 12.5, padding: "6px 10px", borderRadius: 999,
+                  }}
+                >
+                  {stripFreeWord(s.name)} - Ücretsiz
+                </button>
+              ))}
+            </div>
+          )}
+          {paidServices.filter((s) => !serviceIds.includes(s.id)).length > 0 && (
+            <select
+              value=""
+              onChange={(e) => { if (e.target.value) toggleService(e.target.value); }}
+              style={{ width: "100%" }}
+            >
+              <option value="">Hizmet ekle…</option>
+              {paidServices.filter((s) => !serviceIds.includes(s.id)).map((s) => (
+                <option key={s.id} value={s.id}>{s.name} - {formatTL(s.price)}</option>
+              ))}
+            </select>
+          )}
+          {paidServices.filter((s) => serviceIds.includes(s.id)).length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6 }}>
+              {paidServices.filter((s) => serviceIds.includes(s.id)).map((s) => (
+                <div key={s.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 13, background: "var(--surface-1)", borderRadius: 6, padding: "6px 8px" }}>
+                  <span>{s.name} - {formatTL(s.price)}</span>
+                  <button type="button" onClick={() => toggleService(s.id)} style={{ fontSize: 12, padding: "2px 6px", flexShrink: 0 }}>Kaldır</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {selectedTotal > 0 && (
+            <p style={{ fontSize: 12.5, color: "var(--text-secondary)", margin: "8px 0 0", fontWeight: 600 }}>
+              Toplam: {formatTL(selectedTotal)}
+              {hasPaymentProvider && " - randevunuzu aldıktan sonra dilerseniz kartla online ödeme yapabilirsiniz."}
             </p>
           )}
         </div>
@@ -1303,7 +1360,7 @@ export default function CustomerPortal() {
   const [confirmCancel, setConfirmCancel] = useState(null); // { type: "appointment" | "enrollment", id }
   const [loadError, setLoadError] = useState(false);
 
-  const notify = (message, tone = "danger") => setToast({ message, tone });
+  const notify = (message, tone = "danger") => setToast({ message: humanizeDbMessage(message), tone });
 
   useEffect(() => {
     if (!toast) return;
@@ -1593,7 +1650,7 @@ export default function CustomerPortal() {
     notify(burn?.newSessionUsed != null ? "Kaydınız iptal edildi, 1 seansınız düşüldü." : "Kaydınız iptal edildi.", "success");
   };
 
-  const bookAppointment = async ({ customerId, businessUserId, dateTime, dateTimeKey, note, value, hasPaymentProvider, checkIn, checkOut, roomType, partySize, visitPurpose }) => {
+  const bookAppointment = async ({ customerId, businessUserId, dateTime, dateTimeKey, note, serviceIds, hasPaymentProvider, checkIn, checkOut, roomType, partySize, visitPurpose }) => {
     // Otel gibi oda-stoklu (bookingModel === "inventory") sektörlerde RoomBookingModal
     // dateTime/dateTimeKey yerine checkIn/checkOut/roomType gönderiyor — saat slotu
     // yerine giriş/çıkış tarih aralığı + oda tipi yazılıyor.
@@ -1617,39 +1674,26 @@ export default function CustomerPortal() {
       notify("Rezervasyonunuz alındı.", "success");
       return true;
     }
-    // Müsaitlik uç noktası geçmiş tarihler için zaten boş liste dönüyor, ama bu
-    // insert doğrudan istemciden gittiği için (RLS sadece sahiplik kontrol
-    // ediyor, tarih mantığını değil) ikinci bir savunma katmanı olarak burada
-    // da geçmişe randevu yazılması engellenir.
+    // Müsaitlik uç noktası geçmiş tarihler için zaten boş liste dönüyor, ama
+    // asıl kayıt SUNUCU TARAFINDA (api/appointment-availability.js POST) atılır —
+    // önceden bu insert doğrudan istemciden gidiyordu (RLS sadece sahiplik
+    // kontrol ediyor, ne çift-randevuyu ne de fiyat listesi tutarını
+    // doğruluyor). Portal kullanıcısı RLS gereği başka müşterilerin
+    // randevularını göremediği için (bkz. api dosyasındaki GET yorumu) çift-
+    // randevu kontrolü zaten client-side yapılamazdı — service_role gerekir.
     if (new Date(dateTime).getTime() < Date.now()) {
       notify("Geçmiş bir tarih/saat için randevu alınamaz.");
       return false;
     }
-    const dealValue = Number(value) || 0;
-    const row = {
-      id: uid(), user_id: businessUserId, customer_id: customerId,
-      title: (note || "").trim() || "Randevu talebi", value: dealValue, stage: "ilk_gorusme",
-      // dateTimeKey, işletmenin gerçek sektör alanı (örn. randevu_tarihi/gorusme_tarihi)
-      // — normal DealForm/PDF/hatırlatma akışında görünsün diye. portal_randevu_zamani
-      // ise sektörden bağımsız sabit anahtar — iptal/bildirim/gösterim mantığı bunu okur.
-      custom_fields: { [dateTimeKey]: dateTime, portal_randevu_zamani: dateTime, kaynak: "portal" },
-    };
-    // Fiyat fiyat listesinden seçildiği (yani belirli olduğu) ve işletmenin
-    // bağlı bir ödeme sağlayıcısı (iyzico/PayTR) olduğu durumda, müşteri
-    // randevusunu aldıktan hemen sonra kendi listesinden "Öde"ye basıp kartla
-    // ödeyebilsin diye onay linki baştan kuruluyor. approved_at burada HİÇ
-    // set edilmiyor — kendi randevusunu almış olmak "onay" değildir, bu
-    // KOBİ'nin gönderdiği bir teklifi müşterinin onayladığı anlamına gelen
-    // ayrı bir kavram. "required" modu seçilerek /onay sayfasında ayrı bir
-    // "Onaylıyorum" adımı hiç çıkmıyor — tek işlem ödeme, o da başarılı
-    // olursa approved_at otomatik (ve doğru zamanda) set edilir.
-    if (dealValue > 0 && hasPaymentProvider) {
-      row.approval_token = uid();
-      row.payment_mode = "required";
-    }
-    const { data, error } = await supabase.from("deals").insert(row).select().single();
-    if (error) { notify(`Randevu alınamadı: ${error.message}`); return false; }
-    setDeals((prev) => [...prev, rowToDeal(data)]);
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    const res = await fetch("/api/appointment-availability", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${currentSession?.access_token || ""}` },
+      body: JSON.stringify({ customerId, businessUserId, dateTime, dateTimeKey, note, serviceIds }),
+    });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok) { notify(result.error || "Randevu alınamadı."); return false; }
+    setDeals((prev) => [...prev, rowToDeal(result.deal)]);
     notify("Randevunuz alındı.", "success");
     return true;
   };

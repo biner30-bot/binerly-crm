@@ -8,6 +8,16 @@ const PAYTR_GET_TOKEN_URL = "https://www.paytr.com/odeme/api/get-token";
 const PAYTR_REFUND_URL = "https://www.paytr.com/odeme/iade";
 const INSTALLMENT_TIERS = [1, 2, 3, 6, 9, 12]; // Türkiye'deki standart taksit kademeleri
 
+// api/whatsapp-webhook.js / api/instagram-webhook.js'teki AYNI ilke (kasıtlı
+// kopya, projenin diğer "ayrı dosya, ayrı kopya" desenleriyle tutarlı) —
+// düz === karşılaştırması bir zamanlama yan kanalı (timing side-channel)
+// bırakır, PayTR imza doğrulamasında bunun yerine kullanılır.
+function secretsMatch(a, b) {
+  const bufA = Buffer.from(String(a || ""));
+  const bufB = Buffer.from(String(b || ""));
+  return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
+}
+
 // İzin verilirken kaydedilen TAM metin — istemciden ASLA alınmaz (client kendi
 // metnini uydurup gönderebilirdi, kanıtı değersizleştirirdi). lead-capture.js'te
 // de aynı MARKETING_CONSENT_TEXT sabiti var, aralarında import olmadığı için elle
@@ -754,7 +764,6 @@ async function handlePaymentCallback(req, res, supabaseAdmin, url) {
   // set edilmişti (initIyzicoCheckout) — SDK'nın hangisini/ikisini birden
   // döndürdüğü net belgelenmediği için ikisinden biri eşleşirse yeterli
   // sayılıyor (aşırı katı tek-alan kontrolü gerçek ödemeleri de reddedebilir).
-  console.error("payment-callback retrieve debug:", "deal.id:", deal.id, "basketId:", result.basketId, "conversationId:", result.conversationId, "paidPrice:", result.paidPrice, "price:", result.price);
   if (result.basketId !== deal.id && result.conversationId !== deal.id) {
     console.error("payment-callback deal mismatch - hiçbir alan deal.id ile eşleşmedi:", "deal.id:", deal.id, "basketId:", result.basketId, "conversationId:", result.conversationId);
     return redirect(`${target}?paid=0`);
@@ -811,7 +820,7 @@ async function handlePayTRCallback(req, res, supabaseAdmin) {
   if (!cred) return respondOk();
 
   const expectedHash = hmacSha256Base64(`${merchantOid}${cred.merchant_salt}${status}${totalAmount}`, cred.secret_key);
-  if (expectedHash !== hash) {
+  if (!secretsMatch(expectedHash, hash)) {
     console.error("PayTR hash mismatch, merchant_oid:", merchantOid);
     return respondOk();
   }
@@ -1143,7 +1152,25 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   if (action === "checkout-init") {
-    const result = await initCheckout(req, supabaseAdmin, deal, customer, token);
+    // Portaldan kendi randevusunu alan müşteride deal.value artık sunucu
+    // tarafında (api/appointment-availability.js handleBooking) hesaplanıyor,
+    // ama burada YİNE DE ikinci bir savunma katmanı olarak fiyat listesinden
+    // seçilmiş kalemler (custom_fields.service_ids) varsa tahsilat tutarı
+    // DB'den TAZE okunan gerçek fiyatla yeniden hesaplanır - deal.value'ya
+    // körlemesine güvenilmez. Elle girilen (service_ids'siz) tutarlarda
+    // mevcut davranış (deal.value) korunur - bilinçli bir esneklik,
+    // deposit-checkout-init'teki AYNI ilke.
+    let chargeAmount = deal.value;
+    const serviceIds = Array.isArray(deal.custom_fields?.service_ids) ? deal.custom_fields.service_ids : [];
+    if (deal.custom_fields?.kaynak === "portal" && serviceIds.length > 0) {
+      const { data: priceItems } = await supabaseAdmin
+        .from("price_list_items")
+        .select("price")
+        .in("id", serviceIds)
+        .eq("user_id", deal.user_id);
+      if (priceItems?.length) chargeAmount = priceItems.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
+    }
+    const result = await initCheckout(req, supabaseAdmin, deal, customer, token, chargeAmount);
     if (result.error) return res.status(502).json({ error: result.error });
     return res.status(200).json({ paymentPageUrl: result.paymentPageUrl });
   }

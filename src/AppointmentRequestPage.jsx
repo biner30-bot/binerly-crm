@@ -82,7 +82,12 @@ export default function AppointmentRequestPage() {
     setLoadingSlots(true);
     setSlotsError("");
     setSelectedTime("");
-    fetch(`/api/appointment-availability?businessUserId=${company.businessUserId}&date=${date}`)
+    // serviceIds, sunucunun toplam süreyi hesaplayıp (candidateDuration) sadece
+    // TAM saat eşleşmesine değil gerçek aralık çakışmasına bakmasını sağlar -
+    // seçim değişince (hizmet eklenip/çıkarılınca) liste yeniden hesaplanmalı,
+    // bkz. api/appointment-availability.js computeDaySlots.
+    const serviceQuery = serviceIds.length ? `&serviceIds=${encodeURIComponent(serviceIds.join(","))}` : "";
+    fetch(`/api/appointment-availability?businessUserId=${company.businessUserId}&date=${date}${serviceQuery}`)
       .then(async (r) => {
         const data = await r.json();
         if (!r.ok) throw new Error(data?.error || "Müsaitlik alınamadı.");
@@ -91,7 +96,7 @@ export default function AppointmentRequestPage() {
       })
       .catch((err) => { setSlots([]); setSlotsError(err.message || "Müsaitlik alınamadı."); })
       .finally(() => setLoadingSlots(false));
-  }, [company?.acceptsAppointments, company?.businessUserId, date]);
+  }, [company?.acceptsAppointments, company?.businessUserId, date, serviceIds]);
 
   // Önümüzdeki 14 günün boş saat sayısını TEK istekte çeker - müşteri hangi
   // günün müsait olduğunu tek tek tarih deneyerek bulmak zorunda kalmasın.
@@ -187,7 +192,7 @@ export default function AppointmentRequestPage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5f8fc", fontFamily: "system-ui, -apple-system, sans-serif", padding: "1rem" }}>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#f5f8fc", fontFamily: "system-ui, -apple-system, sans-serif", padding: "1rem" }}>
       <div style={{ background: "#fff", borderRadius: 12, padding: "2rem", width: "100%", maxWidth: 420, border: "1px solid #e1e8f0" }}>
         {loading ? (
           <p style={{ textAlign: "center", color: "#5b7088" }}>Yükleniyor…</p>
@@ -381,6 +386,10 @@ export default function AppointmentRequestPage() {
           </>
         )}
       </div>
+      <a href="https://binerly.com" target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 20, opacity: 0.6, textDecoration: "none" }}>
+        <img src="/favicon.svg" alt="" style={{ width: 16, height: 16 }} />
+        <span style={{ fontSize: 12, color: "#5b7088" }}>Binerly ile güvenle yönetiliyor</span>
+      </a>
     </div>
   );
 }

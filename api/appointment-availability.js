@@ -1,22 +1,48 @@
 import { createClient } from "@supabase/supabase-js";
+import crypto from "node:crypto";
 
 // Bir günün (weekday'e karşılık gelen mesai pencereleri) boş saatlerini
 // hesaplar - hem tek-günlük sorguda hem çok-günlük önizleme şeridinde AYNI
-// mantık kullanılsın diye ortak fonksiyon.
-function computeDaySlots(windows, isToday, nowMinutes, takenTimes) {
+// mantık kullanılsın diye ortak fonksiyon. takenRanges gün-içi dakika
+// cinsinden [{start,end}] aralıklarıdır (App.jsx'teki findAppointmentConflict
+// ile AYNI overlap ilkesi - aday, süresi boyunca (durationMinutes, verilmezse
+// slot adımı kadar) hiçbir mevcut randevu aralığıyla kesişmemeli). Önceden
+// burada sadece "tam saat eşitliği" bakılıyordu - çoklu hizmet seçince (60+
+// dakikalık randevular) bir sonraki 30dk'lık slot yanlışlıkla boş görünüyordu.
+function computeDaySlots(windows, isToday, nowMinutes, takenRanges, durationMinutes = 0) {
   const slots = [];
   for (const window of windows) {
     const [startH, startM] = window.start_time.slice(0, 5).split(":").map(Number);
     const [endH, endM] = window.end_time.slice(0, 5).split(":").map(Number);
     const step = window.slot_duration_minutes;
+    const svcDuration = durationMinutes > 0 ? durationMinutes : step;
     const end = endH * 60 + endM;
-    for (let cursor = startH * 60 + startM; cursor + step <= end; cursor += step) {
+    for (let cursor = startH * 60 + startM; cursor + svcDuration <= end; cursor += step) {
       if (isToday && cursor <= nowMinutes) continue;
+      const candidateEnd = cursor + svcDuration;
+      if (takenRanges.some((r) => cursor < r.end && r.start < candidateEnd)) continue;
       const time = `${String(Math.floor(cursor / 60)).padStart(2, "0")}:${String(cursor % 60).padStart(2, "0")}`;
-      if (!takenTimes.has(time)) slots.push(time);
+      slots.push(time);
     }
   }
   return slots.sort();
+}
+
+// Bir "YYYY-MM-DDTHH:MM..." zaman damgasının gün-içi dakika karşılığı.
+function minutesOfDay(dateTimeStr) {
+  const [hh, mm] = dateTimeStr.slice(11, 16).split(":").map(Number);
+  return hh * 60 + mm;
+}
+
+// serviceIds (virgülle ayrılmış price_list_items id listesi) verilirse
+// toplam süreyi SUNUCU TARAFINDA price_list_items'tan hesaplar - istemciden
+// bir süre sayısı asla kabul edilmez (App.jsx DealForm'daki lineItemsDurationMinutes
+// ile aynı "miktar süreyi katlamaz, sadece kalem sayısı toplanır" ilkesi).
+async function resolveDurationMinutes(supabaseAdmin, businessUserId, serviceIdsParam) {
+  const ids = (serviceIdsParam || "").split(",").map((s) => s.trim()).filter(Boolean);
+  if (ids.length === 0) return 0;
+  const { data } = await supabaseAdmin.from("price_list_items").select("id, duration_minutes").eq("user_id", businessUserId).in("id", ids);
+  return (data || []).reduce((sum, item) => sum + (Number(item.duration_minutes) || 0), 0);
 }
 
 // Müşteri portalındaki bir kullanıcı, RLS gereği sadece KENDİ randevularını
@@ -24,8 +50,120 @@ function computeDaySlots(windows, isToday, nowMinutes, takenTimes) {
 // diye client-side hesaplayamaz (haklı bir gizlilik kısıtı). Bu yüzden
 // doluluk hesabı burada, servis anahtarıyla, hiçbir müşteri/randevu detayı
 // döndürmeden (sadece müsait saat/oda listesi) sunucu tarafında yapılır.
+// Müşteri Portalı'ndan (giriş yapmış müşteri) kendi randevusunu almasını
+// SUNUCU TARAFINDA tamamlar. Öncesinde bu insert doğrudan CustomerPortal.jsx'ten
+// (RLS ile) yapılıyordu — RLS SADECE sahiplik kontrol ediyor, iki gerçek
+// korumayı (a) aynı saate çift randevu, (b) fiyat listesinden seçilen kalemin
+// GERÇEK tutarı, hiç sağlamıyordu. Portal kullanıcısı RLS gereği başka
+// müşterilerin deal'lerini göremediği için (yukarıdaki GET yorumuyla aynı
+// gizlilik kısıtı) çakışma kontrolü client-side yapılamaz, service_role
+// gerektirir — lead-capture.js'teki (widget) AYNI iki korumanın portal
+// eşleniği.
+async function handleBooking(req, res, supabaseAdmin) {
+  const authHeader = req.headers.authorization || "";
+  const accessToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!accessToken) return res.status(401).json({ error: "Giriş gerekli." });
+  const { data: userData } = await supabaseAdmin.auth.getUser(accessToken);
+  const authedUserId = userData?.user?.id || null;
+  if (!authedUserId) return res.status(401).json({ error: "Giriş gerekli." });
+
+  const { customerId, businessUserId, dateTime, dateTimeKey, note, value, serviceIds } = req.body || {};
+  const cleanServiceIds = Array.isArray(serviceIds) ? serviceIds.filter((id) => typeof id === "string" && id) : [];
+  if (!customerId || !businessUserId || !dateTime || !dateTimeKey || !(note || "").trim()) {
+    return res.status(400).json({ error: "Eksik bilgi." });
+  }
+
+  const { data: customer, error: customerError } = await supabaseAdmin
+    .from("customers")
+    .select("id, portal_user_id, user_id")
+    .eq("id", customerId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (customerError) return res.status(500).json({ error: customerError.message });
+  if (!customer || customer.portal_user_id !== authedUserId || customer.user_id !== businessUserId) {
+    return res.status(403).json({ error: "Yetkisiz işlem." });
+  }
+
+  if (new Date(dateTime).getTime() < Date.now()) {
+    return res.status(400).json({ error: "Geçmiş bir tarih/saat için randevu alınamaz." });
+  }
+
+  // Fiyat VE süre listesinden seçilmişse burada DB'den TAZE okunur — istemciden
+  // gelen value'ya güvenilmez (aksi halde ağ isteği değiştirilip tutar
+  // düşürülebilirdi). Elle giriş (serviceIds boş) durumunda mevcut esneklik
+  // korunur, süre bilinmez. Miktar süreyi/tutarı katlamıyor, kalem sayısı
+  // toplanıyor - lead-capture.js'teki (widget) AYNI ilke.
+  let dealValue = 0;
+  let durationMinutes = 0;
+  let serviceName = null;
+  if (cleanServiceIds.length > 0) {
+    const { data: services } = await supabaseAdmin.from("price_list_items").select("name, price, duration_minutes").eq("user_id", businessUserId).in("id", cleanServiceIds);
+    if (services?.length) {
+      serviceName = services.map((s) => s.name).join(", ");
+      dealValue = services.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
+      durationMinutes = services.reduce((sum, s) => sum + (Number(s.duration_minutes) || 0), 0);
+    }
+  } else {
+    dealValue = Number(value) || 0;
+  }
+
+  // Race condition koruması: iki sekme/iki müşteri aynı saati aynı anda
+  // seçebilir — müsaitlik listesinin döndüğü an ile bu istek arasında saat
+  // dolmuş olabilir, insert'ten hemen önce tekrar doğrulanır. Süre biliniyorsa
+  // (durationMinutes) tam saat eşitliği değil gerçek aralık çakışması bakılır -
+  // computeDaySlots'taki AYNI overlap ilkesi (App.jsx findAppointmentConflict).
+  const candidateStart = minutesOfDay(dateTime);
+  const candidateEnd = candidateStart + Math.max(durationMinutes, 1);
+  const candidateDateStr = dateTime.slice(0, 10);
+  const { data: existingDeals, error: conflictError } = await supabaseAdmin
+    .from("deals")
+    .select("custom_fields")
+    .eq("user_id", businessUserId)
+    .is("deleted_at", null)
+    .neq("stage", "kaybedildi");
+  if (conflictError) return res.status(500).json({ error: conflictError.message });
+  const hasConflict = (existingDeals || []).some((d) => {
+    const dt = d.custom_fields?.[dateTimeKey];
+    if (typeof dt !== "string" || !dt.startsWith(candidateDateStr)) return false;
+    const otherStart = minutesOfDay(dt);
+    const otherEnd = otherStart + Math.max(Number(d.custom_fields?.duration_minutes) || 1, 1);
+    return candidateStart < otherEnd && otherStart < candidateEnd;
+  });
+  if (hasConflict) return res.status(409).json({ error: "Bu saat az önce doldu, lütfen başka bir saat seçin." });
+
+  const { data: cred } = await supabaseAdmin.from("payment_credentials").select("id").eq("user_id", businessUserId).maybeSingle();
+
+  const row = {
+    id: crypto.randomUUID(), user_id: businessUserId, customer_id: customerId,
+    title: serviceName || (note || "").trim() || "Randevu talebi", value: dealValue, stage: "ilk_gorusme",
+    custom_fields: {
+      [dateTimeKey]: dateTime, portal_randevu_zamani: dateTime, kaynak: "portal",
+      ...(cleanServiceIds.length > 0 ? { service_ids: cleanServiceIds } : {}),
+      ...(durationMinutes > 0 ? { duration_minutes: durationMinutes } : {}),
+    },
+  };
+  // dealValue > 0 && hasPaymentProvider iken onay linki baştan kurulur — CustomerPortal.jsx'teki
+  // ESKİ client-side mantığın birebir aynısı, sadece artık dealValue sunucuda doğrulanmış.
+  if (dealValue > 0 && cred) {
+    row.approval_token = crypto.randomUUID();
+    row.payment_mode = "required";
+  }
+
+  const { data, error } = await supabaseAdmin.from("deals").insert(row).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  return res.status(200).json({ deal: data });
+}
+
 export default async function handler(req, res) {
-  if (req.method !== "GET") return res.status(405).end();
+  if (req.method !== "GET" && req.method !== "POST") return res.status(405).end();
+
+  const supabaseAdmin = createClient(
+    process.env.VITE_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+
+  if (req.method === "POST") return handleBooking(req, res, supabaseAdmin);
 
   // Müsaitlik her zaman anlık hesaplanmalı — bir dakika önce dolu görünen bir
   // saat az sonra boşalabilir (iptal) veya tam tersi. Cache-Control header'ı
@@ -35,12 +173,6 @@ export default async function handler(req, res) {
 
   const { businessUserId, date, checkIn, checkOut } = req.query;
   if (!businessUserId) return res.status(400).json({ error: "businessUserId gerekli." });
-
-  const supabaseAdmin = createClient(
-    process.env.VITE_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
 
   // Sunucunun kendi çalışma saat dilimine güvenmeyen, doğrudan Europe/Istanbul
   // için "şu an"ın takvim gününü veren bir yöntem — new Date(...) ile dolaylı
@@ -115,15 +247,22 @@ export default async function handler(req, res) {
       if (!hoursByWeekday.has(h.weekday)) hoursByWeekday.set(h.weekday, []);
       hoursByWeekday.get(h.weekday).push(h);
     }
+    // Süresi bilinmeyen (duration_minutes yok) randevular "1 dakikalık nokta"
+    // kabul edilir - App.jsx'teki findAppointmentConflict'teki AYNI ilke,
+    // eski "tam saat eşitliği" davranışını bozmadan süre bilinen durumlarda
+    // gerçek aralık çakışmasını da yakalar (bkz. computeDaySlots yorumu).
     const takenByDate = new Map();
     for (const dl of deals || []) {
       const dt = dl.custom_fields?.[dateTimeKey];
       if (typeof dt !== "string" || dt.length < 16) continue;
       const dateStr = dt.slice(0, 10);
-      if (!takenByDate.has(dateStr)) takenByDate.set(dateStr, new Set());
-      takenByDate.get(dateStr).add(dt.slice(11, 16));
+      if (!takenByDate.has(dateStr)) takenByDate.set(dateStr, []);
+      const start = minutesOfDay(dt);
+      const dur = Math.max(Number(dl.custom_fields?.duration_minutes) || 1, 1);
+      takenByDate.get(dateStr).push({ start, end: start + dur });
     }
 
+    const requestedDuration = await resolveDurationMinutes(supabaseAdmin, businessUserId, req.query.serviceIds);
     const nowMinutes = (Number(nowParts.hour) % 24) * 60 + Number(nowParts.minute);
     const startY = Number(nowParts.year), startM = Number(nowParts.month), startD = Number(nowParts.day);
     const days = [];
@@ -133,8 +272,8 @@ export default async function handler(req, res) {
       const jsWeekday = cursorDate.getUTCDay();
       const isoWeekday = jsWeekday === 0 ? 7 : jsWeekday;
       const windows = hoursByWeekday.get(isoWeekday) || [];
-      const taken = takenByDate.get(dateStr) || new Set();
-      const slotCount = computeDaySlots(windows, dateStr === todayIstanbul, nowMinutes, taken).length;
+      const taken = takenByDate.get(dateStr) || [];
+      const slotCount = computeDaySlots(windows, dateStr === todayIstanbul, nowMinutes, taken, requestedDuration).length;
       // "Kapalı" (o haftagünü için hiç mesai saati tanımlı değil - KOBİ'nin
       // kendi Müsaitlik Saatleri seçimi, ör. Pazar) ile "Dolu" (mesai var ama
       // tüm saatler alınmış) FARKLI şeyler - ikisi de slotCount=0 olduğu için
@@ -173,14 +312,19 @@ export default async function handler(req, res) {
   const hasPaymentProvider = !!cred;
 
   const dateTimeKey = fieldDefs?.[0]?.key || null;
-  const takenTimes = new Set(
-    dateTimeKey
-      ? (deals || [])
-          .map((d) => d.custom_fields?.[dateTimeKey])
-          .filter((dt) => typeof dt === "string" && dt.startsWith(date))
-          .map((dt) => dt.slice(11, 16))
-      : []
-  );
+  // Süresi bilinmeyen mevcut randevular "1 dakikalık nokta" kabul edilir -
+  // bkz. computeDaySlots ve overview dalındaki AYNI yorum.
+  const takenRanges = dateTimeKey
+    ? (deals || [])
+        .map((d) => {
+          const dt = d.custom_fields?.[dateTimeKey];
+          if (typeof dt !== "string" || !dt.startsWith(date)) return null;
+          const start = minutesOfDay(dt);
+          const dur = Math.max(Number(d.custom_fields?.duration_minutes) || 1, 1);
+          return { start, end: start + dur };
+        })
+        .filter(Boolean)
+    : [];
 
   const isToday = date === todayIstanbul;
   const nowMinutes = (Number(nowParts.hour) % 24) * 60 + Number(nowParts.minute);
@@ -201,7 +345,8 @@ export default async function handler(req, res) {
   // SlotBookingModal), bu yüzden burada tek referans Müsaitlik Saatleri'dir;
   // müşteri belirli bir uzman istiyorsa not alanına yazıp işletmeyle
   // konuşuyor. Personel seçimi eklenirse vardiya buraya yeniden bağlanacak.
-  const slots = computeDaySlots(hours || [], isToday, nowMinutes, takenTimes);
+  const requestedDuration = await resolveDurationMinutes(supabaseAdmin, businessUserId, req.query.serviceIds);
+  const slots = computeDaySlots(hours || [], isToday, nowMinutes, takenRanges, requestedDuration);
 
   return res.status(200).json({ slots, dateTimeKey, hasPaymentProvider });
 }

@@ -35,6 +35,29 @@ export function translateAuthError(message) {
   return match ? match[1] : "İşlem tamamlanamadı, lütfen tekrar deneyin.";
 }
 
+// Genel (Auth dışı) Postgres/Supabase/ağ hata metinleri de İngilizce ve
+// teknik geliyor ("violates row-level security policy" vb.) - notify()'a
+// giden 89+ çağrı noktasının (`Müşteri silinemedi: ${error.message}` gibi)
+// HİÇBİRİNE tek tek dokunmadan, App.jsx/CustomerPortal.jsx'teki notify()
+// tanımından çağrılır. Sadece BİLİNEN teknik kalıbı değiştirir, mesajın
+// geri kalanı (kullanıcı-dostu önek) olduğu gibi kalır. Tanınmayan bir hata
+// yanlış yorumlanıp yanıltıcı bir mesaj göstermektense OLDUĞU GİBİ bırakılır.
+const DB_ERROR_PATTERNS = [
+  [/duplicate key value violates unique constraint[^\n]*/i, "bu kayıt zaten mevcut"],
+  [/update or delete on table "\w+" violates foreign key constraint[^\n]*/i, "bu kayıt başka bir yerde kullanıldığı için işlem yapılamadı"],
+  [/insert or update on table "\w+" violates foreign key constraint[^\n]*/i, "seçilen kayıt bulunamadı, sayfayı yenileyip tekrar deneyin"],
+  [/new row violates row-level security policy for table "\w+"|permission denied for table \w+/i, "bu işlem için yetkiniz yok"],
+  [/null value in column "\w+"[^\n]*violates not-null constraint/i, "zorunlu bir alan boş bırakılamaz"],
+  [/new row for relation "\w+" violates check constraint[^\n]*/i, "girilen değer geçerli değil"],
+  [/JWT expired|invalid JWT|invalid claim/i, "oturumunuz sona erdi, lütfen tekrar giriş yapın"],
+  [/Failed to fetch|NetworkError when attempting to fetch resource|network request failed/i, "bağlantı hatası, internet bağlantınızı kontrol edip tekrar deneyin"],
+];
+
+export function humanizeDbMessage(message) {
+  if (typeof message !== "string" || !message) return message;
+  return DB_ERROR_PATTERNS.reduce((msg, [pattern, replacement]) => msg.replace(pattern, replacement), message);
+}
+
 export const WEEKDAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
 // WEEKDAYS.map(w => w.slice(0,3)) "Cuma"/"Cumartesi" ve "Pazartesi"/"Pazar"
 // için aynı "CUM"/"PAZ" kısaltmasını üretiyordu — ajanda başlığında iki gün
@@ -512,6 +535,23 @@ export function InfoTip({ text, placement = "top", align = "center" }) {
 
   const show = () => setVisible(true);
   const hide = () => { setVisible(false); setCoords(null); };
+  // Dokunmatik ekranlarda (telefon/tablet) hover/focus olayları hiç
+  // tetiklenmiyor veya tutarsız tetikleniyor - hover'a dayalı bu bileşen,
+  // sitedeki en yaygın "kafa karışıklığını açıkla" aracı olmasına rağmen
+  // mobilde fiilen erişilemez kalıyordu. onClick ile aç/kapat eklenip
+  // dışarı tıklanınca kapanması sağlanır - masaüstündeki hover davranışı
+  // aynen korunur, bu sadece dokunmatik için bir ek yol.
+  const toggle = (e) => {
+    e.stopPropagation();
+    setVisible((v) => !v);
+  };
+
+  useEffect(() => {
+    if (!visible) return;
+    const onDocClick = () => hide();
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, [visible]);
 
   const reposition = () => {
     const iconEl = iconRef.current;
@@ -562,6 +602,7 @@ export function InfoTip({ text, placement = "top", align = "center" }) {
       onMouseLeave={hide}
       onFocus={show}
       onBlur={hide}
+      onClick={toggle}
     >
       <i className="ti ti-info-circle" style={{ fontSize: 14, color: "var(--text-muted)", cursor: "help" }} aria-hidden="true"></i>
       {visible && createPortal(

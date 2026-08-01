@@ -384,10 +384,10 @@ export default function DealApprovalPage() {
           </>
         )}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 20, opacity: 0.6 }}>
+      <a href="https://binerly.com" target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 20, opacity: 0.6, textDecoration: "none" }}>
         <img src="/favicon.svg" alt="" style={{ width: 16, height: 16 }} />
         <span style={{ fontSize: 12, color: "#5b7088" }}>Binerly ile güvenle yönetiliyor</span>
-      </div>
+      </a>
     </div>
   );
 }

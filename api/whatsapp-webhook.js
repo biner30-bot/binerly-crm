@@ -33,8 +33,13 @@ export default async function handler(req, res) {
     const mode = url.searchParams.get("hub.mode");
     const token = url.searchParams.get("hub.verify_token");
     const challenge = url.searchParams.get("hub.challenge");
-    const expected = process.env.META_WEBHOOK_VERIFY_TOKEN;
-    if (mode === "subscribe" && token === expected) {
+    const expected = process.env.META_WEBHOOK_VERIFY_TOKEN || "";
+    // Aşağıdaki mesaj imzası kontrolüyle (satır ~78) AYNI timing-safe ilke -
+    // düz === bir zamanlama yan kanalı bırakır.
+    const tokenBuf = Buffer.from(token || "");
+    const expectedBuf = Buffer.from(expected);
+    const tokenValid = tokenBuf.length === expectedBuf.length && crypto.timingSafeEqual(tokenBuf, expectedBuf);
+    if (mode === "subscribe" && tokenValid) {
       return res.status(200).send(challenge);
     }
     // Gerçek bir doğrulama denemesi değilse (hub.mode hiç yok) — muhtemelen

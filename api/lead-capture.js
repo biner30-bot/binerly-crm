@@ -9,6 +9,13 @@ function getClientIp(req) {
   return req.socket?.remoteAddress || "203.0.113.1";
 }
 
+// api/appointment-availability.js'teki AYNI yardımcı (kasıtlı kopya, projenin
+// diğer "ayrı dosya, ayrı kopya" desenleriyle tutarlı).
+function minutesOfDay(dateTimeStr) {
+  const [hh, mm] = dateTimeStr.slice(11, 16).split(":").map(Number);
+  return hh * 60 + mm;
+}
+
 // İzin verilirken gösterilen TAM metin — istemciden ASLA alınmaz (client
 // kendi metnini uydurup gönderebilirdi, kanıtı değersizleştirirdi). Bu metin
 // AppointmentRequestPage.jsx/LeadCapturePage.jsx'teki checkbox etiketiyle
@@ -60,7 +67,14 @@ export default async function handler(req, res) {
       companyName: settings.company_name || "Binerly",
       logoUrl: settings.logo_url || null,
       businessUserId: settings.user_id,
-      acceptsAppointments: !!fieldDefs?.[0]?.key,
+      // Otel (bookingModel === "inventory", bkz. Sectors.jsx) GİRİŞ/ÇIKIŞ tarih
+      // aralığı + oda tipi stokuna göre çalışır - buradaki tek-saat-slotu
+      // formuna uymuyor. "acceptsAppointments" sadece bir datetime alanının
+      // varlığına bakıyor, oteldeki "giris_tarihi" alanını da yanlışlıkla
+      // yakalıyordu (slotsuz, çakışma kontrolsüz eksik rezervasyon riski) -
+      // widget tarafı sector'a bakıp bu durumda formu hiç göstermez.
+      sector: settings.sector || null,
+      acceptsAppointments: !!fieldDefs?.[0]?.key && settings.sector !== "otel",
       services: services || [],
       depositAmount,
     });
@@ -96,20 +110,6 @@ export default async function handler(req, res) {
     if (new Date(dateTime).getTime() < Date.now()) {
       return res.status(400).json({ error: "Geçmiş bir tarih/saat için randevu alınamaz." });
     }
-
-    // Race condition koruması: iki ziyaretçi aynı saati aynı anda seçebilir —
-    // availability uç noktasının döndüğü liste bir kaç saniye eski olabilir,
-    // burada tekrar doğrulanır (bookAppointment'taki client-side kontrolün
-    // sunucu tarafı eşleniği).
-    const { data: existingDeals, error: conflictError } = await supabaseAdmin
-      .from("deals")
-      .select("custom_fields")
-      .eq("user_id", settings.user_id)
-      .is("deleted_at", null)
-      .neq("stage", "kaybedildi");
-    if (conflictError) return res.status(500).json({ error: conflictError.message });
-    const taken = (existingDeals || []).some((d) => d.custom_fields?.[dateTimeKey] === dateTime);
-    if (taken) return res.status(409).json({ error: "Bu saat az önce doldu, lütfen başka bir saat seçin." });
 
     // Aynı işletmede telefon/e-posta eşleşen bir müşteri varsa onu kullan — her
     // randevu talebinde yinelenen customers satırı oluşmasın (bkz. Gerçek engel
@@ -150,13 +150,42 @@ export default async function handler(req, res) {
 
     let serviceName = null;
     let servicePrice = 0;
+    let serviceDurationMinutes = 0;
     if (cleanServiceIds.length > 0) {
-      const { data: services } = await supabaseAdmin.from("price_list_items").select("name, price").eq("user_id", settings.user_id).in("id", cleanServiceIds);
+      const { data: services } = await supabaseAdmin.from("price_list_items").select("name, price, duration_minutes").eq("user_id", settings.user_id).in("id", cleanServiceIds);
       if (services?.length) {
         serviceName = services.map((s) => s.name).join(", ");
         servicePrice = services.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
+        // Miktar süreyi katlamıyor, kalem sayısı toplanıyor - App.jsx'teki
+        // lineItemsDurationMinutes ile AYNI ilke.
+        serviceDurationMinutes = services.reduce((sum, s) => sum + (Number(s.duration_minutes) || 0), 0);
       }
     }
+
+    // Race condition koruması: iki ziyaretçi aynı saati aynı anda seçebilir —
+    // availability uç noktasının döndüğü liste bir kaç saniye eski olabilir,
+    // burada tekrar doğrulanır. Süre biliniyorsa (serviceDurationMinutes) tam
+    // saat eşitliği değil gerçek aralık çakışması bakılır -
+    // api/appointment-availability.js'teki computeDaySlots ile AYNI overlap
+    // ilkesi (App.jsx findAppointmentConflict).
+    const candidateStart = minutesOfDay(dateTime);
+    const candidateEnd = candidateStart + Math.max(serviceDurationMinutes, 1);
+    const candidateDateStr = dateTime.slice(0, 10);
+    const { data: existingDeals, error: conflictError } = await supabaseAdmin
+      .from("deals")
+      .select("custom_fields")
+      .eq("user_id", settings.user_id)
+      .is("deleted_at", null)
+      .neq("stage", "kaybedildi");
+    if (conflictError) return res.status(500).json({ error: conflictError.message });
+    const hasConflict = (existingDeals || []).some((d) => {
+      const dt = d.custom_fields?.[dateTimeKey];
+      if (typeof dt !== "string" || !dt.startsWith(candidateDateStr)) return false;
+      const otherStart = minutesOfDay(dt);
+      const otherEnd = otherStart + Math.max(Number(d.custom_fields?.duration_minutes) || 1, 1);
+      return candidateStart < otherEnd && otherStart < candidateEnd;
+    });
+    if (hasConflict) return res.status(409).json({ error: "Bu saat az önce doldu, lütfen başka bir saat seçin." });
 
     // Kapora - KOBİ Ayarlar'dan açtıysa VE Ödeme Bağlantısı gerçekten kuruluysa,
     // deal "ödeme bekleniyor" (payment_mode=required) olarak oluşturulur ve
@@ -181,7 +210,10 @@ export default async function handler(req, res) {
       title: serviceName || (note || "").trim() || "Randevu talebi",
       value: servicePrice,
       stage: "ilk_gorusme",
-      custom_fields: { [dateTimeKey]: dateTime, portal_randevu_zamani: dateTime, kaynak: "randevu_widget" },
+      custom_fields: {
+        [dateTimeKey]: dateTime, portal_randevu_zamani: dateTime, kaynak: "randevu_widget",
+        ...(serviceDurationMinutes > 0 ? { duration_minutes: serviceDurationMinutes } : {}),
+      },
       ...(approvalToken ? { approval_token: approvalToken, payment_mode: "required" } : {}),
     });
     if (dealInsertError) return res.status(500).json({ error: dealInsertError.message });

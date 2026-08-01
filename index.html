@@ -194,6 +194,22 @@
            menü her genişlikte görünür kalıp logonun yanına sıkışıyordu. */
         .landing-nav-links { display: none !important; }
       }
+      /* Orta linkler 640px altında zaten gizleniyor ama "Giriş Yap" +
+         "Ücretsiz Kullan" butonları hiç küçülmüyordu — dar telefonlarda
+         (~360-390px) logo+iki buton genişliği kullanılabilir alanı aşıp
+         navbar sıkışık/taşmış görünüyordu. */
+      @media (max-width: 420px) {
+        .landing-navbar { padding: 0 12px !important; }
+        .landing-nav-actions { gap: 6px !important; }
+        .landing-nav-login { padding: 8px 6px !important; font-size: 12.5px !important; }
+        .landing-nav-cta { padding: 8px 10px !important; font-size: 12.5px !important; }
+      }
+      /* Hero mockup'ındaki 4 sütunlu istatistik ızgarası dar telefonlarda
+         (~360px) her hücreye çok az yer bırakıp "₺940.000" gibi değerleri
+         sıkıştırıyordu — 2x2'ye düşer. */
+      @media (max-width: 480px) {
+        .landing-hero-stats { grid-template-columns: 1fr 1fr !important; }
+      }
       /* Ana uygulamanın sol sekme menüsü (Pano/Müşteriler/... ) masaüstünde sabit
          200px'lik bir sidebar — telefon genişliğinde (ve özellikle kurulu PWA'da,
          tarayıcı çubuğu olmadığı için alan daha da dar) içerikle sıkışıp taşıyordu.
