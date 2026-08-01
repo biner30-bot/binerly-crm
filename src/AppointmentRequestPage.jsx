@@ -257,14 +257,28 @@ export default function AppointmentRequestPage() {
               {paidServices.length > 0 && (
                 <div style={{ marginBottom: 10 }}>
                   <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>Hizmet seçin (opsiyonel, birden fazla seçebilirsiniz)</label>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2, maxHeight: 190, overflowY: "auto", border: "1px solid #e1e8f0", borderRadius: 8, padding: 4 }}>
-                    {paidServices.map((s) => (
-                      <label key={s.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, color: "#0c2540", padding: "6px 6px", borderRadius: 6, cursor: "pointer" }}>
-                        <input type="checkbox" checked={serviceIds.includes(s.id)} onChange={() => toggleService(s.id)} />
-                        {s.name}{s.price ? ` - ${s.price} TL` : ""}
-                      </label>
-                    ))}
-                  </div>
+                  {paidServices.some((s) => !serviceIds.includes(s.id)) && (
+                    <select
+                      value=""
+                      onChange={(e) => { if (e.target.value) toggleService(e.target.value); }}
+                      style={{ width: "100%" }}
+                    >
+                      <option value="">Hizmet ekle…</option>
+                      {paidServices.filter((s) => !serviceIds.includes(s.id)).map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}{s.price ? ` - ${s.price} TL` : ""}</option>
+                      ))}
+                    </select>
+                  )}
+                  {paidServices.filter((s) => serviceIds.includes(s.id)).length > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6 }}>
+                      {paidServices.filter((s) => serviceIds.includes(s.id)).map((s) => (
+                        <div key={s.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 13, background: "#f5f8fc", borderRadius: 6, padding: "6px 8px" }}>
+                          <span>{s.name}{s.price ? ` - ${s.price} TL` : ""}</span>
+                          <button type="button" onClick={() => toggleService(s.id)} style={{ fontSize: 12, padding: "2px 6px", flexShrink: 0 }}>Kaldır</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               {dayOverview && dayOverview.length > 0 && (

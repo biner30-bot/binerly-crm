@@ -812,7 +812,7 @@ const HELP_TOPICS = [
   { category: "Müşteriler & Kayıtlar", q: "Müşteri kartına görüşme/telefon notu nasıl eklerim?", a: "Müşteri kartını açıp \"İletişim geçmişi\" bölümünden Not/Telefon görüşmesi/Toplantı/E-posta türünü seçip kısa bir açıklama yazabilirsiniz - bu kayıtlar zaman sırasına göre listelenir." },
   { category: "Müşteriler & Kayıtlar", q: "Müşteri veya teklif kaydına dosya (sözleşme, fotoğraf vb.) nasıl eklerim?", a: "Müşteri kartını veya teklif formunu açıp \"Dosyalar\" bölümündeki \"+ Dosya Ekle\"ye tıklayın - dosya en fazla 10 MB olabilir, istediğiniz zaman indirebilir veya silebilirsiniz (silinen dosya da çöp kutusuna düşer)." },
   { category: "Müşteriler & Kayıtlar", q: "Bir teklife birden fazla ürün/hizmet kalemi (kalem kalem fiyat) nasıl eklerim?", a: "Teklif formundaki \"Kalemler\" bölümünden \"+ Kalem ekle\" ile istediğiniz kadar açıklama/adet/birim fiyat satırı ekleyebilirsiniz - Tutar alanı bunların toplamına göre otomatik hesaplanır, hiç kalem eklemezseniz Tutar'ı yine elle girebilirsiniz." },
-  { category: "Müşteriler & Kayıtlar", q: "Teklif kalemlerini Fiyat Listesi'nden nasıl hızlıca eklerim?", a: "Kalemler bölümündeki \"Fiyat listesinden kalem ekle…\" menüsünden bir ürün/hizmet seçtiğinizde açıklama ve birim fiyat otomatik dolan yeni bir satır eklenir; Ayarlar → Ürün & Hizmet Fiyat Listesi'nde kayıtlı olmanız yeterli." },
+  { category: "Müşteriler & Kayıtlar", q: "Teklif kalemlerini Fiyat Listesi'nden nasıl hızlıca eklerim?", a: "Kalemler bölümündeki \"Fiyat listesinden kalem ekle…\" menüsünden bir ürün/hizmet seçtiğinizde açıklama ve birim fiyat otomatik dolan yeni bir satır eklenir; Fiyat Listesi sekmesinde kayıtlı olmanız yeterli." },
   { category: "Müşteriler & Kayıtlar", q: "Teklif formundaki \"Sorumlu\" ataması ne işe yarar?", a: "Bir takım üyesi seçebilirsiniz - kapanan (kazanılan veya kaybedilen) kayıtlar Pano'daki \"Personel Performansı\" bölümünde o kişinin altında ve kazanma oranına dahil olarak sayılır; atama yapılmazsa \"Atanmamış\" grubuna düşer." },
   { category: "Müşteriler & Kayıtlar", q: "Müşteri listemi nasıl filtreleyip ararım?", a: "Müşteriler sekmesindeki arama kutusu ad/sektör/bölge/adres/telefon/e-postada arar; ayrıca Kurumsal/Bireysel, sektör, en yeni/en eski sıralama ve tarih aralığı filtrelerini de kullanabilirsiniz." },
   { category: "Müşteriler & Kayıtlar", q: "Not veya hatırlatmaları sesle nasıl yazabilirim?", a: "Not/hatırlatma gibi metin alanlarının yanındaki mikrofon simgesine tıklayıp konuşarak yazdırabilirsiniz - bu özellik Chrome/Edge'de çalışır, Firefox/Safari'de görünmez." },
@@ -852,8 +852,8 @@ const HELP_TOPICS = [
   { category: "Randevu & Program", q: "Müşteri randevusunu kendisi iptal ederse bu \"Gelmedi\" olarak mı sayılır?", a: "Hayır - müşterinin kendi portalından yaptığı iptal \"İptal etti\" (veya ayarladığınız geç sayılma penceresi içindeyse \"Geç iptal etti\") olarak işaretlenir, \"Randevuya gelmedi\" sadece siz elle işaretlediğinizde (habersiz gelmeme durumunda) kullanılır.", visibleIf: (sector) => isAppointmentSector(sector) },
   { category: "Randevu & Program", q: "Müşteri randevusunu portaldan iptal ederken bir süre sınırı var mı?", a: "Bunu tamamen siz belirlersiniz - Ayarlar → Müsaitlik Saatleri'ndeki \"Randevu iptal / gelmeme politikası\"ndan hiç kısıtlama uygulamayabilir, belirli bir süreden az kala iptali tamamen kilitleyebilir ve/veya geç iptal + gelmeme sayısı bir eşiği geçince sonraki randevuda ödemeyi otomatik zorunlu hale getirebilirsiniz. Hiçbir şey ayarlamazsanız müşteri istediği an iptal edebilir.", visibleIf: (sector) => supportsSelfBooking(sector) },
   { category: "Randevu & Program", q: "Müşteri ders kaydını portaldan iptal ederken bir süre sınırı var mı?", a: "Evet, varsayılan olarak ders saatine en az 2 saat kala portaldan iptal edilebilir; bunu Dersler sekmesindeki \"Geç iptal / seans yakma politikası\"ndan tamamen kendiniz özelleştirebilirsiniz (kilitleme süresi, geç iptal penceresi, kaçıncı geç iptalde seansın yanacağı).", visibleIf: (sector) => supportsGroupClasses(sector) },
-  { category: "Randevu & Program", q: "Müşteri portaldan randevu alırken hizmet/fiyat seçebilir mi?", a: "Evet, Ayarlar → Ürün & Hizmet Fiyat Listesi'nde kayıtlı kalemleriniz varsa müşteri randevu formunda listeden seçebilir, açıklama ve tutar otomatik dolar; isterse yine elle de yazabilir.", visibleIf: (sector) => supportsSelfBooking(sector) },
-  { category: "Randevu & Program", q: "Ücretsiz ilk görüşme/deneme randevusunu nasıl vurgularım?", a: "Ayarlar → Ürün & Hizmet Fiyat Listesi'ne fiyatı 0 TL olan bir kalem ekleyin (örn. \"Ücretsiz İlk Görüşme\") - Ayarlar → Randevu Alma Linki ile paylaştığınız widget'ta bu otomatik olarak ayrı, vurgulu bir buton olarak öne çıkar, ekstra bir ayar gerekmez.", visibleIf: (sector) => supportsSelfBooking(sector) && bookingModel(sector) === "slot" },
+  { category: "Randevu & Program", q: "Müşteri portaldan randevu alırken hizmet/fiyat seçebilir mi?", a: "Evet, Fiyat Listesi sekmesinde kayıtlı kalemleriniz varsa müşteri randevu formunda listeden seçebilir, açıklama ve tutar otomatik dolar; isterse yine elle de yazabilir.", visibleIf: (sector) => supportsSelfBooking(sector) },
+  { category: "Randevu & Program", q: "Ücretsiz ilk görüşme/deneme randevusunu nasıl vurgularım?", a: "Fiyat Listesi sekmesine fiyatı 0 TL olan bir kalem ekleyin (örn. \"Ücretsiz İlk Görüşme\") - Ayarlar → Randevu Alma Linki ile paylaştığınız widget'ta bu otomatik olarak ayrı, vurgulu bir buton olarak öne çıkar, ekstra bir ayar gerekmez.", visibleIf: (sector) => supportsSelfBooking(sector) && bookingModel(sector) === "slot" },
   { category: "Randevu & Program", q: "Bir grup dersine kaç kişi kaydolabilir, bunu nasıl sınırlarım?", a: "Ders oluştururken girdiğiniz \"Kapasite\" değeri sınırı belirler; kapasite dolunca portalda ders \"dolu\" görünür ve yeni kayıt alınamaz. Kapasiteyi zaten kayıtlı kişi sayısının altına düşüremezsiniz.", visibleIf: (sector) => supportsGroupClasses(sector) },
   { category: "Randevu & Program", q: "Müşterinin bir derse kaydolabilmesi için aktif üyeliği/kaydı olması gerekir mi?", a: "Evet - sadece kazanılmış ve süresi (varsa) dolmamış bir kaydı olan müşteriler derse kaydolabilir; uygun olmayan müşteriler için portalda kısa bir uyarı metni gösterilir.", visibleIf: (sector) => supportsGroupClasses(sector) },
   { category: "Randevu & Program", q: "Randevu/görüşme tarihi alanı nereden geliyor, ben mi ekliyorum?", a: "Bu, Sektör & Özel Alanlar'da \"Tarih & Saat\" tipinde tanımlanan bir özel alandır - randevu sektörlerinde hazır gelir, diğer sektörlerde isterseniz kendiniz ekleyebilirsiniz.", visibleIf: (sector) => supportsSelfBooking(sector) },
@@ -913,13 +913,13 @@ const HELP_TOPICS = [
   { category: "Ayarlar & Hesap", q: "Google hesabımla giriş yapabilir miyim?", a: "Evet, giriş ekranındaki Google seçeneğiyle e-posta/şifre girmeden tek tıkla giriş yapabilir veya kayıt olabilirsiniz - bu hem ana uygulamada hem Müşteri Portalı'nda mevcuttur." },
   { category: "Ayarlar & Hesap", q: "Şirket logomu teklif PDF'lerinde nasıl gösteririm?", a: "Ayarlar → İşletme Bilgileri'nden logonuzu yükleyin - Teklif Şablonları'ndaki hazır tasarımlar ve oluşturacağınız özel şablonlar logo alanında otomatik olarak bu görseli kullanır." },
   { category: "Ayarlar & Hesap", q: "Vergi numaramı nereye giriyorum, teklif PDF'inde otomatik çıkar mı?", a: "Ayarlar → İşletme Bilgileri'ne girdiğiniz vergi numarası, teklif PDF şablonlarındaki \"Vergi no\" satırında otomatik olarak görünür." },
-  { category: "Ayarlar & Hesap", q: "Ayarlar menüsünden hangi ekranlara ulaşabilirim?", a: "İşletme Bilgileri, Sektör & Özel Alanlar, Ürün & Hizmet Fiyat Listesi, Teklif Şablonları, Ödeme Bağlantısı, (randevu alınabilen sektörlerde) Müsaitlik Saatleri, Görünüm/Bildirimler/Hesap, Takım, Çöp Kutusu ve Geçmiş, Müşteri Kazanma Linki, Müşteri Portalı Linki ve Turu Tekrar Başlat - hepsi tek bir Ayarlar penceresinden açılır." },
+  { category: "Ayarlar & Hesap", q: "Ayarlar menüsünden hangi ekranlara ulaşabilirim?", a: "İşletme Bilgileri, Sektör & Özel Alanlar, Teklif Şablonları, Ödeme Bağlantısı, (randevu alınabilen sektörlerde) Müsaitlik Saatleri, Görünüm/Bildirimler/Hesap, Takım, Çöp Kutusu ve Geçmiş, Müşteri Kazanma Linki, Müşteri Portalı Linki ve Turu Tekrar Başlat - hepsi tek bir Ayarlar penceresinden açılır (Fiyat Listesi ve Stok & Malzeme artık kendi sekmelerinde)." },
 
   { category: "İçe/Dışa Aktarma", q: "İçe aktarırken dosyamdaki sütunları Binerly alanlarıyla nasıl eşleştiririm?", a: "Dosyanızı yükledikten sonra açılan eşleştirme ekranında her Binerly alanı için dosyanızdaki hangi sütunun kullanılacağını seçersiniz - sistem sütun başlıklarına bakarak bu eşleşmeyi olabildiğince otomatik önerir, siz kontrol edip düzeltirsiniz." },
   { category: "İçe/Dışa Aktarma", q: "İçe aktarmadan önce hangi satırların hatalı olduğunu görebilir miyim?", a: "Evet, önizleme ekranında her satır tek tek gösterilir; hatalı (örn. eşleşen müşteri bulunamayan) satırlar işaretlenip seçilemez hâle gelir, olası yinelenen kayıtlar ise ayrı bir uyarıyla belirtilir." },
   { category: "İçe/Dışa Aktarma", q: "İçe aktarırken bazı satırları hariç tutabilir miyim?", a: "Evet, önizleme ekranındaki kutucuğu işaretleyerek her satırı ayrı ayrı içe aktarıma dahil edebilir veya çıkarabilirsiniz; hatalı satırların kutucuğu zaten devre dışı gelir." },
   { category: "İçe/Dışa Aktarma", q: "Destek taleplerini veya Bilgi Bankası makalelerini de toplu içe aktarabilir miyim?", a: "Evet, Destek sekmesindeki Talepler ve Bilgi Bankası listelerinin her ikisinde de ayrı \"İçe aktar\" seçeneği vardır, aynı CSV/Excel akışını kullanır." },
-  { category: "İçe/Dışa Aktarma", q: "Ürün & Hizmet Fiyat Listemi toplu olarak yükleyebilir/indirebilir miyim?", a: "Evet, Ayarlar → Ürün & Hizmet Fiyat Listesi'nde de ayrı \"İçe aktar\"/\"Dışa aktar\" butonları var - ürün/hizmet adı ve fiyat sütunlarıyla aynı CSV/Excel akışını kullanır." },
+  { category: "İçe/Dışa Aktarma", q: "Ürün & Hizmet Fiyat Listemi toplu olarak yükleyebilir/indirebilir miyim?", a: "Evet, Fiyat Listesi sekmesinde de ayrı \"İçe aktar\"/\"Dışa aktar\" butonları var - ürün/hizmet adı ve fiyat sütunlarıyla aynı CSV/Excel akışını kullanır." },
   { category: "İçe/Dışa Aktarma", q: "Teklif/talep içe aktarırken müşteri sütununda tam adı mı yazmalıyım?", a: "Evet, müşteri sütunundaki isim sistemdeki müşteri adıyla (büyük/küçük harf hariç) birebir eşleşmelidir; eşleşme bulunamazsa veya birden fazla müşteri aynı isme sahipse o satır hatalı sayılır." },
   { category: "İçe/Dışa Aktarma", q: "CSV dosyamda noktalı virgül mü virgül mü kullanmalıyım?", a: "İkisi de desteklenir - dosyanızın ilk satırına bakılarak hangi ayırıcının kullanıldığı otomatik tespit edilir, ayrıca bir ayar yapmanıza gerek yoktur." },
   { category: "İçe/Dışa Aktarma", q: "vCard (.vcf) içe aktarırken hangi bilgiler okunur?", a: "Kişinin adı, telefonu ve e-postası (varsa) okunur - adı olmayan kartlar listeye hiç dahil edilmez, diğer vCard alanları (adres, doğum günü vb.) içe aktarılmaz." },
@@ -4209,7 +4209,7 @@ const ANSWER_LIBRARY = [
     label: "Kayıtlarımda fiyat listesini mi kullanıyorum, yoksa hep elle mi fiyat giriyorum?",
     keywords: ["fiyat listesi kullanım oranı", "elle fiyat giriyorum", "yapılandırılmış fiyatlandırma"],
     compute: (ctx) => {
-      if (ctx.priceListItems.length === 0) return "Henüz bir fiyat listeniz yok - Ayarlar → Ürün & Hizmet Fiyat Listesi'nden ekleyip kayıtlarınızda seçerek zaman kazanabilirsiniz.";
+      if (ctx.priceListItems.length === 0) return "Henüz bir fiyat listeniz yok - Fiyat Listesi sekmesinden ekleyip kayıtlarınızda seçerek zaman kazanabilirsiniz.";
       if (ctx.dealLineItems.length === 0) return "Kayıtlarınızda henüz kalem (ürün/hizmet satırı) kullanılmamış.";
       const priceListNames = new Set(ctx.priceListItems.map((i) => i.name));
       const fromList = ctx.dealLineItems.filter((li) => priceListNames.has(li.description)).length;
@@ -7217,7 +7217,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
             <div style={{ flex: 1, minWidth: 200 }}>
               <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
                 Ürün/Hizmet
-                <InfoTip placement="bottom" align="left" text="Listeden seçmek başlığı ve tutarı otomatik doldurur, sonrasında yine de değiştirebilirsiniz. Ayarlar → Ürün & Hizmet Fiyat Listesi'nden yönetilir." />
+                <InfoTip placement="bottom" align="left" text="Listeden seçmek başlığı ve tutarı otomatik doldurur, sonrasında yine de değiştirebilirsiniz. Fiyat Listesi sekmesinden yönetilir." />
               </label>
               <select
                 value={selectedPriceItemId}
@@ -8841,7 +8841,7 @@ function StockManager({ stockItems, priceListItems, priceItemIngredients, sector
         <div>
           {priceListItems.length === 0 || stockItems.length === 0 ? (
             <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-              Reçete tanımlamak için önce Ürün & Hizmet Fiyat Listesi'nde en az bir kalem ve burada en az bir stok kalemi olmalı.
+              Reçete tanımlamak için önce Fiyat Listesi sekmesinde en az bir kalem ve burada en az bir stok kalemi olmalı.
             </p>
           ) : (
             <>
@@ -11956,7 +11956,6 @@ export default function App() {
   const [priceListItems, setPriceListItems] = useState([]);
   const [stockItems, setStockItems] = useState([]);
   const [priceItemIngredients, setPriceItemIngredients] = useState([]);
-  const [showStockManager, setShowStockManager] = useState(false);
   const [pdfTemplates, setPdfTemplates] = useState([]);
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [groupClasses, setGroupClasses] = useState([]);
@@ -11983,7 +11982,6 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSettingsForm, setShowSettingsForm] = useState(false);
   const [showSectorFields, setShowSectorFields] = useState(false);
-  const [showPriceList, setShowPriceList] = useState(false);
   const [showImportPriceList, setShowImportPriceList] = useState(false);
   const [showPriceListExport, setShowPriceListExport] = useState(false);
   const [showBusinessHours, setShowBusinessHours] = useState(false);
@@ -14389,6 +14387,11 @@ export default function App() {
         .filter((x) => x.apptTime && !isNaN(x.apptTime.getTime()) && x.apptTime.getTime() <= Date.now())
         .sort((a, b) => a.apptTime - b.apptTime)
     : [];
+  // Kanban/liste satırlarındaki tek-tık "Tamamlandı" kısayolu (aşağıda) AYNI
+  // kümeyi kullanır - saati henüz gelmemiş bir randevu yanlışlıkla erken
+  // kapatılamasın diye Pano'daki "Bugünün Randevuları" widget'ıyla BİREBİR
+  // aynı kural (saati geçmiş + henüz kapanmamış + paket değil).
+  const pendingArrivalDealIds = new Set(pendingArrivalConfirmations.map((x) => x.deal.id));
   // Otel'de "kazanıldı" (rezervasyon onaylandı) haftalar önce gerçekleşebilir —
   // asıl operasyonel an giriş/çıkış GÜNÜ, aşama değişikliğiyle ilgisi yok. Bu
   // yüzden randevu sektörlerindeki gibi bir aşama-onayı değil, sadece bugünün
@@ -14567,6 +14570,8 @@ export default function App() {
           { id: "pano", label: "Pano", icon: "ti-layout-dashboard" },
           { id: "musteri", label: "Müşteriler", icon: "ti-building" },
           { id: "firsat", label: dealWords.navLabel, icon: "ti-target-arrow" },
+          ...(canEditCompanySettings ? [{ id: "fiyatlistesi", label: "Fiyat Listesi", icon: "ti-tag" }] : []),
+          ...(canEditCompanySettings ? [{ id: "stokmalzeme", label: "Stok & Malzeme", icon: "ti-package" }] : []),
           { id: "ajanda", label: "Ajanda", icon: "ti-calendar-event" },
           { id: "finans", label: "Finans", icon: "ti-chart-line" },
           { id: "mesajlar", label: "Mesajlar", icon: "ti-message-2" },
@@ -14808,7 +14813,7 @@ export default function App() {
                 {lowStockItems.map((item) => (
                   <div
                     key={`stock-${item.id}`}
-                    onClick={() => setShowStockManager(true)}
+                    onClick={() => setTab("stokmalzeme")}
                     style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", padding: "4px 0" }}
                   >
                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--text-danger)", flexShrink: 0 }} />
@@ -15797,6 +15802,16 @@ export default function App() {
                                 <Badge tone="success">✓ Katılım onayladı</Badge>
                               </div>
                             )}
+                            {pendingArrivalDealIds.has(d.id) && (
+                              <div style={{ display: "flex", gap: 4, marginTop: 6 }} onClick={(e) => e.stopPropagation()}>
+                                <button type="button" onClick={() => attemptMoveDealStage(d.id, "kazanildi")} style={{ fontSize: 11, flex: 1, padding: "4px 6px" }}>
+                                  Geldi ✓
+                                </button>
+                                <button type="button" onClick={() => attemptMoveDealStage(d.id, "kaybedildi")} style={{ fontSize: 11, flex: 1, padding: "4px 6px" }}>
+                                  Gelmedi
+                                </button>
+                              </div>
+                            )}
                             {/* Sürükle-bırak dokunmatik ekranda çalışmıyor (HTML5 DnG
                                 touch'ı desteklemiyor) - bu seçici mobilde aşama
                                 değiştirmenin tek yolu, masaüstünde de sürüklemeye
@@ -15919,6 +15934,16 @@ export default function App() {
                         )}
                       </td>
                       <td data-label="Aşama" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                        {pendingArrivalDealIds.has(d.id) && (
+                          <div style={{ display: "flex", gap: 4, marginBottom: 4 }} onClick={(e) => e.stopPropagation()}>
+                            <button type="button" onClick={() => attemptMoveDealStage(d.id, "kazanildi")} style={{ fontSize: 11, padding: "4px 6px" }}>
+                              Geldi ✓
+                            </button>
+                            <button type="button" onClick={() => attemptMoveDealStage(d.id, "kaybedildi")} style={{ fontSize: 11, padding: "4px 6px" }}>
+                              Gelmedi
+                            </button>
+                          </div>
+                        )}
                         <select
                           value={d.stage}
                           onChange={(e) => attemptMoveDealStage(d.id, e.target.value)}
@@ -16040,6 +16065,49 @@ export default function App() {
         />
       )}
 
+      {tab === "fiyatlistesi" && canEditCompanySettings && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+            <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Ürün & Hizmet Fiyat Listesi</h1>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                onClick={() => setShowPriceListExport(true)}
+                disabled={priceListItems.length === 0}
+                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+              >
+                <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                Dışa aktar
+              </button>
+              <button
+                onClick={() => setShowImportPriceList(true)}
+                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+              >
+                <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                İçe aktar
+              </button>
+            </div>
+          </div>
+          <PriceListManager items={priceListItems} onAdd={addPriceListItem} onUpdate={updatePriceListItem} onDelete={deletePriceListItem} sector={companySettings?.sector} />
+        </div>
+      )}
+
+      {tab === "stokmalzeme" && canEditCompanySettings && (
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 16px" }}>Stok & Malzeme</h1>
+          <StockManager
+            stockItems={stockItems}
+            priceListItems={priceListItems}
+            priceItemIngredients={priceItemIngredients}
+            sector={companySettings?.sector}
+            onAddStock={addStockItem}
+            onUpdateStock={updateStockItem}
+            onDeleteStock={deleteStockItem}
+            onAddIngredient={addPriceItemIngredient}
+            onDeleteIngredient={deletePriceItemIngredient}
+          />
+        </div>
+      )}
+
       {tab === "ajanda" && (
         <AgendaTab
           deals={deals}
@@ -16112,18 +16180,6 @@ export default function App() {
                   label="Sektör & Özel Alanlar"
                   description="Aşama isimleri, etiket önerileri, özel alanlar"
                   onClick={() => { setShowSettingsHub(false); setShowSectorFields(true); }}
-                />
-                <MenuRow
-                  icon="ti-tag"
-                  label="Ürün & Hizmet Fiyat Listesi"
-                  description={`Sabit fiyatlı ürün/hizmetlerinizi kaydedin, ${DEAL_WORD_FORMS[dealKind].pluralLoc} hızlıca seçin`}
-                  onClick={() => { setShowSettingsHub(false); setShowPriceList(true); }}
-                />
-                <MenuRow
-                  icon="ti-package"
-                  label="Stok & Malzeme"
-                  description="Malzeme envanteri ve hizmet başına reçete - kullanan sektörler için opsiyonel"
-                  onClick={() => { setShowSettingsHub(false); setShowStockManager(true); }}
                 />
                 <MenuRow
                   icon="ti-layout"
@@ -16299,7 +16355,7 @@ export default function App() {
             </p>
           ) : (
             <p style={{ fontSize: 12, color: "var(--text-secondary)", background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 10px", margin: "0 0 16px" }}>
-              💡 İpucu: Ayarlar → Ürün & Hizmet Fiyat Listesi'ne 0 TL'lik bir hizmet eklerseniz (örn. "Ücretsiz İlk Görüşme"), bu widget'ta ayrı, vurgulu bir "ücretsiz" butonu olarak öne çıkar.
+              💡 İpucu: Fiyat Listesi sekmesine 0 TL'lik bir hizmet eklerseniz (örn. "Ücretsiz İlk Görüşme"), bu widget'ta ayrı, vurgulu bir "ücretsiz" butonu olarak öne çıkar.
             </p>
           )}
           <img
@@ -16383,45 +16439,6 @@ export default function App() {
             onFetchFields={async () => { await applySectorCustomFields(companySettings.sector); notify("Sektöre özel yeni alanlar getirildi.", "success"); }}
           />
           <CustomFieldDefsManager customFieldDefs={customFieldDefs} onAdd={addCustomFieldDef} onUpdate={updateCustomFieldDef} onDelete={deleteCustomFieldDef} sector={companySettings?.sector} />
-        </Modal>
-      )}
-
-      {showPriceList && (
-        <Modal title="Ürün & Hizmet Fiyat Listesi" onClose={() => setShowPriceList(false)}>
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-            <button
-              onClick={() => setShowPriceListExport(true)}
-              disabled={priceListItems.length === 0}
-              style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
-            >
-              <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
-              Dışa aktar
-            </button>
-            <button
-              onClick={() => setShowImportPriceList(true)}
-              style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
-            >
-              <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
-              İçe aktar
-            </button>
-          </div>
-          <PriceListManager items={priceListItems} onAdd={addPriceListItem} onUpdate={updatePriceListItem} onDelete={deletePriceListItem} sector={companySettings?.sector} />
-        </Modal>
-      )}
-
-      {showStockManager && (
-        <Modal wide title="Stok & Malzeme" onClose={() => setShowStockManager(false)}>
-          <StockManager
-            stockItems={stockItems}
-            priceListItems={priceListItems}
-            priceItemIngredients={priceItemIngredients}
-            sector={companySettings?.sector}
-            onAddStock={addStockItem}
-            onUpdateStock={updateStockItem}
-            onDeleteStock={deleteStockItem}
-            onAddIngredient={addPriceItemIngredient}
-            onDeleteIngredient={deletePriceItemIngredient}
-          />
         </Modal>
       )}
 
