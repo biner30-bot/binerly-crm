@@ -6205,7 +6205,7 @@ function rowToDealLineItem(r) {
 }
 
 function rowToPriceListItem(r) {
-  return { id: r.id, name: r.name, price: r.price, refreshDays: r.refresh_days || null };
+  return { id: r.id, name: r.name, price: r.price, refreshDays: r.refresh_days || null, durationMinutes: r.duration_minutes || null };
 }
 
 function rowToStockItem(r) {
@@ -6300,6 +6300,7 @@ function rowToCompanySettings(r) {
     googleReviewLink: r.google_review_link || "",
     googleReviewRequestsEnabled: r.google_review_requests_enabled !== false,
     appointmentPrepNote: r.appointment_prep_note || "",
+    appointmentDepositAmount: r.appointment_deposit_amount ?? null,
   };
 }
 
@@ -6695,6 +6696,17 @@ function roomTypeConflict({ excludeDealId, roomType, checkIn, checkOut }, deals,
   return { quantity: inventory.quantity, occupied: overlapping.length };
 }
 
+// Bir randevunun kalemlerinden (deal_line_items → price_list_items) toplam
+// süresini çıkarır. Miktar süreye çarpılmıyor - bir kalemin 2 adet olması
+// randevunun 2 katı sürmesi anlamına gelmiyor (ör. 2 ürün satışı); süreyi
+// gerçekten katlamak isteyen KOBİ aynı hizmeti iki ayrı kalem olarak ekleyebilir.
+function lineItemsDurationMinutes(lineItemsForDeal, priceListItems) {
+  return (lineItemsForDeal || []).reduce((sum, li) => {
+    const priceItem = li.priceItemId ? priceListItems.find((p) => p.id === li.priceItemId) : null;
+    return sum + (priceItem?.durationMinutes || 0);
+  }, 0);
+}
+
 // Randevu sektörlerinde müşteri portaldan randevu alırken müsait saatleri
 // gördüğü halde, KOBİ aynı randevuyu elle girerken hiçbir müsaitlik bilgisi
 // görmüyor, tarih/saati kör kör yazıyordu — çakışma ancak kaydetmeye
@@ -6894,7 +6906,7 @@ function RowActionsMenu({ items }) {
   );
 }
 
-function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], payments = [], appointmentDateTimeKey = null, roomInventory = [], customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, businessUserId, titleSuggestions = [], priceListItems = [], initialLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], appointmentPenaltyStrikeLimit = null, appointmentPenaltyBurnsSession = false, onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onToggleAttachmentShare, onRequestPhotoConsent, onSave, onCancel }) {
+function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], payments = [], appointmentDateTimeKey = null, roomInventory = [], customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, businessUserId, titleSuggestions = [], priceListItems = [], initialLineItems = [], dealLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], appointmentPenaltyStrikeLimit = null, appointmentPenaltyBurnsSession = false, onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onToggleAttachmentShare, onRequestPhotoConsent, onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(
     initial?.customerId || customers.find((c) => c.customerType === preferredCustomerType)?.id || customers[0]?.id || ""
   );
@@ -6923,6 +6935,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
     initialLineItems.map((li) => ({ localId: li.id, description: li.description, quantity: li.quantity, unitPrice: li.unitPrice, priceItemId: li.priceItemId || null }))
   );
   const lineItemsTotal = lineItems.reduce((sum, li) => sum + (Number(li.quantity) || 0) * (Number(li.unitPrice) || 0), 0);
+  const lineItemsDuration = lineItemsDurationMinutes(lineItems, priceListItems);
   // Basit gümrük/navlun hesaplayıcı — CANLI gümrük/navlun verisi çekmiyor,
   // sadece kullanıcının kendi (localStorage'da hatırlanan) sabit oranını mevcut
   // kalem toplamına uygulayıp yeni bir kalem olarak ekliyor.
@@ -6999,9 +7012,26 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
     if (!appointmentDateTimeKey || bookingModel(sector) !== "slot" || candidateStage === "kaybedildi") return null;
     const dt = candidateCustomFields?.[appointmentDateTimeKey];
     if (!dt) return null;
-    const conflict = deals.find((d) =>
-      d.id !== initial?.id && d.stage !== "kaybedildi" && d.customFields?.[appointmentDateTimeKey] === dt
-    );
+    const candidateStart = new Date(dt).getTime();
+    if (Number.isNaN(candidateStart)) return null;
+    // Süre bilinmeyen randevular 1 dakikalık "nokta" kabul edilir - bu, eski
+    // "tam dakika eşitliği" davranışını (fiyat listesi süresi girilmemiş
+    // KOBİ'ler için) bozmadan, süre bilinen durumlarda hizmetlerin toplam
+    // süresine göre gerçek aralık çakışmasını da yakalar.
+    const candidateDuration = Math.max(lineItemsDurationMinutes(lineItems, priceListItems), 1);
+    const candidateEnd = candidateStart + candidateDuration * 60000;
+    const conflict = deals.find((d) => {
+      if (d.id === initial?.id || d.stage === "kaybedildi") return false;
+      const otherDt = d.customFields?.[appointmentDateTimeKey];
+      if (!otherDt) return false;
+      const otherStart = new Date(otherDt).getTime();
+      if (Number.isNaN(otherStart)) return false;
+      const otherDuration = Math.max(
+        lineItemsDurationMinutes(dealLineItems.filter((li) => li.dealId === d.id), priceListItems), 1
+      );
+      const otherEnd = otherStart + otherDuration * 60000;
+      return candidateStart < otherEnd && otherStart < candidateEnd;
+    });
     if (!conflict) return null;
     return customers.find((c) => c.id === conflict.customerId)?.name || "başka bir kayıt";
   };
@@ -7173,7 +7203,12 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
       {(initial?.approvedAt || initial?.paymentStatus === "paid") && (
         <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
           {initial?.approvedAt && <Badge tone="success">✓ Müşteri onayladı</Badge>}
-          {initial?.paymentStatus === "paid" && <Badge tone="success">✓ Online ödendi</Badge>}
+          {/* payment_status DB'de "paid" olsa bile bu kapora gibi kısmi bir
+              tahsilat olabilir (bkz. api/deal-approval.js:recordSuccessfulPayment
+              yorumu) - burada gerçekten tam ödendi mi totalPaid/value ile ayrıca
+              doğrulanıyor, yoksa kapora "tam ödendi" gibi yanlış görünürdü. */}
+          {initial?.paymentStatus === "paid" && totalPaid >= (initial?.value || 0) && <Badge tone="success">✓ Online ödendi</Badge>}
+          {initial?.paymentStatus === "paid" && totalPaid < (initial?.value || 0) && <Badge tone="warning">✓ Kapora ödendi</Badge>}
         </div>
       )}
       {(priceListItems.length > 0 || (bookingModel(sector) === "slot" && appointmentDateTimeKey) || membershipEndDef) && (
@@ -7229,6 +7264,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
         <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
           Kalemler (opsiyonel)
           <InfoTip align="left" text="Birden fazla ürün/hizmet satırı eklerseniz Tutar bunların toplamına otomatik hesaplanır. Hiç kalem eklemezseniz Tutar'ı yine elle girebilirsiniz." />
+          {lineItemsDuration > 0 && <Badge tone="default">Tahmini süre: {lineItemsDuration} dk</Badge>}
         </label>
         {lineItems.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 6 }}>
@@ -8535,6 +8571,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [refreshDays, setRefreshDays] = useState("");
+  const [durationMinutes, setDurationMinutes] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
   const [search, setSearch] = useState("");
@@ -8546,6 +8583,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
     setName(item.name);
     setPrice(String(item.price));
     setRefreshDays(item.refreshDays ? String(item.refreshDays) : "");
+    setDurationMinutes(item.durationMinutes ? String(item.durationMinutes) : "");
   };
 
   const cancelEdit = () => {
@@ -8553,6 +8591,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
     setName("");
     setPrice("");
     setRefreshDays("");
+    setDurationMinutes("");
   };
 
   const submit = (e) => {
@@ -8560,14 +8599,15 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
     const trimmedName = name.trim();
     if (!trimmedName || price === "") return;
     if (editingItem) {
-      onUpdate({ id: editingItem.id, name: trimmedName, price: Number(price), refreshDays: Number(refreshDays) || null });
+      onUpdate({ id: editingItem.id, name: trimmedName, price: Number(price), refreshDays: Number(refreshDays) || null, durationMinutes: Number(durationMinutes) || null });
       cancelEdit();
       return;
     }
-    onAdd({ name: trimmedName, price: Number(price), refreshDays: Number(refreshDays) || null });
+    onAdd({ name: trimmedName, price: Number(price), refreshDays: Number(refreshDays) || null, durationMinutes: Number(durationMinutes) || null });
     setName("");
     setPrice("");
     setRefreshDays("");
+    setDurationMinutes("");
   };
 
   return (
@@ -8600,6 +8640,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
               </span>
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                 <Badge tone="accent">{formatTL(item.price)}</Badge>
+                {item.durationMinutes > 0 && <Badge tone="default">{item.durationMinutes} dk</Badge>}
                 {item.refreshDays > 0 && <Badge tone="default">{item.refreshDays} günde bir</Badge>}
                 <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => startEdit(item)} />
                 <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(item)} />
@@ -8620,6 +8661,13 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
         <div style={{ width: 120 }}>
           <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Fiyat (TL)</label>
           <input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" style={{ width: "100%", fontSize: 13 }} />
+        </div>
+        <div style={{ width: 130 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 3, marginBottom: 4 }}>
+            Süre (dk)
+            <InfoTip align="left" text="Opsiyonel - girerseniz, bu hizmet bir randevuya kalem olarak eklendiğinde randevunun süresi buna göre hesaplanır; aynı randevuda birden fazla hizmet varsa süreleri toplanır ve çakışma kontrolü buna göre yapılır." />
+          </label>
+          <input type="number" min="0" value={durationMinutes} onChange={(e) => setDurationMinutes(e.target.value)} placeholder="Opsiyonel" style={{ width: "100%", fontSize: 13 }} />
         </div>
         <div style={{ width: 150 }}>
           <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 3, marginBottom: 4 }}>
@@ -9278,6 +9326,72 @@ function AppointmentCancelPolicyBox({ companySettings, onSave }) {
           <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "10px 0 0" }}>
             Öneri: no-show'da randevu saatinden itibaren 15-20 dakika bekleyip sonra "Randevuya gelmedi" işaretlemeniz makul kabul edilir (bir ayar değil, sadece bir öneri).
           </p>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}>
+            <button type="button" onClick={() => setOpen(false)}>Vazgeç</button>
+            <button type="button" onClick={handleSave} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Randevu widget'ından (/randevu-al/{token}) gelen misafir müşteriden booking
+// ANINDA sabit bir TL kapora tahsil eder - tamamen opsiyonel, varsayılan
+// kapalı, KOBİ hem açıp açmamayı hem tutarı kendi seçer. Ödeme Bağlantısı
+// (iyzico/PayTR) kurulu değilse alan devre dışı - kısıtlama değil görünürlük,
+// önce ne yapılması gerektiği açıkça söyleniyor (bkz. api/deal-approval.js,
+// api/lead-capture.js).
+function AppointmentDepositBox({ companySettings, hasPaymentConnection, onSave }) {
+  const configured = companySettings?.appointmentDepositAmount != null;
+  const [open, setOpen] = useState(false);
+  const [depositOn, setDepositOn] = useState(configured);
+  const [depositAmount, setDepositAmount] = useState(companySettings?.appointmentDepositAmount ?? "");
+
+  const handleOpen = () => {
+    setDepositOn(configured);
+    setDepositAmount(companySettings?.appointmentDepositAmount ?? "");
+    setOpen(true);
+  };
+
+  const handleSave = () => {
+    onSave({ appointmentDepositAmount: depositOn && depositAmount !== "" ? Number(depositAmount) : null });
+    setOpen(false);
+  };
+
+  return (
+    <div style={{ marginBottom: 16, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <p style={{ fontSize: 13, fontWeight: 500, margin: 0, display: "flex", alignItems: "center", gap: 4 }}>
+          Randevu kaporası
+          <InfoTip
+            placement="bottom"
+            align="left"
+            text="Opsiyonel - açarsanız, randevu widget'ından (/randevu-al) kendi randevusunu alan misafir müşteri, talebi tamamlamak için burada belirlediğiniz sabit tutarı kartla önceden öder. Ödeme, normal bir tahsilat olarak kaydedilir - iade isterseniz mevcut İade akışını kullanabilirsiniz."
+          />
+        </p>
+        {!open && (
+          <button type="button" onClick={handleOpen} disabled={!hasPaymentConnection} style={{ fontSize: 12, padding: "4px 10px" }}>
+            {configured ? "Düzenle" : "Ayarla"}
+          </button>
+        )}
+      </div>
+      {!open && (
+        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0 0" }}>
+          {!hasPaymentConnection
+            ? "Kullanmak için önce Ödeme Bağlantısı'nı (iyzico veya PayTR) kurmanız gerekiyor."
+            : configured
+              ? `Aktif: randevu widget'ından randevu alan misafirlerden ${formatTL(companySettings.appointmentDepositAmount)} kapora isteniyor.`
+              : "Kullanılmıyor - randevu widget'ından gelen talepler için önceden ödeme istenmiyor."}
+        </p>
+      )}
+      {open && (
+        <>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6, margin: "10px 0 4px" }}>
+            <input type="checkbox" checked={depositOn} onChange={(e) => setDepositOn(e.target.checked)} />
+            Kapora iste
+          </label>
+          <input type="number" min="0" step="1" disabled={!depositOn} value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} placeholder="Örn. 100" style={{ width: 150 }} />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}>
             <button type="button" onClick={() => setOpen(false)}>Vazgeç</button>
             <button type="button" onClick={handleSave} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
@@ -13622,6 +13736,7 @@ export default function App() {
       google_review_link: s.googleReviewLink || null,
       google_review_requests_enabled: s.googleReviewRequestsEnabled !== false,
       appointment_prep_note: s.appointmentPrepNote || null,
+      appointment_deposit_amount: s.appointmentDepositAmount || null,
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase.from("company_settings").upsert(row).select().single();
@@ -13671,15 +13786,15 @@ export default function App() {
     setCustomFieldDefs((prev) => prev.filter((d) => d.id !== id));
   };
 
-  const addPriceListItem = async ({ name, price, refreshDays }) => {
-    const row = { id: uid(), user_id: activeTeamId, name, price, refresh_days: refreshDays || null };
+  const addPriceListItem = async ({ name, price, refreshDays, durationMinutes }) => {
+    const row = { id: uid(), user_id: activeTeamId, name, price, refresh_days: refreshDays || null, duration_minutes: durationMinutes || null };
     const { data, error } = await supabase.from("price_list_items").insert(row).select().single();
     if (error) { notify(`Ürün/hizmet eklenemedi: ${error.message}`); return; }
     setPriceListItems((prev) => [...prev, rowToPriceListItem(data)]);
   };
 
-  const updatePriceListItem = async ({ id, name, price, refreshDays }) => {
-    const { data, error } = await supabase.from("price_list_items").update({ name, price, refresh_days: refreshDays || null }).eq("id", id).select().single();
+  const updatePriceListItem = async ({ id, name, price, refreshDays, durationMinutes }) => {
+    const { data, error } = await supabase.from("price_list_items").update({ name, price, refresh_days: refreshDays || null, duration_minutes: durationMinutes || null }).eq("id", id).select().single();
     if (error) { notify(`Ürün/hizmet güncellenemedi: ${error.message}`); return; }
     setPriceListItems((prev) => prev.map((p) => (p.id === id ? rowToPriceListItem(data) : p)));
   };
@@ -16384,7 +16499,10 @@ export default function App() {
           {businessHoursTab === "saatler" ? (
             <BusinessHoursManager items={businessHours} onAdd={addBusinessHours} onDelete={deleteBusinessHours} />
           ) : businessHoursTab === "politika" ? (
-            <AppointmentCancelPolicyBox companySettings={companySettings} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
+            <>
+              <AppointmentCancelPolicyBox companySettings={companySettings} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
+              <AppointmentDepositBox companySettings={companySettings} hasPaymentConnection={paymentCredentials.length > 0} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
+            </>
           ) : (
             <AppointmentPrepNoteBox companySettings={companySettings} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
           )}
@@ -16606,6 +16724,7 @@ export default function App() {
             titleSuggestions={[...new Set(deals.map((d) => d.title).filter(Boolean))]}
             priceListItems={priceListItems}
             initialLineItems={editingDeal ? dealLineItems.filter((li) => li.dealId === editingDeal.id) : []}
+            dealLineItems={dealLineItems}
             hasPaymentConnection={paymentCredentials.length > 0}
             totalPaid={editingDeal ? totalPaidForDeal(editingDeal.id) : 0}
             attachments={attachments}

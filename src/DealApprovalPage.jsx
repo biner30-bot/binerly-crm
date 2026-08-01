@@ -277,6 +277,10 @@ export default function DealApprovalPage() {
               // istenen bir durum yok) — bu yüzden Öde butonuna basınca sanki
               // hiçbir şey olmamış gibi bu ekrana düşülüyordu.
               const isSelfBooked = !!state.deal.selfBooked;
+              // Sadece randevu widget'ından gelen, booking-anı kapora akışında dolu -
+              // "Öde" metnini "Kaporayı Öde"ye çevirip alınan tutarın TAMAMI değil
+              // sadece kapora olduğunu netleştirmek için (bkz. api/deal-approval.js GET).
+              const depositAmount = state.deal.depositAmount || null;
               const showApproveOnly = !isCompleted && !isSelfBooked && state.deal.paymentMode !== "required" && !state.deal.approved;
               const hasPendingAction = (isCompleted || isSelfBooked) ? needsPayment : (!state.deal.approved || needsPayment);
               return (
@@ -297,7 +301,7 @@ export default function DealApprovalPage() {
                   )}
                   {isPaid && (isSelfBooked || !state.deal.approved) && (
                     <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "#15803d", fontWeight: 600 }}>
-                      ✓ Ödemeniz alındı
+                      {depositAmount ? `✓ Kaporanız (${formatTL(depositAmount)}) alındı, kalan tutar hizmet günü ödenir.` : "✓ Ödemeniz alındı"}
                     </div>
                   )}
                   {state.deal.approved && !hasPendingAction && (
@@ -326,7 +330,9 @@ export default function DealApprovalPage() {
                       {paying ? "Yönlendiriliyor…" : (
                         <>
                           <i className="ti ti-credit-card" style={{ fontSize: 18 }} aria-hidden="true"></i>
-                          {(isCompleted || state.deal.approved || isSelfBooked) ? "Öde" : "Onayla ve Öde"}
+                          {depositAmount
+                            ? `Kaporayı Öde (${formatTL(depositAmount)})`
+                            : (isCompleted || state.deal.approved || isSelfBooked) ? "Öde" : "Onayla ve Öde"}
                         </>
                       )}
                     </button>

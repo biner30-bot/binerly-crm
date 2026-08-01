@@ -34,7 +34,7 @@ export default async function handler(req, res) {
 
   const { data: settings, error: settingsError } = await supabaseAdmin
     .from("company_settings")
-    .select("user_id, company_name, logo_url, sector")
+    .select("user_id, company_name, logo_url, sector, appointment_deposit_amount")
     .eq("lead_capture_token", token)
     .maybeSingle();
   if (settingsError) console.error("lead-capture query error:", settingsError.message);
@@ -45,16 +45,24 @@ export default async function handler(req, res) {
     // kullanıyor — appointment-availability.js'teki AYNI sorguyla "bu işletmenin
     // aktif bir randevu tarihi alanı var mı" belirlenir (Vercel Hobby'nin 12
     // fonksiyon sınırı zaten dolu olduğu için ayrı bir api/*.js açılmadı).
-    const [{ data: fieldDefs }, { data: services }] = await Promise.all([
+    const [{ data: fieldDefs }, { data: services }, { data: cred }] = await Promise.all([
       supabaseAdmin.from("custom_field_defs").select("key").eq("user_id", settings.user_id).eq("entity", "deal").eq("field_type", "datetime").eq("active", true).limit(1),
       supabaseAdmin.from("price_list_items").select("id, name, price").eq("user_id", settings.user_id).order("name"),
+      supabaseAdmin.from("payment_credentials").select("id").eq("user_id", settings.user_id).maybeSingle(),
     ]);
+    // Kapora sadece Ödeme Bağlantısı gerçekten kuruluysa anlamlı - KOBİ tutarı
+    // girmiş ama sonradan bağlantıyı kopmuş/kaldırmış olabilir, bu durumda
+    // widget'ta hiç kapora istenmez (booking anında ödeme başlatılamayacak bir
+    // akışa girip müşteriyi kilitlemektense sessizce atlanır).
+    const hasPaymentProvider = !!cred;
+    const depositAmount = hasPaymentProvider && settings.appointment_deposit_amount > 0 ? settings.appointment_deposit_amount : null;
     return res.status(200).json({
       companyName: settings.company_name || "Binerly",
       logoUrl: settings.logo_url || null,
       businessUserId: settings.user_id,
       acceptsAppointments: !!fieldDefs?.[0]?.key,
       services: services || [],
+      depositAmount,
     });
   }
 
@@ -146,6 +154,17 @@ export default async function handler(req, res) {
       if (service) { serviceName = service.name; servicePrice = Number(service.price) || 0; }
     }
 
+    // Kapora - KOBİ Ayarlar'dan açtıysa VE Ödeme Bağlantısı gerçekten kuruluysa,
+    // deal "ödeme bekleniyor" (payment_mode=required) olarak oluşturulur ve
+    // yanıtla birlikte bir approval_token dönülür - müşteri tarayıcıda hemen
+    // deposit-checkout-init'e yönlendirilir (bkz. api/deal-approval.js). Ödemeyi
+    // yarıda bırakırsa da bu kayıt kalıcı olarak durur, KOBİ talebi kaybetmez.
+    let approvalToken = null;
+    if (settings.appointment_deposit_amount > 0) {
+      const { data: cred } = await supabaseAdmin.from("payment_credentials").select("id").eq("user_id", settings.user_id).maybeSingle();
+      if (cred) approvalToken = crypto.randomUUID();
+    }
+
     const { error: dealInsertError } = await supabaseAdmin.from("deals").insert({
       id: crypto.randomUUID(),
       user_id: settings.user_id,
@@ -154,9 +173,13 @@ export default async function handler(req, res) {
       value: servicePrice,
       stage: "ilk_gorusme",
       custom_fields: { [dateTimeKey]: dateTime, portal_randevu_zamani: dateTime, kaynak: "randevu_widget" },
+      ...(approvalToken ? { approval_token: approvalToken, payment_mode: "required" } : {}),
     });
     if (dealInsertError) return res.status(500).json({ error: dealInsertError.message });
 
+    if (approvalToken) {
+      return res.status(200).json({ ok: true, booked: true, needsDeposit: true, approvalToken, depositAmount: settings.appointment_deposit_amount });
+    }
     return res.status(200).json({ ok: true, booked: true });
   }
 

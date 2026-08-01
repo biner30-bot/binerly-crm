@@ -477,12 +477,12 @@ async function fetchSector(supabaseAdmin, userId) {
   return data?.sector || null;
 }
 
-async function recordSuccessfulPayment(supabaseAdmin, deal, { provider, iyzicoPaymentId, iyzicoPaymentTransactionId, paytrMerchantOid, commissionAmount, sector }) {
+async function recordSuccessfulPayment(supabaseAdmin, deal, { provider, iyzicoPaymentId, iyzicoPaymentTransactionId, paytrMerchantOid, commissionAmount, sector, amount = deal.value }) {
   const { error: paymentInsertError } = await supabaseAdmin.from("payments").insert({
     id: crypto.randomUUID(),
     user_id: deal.user_id,
     deal_id: deal.id,
-    amount: deal.value,
+    amount,
     paid_at: new Date().toISOString().slice(0, 10),
     note: provider === "paytr" ? "PayTR ile online ödeme" : "iyzico ile online ödeme",
     provider,
@@ -498,7 +498,7 @@ async function recordSuccessfulPayment(supabaseAdmin, deal, { provider, iyzicoPa
   fetch("https://binerly.com/api/send-push", {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-push-secret": (process.env.PUSH_WEBHOOK_SECRET || "").trim() },
-    body: JSON.stringify({ table: "payments", record: { deal_id: deal.id, amount: deal.value } }),
+    body: JSON.stringify({ table: "payments", record: { deal_id: deal.id, amount } }),
   }).catch(() => {});
 
   // Sağlayıcı, ödemeyi hesaba geçirmeden önce kendi komisyonunu kesiyor —
@@ -537,6 +537,15 @@ async function recordSuccessfulPayment(supabaseAdmin, deal, { provider, iyzicoPa
   // rezervasyon-onayı anlamına geliyor — ödeme (kapora dahil) bunu doğrudan
   // tetikler, o yüzden SADECE randevu sektörlerinde bu adım atlanır. Kim
   // oluşturduğu (KOBİ mi müşteri mi) fark etmez, sadece sektöre bakılır.
+  // NOT: payment_status burada koşulsuz "paid" yazılıyor (kapora gibi kısmi
+  // ödemelerde bile) — claimDealPayment bu kolonu AYNI ZAMANDA eş zamanlı
+  // çift-işlem koruması (mutex) olarak kullanıyor, "paid" dışında bir değere
+  // çekmek (örn. null) bu korumayı bozar ve aynı ödemenin iki kez işlenmesine
+  // (mükerrer payments satırına) yol açabilir. "Ödendi/Kısmi ödeme" ayrımı
+  // zaten her yerde totalPaidForDeal vs value karşılaştırmasından CANLI
+  // hesaplanıyor (src/App.jsx:14047) — kapora için DealForm'daki "✓ Online
+  // ödendi" rozeti ayrıca `totalPaid >= value` şartıyla süzülüyor (bkz.
+  // src/App.jsx, ilgili Badge), bu kolonun kendisi değiştirilmiyor.
   const isAppointmentSector = APPOINTMENT_SECTORS.has(sector);
   const isAlreadyClosed = deal.stage === "kazanildi" || deal.stage === "kaybedildi";
   const dealUpdate = { payment_status: "paid" };
@@ -566,7 +575,7 @@ async function recordSuccessfulPayment(supabaseAdmin, deal, { provider, iyzicoPa
 // sunucumuzdan geçmez. checkoutforms zorunlu buyer/address alanları için
 // customers tablosunda toplanmayan bilgiler (TCKN, açık adres) minimal/
 // placeholder değerlerle dolduruluyor — bkz. plan notu.
-async function initIyzicoCheckout(deal, customer, token, cred) {
+async function initIyzicoCheckout(deal, customer, token, cred, chargeAmount = deal.value) {
   const iyzipay = new Iyzipay({
     apiKey: cred.api_key,
     secretKey: cred.secret_key,
@@ -586,8 +595,8 @@ async function initIyzicoCheckout(deal, customer, token, cred) {
   const request = {
     locale: Iyzipay.LOCALE.TR,
     conversationId: deal.id,
-    price: String(deal.value),
-    paidPrice: String(deal.value),
+    price: String(chargeAmount),
+    paidPrice: String(chargeAmount),
     currency: Iyzipay.CURRENCY.TRY,
     basketId: deal.id,
     paymentGroup: Iyzipay.PAYMENT_GROUP.PRODUCT,
@@ -605,7 +614,7 @@ async function initIyzicoCheckout(deal, customer, token, cred) {
     },
     shippingAddress: address,
     billingAddress: address,
-    basketItems: [{ id: deal.id, price: String(deal.value), name: deal.title, category1: "Hizmet", itemType: Iyzipay.BASKET_ITEM_TYPE.VIRTUAL }],
+    basketItems: [{ id: deal.id, price: String(chargeAmount), name: deal.title, category1: "Hizmet", itemType: Iyzipay.BASKET_ITEM_TYPE.VIRTUAL }],
     // enabledInstallments belirli taksit sayılarının bir DİZİSİ (iyzipay SDK
     // örneklerinden doğrulandı, örn. [1,2,3,6,9,12]) — Türkiye'deki standart
     // taksit kademeleri kullanılıyor. KOBİ Ayarlar'dan taksit izni vermediyse
@@ -628,15 +637,15 @@ async function initIyzicoCheckout(deal, customer, token, cred) {
 // sabit olarak ayarlanması gerekiyor), bu yüzden hangi deal olduğunu
 // callback'te bulabilmek için ürettiğimiz merchant_oid'i deals.paytr_merchant_oid'e
 // geçici olarak kaydediyoruz.
-async function initPayTRCheckout(req, supabaseAdmin, deal, customer, token, cred) {
+async function initPayTRCheckout(req, supabaseAdmin, deal, customer, token, cred, chargeAmount = deal.value) {
   const merchantOid = crypto.randomUUID().replace(/-/g, "");
   const { error: oidError } = await supabaseAdmin.from("deals").update({ paytr_merchant_oid: merchantOid }).eq("id", deal.id);
   if (oidError) return { error: "Ödeme başlatılamadı." };
 
   const userIp = getClientIp(req);
   const email = customer?.email || "musteri@binerly.com";
-  const paymentAmount = Math.round(Number(deal.value) * 100);
-  const userBasket = Buffer.from(JSON.stringify([[deal.title, Number(deal.value).toFixed(2), 1]])).toString("base64");
+  const paymentAmount = Math.round(Number(chargeAmount) * 100);
+  const userBasket = Buffer.from(JSON.stringify([[deal.title, Number(chargeAmount).toFixed(2), 1]])).toString("base64");
   // no_installment=1 taksiti tamamen kapatır; max_installment=0 PayTR'nin
   // kendi varsayılanına bırakır — KOBİ'nin Ayarlar'daki seçimini olduğu
   // gibi yansıtmak için tek çekim isteniyorsa açıkça kapatılıyor.
@@ -684,7 +693,7 @@ async function initPayTRCheckout(req, supabaseAdmin, deal, customer, token, cred
   return { paymentPageUrl: `https://www.paytr.com/odeme/guvenli/${data.token}` };
 }
 
-async function initCheckout(req, supabaseAdmin, deal, customer, token) {
+async function initCheckout(req, supabaseAdmin, deal, customer, token, chargeAmount = deal.value) {
   const { data: cred, error: credError } = await supabaseAdmin
     .from("payment_credentials")
     .select("provider, api_key, secret_key, merchant_salt, sandbox, max_installment")
@@ -693,8 +702,8 @@ async function initCheckout(req, supabaseAdmin, deal, customer, token) {
   if (credError) console.error("payment_credentials query error:", credError.message, "deal.user_id:", deal.user_id);
   if (!cred) return { error: "Bu işletme için ödeme bağlantısı kurulmamış." };
 
-  if (cred.provider === "paytr") return initPayTRCheckout(req, supabaseAdmin, deal, customer, token, cred);
-  return initIyzicoCheckout(deal, customer, token, cred);
+  if (cred.provider === "paytr") return initPayTRCheckout(req, supabaseAdmin, deal, customer, token, cred, chargeAmount);
+  return initIyzicoCheckout(deal, customer, token, cred, chargeAmount);
 }
 
 // iyzico'nun ödeme sonucunu bildirmek için tarayıcıyı yönlendirdiği uç nokta —
@@ -756,6 +765,10 @@ async function handlePaymentCallback(req, res, supabaseAdmin, url) {
   const item = result.itemTransactions?.[0];
   const commissionAmount = item ? Number(item.iyziCommissionRateAmount || 0) + Number(item.iyziCommissionFee || 0) : 0;
   const sector = await fetchSector(supabaseAdmin, deal.user_id);
+  // Sağlayıcının GERÇEKTEN tahsil ettiği tutar — deal.value'yu varsaymak yerine
+  // (kapora gibi kısmi ödemelerde deal.value'dan küçük olabilir) iyzico'nun
+  // kendi raporladığı tutar kullanılıyor.
+  const chargedAmount = Number(result.paidPrice || result.price) || deal.value;
 
   await recordSuccessfulPayment(supabaseAdmin, deal, {
     provider: "iyzico",
@@ -763,6 +776,7 @@ async function handlePaymentCallback(req, res, supabaseAdmin, url) {
     iyzicoPaymentTransactionId: item?.paymentTransactionId || null,
     commissionAmount,
     sector,
+    amount: chargedAmount,
   });
 
   return redirect(`${target}?paid=1`);
@@ -805,7 +819,11 @@ async function handlePayTRCallback(req, res, supabaseAdmin) {
   if (status === "success") {
     if (await claimDealPayment(supabaseAdmin, deal.id)) {
       const sector = await fetchSector(supabaseAdmin, deal.user_id);
-      await recordSuccessfulPayment(supabaseAdmin, deal, { provider: "paytr", paytrMerchantOid: merchantOid, sector });
+      // total_amount PayTR'de kuruş cinsinden geliyor (initPayTRCheckout'taki
+      // paymentAmount ile aynı birim) — deal.value yerine sağlayıcının GERÇEKTEN
+      // tahsil ettiği tutar kullanılıyor (kapora gibi kısmi ödemelerde farklı olabilir).
+      const chargedAmount = Number(totalAmount) / 100 || deal.value;
+      await recordSuccessfulPayment(supabaseAdmin, deal, { provider: "paytr", paytrMerchantOid: merchantOid, sector, amount: chargedAmount });
     } // false ise: PayTR'nin "OK" almadan yaptığı tekrar denemesi, zaten işlendi
   }
 
@@ -1024,7 +1042,7 @@ export default async function handler(req, res) {
     supabaseAdmin.from("customers").select("name, email, phone, region, address, portal_user_id").eq("id", deal.customer_id).maybeSingle(),
     supabaseAdmin
       .from("company_settings")
-      .select("company_name, logo_url, sector, appointment_cancel_hours, appointment_penalty_hours, appointment_penalty_strike_limit, appointment_penalty_burns_session")
+      .select("company_name, logo_url, sector, appointment_cancel_hours, appointment_penalty_hours, appointment_penalty_strike_limit, appointment_penalty_burns_session, appointment_deposit_amount")
       .eq("user_id", deal.user_id)
       .maybeSingle(),
   ]);
@@ -1041,6 +1059,25 @@ export default async function handler(req, res) {
     return handleConfirmAttendance(req, res, supabaseAdmin, deal, settings, attendanceResponse);
   }
 
+  // Randevu widget'ından (misafir, portal hesabı YOK) gelen booking-anı kapora
+  // ödemesini başlatır — confirm-attendance ile AYNI ilkeyle isAuthorized
+  // kontrolünden ÖNCE, token tek başına yeterli. Normal tam-ödeme onay linki
+  // akışını (checkout-init, portal-auth'lu) hijack etmek için kötüye
+  // kullanılamaması için deal'in GERÇEKTEN randevu widget'ından gelmiş,
+  // ödeme bekleyen bir kayıt olması şart koşuluyor. Tutar İSTEMCİDEN ASLA
+  // alınmıyor - her seferinde company_settings'ten taze okunuyor.
+  if (req.method === "POST" && action === "deposit-checkout-init") {
+    if (deal.custom_fields?.kaynak !== "randevu_widget" || deal.payment_mode !== "required" || deal.payment_status === "paid") {
+      return res.status(400).json({ error: "Bu işlem için uygun değil." });
+    }
+    const { data: freshSettings } = await supabaseAdmin.from("company_settings").select("appointment_deposit_amount").eq("user_id", deal.user_id).maybeSingle();
+    const depositAmount = freshSettings?.appointment_deposit_amount;
+    if (!(depositAmount > 0)) return res.status(400).json({ error: "Kapora tanımlı değil." });
+    const result = await initCheckout(req, supabaseAdmin, deal, customer, token, depositAmount);
+    if (result.error) return res.status(502).json({ error: result.error });
+    return res.status(200).json({ paymentPageUrl: result.paymentPageUrl });
+  }
+
   const authHeader = req.headers.authorization || "";
   const accessToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
   let authedUserId = null;
@@ -1048,7 +1085,15 @@ export default async function handler(req, res) {
     const { data: userData } = await supabaseAdmin.auth.getUser(accessToken);
     authedUserId = userData?.user?.id || null;
   }
-  const isAuthorized = !!(authedUserId && customer?.portal_user_id && authedUserId === customer.portal_user_id);
+  // Randevu widget'ından (misafir) kendi randevusunu alan müşterinin hiç
+  // portal hesabı yok - kapora ödedikten sonra bu sayfaya (/onay/{token})
+  // döndüğünde "giriş yap" duvarına çarpmasın diye (kayıtsız/hızlı randevu
+  // felsefesiyle çelişirdi) token tek başına yeterli sayılıyor - tıpkı
+  // confirm-attendance/confirm-marketing-consent'teki gibi. Portal hesabı
+  // OLUŞTUKTAN sonra (customer.portal_user_id set edildikten sonra) bu yol
+  // artık geçerli olmaz, normal portal-auth'a döner.
+  const isSelfBookedGuest = !customer?.portal_user_id && deal.custom_fields?.kaynak === "randevu_widget";
+  const isAuthorized = !!(authedUserId && customer?.portal_user_id && authedUserId === customer.portal_user_id) || isSelfBookedGuest;
 
   if (!isAuthorized) {
     return res.status(401).json({ requiresAuth: true, ...branding });
@@ -1072,9 +1117,14 @@ export default async function handler(req, res) {
       customerName: customer?.name || "",
       paymentMode: deal.payment_mode || "none",
       paymentStatus: deal.payment_status || null,
-      // Portaldan kendi alınan randevu/üyelik/rezervasyonlarda onay diye bir
-      // kavram yok — müşteri zaten kendi almış, sayfa sadece "Öde" göstermeli.
-      selfBooked: deal.custom_fields?.kaynak === "portal",
+      // Portaldan veya randevu widget'ından kendi alınan randevu/üyelik/
+      // rezervasyonlarda onay diye bir kavram yok — müşteri zaten kendi almış,
+      // sayfa sadece "Öde" göstermeli.
+      selfBooked: deal.custom_fields?.kaynak === "portal" || deal.custom_fields?.kaynak === "randevu_widget",
+      // Sadece randevu widget'ından gelen, henüz tam ödenmemiş "ödeme bekleniyor"
+      // kayıtlarda anlamlı — sayfa "Kaporanız X TL alındı" yerine "Kaporanızı
+      // ödeyin" gösterebilsin diye.
+      depositAmount: deal.custom_fields?.kaynak === "randevu_widget" && deal.payment_mode === "required" ? settings?.appointment_deposit_amount || null : null,
       ...branding,
     });
   }

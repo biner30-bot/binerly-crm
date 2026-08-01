@@ -51,6 +51,9 @@ export default function AppointmentRequestPage() {
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [deposit, setDeposit] = useState(null); // { approvalToken, depositAmount }
+  const [payingDeposit, setPayingDeposit] = useState(false);
+  const [depositError, setDepositError] = useState("");
 
   useEffect(() => {
     if (!token) { setLoading(false); setError("Geçersiz bağlantı."); return; }
@@ -103,11 +106,40 @@ export default function AppointmentRequestPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setSubmitError(data.error || "Gönderilemedi."); setSending(false); return; }
-      setDone(true);
+      // Randevu kaydı her durumda oluşmuş oluyor (kapora bekleniyor olsa bile) -
+      // ödeme yarıda kalırsa bile işletme talebi kaybetmiyor.
+      if (data.needsDeposit) {
+        setDeposit({ approvalToken: data.approvalToken, depositAmount: data.depositAmount });
+      } else {
+        setDone(true);
+      }
     } catch {
       setSubmitError("Bağlantı hatası, lütfen tekrar deneyin. İnternet bağlantınızı kontrol edin.");
     }
     setSending(false);
+  };
+
+  const payDeposit = async () => {
+    if (!deposit) return;
+    setDepositError("");
+    setPayingDeposit(true);
+    try {
+      const res = await fetch("/api/deal-approval", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: deposit.approvalToken, action: "deposit-checkout-init" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.paymentPageUrl) {
+        setDepositError(data.error || "Ödeme başlatılamadı, lütfen tekrar deneyin.");
+        setPayingDeposit(false);
+        return;
+      }
+      window.location.href = data.paymentPageUrl;
+    } catch {
+      setDepositError("Bağlantı hatası, lütfen tekrar deneyin.");
+      setPayingDeposit(false);
+    }
   };
 
   // 0 TL'lik bir fiyat kalemi zaten "ücretsiz" demek - ayrı bir "deneme" alanı
@@ -121,6 +153,27 @@ export default function AppointmentRequestPage() {
           <p style={{ textAlign: "center", color: "#5b7088" }}>Yükleniyor…</p>
         ) : error ? (
           <p style={{ textAlign: "center", color: "#b91c1c" }}>{error}</p>
+        ) : deposit ? (
+          <>
+            <p style={{ textAlign: "center", color: "#0c2540", fontWeight: 600, marginBottom: 8 }}>
+              Randevu talebiniz alındı.
+            </p>
+            <p style={{ textAlign: "center", color: "#5b7088", fontSize: 14, marginBottom: 20 }}>
+              Randevunuzu onaylamak için <strong>{deposit.depositAmount} TL</strong> kapora ödemeniz gerekiyor. Kapora, mevcut bir tahsilat olarak kaydedilir; iptal durumunda işletmeyle doğrudan görüşebilirsiniz.
+            </p>
+            {depositError && <p style={{ color: "#b91c1c", fontSize: 13, textAlign: "center", margin: "0 0 12px" }}>{depositError}</p>}
+            <button
+              type="button"
+              onClick={payDeposit}
+              disabled={payingDeposit}
+              style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: "pointer", opacity: payingDeposit ? 0.6 : 1 }}
+            >
+              {payingDeposit ? "Yönlendiriliyor…" : `Kaporayı Öde (${deposit.depositAmount} TL)`}
+            </button>
+            <p style={{ textAlign: "center", color: "#9aa8b8", fontSize: 12, margin: "16px 0 0" }}>
+              Şimdi ödemezseniz de randevu talebiniz kayıtlı kalır, bu bağlantıya daha sonra dönüp ödeyebilirsiniz.
+            </p>
+          </>
         ) : done ? (
           <>
             <p style={{ textAlign: "center", color: "#15803d", fontWeight: 600 }}>✓ Randevu talebiniz alındı, işletme sizinle iletişime geçecek.</p>
