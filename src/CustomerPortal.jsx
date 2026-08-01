@@ -1653,24 +1653,23 @@ export default function CustomerPortal() {
   const bookAppointment = async ({ customerId, businessUserId, dateTime, dateTimeKey, note, serviceIds, hasPaymentProvider, checkIn, checkOut, roomType, partySize, visitPurpose }) => {
     // Otel gibi oda-stoklu (bookingModel === "inventory") sektörlerde RoomBookingModal
     // dateTime/dateTimeKey yerine checkIn/checkOut/roomType gönderiyor — saat slotu
-    // yerine giriş/çıkış tarih aralığı + oda tipi yazılıyor.
+    // yerine giriş/çıkış tarih aralığı + oda tipi yazılıyor. Kayıt SUNUCU
+    // TARAFINDA (api/appointment-availability.js POST) atılır - önceden doğrudan
+    // istemciden insert ediliyordu, oda kapasitesi HİÇ kontrol edilmiyordu.
     if (checkIn) {
       if (new Date(checkIn).getTime() < Date.now()) {
         notify("Geçmiş bir tarih için rezervasyon alınamaz.");
         return false;
       }
-      const row = {
-        id: uid(), user_id: businessUserId, customer_id: customerId,
-        title: (note || "").trim() || "Rezervasyon talebi", value: 0, stage: "ilk_gorusme",
-        custom_fields: {
-          giris_tarihi: checkIn, cikis_tarihi: checkOut, oda_tipi: roomType, kisi_sayisi: partySize,
-          ...(visitPurpose ? { ziyaret_amaci: visitPurpose } : {}),
-          portal_randevu_zamani: checkIn, kaynak: "portal",
-        },
-      };
-      const { data, error } = await supabase.from("deals").insert(row).select().single();
-      if (error) { notify(`Rezervasyon alınamadı: ${error.message}`); return false; }
-      setDeals((prev) => [...prev, rowToDeal(data)]);
+      const { data: { session: roomSession } } = await supabase.auth.getSession();
+      const roomRes = await fetch("/api/appointment-availability", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${roomSession?.access_token || ""}` },
+        body: JSON.stringify({ customerId, businessUserId, note, checkIn, checkOut, roomType, partySize, visitPurpose }),
+      });
+      const roomResult = await roomRes.json().catch(() => ({}));
+      if (!roomRes.ok) { notify(roomResult.error || "Rezervasyon alınamadı."); return false; }
+      setDeals((prev) => [...prev, rowToDeal(roomResult.deal)]);
       notify("Rezervasyonunuz alındı.", "success");
       return true;
     }

@@ -67,9 +67,9 @@ async function handleBooking(req, res, supabaseAdmin) {
   const authedUserId = userData?.user?.id || null;
   if (!authedUserId) return res.status(401).json({ error: "Giriş gerekli." });
 
-  const { customerId, businessUserId, dateTime, dateTimeKey, note, value, serviceIds } = req.body || {};
+  const { customerId, businessUserId, dateTime, dateTimeKey, note, value, serviceIds, checkIn, checkOut, roomType, partySize, visitPurpose } = req.body || {};
   const cleanServiceIds = Array.isArray(serviceIds) ? serviceIds.filter((id) => typeof id === "string" && id) : [];
-  if (!customerId || !businessUserId || !dateTime || !dateTimeKey || !(note || "").trim()) {
+  if (!customerId || !businessUserId || !(note || "").trim() || (!checkIn && (!dateTime || !dateTimeKey))) {
     return res.status(400).json({ error: "Eksik bilgi." });
   }
 
@@ -82,6 +82,50 @@ async function handleBooking(req, res, supabaseAdmin) {
   if (customerError) return res.status(500).json({ error: customerError.message });
   if (!customer || customer.portal_user_id !== authedUserId || customer.user_id !== businessUserId) {
     return res.status(403).json({ error: "Yetkisiz işlem." });
+  }
+
+  // Otel gibi oda-stoklu (bookingModel === "inventory") sektörler — saat slotu
+  // değil GİRİŞ/ÇIKIŞ tarih aralığı + oda tipi stoku. Önceden bu dal
+  // CustomerPortal.jsx'ten doğrudan istemciden insert ediliyordu, oda kapasitesi
+  // HİÇ kontrol edilmiyordu (GET'teki /rooms sorgusu sadece görüntüleme içindi) -
+  // iki müşteri aynı anda son odayı "boş" görüp ikisi de alabiliyordu. GET
+  // checkIn dalındaki AYNI overlap mantığı burada da uygulanır.
+  if (checkIn) {
+    if (new Date(checkIn).getTime() < Date.now()) {
+      return res.status(400).json({ error: "Geçmiş bir tarih için rezervasyon alınamaz." });
+    }
+    if (!roomType) return res.status(400).json({ error: "Oda tipi gerekli." });
+    const { data: inventory } = await supabaseAdmin.from("room_inventory").select("quantity").eq("user_id", businessUserId).eq("room_type", roomType).maybeSingle();
+    if (!inventory) return res.status(400).json({ error: "Geçersiz oda tipi." });
+    const { data: existingDeals, error: roomConflictError } = await supabaseAdmin
+      .from("deals")
+      .select("custom_fields")
+      .eq("user_id", businessUserId)
+      .is("deleted_at", null)
+      .neq("stage", "kaybedildi");
+    if (roomConflictError) return res.status(500).json({ error: roomConflictError.message });
+    const occupied = (existingDeals || []).filter((d) => {
+      const cf = d.custom_fields || {};
+      if (cf.oda_tipi !== roomType) return false;
+      const start = typeof cf.giris_tarihi === "string" ? cf.giris_tarihi.slice(0, 10) : null;
+      const end = typeof cf.cikis_tarihi === "string" ? cf.cikis_tarihi : null;
+      if (!start || !end) return false;
+      return checkIn < end && start < checkOut;
+    }).length;
+    if (occupied >= inventory.quantity) return res.status(409).json({ error: "Bu tarih aralığında bu oda tipi dolu, lütfen farklı bir tarih/oda seçin." });
+
+    const row = {
+      id: crypto.randomUUID(), user_id: businessUserId, customer_id: customerId,
+      title: (note || "").trim() || "Rezervasyon talebi", value: 0, stage: "ilk_gorusme",
+      custom_fields: {
+        giris_tarihi: checkIn, cikis_tarihi: checkOut, oda_tipi: roomType, kisi_sayisi: partySize,
+        ...(visitPurpose ? { ziyaret_amaci: visitPurpose } : {}),
+        portal_randevu_zamani: checkIn, kaynak: "portal",
+      },
+    };
+    const { data, error } = await supabaseAdmin.from("deals").insert(row).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(200).json({ deal: data });
   }
 
   if (new Date(dateTime).getTime() < Date.now()) {
