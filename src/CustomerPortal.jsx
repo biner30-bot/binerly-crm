@@ -885,7 +885,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose }) {
                 >
                   <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{weekday}</div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{day}</div>
-                  <div style={{ fontSize: 10, color: empty ? "var(--text-muted)" : "var(--text-success)" }}>{empty ? "Dolu" : `${d.slotCount} boş`}</div>
+                  <div style={{ fontSize: 10, color: empty ? "var(--text-muted)" : "var(--text-success)" }}>{d.closed ? "Kapalı" : empty ? "Dolu" : `${d.slotCount} boş`}</div>
                 </button>
               );
             })}

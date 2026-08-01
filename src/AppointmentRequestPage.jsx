@@ -290,7 +290,7 @@ export default function AppointmentRequestPage() {
                         >
                           <div style={{ fontSize: 11, color: "#5b7088" }}>{weekday}</div>
                           <div style={{ fontSize: 14, fontWeight: 700, color: "#0c2540" }}>{day}</div>
-                          <div style={{ fontSize: 10, color: empty ? "#9aa8b8" : "#15803d" }}>{empty ? "Dolu" : `${d.slotCount} boş`}</div>
+                          <div style={{ fontSize: 10, color: empty ? "#9aa8b8" : "#15803d" }}>{d.closed ? "Kapalı" : empty ? "Dolu" : `${d.slotCount} boş`}</div>
                         </button>
                       );
                     })}

@@ -135,7 +135,11 @@ export default async function handler(req, res) {
       const windows = hoursByWeekday.get(isoWeekday) || [];
       const taken = takenByDate.get(dateStr) || new Set();
       const slotCount = computeDaySlots(windows, dateStr === todayIstanbul, nowMinutes, taken).length;
-      days.push({ date: dateStr, slotCount });
+      // "Kapalı" (o haftagünü için hiç mesai saati tanımlı değil - KOBİ'nin
+      // kendi Müsaitlik Saatleri seçimi, ör. Pazar) ile "Dolu" (mesai var ama
+      // tüm saatler alınmış) FARKLI şeyler - ikisi de slotCount=0 olduğu için
+      // ayrı bir bayrakla işaretlenmezse widget'ta ayırt edilemiyordu.
+      days.push({ date: dateStr, slotCount, closed: windows.length === 0 });
     }
     return res.status(200).json({ days, dateTimeKey, hasPaymentProvider });
   }
