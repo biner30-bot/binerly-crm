@@ -16465,7 +16465,7 @@ export default function App() {
       {appointmentLink && (
         <Modal title="Randevu Alma Linki" onClose={() => setAppointmentLink(null)}>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px" }}>
-            Bu linki (veya QR kodu) Instagram bio'nuza, sitenize veya kartvizitinize koyun - hiç kaydı olmayan bir müşteri bile giriş yapmadan uygun bir saat seçip randevu talep edebilir.
+            Bu linki (veya QR kodu) Instagram bio'nuza, sitenize veya kartvizitinize koyun - hiç kaydı olmayan bir müşteri bile giriş yapmadan uygun bir saat seçip randevu talep edebilir. Link kalıcıdır - fiyat listenizi, hizmetlerinizi veya müsaitlik saatlerinizi güncellediğinizde linki tekrar almanıza gerek yok, değişiklikler otomatik yansır.
           </p>
           {priceListItems.some((item) => Number(item.price) === 0) ? (
             <p style={{ fontSize: 12, color: "var(--text-secondary)", background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 10px", margin: "0 0 16px" }}>
@@ -16516,29 +16516,6 @@ export default function App() {
                 <WhatsAppIcon /> Gönder
               </button>
             </div>
-          </div>
-
-          <div style={{ marginTop: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
-              Kendi web sitenize ekleyin - bu kodu sitenizin HTML'ine yapıştırın, ziyaretçileriniz sizden mesaj beklemeden doğrudan randevu alabilsin
-            </label>
-            <textarea
-              readOnly
-              value={`<a href="${appointmentLink}" target="_blank" rel="noopener" style="display:inline-block;background:#185fa5;color:#fff;padding:12px 20px;border-radius:8px;font-family:system-ui,-apple-system,sans-serif;font-weight:700;font-size:15px;text-decoration:none;">Randevu Al</a>`}
-              onFocus={(e) => e.target.select()}
-              style={{ width: "100%", minHeight: 70, fontSize: 12, fontFamily: "monospace", resize: "vertical" }}
-            />
-            <button
-              type="button"
-              onClick={() => {
-                const code = `<a href="${appointmentLink}" target="_blank" rel="noopener" style="display:inline-block;background:#185fa5;color:#fff;padding:12px 20px;border-radius:8px;font-family:system-ui,-apple-system,sans-serif;font-weight:700;font-size:15px;text-decoration:none;">Randevu Al</a>`;
-                navigator.clipboard.writeText(code);
-                notify("Kod kopyalandı.", "success");
-              }}
-              style={{ marginTop: 8, background: "var(--surface-1)", border: "0.5px solid var(--border)" }}
-            >
-              Kodu Kopyala
-            </button>
           </div>
         </Modal>
       )}
