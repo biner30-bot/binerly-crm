@@ -15407,18 +15407,6 @@ export default function App() {
               <i className="ti ti-qrcode" style={{ fontSize: 16 }} aria-hidden="true"></i>
               Müşteri Kazanma Linki
             </button>
-            {supportsSelfBooking(companySettings?.sector) && bookingModel(companySettings?.sector) === "slot" && (
-              <button
-                onClick={async () => {
-                  const link = await generateLeadCaptureLink();
-                  if (link) setAppointmentLink(link.replace("/lead/", "/randevu-al/"));
-                }}
-                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
-              >
-                <i className="ti ti-calendar-event" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                Randevu Alma Linki
-              </button>
-            )}
             <button
               onClick={() => setShowPortalLinkModal(true)}
               style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
@@ -15689,6 +15677,18 @@ export default function App() {
               <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
               İçe aktar
             </button>
+            {supportsSelfBooking(companySettings?.sector) && bookingModel(companySettings?.sector) === "slot" && (
+              <button
+                onClick={async () => {
+                  const link = await generateLeadCaptureLink();
+                  if (link) setAppointmentLink(link.replace("/lead/", "/randevu-al/"));
+                }}
+                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                <i className="ti ti-calendar-event" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                Randevu Alma Linki
+              </button>
+            )}
             <button
               onClick={() => { setEditingDeal(null); setShowDealForm(true); }}
               disabled={customers.length === 0}
