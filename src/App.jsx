@@ -762,7 +762,7 @@ const HELP_TOPICS = [
   { category: "Müşteriler & Kayıtlar", q: "Yeni müşteri nasıl eklerim?", a: "Müşteriler sekmesine gidip \"+ Müşteri ekle\" butonuna tıklayın. Ad/firma adı zorunlu, geri kalan alanlar opsiyoneldir." },
   { category: "Müşteriler & Kayıtlar", q: "Teklif/randevu/üyelik nasıl oluşturulur?", a: "Sol menüdeki Teklifler/Randevular/Üyelikler/Rezervasyonlar sekmesinden (sektörünüze göre adı değişir) \"+ Ekle\" ile yeni bir kayıt açın; önce bir müşteri seçilmiş olmalı. Aşama değiştikçe kayıt otomatik ilerler." },
   { category: "Müşteriler & Kayıtlar", q: "Müşteri Kazanma Linki nedir?", a: "Ayarlar → Müşteri Kazanma Linki'nden aldığınız linki (veya QR kodunu) paylaşırsanız, müşteri kendi bilgilerini doldurup sisteminize düşer - elle veri girmenize gerek kalmaz." },
-  { category: "Müşteriler & Kayıtlar", q: "Yanlışlıkla sildiğim bir kaydı nasıl geri getiririm?", a: "Ayarlar → Çöp Kutusu ve Geçmiş'ten silinen müşteri/teklif/tahsilat kayıtlarını geri yükleyebilirsiniz. Hiçbir şey otomatik olarak kalıcı silinmez." },
+  { category: "Müşteriler & Kayıtlar", q: "Yanlışlıkla sildiğim bir kaydı nasıl geri getiririm?", a: "Ayarlar → Çöp Kutusu ve Geçmiş'ten silinen müşteri/teklif/tahsilat kayıtlarını geri yükleyebilirsiniz. Hiçbir şey otomatik olarak kalıcı silinmez - işletme sahibi isterse aynı ekrandan bir kaydı elle \"Kalıcı Olarak Sil\" ile geri dönüşü olmayacak şekilde silebilir (tahsilat/işletme gideri kayıtları yasal saklama süresi nedeniyle bu seçenek dışındadır)." },
   { category: "Müşteriler & Kayıtlar", q: "Müşteri/teklif listemi Excel'e nasıl aktarırım?", a: "İlgili sekmenin üstündeki \"Dışa Aktar\" butonuyla .xlsx dosyası indirebilirsiniz. Aynı ekranlarda \"İçe Aktar\" ile de toplu veri yükleyebilirsiniz (CSV/Excel/vCard)." },
   { category: "Müşteriler & Kayıtlar", q: "Word tablosundaki veya WhatsApp kişilerimdeki müşterileri nasıl aktarırım?", a: "Word tablonuzu Excel'e kopyalayıp CSV olarak kaydedin, sonra İçe Aktar'dan yükleyin. WhatsApp'ın kendi kişi dışa aktarma özelliği yok - telefonunuzun Kişiler uygulamasından vCard (.vcf) alıp İçe Aktar'a yükleyebilirsiniz." },
 
@@ -854,6 +854,7 @@ const HELP_TOPICS = [
   { category: "Randevu & Program", q: "Müşteri ders kaydını portaldan iptal ederken bir süre sınırı var mı?", a: "Evet, varsayılan olarak ders saatine en az 2 saat kala portaldan iptal edilebilir; bunu Dersler sekmesindeki \"Geç iptal / seans yakma politikası\"ndan tamamen kendiniz özelleştirebilirsiniz (kilitleme süresi, geç iptal penceresi, kaçıncı geç iptalde seansın yanacağı).", visibleIf: (sector) => supportsGroupClasses(sector) },
   { category: "Randevu & Program", q: "Müşteri portaldan randevu alırken hizmet/fiyat seçebilir mi?", a: "Evet, Fiyat Listesi sekmesinde kayıtlı kalemleriniz varsa müşteri randevu formunda listeden seçebilir, açıklama ve tutar otomatik dolar; isterse yine elle de yazabilir.", visibleIf: (sector) => supportsSelfBooking(sector) },
   { category: "Randevu & Program", q: "Ücretsiz ilk görüşme/deneme randevusunu nasıl vurgularım?", a: "Fiyat Listesi sekmesine fiyatı 0 TL olan bir kalem ekleyin (örn. \"Ücretsiz İlk Görüşme\") - Ayarlar → Randevu Alma Linki ile paylaştığınız widget'ta bu otomatik olarak ayrı, vurgulu bir buton olarak öne çıkar, ekstra bir ayar gerekmez.", visibleIf: (sector) => supportsSelfBooking(sector) && bookingModel(sector) === "slot" },
+  { category: "Randevu & Program", q: "Randevu Alma Linki'nden gelen müşteriden kapora alabilir miyim?", a: "Evet - Ayarlar → Müsaitlik Saatleri → Randevu iptal/gelmeme politikası'ndan \"Randevu Kaporası\"nı açıp sabit bir TL tutarı girersiniz (Ödeme Bağlantısı - iyzico veya PayTR - kurulu olmalı). Widget'tan randevu alan misafirden bu tutar (seçilen hizmetin fiyatını aşmayacak şekilde) online tahsil edilir, varsayılan kapalıdır.", visibleIf: (sector) => supportsSelfBooking(sector) && bookingModel(sector) === "slot" },
   { category: "Randevu & Program", q: "Bir grup dersine kaç kişi kaydolabilir, bunu nasıl sınırlarım?", a: "Ders oluştururken girdiğiniz \"Kapasite\" değeri sınırı belirler; kapasite dolunca portalda ders \"dolu\" görünür ve yeni kayıt alınamaz. Kapasiteyi zaten kayıtlı kişi sayısının altına düşüremezsiniz.", visibleIf: (sector) => supportsGroupClasses(sector) },
   { category: "Randevu & Program", q: "Müşterinin bir derse kaydolabilmesi için aktif üyeliği/kaydı olması gerekir mi?", a: "Evet - sadece kazanılmış ve süresi (varsa) dolmamış bir kaydı olan müşteriler derse kaydolabilir; uygun olmayan müşteriler için portalda kısa bir uyarı metni gösterilir.", visibleIf: (sector) => supportsGroupClasses(sector) },
   { category: "Randevu & Program", q: "Randevu/görüşme tarihi alanı nereden geliyor, ben mi ekliyorum?", a: "Bu, Sektör & Özel Alanlar'da \"Tarih & Saat\" tipinde tanımlanan bir özel alandır - randevu sektörlerinde hazır gelir, diğer sektörlerde isterseniz kendiniz ekleyebilirsiniz.", visibleIf: (sector) => supportsSelfBooking(sector) },
@@ -880,12 +881,12 @@ const HELP_TOPICS = [
   { category: "Takım", q: "Takım sahibi değilsem Ayarlar'da neler görürüm?", a: "İşletme Bilgileri, Sektör & Özel Alanlar gibi ayarlar sadece \"İşletme/sektör ayarlarını düzenleyebilir\" izni size verilmişse görünür; Takım ekranında ise sadece hangi işletmenin üyesi olduğunuzu ve \"Takımdan ayrıl\" seçeneğini görürsünüz." },
   { category: "Takım", q: "Bir takım üyesine sadece belirli sekmeleri mi açabilirim?", a: "Hayır, sekme bazlı bir kısıtlama yok - tek ayrım İşletme Bilgileri/Sektör gibi ayarları düzenleme izni; verilen izin dışında tüm müşteri/teklif/destek verisi her üyeye aynı şekilde açıktır." },
   { category: "Takım", q: "Davet e-postası karşı tarafa otomatik mi gönderiliyor?", a: "Davet kaydını oluşturduğunuzda sistem otomatik bir bilgilendirme e-postası göndermeyi dener; e-posta gönderimi başarısız olsa bile davet geçerli kalır, kişi giriş yaptığında bekleyen daveti Binerly içinde görür." },
-  { category: "Takım", q: "Takım üyesi sayısında bir sınır var mı?", a: "Şu an için pratik bir üst sınır yok; bekleyen davetleriniz de Takım ekranında listelenir, dilerseniz kabul edilmeden önce iptal edebilirsiniz." },
+  { category: "Takım", q: "Takım üyesi sayısında bir sınır var mı?", a: "Evet, işletme sahibi dahil en fazla 5 kişi (kabul edilmiş üyeler + bekleyen davetler) olabilir. Sınıra ulaştığınızda yeni davet göndermeden önce bekleyen bir daveti iptal etmeniz veya bir üyeyi kaldırmanız gerekir; daha fazla kullanıcıya ihtiyacınız varsa bize ulaşın." },
   { category: "Takım", q: "Bir kişi aynı anda birden fazla işletmenin takımına üye olabilir mi?", a: "Evet - aynı e-posta adresiyle farklı işletmelerden davet alıp kabul edebilir, giriş yaptığında hangi işletmeyle çalışacağını seçer." },
   { category: "Takım", q: "Bir üyeyi takımdan çıkarırsam, o üyenin sorumlu olduğu kayıtlara ne olur?", a: "Kayıtlar olduğu gibi kalır, sorumlu ataması değişmez - sadece o kişinin sisteme erişimi kesilir; kayıtları başka bir üyeye yeniden atamak isterseniz elle değiştirmeniz gerekir." },
   { category: "Takım", q: "Tek seferde birden fazla kişiyi davet edebilir miyim?", a: "Hayır, davet ekranı tek bir e-posta adresi alır - birden fazla kişiyi davet etmek için işlemi her kişi için ayrı ayrı tekrarlamanız gerekir." },
   { category: "Takım", q: "Bekleyen bir daveti tekrar gönderebilir miyim?", a: "Ayrı bir \"yeniden gönder\" özelliği yok - davet e-postası ulaşmadıysa daveti iptal edip aynı e-postayla yeniden davet edebilirsiniz." },
-  { category: "Takım", q: "Takıma üye eklemek ek ücrete tabi mi?", a: "Hayır, takım üyesi sayısına göre ek bir ücret alınmaz - abonelik ücretiniz sabittir." },
+  { category: "Takım", q: "Takıma üye eklemek ek ücrete tabi mi?", a: "Hayır, 5 kullanıcıya kadar ek bir ücret alınmaz - abonelik ücretiniz sabittir. Daha büyük bir ekibiniz varsa bizimle iletişime geçip vaka bazlı bir çözüm bulabiliriz." },
   { category: "Takım", q: "Bir üyenin e-postasını sonradan değiştirebilir miyim?", a: "Hayır, doğrudan bir düzenleme seçeneği yok - üyeyi çıkarıp doğru e-postayla yeniden davet etmeniz gerekir." },
   { category: "Takım", q: "Bir üyenin ayarları düzenleme iznini sonradan kaldırabilir miyim?", a: "Evet, bu izin herhangi bir zamanda Takım ekranından açılıp kapatılabilir - sadece davet anında değil, istediğiniz zaman değiştirebilirsiniz." },
 
@@ -1618,8 +1619,15 @@ const ANSWER_LIBRARY = [
     id: "team_member_count",
     category: "Takım",
     label: "Kaç takım üyem var?",
-    keywords: ["kaç takım üyem var", "takım büyüklüğü"],
-    compute: (ctx) => (ctx.teamMembers.length > 0 ? `Siz dahil ${ctx.teamMembers.length + 1} kişisiniz.` : "Henüz takım üyeniz yok, tek başınızasınız."),
+    keywords: ["kaç takım üyem var", "takım büyüklüğü", "kaç kullanıcı hakkım kaldı"],
+    compute: (ctx) => {
+      const total = ctx.teamMembers.length + 1;
+      const remaining = MAX_TEAM_SIZE - total;
+      if (ctx.teamMembers.length === 0) return `Henüz takım üyeniz yok, tek başınızasınız (en fazla ${MAX_TEAM_SIZE} kullanıcıya kadar davet edebilirsiniz).`;
+      return remaining > 0
+        ? `Siz dahil ${total} kişisiniz - ${MAX_TEAM_SIZE} kullanıcı hakkınızın ${remaining} tanesi boşta.`
+        : `Siz dahil ${total} kişisiniz - ${MAX_TEAM_SIZE} kullanıcı sınırınıza ulaştınız.`;
+    },
   },
   {
     id: "attachment_count",
@@ -10380,6 +10388,11 @@ function TeamDailyLoadPanel({ members, staffShifts, deals, customers, customFiel
   );
 }
 
+// [[project_binerly_business_goal]]: fiyatlandırma "5 kullanıcıya kadar sabit ücret" üzerine
+// kurulu - işletme sahibi + kabul edilmiş üyeler + bekleyen davetler toplamı bu sayıyı geçemez
+// (davet gönderirken koltuk ayrılır, kabul anında sürpriz reddedilme olmasın diye).
+const MAX_TEAM_SIZE = 5;
+
 function TeamModal({ session, activeTeamId, companySettings, onClose, notify, staffShifts, onAddStaffShift, onDeleteStaffShift, teamRoster, deals, customers, customFieldDefs }) {
   const isOwner = activeTeamId === session.user.id;
   const [members, setMembers] = useState([]);
@@ -10408,10 +10421,17 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify, st
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const occupiedSeats = 1 + members.length + invites.length; // 1 = işletme sahibi
+  const atTeamLimit = occupiedSeats >= MAX_TEAM_SIZE;
+
   const sendInvite = async (e) => {
     e.preventDefault();
     const email = inviteEmail.trim().toLowerCase();
     if (!email) return;
+    if (atTeamLimit) {
+      notify(`En fazla ${MAX_TEAM_SIZE} kullanıcı sınırına ulaştınız. Daha fazlası için info@binerly.com adresinden bize ulaşın.`);
+      return;
+    }
     setSending(true);
     const { error } = await supabase.from("team_invites").insert({ owner_id: activeTeamId, email });
     if (error) {
@@ -10528,7 +10548,9 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify, st
           </div>
           <TeamDailyLoadPanel members={members} staffShifts={staffShifts} deals={deals} customers={customers} customFieldDefs={customFieldDefs} sessionUserId={session.user.id} />
           <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>Üyeler</label>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
+              Üyeler <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>({occupiedSeats}/{MAX_TEAM_SIZE})</span>
+            </label>
             {members.length === 0 ? (
               <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz takım üyesi yok.</p>
             ) : (
@@ -10599,22 +10621,31 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify, st
               </div>
             </div>
           )}
-          <form onSubmit={sendInvite}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>E-posta ile davet et</label>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                type="email"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="ornek@sirket.com"
-                required
-                style={{ flex: 1 }}
-              />
-              <button type="submit" disabled={sending} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
-                {sending ? "Gönderiliyor…" : "Davet et"}
-              </button>
+          {atTeamLimit ? (
+            <div style={{ background: "var(--bg-warning)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "10px 12px" }}>
+              <p style={{ fontSize: 13, margin: 0, color: "var(--text-primary)" }}>
+                {MAX_TEAM_SIZE} kullanıcı sınırına ulaştınız (işletme sahibi + üyeler + bekleyen davetler). Daha fazla kullanıcı için{" "}
+                <a href="mailto:info@binerly.com?subject=Ek%20kullan%C4%B1c%C4%B1%20talebi">info@binerly.com</a> adresinden bize ulaşın.
+              </p>
             </div>
-          </form>
+          ) : (
+            <form onSubmit={sendInvite}>
+              <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>E-posta ile davet et</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="ornek@sirket.com"
+                  required
+                  style={{ flex: 1 }}
+                />
+                <button type="submit" disabled={sending} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+                  {sending ? "Gönderiliyor…" : "Davet et"}
+                </button>
+              </div>
+            </form>
+          )}
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
             <button onClick={onClose}>Kapat</button>
           </div>
@@ -11651,7 +11682,7 @@ const LANDING_FAQS = [
   { q: "Verilerim ne kadar güvende?", a: "Her hesap yalnızca kendi kayıtlarına erişebilir (satır bazlı erişim kuralları) - başka bir işletmenin verisine teknik olarak erişim mümkün değildir. Veriler KVKK'ya uygun işlenir, asla üçüncü taraflarla paylaşılmaz." },
   { q: "İstediğim zaman ayrılabilir miyim?", a: "Evet, herhangi bir taahhüt veya cayma bedeli yoktur. Ayarlar bölümünden istediğiniz zaman hesabınızı kapatabilirsiniz." },
   { q: "Kullanmayı öğrenmek zor mu, teknik bilgi gerekir mi?", a: "Hayır - Binerly günlük kullanılan basit programlar kadar sade olacak şekilde tasarlandı. Sektörünüzü seçtiğinizde arayüz otomatik şekillenir, ekranın içindeki Yardım bölümünden anlık soru sorabilirsiniz." },
-  { q: "Ekip arkadaşlarımla birlikte kullanabilir miyim?", a: "Evet, sınırsız takım üyesi davet edebilirsiniz - herkes aynı müşteri/teklif/randevu verisini görüp güncelleyebilir." },
+  { q: "Ekip arkadaşlarımla birlikte kullanabilir miyim?", a: "Evet, işletme sahibi dahil 5 kullanıcıya kadar takım üyesi davet edebilirsiniz - herkes aynı müşteri/teklif/randevu verisini görüp güncelleyebilir, ek ücret alınmaz. Daha büyük bir ekibiniz varsa bize ulaşın." },
   { q: "Sadece benim sektörüme mi uygun, yoksa genel bir CRM mi?", a: "Binerly genel bir CRM'dir ama sektörünüzü seçtiğinizde (Güzellik & Bakım, Sağlık/Klinik, Emlak, Spor Merkezi ve daha fazlası) form alanları, aşama isimleri ve randevu/üyelik gibi özellikler otomatik olarak sektörünüze göre şekillenir." },
 ];
 
@@ -11889,8 +11920,8 @@ function LandingPage() {
               id: "entegrasyonlar",
               icon: "ti-plug-connected",
               title: "Entegrasyonlar & Mobil",
-              desc: "Uygulamayı telefonunuza kurup anında bildirim alın. WhatsApp/Instagram işletme hesabınızı bağlayıp müşteri mesajlarınızı buradan takip edin, ya da tek tıkla WhatsApp'tan ulaşın. Kazanılan kayıtları tek tıkla Paraşüt'e aktarın. Gmail/Outlook senkronizasyonu yol haritamızda.",
-              tags: ["Mobil Uygulama (PWA)", "Anlık Bildirim", "WhatsApp & Instagram", "Paraşüt'e Aktar"],
+              desc: "Uygulamayı telefonunuza kurup anında bildirim alın, müşterinize tek tıkla WhatsApp'tan ulaşın. Kazanılan kayıtları tek tıkla Paraşüt'e aktarın. WhatsApp/Instagram gelen kutusu entegrasyonu ve Gmail/Outlook senkronizasyonu yol haritamızda.",
+              tags: ["Mobil Uygulama (PWA)", "Anlık Bildirim", "WhatsApp ile Hızlı İletişim", "Paraşüt'e Aktar"],
             },
             {
               id: "is-birligi-agi",

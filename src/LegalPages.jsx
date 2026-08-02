@@ -178,7 +178,7 @@ export function KvkkPage() {
 
 export function TermsPage() {
   return (
-    <LegalLayout title="Kullanım Koşulları" updatedAt="1 Ağustos 2026">
+    <LegalLayout title="Kullanım Koşulları" updatedAt="2 Ağustos 2026">
       <Section title="1. Hizmetin Kapsamı">
         <p>
           Binerly, KOBİ'ler için müşteri ilişkileri yönetimi (CRM), satış takibi, destek talebi ve
@@ -215,7 +215,13 @@ export function TermsPage() {
           yetkilisi olması gerekir. Bir hesap; birbirinden bağımsız, farklı işletmeler veya kişiler
           tarafından ortak kullanılamaz, kullanıcı başına maliyeti düşürmek amacıyla ilgisiz taraflarla
           paylaşılamaz. Takım daveti kabul edilirken bu husus ayrıca beyan edilir. Bu kurala aykırı
-          kullanım tespit edilirse hesap askıya alınabilir veya sonlandırılabilir (bkz. Madde 7 - Fesih).
+          kullanım tespit edilirse hesap askıya alınabilir veya sonlandırılabilir (bkz. Madde 10 - Fesih).
+        </p>
+        <p>
+          Bir hesapta, işletme sahibi dahil en fazla 5 kullanıcı bulunabilir. Daha fazla kullanıcıya
+          ihtiyaç duyan işletmeler için{" "}
+          <a href="mailto:info@binerly.com" style={{ color: "#185fa5" }}>info@binerly.com</a> üzerinden
+          ayrıca bir çözüm değerlendirilebilir.
         </p>
       </Section>
       <Section title="5. Faturalandırma ve Vergi Yükümlülükleri">
@@ -259,7 +265,7 @@ export function TermsPage() {
       </Section>
       <Section title="10. Fesih">
         <p>
-          Hesabınızı istediğiniz zaman kapatabilirsiniz. Kullanım koşullarının ihlali halinde (Madde 3'teki
+          Hesabınızı istediğiniz zaman kapatabilirsiniz. Kullanım koşullarının ihlali halinde (Madde 4'teki
           takım üyeliği kuralı dahil) hizmete erişiminiz askıya alınabilir veya sonlandırılabilir.
         </p>
       </Section>
