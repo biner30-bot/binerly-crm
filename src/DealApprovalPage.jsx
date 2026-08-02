@@ -250,9 +250,9 @@ export default function DealApprovalPage() {
             )}
             <h1 style={{ fontSize: 20, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>{state.deal.title}</h1>
             <p style={{ fontSize: 24, fontWeight: 800, color: "#185fa5", margin: "0 0 4px" }}>{formatTL(state.deal.value)}</p>
-            {state.deal.createdAt && (
+            {(state.deal.appointmentDate || state.deal.createdAt) && (
               <p style={{ fontSize: 12, color: "#94a7bb", margin: "0 0 20px" }}>
-                {APPROVAL_DEAL_WORDS[dealWordKind(state.deal.sector)].dateLabel}: {formatDate(state.deal.createdAt)}
+                {APPROVAL_DEAL_WORDS[dealWordKind(state.deal.sector)].dateLabel}: {state.deal.appointmentDate ? formatDateTime(state.deal.appointmentDate) : formatDate(state.deal.createdAt)}
               </p>
             )}
             {(() => {

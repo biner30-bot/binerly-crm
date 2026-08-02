@@ -149,6 +149,27 @@ async function markApproved(supabaseAdmin, deal, customer, note, contentSuffix) 
 // Sectors.jsx'i import edemediği için burada küçük bir kopyası tutuluyor.
 const APPOINTMENT_SECTORS = new Set(["guzellik_bakim", "saglik_klinik"]);
 
+// GET yanıtındaki "Randevu tarihi" alanı eskiden hep deal.created_at (kaydın
+// OLUŞTURULMA zamanı) gösteriyordu — randevu sektörlerinde bu yanlış: müşteri
+// bugün rezervasyon yaptırıp 3 gün sonrasına randevu alabilir, o zaman
+// created_at bugünü, gerçek randevu ise 3 gün sonrasını gösterir. Asıl saat ya
+// self-booked (portal/randevu_widget) randevularda portal_randevu_zamani'nda,
+// ya da personelin CRM'de elle oluşturduğu randevularda kobinin kendi
+// tanımladığı "Tarih & Saat" özel alanında duruyor — handleConfirmAttendance'
+// taki (aşağıda) AYNI çözümleme mantığı.
+async function resolveAppointmentDateTime(supabaseAdmin, deal) {
+  if (deal.custom_fields?.portal_randevu_zamani) return deal.custom_fields.portal_randevu_zamani;
+  const { data: defs } = await supabaseAdmin
+    .from("custom_field_defs")
+    .select("key")
+    .eq("user_id", deal.user_id)
+    .eq("entity", "deal")
+    .eq("field_type", "datetime")
+    .eq("active", true);
+  const dtKey = (defs || []).map((d) => d.key).find((k) => deal.custom_fields?.[k]);
+  return dtKey ? deal.custom_fields[dtKey] : null;
+}
+
 // Sectors.jsx computeAppointmentPenaltyBurn ile AYNI mantık — App.jsx (staff)
 // ve CustomerPortal.jsx (portal girişli iptal) zaten bu fonksiyonu kullanıyor,
 // burada (portal girişi OLMAYAN e-posta linki) da tutarlılık için birebir
@@ -1121,6 +1142,7 @@ export default async function handler(req, res) {
         body: JSON.stringify({ table: "deal_viewed", record: { user_id: deal.user_id, title: deal.title, customer_name: customer?.name || null } }),
       }).catch(() => {});
     }
+    const appointmentDate = APPOINTMENT_SECTORS.has(settings?.sector) ? await resolveAppointmentDateTime(supabaseAdmin, deal) : null;
     return res.status(200).json({
       title: deal.title,
       value: deal.value,
@@ -1128,6 +1150,7 @@ export default async function handler(req, res) {
       approved: !!deal.approved_at,
       approvedAt: deal.approved_at,
       createdAt: deal.created_at,
+      appointmentDate,
       customerName: customer?.name || "",
       paymentMode: deal.payment_mode || "none",
       paymentStatus: deal.payment_status || null,

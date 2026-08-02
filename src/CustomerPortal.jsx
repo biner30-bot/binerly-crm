@@ -13,6 +13,12 @@ const PORTAL_DEAL_WORDS = {
 // de somut bir tarih/saat taşıyor (portal_randevu_zamani); teklif/üyelikte
 // bunun karşılığı yok.
 const PORTAL_DEAL_KINDS_WITH_PERIOD_FILTER = new Set(["randevu", "rezervasyon"]);
+// api/deal-approval.js'teki "selfBooked" hesabıyla AYNI liste olmalı — burada
+// eksik olması ("portal" değil "randevu_widget" ile alınan randevularda da)
+// PortalDealList'in "Onayla" butonu göstermesine ama /onay/{token} sayfasının
+// "bu kayıt zaten oluşturulmuş, ek işlem gerekmiyor" demesine yol açan gerçek
+// bir bug'dı (2026-08-03).
+const SELF_BOOKED_SOURCES = new Set(["portal", "randevu_widget"]);
 
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -67,7 +73,7 @@ function rowToTicketMessage(r) {
 // SADECE bu listedeki anahtarları taşır. Yeni bir yerde d.customFields?.X
 // okumaya başlarsan X'i buraya da eklemeyi unutma — yoksa (uyelik_bitis_tarihi/
 // kurs_bitis_tarihi'nde olduğu gibi) o alan sessizce undefined gelir.
-const PORTAL_VISIBLE_DEAL_CUSTOM_FIELD_KEYS = ["portal_randevu_zamani", "kaynak", "uyelik_bitis_tarihi", "kurs_bitis_tarihi", "sevkiyat_durumu"];
+const PORTAL_VISIBLE_DEAL_CUSTOM_FIELD_KEYS = ["portal_randevu_zamani", "kaynak", "uyelik_bitis_tarihi", "kurs_bitis_tarihi", "sevkiyat_durumu", "service_ids"];
 
 function rowToDeal(r) {
   const cf = r.custom_fields || {};
@@ -113,6 +119,12 @@ function rowToWaitlistEntry(r) {
 
 function rowToPriceListItem(r) {
   return { id: r.id, userId: r.user_id, name: r.name, price: r.price };
+}
+
+// customer_payments_view'den geliyor (bkz. sql/2026-08-03_portal_self_service.sql)
+// - iade satırları (amount negatif) DIŞLANMADI, PortalPayments bunları ayrı gösterir.
+function rowToPayment(r) {
+  return { id: r.id, dealId: r.deal_id, amount: Number(r.amount) || 0, paidAt: r.paid_at, createdAt: r.created_at, note: r.note, dealTitle: r.deal_title, customerId: r.customer_id };
 }
 
 // Sadece işletmenin açıkça "Müşteriyle Paylaş" dediği dosyalar buraya düşer -
@@ -461,7 +473,7 @@ function PortalMessagesPanel({ messages, onSend, sending, companyName }) {
   );
 }
 
-function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, hardBlockHoursByCustomerId = {}, appointmentPenaltyHoursByCustomerId = {}, appointmentPenaltyStrikeLimitByCustomerId = {}, appointmentPenaltyBurnsSessionByCustomerId = {}, appointmentPartialChargeHoursByCustomerId = {}, sector, showCompany, dealKind, onCancelAppointment, sharedAttachments = [], onDownloadAttachment }) {
+function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, hardBlockHoursByCustomerId = {}, appointmentPenaltyHoursByCustomerId = {}, appointmentPenaltyStrikeLimitByCustomerId = {}, appointmentPenaltyBurnsSessionByCustomerId = {}, appointmentPartialChargeHoursByCustomerId = {}, sector, showCompany, dealKind, onCancelAppointment, onReschedule, sharedAttachments = [], onDownloadAttachment }) {
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
@@ -564,7 +576,7 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
         const isCompleted = d.stage === "kazanildi";
         // Portaldan kendi alınan randevu/üyelik/rezervasyonlarda (kaynak: "portal")
         // onay diye bir kavram yok — müşteri zaten kendi almış, tek eylem ödeme.
-        const isSelfBooked = d.customFields?.kaynak === "portal";
+        const isSelfBooked = SELF_BOOKED_SOURCES.has(d.customFields?.kaynak);
         const actionLabel = isCompleted || isSelfBooked
           ? "Öde"
           : !isApproved
@@ -634,6 +646,16 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
               {d.value > 0 && (
                 <span style={{ fontSize: 13, fontWeight: 600, minWidth: 90, textAlign: "right" }}>{formatTL(d.value)}</span>
               )}
+              {/* Erteleme sadece saat-slotu bazlı randevularda (Güzellik & Bakım,
+                  Sağlık/Klinik) destekleniyor — Otel'in giriş/çıkış tarih aralığı +
+                  oda stoku modeli (bookingModel === "inventory") çok farklı bir
+                  form gerektirir, kapsam dışı bırakıldı. İptal ile AYNI hardBlock
+                  kapısını (canCancel) kullanır - randevu saatine çok az kalmışsa
+                  ne iptal ne erteleme yapılabilir, ikisi de işletmeye aynı son
+                  dakika etkisini yaratır. */}
+              {cancellable && canCancel && onReschedule && bookingModel(sectorByCustomerId[d.customerId]) !== "inventory" && (
+                <button type="button" onClick={() => onReschedule(d)} style={{ fontSize: 13 }}>Ertele</button>
+              )}
               {cancellable && (canCancel ? (
                 <button type="button" onClick={() => onCancelAppointment(d.id, isLate, willBurnSession, chargeZone)} style={{ fontSize: 13 }}>İptal Et</button>
               ) : (
@@ -645,6 +667,50 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
       })}
       </div>
       )}
+    </div>
+  );
+}
+
+// paid_at DATE tipinde (bkz. api/deal-approval.js handleRefund - "YYYY-MM-DD"
+// olarak yazılıyor), formatDateTime'daki saat kısmı burada anlamsız olurdu.
+function formatPaymentDate(dateStr) {
+  if (!dateStr) return "";
+  return new Date(`${dateStr}T12:00:00`).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function PortalPayments({ payments, showCompany, companyNameByCustomerId }) {
+  if (payments.length === 0) {
+    return <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Henüz bir ödemeniz yok.</p>;
+  }
+  const sorted = [...payments].sort((a, b) => new Date(b.paidAt || b.createdAt) - new Date(a.paidAt || a.createdAt));
+  const total = payments.reduce((sum, p) => sum + p.amount, 0);
+  return (
+    <div>
+      <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 12px" }}>
+        Toplam: <strong style={{ color: "var(--text-primary)" }}>{formatTL(total)}</strong>
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {sorted.map((p) => {
+          const isRefund = p.amount < 0;
+          return (
+            <div key={p.id} style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <div>
+                <p style={{ margin: 0, fontWeight: 500, fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}>
+                  {p.dealTitle || "Ödeme"}
+                  {isRefund && <Badge tone="warning">İade</Badge>}
+                </p>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{formatPaymentDate(p.paidAt)}</p>
+                {showCompany && (
+                  <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{companyNameByCustomerId[p.customerId] || "Bilinmeyen firma"}</p>
+                )}
+              </div>
+              <span style={{ fontSize: 14, fontWeight: 600, color: isRefund ? "var(--text-danger)" : "var(--text-success)" }}>
+                {isRefund ? "" : "+"}{formatTL(p.amount)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -802,14 +868,17 @@ function shortDayLabel(dateStr) {
 // olduğu için ayrı bir bileşene ayrıldı. Bu dispatcher'ın kendisi hiç hook
 // çağırmıyor (Rules of Hooks'u ihlal etmeden koşullu dallanabilmek için) —
 // gerçek form mantığı SlotBookingModal/RoomBookingModal'da.
-function AppointmentBookingModal({ customerRow, priceListItems, onBook, onClose }) {
+// reschedule (opsiyonel): { initialNote, initialServiceIds } — sadece SlotBookingModal
+// destekliyor (RoomBookingModal'ın tarih aralığı + oda tipi modeli erteleme
+// için henüz kapsanmadı, bkz. PortalDealList'teki bookingModel !== "inventory" kapısı).
+function AppointmentBookingModal({ customerRow, priceListItems, onBook, onClose, reschedule }) {
   if (bookingModel(customerRow.companySector) === "inventory") {
     return <RoomBookingModal customerRow={customerRow} onBook={onBook} onClose={onClose} />;
   }
-  return <SlotBookingModal customerRow={customerRow} priceListItems={priceListItems} onBook={onBook} onClose={onClose} />;
+  return <SlotBookingModal customerRow={customerRow} priceListItems={priceListItems} onBook={onBook} onClose={onClose} reschedule={reschedule} />;
 }
 
-function SlotBookingModal({ customerRow, priceListItems, onBook, onClose }) {
+function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, reschedule }) {
   const todayStr = istanbulDateStr(new Date());
   const maxDateStr = istanbulDateStr(new Date(Date.now() + 60 * 24 * 60 * 60 * 1000));
   const [date, setDate] = useState(todayStr);
@@ -817,8 +886,8 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose }) {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [slotsError, setSlotsError] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
-  const [note, setNote] = useState("");
-  const [serviceIds, setServiceIds] = useState([]);
+  const [note, setNote] = useState(reschedule?.initialNote || "");
+  const [serviceIds, setServiceIds] = useState(reschedule?.initialServiceIds || []);
   const [booking, setBooking] = useState(false);
   const [dateTimeKey, setDateTimeKey] = useState(null);
   const [hasPaymentProvider, setHasPaymentProvider] = useState(false);
@@ -890,7 +959,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose }) {
   };
 
   return (
-    <Modal title={`${customerRow.companyName || customerRow.name} - Randevu Al`} onClose={onClose}>
+    <Modal title={`${customerRow.companyName || customerRow.name} - ${reschedule ? "Randevunuzu Erteleyin" : "Randevu Al"}`} onClose={onClose}>
       {dayOverview && dayOverview.length > 0 && (
         <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Müsait günler</label>
@@ -1015,7 +1084,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose }) {
           onClick={confirm}
           style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
         >
-          {booking ? "Alınıyor…" : "Randevuyu Onayla"}
+          {booking ? (reschedule ? "Erteleniyor…" : "Alınıyor…") : (reschedule ? "Ertele" : "Randevuyu Onayla")}
         </button>
       </div>
     </Modal>
@@ -1219,11 +1288,34 @@ function PasswordRecoveryModal({ notify, onClose }) {
   );
 }
 
-function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubscribe, onUnsubscribe, marketingConsent, onMarketingConsentChange, companyName, companySector, photoConsent, onPhotoConsentChange, notify }) {
+function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubscribe, onUnsubscribe, marketingConsent, onMarketingConsentChange, companyName, companySector, photoConsent, onPhotoConsentChange, customerName, customerPhone, customerEmail, onUpdateProfile, notify }) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const [profileName, setProfileName] = useState(customerName || "");
+  const [profilePhone, setProfilePhone] = useState(customerPhone || "");
+  const [profileEmail, setProfileEmail] = useState(customerEmail || "");
+  const [savingProfile, setSavingProfile] = useState(false);
+  // Firma değişince (çoklu işletmeli portalda) alanlar o firmanın kendi
+  // bilgileriyle yeniden doldurulmalı — yoksa önceki firmanın taslak
+  // değerleri yanlışlıkla yeni firmaya kaydedilebilir.
+  useEffect(() => {
+    setProfileName(customerName || "");
+    setProfilePhone(customerPhone || "");
+    setProfileEmail(customerEmail || "");
+  }, [customerName, customerPhone, customerEmail]);
+  const profileDirty = profileName.trim() !== (customerName || "") || profilePhone.trim() !== (customerPhone || "") || profileEmail.trim() !== (customerEmail || "");
+
+  const saveProfile = async (e) => {
+    e.preventDefault();
+    if (!profileName.trim()) { notify("Ad Soyad boş olamaz."); return; }
+    if (!profilePhone.trim() && !profileEmail.trim()) { notify("Telefon veya e-postadan en az biri gerekli."); return; }
+    setSavingProfile(true);
+    await onUpdateProfile({ name: profileName, phone: profilePhone, email: profileEmail });
+    setSavingProfile(false);
+  };
 
   const changePassword = async (e) => {
     e.preventDefault();
@@ -1248,6 +1340,30 @@ function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubsc
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
+        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Bilgilerim{companyName ? ` (${companyName})` : ""}</p>
+        <form onSubmit={saveProfile}>
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ad Soyad</label>
+            <input value={profileName} onChange={(e) => setProfileName(e.target.value)} style={{ width: "100%" }} />
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Telefon</label>
+            <input type="tel" value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} style={{ width: "100%" }} />
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>E-posta</label>
+            <input type="email" value={profileEmail} onChange={(e) => setProfileEmail(e.target.value)} style={{ width: "100%" }} />
+          </div>
+          <button type="submit" disabled={savingProfile || !profileDirty} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
+            {savingProfile ? "Kaydediliyor…" : "Kaydet"}
+          </button>
+        </form>
+        <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "8px 0 0" }}>
+          Birden fazla işletmeye bağlıysanız, bu bilgiler sadece şu an seçili olan işletme için geçerlidir.
+        </p>
+      </div>
+
+      <div style={{ marginBottom: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
         <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Görünüm</p>
         <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, width: "fit-content" }}>
           <button
@@ -1342,6 +1458,7 @@ export default function CustomerPortal() {
   const [tickets, setTickets] = useState([]);
   const [ticketMessages, setTicketMessages] = useState([]);
   const [deals, setDeals] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [customerRows, setCustomerRows] = useState([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState(() => localStorage.getItem("binerly_portal_company") || null);
   const [groupClasses, setGroupClasses] = useState([]);
@@ -1352,6 +1469,7 @@ export default function CustomerPortal() {
   const [loading, setLoading] = useState(true);
   const [showNewTicketForm, setShowNewTicketForm] = useState(false);
   const [bookingFor, setBookingFor] = useState(null);
+  const [reschedulingDeal, setReschedulingDeal] = useState(null);
   const [viewingTicket, setViewingTicket] = useState(null);
   const [toast, setToast] = useState(null);
   const [pushSubscribed, setPushSubscribed] = useState(false);
@@ -1449,7 +1567,7 @@ export default function CustomerPortal() {
 
   useEffect(() => {
     if (!session) {
-      setTickets([]); setTicketMessages([]); setDeals([]); setCustomerRows([]);
+      setTickets([]); setTicketMessages([]); setDeals([]); setPayments([]); setCustomerRows([]);
       setGroupClasses([]); setGroupClassEnrollments([]); setPriceListItems([]);
       setLoading(false);
       return;
@@ -1482,7 +1600,7 @@ export default function CustomerPortal() {
           return;
         }
         const rows = (c || []).map((r) => ({
-          id: r.id, userId: r.user_id, name: r.name, companyName: r.company_name, companySector: r.company_sector,
+          id: r.id, userId: r.user_id, name: r.name, phone: r.phone, email: r.email, companyName: r.company_name, companySector: r.company_sector,
           companyLateCancelHours: r.company_late_cancel_hours ?? null,
           companyHardBlockHours: r.company_hard_block_hours ?? null,
           companyLateCancelStrikeLimit: r.company_late_cancel_strike_limit ?? null,
@@ -1500,7 +1618,7 @@ export default function CustomerPortal() {
         const customerIds = rows.map((r) => r.id);
 
         if (customerIds.length === 0) {
-          setTickets([]); setTicketMessages([]); setDeals([]);
+          setTickets([]); setTicketMessages([]); setDeals([]); setPayments([]);
           setGroupClasses([]); setGroupClassEnrollments([]); setPriceListItems([]);
           return;
         }
@@ -1513,6 +1631,7 @@ export default function CustomerPortal() {
           { data: gce, error: gceError },
           { data: gc, error: gcError },
           { data: pli, error: pliError },
+          { data: pay, error: payError },
         ] = await Promise.all([
           supabase.from("tickets").select("*").is("deleted_at", null).in("customer_id", customerIds).order("created_at"),
           // Diğer sorgular gibi (tickets/group_classes) customer_id ile bilerek
@@ -1522,9 +1641,14 @@ export default function CustomerPortal() {
           supabase.from("group_class_enrollments").select("*").in("customer_id", customerIds),
           supabase.from("group_classes").select("*").is("deleted_at", null).in("user_id", businessUserIds).order("weekday").order("start_time"),
           supabase.from("price_list_items").select("*").in("user_id", businessUserIds).order("name"),
+          supabase.from("customer_payments_view").select("*").in("customer_id", customerIds),
         ]);
         const firstError = tError || dError || gceError || gcError || pliError;
         if (firstError) { console.error("customer portal data load error:", firstError.message); setLoadError(true); }
+        // payError bilerek firstError'a dahil edilmedi — customer_payments_view
+        // henüz oluşturulmamışsa (yeni migration çalıştırılmadan önce) "Ödemelerim"
+        // sekmesi boş görünsün, portalın geri kalanı tam bir hata ekranına düşmesin.
+        if (payError) console.error("customer_payments_view load error:", payError.message);
         setGroupClassEnrollments((gce || []).map(rowToGroupClassEnrollment));
         setGroupClasses((gc || []).map(rowToGroupClass));
         // Yedek liste — RLS zaten sadece BENİM (portal_user_id=auth.uid()) müşteri
@@ -1533,6 +1657,7 @@ export default function CustomerPortal() {
         const { data: gcw } = await supabase.from("group_class_waitlist").select("*").in("customer_id", customerIds);
         setGroupClassWaitlist((gcw || []).map(rowToWaitlistEntry));
         setPriceListItems((pli || []).map(rowToPriceListItem));
+        setPayments((pay || []).map(rowToPayment));
         const ticketIds = (t || []).map((row) => row.id);
         const { data: tm, error: tmError } = ticketIds.length
           ? await supabase.from("ticket_messages").select("*").eq("is_internal", false).in("ticket_id", ticketIds).order("created_at")
@@ -1694,6 +1819,26 @@ export default function CustomerPortal() {
     if (!res.ok) { notify(result.error || "Randevu alınamadı."); return false; }
     setDeals((prev) => [...prev, rowToDeal(result.deal)]);
     notify("Randevunuz alındı.", "success");
+    return true;
+  };
+
+  // Erteleme = yeni bir randevu al (mevcut bookAppointment - server tarafında
+  // çift-randevu/müsaitlik kontrolü zaten yapıyor) + eski deal'i kapat. Ayrı bir
+  // "PATCH mevcut randevuyu" uç noktası YAZILMADI - hem booking hem cancel zaten
+  // test edilmiş/çalışan yollar, ikisini birleştirmek yeni bir saldırı/hata
+  // yüzeyi açmadan aynı sonucu veriyor. lost_reason bilerek "İptal etti"/"Geç
+  // iptal etti" DEĞİL - computeAppointmentPenaltyBurn/no-show sayacı sadece bu
+  // iki string'i sayıyor (bkz. Sectors.jsx), erteleme bir ihlal sayılmamalı.
+  const rescheduleAppointment = async (oldDeal, bookingParams) => {
+    const ok = await bookAppointment(bookingParams);
+    if (!ok) return false;
+    const { error } = await supabase.from("deals").update({ stage: "kaybedildi", lost_reason: "Randevusunu erteledi" }).eq("id", oldDeal.id);
+    if (error) {
+      notify(`Yeni randevunuz alındı ama eski randevunuz kapatılamadı, lütfen destekle iletişime geçin: ${error.message}`);
+      return true;
+    }
+    setDeals((prev) => prev.map((d) => (d.id === oldDeal.id ? { ...d, stage: "kaybedildi", lostReason: "Randevusunu erteledi" } : d)));
+    notify("Randevunuz ertelendi.", "success");
     return true;
   };
 
@@ -1906,11 +2051,27 @@ export default function CustomerPortal() {
     notify(consent ? "Fotoğraf izniniz kaydedildi." : "İzniniz kaldırıldı.", "success");
   };
 
+  // set_my_marketing_consent/set_my_photo_consent ile AYNI desen (dar bir
+  // SECURITY DEFINER fonksiyon, customers'a geniş bir UPDATE grant/policy yok)
+  // — İZİN'ler gibi bu da İŞLETME BAZINDA: aynı müşteri farklı firmalara farklı
+  // ad/telefon/e-posta ile kayıtlı olabilir, sadece o an seçili firma değişir.
+  const updateProfile = async ({ name, phone, email }) => {
+    if (!activeCustomerRow) return false;
+    const { error } = await supabase.rpc("set_my_profile", { p_customer_id: activeCustomerRow.id, p_name: name, p_phone: phone, p_email: email });
+    if (error) { notify(`Bilgileriniz güncellenemedi: ${error.message}`); return false; }
+    setCustomerRows((prev) =>
+      prev.map((r) => (r.id === activeCustomerRow.id ? { ...r, name: name.trim() || r.name, phone: phone.trim() || null, email: email.trim() || null } : r))
+    );
+    notify("Bilgileriniz güncellendi.", "success");
+    return true;
+  };
+
   const visibleCustomerRows = activeCustomerRow ? [activeCustomerRow] : [];
   // "Mesajlar" sohbeti (is_general_chat) Taleplerim listesinde görünmez — kendi
   // sekmesinde, konu/durum olmadan düz bir sohbet olarak gösteriliyor.
   const visibleTickets = activeCustomerRow ? tickets.filter((t) => t.customerId === activeCustomerRow.id && !t.isGeneralChat) : [];
   const visibleDeals = activeCustomerRow ? deals.filter((d) => d.customerId === activeCustomerRow.id) : [];
+  const visiblePayments = activeCustomerRow ? payments.filter((p) => p.customerId === activeCustomerRow.id) : [];
   const visibleGroupClasses = activeCustomerRow ? groupClasses.filter((g) => g.userId === activeCustomerRow.userId) : [];
 
   const chatTicket = activeCustomerRow ? tickets.find((t) => t.customerId === activeCustomerRow.id && t.isGeneralChat) || null : null;
@@ -2038,6 +2199,7 @@ export default function CustomerPortal() {
               { id: "mesajlar", label: "Mesajlar", icon: "ti-message-circle" },
               { id: "teklifler", label: PORTAL_DEAL_WORDS[dealKind].tabLabel, icon: "ti-file-text" },
               ...(showDersler ? [{ id: "dersler", label: "Derslerim", icon: "ti-calendar-time" }] : []),
+              { id: "odemeler", label: "Ödemelerim", icon: "ti-receipt" },
             ].map((t) => (
               <button
                 key={t.id}
@@ -2119,7 +2281,7 @@ export default function CustomerPortal() {
                   ))}
                 </div>
               )}
-              <PortalDealList deals={visibleDeals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} hardBlockHoursByCustomerId={hardBlockHoursByCustomerId} appointmentPenaltyHoursByCustomerId={appointmentPenaltyHoursByCustomerId} appointmentPenaltyStrikeLimitByCustomerId={appointmentPenaltyStrikeLimitByCustomerId} appointmentPenaltyBurnsSessionByCustomerId={appointmentPenaltyBurnsSessionByCustomerId} appointmentPartialChargeHoursByCustomerId={appointmentPartialChargeHoursByCustomerId} sector={activeCustomerRow?.companySector} showCompany={false} dealKind={dealKind} onCancelAppointment={(id, isLate, willBurnSession, chargeZone) => setConfirmCancel({ type: "appointment", id, isLate, willBurnSession, chargeZone })} sharedAttachments={sharedAttachments} onDownloadAttachment={downloadSharedAttachment} />
+              <PortalDealList deals={visibleDeals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} hardBlockHoursByCustomerId={hardBlockHoursByCustomerId} appointmentPenaltyHoursByCustomerId={appointmentPenaltyHoursByCustomerId} appointmentPenaltyStrikeLimitByCustomerId={appointmentPenaltyStrikeLimitByCustomerId} appointmentPenaltyBurnsSessionByCustomerId={appointmentPenaltyBurnsSessionByCustomerId} appointmentPartialChargeHoursByCustomerId={appointmentPartialChargeHoursByCustomerId} sector={activeCustomerRow?.companySector} showCompany={false} dealKind={dealKind} onCancelAppointment={(id, isLate, willBurnSession, chargeZone) => setConfirmCancel({ type: "appointment", id, isLate, willBurnSession, chargeZone })} onReschedule={setReschedulingDeal} sharedAttachments={sharedAttachments} onDownloadAttachment={downloadSharedAttachment} />
             </div>
           )}
 
@@ -2139,6 +2301,10 @@ export default function CustomerPortal() {
             />
           )}
 
+          {portalTab === "odemeler" && (
+            <PortalPayments payments={visiblePayments} showCompany={false} companyNameByCustomerId={companyNameByCustomerId} />
+          )}
+
           {portalTab === "ayarlar" && (
             <PortalSettings
               session={session}
@@ -2153,6 +2319,10 @@ export default function CustomerPortal() {
               companySector={activeCustomerRow?.companySector}
               photoConsent={activeCustomerRow?.photoConsent}
               onPhotoConsentChange={setPhotoConsent}
+              customerName={activeCustomerRow?.name}
+              customerPhone={activeCustomerRow?.phone}
+              customerEmail={activeCustomerRow?.email}
+              onUpdateProfile={updateProfile}
               notify={notify}
             />
           )}
@@ -2189,6 +2359,20 @@ export default function CustomerPortal() {
           onClose={() => setBookingFor(null)}
         />
       )}
+
+      {reschedulingDeal && (() => {
+        const rescheduleCustomerRow = customerRows.find((r) => r.id === reschedulingDeal.customerId);
+        if (!rescheduleCustomerRow) return null;
+        return (
+          <AppointmentBookingModal
+            customerRow={rescheduleCustomerRow}
+            priceListItems={priceListItems.filter((p) => p.userId === rescheduleCustomerRow.userId)}
+            reschedule={{ initialNote: reschedulingDeal.title, initialServiceIds: Array.isArray(reschedulingDeal.customFields?.service_ids) ? reschedulingDeal.customFields.service_ids : [] }}
+            onBook={(params) => rescheduleAppointment(reschedulingDeal, params)}
+            onClose={() => setReschedulingDeal(null)}
+          />
+        );
+      })()}
 
       {confirmCancel && (
         <ConfirmDialog
