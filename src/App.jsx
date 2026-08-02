@@ -6283,8 +6283,67 @@ function rowToBusinessHours(r) {
 function rowToStaffShift(r) {
   return {
     id: r.id, memberId: r.member_id, weekday: r.weekday,
-    startTime: (r.start_time || "").slice(0, 5),
-    endTime: (r.end_time || "").slice(0, 5),
+    startTime: r.start_time ? r.start_time.slice(0, 5) : "",
+    endTime: r.end_time ? r.end_time.slice(0, 5) : "",
+    isOff: !!r.is_off,
+    validFrom: r.valid_from,
+    validTo: r.valid_to,
+  };
+}
+
+// "Bugün itibarıyla geçerli" satırlar — grid/düzenleme ekranı SADECE bunları
+// gösterir/değiştirir, kapanmış (valid_to dolu) eski versiyonlar sadece
+// StaffShiftHistoryView'da (geçmiş görünümünde) yeniden inşa edilerek görünür.
+function isOpenStaffShift(s) {
+  return !s.validTo;
+}
+
+// Belirli bir tarihte kimin ne çalıştığını, o tarihte AÇIK OLAN versiyon(lar)ı
+// tarayarak yeniden inşa eder — açık/kapalı ayrımı olmadan sadece weekday'e
+// bakılsaydı, geçmişte değiştirilmiş bir vardiya geçmiş tarihlerde de YANLIŞ
+// (bugünkü hâliyle) görünürdü.
+function staffShiftsEffectiveOnDate(staffShifts, memberId, dateStr) {
+  const jsWeekday = new Date(`${dateStr}T00:00:00`).getDay();
+  const weekday = jsWeekday === 0 ? 7 : jsWeekday;
+  return staffShifts.filter((s) => {
+    if (s.memberId !== memberId || s.weekday !== weekday) return false;
+    if (s.validFrom > dateStr) return false;
+    if (s.validTo && s.validTo <= dateStr) return false;
+    return true;
+  });
+}
+
+function rowToStaffLeaveBalance(r) {
+  return { id: r.id, memberId: r.member_id, annualLeaveDays: Number(r.annual_leave_days) };
+}
+
+// Tarih aralığı UTC'ye çevrilmeden gün sayısı hesaplasın diye "T00:00:00"
+// olmadan new Date() KULLANILMIYOR — new Date("2026-08-15") UTC gece yarısı
+// sayılır, yerel saat dilimi negatifse bir gün geri kayabilir.
+function staffLeaveDayCount(startDate, endDate) {
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  return Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+}
+
+function formatLeaveDateRange(startDate, endDate) {
+  const fmt = (d) => new Date(`${d}T00:00:00`).toLocaleDateString("tr-TR");
+  return startDate === endDate ? fmt(startDate) : `${fmt(startDate)} - ${fmt(endDate)}`;
+}
+
+const STAFF_LEAVE_TYPE_LABELS = {
+  yillik: "Yıllık İzin",
+  ucretsiz: "Ücretsiz İzin",
+  raporlu: "Raporlu / Sağlık İzni",
+  mazeret: "Mazeret İzni",
+  diger: "Diğer",
+};
+
+function rowToStaffLeaveRecord(r) {
+  return {
+    id: r.id, memberId: r.member_id, leaveType: r.leave_type,
+    startDate: r.start_date, endDate: r.end_date, note: r.note || "",
+    createdAt: r.created_at,
   };
 }
 
@@ -10147,12 +10206,14 @@ function BusinessHoursManager({ items, onAdd, onDelete }) {
 // StaffShiftGrid'deki bir hücreye tıklanınca açılır. Birden fazla pencere
 // (öğle arası için iki ayrı aralık gibi) eklemeye izin verir, gün seçici
 // yok çünkü hücrenin kendisi zaten günü belirliyor.
-function StaffShiftDayEditor({ weekday, memberLabel, items, onAdd, onDelete, onClose }) {
+function StaffShiftDayEditor({ weekday, memberLabel, items, onAdd, onDelete, onSetOff, onClose }) {
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("18:00");
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [confirmOff, setConfirmOff] = useState(false);
 
-  const sorted = [...items].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const offItem = items.find((s) => s.isOff);
+  const sorted = [...items].filter((s) => !s.isOff).sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   const submit = (e) => {
     e.preventDefault();
@@ -10162,33 +10223,45 @@ function StaffShiftDayEditor({ weekday, memberLabel, items, onAdd, onDelete, onC
 
   return (
     <Modal title={`${memberLabel} - ${WEEKDAYS[weekday - 1]}`} onClose={onClose}>
-      {sorted.length === 0 ? (
-        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>Bu gün için vardiya tanımlanmadı.</p>
+      {offItem ? (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "var(--bg-warning)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px", marginBottom: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 500 }}>Bu gün haftalık tatil olarak işaretli</span>
+          <button type="button" onClick={() => onDelete(offItem.id)} style={{ fontSize: 12 }}>Tatili kaldır</button>
+        </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
-          {sorted.map((s) => (
-            <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
-              <Badge tone="accent">{s.startTime}-{s.endTime}</Badge>
-              <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(s)} />
+        <>
+          {sorted.length === 0 ? (
+            <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>Bu gün için vardiya tanımlanmadı.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+              {sorted.map((s) => (
+                <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
+                  <Badge tone="accent">{s.startTime}-{s.endTime}</Badge>
+                  <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(s)} />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          )}
 
-      <form onSubmit={submit} style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
-        <div style={{ width: 110 }}>
-          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Başlangıç</label>
-          <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} style={{ width: "100%" }} />
-        </div>
-        <div style={{ width: 110 }}>
-          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Bitiş</label>
-          <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} style={{ width: "100%" }} />
-        </div>
-        <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>+ Ekle</button>
-      </form>
-      <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "10px 0 0" }}>
-        Öğle arası gibi bir boşluk bırakmak isterseniz iki ayrı aralık ekleyin (ör. 09:00-12:00 ve 13:00-18:00).
-      </p>
+          <form onSubmit={submit} style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+            <div style={{ width: 110 }}>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Başlangıç</label>
+              <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} style={{ width: "100%" }} />
+            </div>
+            <div style={{ width: 110 }}>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Bitiş</label>
+              <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} style={{ width: "100%" }} />
+            </div>
+            <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>+ Ekle</button>
+          </form>
+          <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "10px 0 0" }}>
+            Öğle arası gibi bir boşluk bırakmak isterseniz iki ayrı aralık ekleyin (ör. 09:00-12:00 ve 13:00-18:00).
+          </p>
+          <button type="button" onClick={() => setConfirmOff(true)} style={{ fontSize: 12, marginTop: 10 }}>
+            Bu günü haftalık tatil olarak işaretle
+          </button>
+        </>
+      )}
 
       {confirmDelete && (
         <ConfirmDialog
@@ -10196,6 +10269,17 @@ function StaffShiftDayEditor({ weekday, memberLabel, items, onAdd, onDelete, onC
           message={`${confirmDelete.startTime}-${confirmDelete.endTime} vardiyası kaldırılacak. Bu geri alınamaz.`}
           onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
           onClose={() => setConfirmDelete(null)}
+        />
+      )}
+      {confirmOff && (
+        <ConfirmDialog
+          title="Haftalık tatil olarak işaretle"
+          message={sorted.length > 0
+            ? `${WEEKDAYS[weekday - 1]} günü için tanımlı ${sorted.length} çalışma saati silinip bu gün haftalık tatil olarak işaretlenecek.`
+            : `${WEEKDAYS[weekday - 1]} günü haftalık tatil olarak işaretlenecek.`}
+          confirmLabel="İşaretle"
+          onConfirm={() => { setConfirmOff(false); onSetOff(); }}
+          onClose={() => setConfirmOff(false)}
         />
       )}
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
@@ -10210,7 +10294,7 @@ function StaffShiftDayEditor({ weekday, memberLabel, items, onAdd, onDelete, onC
 // StaffShiftDayEditor açılır. Hiç vardiya tanımlanmamış bir işletmede
 // randevu slotları eskisi gibi sadece Müsaitlik Saatleri'ne göre hesaplanır —
 // bu tablo boş kaldıkça mevcut davranış birebir korunur.
-function StaffShiftGrid({ people, staffShifts, onAdd, onDelete, readOnly = false }) {
+function StaffShiftGrid({ people, staffShifts, onAdd, onDelete, onSetOff, readOnly = false }) {
   const [editingCell, setEditingCell] = useState(null); // { memberId, weekday, label }
 
   return (
@@ -10230,15 +10314,16 @@ function StaffShiftGrid({ people, staffShifts, onAdd, onDelete, readOnly = false
               <td data-label="Personel" style={{ padding: "8px 10px", fontSize: 12.5, fontWeight: 500, borderRadius: "var(--radius) 0 0 var(--radius)", whiteSpace: "nowrap" }}>{p.label}</td>
               {WEEKDAYS.map((w, i) => {
                 const weekday = i + 1;
-                const dayShifts = staffShifts.filter((s) => s.memberId === p.id && s.weekday === weekday).sort((a, b) => a.startTime.localeCompare(b.startTime));
+                const dayShifts = staffShifts.filter((s) => s.memberId === p.id && s.weekday === weekday && isOpenStaffShift(s)).sort((a, b) => a.startTime.localeCompare(b.startTime));
+                const isOff = dayShifts.some((s) => s.isOff);
                 return (
                   <td
                     key={weekday}
                     data-label={w}
                     onClick={readOnly ? undefined : () => setEditingCell({ memberId: p.id, weekday, label: p.label })}
-                    style={{ padding: "8px 4px", fontSize: 11, textAlign: "center", cursor: readOnly ? "default" : "pointer", color: dayShifts.length ? "var(--text-accent)" : "var(--text-muted)" }}
+                    style={{ padding: "8px 4px", fontSize: 11, textAlign: "center", cursor: readOnly ? "default" : "pointer", color: isOff ? "var(--text-warning)" : dayShifts.length ? "var(--text-accent)" : "var(--text-muted)", fontWeight: isOff ? 600 : 400 }}
                   >
-                    {dayShifts.length === 0 ? "-" : dayShifts.map((s) => `${s.startTime}-${s.endTime}`).join(", ")}
+                    {isOff ? "Tatil" : dayShifts.length === 0 ? "-" : dayShifts.map((s) => `${s.startTime}-${s.endTime}`).join(", ")}
                   </td>
                 );
               })}
@@ -10250,10 +10335,234 @@ function StaffShiftGrid({ people, staffShifts, onAdd, onDelete, readOnly = false
         <StaffShiftDayEditor
           weekday={editingCell.weekday}
           memberLabel={editingCell.label}
-          items={staffShifts.filter((s) => s.memberId === editingCell.memberId && s.weekday === editingCell.weekday)}
+          items={staffShifts.filter((s) => s.memberId === editingCell.memberId && s.weekday === editingCell.weekday && isOpenStaffShift(s))}
           onAdd={(shift) => onAdd({ ...shift, memberId: editingCell.memberId })}
           onDelete={onDelete}
+          onSetOff={() => onSetOff(editingCell.memberId, editingCell.weekday)}
           onClose={() => setEditingCell(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// "Geçen hafta Salı kim çalışıyordu" gibi bir soruya cevap - seçilen tarih
+// aralığındaki HER GÜN için, o gün geçerliydi olan vardiya versiyonu (bkz.
+// staffShiftsEffectiveOnDate) yeniden inşa edilip tabloda gösterilir. Bugünkü
+// canlı StaffShiftGrid'in aksine tamamen salt okunur - geçmiş değiştirilemez.
+// "YYYY-MM-DD" <-> Date dönüşümü BİLEREK toISOString/UTC KULLANMIYOR - saat
+// dilimi UTC'nin ilerisindeyse (ör. Türkiye, UTC+3) `new Date(str+"T00:00:00").
+// toISOString()` yerel gece yarısını UTC'ye çevirirken BİR GÜN GERİYE kayıyor
+// (canlı testte "Pzt 27" yerine "Paz 26" görülerek bulundu). Bunun yerine
+// getFullYear/Month/Date gibi hep YEREL saat diliminde çalışan getter'larla
+// elle string kuruluyor, hiç UTC'ye geçilmiyor.
+function staffHistoryDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function staffHistoryParseDateStr(s) {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function StaffShiftHistoryModal({ people, staffShifts, onClose }) {
+  const todayStr = staffHistoryDateStr(new Date());
+  const mondayOfThisWeek = () => {
+    const d = new Date();
+    const jsWeekday = d.getDay();
+    const iso = jsWeekday === 0 ? 7 : jsWeekday;
+    d.setDate(d.getDate() - (iso - 1));
+    return staffHistoryDateStr(d);
+  };
+  const [fromDate, setFromDate] = useState(mondayOfThisWeek());
+  const [toDate, setToDate] = useState(todayStr);
+
+  const MAX_RANGE_DAYS = 62;
+  const rangeDayCount = fromDate && toDate && fromDate <= toDate
+    ? Math.round((staffHistoryParseDateStr(toDate) - staffHistoryParseDateStr(fromDate)) / 86400000) + 1
+    : 0;
+  const dates = [];
+  if (rangeDayCount > 0 && rangeDayCount <= MAX_RANGE_DAYS) {
+    const cursor = staffHistoryParseDateStr(fromDate);
+    for (let i = 0; i < rangeDayCount; i++) {
+      dates.push(staffHistoryDateStr(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+
+  const dayLabel = (dateStr) => {
+    const d = staffHistoryParseDateStr(dateStr);
+    const iso = d.getDay() === 0 ? 7 : d.getDay();
+    return `${WEEKDAYS_SHORT[iso - 1]} ${d.getDate()}`;
+  };
+
+  return (
+    <Modal title="Vardiya Geçmişi" onClose={onClose} wide>
+      <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 12px" }}>
+        Bir tarih aralığı seçin - o dönemde kimin hangi gün ne çalıştığını (o günkü geçerli kurala göre) görün. Vardiya değişiklikleri geçmiş tarihleri etkilemez.
+      </p>
+      <div style={{ marginBottom: 12 }}>
+        <DateRangeFilter from={fromDate} to={toDate} onFromChange={setFromDate} onToChange={setToDate} />
+      </div>
+      {rangeDayCount > MAX_RANGE_DAYS ? (
+        <p style={{ fontSize: 13, color: "var(--text-danger)" }}>En fazla {MAX_RANGE_DAYS} günlük bir aralık seçebilirsiniz (yaklaşık 2 ay).</p>
+      ) : dates.length === 0 ? (
+        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Geçerli bir tarih aralığı seçin (başlangıç bitişten sonra olamaz).</p>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", minWidth: dates.length * 68 + 130, borderCollapse: "separate", borderSpacing: "0 6px" }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", padding: "0 10px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>Personel</th>
+                {dates.map((d) => (
+                  <th key={d} style={{ textAlign: "center", padding: "0 4px", fontSize: 10.5, fontWeight: 600, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{dayLabel(d)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {people.map((p) => (
+                <tr key={p.id} style={{ background: "var(--surface-1)" }}>
+                  <td style={{ padding: "8px 10px", fontSize: 12.5, fontWeight: 500, whiteSpace: "nowrap", borderRadius: "var(--radius) 0 0 var(--radius)" }}>{p.label}</td>
+                  {dates.map((d) => {
+                    const shifts = staffShiftsEffectiveOnDate(staffShifts, p.id, d);
+                    const isOff = shifts.some((s) => s.isOff);
+                    return (
+                      <td
+                        key={d}
+                        style={{ padding: "8px 4px", fontSize: 10.5, textAlign: "center", whiteSpace: "nowrap", color: isOff ? "var(--text-warning)" : shifts.length ? "var(--text-accent)" : "var(--text-muted)", fontWeight: isOff ? 600 : 400 }}
+                      >
+                        {isOff ? "Tatil" : shifts.length === 0 ? "-" : shifts.map((s) => `${s.startTime}-${s.endTime}`).join(", ")}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+        <button onClick={onClose}>Kapat</button>
+      </div>
+    </Modal>
+  );
+}
+
+function StaffLeaveRecordModal({ memberLabel, onSave, onClose }) {
+  const [leaveType, setLeaveType] = useState("yillik");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [note, setNote] = useState("");
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (!startDate) return;
+    onSave({ leaveType, startDate, endDate: endDate || startDate, note });
+  };
+
+  return (
+    <Modal title={`${memberLabel} - İzin ekle`} onClose={onClose}>
+      <form onSubmit={submit}>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>İzin türü</label>
+          <select value={leaveType} onChange={(e) => setLeaveType(e.target.value)} style={{ width: "100%" }}>
+            {Object.entries(STAFF_LEAVE_TYPE_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          </select>
+        </div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Başlangıç</label>
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ width: "100%" }} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Bitiş</label>
+            <input type="date" value={endDate} min={startDate || undefined} onChange={(e) => setEndDate(e.target.value)} placeholder={startDate} style={{ width: "100%" }} />
+          </div>
+        </div>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Not <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span></label>
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Örn. göz muayenesi" style={{ width: "100%" }} />
+        </div>
+        <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "0 0 12px" }}>Bitiş tarihi boş bırakılırsa tek gün olarak kaydedilir.</p>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button type="button" onClick={onClose}>Vazgeç</button>
+          <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Ekle</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+// Kişi başına yıllık izin bakiyesi (elle girilen, sürekli takip edilen - otomatik
+// yıl başı sıfırlaması yok, bkz. sql/2026-08-02_staff_leave_system.sql) + izin
+// kayıtları (yıllık/ücretsiz/raporlu/mazeret/diğer). Sadece "yillik" tipi
+// bakiyeden düşülür - istemci tarafında hesaplanıyor, sunucuda ayrı bir "kalan
+// gün" kolonu yok (tek doğruluk kaynağı: kayıtların toplamı).
+function StaffLeaveManager({ people, balances, records, onSetBalance, onAddRecord, onDeleteRecord, readOnly = false }) {
+  const [addingFor, setAddingFor] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {people.map((p) => {
+        const balance = balances.find((b) => b.memberId === p.id)?.annualLeaveDays ?? 14;
+        const personRecords = records.filter((r) => r.memberId === p.id).sort((a, b) => b.startDate.localeCompare(a.startDate));
+        const usedAnnual = personRecords.filter((r) => r.leaveType === "yillik").reduce((sum, r) => sum + staffLeaveDayCount(r.startDate, r.endDate), 0);
+        const remaining = balance - usedAnnual;
+        return (
+          <div key={p.id} style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 500 }}>{p.label}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                {readOnly ? (
+                  <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>Yıllık izin hakkı: {balance} gün</span>
+                ) : (
+                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <label style={{ fontSize: 11, color: "var(--text-muted)" }}>Yıllık izin hakkı</label>
+                    <input
+                      type="number" min="0" step="0.5" defaultValue={balance}
+                      onBlur={(e) => {
+                        const v = e.target.value === "" ? 0 : Number(e.target.value);
+                        if (v !== balance) onSetBalance(p.id, v);
+                      }}
+                      style={{ width: 60, fontSize: 12, padding: "2px 6px" }}
+                    />
+                  </span>
+                )}
+                <Badge tone={remaining < 0 ? "danger" : "accent"}>{usedAnnual} kullanıldı, {remaining} kaldı</Badge>
+                {!readOnly && <button type="button" onClick={() => setAddingFor(p)} style={{ fontSize: 12 }}>+ İzin ekle</button>}
+              </div>
+            </div>
+            {personRecords.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8 }}>
+                {personRecords.map((r) => (
+                  <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: 12, padding: "4px 0", borderTop: "0.5px solid var(--border)" }}>
+                    <span>
+                      <Badge tone="default">{STAFF_LEAVE_TYPE_LABELS[r.leaveType]}</Badge>{" "}
+                      {formatLeaveDateRange(r.startDate, r.endDate)} · {staffLeaveDayCount(r.startDate, r.endDate)} gün
+                      {r.note && <span style={{ color: "var(--text-muted)" }}> — {r.note}</span>}
+                    </span>
+                    {!readOnly && <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(r)} />}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {addingFor && (
+        <StaffLeaveRecordModal
+          memberLabel={addingFor.label}
+          onClose={() => setAddingFor(null)}
+          onSave={(payload) => { onAddRecord({ memberId: addingFor.id, ...payload }); setAddingFor(null); }}
+        />
+      )}
+      {confirmDelete && (
+        <ConfirmDialog
+          title="İzin kaydını sil"
+          message={`${STAFF_LEAVE_TYPE_LABELS[confirmDelete.leaveType]} kaydı (${formatLeaveDateRange(confirmDelete.startDate, confirmDelete.endDate)}) silinecek. Bu geri alınamaz.`}
+          onConfirm={() => { onDeleteRecord(confirmDelete.id); setConfirmDelete(null); }}
+          onClose={() => setConfirmDelete(null)}
         />
       )}
     </div>
@@ -10436,9 +10745,10 @@ function TeamDailyLoadPanel({ members, staffShifts, deals, customers, customFiel
   const dateTimeKey = customFieldDefs.find((d) => d.entity === "deal" && d.type === "datetime" && d.active)?.key;
   if (!dateTimeKey) return null;
 
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const jsWeekday = new Date().getDay();
-  const isoWeekday = jsWeekday === 0 ? 7 : jsWeekday;
+  // toISOString (UTC) DEĞİL - Türkiye gibi UTC'nin ilerisindeki saat dilimlerinde
+  // gece yarısına yakın "bugün" bir gün geriye kayabiliyordu (bkz.
+  // staffHistoryDateStr yorumu, aynı sınıf hata).
+  const todayStr = staffHistoryDateStr(new Date());
 
   const todayDeals = deals.filter((d) => {
     const raw = d.customFields?.[dateTimeKey];
@@ -10464,14 +10774,15 @@ function TeamDailyLoadPanel({ members, staffShifts, deals, customers, customFiel
       </label>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {people.map((p) => {
-          const dayShifts = staffShifts.filter((s) => s.memberId === p.id && s.weekday === isoWeekday).sort((a, b) => a.startTime.localeCompare(b.startTime));
+          const dayShifts = staffShiftsEffectiveOnDate(staffShifts, p.id, todayStr).sort((a, b) => a.startTime.localeCompare(b.startTime));
+          const isOff = dayShifts.some((s) => s.isOff);
           const list = dealsByAssignee[p.id] || [];
           return (
             <div key={p.id} style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 500, flexWrap: "wrap", gap: 6 }}>
                 <span>{p.label}</span>
-                <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
-                  {dayShifts.length ? dayShifts.map((s) => `${s.startTime}-${s.endTime}`).join(", ") : "Bugün vardiyası yok"}
+                <span style={{ color: isOff ? "var(--text-warning)" : "var(--text-muted)", fontWeight: isOff ? 600 : 400 }}>
+                  {isOff ? "Bugün tatil" : dayShifts.length ? dayShifts.map((s) => `${s.startTime}-${s.endTime}`).join(", ") : "Bugün vardiyası yok"}
                 </span>
               </div>
               {list.length === 0 ? (
@@ -10506,7 +10817,12 @@ function TeamDailyLoadPanel({ members, staffShifts, deals, customers, customFiel
 // (davet gönderirken koltuk ayrılır, kabul anında sürpriz reddedilme olmasın diye).
 const MAX_TEAM_SIZE = 5;
 
-function TeamModal({ session, activeTeamId, companySettings, onClose, notify, staffShifts, onAddStaffShift, onDeleteStaffShift, teamRoster, deals, customers, customFieldDefs }) {
+function TeamModal({
+  session, activeTeamId, companySettings, onClose, notify,
+  staffShifts, onAddStaffShift, onDeleteStaffShift, onSetStaffShiftDayOff,
+  staffLeaveBalances, staffLeaveRecords, onSetStaffLeaveBalance, onAddStaffLeaveRecord, onDeleteStaffLeaveRecord,
+  teamRoster, deals, customers, customFieldDefs,
+}) {
   const isOwner = activeTeamId === session.user.id;
   const [members, setMembers] = useState([]);
   const [invites, setInvites] = useState([]);
@@ -10515,6 +10831,7 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify, st
   const [sending, setSending] = useState(false);
   const [confirmRemoveMember, setConfirmRemoveMember] = useState(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [showShiftHistory, setShowShiftHistory] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -10618,15 +10935,30 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify, st
           Bu hesap <strong>{companySettings?.companyName || "bir işletme"}</strong> takımının bir üyesi. Tüm müşteri, teklif ve destek verisi bu takımla paylaşılıyor.
         </p>
         <div style={{ margin: "16px 0" }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
             Vardiya <InfoTip placement="bottom" text="Sadece görüntüleme — vardiyayı düzenlemek için işletme sahibiyle konuşun." />
+            <button type="button" onClick={() => setShowShiftHistory(true)} style={{ fontSize: 11.5, padding: "2px 8px", marginLeft: "auto" }}>Geçmiş</button>
           </label>
           <StaffShiftGrid people={readOnlyPeople} staffShifts={staffShifts} readOnly />
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
+            İzinlerim <InfoTip placement="bottom" text="Sadece kendi izin hakkınızı/kayıtlarınızı görürsünüz - başka üyelerin izin bilgisi size açık değil. Yeni izin talebi için işletme sahibiyle konuşun." />
+          </label>
+          <StaffLeaveManager
+            people={[{ id: session.user.id, label: "Ben" }]}
+            balances={staffLeaveBalances}
+            records={staffLeaveRecords}
+            readOnly
+          />
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
           <button onClick={onClose}>Kapat</button>
           <button onClick={() => setConfirmLeave(true)} style={{ color: "var(--text-danger)" }}>Takımdan ayrıl</button>
         </div>
+        {showShiftHistory && (
+          <StaffShiftHistoryModal people={readOnlyPeople} staffShifts={staffShifts} onClose={() => setShowShiftHistory(false)} />
+        )}
         {confirmLeave && (
           <ConfirmDialog
             title="Takımdan ayrılınsın mı?"
@@ -10639,6 +10971,11 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify, st
     );
   }
 
+  const staffPeople = [
+    { id: session.user.id, label: "Ben" },
+    ...members.map((m) => ({ id: m.member_id, label: m.name || m.email })),
+  ];
+
   return (
     <Modal title="Takım" onClose={onClose} wide>
       {loading ? (
@@ -10646,20 +10983,35 @@ function TeamModal({ session, activeTeamId, companySettings, onClose, notify, st
       ) : (
         <>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
               Vardiya <InfoTip placement="bottom" text="Bu sadece ekip içi bir planlama görünümü — müşteri portalındaki randevu saatlerini etkilemez, orada tek geçerli olan Müsaitlik Saatleri'dir. Bir hücreye tıklayıp o günün saatini ekleyin/düzenleyin." />
+              <button type="button" onClick={() => setShowShiftHistory(true)} style={{ fontSize: 11.5, padding: "2px 8px", marginLeft: "auto" }}>Geçmiş</button>
             </label>
             <StaffShiftGrid
-              people={[
-                { id: session.user.id, label: "Ben" },
-                ...members.map((m) => ({ id: m.member_id, label: m.name || m.email })),
-              ]}
+              people={staffPeople}
               staffShifts={staffShifts}
               onAdd={onAddStaffShift}
               onDelete={onDeleteStaffShift}
+              onSetOff={onSetStaffShiftDayOff}
             />
           </div>
+          {showShiftHistory && (
+            <StaffShiftHistoryModal people={staffPeople} staffShifts={staffShifts} onClose={() => setShowShiftHistory(false)} />
+          )}
           <TeamDailyLoadPanel members={members} staffShifts={staffShifts} deals={deals} customers={customers} customFieldDefs={customFieldDefs} sessionUserId={session.user.id} />
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
+              İzinler <InfoTip placement="bottom" text="Yıllık izin hakkını kişi başına elle belirleyin - kullanılan izinler bu bakiyeden düşülür, sürekli/manuel takip edilir (otomatik yıl başı sıfırlaması yok). Ücretsiz/raporlu/mazeret izinleri de kaydedilir ama bakiyeyi etkilemez." />
+            </label>
+            <StaffLeaveManager
+              people={staffPeople}
+              balances={staffLeaveBalances}
+              records={staffLeaveRecords}
+              onSetBalance={onSetStaffLeaveBalance}
+              onAddRecord={onAddStaffLeaveRecord}
+              onDeleteRecord={onDeleteStaffLeaveRecord}
+            />
+          </div>
           <div style={{ marginBottom: 16 }}>
             <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
               Üyeler <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>({occupiedSeats}/{MAX_TEAM_SIZE})</span>
@@ -10777,6 +11129,9 @@ const TRASH_TABLE_LABELS = {
   kb_articles: "Makale",
   group_classes: "Ders",
   attachments: "Dosya",
+  staff_shifts: "Vardiya",
+  staff_leave_balances: "İzin bakiyesi",
+  staff_leave_records: "İzin kaydı",
 };
 
 function TrashHistoryModal({ notify, onRestore, onPermanentDelete, isOwner, onClose, activeTeamId, session, teamMembers }) {
@@ -12271,6 +12626,8 @@ export default function App() {
   const [groupClassWaitlist, setGroupClassWaitlist] = useState([]);
   const [businessHours, setBusinessHours] = useState([]);
   const [staffShifts, setStaffShifts] = useState([]);
+  const [staffLeaveBalances, setStaffLeaveBalances] = useState([]);
+  const [staffLeaveRecords, setStaffLeaveRecords] = useState([]);
   const [roomInventory, setRoomInventory] = useState([]);
   const [showSectorOnboarding, setShowSectorOnboarding] = useState(false);
   const [showTour, setShowTour] = useState(false);
@@ -12436,6 +12793,8 @@ export default function App() {
       supabase.from("class_attendance").select("*"),
       supabase.from("business_hours").select("*").order("weekday").order("start_time"),
       supabase.from("staff_shifts").select("*").order("weekday").order("start_time"),
+      supabase.from("staff_leave_balances").select("*"),
+      supabase.from("staff_leave_records").select("*").order("start_date"),
       supabase.from("room_inventory").select("*").order("room_type"),
       supabase.from("deal_pdf_templates").select("*").order("created_at"),
       supabase.from("deal_line_items").select("*").order("sort_order"),
@@ -12444,7 +12803,7 @@ export default function App() {
       supabase.from("group_class_waitlist").select("*").order("created_at"),
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ss }, { data: ri }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: gcw }, { data: myMembership }, { data: invites }]) => {
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ss }, { data: slb }, { data: slr }, { data: ri }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: gcw }, { data: myMembership }, { data: invites }]) => {
       // customers/deals/company_settings RLS'i, sahiplik politikasına ek olarak
       // portal kullanıcılarının kendi bağlı oldukları kayıtları görmesine izin
       // veren bir politikayla da "veya" ile birleşiyor (customer_*_view'ların
@@ -12474,6 +12833,8 @@ export default function App() {
       setClassAttendanceState((catt || []).filter((row) => row.user_id === ownerId).map(rowToClassAttendance));
       setBusinessHours((bh || []).filter((row) => row.user_id === ownerId).map(rowToBusinessHours));
       setStaffShifts((ss || []).filter((row) => row.user_id === ownerId).map(rowToStaffShift));
+      setStaffLeaveBalances((slb || []).filter((row) => row.user_id === ownerId).map(rowToStaffLeaveBalance));
+      setStaffLeaveRecords((slr || []).filter((row) => row.user_id === ownerId).map(rowToStaffLeaveRecord));
       setRoomInventory((ri || []).filter((row) => row.user_id === ownerId).map(rowToRoomInventory));
       setPdfTemplates((pdft || []).filter((row) => row.user_id === ownerId).map(rowToPdfTemplate));
       setStockItems((stk || []).filter((row) => row.user_id === ownerId).map(rowToStockItem));
@@ -14316,17 +14677,104 @@ export default function App() {
     setBusinessHours((prev) => prev.filter((b) => b.id !== id));
   };
 
+  // Vardiya/izin özet mesajlarında kullanılacak isim — teamRoster hem sahip
+  // hem üye için doluyor (bkz. teamRoster yorum notu), Personel Performansı
+  // gibi hassas alanlar gerektirmiyor.
+  const staffMemberLabel = (memberId) => {
+    if (memberId === session.user.id) return "Ben";
+    const m = teamRoster.find((r) => r.id === memberId);
+    return m?.name || m?.email || "Bilinmeyen üye";
+  };
+
   const addStaffShift = async ({ memberId, weekday, startTime, endTime }) => {
-    const row = { id: uid(), user_id: activeTeamId, member_id: memberId, weekday, start_time: startTime, end_time: endTime };
+    const row = { id: uid(), user_id: activeTeamId, member_id: memberId, weekday, start_time: startTime, end_time: endTime, is_off: false };
     const { data, error } = await supabase.from("staff_shifts").insert(row).select().single();
     if (error) { notify(`Vardiya eklenemedi: ${error.message}`); return; }
     setStaffShifts((prev) => [...prev, rowToStaffShift(data)]);
+    logAction("staff_shifts", data.id, "created", `${staffMemberLabel(memberId)} - ${WEEKDAYS[weekday - 1]} ${startTime}-${endTime} vardiyası eklendi`);
+  };
+
+  // Bir vardiya satırını "kaldırmak" ASLINDA SİLMEZ - geçmiş sorgulanabilir kalsın
+  // diye valid_to bugüne kapatılır (satır hâlâ orada, sadece artık "açık" değil).
+  // Tek istisna: satır bugün eklenip bugün kaldırılıyorsa (hiç geçmişe karışmadı,
+  // aynı oturumdaki bir düzeltme) gerçekten silinir - anlamsız sıfır-günlük
+  // versiyon geçmişte birikmesin diye.
+  const closeStaffShiftRow = async (row) => {
+    const todayStr = staffHistoryDateStr(new Date());
+    if (row.validFrom === todayStr) {
+      const { error } = await supabase.from("staff_shifts").delete().eq("id", row.id);
+      if (error) { notify(`Vardiya kaldırılamadı: ${error.message}`); return null; }
+      return { deleted: true };
+    }
+    const { error } = await supabase.from("staff_shifts").update({ valid_to: todayStr }).eq("id", row.id);
+    if (error) { notify(`Vardiya kaldırılamadı: ${error.message}`); return null; }
+    return { deleted: false, validTo: todayStr };
   };
 
   const deleteStaffShift = async (id) => {
-    const { error } = await supabase.from("staff_shifts").delete().eq("id", id);
-    if (error) { notify(`Vardiya silinemedi: ${error.message}`); return; }
-    setStaffShifts((prev) => prev.filter((s) => s.id !== id));
+    const existing = staffShifts.find((s) => s.id === id);
+    if (!existing) return;
+    const result = await closeStaffShiftRow(existing);
+    if (!result) return;
+    if (result.deleted) setStaffShifts((prev) => prev.filter((s) => s.id !== id));
+    else setStaffShifts((prev) => prev.map((s) => (s.id === id ? { ...s, validTo: result.validTo } : s)));
+    const what = existing.isOff ? "haftalık tatil işareti" : `${existing.startTime}-${existing.endTime} vardiyası`;
+    logAction("staff_shifts", id, "deleted", `${staffMemberLabel(existing.memberId)} - ${WEEKDAYS[existing.weekday - 1]} ${what} kaldırıldı`);
+  };
+
+  // Bir günü haftalık tatil (off) olarak işaretlemek, o gün için AÇIK olan mevcut
+  // saat aralıklarıyla ANLAMSAL OLARAK ÇAKIŞIR (biri "çalışıyor", diğeri "hiç
+  // çalışmıyor" der) - bu yüzden önce o güne ait açık satırlar kapatılıp (soft-close,
+  // geçmişte kalırlar), sonra tek bir is_off satırı bugünden başlatılıyor.
+  const setStaffShiftDayOff = async (memberId, weekday) => {
+    const openForDay = staffShifts.filter((s) => s.memberId === memberId && s.weekday === weekday && isOpenStaffShift(s));
+    for (const s of openForDay) {
+      const result = await closeStaffShiftRow(s);
+      if (!result) continue;
+      if (result.deleted) setStaffShifts((prev) => prev.filter((row) => row.id !== s.id));
+      else setStaffShifts((prev) => prev.map((row) => (row.id === s.id ? { ...row, validTo: result.validTo } : row)));
+    }
+    const row = { id: uid(), user_id: activeTeamId, member_id: memberId, weekday, start_time: null, end_time: null, is_off: true };
+    const { data, error } = await supabase.from("staff_shifts").insert(row).select().single();
+    if (error) { notify(`Tatil işaretlenemedi: ${error.message}`); return; }
+    setStaffShifts((prev) => [...prev, rowToStaffShift(data)]);
+    logAction("staff_shifts", data.id, "updated", `${staffMemberLabel(memberId)} - ${WEEKDAYS[weekday - 1]} haftalık tatil olarak işaretlendi`);
+  };
+
+  const setStaffLeaveBalance = async (memberId, annualLeaveDays) => {
+    const { data, error } = await supabase
+      .from("staff_leave_balances")
+      .upsert({ user_id: activeTeamId, member_id: memberId, annual_leave_days: annualLeaveDays, updated_at: new Date().toISOString() }, { onConflict: "user_id,member_id" })
+      .select()
+      .single();
+    if (error) { notify(`İzin hakkı güncellenemedi: ${error.message}`); return; }
+    const row = rowToStaffLeaveBalance(data);
+    setStaffLeaveBalances((prev) => [...prev.filter((b) => b.memberId !== memberId), row]);
+    logAction("staff_leave_balances", row.id, "updated", `${staffMemberLabel(memberId)} - yıllık izin hakkı ${annualLeaveDays} gün olarak ayarlandı`);
+  };
+
+  const addStaffLeaveRecord = async ({ memberId, leaveType, startDate, endDate, note }) => {
+    if (endDate < startDate) { notify("Bitiş tarihi başlangıçtan önce olamaz."); return; }
+    const row = { id: uid(), user_id: activeTeamId, member_id: memberId, leave_type: leaveType, start_date: startDate, end_date: endDate, note: note?.trim() || null, created_by: session.user.id };
+    const { data, error } = await supabase.from("staff_leave_records").insert(row).select().single();
+    if (error) { notify(`İzin kaydedilemedi: ${error.message}`); return; }
+    const rec = rowToStaffLeaveRecord(data);
+    setStaffLeaveRecords((prev) => [...prev, rec]);
+    const dayCount = staffLeaveDayCount(startDate, endDate);
+    logAction("staff_leave_records", rec.id, "created", `${staffMemberLabel(memberId)} - ${STAFF_LEAVE_TYPE_LABELS[leaveType]} (${formatLeaveDateRange(startDate, endDate)}, ${dayCount} gün) eklendi`);
+    if (leaveType === "yillik") {
+      const balance = staffLeaveBalances.find((b) => b.memberId === memberId)?.annualLeaveDays ?? 14;
+      const used = staffLeaveRecords.filter((r) => r.memberId === memberId && r.leaveType === "yillik").reduce((sum, r) => sum + staffLeaveDayCount(r.startDate, r.endDate), 0) + dayCount;
+      if (used > balance) notify(`Not: ${staffMemberLabel(memberId)} için yıllık izin bakiyesi aşıldı (${used}/${balance} gün kullanıldı).`);
+    }
+  };
+
+  const deleteStaffLeaveRecord = async (id) => {
+    const existing = staffLeaveRecords.find((r) => r.id === id);
+    const { error } = await supabase.from("staff_leave_records").delete().eq("id", id);
+    if (error) { notify(`İzin kaydı silinemedi: ${error.message}`); return; }
+    setStaffLeaveRecords((prev) => prev.filter((r) => r.id !== id));
+    if (existing) logAction("staff_leave_records", id, "deleted", `${staffMemberLabel(existing.memberId)} - ${STAFF_LEAVE_TYPE_LABELS[existing.leaveType]} kaydı silindi`);
   };
 
   const addRoomInventory = async ({ roomType, quantity, capacity, description }) => {
@@ -16876,6 +17324,12 @@ export default function App() {
           staffShifts={staffShifts}
           onAddStaffShift={addStaffShift}
           onDeleteStaffShift={deleteStaffShift}
+          onSetStaffShiftDayOff={setStaffShiftDayOff}
+          staffLeaveBalances={staffLeaveBalances}
+          staffLeaveRecords={staffLeaveRecords}
+          onSetStaffLeaveBalance={setStaffLeaveBalance}
+          onAddStaffLeaveRecord={addStaffLeaveRecord}
+          onDeleteStaffLeaveRecord={deleteStaffLeaveRecord}
           teamRoster={teamRoster}
           deals={deals}
           customers={customers}
