@@ -841,6 +841,62 @@ const CUSTOM_FIELD_NAME_EXAMPLES = {
 // import edemediği için (bağımlılık yönü ters) burada küçük bir kopyası tutuluyor.
 const DEAL_ENTITY_NAV_LABELS = { teklif: "Teklifler", randevu: "Randevular", uyelik: "Üyelikler", rezervasyon: "Rezervasyonlar" };
 
+function CustomFieldEditModal({ def, dealEntityLabel, onSave, onClose }) {
+  const [label, setLabel] = useState(def.label);
+  const [options, setOptions] = useState((def.options || []).join(", "));
+  const [audience, setAudience] = useState(def.audience || "");
+
+  const submit = (e) => {
+    e.preventDefault();
+    const trimmedLabel = label.trim();
+    if (!trimmedLabel) return;
+    const parsedOptions = def.type === "select" ? options.split(",").map((o) => o.trim()).filter(Boolean) : null;
+    onSave({ label: trimmedLabel, options: parsedOptions, audience: audience || null });
+  };
+
+  return (
+    <Modal title="Alanı düzenle" onClose={onClose}>
+      <form onSubmit={submit}>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Nerede</label>
+          <select value={def.entity} disabled style={{ width: "100%" }}>
+            <option value="customer">Müşteriler</option>
+            <option value="deal">{dealEntityLabel}</option>
+          </select>
+        </div>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Alan adı</label>
+          <input value={label} onChange={(e) => setLabel(e.target.value)} style={{ width: "100%" }} />
+        </div>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tip</label>
+          <select value={def.type} disabled style={{ width: "100%" }}>
+            <option value={def.type}>{FIELD_TYPE_LABELS[def.type] || def.type}</option>
+          </select>
+        </div>
+        {def.type === "select" && (
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Seçenekler (virgülle)</label>
+            <input value={options} onChange={(e) => setOptions(e.target.value)} placeholder="Daire, Villa, Arsa" style={{ width: "100%" }} />
+          </div>
+        )}
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kime</label>
+          <select value={audience} onChange={(e) => setAudience(e.target.value)} style={{ width: "100%" }}>
+            <option value="">Herkese (Kurumsal + Bireysel)</option>
+            <option value="kurumsal">Sadece Kurumsal</option>
+            <option value="bireysel">Sadece Bireysel</option>
+          </select>
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button type="button" onClick={onClose}>Vazgeç</button>
+          <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Güncelle</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDelete, sector }) {
   const dealEntityLabel = DEAL_ENTITY_NAV_LABELS[dealWordKind(sector)];
   const [entity, setEntity] = useState("customer");
@@ -856,36 +912,12 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
   const customerDefs = activeDefs.filter((d) => d.entity === "customer");
   const dealDefs = activeDefs.filter((d) => d.entity === "deal");
 
-  const startEdit = (d) => {
-    setEditingDef(d);
-    setEntity(d.entity);
-    setLabel(d.label);
-    setType(d.type);
-    setOptions((d.options || []).join(", "));
-    setAudience(d.audience || "");
-    setFormError("");
-  };
-
-  const cancelEdit = () => {
-    setEditingDef(null);
-    setLabel("");
-    setOptions("");
-    setAudience("");
-    setType("text");
-    setFormError("");
-  };
-
   const submit = (e) => {
     e.preventDefault();
     setFormError("");
     const trimmedLabel = label.trim();
     if (!trimmedLabel) return;
     const parsedOptions = type === "select" ? options.split(",").map((o) => o.trim()).filter(Boolean) : null;
-    if (editingDef) {
-      onUpdate({ id: editingDef.id, label: trimmedLabel, options: parsedOptions, audience: audience || null });
-      cancelEdit();
-      return;
-    }
     const key = slugifyKey(trimmedLabel);
     // customFieldDefs (sadece activeDefs değil) kontrol ediliyor — aksi halde başka
     // bir sektöre etiketlenmiş, şu an gizli (inactive) bir satırla aynı key'e sahip
@@ -923,7 +955,7 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
               </span>
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                 <Badge tone="accent">{FIELD_TYPE_LABELS[d.type] || d.type}</Badge>
-                <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => startEdit(d)} />
+                <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => setEditingDef(d)} />
                 <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(d)} />
               </div>
             </div>
@@ -943,13 +975,13 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
       {renderGroup(`${dealEntityLabel} alanları`, dealDefs)}
 
       <p style={{ fontSize: 13, fontWeight: 500, margin: "12px 0 4px", display: "flex", alignItems: "center", gap: 4 }}>
-        {editingDef ? "Alanı düzenle" : "Yeni alan ekle"}
+        Yeni alan ekle
         <InfoTip align="left" text={`Standart alanların (isim, telefon, tutar vb.) dışında, işinize özel ekstra bilgi alanları tanımlayabilirsiniz - örn. "Mülk Tipi", "Tercih Edilen Uzman", "Alerji Notu". "Nerede": bu bilgi müşteri kartında mı yoksa ${dealEntityLabel} kaydında mı görünsün. "Tip": ne tür veri gireceksiniz (metin, sayı, tarih, tarih & saat veya hazır seçim listesi) - "Tarih & Saat" tipiyle ${dealEntityLabel} kaydına eklenen alanlar için, o saatten 2 saat önce müşteriye otomatik hatırlatma e-postası gönderilir (randevu takibi için). "Kime": bu alanı sadece kurumsal, sadece bireysel müşterilerde mi yoksa herkeste mi göstermek istiyorsunuz.`} />
       </p>
       <form onSubmit={submit} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end", marginTop: 8 }}>
         <div>
           <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Nerede</label>
-          <select value={entity} onChange={(e) => setEntity(e.target.value)} disabled={!!editingDef} style={{ fontSize: 13 }}>
+          <select value={entity} onChange={(e) => setEntity(e.target.value)} style={{ fontSize: 13 }}>
             <option value="customer">Müşteriler</option>
             <option value="deal">{dealEntityLabel}</option>
           </select>
@@ -960,7 +992,7 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
         </div>
         <div>
           <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tip</label>
-          <select value={type} onChange={(e) => setType(e.target.value)} disabled={!!editingDef} style={{ fontSize: 13 }}>
+          <select value={type} onChange={(e) => setType(e.target.value)} style={{ fontSize: 13 }}>
             <option value="text">Metin</option>
             <option value="number">Sayı</option>
             <option value="select">Seçenekli</option>
@@ -983,13 +1015,8 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
           </select>
         </div>
         <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
-          {editingDef ? "Güncelle" : "+ Alan ekle"}
+          + Alan ekle
         </button>
-        {editingDef && (
-          <button type="button" onClick={cancelEdit} style={{ fontSize: 13 }}>
-            Vazgeç
-          </button>
-        )}
       </form>
       {formError && <p style={{ fontSize: 12.5, color: "var(--text-danger)", margin: "6px 0 0" }}>{formError}</p>}
 
@@ -999,6 +1026,15 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
           message={`"${confirmDelete.label}" alanı formlardan kaldırılacak. Daha önce kaydedilmiş değerler silinmez, sadece görünmez olur.`}
           onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
           onClose={() => setConfirmDelete(null)}
+        />
+      )}
+
+      {editingDef && (
+        <CustomFieldEditModal
+          def={editingDef}
+          dealEntityLabel={dealEntityLabel}
+          onClose={() => setEditingDef(null)}
+          onSave={(payload) => { onUpdate({ id: editingDef.id, ...payload }); setEditingDef(null); }}
         />
       )}
     </div>

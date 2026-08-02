@@ -8662,6 +8662,59 @@ function FreeServiceModal({ sector, onAdd, onClose }) {
   );
 }
 
+// Satır listesindeki "Düzenle" ikonu artık aynı formu değil, ayrı bir Modal
+// açıyor - önceden alttaki "ekle" formu düzenleme moduna geçip yer değiştiriyordu,
+// kullanıcı formun aşağı kaydığını/butonun "Güncelle"ye döndüğünü fark etmeyip
+// kafası karışıyordu (bkz. [[feedback]] - kullanıcı geri bildirimi).
+function PriceListEditModal({ item, sector, onSave, onClose }) {
+  const [name, setName] = useState(item.name);
+  const [price, setPrice] = useState(String(item.price));
+  const [refreshDays, setRefreshDays] = useState(item.refreshDays ? String(item.refreshDays) : "");
+  const [durationMinutes, setDurationMinutes] = useState(item.durationMinutes ? String(item.durationMinutes) : "");
+
+  const submit = (e) => {
+    e.preventDefault();
+    const trimmedName = name.trim();
+    if (!trimmedName || price === "") return;
+    onSave({ name: trimmedName, price: Number(price), refreshDays: Number(refreshDays) || null, durationMinutes: Number(durationMinutes) || null });
+  };
+
+  return (
+    <Modal title="Ürün/hizmeti düzenle" onClose={onClose}>
+      <form onSubmit={submit}>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>İsim</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={`Örn. ${PRICE_ITEM_NAME_EXAMPLES[sector] || "Danışmanlık"}`} style={{ width: "100%" }} />
+        </div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Fiyat (TL)</label>
+            <input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" style={{ width: "100%" }} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 3, marginBottom: 4 }}>
+              Süre (dk)
+              <InfoTip align="left" text="Opsiyonel - girerseniz, bu hizmet bir randevuya kalem olarak eklendiğinde randevunun süresi buna göre hesaplanır; aynı randevuda birden fazla hizmet varsa süreleri toplanır ve çakışma kontrolü buna göre yapılır." />
+            </label>
+            <input type="number" min="0" value={durationMinutes} onChange={(e) => setDurationMinutes(e.target.value)} placeholder="Opsiyonel" style={{ width: "100%" }} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 3, marginBottom: 4 }}>
+              Tazeleme (gün)
+              <InfoTip align="left" text="Opsiyonel - girerseniz, bu hizmet 'tamamlandı' olarak işaretlendiğinde bu kadar gün sonrasına otomatik bir hatırlatma kurulur (örn. protez tırnak için 21 gün)." />
+            </label>
+            <input type="number" min="0" value={refreshDays} onChange={(e) => setRefreshDays(e.target.value)} placeholder="Opsiyonel" style={{ width: "100%" }} />
+          </div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button type="button" onClick={onClose}>Vazgeç</button>
+          <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Güncelle</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
@@ -8673,31 +8726,10 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
   const query = search.trim().toLowerCase();
   const filteredItems = query ? items.filter((item) => item.name.toLowerCase().includes(query)) : items;
 
-  const startEdit = (item) => {
-    setEditingItem(item);
-    setName(item.name);
-    setPrice(String(item.price));
-    setRefreshDays(item.refreshDays ? String(item.refreshDays) : "");
-    setDurationMinutes(item.durationMinutes ? String(item.durationMinutes) : "");
-  };
-
-  const cancelEdit = () => {
-    setEditingItem(null);
-    setName("");
-    setPrice("");
-    setRefreshDays("");
-    setDurationMinutes("");
-  };
-
   const submit = (e) => {
     e.preventDefault();
     const trimmedName = name.trim();
     if (!trimmedName || price === "") return;
-    if (editingItem) {
-      onUpdate({ id: editingItem.id, name: trimmedName, price: Number(price), refreshDays: Number(refreshDays) || null, durationMinutes: Number(durationMinutes) || null });
-      cancelEdit();
-      return;
-    }
     onAdd({ name: trimmedName, price: Number(price), refreshDays: Number(refreshDays) || null, durationMinutes: Number(durationMinutes) || null });
     setName("");
     setPrice("");
@@ -8737,7 +8769,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
                 <Badge tone="accent">{formatTL(item.price)}</Badge>
                 {item.durationMinutes > 0 && <Badge tone="default">{item.durationMinutes} dk</Badge>}
                 {item.refreshDays > 0 && <Badge tone="default">{item.refreshDays} günde bir</Badge>}
-                <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => startEdit(item)} />
+                <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => setEditingItem(item)} />
                 <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(item)} />
               </div>
             </div>
@@ -8747,7 +8779,7 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
         </>
       )}
 
-      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>{editingItem ? "Ürün/hizmeti düzenle" : "Yeni ürün/hizmet ekle"}</p>
+      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Yeni ürün/hizmet ekle</p>
       <form onSubmit={submit} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end" }}>
         <div style={{ flex: 1, minWidth: 140 }}>
           <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>İsim</label>
@@ -8772,13 +8804,8 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
           <input type="number" min="0" value={refreshDays} onChange={(e) => setRefreshDays(e.target.value)} placeholder="Opsiyonel" style={{ width: "100%", fontSize: 13 }} />
         </div>
         <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
-          {editingItem ? "Güncelle" : "+ Ekle"}
+          + Ekle
         </button>
-        {editingItem && (
-          <button type="button" onClick={cancelEdit} style={{ fontSize: 13 }}>
-            Vazgeç
-          </button>
-        )}
       </form>
 
       {confirmDelete && (
@@ -8787,6 +8814,15 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
           message={`"${confirmDelete.name}" kaldırılacak. Bu geri alınamaz - ancak daha önce bu kalemle oluşturulmuş ${DEAL_WORD_FORMS[dealWordKind(sector)].plural} etkilenmez.`}
           onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
           onClose={() => setConfirmDelete(null)}
+        />
+      )}
+
+      {editingItem && (
+        <PriceListEditModal
+          item={editingItem}
+          sector={sector}
+          onClose={() => setEditingItem(null)}
+          onSave={(payload) => { onUpdate({ id: editingItem.id, ...payload }); setEditingItem(null); }}
         />
       )}
     </div>
@@ -8811,6 +8847,63 @@ const STOCK_ITEM_NAME_EXAMPLES = {
   egitim_kurs: "Ders Kitabı",
 };
 
+function StockEditModal({ item, sector, onSave, onClose }) {
+  const [name, setName] = useState(item.name);
+  const [unit, setUnit] = useState(item.unit);
+  const [quantityOnHand, setQuantityOnHand] = useState(String(item.quantityOnHand));
+  const [reorderThreshold, setReorderThreshold] = useState(item.reorderThreshold != null ? String(item.reorderThreshold) : "");
+  const [supplierName, setSupplierName] = useState(item.supplierName || "");
+
+  const submit = (e) => {
+    e.preventDefault();
+    const trimmedName = name.trim();
+    if (!trimmedName || quantityOnHand === "") return;
+    onSave({
+      name: trimmedName, unit, quantityOnHand: Number(quantityOnHand),
+      reorderThreshold: reorderThreshold === "" ? null : Number(reorderThreshold),
+      supplierName: supplierName.trim(),
+    });
+  };
+
+  return (
+    <Modal title="Stok kalemini düzenle" onClose={onClose}>
+      <form onSubmit={submit}>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>İsim</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={`Örn. ${STOCK_ITEM_NAME_EXAMPLES[sector] || "Sarf Malzemesi"}`} style={{ width: "100%" }} />
+        </div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Birim</label>
+            <select value={unit} onChange={(e) => setUnit(e.target.value)} style={{ width: "100%" }}>
+              {STOCK_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Mevcut miktar</label>
+            <input type="number" value={quantityOnHand} onChange={(e) => setQuantityOnHand(e.target.value)} placeholder="0" style={{ width: "100%" }} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 3, marginBottom: 4 }}>
+              Kritik seviye
+              <InfoTip placement="bottom" align="right" text="Bu miktara inince (veya altına düşünce) Pano'da düşük stok uyarısı çıkar. Boş bırakırsanız hiç uyarı verilmez." />
+            </label>
+            <input type="number" value={reorderThreshold} onChange={(e) => setReorderThreshold(e.target.value)} placeholder="Opsiyonel" style={{ width: "100%" }} />
+          </div>
+        </div>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tedarikçi</label>
+          <input value={supplierName} onChange={(e) => setSupplierName(e.target.value)} placeholder="Opsiyonel" style={{ width: "100%" }} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button type="button" onClick={onClose}>Vazgeç</button>
+          <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Güncelle</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function StockManager({ stockItems, priceListItems, priceItemIngredients, sector, onAddStock, onUpdateStock, onDeleteStock, onAddIngredient, onDeleteIngredient }) {
   const [tab, setTab] = useState("stok");
   const [name, setName] = useState("");
@@ -8825,31 +8918,16 @@ function StockManager({ stockItems, priceListItems, priceItemIngredients, sector
   const [recipeStockItemId, setRecipeStockItemId] = useState("");
   const [recipeQuantity, setRecipeQuantity] = useState("");
 
-  const startEdit = (item) => {
-    setEditingItem(item);
-    setName(item.name);
-    setUnit(item.unit);
-    setQuantityOnHand(String(item.quantityOnHand));
-    setReorderThreshold(item.reorderThreshold != null ? String(item.reorderThreshold) : "");
-    setSupplierName(item.supplierName || "");
-  };
-  const cancelEdit = () => {
-    setEditingItem(null);
-    setName(""); setUnit("adet"); setQuantityOnHand(""); setReorderThreshold(""); setSupplierName("");
-  };
-
   const submitStock = (e) => {
     e.preventDefault();
     const trimmedName = name.trim();
     if (!trimmedName || quantityOnHand === "") return;
-    const payload = {
+    onAddStock({
       name: trimmedName, unit, quantityOnHand: Number(quantityOnHand),
       reorderThreshold: reorderThreshold === "" ? null : Number(reorderThreshold),
       supplierName: supplierName.trim(),
-    };
-    if (editingItem) { onUpdateStock({ id: editingItem.id, ...payload }); cancelEdit(); return; }
-    onAddStock(payload);
-    cancelEdit();
+    });
+    setName(""); setUnit("adet"); setQuantityOnHand(""); setReorderThreshold(""); setSupplierName("");
   };
 
   const recipeRows = priceItemIngredients.filter((i) => i.priceItemId === recipePriceItemId);
@@ -8881,7 +8959,7 @@ function StockManager({ stockItems, priceListItems, priceItemIngredients, sector
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                       <Badge tone={low ? "danger" : "accent"}>{item.quantityOnHand} {item.unit}</Badge>
-                      <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => startEdit(item)} />
+                      <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => setEditingItem(item)} />
                       <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(item)} />
                     </div>
                   </div>
@@ -8890,7 +8968,7 @@ function StockManager({ stockItems, priceListItems, priceItemIngredients, sector
             </div>
           )}
 
-          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>{editingItem ? "Stok kalemini düzenle" : "Yeni stok kalemi ekle"}</p>
+          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Yeni stok kalemi ekle</p>
           <form onSubmit={submitStock} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end" }}>
             <div style={{ flex: 1, minWidth: 140 }}>
               <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>İsim</label>
@@ -8918,9 +8996,8 @@ function StockManager({ stockItems, priceListItems, priceItemIngredients, sector
               <input value={supplierName} onChange={(e) => setSupplierName(e.target.value)} placeholder="Opsiyonel" style={{ width: "100%", fontSize: 13 }} />
             </div>
             <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
-              {editingItem ? "Güncelle" : "+ Ekle"}
+              + Ekle
             </button>
-            {editingItem && <button type="button" onClick={cancelEdit} style={{ fontSize: 13 }}>Vazgeç</button>}
           </form>
 
           {confirmDelete && (
@@ -8929,6 +9006,15 @@ function StockManager({ stockItems, priceListItems, priceItemIngredients, sector
               message={`"${confirmDelete.name}" kaldırılacak. Bu kalemi kullanan reçete satırları da silinir.`}
               onConfirm={() => { onDeleteStock(confirmDelete.id); setConfirmDelete(null); }}
               onClose={() => setConfirmDelete(null)}
+            />
+          )}
+
+          {editingItem && (
+            <StockEditModal
+              item={editingItem}
+              sector={sector}
+              onClose={() => setEditingItem(null)}
+              onSave={(payload) => { onUpdateStock({ id: editingItem.id, ...payload }); setEditingItem(null); }}
             />
           )}
         </div>
@@ -10180,6 +10266,49 @@ function StaffShiftGrid({ people, staffShifts, onAdd, onDelete, readOnly = false
 // kaç aynı tipte oda boş olduğudur. Oda tipi listesi serbest metin değil, "Sektör &
 // Özel Alanlar"daki aktif "oda_tipi" seçenekli alanının kendi seçeneklerinden
 // geliyor — böylece iki ayrı yerde oda tipi listesi bakımı gerekmiyor.
+function RoomInventoryEditModal({ item, onSave, onClose }) {
+  const [quantity, setQuantity] = useState(item.quantity);
+  const [capacity, setCapacity] = useState(item.capacity ? String(item.capacity) : "");
+  const [description, setDescription] = useState(item.description || "");
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (Number(quantity) < 1) return;
+    onSave({ quantity: Number(quantity), capacity: capacity ? Number(capacity) : null, description: description.trim() });
+  };
+
+  return (
+    <Modal title="Oda tipini düzenle" onClose={onClose}>
+      <form onSubmit={submit}>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Oda Tipi</label>
+          <select value={item.roomType} disabled style={{ width: "100%" }}>
+            <option value={item.roomType}>{item.roomType}</option>
+          </select>
+        </div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Adet</label>
+            <input type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} style={{ width: "100%" }} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kapasite <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(kişi)</span></label>
+            <input type="number" min="1" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="2" style={{ width: "100%" }} />
+          </div>
+        </div>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Açıklama <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span></label>
+          <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Kahvaltı dahil, klima, WiFi..." style={{ width: "100%" }} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button type="button" onClick={onClose}>Vazgeç</button>
+          <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Güncelle</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function RoomInventoryManager({ items, roomTypeOptions, onAdd, onUpdate, onDelete }) {
   const [roomType, setRoomType] = useState(roomTypeOptions[0] || "");
   const [quantity, setQuantity] = useState(1);
@@ -10197,36 +10326,15 @@ function RoomInventoryManager({ items, roomTypeOptions, onAdd, onUpdate, onDelet
   // çalışılıp veritabanı "mükerrer kayıt" hatası veriyordu. Seçili değer
   // artık mevcut listede yoksa otomatik olarak ilk müsait seçeneğe döner.
   useEffect(() => {
-    if (!editingItem && roomType && !availableOptions.includes(roomType)) {
+    if (roomType && !availableOptions.includes(roomType)) {
       setRoomType(availableOptions[0] || "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availableOptions.join("|"), editingItem]);
-
-  const startEdit = (item) => {
-    setEditingItem(item);
-    setRoomType(item.roomType);
-    setQuantity(item.quantity);
-    setCapacity(item.capacity ? String(item.capacity) : "");
-    setDescription(item.description || "");
-  };
-
-  const cancelEdit = () => {
-    setEditingItem(null);
-    setRoomType(availableOptions[0] || "");
-    setQuantity(1);
-    setCapacity("");
-    setDescription("");
-  };
+  }, [availableOptions.join("|")]);
 
   const submit = (e) => {
     e.preventDefault();
     if (Number(quantity) < 1) return;
-    if (editingItem) {
-      onUpdate({ id: editingItem.id, quantity: Number(quantity), capacity: capacity ? Number(capacity) : null, description: description.trim() });
-      cancelEdit();
-      return;
-    }
     if (!roomType || !availableOptions.includes(roomType)) return;
     onAdd({ roomType, quantity: Number(quantity), capacity: capacity ? Number(capacity) : null, description: description.trim() });
     setQuantity(1);
@@ -10253,7 +10361,7 @@ function RoomInventoryManager({ items, roomTypeOptions, onAdd, onUpdate, onDelet
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                 <Badge tone="accent">{r.quantity} adet{r.capacity ? ` · ${r.capacity} kişilik` : ""}</Badge>
-                <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => startEdit(r)} />
+                <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => setEditingItem(r)} />
                 <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(r)} />
               </div>
             </div>
@@ -10261,7 +10369,7 @@ function RoomInventoryManager({ items, roomTypeOptions, onAdd, onUpdate, onDelet
         </div>
       )}
 
-      {availableOptions.length === 0 && !editingItem ? (
+      {availableOptions.length === 0 ? (
         <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
           {roomTypeOptions.length === 0
             ? 'Önce Sektör & Özel Alanlar\'da "Oda Tipi" alanına en az bir seçenek eklemelisiniz.'
@@ -10269,12 +10377,12 @@ function RoomInventoryManager({ items, roomTypeOptions, onAdd, onUpdate, onDelet
         </p>
       ) : (
         <>
-          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>{editingItem ? "Oda tipini düzenle" : "Yeni oda tipi ekle"}</p>
+          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Yeni oda tipi ekle</p>
           <form onSubmit={submit} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end" }}>
             <div style={{ minWidth: 160 }}>
               <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Oda Tipi</label>
-              <select value={roomType} onChange={(e) => setRoomType(e.target.value)} disabled={!!editingItem} style={{ fontSize: 13, width: "100%" }}>
-                {(editingItem ? [editingItem.roomType] : availableOptions).map((o) => <option key={o} value={o}>{o}</option>)}
+              <select value={roomType} onChange={(e) => setRoomType(e.target.value)} style={{ fontSize: 13, width: "100%" }}>
+                {availableOptions.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
             <div style={{ width: 80 }}>
@@ -10290,11 +10398,8 @@ function RoomInventoryManager({ items, roomTypeOptions, onAdd, onUpdate, onDelet
               <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Kahvaltı dahil, klima, WiFi..." style={{ fontSize: 13, width: "100%" }} />
             </div>
             <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
-              {editingItem ? "Güncelle" : "+ Ekle"}
+              + Ekle
             </button>
-            {editingItem && (
-              <button type="button" onClick={cancelEdit} style={{ fontSize: 13 }}>Vazgeç</button>
-            )}
           </form>
         </>
       )}
@@ -10305,6 +10410,14 @@ function RoomInventoryManager({ items, roomTypeOptions, onAdd, onUpdate, onDelet
           message={`"${confirmDelete.roomType}" kaldırılacak. Bu geri alınamaz.`}
           onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
           onClose={() => setConfirmDelete(null)}
+        />
+      )}
+
+      {editingItem && (
+        <RoomInventoryEditModal
+          item={editingItem}
+          onClose={() => setEditingItem(null)}
+          onSave={(payload) => { onUpdate({ id: editingItem.id, ...payload }); setEditingItem(null); }}
         />
       )}
     </div>
