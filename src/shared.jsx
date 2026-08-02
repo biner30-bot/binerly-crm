@@ -119,23 +119,32 @@ export function inRange(dateStr, { start, end }) {
 }
 
 export function DateRangeFilter({ from, to, onFromChange, onToChange }) {
+  // Safari/WebKit (özellikle iOS'a "Ana Ekrana Ekle" ile kurulmuş PWA), Chromium'un
+  // aksine boş input[type=date] içine hiçbir yer tutucu ("gg.aa.yyyy") ya da belirgin
+  // ikon çizmiyor - başka görsel içerik olmayınca kutu tamamen boş görünüyor ve title
+  // (hover) attribute'u da dokunmatik cihazda hiç tetiklenmiyor. Bu yüzden her zaman
+  // görünen kısa etiketler gerekiyor, sadece title'a güvenilemiyor.
   return (
-    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-      <input
-        type="date"
-        value={from}
-        onChange={(e) => onFromChange(e.target.value)}
-        title="Başlangıç tarihi"
-        style={{ fontSize: 12, padding: "6px 8px" }}
-      />
-      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>-</span>
-      <input
-        type="date"
-        value={to}
-        onChange={(e) => onToChange(e.target.value)}
-        title="Bitiş tarihi"
-        style={{ fontSize: 12, padding: "6px 8px" }}
-      />
+    <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+      <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <span style={{ fontSize: 10, color: "var(--text-muted)" }}>Başlangıç</span>
+        <input
+          type="date"
+          value={from}
+          onChange={(e) => onFromChange(e.target.value)}
+          style={{ fontSize: 12, padding: "6px 8px" }}
+        />
+      </label>
+      <span style={{ fontSize: 12, color: "var(--text-muted)", paddingBottom: 7 }}>-</span>
+      <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <span style={{ fontSize: 10, color: "var(--text-muted)" }}>Bitiş</span>
+        <input
+          type="date"
+          value={to}
+          onChange={(e) => onToChange(e.target.value)}
+          style={{ fontSize: 12, padding: "6px 8px" }}
+        />
+      </label>
       {(from || to) && (
         <button
           onClick={() => { onFromChange(""); onToChange(""); }}
