@@ -6201,6 +6201,7 @@ function rowToPayment(r) {
     amount: r.amount,
     paidAt: r.paid_at,
     note: r.note || "",
+    method: r.method || null,
     createdAt: r.created_at,
     deletedAt: r.deleted_at || null,
     provider: r.provider || null,
@@ -6379,6 +6380,8 @@ function rowToCompanySettings(r) {
     appointmentPrepNote: r.appointment_prep_note || "",
     appointmentDepositAmount: r.appointment_deposit_amount ?? null,
     appointmentConcurrency: r.appointment_concurrency ?? null,
+    winbackEnabled: r.winback_enabled === true,
+    winbackInactiveDays: r.winback_inactive_days ?? null,
   };
 }
 
@@ -6613,6 +6616,8 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
   const [appointmentRemindersEnabled, setAppointmentRemindersEnabled] = useState(initial?.appointmentRemindersEnabled !== false);
   const [googleReviewLink, setGoogleReviewLink] = useState(initial?.googleReviewLink || "");
   const [googleReviewRequestsEnabled, setGoogleReviewRequestsEnabled] = useState(initial?.googleReviewRequestsEnabled !== false);
+  const [winbackEnabled, setWinbackEnabled] = useState(initial?.winbackEnabled === true);
+  const [winbackInactiveDays, setWinbackInactiveDays] = useState(initial?.winbackInactiveDays ?? 60);
 
   const handleLogoFile = async (e) => {
     const file = e.target.files?.[0];
@@ -6646,6 +6651,8 @@ function CompanySettingsForm({ initial, customFieldDefs = [], onSave, onCancel, 
           appointmentRemindersEnabled,
           googleReviewLink: googleReviewLink.trim(),
           googleReviewRequestsEnabled,
+          winbackEnabled,
+          winbackInactiveDays: winbackEnabled ? Number(winbackInactiveDays) || 60 : null,
           sector: initial?.sector || null,
           lateCancelHours: initial?.lateCancelHours ?? null,
           hardBlockHours: initial?.hardBlockHours ?? null,
@@ -6760,6 +6767,22 @@ Ertesi gün otomatik gönderilir. İptal edilen veya gelinmeyen kayıtlar için 
           </p>
         </div>
       )}
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+          <input type="checkbox" checked={winbackEnabled} onChange={(e) => setWinbackEnabled(e.target.checked)} />
+          Uzun süredir gelmeyen müşterilere otomatik "sizi özledik" e-postası gönder
+          <InfoTip
+            align="right"
+            text="Varsayılan kapalı. Açarsanız, aşağıda belirlediğiniz gün sayısı kadar süredir kendisiyle hiç temas kurulmamış (not eklenmemiş) müşterilere günde bir kontrol edilerek otomatik bir hatırlatma e-postası gider - Randevu Alma Linki'niz varsa tek tıkla yeniden randevu alma bağlantısıyla birlikte. Aynı müşteriye, o tekrar temas kurana kadar ikinci kez gönderilmez. Sadece pazarlama izni verilmiş müşterilere gider (Google değerlendirme isteğiyle aynı yasal kural)."
+          />
+        </label>
+        {winbackEnabled && (
+          <div style={{ marginTop: 8, marginLeft: 26 }}>
+            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kaç gündür temas kurulmadıysa</label>
+            <input type="number" min="1" value={winbackInactiveDays} onChange={(e) => setWinbackInactiveDays(e.target.value)} style={{ width: 100 }} />
+          </div>
+        )}
+      </div>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button type="button" onClick={onCancel}>Vazgeç</button>
         <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
@@ -7799,6 +7822,10 @@ const REFUND_REASON_OPTIONS = [
   { value: "other", label: "Diğer" },
 ];
 
+// Sadece elle eklenen tahsilatlarda seçilebilir - online (iyzico/PayTR)
+// ödemelerde yöntem zaten "online" olarak biliniyor, ayrıca sorulmaz.
+const PAYMENT_METHOD_LABELS = { nakit: "Nakit", kart: "Kart", havale: "Havale/EFT", diger: "Diğer" };
+
 // iyzico/PayTR'da işlem, alındığı gün gün sonu mutabakatından önce iptal
 // edilirse hiç gerçekleşmemiş sayılır ve komisyon kesilmez - ama gün sonu
 // kapanışı geçip muhasebeleştikten sonra yapılan bir iadede kesilen komisyon
@@ -7822,6 +7849,7 @@ function DealPayments({ deal, payments, sector, onAddPayment, onUpdatePayment, o
   const [amount, setAmount] = useState("");
   const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState("");
+  const [method, setMethod] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -7829,6 +7857,7 @@ function DealPayments({ deal, payments, sector, onAddPayment, onUpdatePayment, o
   const [editAmount, setEditAmount] = useState("");
   const [editPaidAt, setEditPaidAt] = useState("");
   const [editNote, setEditNote] = useState("");
+  const [editMethod, setEditMethod] = useState("");
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
   const [refundingId, setRefundingId] = useState(null);
@@ -7853,6 +7882,7 @@ function DealPayments({ deal, payments, sector, onAddPayment, onUpdatePayment, o
     setEditAmount(String(payment.amount));
     setEditPaidAt(payment.paidAt.slice(0, 10));
     setEditNote(payment.note || "");
+    setEditMethod(payment.method || "");
     setEditError("");
   };
 
@@ -7863,7 +7893,7 @@ function DealPayments({ deal, payments, sector, onAddPayment, onUpdatePayment, o
     const remainingExcluding = remaining + payment.amount;
     if (n > remainingExcluding + 0.01) { setEditError(`En fazla ${formatTL(remainingExcluding)} girilebilir.`); return; }
     setEditSaving(true);
-    await onUpdatePayment({ id: payment.id, amount: n, paidAt: editPaidAt, note: editNote.trim() });
+    await onUpdatePayment({ id: payment.id, amount: n, paidAt: editPaidAt, note: editNote.trim(), method: editMethod || null });
     setEditSaving(false);
     setEditingId(null);
   };
@@ -7900,9 +7930,10 @@ function DealPayments({ deal, payments, sector, onAddPayment, onUpdatePayment, o
     }
     setError("");
     setSaving(true);
-    await onAddPayment({ dealId: deal.id, amount: n, paidAt, note: note.trim() });
+    await onAddPayment({ dealId: deal.id, amount: n, paidAt, note: note.trim(), method: method || null });
     setAmount("");
     setNote("");
+    setMethod("");
     setSaving(false);
   };
 
@@ -7919,6 +7950,10 @@ function DealPayments({ deal, payments, sector, onAddPayment, onUpdatePayment, o
         <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
           <input type="number" min="0" step="0.01" value={amount} onChange={(e) => { setAmount(e.target.value); setError(""); }} placeholder="Tutar" style={{ flex: 1 }} />
           <input type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} style={{ width: 140 }} />
+          <select value={method} onChange={(e) => setMethod(e.target.value)} style={{ width: 120 }}>
+            <option value="">Yöntem</option>
+            {Object.entries(PAYMENT_METHOD_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
         </div>
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Not (opsiyonel)" style={{ width: "100%", marginBottom: 8 }} />
         {error && <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "0 0 8px" }}>{error}</p>}
@@ -7940,7 +7975,7 @@ function DealPayments({ deal, payments, sector, onAddPayment, onUpdatePayment, o
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13 }}>
                   <span style={{ color: isRefund ? "var(--text-danger)" : "inherit" }}>
                     {isRefund ? "−" : ""}{formatTL(Math.abs(p.amount))}{" "}
-                    <span style={{ color: "var(--text-muted)" }}>· {paymentDateLabel(p.paidAt)}{p.note ? ` · ${p.note}` : ""}</span>
+                    <span style={{ color: "var(--text-muted)" }}>· {paymentDateLabel(p.paidAt)}{p.method ? ` · ${PAYMENT_METHOD_LABELS[p.method] || p.method}` : ""}{p.note ? ` · ${p.note}` : ""}</span>
                   </span>
                   {isRefund ? null : isOnline ? (
                     refundable > 0.01 ? (
@@ -7965,6 +8000,10 @@ function DealPayments({ deal, payments, sector, onAddPayment, onUpdatePayment, o
                         style={{ flex: 1, fontSize: 13 }}
                       />
                       <input type="date" value={editPaidAt} onChange={(e) => setEditPaidAt(e.target.value)} style={{ width: 140, fontSize: 13 }} />
+                      <select value={editMethod} onChange={(e) => setEditMethod(e.target.value)} style={{ width: 120, fontSize: 13 }}>
+                        <option value="">Yöntem</option>
+                        {Object.entries(PAYMENT_METHOD_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                      </select>
                     </div>
                     <input value={editNote} onChange={(e) => setEditNote(e.target.value)} placeholder="Not (opsiyonel)" style={{ width: "100%", marginBottom: 8, fontSize: 13 }} />
                     {editError && <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "0 0 8px" }}>{editError}</p>}
@@ -13678,8 +13717,8 @@ export default function App() {
     dealPayments.forEach((p) => logAction("payments", p.id, "deleted", `${formatTL(p.amount)} tahsilat çöp kutusuna taşındı`));
   };
 
-  const addPayment = async ({ dealId, amount, paidAt, note }) => {
-    const row = { id: uid(), user_id: activeTeamId, deal_id: dealId, amount, paid_at: paidAt, note: note || null };
+  const addPayment = async ({ dealId, amount, paidAt, note, method }) => {
+    const row = { id: uid(), user_id: activeTeamId, deal_id: dealId, amount, paid_at: paidAt, note: note || null, method: method || null };
     const { data, error } = await supabase.from("payments").insert(row).select().single();
     if (error) { notify(`Tahsilat eklenemedi: ${error.message}`); return; }
     const payment = rowToPayment(data);
@@ -13699,7 +13738,7 @@ export default function App() {
   // online bir ödemenin tutarını burada değiştirmek gerçek sağlayıcı işlemiyle
   // tutarsızlığa yol açar, onlar sadece "İade Et" ile değişebilir (deletePayment
   // ile aynı gerekçe/koruma). İade kayıtları (amount<0) da düzenlenemez.
-  const updatePayment = async ({ id, amount, paidAt, note }) => {
+  const updatePayment = async ({ id, amount, paidAt, note, method }) => {
     const payment = payments.find((p) => p.id === id);
     const isRefundableOnline = (payment?.provider === "iyzico" && payment?.iyzicoPaymentTransactionId) || (payment?.provider === "paytr" && payment?.paytrMerchantOid);
     if (isRefundableOnline || (payment?.amount || 0) < 0) {
@@ -13708,7 +13747,7 @@ export default function App() {
     }
     const { data, error } = await supabase
       .from("payments")
-      .update({ amount, paid_at: paidAt, note: note || null })
+      .update({ amount, paid_at: paidAt, note: note || null, method: method || null })
       .eq("id", id)
       .select()
       .single();
@@ -14526,7 +14565,19 @@ export default function App() {
     return outcome;
   };
 
-  const upsertCompanySettings = async (s) => {
+  // patch, mevcut companySettings ÜZERİNE merge edilir - çağıran (örn.
+  // CompanySettingsForm) her alanı bilmek/taşımak zorunda kalmasın diye.
+  // Öncesinde bu merge YOKTU: sadece birkaç "eski" alan (lateCancelHours vb.)
+  // CompanySettingsForm'un kendi payload'ında elle initial'dan taşınıyordu -
+  // ama appointmentPenaltyHours/appointmentDepositAmount/appointmentPrepNote
+  // gibi SONRADAN eklenen alanlar unutulmuştu. Sonuç: İşletme Bilgileri
+  // formunu (isim/adres/logo) kaydetmek, o formda hiç görünmeyen randevu
+  // ceza politikası/kapora/hazırlık notu gibi ayarları SESSİZCE null'a
+  // çekiyordu - gerçek bir veri kaybı riski. Diğer çağıranlar (AppointmentCancelPolicyBox
+  // vb.) zaten kendi tarafında {...companySettings, ...patch} yapıyordu, bu
+  // merge onlar için zararsız bir tekrar.
+  const upsertCompanySettings = async (patch) => {
+    const s = { ...companySettings, ...patch };
     const row = {
       user_id: activeTeamId,
       company_name: s.companyName,
@@ -14554,6 +14605,8 @@ export default function App() {
       appointment_prep_note: s.appointmentPrepNote || null,
       appointment_deposit_amount: s.appointmentDepositAmount || null,
       appointment_concurrency: s.appointmentConcurrency || null,
+      winback_enabled: s.winbackEnabled === true,
+      winback_inactive_days: s.winbackInactiveDays || null,
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase.from("company_settings").upsert(row).select().single();

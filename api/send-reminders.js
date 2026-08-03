@@ -247,7 +247,69 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(200).json({ usersNotified, failed, customersNotified, reviewsRequested, membershipsMoved });
+    // Geri kazanım (churn/win-back) — VARSAYILAN KAPALI (bkz. sql/2026-08-03_
+    // winback_notifications.sql), sadece winback_enabled=true olan işletmeler
+    // için. "Pasif" tanımı customers.last_contact - Pano'daki "Pasif Müşteri
+    // Oranı" istatistiğiyle AYNI sinyal, farklı bir tanım icat edilmedi.
+    let winbackSent = 0;
+    const { data: winbackSettings, error: winbackSettingsError } = await supabaseAdmin
+      .from("company_settings")
+      .select("user_id, company_name, logo_url, email, winback_inactive_days, lead_capture_token")
+      .eq("winback_enabled", true);
+    if (winbackSettingsError) {
+      console.error("winback settings query error:", winbackSettingsError.message);
+    } else if (winbackSettings && winbackSettings.length > 0) {
+      const winbackUserIds = winbackSettings.map((s) => s.user_id);
+      const { data: candidateCustomers, error: candidatesError } = await supabaseAdmin
+        .from("customers")
+        .select("id, user_id, name, email, marketing_consent, last_contact, winback_sent_at")
+        .in("user_id", winbackUserIds)
+        .is("deleted_at", null)
+        .eq("marketing_consent", true)
+        .not("email", "is", null)
+        .not("last_contact", "is", null);
+      if (candidatesError) {
+        console.error("winback candidates query error:", candidatesError.message);
+      } else {
+        const winbackSettingsByUser = Object.fromEntries(winbackSettings.map((s) => [s.user_id, s]));
+        const now = Date.now();
+        for (const customer of candidateCustomers || []) {
+          const settings = winbackSettingsByUser[customer.user_id];
+          const thresholdDays = settings?.winback_inactive_days > 0 ? settings.winback_inactive_days : 60;
+          const daysSinceContact = (now - new Date(customer.last_contact).getTime()) / (24 * 60 * 60 * 1000);
+          if (daysSinceContact < thresholdDays) continue;
+          // Müşteri son bildirimden SONRA yeniden temas kurduysa (last_contact
+          // ilerlediyse) tekrar gönderilebilir - ama aynı "sessizlik dönemi"
+          // içinde bir daha gönderilmez, her gün aynı kişiye spam olmasın.
+          if (customer.winback_sent_at && new Date(customer.winback_sent_at) >= new Date(customer.last_contact)) continue;
+
+          const company = settings.company_name || "Binerly";
+          const bodyText = `Merhaba ${customer.name || ""},\n\nSizi bir süredir ${company}'de görmedik, sizi özledik! Tekrar görüşmek isteriz.`;
+          const footerLines = [`${company} (Binerly ile)`, "Bu e-posta Binerly (binerly.com) altyapısıyla gönderildi."];
+          // Randevu widget'ı varsa (Ayarlar → Müşteri Kazanma Linki) tek tıkla
+          // yeniden randevu almayı önerir - yoksa sade bir mesaj olarak kalır.
+          const ctaUrl = settings.lead_capture_token ? `https://binerly.com/randevu-al/${settings.lead_capture_token}` : null;
+          const winbackRes = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              from: `${company} (Binerly ile) <noreply@binerly.com>`,
+              to: customer.email,
+              subject: `Sizi özledik - ${company}`,
+              html: renderEmailHtml({ logoUrl: settings.logo_url, bodyText, ctaLabel: ctaUrl ? "Randevu Al" : undefined, ctaUrl, footerLines }),
+              text: plainTextFallback(bodyText, ctaUrl ? "Randevu Al" : null, ctaUrl, footerLines),
+              ...(settings.email ? { reply_to: settings.email } : {}),
+            }),
+          });
+          if (winbackRes.ok) {
+            winbackSent++;
+            await supabaseAdmin.from("customers").update({ winback_sent_at: new Date().toISOString() }).eq("id", customer.id);
+          }
+        }
+      }
+    }
+
+    return res.status(200).json({ usersNotified, failed, customersNotified, reviewsRequested, membershipsMoved, winbackSent });
   } catch (err) {
     console.error("send-reminders fatal error:", err.message);
     return res.status(500).json({ error: "Gönderim sırasında hata oluştu." });
