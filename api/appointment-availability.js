@@ -9,7 +9,13 @@ import crypto from "node:crypto";
 // slot adımı kadar) hiçbir mevcut randevu aralığıyla kesişmemeli). Önceden
 // burada sadece "tam saat eşitliği" bakılıyordu - çoklu hizmet seçince (60+
 // dakikalık randevular) bir sonraki 30dk'lık slot yanlışlıkla boş görünüyordu.
-function computeDaySlots(windows, isToday, nowMinutes, takenRanges, durationMinutes = 0) {
+// concurrency: aynı anda kaç randevu karşılanabileceği (company_settings.
+// appointment_concurrency, varsayılan 1 - birden fazla uzman/koltuk/cihazı
+// olan işletmeler için, bkz. sql/2026-08-03_appointment_concurrency.sql).
+// Önceden bir slot, TEK bir çakışan randevu bile varsa dolu sayılıyordu -
+// tek kaynaklı (1 koltuk/uzman) işletmeler için doğruydu ama birden fazla
+// kaynağı olan işletmelerde yanlışlıkla ikinci/üçüncü randevuyu da engelliyordu.
+function computeDaySlots(windows, isToday, nowMinutes, takenRanges, durationMinutes = 0, concurrency = 1) {
   const slots = [];
   for (const window of windows) {
     const [startH, startM] = window.start_time.slice(0, 5).split(":").map(Number);
@@ -20,12 +26,17 @@ function computeDaySlots(windows, isToday, nowMinutes, takenRanges, durationMinu
     for (let cursor = startH * 60 + startM; cursor + svcDuration <= end; cursor += step) {
       if (isToday && cursor <= nowMinutes) continue;
       const candidateEnd = cursor + svcDuration;
-      if (takenRanges.some((r) => cursor < r.end && r.start < candidateEnd)) continue;
+      const overlapCount = takenRanges.filter((r) => cursor < r.end && r.start < candidateEnd).length;
+      if (overlapCount >= concurrency) continue;
       const time = `${String(Math.floor(cursor / 60)).padStart(2, "0")}:${String(cursor % 60).padStart(2, "0")}`;
       slots.push(time);
     }
   }
   return slots.sort();
+}
+
+function resolveConcurrency(settings) {
+  return Math.max(1, Number(settings?.appointment_concurrency) || 1);
 }
 
 // Bir "YYYY-MM-DDTHH:MM..." zaman damgasının gün-içi dakika karşılığı.
@@ -159,21 +170,19 @@ async function handleBooking(req, res, supabaseAdmin) {
   const candidateStart = minutesOfDay(dateTime);
   const candidateEnd = candidateStart + Math.max(durationMinutes, 1);
   const candidateDateStr = dateTime.slice(0, 10);
-  const { data: existingDeals, error: conflictError } = await supabaseAdmin
-    .from("deals")
-    .select("custom_fields")
-    .eq("user_id", businessUserId)
-    .is("deleted_at", null)
-    .neq("stage", "kaybedildi");
+  const [{ data: existingDeals, error: conflictError }, { data: concurrencySettings }] = await Promise.all([
+    supabaseAdmin.from("deals").select("custom_fields").eq("user_id", businessUserId).is("deleted_at", null).neq("stage", "kaybedildi"),
+    supabaseAdmin.from("company_settings").select("appointment_concurrency").eq("user_id", businessUserId).maybeSingle(),
+  ]);
   if (conflictError) return res.status(500).json({ error: conflictError.message });
-  const hasConflict = (existingDeals || []).some((d) => {
+  const overlapCount = (existingDeals || []).filter((d) => {
     const dt = d.custom_fields?.[dateTimeKey];
     if (typeof dt !== "string" || !dt.startsWith(candidateDateStr)) return false;
     const otherStart = minutesOfDay(dt);
     const otherEnd = otherStart + Math.max(Number(d.custom_fields?.duration_minutes) || 1, 1);
     return candidateStart < otherEnd && otherStart < candidateEnd;
-  });
-  if (hasConflict) return res.status(409).json({ error: "Bu saat az önce doldu, lütfen başka bir saat seçin." });
+  }).length;
+  if (overlapCount >= resolveConcurrency(concurrencySettings)) return res.status(409).json({ error: "Bu saat az önce doldu, lütfen başka bir saat seçin." });
 
   const { data: cred } = await supabaseAdmin.from("payment_credentials").select("id").eq("user_id", businessUserId).maybeSingle();
 
@@ -274,13 +283,15 @@ export default async function handler(req, res) {
   // gerektiren bir kopya oluşmasın diye.
   const overviewDays = req.query.overview ? Math.min(Math.max(parseInt(req.query.overview, 10) || 14, 1), 30) : 0;
   if (overviewDays > 0) {
-    const [{ data: fieldDefs, error: fieldDefsError }, { data: allHours, error: hoursError }, { data: deals, error: dealsError }, { data: cred, error: credError }] = await Promise.all([
+    const [{ data: fieldDefs, error: fieldDefsError }, { data: allHours, error: hoursError }, { data: deals, error: dealsError }, { data: cred, error: credError }, { data: concurrencySettings }] = await Promise.all([
       supabaseAdmin.from("custom_field_defs").select("key").eq("user_id", businessUserId).eq("entity", "deal").eq("field_type", "datetime").eq("active", true).limit(1),
       supabaseAdmin.from("business_hours").select("weekday, start_time, end_time, slot_duration_minutes").eq("user_id", businessUserId),
       supabaseAdmin.from("deals").select("custom_fields").eq("user_id", businessUserId).is("deleted_at", null).neq("stage", "kaybedildi"),
       supabaseAdmin.from("payment_credentials").select("id").eq("user_id", businessUserId).maybeSingle(),
+      supabaseAdmin.from("company_settings").select("appointment_concurrency").eq("user_id", businessUserId).maybeSingle(),
     ]);
     if (fieldDefsError || hoursError || dealsError || credError) return res.status(500).json({ error: (fieldDefsError || hoursError || dealsError || credError).message });
+    const concurrency = resolveConcurrency(concurrencySettings);
 
     const dateTimeKey = fieldDefs?.[0]?.key || null;
     const hasPaymentProvider = !!cred;
@@ -317,7 +328,7 @@ export default async function handler(req, res) {
       const isoWeekday = jsWeekday === 0 ? 7 : jsWeekday;
       const windows = hoursByWeekday.get(isoWeekday) || [];
       const taken = takenByDate.get(dateStr) || [];
-      const slotCount = computeDaySlots(windows, dateStr === todayIstanbul, nowMinutes, taken, requestedDuration).length;
+      const slotCount = computeDaySlots(windows, dateStr === todayIstanbul, nowMinutes, taken, requestedDuration, concurrency).length;
       // "Kapalı" (o haftagünü için hiç mesai saati tanımlı değil - KOBİ'nin
       // kendi Müsaitlik Saatleri seçimi, ör. Pazar) ile "Dolu" (mesai var ama
       // tüm saatler alınmış) FARKLI şeyler - ikisi de slotCount=0 olduğu için
@@ -345,11 +356,12 @@ export default async function handler(req, res) {
   // Bakım/Sağlık-Klinik'te randevu_tarihi, Emlak/Dijital Ajans/Danışmanlık'ta
   // gorusme_tarihi) — send-appointment-reminders.js'in zaten yaptığı gibi, sabit
   // kodlamak yerine bu işletmenin aktif "Tarih & Saat" alanı dinamik bulunuyor.
-  const [{ data: fieldDefs, error: fieldDefsError }, { data: hours, error: hoursError }, { data: deals, error: dealsError }, { data: cred, error: credError }] = await Promise.all([
+  const [{ data: fieldDefs, error: fieldDefsError }, { data: hours, error: hoursError }, { data: deals, error: dealsError }, { data: cred, error: credError }, { data: concurrencySettings }] = await Promise.all([
     supabaseAdmin.from("custom_field_defs").select("key").eq("user_id", businessUserId).eq("entity", "deal").eq("field_type", "datetime").eq("active", true).limit(1),
     supabaseAdmin.from("business_hours").select("start_time, end_time, slot_duration_minutes").eq("user_id", businessUserId).eq("weekday", isoWeekday),
     supabaseAdmin.from("deals").select("custom_fields").eq("user_id", businessUserId).is("deleted_at", null).neq("stage", "kaybedildi"),
     supabaseAdmin.from("payment_credentials").select("id").eq("user_id", businessUserId).maybeSingle(),
+    supabaseAdmin.from("company_settings").select("appointment_concurrency").eq("user_id", businessUserId).maybeSingle(),
   ]);
 
   if (fieldDefsError || hoursError || dealsError || credError) return res.status(500).json({ error: (fieldDefsError || hoursError || dealsError || credError).message });
@@ -390,7 +402,7 @@ export default async function handler(req, res) {
   // müşteri belirli bir uzman istiyorsa not alanına yazıp işletmeyle
   // konuşuyor. Personel seçimi eklenirse vardiya buraya yeniden bağlanacak.
   const requestedDuration = await resolveDurationMinutes(supabaseAdmin, businessUserId, req.query.serviceIds);
-  const slots = computeDaySlots(hours || [], isToday, nowMinutes, takenRanges, requestedDuration);
+  const slots = computeDaySlots(hours || [], isToday, nowMinutes, takenRanges, requestedDuration, resolveConcurrency(concurrencySettings));
 
   return res.status(200).json({ slots, dateTimeKey, hasPaymentProvider });
 }

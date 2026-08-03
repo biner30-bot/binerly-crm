@@ -6223,7 +6223,7 @@ function rowToDealLineItem(r) {
 }
 
 function rowToPriceListItem(r) {
-  return { id: r.id, name: r.name, price: r.price, refreshDays: r.refresh_days || null, durationMinutes: r.duration_minutes || null };
+  return { id: r.id, name: r.name, price: r.price, refreshDays: r.refresh_days || null, durationMinutes: r.duration_minutes || null, commissionPercent: r.commission_percent ?? null };
 }
 
 function rowToStockItem(r) {
@@ -6378,6 +6378,7 @@ function rowToCompanySettings(r) {
     googleReviewRequestsEnabled: r.google_review_requests_enabled !== false,
     appointmentPrepNote: r.appointment_prep_note || "",
     appointmentDepositAmount: r.appointment_deposit_amount ?? null,
+    appointmentConcurrency: r.appointment_concurrency ?? null,
   };
 }
 
@@ -6999,7 +7000,7 @@ function RowActionsMenu({ items }) {
   );
 }
 
-function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], payments = [], appointmentDateTimeKey = null, roomInventory = [], customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, businessUserId, titleSuggestions = [], priceListItems = [], initialLineItems = [], dealLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], appointmentPenaltyStrikeLimit = null, appointmentPenaltyBurnsSession = false, onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onToggleAttachmentShare, onRequestPhotoConsent, onSave, onCancel }) {
+function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], payments = [], appointmentDateTimeKey = null, roomInventory = [], customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, businessUserId, titleSuggestions = [], priceListItems = [], initialLineItems = [], dealLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], appointmentPenaltyStrikeLimit = null, appointmentPenaltyBurnsSession = false, appointmentConcurrency = null, onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onToggleAttachmentShare, onRequestPhotoConsent, onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(
     initial?.customerId || customers.find((c) => c.customerType === preferredCustomerType)?.id || customers[0]?.id || ""
   );
@@ -7064,6 +7065,24 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   const [sessionTotal, setSessionTotal] = useState(initial?.sessionTotal ?? 10);
   const [sessionUsed, setSessionUsed] = useState(initial?.sessionUsed ?? 0);
   const [sessionError, setSessionError] = useState("");
+  // Karma paket ("8 seans Lazer + 2 seans Kontrol") - opsiyonel, custom_fields.
+  // package_breakdown olarak saklanır. Boşsa (varsayılan/eski davranış) tek bir
+  // sessionTotal/sessionUsed sayacı geçerli, aynen öncesi gibi. Dolu olduğunda
+  // sessionTotal/sessionUsed bu satırların TOPLAMINDAN otomatik hesaplanır (aşağıdaki
+  // useEffect) - iki ayrı kaynağın birbirinden sapması engellenir.
+  const [packageBreakdown, setPackageBreakdown] = useState(
+    Array.isArray(initial?.customFields?.package_breakdown) ? initial.customFields.package_breakdown : []
+  );
+  useEffect(() => {
+    if (packageBreakdown.length === 0) return;
+    setSessionTotal(packageBreakdown.reduce((sum, b) => sum + (Number(b.total) || 0), 0));
+    setSessionUsed(packageBreakdown.reduce((sum, b) => sum + (Number(b.used) || 0), 0));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [packageBreakdown]);
+  const convertToBreakdown = () => setPackageBreakdown([{ label: "", total: Number(sessionTotal) || 1, used: Number(sessionUsed) || 0 }]);
+  const addBreakdownRow = () => setPackageBreakdown((prev) => [...prev, { label: "", total: 1, used: 0 }]);
+  const updateBreakdownRow = (i, patch) => setPackageBreakdown((prev) => prev.map((b, idx) => (idx === i ? { ...b, ...patch } : b)));
+  const removeBreakdownRow = (i) => setPackageBreakdown((prev) => prev.filter((_, idx) => idx !== i));
   const [valueError, setValueError] = useState("");
   const [tags, setTags] = useState(initial?.tags || []);
   const [customFields, setCustomFields] = useState(initial?.customFields || {});
@@ -7100,7 +7119,11 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   // "planlandı"ya çekildi) sessizce çift rezervasyon oluşurdu. Tek bir
   // randevu saati aynı anda gerçekten iki farklı kişiye verilemeyeceği için
   // (kullanıcı isteğiyle) bu artık uyarıyla geçilebilen bir onay değil,
-  // gerçek bir engel — çakışma varken kayıt yapılamaz.
+  // gerçek bir engel — çakışma varken kayıt yapılamaz. appointmentConcurrency
+  // ayarlanmışsa (Ayarlar → Müsaitlik Saatleri → Eş zamanlı randevu
+  // kapasitesi) tek çakışmada değil, o sayıya ULAŞINCA engellenir — birden
+  // fazla uzman/koltuk/cihazı olan işletmeler aynı saate N randevu alabilsin
+  // diye (bkz. api/appointment-availability.js'teki AYNI mantık).
   const findAppointmentConflict = (candidateStage, candidateCustomFields) => {
     if (!appointmentDateTimeKey || bookingModel(sector) !== "slot" || candidateStage === "kaybedildi") return null;
     const dt = candidateCustomFields?.[appointmentDateTimeKey];
@@ -7113,7 +7136,8 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
     // süresine göre gerçek aralık çakışmasını da yakalar.
     const candidateDuration = Math.max(lineItemsDurationMinutes(lineItems, priceListItems), 1);
     const candidateEnd = candidateStart + candidateDuration * 60000;
-    const conflict = deals.find((d) => {
+    const concurrency = Math.max(1, Number(appointmentConcurrency) || 1);
+    const overlapping = deals.filter((d) => {
       if (d.id === initial?.id || d.stage === "kaybedildi") return false;
       const otherDt = d.customFields?.[appointmentDateTimeKey];
       if (!otherDt) return false;
@@ -7125,7 +7149,8 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
       const otherEnd = otherStart + otherDuration * 60000;
       return candidateStart < otherEnd && otherStart < candidateEnd;
     });
-    if (!conflict) return null;
+    if (overlapping.length < concurrency) return null;
+    const conflict = overlapping[0];
     return customers.find((c) => c.id === conflict.customerId)?.name || "başka bir kayıt";
   };
 
@@ -7196,7 +7221,13 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           // price_item_id: hangi fiyat listesi kalemi seçildiyse (üst seçici,
           // Kalemler'den bağımsız tek-hizmetlik durum) — tazeleme hatırlatıcısı
           // ve stok reçetesi düşümü bunu okuyor (bkz. App.jsx:computeServiceCompletionEffects).
-          customFields: { ...customFields, price_item_id: selectedPriceItemId || null },
+          customFields: {
+            ...customFields,
+            price_item_id: selectedPriceItemId || null,
+            package_breakdown: isPackageDeal && packageBreakdown.length > 0
+              ? packageBreakdown.filter((b) => b.label.trim() && Number(b.total) >= 1).map((b) => ({ label: b.label.trim(), total: Number(b.total) || 1, used: Math.min(Number(b.used) || 0, Number(b.total) || 1) }))
+              : null,
+          },
           lineItems: lineItems
             .filter((li) => li.description.trim())
             .map((li) => ({ description: li.description.trim(), quantity: Number(li.quantity) || 1, unitPrice: Number(li.unitPrice) || 0, priceItemId: li.priceItemId || null })),
@@ -7641,15 +7672,38 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
             </div>
           )}
           {supportsSessionPackages(sector) && isPackageDeal && (
-            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Toplam seans sayısı</label>
-                <input type="number" min="1" value={sessionTotal} onChange={(e) => setSessionTotal(e.target.value)} style={{ width: "100%" }} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kullanılan seans sayısı</label>
-                <input type="number" min="0" value={sessionUsed} onChange={(e) => setSessionUsed(e.target.value)} style={{ width: "100%" }} />
-              </div>
+            <div style={{ marginBottom: 12 }}>
+              {packageBreakdown.length === 0 ? (
+                <div style={{ display: "flex", gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Toplam seans sayısı</label>
+                    <input type="number" min="1" value={sessionTotal} onChange={(e) => setSessionTotal(e.target.value)} style={{ width: "100%" }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kullanılan seans sayısı</label>
+                    <input type="number" min="0" value={sessionUsed} onChange={(e) => setSessionUsed(e.target.value)} style={{ width: "100%" }} />
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
+                    Hizmet türleri
+                    <InfoTip align="left" text="Örn. '8 seans Lazer + 2 seans Kontrol' gibi karma bir paket - her hizmet türünün kendi seans sayacı olur, toplam/kullanılan otomatik hesaplanır." />
+                  </label>
+                  {packageBreakdown.map((b, i) => (
+                    <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
+                      <input value={b.label} onChange={(e) => updateBreakdownRow(i, { label: e.target.value })} placeholder="Örn. Lazer" style={{ flex: 2, minWidth: 0 }} />
+                      <input type="number" min="1" value={b.total} onChange={(e) => updateBreakdownRow(i, { total: Number(e.target.value) || 1 })} placeholder="Toplam" title="Toplam seans" style={{ width: 64 }} />
+                      <input type="number" min="0" value={b.used} onChange={(e) => updateBreakdownRow(i, { used: Math.min(Number(e.target.value) || 0, Number(b.total) || 0) })} placeholder="Kullanılan" title="Kullanılan seans" style={{ width: 64 }} />
+                      <button type="button" onClick={() => removeBreakdownRow(i)} style={{ fontSize: 12, flexShrink: 0 }}>Kaldır</button>
+                    </div>
+                  ))}
+                  <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0" }}>Toplam: {sessionTotal} seans, {sessionUsed} kullanıldı</p>
+                </div>
+              )}
+              <button type="button" onClick={() => (packageBreakdown.length === 0 ? convertToBreakdown() : addBreakdownRow())} style={{ fontSize: 12, marginTop: 4 }}>
+                {packageBreakdown.length === 0 ? "+ Karma pakete çevir (birden fazla hizmet türü)" : "+ Hizmet türü ekle"}
+              </button>
               {sessionError && <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "4px 0 0" }}>{sessionError}</p>}
             </div>
           )}
@@ -8730,12 +8784,13 @@ function PriceListEditModal({ item, sector, onSave, onClose }) {
   const [price, setPrice] = useState(String(item.price));
   const [refreshDays, setRefreshDays] = useState(item.refreshDays ? String(item.refreshDays) : "");
   const [durationMinutes, setDurationMinutes] = useState(item.durationMinutes ? String(item.durationMinutes) : "");
+  const [commissionPercent, setCommissionPercent] = useState(item.commissionPercent != null ? String(item.commissionPercent) : "");
 
   const submit = (e) => {
     e.preventDefault();
     const trimmedName = name.trim();
     if (!trimmedName || price === "") return;
-    onSave({ name: trimmedName, price: Number(price), refreshDays: Number(refreshDays) || null, durationMinutes: Number(durationMinutes) || null });
+    onSave({ name: trimmedName, price: Number(price), refreshDays: Number(refreshDays) || null, durationMinutes: Number(durationMinutes) || null, commissionPercent: commissionPercent !== "" ? Number(commissionPercent) : null });
   };
 
   return (
@@ -8745,24 +8800,31 @@ function PriceListEditModal({ item, sector, onSave, onClose }) {
           <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>İsim</label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder={`Örn. ${PRICE_ITEM_NAME_EXAMPLES[sector] || "Danışmanlık"}`} style={{ width: "100%" }} />
         </div>
-        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-          <div style={{ flex: 1 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 100 }}>
             <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Fiyat (TL)</label>
             <input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" style={{ width: "100%" }} />
           </div>
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, minWidth: 100 }}>
             <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 3, marginBottom: 4 }}>
               Süre (dk)
               <InfoTip align="left" text="Opsiyonel - girerseniz, bu hizmet bir randevuya kalem olarak eklendiğinde randevunun süresi buna göre hesaplanır; aynı randevuda birden fazla hizmet varsa süreleri toplanır ve çakışma kontrolü buna göre yapılır." />
             </label>
             <input type="number" min="0" value={durationMinutes} onChange={(e) => setDurationMinutes(e.target.value)} placeholder="Opsiyonel" style={{ width: "100%" }} />
           </div>
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, minWidth: 100 }}>
             <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 3, marginBottom: 4 }}>
               Tazeleme (gün)
               <InfoTip align="left" text="Opsiyonel - girerseniz, bu hizmet 'tamamlandı' olarak işaretlendiğinde bu kadar gün sonrasına otomatik bir hatırlatma kurulur (örn. protez tırnak için 21 gün)." />
             </label>
             <input type="number" min="0" value={refreshDays} onChange={(e) => setRefreshDays(e.target.value)} placeholder="Opsiyonel" style={{ width: "100%" }} />
+          </div>
+          <div style={{ flex: 1, minWidth: 100 }}>
+            <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 3, marginBottom: 4 }}>
+              Prim oranı (%)
+              <InfoTip align="left" text="Opsiyonel - bu hizmete özel bir prim yüzdesi. Girerseniz, bu hizmeti satan personelin hakedişi (Ayarlar → Takım'daki genel prim yüzdesi yerine) burada belirttiğiniz oranla hesaplanır - Personel Performansı raporunda görünür. Boş bırakırsanız personelin genel prim yüzdesi geçerli olur." />
+            </label>
+            <input type="number" min="0" step="0.5" value={commissionPercent} onChange={(e) => setCommissionPercent(e.target.value)} placeholder="Genel oran" style={{ width: "100%" }} />
           </div>
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
@@ -8828,6 +8890,9 @@ function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
                 <Badge tone="accent">{formatTL(item.price)}</Badge>
                 {item.durationMinutes > 0 && <Badge tone="default">{item.durationMinutes} dk</Badge>}
                 {item.refreshDays > 0 && <Badge tone="default">{item.refreshDays} günde bir</Badge>}
+                {item.commissionPercent != null && (
+                  <span title="Bu hizmete özel prim oranı"><Badge tone="default">%{item.commissionPercent} prim</Badge></span>
+                )}
                 <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => setEditingItem(item)} />
                 <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(item)} />
               </div>
@@ -9632,6 +9697,65 @@ function AppointmentDepositBox({ companySettings, hasPaymentConnection, onSave }
             Kapora iste
           </label>
           <input type="number" min="0" step="1" disabled={!depositOn} value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} placeholder="Örn. 100" style={{ width: 150 }} />
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}>
+            <button type="button" onClick={() => setOpen(false)}>Vazgeç</button>
+            <button type="button" onClick={handleSave} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Aynı anda kaç randevu karşılanabileceği - Otel'deki oda "quantity"/Spor
+// Merkezi'ndeki ders "capacity" ile AYNI basit desen. Boş/1 = eski davranış
+// (aynı anda tek randevu) - hiç dokunmayan işletmeler etkilenmez.
+function AppointmentConcurrencyBox({ companySettings, onSave }) {
+  const configured = companySettings?.appointmentConcurrency != null;
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState(companySettings?.appointmentConcurrency ?? "");
+
+  const handleOpen = () => {
+    setValue(companySettings?.appointmentConcurrency ?? "");
+    setOpen(true);
+  };
+
+  const handleSave = () => {
+    onSave({ appointmentConcurrency: value !== "" ? Math.max(1, Number(value)) : null });
+    setOpen(false);
+  };
+
+  return (
+    <div style={{ marginBottom: 16, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <p style={{ fontSize: 13, fontWeight: 500, margin: 0, display: "flex", alignItems: "center", gap: 4 }}>
+          Eş zamanlı randevu kapasitesi
+          <InfoTip
+            placement="bottom"
+            align="left"
+            text={
+              "Aynı saate kaç randevu birden alınabileceğini belirler - kaç uzman/koltuk/cihazınız varsa o kadar.\n\n" +
+              "Ayarlamazsanız (varsayılan) aynı saate sadece 1 randevu alınabilir; biri doluyken o saat herkes için kapanır. " +
+              "Örneğin 3 uzmanınız/koltuğunuz varsa buraya 3 yazarsanız aynı saate 3 farklı müşteri randevu alabilir."
+            }
+          />
+        </p>
+        {!open && (
+          <button type="button" onClick={handleOpen} style={{ fontSize: 12, padding: "4px 10px" }}>
+            {configured ? "Düzenle" : "Ayarla"}
+          </button>
+        )}
+      </div>
+      {!open && (
+        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0 0" }}>
+          {configured
+            ? `Aktif: aynı saate en fazla ${companySettings.appointmentConcurrency} randevu birden alınabiliyor.`
+            : "Varsayılan: aynı saate sadece 1 randevu alınabiliyor."}
+        </p>
+      )}
+      {open && (
+        <>
+          <input type="number" min="1" step="1" value={value} onChange={(e) => setValue(e.target.value)} placeholder="Örn. 3" style={{ width: 150, marginTop: 8 }} />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}>
             <button type="button" onClick={() => setOpen(false)}>Vazgeç</button>
             <button type="button" onClick={handleSave} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
@@ -13999,19 +14123,40 @@ export default function App() {
     }
   };
 
-  const incrementSessionUsage = async (id) => {
+  // breakdownIndex: karma pakette (custom_fields.package_breakdown, bkz.
+  // DealForm) hangi hizmet türünden kullanıldığı - tek tip paketlerde (breakdown
+  // yok/boş) null geçilir, eski davranışla birebir aynı tek sayaç güncellenir.
+  const incrementSessionUsage = async (id, breakdownIndex = null) => {
     const current = deals.find((d) => d.id === id);
     if (!current?.sessionTotal || current.sessionUsed >= current.sessionTotal) return;
+    const breakdown = Array.isArray(current.customFields?.package_breakdown) ? current.customFields.package_breakdown : null;
+    let nextCustomFields = current.customFields;
+    if (breakdown && breakdown.length > 0) {
+      const item = breakdownIndex != null ? breakdown[breakdownIndex] : null;
+      if (!item || item.used >= item.total) return;
+      nextCustomFields = { ...current.customFields, package_breakdown: breakdown.map((b, i) => (i === breakdownIndex ? { ...b, used: b.used + 1 } : b)) };
+    }
     const previousUsed = current.sessionUsed;
     const nextUsed = previousUsed + 1;
-    setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, sessionUsed: nextUsed } : d)));
-    const { error } = await supabase.from("deals").update({ session_used: nextUsed }).eq("id", id);
+    setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, sessionUsed: nextUsed, customFields: nextCustomFields } : d)));
+    const updatePayload = { session_used: nextUsed, ...(nextCustomFields !== current.customFields ? { custom_fields: nextCustomFields } : {}) };
+    const { error } = await supabase.from("deals").update(updatePayload).eq("id", id);
     if (error) {
       notify(`Seans güncellenemedi: ${error.message}`);
-      setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, sessionUsed: previousUsed } : d)));
+      setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, sessionUsed: previousUsed, customFields: current.customFields } : d)));
     } else {
-      logAction("deals", id, "updated", `${current.title || DEAL_TAB_STRINGS[dealWordKind(companySettings?.sector)].columnHeader} - ${nextUsed}. seans kullanıldı (${nextUsed}/${current.sessionTotal})`);
+      const label = breakdown && breakdownIndex != null ? ` (${breakdown[breakdownIndex].label})` : "";
+      logAction("deals", id, "updated", `${current.title || DEAL_TAB_STRINGS[dealWordKind(companySettings?.sector)].columnHeader} - ${nextUsed}. seans kullanıldı${label} (${nextUsed}/${current.sessionTotal})`);
     }
+  };
+
+  // Karma pakette (birden fazla hizmet türü) "Seans kullanıldı" tıklanınca
+  // HANGİ türden kullanıldığı sorulmalı - bu state o seçim modalını tutar.
+  const [packageUsePicker, setPackageUsePicker] = useState(null);
+  const handleUseSessionClick = (deal) => {
+    const breakdown = Array.isArray(deal.customFields?.package_breakdown) ? deal.customFields.package_breakdown : null;
+    if (breakdown && breakdown.length > 1) setPackageUsePicker(deal);
+    else incrementSessionUsage(deal.id, breakdown && breakdown.length === 1 ? 0 : null);
   };
 
   const touchCustomer = async (id) => {
@@ -14408,6 +14553,7 @@ export default function App() {
       google_review_requests_enabled: s.googleReviewRequestsEnabled !== false,
       appointment_prep_note: s.appointmentPrepNote || null,
       appointment_deposit_amount: s.appointmentDepositAmount || null,
+      appointment_concurrency: s.appointmentConcurrency || null,
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase.from("company_settings").upsert(row).select().single();
@@ -14464,8 +14610,8 @@ export default function App() {
     setPriceListItems((prev) => [...prev, rowToPriceListItem(data)]);
   };
 
-  const updatePriceListItem = async ({ id, name, price, refreshDays, durationMinutes }) => {
-    const { data, error } = await supabase.from("price_list_items").update({ name, price, refresh_days: refreshDays || null, duration_minutes: durationMinutes || null }).eq("id", id).select().single();
+  const updatePriceListItem = async ({ id, name, price, refreshDays, durationMinutes, commissionPercent }) => {
+    const { data, error } = await supabase.from("price_list_items").update({ name, price, refresh_days: refreshDays || null, duration_minutes: durationMinutes || null, commission_percent: commissionPercent ?? null }).eq("id", id).select().single();
     if (error) { notify(`Ürün/hizmet güncellenemedi: ${error.message}`); return; }
     setPriceListItems((prev) => prev.map((p) => (p.id === id ? rowToPriceListItem(data) : p)));
   };
@@ -15822,8 +15968,29 @@ export default function App() {
                 {Object.entries(
                   [...wonDeals, ...lostDeals].reduce((acc, d) => {
                     const key = d.assignedTo || "unassigned";
-                    const stats = (acc[key] ||= { won: 0, lost: 0, revenue: 0 });
-                    if (d.stage === "kazanildi") { stats.won += 1; stats.revenue += d.value || 0; }
+                    const stats = (acc[key] ||= { won: 0, lost: 0, revenue: 0, commissionParts: [] });
+                    if (d.stage === "kazanildi") {
+                      stats.won += 1;
+                      stats.revenue += d.value || 0;
+                      // Prim, mümkünse hizmet bazında (price_list_items.commission_percent)
+                      // hesaplanır - Kalemler'i (dealLineItems) veya kendi randevusunu
+                      // alırken seçtiği service_ids'i kullanır; ikisi de yoksa (elle
+                      // girilmiş tek tutar) personelin genel oranına düşer, öncekiyle
+                      // BİREBİR AYNI davranış.
+                      const itemsForDeal = dealLineItems.filter((li) => li.dealId === d.id);
+                      const parts = itemsForDeal.length > 0
+                        ? itemsForDeal.map((li) => ({
+                            amount: (Number(li.quantity) || 1) * (Number(li.unitPrice) || 0),
+                            commissionPercent: li.priceItemId ? priceListItems.find((p) => p.id === li.priceItemId)?.commissionPercent ?? null : null,
+                          }))
+                        : Array.isArray(d.customFields?.service_ids) && d.customFields.service_ids.length > 0
+                          ? d.customFields.service_ids.map((id) => {
+                              const item = priceListItems.find((p) => p.id === id);
+                              return { amount: Number(item?.price) || 0, commissionPercent: item?.commissionPercent ?? null };
+                            })
+                          : [{ amount: Number(d.value) || 0, commissionPercent: null }];
+                      stats.commissionParts.push(...parts);
+                    }
                     else stats.lost += 1;
                     return acc;
                   }, {})
@@ -15839,9 +16006,10 @@ export default function App() {
                         : member?.name || member?.email || "Bilinmeyen";
                     const total = stats.won + stats.lost;
                     const rate = total > 0 ? Math.round((stats.won / total) * 100) : null;
-                    const hasCommission = member?.commissionPercent != null || member?.chairRentalFee != null;
+                    const usesServiceRate = stats.commissionParts.some((p) => p.commissionPercent != null);
+                    const hasCommission = member?.commissionPercent != null || member?.chairRentalFee != null || usesServiceRate;
                     const payout = hasCommission
-                      ? stats.revenue * ((member.commissionPercent || 0) / 100) - (member.chairRentalFee || 0)
+                      ? stats.commissionParts.reduce((sum, p) => sum + p.amount * ((p.commissionPercent != null ? p.commissionPercent : (member?.commissionPercent || 0)) / 100), 0) - (member?.chairRentalFee || 0)
                       : null;
                     return (
                       <div key={assigneeId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
@@ -15850,7 +16018,7 @@ export default function App() {
                           {stats.won} {DEAL_WORD_FORMS[dealKind].bare} · <strong style={{ color: "var(--text-primary)" }}>{formatTL(stats.revenue)}</strong>
                           {rate !== null && <> · <span style={{ color: "var(--text-success)" }}>%{rate} kazanma oranı</span></>}
                           {payout !== null && (
-                            <> · <span style={{ color: "var(--text-accent)" }} title={`%${member.commissionPercent || 0} prim${member.chairRentalFee ? ` − ${formatTL(member.chairRentalFee)} koltuk kirası` : ""}`}>Hakediş: {formatTL(payout)}</span></>
+                            <> · <span style={{ color: "var(--text-accent)" }} title={`${usesServiceRate ? "Bazı hizmetlerde kendi prim oranı uygulandı, diğerlerinde " : ""}genel oran %${member?.commissionPercent || 0}${member?.chairRentalFee ? ` − ${formatTL(member.chairRentalFee)} koltuk kirası` : ""}`}>Hakediş: {formatTL(payout)}</span></>
                           )}
                         </span>
                       </div>
@@ -16487,7 +16655,7 @@ export default function App() {
                                         setPaymentModeDeal(d);
                                       },
                                     },
-                                    !!d.sessionTotal && d.sessionUsed < d.sessionTotal && { icon: "ti-plus", label: "Seans kullanıldı", onClick: () => incrementSessionUsage(d.id) },
+                                    !!d.sessionTotal && d.sessionUsed < d.sessionTotal && { icon: "ti-plus", label: "Seans kullanıldı", onClick: () => handleUseSessionClick(d) },
                                     { icon: "ti-cash", label: "Tahsilat", onClick: () => setPaymentsDeal(d) },
                                     {
                                       icon: "ti-copy",
@@ -16530,15 +16698,17 @@ export default function App() {
                             })()}
                             {!!d.sessionTotal && (
                               <div style={{ marginTop: 4, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
-                                <Badge tone={d.sessionUsed >= d.sessionTotal ? "success" : "default"}>
-                                  {d.sessionUsed >= d.sessionTotal ? "Paket tamamlandı" : `${d.sessionUsed}/${d.sessionTotal} seans`}
-                                </Badge>
+                                <span title={Array.isArray(d.customFields?.package_breakdown) ? d.customFields.package_breakdown.map((b) => `${b.label}: ${b.used}/${b.total}`).join(", ") : undefined}>
+                                  <Badge tone={d.sessionUsed >= d.sessionTotal ? "success" : "default"}>
+                                    {d.sessionUsed >= d.sessionTotal ? "Paket tamamlandı" : `${d.sessionUsed}/${d.sessionTotal} seans`}
+                                  </Badge>
+                                </span>
                                 {d.sessionUsed < d.sessionTotal && (
                                   <IconButton
                                     icon="ti-plus"
                                     title="Seans kullanıldı"
                                     size="sm"
-                                    onClick={(e) => { e.stopPropagation(); incrementSessionUsage(d.id); }}
+                                    onClick={(e) => { e.stopPropagation(); handleUseSessionClick(d); }}
                                   />
                                 )}
                               </div>
@@ -16673,7 +16843,7 @@ export default function App() {
                           </div>
                         )}
                         {!!d.sessionTotal && (
-                          <div style={{ marginTop: 4 }}>
+                          <div style={{ marginTop: 4 }} title={Array.isArray(d.customFields?.package_breakdown) ? d.customFields.package_breakdown.map((b) => `${b.label}: ${b.used}/${b.total}`).join(", ") : undefined}>
                             <Badge tone={d.sessionUsed >= d.sessionTotal ? "success" : "default"}>
                               {d.sessionUsed >= d.sessionTotal ? "Paket tamamlandı" : `${d.sessionUsed}/${d.sessionTotal} seans`}
                             </Badge>
@@ -16748,7 +16918,7 @@ export default function App() {
                                   setPaymentModeDeal(d);
                                 },
                               },
-                              !!d.sessionTotal && d.sessionUsed < d.sessionTotal && { icon: "ti-plus", label: "Seans kullanıldı", onClick: () => incrementSessionUsage(d.id) },
+                              !!d.sessionTotal && d.sessionUsed < d.sessionTotal && { icon: "ti-plus", label: "Seans kullanıldı", onClick: () => handleUseSessionClick(d) },
                               { icon: "ti-cash", label: "Tahsilat", onClick: () => setPaymentsDeal(d) },
                               {
                                 icon: "ti-copy",
@@ -17275,7 +17445,10 @@ export default function App() {
             ))}
           </div>
           {businessHoursTab === "saatler" ? (
-            <BusinessHoursManager items={businessHours} onAdd={addBusinessHours} onDelete={deleteBusinessHours} />
+            <>
+              <AppointmentConcurrencyBox companySettings={companySettings} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
+              <BusinessHoursManager items={businessHours} onAdd={addBusinessHours} onDelete={deleteBusinessHours} />
+            </>
           ) : businessHoursTab === "politika" ? (
             <>
               <AppointmentCancelPolicyBox companySettings={companySettings} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
@@ -17514,6 +17687,7 @@ export default function App() {
             attachments={attachments}
             appointmentPenaltyStrikeLimit={companySettings?.appointmentPenaltyStrikeLimit}
             appointmentPenaltyBurnsSession={companySettings?.appointmentPenaltyBurnsSession === true}
+            appointmentConcurrency={companySettings?.appointmentConcurrency}
             onUploadAttachment={uploadAttachment}
             onDownloadAttachment={downloadAttachment}
             onDeleteAttachment={deleteAttachment}
@@ -17522,6 +17696,25 @@ export default function App() {
             onSave={upsertDeal}
             onCancel={() => { setShowDealForm(false); setEditingDeal(null); }}
           />
+        </Modal>
+      )}
+
+      {packageUsePicker && (
+        <Modal title="Hangi hizmetten kullanıldı?" onClose={() => setPackageUsePicker(null)}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {(packageUsePicker.customFields?.package_breakdown || []).map((b, i) => (
+              <button
+                key={i}
+                type="button"
+                disabled={b.used >= b.total}
+                onClick={() => { incrementSessionUsage(packageUsePicker.id, i); setPackageUsePicker(null); }}
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", fontSize: 13 }}
+              >
+                <span>{b.label}</span>
+                <span style={{ color: "var(--text-secondary)" }}>{b.used}/{b.total}{b.used >= b.total ? " - tamamlandı" : ""}</span>
+              </button>
+            ))}
+          </div>
         </Modal>
       )}
 

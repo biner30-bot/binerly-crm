@@ -41,7 +41,7 @@ export default async function handler(req, res) {
 
   const { data: settings, error: settingsError } = await supabaseAdmin
     .from("company_settings")
-    .select("user_id, company_name, logo_url, sector, appointment_deposit_amount")
+    .select("user_id, company_name, logo_url, sector, appointment_deposit_amount, appointment_concurrency")
     .eq("lead_capture_token", token)
     .maybeSingle();
   if (settingsError) console.error("lead-capture query error:", settingsError.message);
@@ -178,14 +178,19 @@ export default async function handler(req, res) {
       .is("deleted_at", null)
       .neq("stage", "kaybedildi");
     if (conflictError) return res.status(500).json({ error: conflictError.message });
-    const hasConflict = (existingDeals || []).some((d) => {
+    // appointment_concurrency (Ayarlar → Müsaitlik Saatleri → Eş zamanlı randevu
+    // kapasitesi) - varsayılan 1, birden fazla uzman/koltuk/cihazı olan
+    // işletmeler aynı saate N randevu alabilsin diye (api/appointment-
+    // availability.js'teki AYNI mantık, bkz. sql/2026-08-03_appointment_concurrency.sql).
+    const concurrency = Math.max(1, Number(settings.appointment_concurrency) || 1);
+    const overlapCount = (existingDeals || []).filter((d) => {
       const dt = d.custom_fields?.[dateTimeKey];
       if (typeof dt !== "string" || !dt.startsWith(candidateDateStr)) return false;
       const otherStart = minutesOfDay(dt);
       const otherEnd = otherStart + Math.max(Number(d.custom_fields?.duration_minutes) || 1, 1);
       return candidateStart < otherEnd && otherStart < candidateEnd;
-    });
-    if (hasConflict) return res.status(409).json({ error: "Bu saat az önce doldu, lütfen başka bir saat seçin." });
+    }).length;
+    if (overlapCount >= concurrency) return res.status(409).json({ error: "Bu saat az önce doldu, lütfen başka bir saat seçin." });
 
     // Kapora - KOBİ Ayarlar'dan açtıysa VE Ödeme Bağlantısı gerçekten kuruluysa,
     // deal "ödeme bekleniyor" (payment_mode=required) olarak oluşturulur ve

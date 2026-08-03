@@ -1,0 +1,12 @@
+-- Randevu çakışma kontrolü şimdiye kadar TEK bir kaynak (aslında "işletme
+-- genelinde aynı anda sadece 1 randevu") varsayıyordu — birden fazla uzman/
+-- koltuk/cihazı olan bir işletmede, biri 14:00'te doluyken sistem o saati
+-- FARKLI bir uzmanla bile almayı engelliyordu (bkz. api/appointment-
+-- availability.js eski yorum: "Vardiya müşteri portalındaki müsaitliği
+-- ETKİLEMEZ ... müşteri hangi personelle randevu aldığını seçmiyor").
+-- Personel/cihaz SEÇİMİ getirmek (kim tarafından/hangi cihazla) o kasıtlı
+-- tasarım kararını tersine çevirirdi - onun yerine, "aynı anda kaç randevu
+-- karşılayabilirim" (uzman/koltuk/cihaz sayısı) tek bir sayı olarak soruluyor,
+-- Otel'deki oda "quantity" ve Spor Merkezi'ndeki ders "capacity" ile AYNI
+-- basit desen. NULL/1 = eski davranışla birebir aynı (aynı anda tek randevu).
+ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS appointment_concurrency integer NULL;

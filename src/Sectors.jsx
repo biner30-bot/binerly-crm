@@ -766,7 +766,7 @@ const AUDIENCE_LABELS = { kurumsal: "Kurumsal", bireysel: "Bireysel" };
 // kullanıcı "Kaynak" gibi gayet doğal bir alan adı eklerse slugifyKey aynı
 // anahtarı üretip bu iç işaretle çakışabilir (bkz. proje geçmişindeki "kaynak"
 // çakışma hatası). Elle alan eklerken bu anahtarlar asla üretilmemeli.
-const RESERVED_CUSTOM_FIELD_KEYS = new Set(["kaynak", "portal_randevu_zamani", "price_item_id"]);
+const RESERVED_CUSTOM_FIELD_KEYS = new Set(["kaynak", "portal_randevu_zamani", "price_item_id", "package_breakdown"]);
 
 function slugifyKey(label) {
   const map = { ç: "c", ğ: "g", ı: "i", ö: "o", ş: "s", ü: "u", İ: "i", Ç: "c", Ğ: "g", Ö: "o", Ş: "s", Ü: "u" };
