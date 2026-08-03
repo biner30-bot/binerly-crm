@@ -7053,6 +7053,20 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   );
   const lineItemsTotal = lineItems.reduce((sum, li) => sum + (Number(li.quantity) || 0) * (Number(li.unitPrice) || 0), 0);
   const lineItemsDuration = lineItemsDurationMinutes(lineItems, priceListItems);
+  // İndirim - SADECE kalem toplamı üzerinden uygulanır (Kalemler boşsa Tutar zaten
+  // elle girilen tek bir sayı, indirim varsa staff onu doğrudan o sayıya yansıtır).
+  // Ham tip/değer custom_fields.discount'ta saklanır ki teklif tekrar açıldığında
+  // indirim alanı (ve gerekçesi) kaybolmasın - Tutar'a sadece SONUÇ yazılır.
+  const [discountType, setDiscountType] = useState(initial?.customFields?.discount?.type || "percent");
+  const [discountValue, setDiscountValue] = useState(
+    initial?.customFields?.discount?.value != null ? String(initial.customFields.discount.value) : ""
+  );
+  const discountAmount = discountValue === "" || Number(discountValue) <= 0
+    ? 0
+    : Math.min(
+        discountType === "percent" ? lineItemsTotal * (Number(discountValue) / 100) : Number(discountValue),
+        lineItemsTotal
+      );
   // Basit gümrük/navlun hesaplayıcı — CANLI gümrük/navlun verisi çekmiyor,
   // sadece kullanıcının kendi (localStorage'da hatırlanan) sabit oranını mevcut
   // kalem toplamına uygulayıp yeni bir kalem olarak ekliyor.
@@ -7195,9 +7209,9 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   };
 
   useEffect(() => {
-    if (lineItems.length > 0) setValue(String(lineItemsTotal));
+    if (lineItems.length > 0) setValue(String(Math.round((lineItemsTotal - discountAmount) * 100) / 100));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lineItemsTotal, lineItems.length]);
+  }, [lineItemsTotal, lineItems.length, discountAmount]);
 
   return (
     <form
@@ -7249,6 +7263,9 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
             price_item_id: selectedPriceItemId || null,
             package_breakdown: isPackageDeal && packageBreakdown.length > 0
               ? packageBreakdown.filter((b) => b.label.trim() && Number(b.total) >= 1).map((b) => ({ label: b.label.trim(), total: Number(b.total) || 1, used: Math.min(Number(b.used) || 0, Number(b.total) || 1) }))
+              : null,
+            discount: lineItems.length > 0 && discountValue !== "" && Number(discountValue) > 0
+              ? { type: discountType, value: Number(discountValue) }
               : null,
           },
           lineItems: lineItems
@@ -7546,6 +7563,32 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
             </div>
           )}
         </div>
+        {lineItems.length > 0 && (
+          <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+            <div style={{ width: 100 }}>
+              <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 2 }}>İndirim</label>
+              <input
+                type="number" min="0" step="0.01"
+                value={discountValue}
+                onChange={(e) => setDiscountValue(e.target.value)}
+                placeholder="0"
+                style={{ width: "100%", fontSize: 13 }}
+              />
+            </div>
+            <div style={{ width: 70 }}>
+              <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 2 }}>&nbsp;</label>
+              <select value={discountType} onChange={(e) => setDiscountType(e.target.value)} style={{ width: "100%", fontSize: 13 }}>
+                <option value="percent">%</option>
+                <option value="amount">TL</option>
+              </select>
+            </div>
+            {discountAmount > 0 && (
+              <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 6px" }}>
+                Kalem toplamı {formatTL(lineItemsTotal)} - indirim {formatTL(discountAmount)} = <strong>{formatTL(lineItemsTotal - discountAmount)}</strong>
+              </p>
+            )}
+          </div>
+        )}
       </div>
       <div style={{ display: "flex", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
         <div style={{ flex: "1.6 1 200px" }}>
