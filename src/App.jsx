@@ -10995,6 +10995,7 @@ function TeamModal({
   const [confirmRemoveMember, setConfirmRemoveMember] = useState(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [showShiftHistory, setShowShiftHistory] = useState(false);
+  const [teamTab, setTeamTab] = useState("vardiya");
 
   const load = async () => {
     setLoading(true);
@@ -11097,24 +11098,39 @@ function TeamModal({
         <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
           Bu hesap <strong>{companySettings?.companyName || "bir işletme"}</strong> takımının bir üyesi. Tüm müşteri, teklif ve destek verisi bu takımla paylaşılıyor.
         </p>
-        <div style={{ margin: "16px 0" }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-            Vardiya <InfoTip placement="bottom" text="Sadece görüntüleme — vardiyayı düzenlemek için işletme sahibiyle konuşun." />
-            <button type="button" onClick={() => setShowShiftHistory(true)} style={{ fontSize: 11.5, padding: "2px 8px", marginLeft: "auto" }}>Geçmiş</button>
-          </label>
-          <StaffShiftGrid people={readOnlyPeople} staffShifts={staffShifts} readOnly />
+        <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, margin: "16px 0", flexWrap: "wrap" }}>
+          {[["vardiya", "Vardiya"], ["izinler", "İzinlerim"]].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTeamTab(id)}
+              style={{ border: "none", background: teamTab === id ? "var(--fill-accent)" : "transparent", color: teamTab === id ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: teamTab === id ? 600 : 400, fontSize: 13 }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
-            İzinlerim <InfoTip placement="bottom" text="Sadece kendi izin hakkınızı/kayıtlarınızı görürsünüz - başka üyelerin izin bilgisi size açık değil. Yeni izin talebi için işletme sahibiyle konuşun." />
-          </label>
-          <StaffLeaveManager
-            people={[{ id: session.user.id, label: "Ben" }]}
-            balances={staffLeaveBalances}
-            records={staffLeaveRecords}
-            readOnly
-          />
-        </div>
+        {teamTab === "vardiya" ? (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+              Vardiya <InfoTip placement="bottom" text="Sadece görüntüleme — vardiyayı düzenlemek için işletme sahibiyle konuşun." />
+              <button type="button" onClick={() => setShowShiftHistory(true)} style={{ fontSize: 11.5, padding: "2px 8px", marginLeft: "auto" }}>Geçmiş</button>
+            </label>
+            <StaffShiftGrid people={readOnlyPeople} staffShifts={staffShifts} readOnly />
+          </div>
+        ) : (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
+              İzinlerim <InfoTip placement="bottom" text="Sadece kendi izin hakkınızı/kayıtlarınızı görürsünüz - başka üyelerin izin bilgisi size açık değil. Yeni izin talebi için işletme sahibiyle konuşun." />
+            </label>
+            <StaffLeaveManager
+              people={[{ id: session.user.id, label: "Ben" }]}
+              balances={staffLeaveBalances}
+              records={staffLeaveRecords}
+              readOnly
+            />
+          </div>
+        )}
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
           <button onClick={onClose}>Kapat</button>
           <button onClick={() => setConfirmLeave(true)} style={{ color: "var(--text-danger)" }}>Takımdan ayrıl</button>
@@ -11145,134 +11161,154 @@ function TeamModal({
         <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>Yükleniyor…</p>
       ) : (
         <>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-              Vardiya <InfoTip placement="bottom" text="Bu sadece ekip içi bir planlama görünümü — müşteri portalındaki randevu saatlerini etkilemez, orada tek geçerli olan Müsaitlik Saatleri'dir. Bir hücreye tıklayıp o günün saatini ekleyin/düzenleyin." />
-              <button type="button" onClick={() => setShowShiftHistory(true)} style={{ fontSize: 11.5, padding: "2px 8px", marginLeft: "auto" }}>Geçmiş</button>
-            </label>
-            <StaffShiftGrid
-              people={staffPeople}
-              staffShifts={staffShifts}
-              onAdd={onAddStaffShift}
-              onDelete={onDeleteStaffShift}
-              onSetOff={onSetStaffShiftDayOff}
-            />
+          <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: 16, flexWrap: "wrap" }}>
+            {[["vardiya", "Vardiya"], ["izinler", "İzinler"], ["uyeler", `Üyeler (${occupiedSeats}/${MAX_TEAM_SIZE})`]].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTeamTab(id)}
+                style={{ border: "none", background: teamTab === id ? "var(--fill-accent)" : "transparent", color: teamTab === id ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: teamTab === id ? 600 : 400, fontSize: 13 }}
+              >
+                {label}
+              </button>
+            ))}
           </div>
-          {showShiftHistory && (
-            <StaffShiftHistoryModal people={staffPeople} staffShifts={staffShifts} onClose={() => setShowShiftHistory(false)} />
-          )}
-          <TeamDailyLoadPanel members={members} staffShifts={staffShifts} deals={deals} customers={customers} customFieldDefs={customFieldDefs} sessionUserId={session.user.id} />
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
-              İzinler <InfoTip placement="bottom" text="Yıllık izin hakkını kişi başına elle belirleyin - kullanılan izinler bu bakiyeden düşülür, sürekli/manuel takip edilir (otomatik yıl başı sıfırlaması yok). Ücretsiz/raporlu/mazeret izinleri de kaydedilir ama bakiyeyi etkilemez." />
-            </label>
-            <StaffLeaveManager
-              people={staffPeople}
-              balances={staffLeaveBalances}
-              records={staffLeaveRecords}
-              onSetBalance={onSetStaffLeaveBalance}
-              onAddRecord={onAddStaffLeaveRecord}
-              onDeleteRecord={onDeleteStaffLeaveRecord}
-            />
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
-              Üyeler <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>({occupiedSeats}/{MAX_TEAM_SIZE})</span>
-            </label>
-            {members.length === 0 ? (
-              <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz takım üyesi yok.</p>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {members.map((m) => (
-                  <div key={m.member_id} style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 13, fontWeight: 500 }}>{m.name || m.email}</span>
-                      <IconButton icon="ti-trash" title="Kaldır" size="sm" onClick={() => setConfirmRemoveMember(m)} />
-                    </div>
-                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-secondary)", marginTop: 4, cursor: "pointer" }}>
-                      <input
-                        type="checkbox"
-                        checked={!!m.can_edit_settings}
-                        onChange={(e) => toggleEditSettings(m.member_id, e.target.checked)}
-                      />
-                      İşletme/sektör ayarlarını düzenleyebilir
-                    </label>
-                    <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 6, flexWrap: "wrap" }}>
-                      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        <label style={{ fontSize: 11, color: "var(--text-muted)" }}>Prim %</label>
-                        <input
-                          type="number" min="0" max="100" step="0.1"
-                          defaultValue={m.commission_percent ?? ""}
-                          onBlur={(e) => updateCommission(m.member_id, { commission_percent: e.target.value === "" ? null : Number(e.target.value), chair_rental_fee: m.chair_rental_fee ?? null })}
-                          placeholder="-"
-                          style={{ width: 60, fontSize: 12, padding: "2px 6px" }}
-                        />
-                      </span>
-                      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        <label style={{ fontSize: 11, color: "var(--text-muted)" }}>Koltuk kirası (aylık, TL)</label>
-                        <input
-                          type="number" min="0" step="1"
-                          defaultValue={m.chair_rental_fee ?? ""}
-                          onBlur={(e) => updateCommission(m.member_id, { commission_percent: m.commission_percent ?? null, chair_rental_fee: e.target.value === "" ? null : Number(e.target.value) })}
-                          placeholder="-"
-                          style={{ width: 80, fontSize: 12, padding: "2px 6px" }}
-                        />
-                      </span>
-                      <InfoTip placement="bottom" align="right" text="Prim/koltuk kirası girerseniz Pano'daki Personel Performansı kartında bu üyenin net hakedişi otomatik hesaplanır. İkisi de opsiyonel." />
-                    </div>
-                  </div>
-                ))}
+          {teamTab === "vardiya" ? (
+            <>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                  Vardiya <InfoTip placement="bottom" text="Bu sadece ekip içi bir planlama görünümü — müşteri portalındaki randevu saatlerini etkilemez, orada tek geçerli olan Müsaitlik Saatleri'dir. Bir hücreye tıklayıp o günün saatini ekleyin/düzenleyin." />
+                  <button type="button" onClick={() => setShowShiftHistory(true)} style={{ fontSize: 11.5, padding: "2px 8px", marginLeft: "auto" }}>Geçmiş</button>
+                </label>
+                <StaffShiftGrid
+                  people={staffPeople}
+                  staffShifts={staffShifts}
+                  onAdd={onAddStaffShift}
+                  onDelete={onDeleteStaffShift}
+                  onSetOff={onSetStaffShiftDayOff}
+                />
               </div>
-            )}
-          </div>
-          {confirmRemoveMember && (
-            <ConfirmDialog
-              title="Üye kaldırılsın mı?"
-              message={`${confirmRemoveMember.name || confirmRemoveMember.email}, bu takımın müşteri/teklif/destek verilerine erişimini kaybeder.`}
-              onConfirm={() => { const id = confirmRemoveMember.member_id; setConfirmRemoveMember(null); removeMember(id); }}
-              onClose={() => setConfirmRemoveMember(null)}
-            />
-          )}
-          {invites.length > 0 && (
+              {showShiftHistory && (
+                <StaffShiftHistoryModal people={staffPeople} staffShifts={staffShifts} onClose={() => setShowShiftHistory(false)} />
+              )}
+              <TeamDailyLoadPanel members={members} staffShifts={staffShifts} deals={deals} customers={customers} customFieldDefs={customFieldDefs} sessionUserId={session.user.id} />
+            </>
+          ) : teamTab === "izinler" ? (
             <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>Bekleyen davetler</label>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {invites.map((inv) => (
-                  <div key={inv.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
-                    <span style={{ fontSize: 13, fontWeight: 500 }}>{inv.email}</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                      <Badge tone="warning">Bekliyor</Badge>
-                      <IconButton icon="ti-x" title="İptal et" size="sm" onClick={() => cancelInvite(inv.id)} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {atTeamLimit ? (
-            <div style={{ background: "var(--bg-warning)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "10px 12px" }}>
-              <p style={{ fontSize: 13, margin: 0, color: "var(--text-primary)" }}>
-                {MAX_TEAM_SIZE} kullanıcı sınırına ulaştınız (işletme sahibi + üyeler + bekleyen davetler). Daha fazla kullanıcı için{" "}
-                <a href="mailto:info@binerly.com?subject=Ek%20kullan%C4%B1c%C4%B1%20talebi">info@binerly.com</a> adresinden bize ulaşın.
-              </p>
+              <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
+                İzinler <InfoTip placement="bottom" text="Yıllık izin hakkını kişi başına elle belirleyin - kullanılan izinler bu bakiyeden düşülür, sürekli/manuel takip edilir (otomatik yıl başı sıfırlaması yok). Ücretsiz/raporlu/mazeret izinleri de kaydedilir ama bakiyeyi etkilemez." />
+              </label>
+              <StaffLeaveManager
+                people={staffPeople}
+                balances={staffLeaveBalances}
+                records={staffLeaveRecords}
+                onSetBalance={onSetStaffLeaveBalance}
+                onAddRecord={onAddStaffLeaveRecord}
+                onDeleteRecord={onDeleteStaffLeaveRecord}
+              />
             </div>
           ) : (
-            <form onSubmit={sendInvite}>
-              <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>E-posta ile davet et</label>
-              <div style={{ display: "flex", gap: 8 }}>
-                <input
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="ornek@sirket.com"
-                  required
-                  style={{ flex: 1 }}
-                />
-                <button type="submit" disabled={sending} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
-                  {sending ? "Gönderiliyor…" : "Davet et"}
-                </button>
+            <>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
+                  Üyeler <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>({occupiedSeats}/{MAX_TEAM_SIZE})</span>
+                </label>
+                {members.length === 0 ? (
+                  <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz takım üyesi yok.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {members.map((m) => (
+                      <div key={m.member_id} style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 13, fontWeight: 500 }}>{m.name || m.email}</span>
+                          <IconButton icon="ti-trash" title="Kaldır" size="sm" onClick={() => setConfirmRemoveMember(m)} />
+                        </div>
+                        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-secondary)", marginTop: 4, cursor: "pointer" }}>
+                          <input
+                            type="checkbox"
+                            checked={!!m.can_edit_settings}
+                            onChange={(e) => toggleEditSettings(m.member_id, e.target.checked)}
+                          />
+                          İşletme/sektör ayarlarını düzenleyebilir
+                        </label>
+                        <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 6, flexWrap: "wrap" }}>
+                          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <label style={{ fontSize: 11, color: "var(--text-muted)" }}>Prim %</label>
+                            <input
+                              type="number" min="0" max="100" step="0.1"
+                              defaultValue={m.commission_percent ?? ""}
+                              onBlur={(e) => updateCommission(m.member_id, { commission_percent: e.target.value === "" ? null : Number(e.target.value), chair_rental_fee: m.chair_rental_fee ?? null })}
+                              placeholder="-"
+                              style={{ width: 60, fontSize: 12, padding: "2px 6px" }}
+                            />
+                          </span>
+                          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <label style={{ fontSize: 11, color: "var(--text-muted)" }}>Koltuk kirası (aylık, TL)</label>
+                            <input
+                              type="number" min="0" step="1"
+                              defaultValue={m.chair_rental_fee ?? ""}
+                              onBlur={(e) => updateCommission(m.member_id, { commission_percent: m.commission_percent ?? null, chair_rental_fee: e.target.value === "" ? null : Number(e.target.value) })}
+                              placeholder="-"
+                              style={{ width: 80, fontSize: 12, padding: "2px 6px" }}
+                            />
+                          </span>
+                          <InfoTip placement="bottom" align="right" text="Prim/koltuk kirası girerseniz Pano'daki Personel Performansı kartında bu üyenin net hakedişi otomatik hesaplanır. İkisi de opsiyonel." />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </form>
+              {confirmRemoveMember && (
+                <ConfirmDialog
+                  title="Üye kaldırılsın mı?"
+                  message={`${confirmRemoveMember.name || confirmRemoveMember.email}, bu takımın müşteri/teklif/destek verilerine erişimini kaybeder.`}
+                  onConfirm={() => { const id = confirmRemoveMember.member_id; setConfirmRemoveMember(null); removeMember(id); }}
+                  onClose={() => setConfirmRemoveMember(null)}
+                />
+              )}
+              {invites.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>Bekleyen davetler</label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {invites.map((inv) => (
+                      <div key={inv.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
+                        <span style={{ fontSize: 13, fontWeight: 500 }}>{inv.email}</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                          <Badge tone="warning">Bekliyor</Badge>
+                          <IconButton icon="ti-x" title="İptal et" size="sm" onClick={() => cancelInvite(inv.id)} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {atTeamLimit ? (
+                <div style={{ background: "var(--bg-warning)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "10px 12px" }}>
+                  <p style={{ fontSize: 13, margin: 0, color: "var(--text-primary)" }}>
+                    {MAX_TEAM_SIZE} kullanıcı sınırına ulaştınız (işletme sahibi + üyeler + bekleyen davetler). Daha fazla kullanıcı için{" "}
+                    <a href="mailto:info@binerly.com?subject=Ek%20kullan%C4%B1c%C4%B1%20talebi">info@binerly.com</a> adresinden bize ulaşın.
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={sendInvite}>
+                  <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>E-posta ile davet et</label>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                      type="email"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      placeholder="ornek@sirket.com"
+                      required
+                      style={{ flex: 1 }}
+                    />
+                    <button type="submit" disabled={sending} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+                      {sending ? "Gönderiliyor…" : "Davet et"}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </>
           )}
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
             <button onClick={onClose}>Kapat</button>
@@ -11302,9 +11338,9 @@ function TrashHistoryModal({ notify, onRestore, onPermanentDelete, isOwner, onCl
   const [loading, setLoading] = useState(true);
   const [trashGroups, setTrashGroups] = useState([]);
   const [historyRows, setHistoryRows] = useState([]);
-  const [restoringBatch, setRestoringBatch] = useState(null);
-  const [deletingBatch, setDeletingBatch] = useState(null);
-  const [confirmDeleteBatch, setConfirmDeleteBatch] = useState(null);
+  const [restoringGroup, setRestoringGroup] = useState(null);
+  const [deletingGroup, setDeletingGroup] = useState(null);
+  const [confirmDeleteGroup, setConfirmDeleteGroup] = useState(null);
   const [confirmDeleteText, setConfirmDeleteText] = useState("");
   const [query, setQuery] = useState("");
   const [fromDate, setFromDate] = useState("");
@@ -11340,8 +11376,13 @@ function TrashHistoryModal({ notify, onRestore, onPermanentDelete, isOwner, onCl
 
     const groups = {};
     rows.forEach((r) => {
+      // deleted_batch_id her zaman dolu olmalı (her soft-delete çağrısı bunu set
+      // ediyor) ama olur da boş kalan bir satır çıkarsa, gruplama/React key/UI
+      // durumu (aşağıda groupKey) YİNE DE benzersiz kalsın diye r.id'ye düşüyoruz -
+      // aksi halde birden fazla batchId'siz satır aynı "null" kimliğinde birleşip
+      // birinin onay kutusuna yazılanın diğerlerine de yansımasına yol açar.
       const key = r.deleted_batch_id || r.id;
-      if (!groups[key]) groups[key] = { batchId: r.deleted_batch_id, deletedAt: r.deleted_at, items: [] };
+      if (!groups[key]) groups[key] = { groupKey: key, batchId: r.deleted_batch_id, deletedAt: r.deleted_at, items: [] };
       groups[key].items.push({ table: r.table, label: r.label });
       if (new Date(r.deleted_at) > new Date(groups[key].deletedAt)) groups[key].deletedAt = r.deleted_at;
     });
@@ -11357,21 +11398,21 @@ function TrashHistoryModal({ notify, onRestore, onPermanentDelete, isOwner, onCl
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const restore = async (batchId) => {
-    setRestoringBatch(batchId);
-    await onRestore(batchId);
+  const restore = async (g) => {
+    setRestoringGroup(g.groupKey);
+    await onRestore(g.batchId);
     await load();
-    setRestoringBatch(null);
+    setRestoringGroup(null);
   };
 
   const confirmPermanentDelete = async () => {
-    const batchId = confirmDeleteBatch;
-    setDeletingBatch(batchId);
-    setConfirmDeleteBatch(null);
+    const g = confirmDeleteGroup;
+    setDeletingGroup(g.groupKey);
+    setConfirmDeleteGroup(null);
     setConfirmDeleteText("");
-    const { deletedCount, skipped } = await onPermanentDelete(batchId);
+    const { deletedCount, skipped } = await onPermanentDelete(g.batchId);
     await load();
-    setDeletingBatch(null);
+    setDeletingGroup(null);
     if (skipped.length > 0) notify(`${deletedCount} kayıt kalıcı olarak silindi. ${skipped.join(" ")}`);
     else notify(`${deletedCount} kayıt kalıcı olarak silindi.`, "success");
   };
@@ -11447,7 +11488,7 @@ function TrashHistoryModal({ notify, onRestore, onPermanentDelete, isOwner, onCl
         ) : (
           <div style={{ maxHeight: 420, overflowY: "auto" }}>
             {filteredTrashGroups.map((g) => (
-              <div key={g.batchId} style={{ padding: "10px 0", borderBottom: "0.5px solid var(--border)" }}>
+              <div key={g.groupKey} style={{ padding: "10px 0", borderBottom: "0.5px solid var(--border)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                   <div>
                     {g.items.map((it, i) => (
@@ -11461,24 +11502,24 @@ function TrashHistoryModal({ notify, onRestore, onPermanentDelete, isOwner, onCl
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
                     <button
-                      onClick={() => restore(g.batchId)}
-                      disabled={restoringBatch === g.batchId}
+                      onClick={() => restore(g)}
+                      disabled={restoringGroup === g.groupKey}
                       style={{ fontSize: 12, whiteSpace: "nowrap" }}
                     >
-                      {restoringBatch === g.batchId ? "Geri yükleniyor…" : "Geri Yükle"}
+                      {restoringGroup === g.groupKey ? "Geri yükleniyor…" : "Geri Yükle"}
                     </button>
                     {isOwner && (
                       <button
-                        onClick={() => { setConfirmDeleteBatch(g.batchId); setConfirmDeleteText(""); }}
-                        disabled={deletingBatch === g.batchId}
+                        onClick={() => { setConfirmDeleteGroup(g); setConfirmDeleteText(""); }}
+                        disabled={deletingGroup === g.groupKey}
                         style={{ fontSize: 12, whiteSpace: "nowrap", background: "var(--surface-1)", color: "var(--danger, #b91c1c)", border: "0.5px solid var(--border)" }}
                       >
-                        {deletingBatch === g.batchId ? "Siliniyor…" : "Kalıcı Olarak Sil"}
+                        {deletingGroup === g.groupKey ? "Siliniyor…" : "Kalıcı Olarak Sil"}
                       </button>
                     )}
                   </div>
                 </div>
-                {confirmDeleteBatch === g.batchId && (
+                {confirmDeleteGroup?.groupKey === g.groupKey && (
                   <div style={{ marginTop: 8, padding: 10, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)" }}>
                     <p style={{ fontSize: 12, margin: "0 0 8px", color: "var(--text-secondary)" }}>
                       Bu işlem GERİ ALINAMAZ - bu kayıtlar bir daha geri yüklenemez. Tahsilat/fatura kaydı olan teklif veya müşteriler (varsa) yasal saklama süresi nedeniyle otomatik olarak hariç tutulur.
@@ -11498,7 +11539,7 @@ function TrashHistoryModal({ notify, onRestore, onPermanentDelete, isOwner, onCl
                       >
                         Kalıcı Olarak Sil
                       </button>
-                      <button onClick={() => { setConfirmDeleteBatch(null); setConfirmDeleteText(""); }} style={{ fontSize: 12, whiteSpace: "nowrap" }}>
+                      <button onClick={() => { setConfirmDeleteGroup(null); setConfirmDeleteText(""); }} style={{ fontSize: 12, whiteSpace: "nowrap" }}>
                         Vazgeç
                       </button>
                     </div>
