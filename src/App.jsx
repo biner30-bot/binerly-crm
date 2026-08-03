@@ -6352,6 +6352,10 @@ function rowToRoomInventory(r) {
   return { id: r.id, roomType: r.room_type, quantity: r.quantity, capacity: r.capacity || null, description: r.description || "" };
 }
 
+function rowToResource(r) {
+  return { id: r.id, name: r.name, active: r.active !== false, quantity: r.quantity || 1 };
+}
+
 function rowToCompanySettings(r) {
   return {
     companyName: r.company_name || "",
@@ -7023,7 +7027,7 @@ function RowActionsMenu({ items }) {
   );
 }
 
-function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], payments = [], appointmentDateTimeKey = null, roomInventory = [], customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, businessUserId, titleSuggestions = [], priceListItems = [], initialLineItems = [], dealLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], appointmentPenaltyStrikeLimit = null, appointmentPenaltyBurnsSession = false, appointmentConcurrency = null, onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onToggleAttachmentShare, onRequestPhotoConsent, onSave, onCancel }) {
+function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, sector, deals = [], payments = [], appointmentDateTimeKey = null, roomInventory = [], resources = [], customFieldDefs = [], sectorTags = [], teamMembers = [], currentUserId, currentUserEmail, businessUserId, titleSuggestions = [], priceListItems = [], initialLineItems = [], dealLineItems = [], hasPaymentConnection = false, totalPaid = 0, attachments = [], appointmentPenaltyStrikeLimit = null, appointmentPenaltyBurnsSession = false, appointmentConcurrency = null, onUploadAttachment, onDownloadAttachment, onDeleteAttachment, onToggleAttachmentShare, onRequestPhotoConsent, onSave, onCancel }) {
   const [customerId, setCustomerId] = useState(
     initial?.customerId || customers.find((c) => c.customerType === preferredCustomerType)?.id || customers[0]?.id || ""
   );
@@ -7124,6 +7128,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
   const [tags, setTags] = useState(initial?.tags || []);
   const [customFields, setCustomFields] = useState(initial?.customFields || {});
   const [assignedTo, setAssignedTo] = useState(initial?.assignedTo || currentUserId || "");
+  const [resourceId, setResourceId] = useState(initial?.customFields?.resource_id || "");
   const [notifyCustomer, setNotifyCustomer] = useState(initial?.notifyCustomer || false);
   const [conflictError, setConflictError] = useState("");
   // Var olan bir kaydı düzenlerken (Sorumlu/Etiket/Özel Alan/Dosya gibi zaten
@@ -7186,9 +7191,39 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
       const otherEnd = otherStart + otherDuration * 60000;
       return candidateStart < otherEnd && otherStart < candidateEnd;
     });
+    // Belirli bir personel (Sorumlu) veya kaynak (Cihaz/Oda) seçiliyse, o kişi/
+    // kaynak fiziksel olarak aynı anda tek bir randevuda olabileceği için bu
+    // HER ZAMAN gerçek bir engel - concurrency sayısı sadece "kimseye özel
+    // atanmamış" randevular arasındaki genel eş zamanlılık tavanını belirler,
+    // aynı personel/kaynağa ikinci bir randevuyu asla es geçmez.
+    const sameStaff = assignedTo && overlapping.find((d) => d.assignedTo === assignedTo);
+    if (sameStaff) {
+      const name = customers.find((c) => c.id === sameStaff.customerId)?.name || "başka bir kayıt";
+      const staffName = teamMembers.find((m) => m.id === assignedTo)?.name || (assignedTo === currentUserId ? currentUserEmail : "");
+      return `Bu tarih/saatte ${staffName || "bu personelin"} zaten ${name} ile aktif bir randevusu var - aynı personele aynı saate iki randevu girilemez.`;
+    }
+    // Kaynağın adedi (varsayılan 1) dolana kadar aynı isimdeki kaynağa paralel
+    // randevu verilebilir - hangi fiziksel birimin kullanıldığı ayrıca takip
+    // edilmiyor, sadece o an kaç tanesinin dolu olduğu sayılıyor (Otel'in oda
+    // adedi mantığıyla aynı, ama saat bazlı).
+    const sameResourceOverlap = resourceId ? overlapping.filter((d) => d.customFields?.resource_id === resourceId) : [];
+    const resourceQuantity = Math.max(1, Number(resources.find((r) => r.id === resourceId)?.quantity) || 1);
+    if (resourceId && sameResourceOverlap.length >= resourceQuantity) {
+      const name = customers.find((c) => c.id === sameResourceOverlap[0].customerId)?.name || "başka bir kayıt";
+      const resourceName = resources.find((r) => r.id === resourceId)?.name || "bu kaynak";
+      return `${resourceName}, bu tarih/saatte ${name} için zaten kullanımda (adet doldu) - aynı kaynağa aynı saate ikinci bir randevu girilemez.`;
+    }
+    // Personel veya kaynak seçiliyse ve yukarıdaki kendi kontrolünü geçtiyse
+    // (yeterli adet/uygunluk var), genel "eş zamanlı randevu kapasitesi"
+    // sayısı ARTIK devreye girmemeli - o sayı sadece kimseye özel
+    // atanmamış randevular için bir tavan, spesifik olarak atanmış bir
+    // randevuyu, o personel/kaynağın kendi kontrolü geçmesine rağmen,
+    // ilgisiz bir genel sayıyla bloke etmemeli.
+    if (assignedTo || resourceId) return null;
     if (overlapping.length < concurrency) return null;
     const conflict = overlapping[0];
-    return customers.find((c) => c.id === conflict.customerId)?.name || "başka bir kayıt";
+    const name = customers.find((c) => c.id === conflict.customerId)?.name || "başka bir kayıt";
+    return `Bu tarih/saatte ${name} için de aktif bir randevu var - aynı saate iki randevu girilemez.`;
   };
 
   // Otel'de (bookingModel === "inventory") tek bir randevu saati yerine oda
@@ -7267,6 +7302,7 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
             discount: lineItems.length > 0 && discountValue !== "" && Number(discountValue) > 0
               ? { type: discountType, value: Number(discountValue) }
               : null,
+            resource_id: resourceId || null,
           },
           lineItems: lineItems
             .filter((li) => li.description.trim())
@@ -7284,9 +7320,9 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
           createdAt: new Date(`${dealDate}T${dealTime || (initial ? "00:00" : new Date().toTimeString().slice(0, 5))}`).toISOString(),
           closedAt: isClosingStage ? new Date(`${closedDate}T00:00`).toISOString() : null,
         };
-        const conflictWith = findAppointmentConflict(stage, customFields);
-        if (conflictWith) {
-          setConflictError(`Bu tarih/saatte ${conflictWith} için de aktif bir randevu var - aynı saate iki randevu girilemez.`);
+        const conflictMessage = findAppointmentConflict(stage, customFields);
+        if (conflictMessage) {
+          setConflictError(conflictMessage);
           return;
         }
         const roomConflictMessage = findRoomConflict(stage, customFields);
@@ -7724,6 +7760,20 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
                 {teamMembers.filter((m) => m.id !== currentUserId).map((m) => <option key={m.id} value={m.id}>{m.name || m.email}</option>)}
                 {assignedTo && assignedTo !== currentUserId && !teamMembers.some((m) => m.id === assignedTo) && (
                   <option value={assignedTo}>Eski üye (takımdan çıkarılmış)</option>
+                )}
+              </select>
+            </div>
+          )}
+          {resources.length > 0 && bookingModel(sector) === "slot" && (
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+                Cihaz/Oda <InfoTip text="Seçtiğiniz kaynağa aynı saatte ikinci bir randevu girilemez - kaynak seçmezseniz bu kontrol uygulanmaz." />
+              </label>
+              <select value={resourceId} onChange={(e) => setResourceId(e.target.value)} style={{ width: "100%" }}>
+                <option value="">Seçilmedi</option>
+                {resources.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                {resourceId && !resources.some((r) => r.id === resourceId) && (
+                  <option value={resourceId}>Eski kaynak (silinmiş)</option>
                 )}
               </select>
             </div>
@@ -10111,7 +10161,7 @@ const AGENDA_MONTH_NAMES = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Hazira
 // Hatırlatma+randevu+grup dersini tek bir ay/hafta ızgarasında, tüm
 // sektörlerde birleştiren "Ajanda" sekmesi (eski, sadece randevu
 // sektörlerinde görünen kronolojik liste "Randevularım"ın yerine geçti).
-function AgendaTab({ deals, customers, groupClasses, groupClassEnrollments, classAttendance, activeCustomerIds, sector, dateTimeKey, onOpenDeal, onOpenClasses, onEnrollClass, onRemoveFromClass, onSetAttendance }) {
+function AgendaTab({ deals, customers, groupClasses, groupClassEnrollments, classAttendance, activeCustomerIds, sector, dateTimeKey, teamMembers = [], resources = [], currentUserId, currentUserEmail, onOpenDeal, onOpenClasses, onEnrollClass, onRemoveFromClass, onSetAttendance }) {
   const [rosterClass, setRosterClass] = useState(null);
   const [rosterOccurrenceDate, setRosterOccurrenceDate] = useState(null);
   const rosterClassLive = rosterClass ? groupClasses.find((g) => g.id === rosterClass.id) || null : null;
@@ -10121,6 +10171,8 @@ function AgendaTab({ deals, customers, groupClasses, groupClassEnrollments, clas
   const [selectedDateKey, setSelectedDateKey] = useState(agendaDateKey(today));
   const [showDayModal, setShowDayModal] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [staffFilter, setStaffFilter] = useState("");
+  const [resourceFilter, setResourceFilter] = useState("");
   const todayKey = agendaDateKey(today);
   const agendaYearOptions = Array.from({ length: 11 }, (_, i) => today.getFullYear() - 5 + i);
 
@@ -10129,7 +10181,15 @@ function AgendaTab({ deals, customers, groupClasses, groupClassEnrollments, clas
     start: new Date(gridDays[0].getFullYear(), gridDays[0].getMonth(), gridDays[0].getDate()),
     end: new Date(gridDays[gridDays.length - 1].getFullYear(), gridDays[gridDays.length - 1].getMonth(), gridDays[gridDays.length - 1].getDate(), 23, 59, 59, 999),
   };
-  const eventsByDate = buildAgendaEvents(bounds, { deals, groupClasses, groupClassEnrollments, appointmentDateTimeKey: dateTimeKey });
+  // Filtre seçiliyse SADECE o personel/kaynağa ait randevu+hatırlatmalar
+  // kalır - ders (group class) etkinlikleri filtreden bağımsız her zaman
+  // görünür (bir kaynağa/personele atanma kavramı yok).
+  const filteredDeals = deals.filter((d) => {
+    if (staffFilter && d.assignedTo !== staffFilter) return false;
+    if (resourceFilter && d.customFields?.resource_id !== resourceFilter) return false;
+    return true;
+  });
+  const eventsByDate = buildAgendaEvents(bounds, { deals: filteredDeals, groupClasses, groupClassEnrollments, appointmentDateTimeKey: dateTimeKey });
   const customerName = (id) => customers.find((c) => c.id === id)?.name || "Bilinmeyen müşteri";
 
   const navigate = (dir) => {
@@ -10195,6 +10255,24 @@ function AgendaTab({ deals, customers, groupClasses, groupClassEnrollments, clas
           ))}
         </div>
       </div>
+
+      {(teamMembers.length > 0 || resources.length > 0) && (
+        <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+          {teamMembers.length > 0 && (
+            <select value={staffFilter} onChange={(e) => setStaffFilter(e.target.value)} style={{ fontSize: 13 }}>
+              <option value="">Tüm personel</option>
+              {currentUserId && <option value={currentUserId}>Ben ({currentUserEmail})</option>}
+              {teamMembers.filter((m) => m.id !== currentUserId).map((m) => <option key={m.id} value={m.id}>{m.name || m.email}</option>)}
+            </select>
+          )}
+          {resources.length > 0 && (
+            <select value={resourceFilter} onChange={(e) => setResourceFilter(e.target.value)} style={{ fontSize: 13 }}>
+              <option value="">Tüm cihaz/oda</option>
+              {resources.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+          )}
+        </div>
+      )}
 
       <div className="agenda-grid" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
         {WEEKDAYS_SHORT.map((w) => (
@@ -10823,6 +10901,74 @@ function RoomInventoryEditModal({ item, onSave, onClose }) {
         </div>
       </form>
     </Modal>
+  );
+}
+
+function ResourceManager({ items, onAdd, onUpdate, onDelete }) {
+  const [name, setName] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onAdd({ name, quantity });
+    setName("");
+    setQuantity(1);
+  };
+
+  return (
+    <div>
+      <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px", display: "flex", alignItems: "center", gap: 4 }}>
+        Randevu sırasında seçilebilecek cihaz/oda listesi (örn. "Lazer Cihazı", "Oda 2")
+        <InfoTip placement="bottom" align="right" text="Bir kaynak tanımlarsanız teklif/randevu formunda seçilebilir hale gelir ve aynı kaynağa aynı saatte adedi dolduran sayıda ikinci bir randevu girilmesi engellenir. Adet 1'den fazlaysa (örn. aynı isimde 2 cihaz), hangi fiziksel birimin kullanıldığını ayrıca belirtmeniz gerekmez - sistem sadece o an kaçının dolu olduğunu sayar. Hiç kaynak tanımlamazsanız bu alan hiç görünmez, mevcut davranışınız değişmez." />
+      </p>
+      {items.length === 0 ? (
+        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Henüz kaynak eklenmedi.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+          {items.map((r) => (
+            <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
+              <span style={{ fontSize: 13, fontWeight: 500 }}>{r.name}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <label style={{ fontSize: 11, color: "var(--text-muted)" }}>Adet</label>
+                  <input
+                    type="number" min="1" step="1"
+                    defaultValue={r.quantity}
+                    onBlur={(e) => {
+                      const v = Math.max(1, Number(e.target.value) || 1);
+                      if (v !== r.quantity) onUpdate({ id: r.id, quantity: v });
+                    }}
+                    style={{ width: 50, fontSize: 12, padding: "2px 6px" }}
+                  />
+                </span>
+                <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(r)} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <form onSubmit={submit} style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 2 }}>İsim</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Örn. Lazer Cihazı" style={{ width: "100%" }} />
+        </div>
+        <div style={{ width: 60 }}>
+          <label style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 2 }}>Adet</label>
+          <input type="number" min="1" step="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} style={{ width: "100%" }} />
+        </div>
+        <button type="submit" disabled={!name.trim()}>+ Ekle</button>
+      </form>
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Kaynak silinsin mi?"
+          message={`"${confirmDelete.name}" silinirse geçmiş randevulardaki kaydı kalır, sadece yeni seçim listesinden kalkar.`}
+          onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
+          onClose={() => setConfirmDelete(null)}
+        />
+      )}
+    </div>
   );
 }
 
@@ -12878,6 +13024,7 @@ export default function App() {
   const [staffLeaveBalances, setStaffLeaveBalances] = useState([]);
   const [staffLeaveRecords, setStaffLeaveRecords] = useState([]);
   const [roomInventory, setRoomInventory] = useState([]);
+  const [resources, setResources] = useState([]);
   const [showSectorOnboarding, setShowSectorOnboarding] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [tourStep, setTourStep] = useState(0);
@@ -13014,6 +13161,7 @@ export default function App() {
       setGroupClasses([]); setGroupClassEnrollments([]); setClassAttendanceState([]); setGroupClassWaitlist([]);
       setBusinessHours([]);
       setRoomInventory([]);
+      setResources([]);
       setDealLineItems([]);
       setActiveTeamId(undefined);
       setPendingInvites([]);
@@ -13045,6 +13193,7 @@ export default function App() {
       supabase.from("staff_leave_balances").select("*"),
       supabase.from("staff_leave_records").select("*").order("start_date"),
       supabase.from("room_inventory").select("*").order("room_type"),
+      supabase.from("resources").select("*").order("name"),
       supabase.from("deal_pdf_templates").select("*").order("created_at"),
       supabase.from("deal_line_items").select("*").order("sort_order"),
       supabase.from("stock_items").select("*").is("deleted_at", null).order("name"),
@@ -13052,7 +13201,7 @@ export default function App() {
       supabase.from("group_class_waitlist").select("*").order("created_at"),
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ss }, { data: slb }, { data: slr }, { data: ri }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: gcw }, { data: myMembership }, { data: invites }]) => {
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ss }, { data: slb }, { data: slr }, { data: ri }, { data: res }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: gcw }, { data: myMembership }, { data: invites }]) => {
       // customers/deals/company_settings RLS'i, sahiplik politikasına ek olarak
       // portal kullanıcılarının kendi bağlı oldukları kayıtları görmesine izin
       // veren bir politikayla da "veya" ile birleşiyor (customer_*_view'ların
@@ -13085,6 +13234,7 @@ export default function App() {
       setStaffLeaveBalances((slb || []).filter((row) => row.user_id === ownerId).map(rowToStaffLeaveBalance));
       setStaffLeaveRecords((slr || []).filter((row) => row.user_id === ownerId).map(rowToStaffLeaveRecord));
       setRoomInventory((ri || []).filter((row) => row.user_id === ownerId).map(rowToRoomInventory));
+      setResources((res || []).filter((row) => row.user_id === ownerId).map(rowToResource));
       setPdfTemplates((pdft || []).filter((row) => row.user_id === ownerId).map(rowToPdfTemplate));
       setStockItems((stk || []).filter((row) => row.user_id === ownerId).map(rowToStockItem));
       setPriceItemIngredients((pii || []).filter((row) => row.user_id === ownerId).map(rowToPriceItemIngredient));
@@ -15081,6 +15231,25 @@ export default function App() {
     setRoomInventory((prev) => prev.filter((r) => r.id !== id));
   };
 
+  const addResource = async ({ name, quantity }) => {
+    const row = { id: uid(), user_id: activeTeamId, name: name.trim(), quantity: Math.max(1, Number(quantity) || 1) };
+    const { data, error } = await supabase.from("resources").insert(row).select().single();
+    if (error) { notify(`Kaynak eklenemedi: ${error.message}`); return; }
+    setResources((prev) => [...prev, rowToResource(data)]);
+  };
+
+  const updateResource = async ({ id, quantity }) => {
+    const { data, error } = await supabase.from("resources").update({ quantity: Math.max(1, Number(quantity) || 1) }).eq("id", id).select().single();
+    if (error) { notify(`Kaynak güncellenemedi: ${error.message}`); return; }
+    setResources((prev) => prev.map((r) => (r.id === id ? rowToResource(data) : r)));
+  };
+
+  const deleteResource = async (id) => {
+    const { error } = await supabase.from("resources").delete().eq("id", id);
+    if (error) { notify(`Kaynak silinemedi: ${error.message}`); return; }
+    setResources((prev) => prev.filter((r) => r.id !== id));
+  };
+
   // Sektör değişince formda görünen özel alanlar da değişsin isteniyor — ama
   // müşteri/teklif kayıtlarına daha önce girilmiş değerler kaybolmasın. Bu yüzden
   // başka bir sektöre ait alanlar SİLİNMEZ, sadece "active:false" ile gizlenir
@@ -15387,6 +15556,23 @@ export default function App() {
   const newPortalAppointments = deals.filter(
     (d) => SELF_BOOKED_SOURCES.includes(d.customFields?.kaynak) && d.customFields?.portal_randevu_zamani && d.stage === "ilk_gorusme"
   );
+  // Personel/Kaynak bazlı çakışma koruması (findAppointmentConflict) sadece
+  // ATANMIŞ randevularda çalışır - müşteri portalından/widget'tan gelen
+  // randevular varsayılan olarak kimseye atanmamış geliyor (bkz.
+  // project_binerly_resource_staff_conflict). Bu, saati yaklaşan ama hâlâ
+  // "Sorumlu"suz kalan randevuları öne çıkarır - kısıtlama değil sadece
+  // görünürlük, atamayı yapıp yapmamak KOBİ'nin tercihi.
+  const unassignedUpcomingAppointments = bookingModel(companySettings?.sector) === "slot" && appointmentDateTimeKey
+    ? deals
+        .filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi" && !d.assignedTo)
+        .map((d) => {
+          const raw = d.customFields?.[appointmentDateTimeKey];
+          const apptTime = raw ? new Date(`${raw}:00+03:00`) : null;
+          return { deal: d, apptTime };
+        })
+        .filter((x) => x.apptTime && !isNaN(x.apptTime.getTime()) && x.apptTime.getTime() > Date.now())
+        .sort((a, b) => a.apptTime - b.apptTime)
+    : [];
   const urgentTickets = supportTickets.filter((t) => {
     if (TERMINAL_STATUSES.includes(t.status)) return false;
     const s = getSlaStatus(t);
@@ -15782,7 +15968,7 @@ export default function App() {
           )}
           <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", marginBottom: "1.5rem" }}>
             <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 10px" }}>Bugün ne yapmalıyım</p>
-            {dueReminderDeals.length === 0 && urgentTickets.length === 0 && newPortalAppointments.length === 0 && orderRhythmAlerts.length === 0 && lowStockItems.length === 0 && membershipAlerts.length === 0 && churnAlerts.length === 0 && waitlistFillableAlerts.length === 0 && stuckDeals.length === 0 && freedAppointmentAlerts.length === 0 ? (
+            {dueReminderDeals.length === 0 && urgentTickets.length === 0 && newPortalAppointments.length === 0 && orderRhythmAlerts.length === 0 && lowStockItems.length === 0 && membershipAlerts.length === 0 && churnAlerts.length === 0 && waitlistFillableAlerts.length === 0 && stuckDeals.length === 0 && freedAppointmentAlerts.length === 0 && unassignedUpcomingAppointments.length === 0 ? (
               <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>Bugün için acil bir şey yok.</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 260, overflowY: "auto" }}>
@@ -15951,6 +16137,19 @@ export default function App() {
                       {apptTime.toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} {apptTime.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} - {customerById(deal.customerId)?.name || "Bilinmeyen müşteri"} ({deal.lostReason?.toLocaleLowerCase("tr")}) randevusu boşaldı
                     </span>
                     <Badge tone="accent">Doldurulabilir</Badge>
+                  </div>
+                ))}
+                {unassignedUpcomingAppointments.map(({ deal, apptTime }) => (
+                  <div
+                    key={`unassigned-${deal.id}`}
+                    onClick={() => { setTab("firsat"); setEditingDeal(deal); setShowDealForm(true); }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", padding: "4px 0" }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--fill-warning)", flexShrink: 0 }} />
+                    <span style={{ flex: 1 }}>
+                      {apptTime.toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} {apptTime.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} - {customerById(deal.customerId)?.name || "Bilinmeyen müşteri"} için Sorumlu atanmamış
+                    </span>
+                    <Badge tone="warning">Atanmamış</Badge>
                   </div>
                 ))}
               </div>
@@ -17212,6 +17411,10 @@ export default function App() {
           activeCustomerIds={new Set(activeMemberships.map((d) => d.customerId))}
           sector={companySettings?.sector}
           dateTimeKey={appointmentDateTimeKey}
+          teamMembers={teamRoster}
+          resources={resources}
+          currentUserId={session.user.id}
+          currentUserEmail={session.user.email}
           onOpenDeal={(deal) => openDealOrList([deal], deal.title)}
           onOpenClasses={() => setTab("dersler")}
           onEnrollClass={enrollMember}
@@ -17573,7 +17776,7 @@ export default function App() {
       {showBusinessHours && (
         <Modal title="Müsaitlik Saatleri" wide onClose={() => setShowBusinessHours(false)}>
           <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: 16, flexWrap: "wrap" }}>
-            {[["saatler", "Müsaitlik Saatleri"], ["politika", "Randevu iptal / gelmeme politikası"], ["hazirlik_notu", "Randevu Öncesi Not"]].map(([id, label]) => (
+            {[["saatler", "Müsaitlik Saatleri"], ["politika", "Randevu iptal / gelmeme politikası"], ["hazirlik_notu", "Randevu Öncesi Not"], ["kaynaklar", "Kaynaklar (Cihaz/Oda)"]].map(([id, label]) => (
               <button
                 key={id}
                 type="button"
@@ -17594,8 +17797,10 @@ export default function App() {
               <AppointmentCancelPolicyBox companySettings={companySettings} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
               <AppointmentDepositBox companySettings={companySettings} hasPaymentConnection={paymentCredentials.length > 0} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
             </>
-          ) : (
+          ) : businessHoursTab === "hazirlik_notu" ? (
             <AppointmentPrepNoteBox companySettings={companySettings} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
+          ) : (
+            <ResourceManager items={resources} onAdd={addResource} onUpdate={updateResource} onDelete={deleteResource} />
           )}
         </Modal>
       )}
@@ -17812,6 +18017,7 @@ export default function App() {
             payments={payments}
             appointmentDateTimeKey={appointmentDateTimeKey}
             roomInventory={roomInventory}
+            resources={resources}
             customFieldDefs={customFieldDefs}
             sectorTags={sectorDealTags(companySettings?.sector)}
             teamMembers={teamRoster}
