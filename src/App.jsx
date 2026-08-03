@@ -7845,7 +7845,7 @@ function refundCommissionNote(payment) {
   return `Bu ödeme ${paymentDateLabel(payment.paidAt)} tarihinde alındı - gün sonu kapanışı geçtiği için iyzico, satıştan kesilen komisyonu iade etmez, bu maliyet üzerinizde kalır.`;
 }
 
-function DealPayments({ deal, payments, sector, onAddPayment, onUpdatePayment, onDeletePayment, onRefundPayment }) {
+function DealPayments({ deal, payments, sector, onAddPayment, onUpdatePayment, onDeletePayment, onRefundPayment, canDelete }) {
   const [amount, setAmount] = useState("");
   const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState("");
@@ -7986,7 +7986,9 @@ function DealPayments({ deal, payments, sector, onAddPayment, onUpdatePayment, o
                   ) : (
                     <div style={{ display: "flex", gap: 4 }}>
                       <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => startEdit(p)} />
-                      <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDeleteId(p.id)} />
+                      {canDelete && (
+                        <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDeleteId(p.id)} />
+                      )}
                     </div>
                   )}
                 </div>
@@ -17063,6 +17065,7 @@ export default function App() {
           onUpdateDealCost={updateDealCost}
           onOpenPayments={setPaymentsDeal}
           sector={companySettings?.sector}
+          canDelete={canEditCompanySettings}
         />
       )}
 
@@ -17888,6 +17891,7 @@ export default function App() {
             onUpdatePayment={updatePayment}
             onDeletePayment={deletePayment}
             onRefundPayment={refundPayment}
+            canDelete={canEditCompanySettings}
           />
         </Modal>
       )}

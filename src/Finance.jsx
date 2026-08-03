@@ -320,7 +320,7 @@ function DealCostEditForm({ deal, sector, onSave, onCancel }) {
   );
 }
 
-export default function Finance({ deals, payments, companyExpenses, customers, onAddExpense, onUpdateExpense, onDeleteExpense, onUpdatePayment, onDeletePayment, onUpdateDealCost, onOpenPayments, sector }) {
+export default function Finance({ deals, payments, companyExpenses, customers, onAddExpense, onUpdateExpense, onDeleteExpense, onUpdatePayment, onDeletePayment, onUpdateDealCost, onOpenPayments, sector, canDelete }) {
   const [financeView, setFinanceView] = useState("tahsilat");
   const [financeRange, setFinanceRange] = useState("bu_ay");
   const [ledgerTypeFilter, setLedgerTypeFilter] = useState("all");
@@ -781,7 +781,9 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
                           size="sm"
                           onClick={() => setEditingExpense(companyExpenses.find((e) => e.id === item.expenseId))}
                         />
-                        <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(item)} />
+                        {canDelete && (
+                          <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(item)} />
+                        )}
                       </>
                     )}
                     {item.isOnlinePayment && (
@@ -807,7 +809,9 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
                             setEditPaymentNote(payment.note || "");
                           }}
                         />
-                        <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDeletePayment(item)} />
+                        {canDelete && (
+                          <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDeletePayment(item)} />
+                        )}
                       </>
                     )}
                     {item.dealCostId && (
