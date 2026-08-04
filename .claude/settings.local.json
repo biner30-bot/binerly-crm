@@ -1,6 +1,8 @@
 {
   "permissions": {
     "allow": [
+      "Bash",
+      "PowerShell",
       "Bash(dir /a)",
       "Bash(git init *)",
       "Bash(git remote *)",
@@ -8,7 +10,19 @@
       "Bash(git checkout *)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(git config *)"
+      "Bash(git config *)",
+      "Bash(git branch *)",
+      "Bash(git push *)",
+      "Bash(timeout 8 npm run dev)",
+      "Bash(npm run *)",
+      "Bash(git commit -m ' *)",
+      "Bash(node --check api/send-reminders.js)",
+      "Bash(python -c \"import weasyprint\")",
+      "Bash(python -c \"import pdfplumber, pypdf, reportlab, fitz\")",
+      "Bash(where wkhtmltopdf *)",
+      "Bash(pip install *)",
+      "mcp__supabase__apply_migration",
+      "mcp__supabase__execute_sql"
     ]
   }
 }

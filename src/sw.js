@@ -10,7 +10,7 @@ self.addEventListener("message", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  let data = {};
+  let data;
   try {
     data = event.data ? event.data.json() : {};
   } catch {
@@ -22,7 +22,7 @@ self.addEventListener("push", (event) => {
       icon: "/pwa-192x192.png",
       badge: "/pwa-64x64.png",
       data: { url: data.url || "/" },
-    })
+    }),
   );
 });
 
@@ -40,6 +40,6 @@ self.addEventListener("notificationclick", (event) => {
         }
       }
       await clients.openWindow(url);
-    })()
+    })(),
   );
 });

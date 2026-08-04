@@ -10,8 +10,8 @@ function detectDelimiter(sampleLine) {
 }
 
 export function parseCsvText(text) {
-  const clean = text.replace(/^﻿/, "");
-  const delimiter = detectDelimiter((clean.split(/\r?\n/)[0] || ""));
+  const clean = text.replace(/^\uFEFF/, "");
+  const delimiter = detectDelimiter(clean.split(/\r?\n/)[0] || "");
   const rows = [];
   let row = [];
   let field = "";
@@ -20,8 +20,10 @@ export function parseCsvText(text) {
     const ch = clean[i];
     if (inQuotes) {
       if (ch === '"') {
-        if (clean[i + 1] === '"') { field += '"'; i++; }
-        else inQuotes = false;
+        if (clean[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else inQuotes = false;
       } else field += ch;
     } else if (ch === '"') {
       inQuotes = true;
@@ -123,7 +125,9 @@ export function guessColumnMapping(headers, fieldDefs) {
 // sayısına bakarak belirliyoruz - aksi halde "1.234" gibi bir tutar 1,234 yerine
 // sessizce 1 olarak okunuyordu.
 function parseLocaleNumber(raw) {
-  let s = String(raw ?? "").trim().replace(/[^0-9,.\-]/g, "");
+  let s = String(raw ?? "")
+    .trim()
+    .replace(/[^0-9,.-]/g, "");
   if (!s) return { value: 0, invalid: false };
   const hasComma = s.includes(",");
   const hasDot = s.includes(".");
@@ -147,7 +151,11 @@ function normalizeRecord(rawObj, fieldDefs, customers) {
   for (const f of fieldDefs) {
     let val = (rawObj[f.key] ?? "").toString().trim();
     if (f.resolveCustomer) {
-      if (!val) { errors.push(`${f.label} boş olamaz`); record.customerId = null; continue; }
+      if (!val) {
+        errors.push(`${f.label} boş olamaz`);
+        record.customerId = null;
+        continue;
+      }
       const matches = customers.filter((c) => c.name.trim().toLowerCase() === val.toLowerCase());
       if (matches.length === 0) errors.push(`Müşteri bulunamadı: "${val}"`);
       else if (matches.length > 1) errors.push(`Birden fazla müşteri eşleşti: "${val}"`);
@@ -162,10 +170,17 @@ function normalizeRecord(rawObj, fieldDefs, customers) {
       continue;
     }
     if (f.type === "enum") {
-      if (!val) { record[f.key] = f.enumDefault; continue; }
+      if (!val) {
+        record[f.key] = f.enumDefault;
+        continue;
+      }
       const lower = val.toLowerCase();
-      const exact = f.enumOptions.find((o) => o.id.toLowerCase() === lower || o.label.toLowerCase() === lower);
-      const partial = f.enumOptions.find((o) => lower.includes(o.label.toLowerCase()) || o.label.toLowerCase().includes(lower));
+      const exact = f.enumOptions.find(
+        (o) => o.id.toLowerCase() === lower || o.label.toLowerCase() === lower,
+      );
+      const partial = f.enumOptions.find(
+        (o) => lower.includes(o.label.toLowerCase()) || o.label.toLowerCase().includes(lower),
+      );
       record[f.key] = (exact || partial)?.id || f.enumDefault;
       continue;
     }
@@ -207,7 +222,10 @@ export function ImportModal({
       if (ext === "vcf") {
         const text = await file.text();
         const cards = parseVcfText(text);
-        if (cards.length === 0) { setFileError("Dosyada okunabilir bir kişi bulunamadı."); return; }
+        if (cards.length === 0) {
+          setFileError("Dosyada okunabilir bir kişi bulunamadı.");
+          return;
+        }
         setVcfRecords(cards);
         buildRecordsFromRaw(cards);
         setStep("preview");
@@ -215,7 +233,10 @@ export function ImportModal({
       }
       if (ext === "xlsx" || ext === "xls") {
         const { headers, rows } = await parseXlsxFile(file);
-        if (headers.length === 0) { setFileError("Dosyada veri bulunamadı."); return; }
+        if (headers.length === 0) {
+          setFileError("Dosyada veri bulunamadı.");
+          return;
+        }
         setParsed({ headers, rows });
         setMapping(guessColumnMapping(headers, fieldDefs));
         setStep("mapping");
@@ -223,12 +244,19 @@ export function ImportModal({
       }
       const text = await file.text();
       const { headers, rows } = parseCsvText(text);
-      if (headers.length === 0) { setFileError("Dosyada veri bulunamadı."); return; }
+      if (headers.length === 0) {
+        setFileError("Dosyada veri bulunamadı.");
+        return;
+      }
       setParsed({ headers, rows });
       setMapping(guessColumnMapping(headers, fieldDefs));
       setStep("mapping");
     } catch {
-      setFileError("Dosya okunamadı. Lütfen geçerli bir CSV/Excel" + (allowVcf ? "/vCard" : "") + " dosyası seçin.");
+      setFileError(
+        "Dosya okunamadı. Lütfen geçerli bir CSV/Excel" +
+          (allowVcf ? "/vCard" : "") +
+          " dosyası seçin.",
+      );
     }
   };
 
@@ -241,7 +269,8 @@ export function ImportModal({
     const built = [];
     for (const rawObj of rawObjs) {
       const { record, errors } = normalizeRecord(rawObj, fieldDefs, customers);
-      const duplicateResult = errors.length === 0 && checkDuplicate ? checkDuplicate(record, built) : false;
+      const duplicateResult =
+        errors.length === 0 && checkDuplicate ? checkDuplicate(record, built) : false;
       built.push({
         ...record,
         _errors: errors,
@@ -250,7 +279,11 @@ export function ImportModal({
       });
     }
     setRecords(built);
-    setSelected(new Set(built.map((_, i) => i).filter((i) => built[i]._errors.length === 0 && !built[i]._duplicate)));
+    setSelected(
+      new Set(
+        built.map((_, i) => i).filter((i) => built[i]._errors.length === 0 && !built[i]._duplicate),
+      ),
+    );
   };
 
   const confirmMapping = () => {
@@ -258,7 +291,7 @@ export function ImportModal({
       const obj = {};
       for (const f of fieldDefs) {
         const idx = mapping[f.key];
-        obj[f.key] = idx != null && idx >= 0 ? row[idx] ?? "" : "";
+        obj[f.key] = idx != null && idx >= 0 ? (row[idx] ?? "") : "";
       }
       return obj;
     });
@@ -276,11 +309,15 @@ export function ImportModal({
   };
 
   const runImport = async () => {
-    const toImport = records.filter((r, i) => selected.has(i) && r._errors.length === 0 && !r._duplicate);
+    const toImport = records.filter(
+      (r, i) => selected.has(i) && r._errors.length === 0 && !r._duplicate,
+    );
     if (toImport.length === 0) return;
     setStep("importing");
     setProgress({ done: 0, total: toImport.length });
-    const outcome = await onImport(toImport, (done) => setProgress({ done, total: toImport.length }));
+    const outcome = await onImport(toImport, (done) =>
+      setProgress({ done, total: toImport.length }),
+    );
     setResult(outcome);
     setStep("done");
   };
@@ -291,17 +328,43 @@ export function ImportModal({
     <Modal title={`${entityLabel} - İçe Aktar`} onClose={onClose}>
       {step === "file" && (
         <div>
-          <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 12 }}>
-            Excel (.xlsx) veya CSV dosyanızı seçin{allowVcf ? ", ya da telefonunuzun Kişiler uygulamasından dışa aktardığınız bir vCard (.vcf) dosyası yükleyin" : ""}.
+          <p
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              lineHeight: 1.6,
+              marginBottom: 12,
+            }}
+          >
+            Excel (.xlsx) veya CSV dosyanızı seçin
+            {allowVcf
+              ? ", ya da telefonunuzun Kişiler uygulamasından dışa aktardığınız bir vCard (.vcf) dosyası yükleyin"
+              : ""}
+            .
           </p>
           {allowVcf && (
-            <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, marginBottom: 12 }}>
-              Not: WhatsApp'ın kendi bir "kişi dışa aktar" özelliği yoktur - telefonunuzun Kişiler/Contacts uygulamasından vCard dışa aktarabilirsiniz.
-              Word belgesindeki bir tabloyu aktarmak isterseniz, tabloyu kopyalayıp Excel'e yapıştırıp CSV olarak kaydetmeniz yeterli.
+            <p
+              style={{
+                fontSize: 12,
+                color: "var(--text-muted)",
+                lineHeight: 1.6,
+                marginBottom: 12,
+              }}
+            >
+              Not: WhatsApp'ın kendi bir "kişi dışa aktar" özelliği yoktur - telefonunuzun
+              Kişiler/Contacts uygulamasından vCard dışa aktarabilirsiniz. Word belgesindeki bir
+              tabloyu aktarmak isterseniz, tabloyu kopyalayıp Excel'e yapıştırıp CSV olarak
+              kaydetmeniz yeterli.
             </p>
           )}
-          <input type="file" accept={allowVcf ? ".csv,.xlsx,.xls,.vcf" : ".csv,.xlsx,.xls"} onChange={handleFile} />
-          {fileError && <p style={{ fontSize: 13, color: "var(--text-danger)", marginTop: 10 }}>{fileError}</p>}
+          <input
+            type="file"
+            accept={allowVcf ? ".csv,.xlsx,.xls,.vcf" : ".csv,.xlsx,.xls"}
+            onChange={handleFile}
+          />
+          {fileError && (
+            <p style={{ fontSize: 13, color: "var(--text-danger)", marginTop: 10 }}>{fileError}</p>
+          )}
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
             <button onClick={onClose}>Kapat</button>
           </div>
@@ -313,26 +376,48 @@ export function ImportModal({
           <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 12 }}>
             Dosyanızdaki sütunları Binerly alanlarıyla eşleştirin.
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 360, overflowY: "auto" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+              maxHeight: 360,
+              overflowY: "auto",
+            }}
+          >
             {fieldDefs.map((f) => (
               <div key={f.key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 13, minWidth: 160 }}>
-                  {f.label}{f.required && <span style={{ color: "var(--text-danger)" }}> *</span>}
+                  {f.label}
+                  {f.required && <span style={{ color: "var(--text-danger)" }}> *</span>}
                 </span>
                 <select
                   value={mapping[f.key] ?? -1}
-                  onChange={(e) => setMapping((prev) => ({ ...prev, [f.key]: Number(e.target.value) }))}
+                  onChange={(e) =>
+                    setMapping((prev) => ({ ...prev, [f.key]: Number(e.target.value) }))
+                  }
                   style={{ flex: 1 }}
                 >
                   <option value={-1}>Yoksay</option>
-                  {parsed.headers.map((h, i) => <option key={i} value={i}>{h || `Sütun ${i + 1}`}</option>)}
+                  {parsed.headers.map((h, i) => (
+                    <option key={i} value={i}>
+                      {h || `Sütun ${i + 1}`}
+                    </option>
+                  ))}
                 </select>
               </div>
             ))}
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
             <button onClick={onClose}>Vazgeç</button>
-            <button onClick={confirmMapping} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+            <button
+              onClick={confirmMapping}
+              style={{
+                background: "var(--fill-accent)",
+                color: "var(--on-accent)",
+                border: "none",
+              }}
+            >
               Devam et
             </button>
           </div>
@@ -344,11 +429,24 @@ export function ImportModal({
           <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 12 }}>
             {records.length} satır bulundu, {selected.size} tanesi işaretli olarak içe aktarılacak.
           </p>
-          <div style={{ maxHeight: 380, overflowY: "auto", border: "0.5px solid var(--border)", borderRadius: "var(--radius)" }}>
+          <div
+            style={{
+              maxHeight: 380,
+              overflowY: "auto",
+              border: "0.5px solid var(--border)",
+              borderRadius: "var(--radius)",
+            }}
+          >
             {records.map((r, i) => (
               <div
                 key={i}
-                style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 10px", borderBottom: "0.5px solid var(--border)" }}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 10,
+                  padding: "8px 10px",
+                  borderBottom: "0.5px solid var(--border)",
+                }}
               >
                 <input
                   type="checkbox"
@@ -360,21 +458,33 @@ export function ImportModal({
                 <div style={{ flex: 1, fontSize: 13 }}>
                   {previewFields.map((f) => {
                     const rawVal = r[f.key];
-                    const displayVal = f.type === "enum" && f.enumOptions
-                      ? f.enumOptions.find((o) => o.id === rawVal)?.label || rawVal
-                      : rawVal;
+                    const displayVal =
+                      f.type === "enum" && f.enumOptions
+                        ? f.enumOptions.find((o) => o.id === rawVal)?.label || rawVal
+                        : rawVal;
                     return (
                       <span key={f.key} style={{ marginRight: 10, color: "var(--text-secondary)" }}>
-                        {f.label}: <strong style={{ color: "var(--text-primary)" }}>{String(displayVal ?? "")}</strong>
+                        {f.label}:{" "}
+                        <strong style={{ color: "var(--text-primary)" }}>
+                          {String(displayVal ?? "")}
+                        </strong>
                       </span>
                     );
                   })}
-                  {r._duplicate && <div style={{ fontSize: 11, color: "var(--text-danger)", marginTop: 2 }}>✗ {r._duplicateReason || "Bu isimde bir kayıt zaten var"} - içe aktarılamaz</div>}
+                  {r._duplicate && (
+                    <div style={{ fontSize: 11, color: "var(--text-danger)", marginTop: 2 }}>
+                      ✗ {r._duplicateReason || "Bu isimde bir kayıt zaten var"} - içe aktarılamaz
+                    </div>
+                  )}
                   {r._errors.length > 0 && (
-                    <div style={{ fontSize: 11, color: "var(--text-danger)", marginTop: 2 }}>✗ {r._errors.join(", ")}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-danger)", marginTop: 2 }}>
+                      ✗ {r._errors.join(", ")}
+                    </div>
                   )}
                   {r._errors.length === 0 && !r._duplicate && (
-                    <div style={{ fontSize: 11, color: "var(--text-success)", marginTop: 2 }}>✓ Geçerli</div>
+                    <div style={{ fontSize: 11, color: "var(--text-success)", marginTop: 2 }}>
+                      ✓ Geçerli
+                    </div>
                   )}
                 </div>
               </div>
@@ -385,7 +495,11 @@ export function ImportModal({
             <button
               onClick={runImport}
               disabled={selected.size === 0}
-              style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+              style={{
+                background: "var(--fill-accent)",
+                color: "var(--on-accent)",
+                border: "none",
+              }}
             >
               {selected.size} kaydı içe aktar
             </button>
@@ -403,15 +517,32 @@ export function ImportModal({
         <div>
           <p style={{ fontSize: 14 }}>
             <strong>{result.insertedCount}</strong> kayıt başarıyla içe aktarıldı
-            {result.errors.length > 0 && <>, <strong style={{ color: "var(--text-danger)" }}>{result.errors.length}</strong> hata oluştu</>}.
+            {result.errors.length > 0 && (
+              <>
+                , <strong style={{ color: "var(--text-danger)" }}>{result.errors.length}</strong>{" "}
+                hata oluştu
+              </>
+            )}
+            .
           </p>
           {result.errors.length > 0 && (
             <ul style={{ fontSize: 12, color: "var(--text-danger)", paddingLeft: 18 }}>
-              {result.errors.map((e, i) => <li key={i}>{e}</li>)}
+              {result.errors.map((e, i) => (
+                <li key={i}>{e}</li>
+              ))}
             </ul>
           )}
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
-            <button onClick={onClose} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kapat</button>
+            <button
+              onClick={onClose}
+              style={{
+                background: "var(--fill-accent)",
+                color: "var(--on-accent)",
+                border: "none",
+              }}
+            >
+              Kapat
+            </button>
           </div>
         </div>
       )}
