@@ -6899,3 +6899,908 @@ export const ANSWER_LIBRARY = [
     },
   },
 ];
+
+export const ADVISOR_TIPS = [
+  {
+    category: "Satış",
+    q: "Satışlarımı nasıl artırabilirim?",
+    keywords: [
+      "satışlarımı nasıl arttırabilirim",
+      "arttırmak",
+      "ciro artırmak",
+      "satış artırma",
+      "daha çok satış",
+    ],
+    a: "Tek bir taktiğe değil üç alana birden bakın: yeni müşteri kazanmak (pazarlama, referans), mevcut müşteriye daha fazla satmak (çapraz satış, yeniden alım hatırlatması) ve kayıp oranını azaltmak (kaybedilen tekliflerin nedenini analiz etmek). Genelde en hızlı sonuç, elinizdeki açık kayıtların takibini sıkılaştırmaktan (hatırlatma tarihleri, zamanında yanıt) gelir - yeni müşteri bulmaktan daha ucuzdur.",
+  },
+  {
+    category: "Nakit Akışı",
+    q: "Nakit akışımı nasıl iyileştiririm?",
+    a: "Kâr ile nakit farklıdır - kârlı olsanız bile tahsilat gecikirse nakit sıkışabilir. Vadeli satışlarda kısmi peşinat almak, tahsilat takibini düzenli yapmak (Finans → Bekleyen Alacak) ve tekrarlayan giderlerinizi önceden bilmek nakit akışını daha öngörülebilir kılar.",
+  },
+  {
+    category: "Fiyatlandırma",
+    q: "Fiyatımı nasıl belirlemeliyim?",
+    a: "Sadece maliyeti değil, rakiplerinizin fiyatını ve müşterinin algıladığı değeri de hesaba katın. Çok düşük fiyat kâr bırakmaz, çok yüksek fiyat müşteri kaybettirir - küçük bir müşteri grubuyla test ederek ayarlamak risksiz bir yöntemdir.",
+  },
+  {
+    category: "Müşteri Sadakati",
+    q: "Mevcut müşterilerimi nasıl elde tutarım?",
+    a: "Yeni müşteri kazanmak, mevcut müşteriyi elde tutmaktan genelde daha pahalıdır. Düzenli iletişim, hızlı destek yanıtı ve küçük jestler (doğum günü, sadakat indirimi) uzun vadede en çok geri dönüşü sağlar.",
+  },
+  {
+    category: "Pazarlama",
+    q: "Sınırlı bütçeyle nasıl pazarlama yaparım?",
+    a: "Önce mevcut müşterilerinizden referans isteyin - en ucuz ve en güvenilir pazarlama budur. Sosyal medyada düzenli ama az sayıda paylaşım, tek seferlik büyük kampanyadan daha sürdürülebilirdir.",
+  },
+  {
+    category: "Satış",
+    q: "Kaybettiğim satışlardan nasıl ders çıkarırım?",
+    a: 'Kayıp nedenini her zaman not edin (Binerly\'de otomatik istenir) - belirli bir dönemde aynı neden tekrar ediyorsa (örn. "yüksek fiyat") bu, fiyatlandırma veya değer anlatımınızda sistemli bir sorun olduğunun işaretidir.',
+  },
+  {
+    category: "Ekip Yönetimi",
+    q: "Küçük ekibimi nasıl daha verimli yönetirim?",
+    a: "Herkesin net bir sorumluluk alanı olsun, aynı işi iki kişi paralel yapmasın. Haftalık kısa bir değerlendirme (neler bitti, neler bekliyor) büyük toplantılardan daha etkilidir.",
+  },
+  {
+    category: "Zaman Yönetimi",
+    q: "Günlük işlerime nasıl öncelik veririm?",
+    a: 'Güne başlarken "bugün gerçekten yapılması gerekenler" listesi (Pano\'daki "Bugün ne yapmalıyım") 3-5 maddeyi geçmesin. Acil ama önemsiz işler (bildirimler, küçük sorular) genelde beklettirilebilir.',
+  },
+  {
+    category: "Marka",
+    q: "Küçük işletmem nasıl daha güvenilir görünür?",
+    a: "Tutarlı iletişim (aynı logo, aynı ton), zamanında yanıt ve net bir iade/iptal politikası büyük bütçeli reklamdan daha fazla güven yaratır. Müşteri yorumları/referanslar varsa görünür kılın.",
+  },
+  {
+    category: "Sosyal Medya",
+    q: "Sosyal medyada ne paylaşmalıyım?",
+    a: "Sadece ürün tanıtımı değil, işin arkasındaki süreci (üretim, ekip, müşteri hikayeleri) de gösterin - insanlar markalardan değil insanlardan alışveriş yapmayı sever.",
+  },
+  {
+    category: "Müzakere",
+    q: "Müşteriyle fiyat pazarlığında nasıl davranmalıyım?",
+    a: 'Doğrudan indirim yerine değer ekleyin (ek hizmet, daha hızlı teslim) - bu, fiyatınızı düşürmeden müşteriyi tatmin edebilir. Sürekli indirim vermek, gelecekte "normal fiyatın" pazarlık payı olduğu algısı yaratır.',
+  },
+  {
+    category: "Rekabet",
+    q: "Rakiplerimi nasıl takip etmeliyim?",
+    a: "Fiyatlarını kopyalamak yerine neyi farklı/daha iyi yaptıklarını anlayın. Kendi güçlü yönünüze (hız, kişisel ilgi, uzmanlık) odaklanmak, sürekli fiyat savaşından daha sürdürülebilir bir stratejidir.",
+  },
+  {
+    category: "Girişimcilik",
+    q: "Tükenmişlik hissediyorum, ne yapmalıyım?",
+    a: "Küçük işletme sahipliğinde her şeyi tek başına yapma isteği yaygın bir tükenmişlik nedenidir. Tekrar eden işleri (hatırlatma, raporlama) sistemlere bırakmak gerçek bir zaman kazancı sağlar.",
+  },
+  {
+    category: "Yeni İşletme",
+    q: "İşimin ilk aylarında nelere odaklanmalıyım?",
+    a: "İlk aylarda çok kanal/çok ürün denemek yerine, tek bir müşteri segmentinde gerçekten iyi olmaya odaklanın. İlk 10-20 gerçek müşterinizden aldığınız geri bildirim, herhangi bir pazar araştırmasından daha değerlidir.",
+  },
+  {
+    category: "Networking",
+    q: "İş bağlantılarımı nasıl genişletirim?",
+    a: "Sektör etkinlikleri/odalar dışında, mevcut müşterilerinizin tanıdıkları da güçlü bir ağdır - memnun bir müşteriden doğrudan tavsiye istemek genelde soğuk bir tanıtımdan daha etkilidir.",
+  },
+  {
+    category: "Şikayet Yönetimi",
+    q: "Müşteri şikayetlerini nasıl ele almalıyım?",
+    a: "Hızlı yanıt (SLA takibi bunun için var) ve savunmaya geçmeden dinlemek en önemli iki adımdır. İyi çözülmüş bir şikayet, memnun bir müşteriden bile daha güçlü bir sadakat yaratabilir.",
+  },
+  {
+    category: "Büyüme",
+    q: "İşimi ne zaman büyütmeliyim (yeni çalışan, yeni ürün)?",
+    a: "Talep sürekli kapasitenizi aşıyorsa ve bu geçici bir dönem değilse büyüme sinyali olabilir. Aceleyle büyümek yerine, mevcut süreçlerinizin yeni hacmi kaldırıp kaldıramayacağını önce test edin.",
+  },
+  {
+    category: "İşe Alım",
+    q: "Doğru elemanı nasıl bulurum?",
+    keywords: ["eleman bulma", "personel bulma", "çalışan arama", "doğru çalışanı bulma"],
+    a: 'İlanı sadece görev tanımıyla değil, ilk 90 günde başaracağı somut 2-3 hedefle yazın - bu, doğru adayları çeker ve yanlış beklentiyle gelenleri elemenizi sağlar. Mülakatta geçmişte gerçekten yaptığı bir işi detaylıca anlatmasını isteyin ("anlat" yerine "nasıl yaptın"), genel cevaplar genelde deneyim eksikliğinin işaretidir.',
+  },
+  {
+    category: "İşe Alım",
+    q: "Yeni çalışanı işe nasıl daha hızlı adapte ederim (oryantasyon)?",
+    a: "İlk haftada net bir kontrol listesi (kimden ne öğrenecek, hangi sistemlere erişimi olacak, ilk göreve ne zaman başlayacak) belirsizlikten doğan yavaşlamayı önler. Sık yapılan hatalardan biri yeni çalışanı hemen tam yüke koymaktır - ilk 2 haftada deneyimli biriyle birlikte gölge çalışma, daha az hataya yol açar.",
+  },
+  {
+    category: "Sözleşmeler",
+    q: "Müşteri sözleşmelerimde nelere dikkat etmeliyim?",
+    a: "Kapsam (tam olarak ne yapılacak, ne yapılmayacak), ödeme takvimi ve gecikme durumunda ne olacağı, iptal/erteleme koşulları en sık ihtilaf çıkan üç maddedir - bunları net yazmak sonradan tartışmayı büyük ölçüde azaltır. Standart bir şablon oluşturup her müşteride küçük değişikliklerle kullanmak sıfırdan yazmaktan hızlıdır; bağlayıcı maddeler için şablona bir kez avukat onayı aldırmak uzun vadede ucuza gelir.",
+  },
+  {
+    category: "Sözleşmeler",
+    q: "Sözlü anlaşmalarla mı çalışmalıyım yoksa yazılı mı?",
+    a: 'İş büyüdükçe hafıza ve iyi niyete güvenmek risklidir - en azından teklif/onay yazışmasını (e-posta, WhatsApp mesajı, PDF teklif) saklamak asgari bir kayıttır. Tutarı, tarihi ve kapsamı içeren tek sayfalık basit bir onay formu bile, ilerideki "böyle anlaşmamıştık" tartışmalarının çoğunu önler.',
+  },
+  {
+    category: "Stok Yönetimi",
+    q: "Stok seviyemi nasıl doğru tutarım?",
+    a: "ABC analizi denen basit bir yöntem işe yarar: ürünlerinizi cirodaki paya göre sıralayın, en çok kazandıran %20'lik dilimi (A grubu) sıkı takip edin, geri kalanı daha gevşek kontrol edin. Aşırı stok nakdinizi kilitler, yetersiz stok satış kaybettirir - dengeyi geçmiş 2-3 ayın satış hızına göre ayarlamak tahminden daha güvenilirdir.",
+  },
+  {
+    category: "Stok Yönetimi",
+    q: "Ölü stoktan (satılmayan üründen) nasıl kurtulurum?",
+    a: "Belirli bir süredir (örn. 90 gün) hiç hareket etmeyen kalemleri düzenli olarak listeleyip ayrı değerlendirin - biriktirmek yerine erken fark etmek kayıp tutarını küçük tutar. Kampanya/paket satışıyla eritmek tamamen zarar yazmaktan genelde daha iyidir; ama o ürünü neden fazla aldığınızı not edin ki hata tekrarlanmasın.",
+  },
+  {
+    category: "E-ticaret",
+    q: "Online satışa yeni başlıyorum, nelere dikkat etmeliyim?",
+    keywords: ["e-ticarete başlamak", "online mağaza açmak", "internetten satış"],
+    a: "Önce tek bir kanalda (kendi site veya tek bir pazaryeri) düzgün çalışmayı öğrenin, aynı anda beş platformda birden başlamak stok ve sipariş takibini karmaşıklaştırır. Kargo/iade sürecini netleştirmeden reklam vermek memnuniyetsiz ilk müşteri deneyimleri yaratır - süreç oturduktan sonra büyütün.",
+  },
+  {
+    category: "E-ticaret",
+    q: "Online mağazamda terk edilmiş sepetleri nasıl azaltırım?",
+    a: "En sık neden beklenmedik ek maliyettir (kargo ücretinin son adımda çıkması gibi) - bunu en baştan göstermek terk oranını düşürür. Ödeme adımını mümkün olduğunca kısaltmak (gereksiz form alanlarını kaldırmak) ve tamamlanmayan siparişe kısa bir hatırlatma göndermek de işe yarayan basit adımlardır.",
+  },
+  {
+    category: "Mevsimsellik",
+    q: "Sezonluk talep dalgalanmasına nasıl hazırlanmalıyım?",
+    a: "Geçmiş yılların aynı dönemine ait satış verisi en güvenilir tahmin kaynağınızdır - sezon başlamadan stok/personel kararını buna göre verin, sezon ortasında toparlamak genelde geç kalır. Düşük sezonda nakit sıkışmasına karşı önceden bir tampon ayırmak (tekrarlayan giderlerinizi bilerek), yüksek sezon kârını düşük sezona taşımanızı sağlar.",
+  },
+  {
+    category: "Franchise",
+    q: "İşimi franchise/bayilik modeliyle büyütmeyi düşünüyorum, nereden başlamalıyım?",
+    a: "Franchise vermeden önce kendi tek şubenizde süreçlerinizin (eğitim, tedarik, kalite standardı) yazılı ve tekrarlanabilir olduğundan emin olun - belgelenmemiş bir iş modeli başka birine devredilemez. İlk bayiyi mümkünse güvendiğiniz, yakından takip edebileceğiniz biriyle pilot olarak başlatmak, hatanın büyümeden görülmesini sağlar.",
+  },
+  {
+    category: "Kriz Yönetimi",
+    q: "Beklenmedik bir kriz anında (talep düşüşü, tedarik sorunu) ilk ne yapmalıyım?",
+    a: "Panikle karar vermek yerine önce net bir tablo çıkarın: elinizdeki nakit kaç ay yeter, hangi giderler ertelenebilir/kesilebilir, hangi müşteriler/gelirler en risksiz. Durumu müşterilerinize şeffaf ama sakin bir dille erken bildirmek, sessiz kalıp güven kaybetmekten çok daha iyidir.",
+  },
+  {
+    category: "Kriz Yönetimi",
+    q: "Krizde çalışanlarımı nasıl bilgilendirmeliyim?",
+    a: "Belirsizlik kötü haberden daha fazla kaygı yaratır - durum netleşmemiş olsa bile ne bildiğinizi ve ne zaman güncelleme vereceğinizi paylaşmak ekibi sakinleştirir. Kararları (kesinti, öncelik değişikliği) toplu duyurmadan önce mümkünse doğrudan etkilenenlerle önce konuşun.",
+  },
+  {
+    category: "Rekabet",
+    q: "Rakip analizini nasıl daha sistemli yaparım?",
+    a: "Ayda bir düzenli olarak rakiplerin fiyat, kampanya ve müşteri yorumlarına (Google/sosyal medya) bakıp kısa not tutmak, hafızaya güvenmekten daha güvenilirdir. Sadece ne yaptıklarını değil müşteri yorumlarında neyi eleştirdiklerini de takip edin - rakibin zayıf noktası sizin fırsatınız olabilir.",
+  },
+  {
+    category: "Fiyatlandırma",
+    q: "Fiyat artışını müşterilerime nasıl duyurmalıyım?",
+    a: "Artışı son ana bırakmadan (en az 2-4 hafta önceden) ve nedenini kısaca açıklayarak (maliyet artışı, kalite iyileştirme) duyurmak tepkiyi azaltır. Sadık/uzun süreli müşterilere geçiş dönemi için küçük bir esneklik (eski fiyatla son sipariş hakkı gibi) tanımak, ilişkiyi korurken artışı kabul edilebilir kılar.",
+  },
+  {
+    category: "Müşteri Kaybı Analizi",
+    q: "Müşteri kaybımı (churn) nasıl analiz etmeliyim?",
+    keywords: ["churn analizi", "müşteri kaybı analizi", "müşteri neden ayrılıyor"],
+    a: 'Tek tek kaybedilen müşteriye üzülmek yerine belirli bir dönemdeki kayıpları bir arada listeleyip ortak nedeni arayın - fiyat mı, hizmet gecikmesi mi, rakip mi tekrar ediyor? Kaybeden müşteriyle mümkünse kısa bir "neden ayrıldınız" görüşmesi yapmak, iç varsayımlarınızdan çok daha doğru bilgi verir.',
+  },
+  {
+    category: "Muhasebe",
+    q: "Küçük işletme sahibi olarak muhasebe konusunda nelere dikkat etmeliyim?",
+    a: "Gelir-gider kayıtlarını gerçek zamanlı tutmak (ay sonuna bırakmamak) hem nakit durumunuzu net görmenizi sağlar hem de yıl sonunda sürpriz yaşamamanızı. Fatura/gider belgelerini düzenli arşivlemek ve mevzuat takibini bir mali müşavire bırakmak, kendi vaktinizi işin büyümesine ayırmanızı sağlar - bu bir hukuki/mali tavsiye değildir, kendi durumunuz için mutlaka bir uzmana danışın.",
+  },
+  {
+    category: "Vergi",
+    q: "Vergi yükümlülüklerimi nasıl takip etmeliyim?",
+    a: "Beyanname/ödeme tarihlerini kendi takviminize hatırlatma olarak işlemek, son güne kalıp cezai gecikmeye düşmekten daha güvenlidir. Bu alan sık değişen mevzuata tabidir - güncel oran ve yükümlülükler için mutlaka bir mali müşavirle çalışın, burada verilen bilgi genel farkındalık amaçlıdır.",
+  },
+  {
+    category: "Yatırım",
+    q: "İşimi büyütmek için dışarıdan finansman almalı mıyım?",
+    a: 'Önce borç mu (kredi) yoksa ortaklık mı (yatırımcı) istediğinizi netleştirin - borç kontrolü sizde bırakır ama geri ödeme yükümlülüğü getirir, ortaklık yükü paylaştırır ama karar gücünüzü paylaştırır. Finansmanı almadan önce parayı tam olarak neye harcayacağınızı ve ne kadar ek gelir getireceğini yazılı netleştirmek, "büyürüz nasılsa" iyimserliğinden daha sağlıklıdır.',
+  },
+  {
+    category: "Yatırım",
+    q: "Kredi kullanmadan önce nelere dikkat etmeliyim?",
+    a: "Aylık geri ödemenin işletmenizin ortalama nakit akışına oranını hesaplayın - düşük sezonda bile ödemeyi karşılayıp karşılayamayacağınızı görmeden kredi almak risklidir. Farklı bankaların koşullarını (faiz, erken kapama, ek masraf) karşılaştırmak ve nihai kararı bir mali danışmanla teyit etmek, sadece en düşük görünen faize bakmaktan daha güvenlidir.",
+  },
+  {
+    category: "Dijital Pazarlama",
+    q: "Google reklamlarına nasıl başlamalıyım?",
+    keywords: ["google ads", "google reklam", "arama reklamı"],
+    a: "Geniş bir bütçeyle her şeyi denemek yerine, en çok kâr getiren tek bir ürün/hizmet ve dar bir hedef kitle (bölge, arama terimi) ile küçük bütçeli test başlatın. İlk haftalarda hangi aramaların tıklama getirdiğini değil hangisinin gerçek satışa dönüştüğünü izleyin - tıklama ucuz, dönüşüm değerlidir.",
+  },
+  {
+    category: "Dijital Pazarlama",
+    q: "Meta (Facebook/Instagram) reklamlarında bütçemi nasıl verimli kullanırım?",
+    keywords: ["facebook reklamı", "instagram reklamı", "meta ads"],
+    a: "Yeni başlarken geniş kitleye tek reklam yerine 2-3 farklı görsel/mesaj varyasyonunu küçük bütçeyle test edip en iyi performans göstereni büyütün. Soğuk kitleye satış reklamı yerine önce marka farkındalığı, sonra sizi ziyaret edenlere yeniden hedefleme genelde daha az maliyetle daha çok dönüşüm getirir.",
+  },
+  {
+    category: "Dijital Pazarlama",
+    q: "SEO (Google'da üst sıralarda çıkma) için ne yapmalıyım?",
+    keywords: ["seo nasıl yapılır", "google'da üst sıraya çıkmak", "arama motoru optimizasyonu"],
+    a: 'Küçük işletme için en yüksek getiri genelde genel anahtar kelimelerde değil, bölge + hizmet kombinasyonunda ("Kadıköy klima servisi" gibi) rekabettir - burada üst sıraya çıkmak çok daha kolaydır. Site içeriğinizde bu ifadeleri doğal şekilde kullanmak ve ayda 1-2 yeni içerik eklemek, tek seferlik teknik ayardan daha kalıcı sonuç verir.',
+  },
+  {
+    category: "E-posta Pazarlaması",
+    q: "E-posta pazarlamasına nasıl başlamalıyım?",
+    a: "Elinizdeki izinli müşteri listesine ayda 1-2 kez, satış baskısı yapmayan gerçek değer (ipucu, kampanya, yenilik) içeren kısa bir e-posta göndermek, sık ve agresif göndermekten daha az abonelikten çıkma yaratır. Konu başlığı e-postanın açılıp açılmayacağını belirleyen en önemli faktördür - birkaç farklı başlık deneyip hangisinin daha çok açıldığına bakmak zamanla işe yarar bir sezgi kazandırır.",
+  },
+  {
+    category: "Müzakere",
+    q: 'Müşteri "rakip daha ucuza yapıyor" derse ne yanıt vermeliyim?',
+    a: "Hemen fiyat kırmak yerine önce aynı kapsamda olup olmadığını sorun - çoğu zaman rakip teklifi farklı bir kapsam/kalitededir, bu farkı net anlatmak fiyatı savunmaktan daha etkilidir. Gerçekten aynı kapsamdaysa indirim yerine ek değer (garanti süresi, öncelikli destek) önermek kâr marjınızı korur.",
+  },
+  {
+    category: "Delegasyon",
+    q: "İşleri ekibime nasıl devredebilirim (delegasyon)?",
+    a: '"Nasıl yapacağını" değil "ne sonucu istediğinizi" tarif edin - mikro yönetim hem sizin zamanınızı hem çalışanın özgüvenini tüketir. İlk birkaç seferde küçük, geri dönüşü kolay işlerle başlayıp güven oluşturmak, doğrudan kritik bir işi devretmekten daha güvenlidir.',
+  },
+  {
+    category: "İş-Yaşam Dengesi",
+    q: "İş ile özel hayatımı nasıl dengelerim?",
+    a: 'Net bir "kapanış" rutini olmadan (belirli saatten sonra bildirim bakmamak gibi) küçük işletme sahipliği kolayca 7/24 işe dönüşür. Tekrar eden soruları/işleri sisteme veya ekibe bırakmak, sürekli "acil" hissi yaratan işleri azaltır.',
+  },
+  {
+    category: "Ortaklık",
+    q: "İş ortağımla anlaşmazlıkları nasıl yönetmeliyim?",
+    a: "Kararların kim tarafından, nasıl alınacağı (eşit oy mu, alan bazlı yetki mi) baştan yazılı netleşmediyse her anlaşmazlık güç mücadelesine dönüşür - bunu erken, sorun çıkmadan konuşun. Ciddi ortaklıklarda ayrılık senaryosunu da (biri çekilirse ne olacak) yazılı hale getirmek ileride büyük anlaşmazlıkları önler; bunun için bir avukattan destek almak faydalı olur.",
+  },
+  {
+    category: "Tedarikçi İlişkileri",
+    q: "Tedarikçilerimle ilişkimi nasıl güçlendirmeliyim?",
+    a: "Sadece sorun çıktığında değil düzenli iletişimde kalmak ve ödemeleri zamanında yapmak, kriz anında (kıtlık, öncelik) size öncelik tanınmasını sağlar. Tek tedarikçiye tamamen bağımlı olmak risklidir - kritik ürünlerde en az bir alternatif kaynağı önceden belirlemiş olmak size pazarlık gücü de verir.",
+  },
+  {
+    category: "Tedarikçi İlişkileri",
+    q: "Tedarikçi seçerken/değiştirirken nelere dikkat etmeliyim?",
+    a: "Sadece fiyata değil, teslim süresinin tutarlılığına ve sorun çıktığında ne kadar hızlı çözüm ürettiğine bakın - ucuz ama gecikmeli tedarikçi, size müşteri kaybettirerek daha pahalıya gelebilir. Yeni bir tedarikçiye tüm siparişi birden kaydırmak yerine küçük bir siparişle önce güvenilirliğini test etmek daha güvenlidir.",
+  },
+  {
+    category: "Kalite Kontrol",
+    q: "Ürün/hizmet kalitesini nasıl tutarlı tutarım?",
+    a: 'Kalitenin "göze bakarak" değil yazılı bir kontrol listesiyle (teslimden önce kontrol edilecek 5-10 madde) sağlanması, ekip büyüdükçe tutarlılığı korur. Müşteri şikayetlerini tek tek unutmak yerine kategori bazında takip etmek, kalite sorununun kaynağını (tedarik mi, süreç mi, eğitim mi) gösterir.',
+  },
+  {
+    category: "Müşteri Segmentasyonu",
+    q: "Müşterilerimi nasıl segmentlere ayırmalıyım?",
+    a: 'En basit ve etkili yöntem RFM\'dir: müşteri ne zaman son alışveriş yaptı (Recency), ne sıklıkla alıyor (Frequency), ne kadar harcıyor (Monetary) - bu üçüne göre gruplamak kimi öncelikli takip edeceğinizi gösterir. Müşteri etiketlerini bu segmentleri ("VIP", "riskli", "pasif" gibi) işaretlemek için kullanmak, herkese aynı mesajı göndermek yerine segmente göre farklı yaklaşmanızı ve dönüşümü artırmanızı sağlar.',
+  },
+  {
+    category: "Büyüme",
+    q: "İkinci şube/lokasyon açmadan önce neye bakmalıyım?",
+    a: 'Mevcut şubenizin kârlı olması tek başına yeterli değildir - o kârın sizin kişisel çabanıza mı yoksa tekrarlanabilir bir sisteme mi bağlı olduğuna bakın, birinci şubede siz olmadan ikincisi aynı performansı gösteremeyebilir. Yeni lokasyonu açmadan önce o bölgede gerçek talep olduğunu (rakip yoğunluğu, nüfus/demografi) doğrulamak, "iyi gidiyoruz, bir tane daha açalım" iyimserliğinden daha güvenlidir.',
+  },
+  {
+    category: "Ekip Yönetimi",
+    q: "Uzaktan/hibrit çalışan ekibimi nasıl yönetmeliyim?",
+    a: 'Fiziksel gözetim olmadan güven, net teslim tarihleri ve görünür sonuçlarla kurulur - "ne kadar çalıştı" yerine "ne teslim etti"ye odaklanmak daha sağlıklı bir ölçüttür. Önemli kararları anlık mesajla değil yazılı (e-posta, ortak not) kaydetmek, dağınık ekipte bilgi kaybını önler.',
+  },
+  {
+    category: "Fiyatlandırma",
+    q: "Fiyat listemi hazırlarken çapa etkisinden nasıl faydalanırım?",
+    a: 'Üç seçenek sunduğunuzda (temel/standart/premium) müşterilerin çoğu ortadakini seçer - en çok satmasını istediğiniz paketi ortada konumlandırmak, tek fiyat sunmaktan daha yüksek ortalama sepet getirir. En üstteki pahalı seçenek az satılsa bile, ortadaki paketi "makul" gösteren bir çapa görevi görür, tamamen kaldırmayın.',
+  },
+  {
+    category: "Abonelik Modeli",
+    q: "İşimi tekrarlayan gelir (abonelik) modeline nasıl geçiririm?",
+    keywords: ["tekrarlayan gelir", "abonelik modeli", "recurring revenue"],
+    a: "Tek seferlik satışın yanına aynı müşteriye düzenli değer sunan bir bakım/yenileme/üyelik paketi eklemek gelirinizi öngörülebilir kılar - tüm işi birden abonmanlığa çevirmek yerine önce en istekli müşteri grubunda pilot yapın. Tekrarlayan giderlerinizi izlediğiniz gibi tekrarlayan gelirinizi de düzenli izlemek nakit planlamanızı kolaylaştırır.",
+  },
+  {
+    category: "Mevsimlik Personel",
+    q: "Sezonluk/geçici personeli nasıl yönetmeliyim?",
+    a: "Kısa süreli çalışacak birine bile temel işleyişi (en sık sorulan 5-10 soru, hangi durumda kime sorulacağı) yazılı bir kısa kılavuzla anlatmak, her seferinde sıfırdan eğitim vermekten çok daha hızlıdır. İyi performans gösteren mevsimlik çalışanları not edin - bir sonraki sezon yeniden işe almak sıfırdan ilan vermekten hem hızlı hem güvenilirdir.",
+  },
+  {
+    category: "Müşteri Geri Bildirimi",
+    q: "Müşterilerimden düzenli geri bildirim nasıl toplarım?",
+    keywords: ["nps", "müşteri anketi", "geri bildirim toplama"],
+    a: 'Uzun anketler genelde cevaplanmaz - tek soruluk basit bir "bizi 0-10 arası tavsiye eder misiniz" sorusu (NPS) bile, zamanla takip edildiğinde memnuniyet trendini görmenizi sağlar. Olumsuz cevap verenlere kısa süre içinde dönüp nedenini sormak hem sorunu çözer hem müşteride "gerçekten dinleniyorum" hissi yaratır.',
+  },
+  {
+    category: "Yerel SEO",
+    q: "Google İşletme Profilimi (Google Haritalar) nasıl etkili kullanırım?",
+    keywords: ["google my business", "google işletmem", "harita kaydı"],
+    a: "Profili eksiksiz doldurmak (çalışma saatleri, fotoğraflar, hizmet listesi) ve düzenli müşteri yorumu istemek yerel aramalarda görünürlüğü doğrudan artırır - çoğu küçük işletme bu profili bir kere doldurup unutur. Gelen yorumlara kısa bir yanıt yazmak, hem yorumu okuyanlara hem Google'ın sıralama algoritmasına aktif olduğunuzu gösterir.",
+  },
+  {
+    category: "İtibar Yönetimi",
+    q: "Olumsuz online yorumlara nasıl karşılık vermeliyim?",
+    a: "Savunmaya geçmeden, sorunu anladığınızı gösteren sakin bir yanıt yazıp çözümü mümkünse özelden devam ettirin - herkese açık bir tartışma yorumu okuyan diğer müşterileri de etkiler. Yorumu silmeye/görmezden gelmeye çalışmak genelde daha kötü sonuç verir; iyi yönetilmiş bir olumsuz yorum bile markanızın hesap verebilir olduğunu gösterebilir.",
+  },
+  {
+    category: "B2B / B2C",
+    q: "Kurumsal (B2B) müşteriye satış, bireysel (B2C) müşteriden nasıl farklıdır?",
+    a: "Kurumsalda genelde tek kişi değil birden fazla kişi (kullanıcı, satın alma, yönetici) karar sürecine dahildir ve karar süresi daha uzundur - sabırsız takip yerine düzenli, profesyonel hatırlatma daha etkilidir. Bireyselde ise duygusal/anlık karar daha belirleyicidir, hız ve kolaylık genelde fiyattan bile önemli olabilir.",
+  },
+  {
+    category: "Satış Ekibi",
+    q: "Satış ekibime nasıl bir prim/komisyon sistemi kurmalıyım?",
+    keywords: ["komisyon sistemi", "satış primi", "prim sistemi kurma"],
+    a: "Sadece ciroya değil, kâr marjına veya tahsilata bağlı prim vermek, ekibi indirimle satış kapatmaya değil kârlı ve tahsil edilebilir satışa yönlendirir. Prim hesabını basit ve şeffaf tutun - karmaşık formüller güven kaybettirir, kimse anlamadığı bir sisteme motive olmaz.",
+  },
+  {
+    category: "Freelancer/Taşeron",
+    q: "Freelancer/taşeronla çalışırken nelere dikkat etmeliyim?",
+    a: 'İşi devretmeden önce teslim tarihini, kapsamı ve revizyon hakkını (kaç revizyon dahil) net yazın - sözlü "anlaşırız" ifadeleri en sık gecikme ve ek ücret tartışmasına yol açar. İlk işte küçük bir görevle güvenilirliğini test etmeden büyük/kritik bir işi doğrudan vermek risklidir.',
+  },
+  {
+    category: "Nakit Akışı",
+    q: "Kriz anında (talep düşüşü) nakdimi nasıl korurum?",
+    a: "Önce zorunlu olmayan giderleri (yeni yatırım, ek kiralama, birikmiş stok alımı) askıya alın, sabit giderlerinizi yeniden müzakere edin (kira, abonelikler) - kesinti kararını erken almak, nakit tükenene kadar beklemekten daha güvenlidir. Mevcut alacaklarınızı (Finans → Bekleyen Alacak) bu dönemde her zamankinden daha sıkı takip etmek, elinizdeki en hızlı nakit kaynağıdır.",
+  },
+  {
+    category: "Girişimcilik",
+    q: "Yeni bir iş fikrini uygulamaya koymadan önce nasıl test etmeliyim?",
+    a: 'Büyük yatırım yapmadan önce, fikri en küçük haliyle (basit bir sayfa, sınırlı sayıda müşteri, elle yürütülen bir hizmet) gerçek insanlarla test edin - "bence tutar" varsayımı gerçek para ödeyip ödemeyecekleri sorusunun yerini tutmaz. İlk 5-10 gerçek müşteriden çıkan tepki, uzun bir pazar araştırması raporundan daha güvenilir bir sinyaldir.',
+  },
+  {
+    category: "Pazarlama",
+    q: "İçerik pazarlaması veya influencer işbirliği işime katkı sağlar mı?",
+    a: "Takipçi sayısına değil, o kişinin kitlesinin sizin hedef müşterinizle ne kadar örtüştüğüne bakın - küçük ama ilgili bir kitleye sahip biri, büyük ama alakasız bir kitleden daha fazla dönüşüm getirebilir. Tek seferlik bir gönderi yerine, sonucu (kod, link, indirim) ölçülebilir yapılandırılmış bir işbirliği, harcamanın karşılığını görmenizi sağlar.",
+  },
+  {
+    category: "Satış",
+    q: "Mevcut müşteriye ek satış (upsell/çapraz satış) nasıl yaparım?",
+    a: "En doğru an, müşteri zaten memnunken (bir işi başarıyla tamamladıktan hemen sonra) ek bir ihtiyacını çözecek teklif sunmaktır - memnuniyetsiz bir müşteriye ek satış denemek güveni daha da zedeler. Rastgele değil, müşterinin geçmiş taleplerine/kayıtlarına bakarak hangi ürünü/hizmeti almamış ama ihtiyacı olabilir diye hedefli öneri sunmak dönüşümü artırır.",
+  },
+  {
+    category: "Nakit Akışı",
+    q: "Geç ödeyen müşterilerle nasıl başa çıkarım?",
+    a: "Vade dolmadan kısa bir hatırlatma (vade gününde değil, birkaç gün önce) göndermek, vade geçtikten sonra sert bir uyarı yazmaktan daha az sürtüşme yaratır ve daha erken sonuç verir. Kronik geç ödeyen müşterilerde bir sonraki işte kısmi peşinat şartı koymak, ilişkiyi bitirmeden riski azaltan makul bir adımdır.",
+  },
+  {
+    category: "Fiyatlandırma",
+    q: "Hizmetlerimi paket (bundle) halinde satmalı mıyım?",
+    a: 'Ayrı ayrı satıldığında düşük görünen küçük hizmetleri bir pakette birleştirmek, hem müşteriye "daha değerli" bir teklif gibi görünür hem de ortalama sepet tutarınızı yükseltir. Fiyat listenizde 2-3 net paket seçeneği sunmak, müşteriyi çok fazla seçenekle boğmaktan daha hızlı karar verdirir.',
+  },
+  {
+    category: "Ekip Yönetimi",
+    q: "Çalışanlarımı nasıl adil bir şekilde değerlendirmeliyim?",
+    a: 'Yıl sonunu beklemeden, kısa aralıklarla (3 ayda bir gibi) somut örneklere dayalı geri bildirim vermek hem çalışanın gelişimini hızlandırır hem yıl sonu değerlendirmesini sürpriz olmaktan çıkarır. "Genel olarak iyisin" gibi belirsiz yorumlar yerine belirli bir olayı ("şu talebi hızlı çözdün") örnek göstermek, geri bildirimi daha inandırıcı ve uygulanabilir kılar.',
+  },
+  {
+    category: "Marka",
+    q: "Kurumsal kimliğimi (logo, renkler, ton) nasıl oluşturmalıyım?",
+    a: "Pahalı bir marka ajansı olmadan da, tüm materyallerinizde (fatura, sosyal medya, tabela) aynı logo/renk/yazı tipini tutarlı kullanmak profesyonel bir izlenim yaratır - tutarsızlık, kalitesizlikten çok güvensizlik hissi verir. Marka tonunuzu (resmi mi samimi mi) bir kere netleştirip tüm iletişiminizde aynı tonu korumak, büyük bütçeli tasarımdan daha etkili bir tutarlılık sağlar.",
+  },
+  {
+    category: "Müşteri Sadakati",
+    q: "Sadakat programı nasıl kurmalıyım?",
+    a: "Karmaşık puan sistemleri yerine basit bir kural (örneğin belirli sayıda alışveriş sonrası bir avantaj) hem sizin takip etmenizi hem müşterinin anlamasını kolaylaştırır. Programı geniş kitleye açmadan önce en sadık mevcut müşterilerinizde (en çok işlem yapan müşteri etiketi/listesi) test etmek, ayarlamaları erken yapmanızı sağlar.",
+  },
+  {
+    category: "Vergi Teşvikleri",
+    q: "Genç girişimci vergi istisnasından yararlanabilir miyim?",
+    a: "29 yaşını doldurmamış ve ilk kez vergi mükellefi olan girişimciler için Gelir Vergisi Kanunu'nda kazancın belirli bir kısmını gelir vergisinden istisna tutan bir düzenleme (\"genç girişimci kazanç istisnası\") var. Şartlar ve güncel tutar sık değiştiği için muhasebecinize/SMMM'nize sorup uygunluğunuzu teyit ettirin.",
+  },
+  {
+    category: "Vergi Teşvikleri",
+    q: "KOBİ'me devlet desteği/hibe var mı?",
+    a: "KOSGEB, KOBİ'lere yönelik girişimcilik, dijitalleşme, Ar-Ge ve işletme geliştirme destekleri (hibe ve düşük faizli kredi) sunuyor. Güncel programları ve başvuru şartlarını KOSGEB'in kendi sitesinden veya bağlı olduğunuz Ticaret/Sanayi Odası'ndan öğrenebilirsiniz.",
+  },
+  {
+    category: "Vergi Teşvikleri",
+    q: "Yeni ekipman/makine alırken vergi avantajı var mı?",
+    a: 'Belirli yatırımlar için alınan "yatırım teşvik belgesi" kapsamında KDV istisnası, gümrük vergisi muafiyeti ve vergi indirimi gibi avantajlardan yararlanılabiliyor. Bu belge genelde yatırımdan ÖNCE alınması gerektiği için, büyük bir alım öncesi muhasebecinize danışmanız önemli.',
+  },
+  {
+    category: "Vergi Teşvikleri",
+    q: "Fazla ödediğim KDV'yi geri alabilir miyim?",
+    a: "Bazı işlemlerde (ihracat, indirimli orana tabi teslimler, KDV tevkifatı uygulanan hizmetler vb.) yüklendiğiniz KDV, hesapladığınız KDV'den fazla kalabilir - bu fark belirli şartlarda nakden veya mahsuben iade alınabilir. Çoğu KOBİ'nin bilmediği ama muhasebecisinin başvurabileceği bir hak.",
+  },
+  {
+    category: "Satış",
+    q: "Soğuk aramada/soğuk mesajda nasıl daha iyi sonuç alırım?",
+    a: "Genel bir tanıtım yerine karşı tarafın işine özel, kısa ve tek bir somut fayda vurgulayan bir açılış cümlesi kullanmak yanıt oranını artırır. İlk temasta satış kapatmaya çalışmak yerine küçük bir sonraki adım (kısa görüşme, örnek gönderme) istemek, karşı tarafın karar yükünü azaltır.",
+  },
+  {
+    category: "Nakit Akışı",
+    q: "İşletme sermayesi ihtiyacımı nasıl hesaplarım?",
+    a: "Aylık sabit giderlerinizi tahsilat gecikmesi kadar bir süreyle (örn. ortalama tahsilat süreniz 30 gün ise en az 1-2 aylık gider) çarpmak, kaba ama kullanışlı bir güvenlik tamponu verir. Bu tamponu ayrı bir hesapta tutmak, günlük harcamalarla karışmasını önler.",
+  },
+  {
+    category: "Müşteri Sadakati",
+    q: "Müşteri kaybetme sinyallerini erken nasıl fark ederim?",
+    a: "Sipariş sıklığında/tutarında ani düşüş, geç yanıt verme veya destek taleplerinde artan hoşnutsuzluk erken uyarı işaretleridir - bunları beklemeden, düzenli aralıklarla pasif müşteri listenizi (Binerly'de otomatik hesaplanır) gözden geçirmek fark etmeyi kolaylaştırır. Sinyali gördüğünüzde beklemeden kişisel bir arama/mesaj genelde işe yarar.",
+  },
+  {
+    category: "Pazarlama",
+    q: "Web sitem olmadan online varlığımı nasıl güçlendiririm?",
+    a: "Google İşletme Profili ve aktif bir sosyal medya hesabı, küçük bir işletme için genelde ilk web sitesinden daha hızlı sonuç verir çünkü zaten arama yapan/keşfeden kullanıcıya ulaşır. Bütçe el verdiğinde bile karmaşık bir site yerine tek sayfalık, iletişim bilgisi net bir sayfa yeterlidir.",
+  },
+  {
+    category: "Ekip Yönetimi",
+    q: "Motivasyonu düşük bir çalışanla nasıl konuşmalıyım?",
+    a: 'Suçlayıcı bir üslup yerine önce gözlemi paylaşıp ("son zamanlarda şunu fark ettim") nedenini sormak, savunmaya geçmeden gerçek sorunu ortaya çıkarır - kişisel bir sorun mu, iş yükü mü, takdir eksikliği mi olduğunu bilmeden çözüm üretilemez. Tek seferlik bir konuşma yerine kısa aralıklarla takip etmek kalıcı değişim şansını artırır.',
+  },
+  {
+    category: "Zaman Yönetimi",
+    q: "Sürekli kesintiye uğrayan işimi nasıl daha az bölünerek yürütürüm?",
+    a: 'Günün belirli bir bölümünü (örn. sabahın ilk saati) bildirim/telefon almayan "derin çalışma" zamanı olarak ayırmak, sürekli açık kapı politikasından daha üretkendir. Acil olmayan soruları biriktirip günde 1-2 kez toplu yanıtlamak, her seferinde odağı bölmekten daha verimlidir.',
+  },
+  {
+    category: "Marka",
+    q: "Rakiplerimden farklılaşmak için ne yapmalıyım (konumlandırma)?",
+    a: '"Herkese her şeyi" sunmaya çalışmak yerine, belirli bir müşteri tipinde veya ihtiyaçta gerçekten en iyisi olmayı hedeflemek daha akılda kalıcıdır - dar ama net bir konumlandırma, geniş ama belirsiz olmaktan daha fazla tercih edilir. Bu farkı tüm iletişiminizde (site, sosyal medya, satış konuşması) tutarlı tekrarlamak gerekir.',
+  },
+  {
+    category: "Sosyal Medya",
+    q: "Hangi sosyal medya platformuna öncelik vermeliyim?",
+    a: "Tüm platformlarda az ve düzensiz paylaşım yapmak yerine, hedef kitlenizin en çok vakit geçirdiği tek platformda düzenli ve kaliteli içerik üretmek daha etkilidir. Görsel bir ürün/hizmetiniz varsa Instagram, profesyonel/B2B bir hizmetseniz LinkedIn genelde daha yüksek geri dönüş sağlar.",
+  },
+  {
+    category: "Müzakere",
+    q: "Büyük bir müşteriye özel indirim isterse ne yapmalıyım?",
+    a: 'İndirimi karşılıksız vermek yerine bir karşılık isteyin (daha uzun sözleşme, peşin ödeme, referans) - bu hem kâr kaybınızı dengeler hem de müşterinin indirimi daha değerli görmesini sağlar. Tek seferlik özel bir indirim verirken bunu yazılı olarak "bu sefere özel" diye belirtmek, gelecekte standart beklenti hâline gelmesini önler.',
+  },
+  {
+    category: "Rekabet",
+    q: "Fiyat savaşına girmeden rekabet edebilir miyim?",
+    a: "Sadece fiyatla rekabet eden bir işletme genelde en düşük kâr marjına da mahkûm olur - hız, kişisel ilgi, garanti veya uzmanlık gibi paraya çevrilemeyen farkları öne çıkarmak daha sürdürülebilirdir. Rakip fiyat kırdığında hemen siz de kırmak yerine, önce kaybettiğiniz müşterilerin gerçek nedenini (Binerly'deki kayıp analizi) doğrulayın.",
+  },
+  {
+    category: "Girişimcilik",
+    q: "İşimi büyütürken kontrolü kaybetme korkusuyla nasıl başa çıkarım?",
+    a: 'Her kararı kendiniz vermek yerine, düşük riskli kararlarda ekibinize net sınırlar içinde yetki vermek ("şu tutara kadar sen karar verebilirsin") güveni kademeli inşa eder. Kontrolü tamamen bırakmak değil, hangi kararların gerçekten sizde kalması gerektiğini netleştirmek asıl çözümdür.',
+  },
+  {
+    category: "Yeni İşletme",
+    q: "İlk yıl en sık yapılan hatalar nelerdir?",
+    a: "Çok erken çok fazla harcama (ofis, ekipman, personel) yapmak ve gerçek talebi doğrulamadan büyümeye yatırım yapmak en sık rastlanan hatalardır. İkinci sık hata ise fiyatlandırmayı çok düşük belirleyip sonradan yükseltmekte zorlanmaktır - başlangıçta biraz muhafazakâr ama sürdürülebilir bir fiyatla başlamak daha sağlıklıdır.",
+  },
+  {
+    category: "Networking",
+    q: "Bir etkinlikte/toplantıda kendimi nasıl tanıtmalıyım?",
+    a: 'Uzun bir unvan/hizmet listesi yerine, kime ne fayda sağladığınızı tek cümlede anlatan kısa bir tanıtım ("X yapan işletmelere Y konusunda yardımcı oluyorum") akılda kalıcıdır. Tanıştığınız kişiden hemen bir şey istemek yerine önce onun ne yaptığını sorup dinlemek, uzun vadeli bir bağlantı kurma ihtimalini artırır.',
+  },
+  {
+    category: "Şikayet Yönetimi",
+    q: "Haksız/aşırı bir şikayete nasıl yanıt vermeliyim?",
+    a: "Haklı olduğunuzu kanıtlamaya çalışmadan önce müşterinin duygusunu (hayal kırıklığı, sinir) kabul eden bir cümleyle başlamak, konuşmayı sakinleştirir. Gerçekten haksız bir talep varsa kararlı ama saygılı bir dille sınır çizmek, her isteği kabul etmekten uzun vadede daha sağlıklıdır.",
+  },
+  {
+    category: "Büyüme",
+    q: "Büyürken kaliteyi nasıl korurum?",
+    a: 'Büyüme hızınız, kalite kontrol süreçlerinizi (kontrol listesi, eğitim, denetim) kurma hızınızı geçmemeli - önce süreci belgeleyip tekrarlanabilir hâle getirin, sonra hacmi artırın. Büyüme sırasında en sık gözden kaçan şey, eskiden "sizin gözünüzle" yapılan kalite kontrolünün ekip büyüdükçe kimin sorumluluğunda olacağıdır.',
+  },
+  {
+    category: "İşe Alım",
+    q: "Küçük işletmede maaş dışında nasıl cazip olabilirim?",
+    a: "Büyük şirketlerle maaşta yarışamayan küçük işletmeler genelde esneklik (çalışma saati, uzaktan çalışma), hızlı öğrenme/sorumluluk alma fırsatı ve daha yakın bir çalışma ortamıyla fark yaratabilir. Bu avantajları ilanda açıkça yazmak, sadece maaşa bakan değil kültüre uyan adayları çeker.",
+  },
+  {
+    category: "Sözleşmeler",
+    q: "Sözleşmeyi feshetmek istediğimde nelere dikkat etmeliyim?",
+    a: 'Fesih bildirimini sözleşmede belirtilen süre ve şekilde (genelde yazılı, belirli gün önceden) yapmak, sonradan "usulüne uygun bildirilmedi" itirazını önler. Fesih öncesi tarafların birbirine olan yükümlülüklerini (bekleyen ödeme, teslim edilmemiş iş) netleştirmek, ilerideki anlaşmazlığı azaltır.',
+  },
+  {
+    category: "Stok Yönetimi",
+    q: "Mevsimsel ürünlerde stok planlamasını nasıl yaparım?",
+    a: "Sezon başlamadan geçmiş yılın aynı dönem satışına bakıp küçük bir güvenlik payıyla sipariş vermek, sezon ortasında telaşla ek sipariş vermekten daha ucuza gelir. Sezon sonunda kalan stoğu erken bir kampanyayla eritmek, bir sonraki sezona taşımaktan (bayatlama, depolama maliyeti) genelde daha kârlıdır.",
+  },
+  {
+    category: "E-ticaret",
+    q: "Kargo/lojistik maliyetini nasıl optimize ederim?",
+    a: "Tek bir kargo firmasına bağlı kalmak yerine 2-3 firmanın fiyat/hızını karşılaştırıp bölgeye göre değiştirmek maliyeti düşürebilir. Belirli bir tutarın üzerinde ücretsiz kargo sunmak, ortalama sepet tutarını artırırken kargo maliyetini de dengeler.",
+  },
+  {
+    category: "Mevsimsellik",
+    q: "Düşük sezonda ekibimi nasıl değerlendiririm?",
+    a: "Düşük sezonu boşta geçirmek yerine, yoğun sezonda vakit bulamadığınız eğitim, bakım/temizlik veya süreç iyileştirme işlerine ayırmak verimliliği kaybetmeden değerlendirir. Bazı işletmeler düşük sezonda farklı bir ürün/hizmete geçici olarak yönelerek geliri de dengeler.",
+  },
+  {
+    category: "Franchise",
+    q: "Franchise almayı düşünüyorum, nelere dikkat etmeliyim?",
+    a: "Sadece marka bilinirliğine değil, franchise verenin size sağlayacağı eğitim, tedarik desteği ve bölgenizdeki gerçek talebe bakın - güçlü marka, zayıf yerel talep varsa yeterli olmaz. Sözleşmedeki süre, yenileme koşulları ve fesih/cayma şartlarını imzalamadan önce bir avukata incelettirmek önemlidir.",
+  },
+  {
+    category: "Kriz Yönetimi",
+    q: "Bir tedarik krizinde alternatif nasıl bulurum?",
+    a: "Kriz çıkmadan önce kritik ürünlerde en az bir yedek tedarikçiyi önceden belirlemiş olmak, kriz anında panikle arama yapmaktan çok daha hızlı çözüm sağlar. Mevcut tedarikçinizle de krizde önceliklendirilme konusunda önceden konuşmuş olmak (düzenli ödeme/iletişim karşılığında) pazarlık gücü verir.",
+  },
+  {
+    category: "Müşteri Kaybı Analizi",
+    q: "Kaybedilen müşteriyi geri kazanmaya değer mi?",
+    a: 'Kayıp nedenine bağlıdır - fiyat veya geçici bir memnuniyetsizlikse geri kazanma denemeye değer olabilir, ama hizmet kapsamınız dışında bir ihtiyaç değiştiyse zaman kaybı olabilir. Geri kazanma denemesinde eski sorunu çözdüğünüzü somut olarak göstermeden sadece "geri dönün" demek genelde işe yaramaz.',
+  },
+  {
+    category: "Muhasebe",
+    q: "Nakit bazlı mı tahakkuk bazlı mı takip etmeliyim?",
+    a: 'Küçük işletmeler için basitçe: nakit bazlı (para gerçekten girip çıktığında kaydetmek) günlük karar almak için daha sezgiseldir, tahakkuk bazlı (fatura kesildiğinde kaydetmek) ise gerçek kârlılığı daha doğru gösterir. İkisi arasındaki farkı bilmek, "kârdayım ama param yok" şaşkınlığını önler - resmi kayıtlar için muhasebecinizin yöntemini esas alın.',
+  },
+  {
+    category: "Vergi",
+    q: "Fatura kesmeyi unutursam ne olur?",
+    a: "Zamanında kesilmeyen fatura hem cezai yaptırıma hem de KDV/gelir beyanınızda tutarsızlığa yol açabilir - fark ettiğiniz anda muhasebecinize bildirip düzeltme yapmak, sessiz kalmaktan çok daha güvenlidir. Bu sık yaşanan bir hata, düzenli bir fatura kontrol alışkanlığı (haftalık) riski büyük ölçüde azaltır.",
+  },
+  {
+    category: "Yatırım",
+    q: "Kendi param mı yoksa kredi mi kullanmalıyım?",
+    a: "Kendi paranızı kullanmak faiz yükü getirmez ama kişisel güvenliğinizi (acil durum tamponunuz) riske atar; kredi ise kişisel tamponunuzu korur ama geri ödeme yükümlülüğü ekler. Genel bir kural: işin getirisi kredi faizinden belirgin şekilde yüksekse ve geri ödemeyi düşük sezonda bile karşılayabiliyorsanız kredi mantıklı olabilir.",
+  },
+  {
+    category: "Dijital Pazarlama",
+    q: "Reklam bütçemi platformlar arasında nasıl paylaştırmalıyım?",
+    a: "Tüm bütçeyi tek platforma yatırmadan önce küçük eşit paylarla 2-3 platformu test edip hangisinin gerçek satışa (sadece tıklamaya değil) dönüştüğünü ölçün, sonra bütçeyi kazanana kaydırın. Test dönemini en az birkaç hafta tutmak, erken ve yanıltıcı sonuçlara göre karar vermeyi önler.",
+  },
+  {
+    category: "E-posta Pazarlaması",
+    q: "E-posta listemi nasıl büyütürüm?",
+    a: "Satın alma veya kayıt sırasında açık bir onay kutusuyla izin istemek, listeyi küçük ama etkileşimli tutar - izinsiz eklenen adresler hem yasal risk taşır hem de düşük açılma oranıyla sonucu bozar. Küçük bir teşvik (indirim kodu, bilgi PDF'i) karşılığında kayıt istemek gönüllü büyümeyi hızlandırır.",
+  },
+  {
+    category: "Delegasyon",
+    q: "Hangi işleri asla devretmemeliyim?",
+    a: 'Stratejik kararlar, kritik müşteri ilişkileri ve para/yetki gerektiren onaylar genelde son ana kadar sizde kalmalı - geri kalan hemen hemen her tekrar eden operasyonel iş devredilebilir. "Ben daha iyi yaparım" düşüncesi genelde devretmemenin gerçek nedenidir, hız/kalite farkı devretmenin getirdiği zaman kazancına değmeyebilir.',
+  },
+  {
+    category: "İş-Yaşam Dengesi",
+    q: "Tatile çıkarken işimi nasıl güvenle bırakırım?",
+    a: 'Gitmeden önce ekibinize/vekilinize hangi kararları kendi başlarına alabileceklerini ve hangi durumlarda sizi arayacaklarını net yazılı olarak bırakmak, sürekli "acaba ne oluyor" kaygısını azaltır. Tamamen ulaşılmaz olmak yerine günde belirli, kısa bir kontrol penceresi (örn. akşam 10 dakika) tutmak, hem dinlenmenizi hem güvenliği dengeler.',
+  },
+  {
+    category: "Ortaklık",
+    q: "Yeni bir ortak almayı düşünüyorum, nelere dikkat etmeliyim?",
+    a: "Sadece getirdiği sermayeye değil, günlük işte gerçekten ne katkı sağlayacağına ve değerlerinizin/çalışma tarzınızın uyuşup uyuşmadığına bakın - uyumsuz bir ortaklık parayla telafi edilemeyecek zaman ve enerji kaybettirir. Ortaklık şartlarını (pay oranı, karar mekanizması, ayrılık senaryosu) baştan yazılı netleştirmek şarttır.",
+  },
+  {
+    category: "Tedarikçi İlişkileri",
+    q: "Tedarikçiyle fiyat pazarlığını nasıl yaparım?",
+    a: "Tek seferlik büyük bir indirim istemek yerine, düzenli ve öngörülebilir sipariş hacmi karşılığında kademeli bir fiyat avantajı önermek her iki taraf için de sürdürülebilir bir anlaşmadır. Rakip tedarikçi tekliflerini elinizde bulundurmak (kullanmasanız bile) pazarlıkta gerçekçi bir referans noktası verir.",
+  },
+  {
+    category: "Kalite Kontrol",
+    q: "Müşteri şikayetlerinden kalite iyileştirmesi nasıl çıkarırım?",
+    a: "Şikayetleri tek tek unutmak yerine kategori bazında (kargo, ürün hatası, iletişim gecikmesi vb.) düzenli topladığınızda, en sık tekrar eden kategori asıl kök sorunu gösterir. En sık kategoriye önce müdahale etmek, dağınık şekilde her şeyi aynı anda düzeltmeye çalışmaktan daha hızlı sonuç verir.",
+  },
+  {
+    category: "Müşteri Segmentasyonu",
+    q: "En kârlı müşteri segmentimi nasıl bulurum?",
+    a: "Sadece en çok ciro getiren değil, en az efor/maliyetle en çok kâr bırakan segmenti bulmak için hem gelir hem de o segmente hizmet verme maliyetini (destek yükü, özel talepler) birlikte değerlendirin. Bu segmenti bulduktan sonra pazarlama/satış çabanızın çoğunu oraya yönlendirmek, geniş ama düşük verimli bir kitleye eşit efor harcamaktan daha kârlıdır.",
+  },
+  {
+    category: "Vergi Teşvikleri",
+    q: "İhracat yapıyorsam ek bir vergi avantajı var mı?",
+    a: "İhracat teslimleri KDV'den istisnadır ve belirli şartlarda yüklenilen KDV iade alınabilir; ayrıca bazı ihracat destekleri (Ticaret Bakanlığı, İhracatçı Birlikleri) mevcut. Güncel oran ve başvuru süreçleri sık değiştiği için muhasebecinizle veya bağlı olduğunuz ihracatçı birliğiyle teyit edin.",
+  },
+  {
+    category: "Abonelik Modeli",
+    q: "Abonelik iptallerini (churn) nasıl azaltırım?",
+    a: "İptal talebi geldiğinde hemen işlemi tamamlamak yerine kısa bir nedeni sormak, hem gerçek sorunları öğrenmenizi hem de bazı durumlarda (fiyat, kullanım eksikliği) müşteriyi ikna etme şansı verir. Yeni abonelerin ilk haftalarda ürünü/hizmeti gerçekten kullanmasını sağlamak (onboarding), en çok terk edilen erken dönemi güvenli geçirir.",
+  },
+  {
+    category: "Mevsimlik Personel",
+    q: "Mevsimlik personeli tam zamanlıya nasıl geçiririm?",
+    a: "Sezon boyunca performansı iyi olan kişileri not edip sezon biterken (son ana bırakmadan) tam zamanlı teklif sunmak, sizin için bilinen/güvenilir bir kişiyi işe almak demektir. Geçiş öncesi beklentileri (görev kapsamı, çalışma saatleri) netleştirmek, mevsimlik dönemdeki gevşek düzenin tam zamanlıya taşınmasını önler.",
+  },
+  {
+    category: "Müşteri Geri Bildirimi",
+    q: "Olumsuz geri bildirimi ekibime nasıl aktarmalıyım?",
+    a: 'Geri bildirimi kişiyi suçlayan değil süreci iyileştiren bir çerçevede sunmak ("şu süreçte şu sorunu yaşıyoruz" gibi) ekibin savunmaya geçmeden çözüme odaklanmasını sağlar. Sadece olumsuzu değil, olumlu geri bildirimleri de düzenli paylaşmak, geri bildirim kültürünü sadece eleştiri anına indirgemekten kaçınır.',
+  },
+  {
+    category: "Yerel SEO",
+    q: "Birden fazla şubem varsa her biri için ayrı Google profili mi açmalıyım?",
+    a: "Evet, her fiziksel lokasyon için ayrı bir Google İşletme Profili açmak, o şubeye yakın aramalarda görünürlüğü artırır - tek bir profilde tüm şubeleri birleştirmek yerel aramada dezavantaj yaratır. Her profilin adres/telefon/çalışma saatleri bilgisini o şubeye özel ve güncel tutmak önemlidir.",
+  },
+  {
+    category: "İtibar Yönetimi",
+    q: "Sahte/kötü niyetli bir yoruma nasıl karşılık vermeliyim?",
+    a: "Öfkeli bir yanıt yazmak yerine sakin, gerçekleri (sipariş/randevu kaydı gibi) ortaya koyan kısa bir yanıt yazmak, okuyan diğer kullanıcılara güven verir. Gerçekten sahte olduğuna eminseniz platformun (Google, sosyal medya) şikayet/bildirme mekanizmasını kullanmak, yorumu silmeye çalışmaktan daha etkilidir.",
+  },
+  {
+    category: "B2B / B2C",
+    q: "Hem kurumsal hem bireysel müşteriye aynı anda nasıl hizmet veririm?",
+    a: "İki farklı müşteri tipi genelde farklı iletişim tonu ve satış süreci ister - aynı pazarlama mesajını ikisine birden göndermek yerine ayrı ayrı ele almak dönüşümü artırır. Fiyatlandırma ve ödeme koşullarını da (kurumsalda vadeli/faturalı, bireyselde peşin) buna göre ayırmak süreç karmaşasını azaltır.",
+  },
+  {
+    category: "Satış Ekibi",
+    q: "Satış ekibimin performansını hangi metriklerle takip etmeliyim?",
+    a: 'Sadece kapatılan satış sayısına değil, kazanma oranına (kaç teklifin kaçı kazanıldı) ve ortalama kapanma süresine de bakmak, kimin gerçekten verimli çalıştığını gösterir - çok teklif açıp az kapatan biri, az teklif açıp çoğunu kapatan birinden daha "başarılı" görünmeyebilir. Bu metrikleri düzenli (haftalık/aylık) paylaşmak, ekipte sağlıklı bir rekabet kültürü oluşturur.',
+  },
+  {
+    category: "Freelancer/Taşeron",
+    q: "Birden fazla freelancer'ı aynı projede nasıl koordine ederim?",
+    a: 'Herkesin net bir teslim tarihini ve birbirine bağımlı olduğu noktaları (kimin işi bitmeden kim başlayamıyor) baştan görünür kılmak, iletişim eksikliğinden doğan gecikmeleri önler. Ortak bir ilerleme takibi (basit bir liste bile olur) tutmak, herkese ayrı ayrı "nerede kaldın" sormaktan daha verimlidir.',
+  },
+  {
+    category: "Sigorta",
+    q: "İşletmem için hangi sigortalara öncelik vermeliyim?",
+    a: "İşyeri sigortası (yangın, hırsızlık, su baskını) ve üçüncü şahıslara verilebilecek zararlara karşı sorumluluk sigortası çoğu küçük işletme için temel önceliktir. Sektörünüze özgü riskler (örn. sağlık/güzellik sektöründe mesleki sorumluluk) varsa bunun için ayrı bir poliçe gerekip gerekmediğini bir sigorta acentesiyle değerlendirin.",
+  },
+  {
+    category: "Sigorta",
+    q: "Çalışanlarım için hangi sigortalar zorunlu?",
+    a: "Sigortalı çalıştırdığınız her personel için SGK bildirimi ve prim ödemesi yasal bir zorunluluktur, bunu ihmal etmek ciddi cezai yaptırıma yol açar. Bunun ötesinde ek bir özel sağlık sigortası sunmak zorunlu olmasa da, küçük işletmelerde çalışan bağlılığını artıran düşük maliyetli bir yan haktır.",
+  },
+  {
+    category: "Sigorta",
+    q: "Sigorta poliçemi yenilerken nelere dikkat etmeliyim?",
+    a: "Sadece fiyata değil, kapsam dışı bırakılan durumlara (istisnalar) dikkatlice bakın - ucuz bir poliçe, gerçekten ihtiyaç anında kapsamadığı bir riskle sizi savunmasız bırakabilir. İşletmeniz büyüdükçe (yeni ekipman, yeni lokasyon) poliçenizin güncel değeri yansıtıp yansıtmadığını yıllık gözden geçirin.",
+  },
+  {
+    category: "Kira ve Mülk",
+    q: "İşyeri kira sözleşmesinde nelere dikkat etmeliyim?",
+    a: "Kira artış oranının nasıl belirleneceği (hangi endekse bağlı), sözleşme süresi ve erken fesih koşulları en sık ihtilaf çıkan maddelerdir - bunları imzalamadan önce net anlaşın. Depozito/güvence bedelinin iade koşullarını da yazılı almak, çıkışta yaşanan anlaşmazlıkları azaltır.",
+  },
+  {
+    category: "Kira ve Mülk",
+    q: "İşyeri için yer seçerken nelere bakmalıyım?",
+    a: "Kira maliyetini sadece kendisiyle değil, o lokasyonun getireceği ek müşteri trafiğiyle (yaya trafiği, görünürlük, ulaşım kolaylığı) birlikte değerlendirin - ucuz ama görünmez bir yer, pahalı ama işlek bir yerden daha maliyetli çıkabilir. Uzun vadeli bir bölgesel gelişim planı (yol çalışması, yeni AVM vb.) varsa öğrenmeye çalışmak sürpriz risklerden korur.",
+  },
+  {
+    category: "Kira ve Mülk",
+    q: "Kira artışını nasıl müzakere ederim?",
+    a: "Piyasadaki benzer işyerlerinin güncel kira bedellerini araştırıp elinizde bir referans bulundurmak, müzakerede gerçekçi bir zemin sağlar. Uzun süredir düzenli ödeme yapan iyi bir kiracı olduğunuzu vurgulamak, ev sahibi için de sizi kaybetmemenin değerini hatırlatır.",
+  },
+  {
+    category: "Veri Güvenliği",
+    q: "Müşteri verilerimi nasıl korumalıyım?",
+    a: "Müşteri bilgilerine (telefon, e-posta, ödeme geçmişi) kimlerin erişebildiğini sınırlı tutmak ve şifrelerinizi düzenli değiştirmek temel bir önlemdir. Verileri kişisel bir Excel dosyası yerine erişim kontrolü olan bir sistemde tutmak, kaybolma/sızma riskini büyük ölçüde azaltır.",
+  },
+  {
+    category: "Veri Güvenliği",
+    q: "KVKK açısından küçük işletme olarak ne yapmalıyım?",
+    a: "Müşteri verisini sadece açık bir amaç için (hizmet sunmak, iletişim) toplayıp o amaç dışında kullanmamak ve müşterinin talebi hâlinde verisini silebilmek temel yükümlülüklerdendir. Ticari elektronik ileti (kampanya e-postası/SMS'i) göndermeden önce ayrı bir açık onay almanız gerektiğini unutmayın - detaylı uyum için bir hukuk danışmanına başvurmanız önerilir.",
+  },
+  {
+    category: "Veri Güvenliği",
+    q: "İşletme verilerimi nasıl yedeklemeliyim?",
+    a: "Tek bir cihazda veya tek bir yerde tutulan veri, o cihaz bozulduğunda tamamen kaybolma riski taşır - bulut tabanlı bir sistem kullanmak bu riski büyük ölçüde ortadan kaldırır. Kritik dosyalarınızın (sözleşmeler, faturalar) ayrıca düzenli aralıklarla ikinci bir yere (harici disk, farklı bulut hesabı) kopyalanması ek bir güvenlik katmanıdır.",
+  },
+  {
+    category: "İhracat",
+    q: "İlk kez ihracata nasıl başlarım?",
+    a: "Önce hedef pazarda ürününüze/hizmetinize gerçek bir talep olduğunu (rakip analizi, küçük bir test siparişi) doğrulamadan büyük yatırım yapmayın. Ticaret Bakanlığı ve İhracatçı Birlikleri'nin yeni ihracatçılara yönelik destek ve eğitim programlarından faydalanmak, süreci baştan öğrenmenin en ucuz yoludur.",
+  },
+  {
+    category: "İhracat",
+    q: "İhracatta döviz kuru riskinden nasıl korunurum?",
+    a: "Fiyatlarınızı uzun vadeli sözleşmelerde sabit döviz cinsinden belirlemek, kur dalgalanmasının kâr marjınızı erozyona uğratmasını önler. Büyük hacimli işlemlerde bankanızın sunduğu forward/vadeli işlem gibi kur riski koruma araçlarını bir finans danışmanıyla değerlendirebilirsiniz.",
+  },
+  {
+    category: "Enflasyon Yönetimi",
+    q: "Yüksek enflasyon döneminde fiyatlarımı ne sıklıkla güncellemeliyim?",
+    a: "Fiyatları çok seyrek güncellemek maliyet artışını kâr marjınızdan karşılamanıza, çok sık güncellemek ise müşteri güvenini sarsmaya yol açabilir - çoğu KOBİ için aylık/çeyreklik düzenli bir gözden geçirme makul bir dengedir. Güncellemeyi sürpriz yapmak yerine önceden küçük bir bildirimle duyurmak tepkiyi azaltır.",
+  },
+  {
+    category: "Enflasyon Yönetimi",
+    q: "Maliyet artışlarını nasıl daha yakından takip ederim?",
+    a: "Tedarik/gider kalemlerinizin fiyatını düzenli (aylık) not almak, hangi kalemin ne kadar arttığını fark etmenizi ve fiyatlarınıza ne zaman yansıtmanız gerektiğini zamanında görmenizi sağlar. Sadece toplam gideri değil, kategori bazında artışı izlemek (Finans → Gider Kategorileri) en çok etkilenen alanı netleştirir.",
+  },
+  {
+    category: "Enflasyon Yönetimi",
+    q: "Uzun vadeli sözleşmelerimde enflasyona karşı nasıl korunurum?",
+    a: "Sabit fiyat yerine belirli bir endekse (TÜFE, ÜFE gibi) bağlı otomatik güncelleme maddesi eklemek, her yenilemede yeniden pazarlık yapma zorunluluğunu ortadan kaldırır. Bu maddeyi sözleşmeye eklerken karşı tarafın da kabul edebileceği makul bir üst sınır belirlemek, anlaşmayı daha kolay kabul ettirir.",
+  },
+  {
+    category: "İş Sağlığı ve Güvenliği",
+    q: "Küçük işletme olarak iş sağlığı ve güvenliği yükümlülüklerim neler?",
+    a: "Çalışan sayınız az olsa bile temel risk değerlendirmesi yapmak ve çalışanlara temel güvenlik bilgilendirmesi vermek yasal bir yükümlülüktür, işkolunuza göre kapsam değişir. Güncel mevzuat ve gerekli belgeler için bir İSG uzmanı veya ortak sağlık güvenlik birimiyle çalışmak, cezai riskleri önler.",
+  },
+  {
+    category: "İş Sağlığı ve Güvenliği",
+    q: "İş kazalarını önlemek için neler yapmalıyım?",
+    a: 'En sık kazalar genelde tekrar eden, "bilinen" işlerde dikkat dağınıklığından olur - düzenli kısa hatırlatmalar (ekipman kontrolü, doğru kullanım) ciddi eğitimlerden çok, alışkanlığı tazeleme amaçlı işe yarar. Bir kaza/ramak kala olayı yaşandığında nedenini kayıt altına almak, tekrarını önlemenin en etkili yoludur.',
+  },
+  {
+    category: "Ekipman ve Bakım",
+    q: "Ekipmanlarımın periyodik bakımını nasıl planlamalıyım?",
+    a: 'Arıza çıktıktan sonra tamir etmek yerine üretici önerisine göre düzenli bakım takvimi oluşturmak, hem beklenmedik duruş sürelerini hem de büyük onarım maliyetlerini azaltır. Bakım tarihlerini bir hatırlatmayla takip etmek, "unutulan" bakımın en sık nedenidir.',
+  },
+  {
+    category: "Ekipman ve Bakım",
+    q: "Eski bir ekipmanı ne zaman yenilemeliyim?",
+    a: "Tamir maliyetleri sıklaşıp yeni bir ekipmanın maliyetine yaklaşmaya başladığında, artık yenileme kararının zamanı gelmiş demektir. Verimlilik kaybı (yavaşlama, kalite düşüşü, enerji tüketimi artışı) da genelde görünmeyen ama gerçek bir maliyettir, sadece tamir faturasına bakmak yeterli değildir.",
+  },
+  {
+    category: "Kurumsal Satın Alma Süreçleri",
+    q: "Kurumsal/resmi bir ihaleye/teklife nasıl hazırlanmalıyım?",
+    a: "Şartnameyi satır satır okuyup istenen her belgeyi (evrak, referans, teknik özellik) eksiksiz hazırlamak, fiyattan önce elenmenin en sık nedenidir. İlk birkaç ihalede kazanmayı değil süreci öğrenmeyi hedeflemek, deneyim kazandıkça teklif kalitenizi hızla artırır.",
+  },
+  {
+    category: "Kurumsal Satın Alma Süreçleri",
+    q: "Kurumsal müşteriye teklif dosyamı nasıl hazırlamalıyım?",
+    a: "Kurumsal alıcılar genelde birden fazla kişiye teklifi ilettiği için, dosyanızın kendi başına (siz orada olmadan) anlaşılır ve ikna edici olması gerekir - kapsamı, fiyatı ve referanslarınızı net ve profesyonel bir formatta (Teklif Şablonları'ndaki PDF gibi) sunun. Teslim süresi ve ödeme koşullarını belirsiz bırakmamak, kurumsal onay sürecini hızlandırır.",
+  },
+  {
+    category: "Müşteri Deneyimi",
+    q: "Müşteride ilk izlenimi nasıl güçlendiririm?",
+    a: "İlk temas (arama, mesaj, ziyaret) ne kadar hızlı ve ilgili karşılanırsa, müşterinin geri kalan süreçle ilgili beklentisi de o kadar olumlu şekillenir - ilk yanıt süresi genelde fiyattan daha belirleyicidir. Basit ama tutarlı bir karşılama rutini (standart bir selamlama, ilk bilgi toplama) ekip büyüdükçe bile deneyimi aynı tutar.",
+  },
+  {
+    category: "Müşteri Deneyimi",
+    q: "Teslimat/hizmet sonrası takibi nasıl yapmalıyım?",
+    a: 'İş tamamlandıktan birkaç gün sonra kısa bir "her şey yolunda mı" kontrolü, hem memnuniyetsizliği erken yakalamanızı hem de müşteride "önemsendiğini" hissettirir. Bu takibi otomatikleştirmeden (kişisel bir mesaj/arama ile) yapmak, toplu ve kişiliksiz bir anketten daha etkili sonuç verir.',
+  },
+  {
+    category: "Müşteri Deneyimi",
+    q: "Müşteri beklentisini nasıl doğru yönetirim?",
+    a: "Gerçekleşecek olandan biraz daha iyimser söz vermek kısa vadede etkileyici görünse de, teslim edemediğinizde güveni ciddi zedeler - teslim süresini/kapsamı olduğundan biraz temkinli belirtip beklenenden erken/iyi teslim etmek daha sağlıklı bir stratejidir. Süreç içinde ilerlemeyi paylaşmak (özellikle uzun işlerde), müşterinin sessizlikte kaygılanmasını önler.",
+  },
+  {
+    category: "Dijital Dönüşüm",
+    q: "Kağıt tabanlı süreçlerimi nasıl dijitalleştirmeye başlamalıyım?",
+    a: "Tüm süreçleri bir anda değiştirmeye çalışmak yerine, en çok zaman kaybettiren tek bir süreci (örn. randevu takibi, tahsilat kaydı) seçip önce onu dijitalleştirmek, ekibin yeni sisteme alışmasını kolaylaştırır. Değişime en dirençli çalışanı sürecin başında dahil etmek, sonradan zorla kabul ettirmekten daha az direnç yaratır.",
+  },
+  {
+    category: "Dijital Dönüşüm",
+    q: "Ekibimi yeni bir dijital araca nasıl alıştırırım?",
+    a: 'Uzun bir eğitim dokümanı yerine, günlük olarak gerçekten kullanacakları 3-5 temel işlemi kısa ve uygulamalı göstermek öğrenmeyi hızlandırır. İlk haftalarda kolayca ulaşabilecekleri bir kişiyi (siz veya deneyimli bir ekip üyesi) "soru sorulacak kişi" olarak belirlemek, takılıp eski yönteme geri dönmeyi önler.',
+  },
+  {
+    category: "Marka Ortaklıkları",
+    q: "Başka bir işletmeyle ortak kampanya (co-branding) nasıl yapmalıyım?",
+    a: "Doğrudan rakip olmayan ama aynı müşteri kitlesine hitap eden bir işletmeyle (örn. bir kuaför ve bir kozmetik mağazası) ortak kampanya, her iki tarafın müşterisine de yeni bir değer sunar. Kampanya öncesi kimin hangi maliyeti/kazanımı üstleneceğini net yazılı belirlemek, sonradan anlaşmazlığı önler.",
+  },
+  {
+    category: "Marka Ortaklıkları",
+    q: "Yerel işletmelerle nasıl çapraz promosyon yapabilirim?",
+    a: "Birbirinizin müşterilerine küçük bir indirim kuponu/tavsiye vermek, ikisi için de ek reklam maliyeti olmadan yeni müşteri getirir. Bu tür ortaklıkları tek seferlik değil düzenli (örn. her ay farklı bir işletmeyle) hâle getirmek, karşılıklı güveni ve sürekliliği artırır.",
+  },
+  {
+    category: "Fiyat Şeffaflığı",
+    q: "Fiyatlarımı web sitemde/sosyal medyada açık göstermeli miyim?",
+    a: 'Fiyatı gizlemek genelde "pahalı olabilir" algısı yaratıp potansiyel müşteriyi mesaj atmadan caydırır - en azından başlangıç fiyatını veya bir aralığı göstermek, sadece gerçekten uygun bütçeli müşterilerin size ulaşmasını sağlar. Karmaşık/özelleştirilebilir hizmetlerde tam fiyatı gösteremiyorsanız bile "X TL\'den başlayan" gibi bir referans vermek şeffaflık hissi yaratır.',
+  },
+  {
+    category: "Fiyat Şeffaflığı",
+    q: 'Müşteri "neden bu kadar" diye fiyata itiraz ederse ne cevap vermeliyim?',
+    a: 'Savunmaya geçmeden fiyatın neyi kapsadığını (malzeme, işçilik, garanti, deneyim) somut olarak anlatmak, sadece "bu bizim fiyatımız" demekten daha ikna edicidir. Fiyat itirazı sık tekrarlanıyorsa bu, pazarınıza göre fiyatınızın gerçekten yüksek olduğunun ya da değerinizi yeterince anlatamadığınızın bir sinyali olabilir.',
+  },
+  {
+    category: "Ürün Geliştirme",
+    q: "Yeni bir ürün/hizmet fikrini nasıl test etmeliyim?",
+    a: "Tam kapasiteyle üretmeden önce, sınırlı sayıda mevcut müşteriye küçük bir pilot olarak sunup gerçek tepkiyi (satın alır mı, tekrar ister mi) ölçmek, büyük bir yatırımdan önce riski azaltır. Olumsuz geri bildirim bile değerlidir - fikri tamamen terk etmek yerine hangi kısmının işe yaramadığını anlamaya çalışın.",
+  },
+  {
+    category: "Ürün Geliştirme",
+    q: "Ürün/hizmet yelpazemi ne zaman sadeleştirmeliyim?",
+    a: "Çok fazla seçenek hem müşteriyi karar vermekte zorlar hem de sizin stok/operasyon yükünüzü artırır - en az satılan/en çok karmaşa yaratan kalemleri düzenli gözden geçirip kaldırmak genelde geliri düşürmez, hatta odaklanmayı artırarak yükseltebilir. Kaldırmadan önce o kalemi hâlâ tercih eden sadık bir müşteri grubu olup olmadığını kontrol edin.",
+  },
+  {
+    category: "Randevu/Program Optimizasyonu",
+    q: "Randevuya gelmeme (no-show) oranını nasıl azaltırım?",
+    a: "Randevudan bir gün önce ve birkaç saat önce olmak üzere iki aşamalı hatırlatma göndermek, tek hatırlatmadan daha etkilidir. Sık gelmeyen müşterilerde küçük bir peşinat/kapora istemek, ciddiyeti artırıp gelmeme oranını belirgin şekilde düşürebilir.",
+  },
+  {
+    category: "Randevu/Program Optimizasyonu",
+    q: "Randevu kapasitemi nasıl daha verimli planlarım?",
+    a: "Geçmiş dönemin yoğun/sakin gün-saat dağılımına bakmak (Binerly'deki randevu analizleri), personel/kaynak planlamasını tahminden çok gerçek veriye dayandırır. Yoğun saatlere kısa, sakin saatlere daha uzun süren hizmetleri planlamak toplam kapasiteyi artırır.",
+  },
+  {
+    category: "Randevu/Program Optimizasyonu",
+    q: "Bekleme listesi nasıl yönetmeliyim?",
+    a: 'Dolu bir saatte iptal olduğunda bekleme listesindeki ilk kişiye otomatik/hızlı haber vermek, o boşluğun boş geçmesini önler. Bekleme listesini sadece "ilk gelen alır" değil, aciliyet/öncelik durumuna göre de değerlendirmek müşteri memnuniyetini artırabilir.',
+  },
+  {
+    category: "Yerel Topluluk İlişkileri",
+    q: "Yerel bir etkinliğe sponsor olmalı mıyım?",
+    a: "Büyük ama alakasız bir etkinlik yerine, hedef müşterinizin gerçekten katıldığı küçük yerel etkinlikler (okul etkinliği, semt pazarı, spor turnuvası) daha az maliyetle daha doğru kitleye ulaştırır. Sponsorluğu tek seferlik bir logo göstermek yerine küçük bir stant/tanıtım ile aktif katılıma dönüştürmek etkiyi artırır.",
+  },
+  {
+    category: "Yerel Topluluk İlişkileri",
+    q: "Esnaf/komşu işletmelerle nasıl iyi ilişkiler kurarım?",
+    a: "Rakip gibi görünen komşu işletmelerle bile karşılıklı müşteri yönlendirmesi (birbirinizin sunmadığı bir hizmeti tavsiye etmek) her iki tarafa da fayda sağlayabilir. Yerel esnaf/oda toplantılarına düzenli katılmak, hem güncel gelişmelerden haberdar olmanızı hem de tanınırlığınızı artırır.",
+  },
+  {
+    category: "Kalite Kontrol",
+    q: "Kalite standartlarımı yazılı hâle nasıl getiririm?",
+    a: 'Aklınızdaki "iyi iş" tanımını maddeler hâlinde (teslimden önce kontrol edilecek 5-10 kalem) yazmak, ekip büyüdükçe herkesin aynı standardı uygulamasını sağlar. Bu listeyi bir kere yazıp unutmak yerine, yeni bir hata/şikayet çıktıkça güncellemek listeyi canlı ve gerçekten işe yarar tutar.',
+  },
+  {
+    category: "Pazarlama",
+    q: "Referans/tavsiye programı nasıl kurmalıyım?",
+    a: 'Hem tavsiye eden hem tavsiye edilen müşteriye küçük bir avantaj (indirim, hediye) sunmak, tek taraflı bir teşvikten daha fazla katılım sağlar. Programı karmaşık kurallarla değil ("3 kişi getirirsen") basit ve anlaşılır tutmak ("her tavsiye için X TL indirim") katılımı kolaylaştırır.',
+  },
+  {
+    category: "Satış",
+    q: "Teklif verdikten sonra takibi nasıl yapmalıyım?",
+    a: 'Teklifi gönderip beklemek yerine, birkaç gün içinde kısa bir "sorunuz var mı" mesajıyla takip etmek, kararsız kalan müşterilerin çoğunu harekete geçirir. Takip zamanlamasını (Binerly\'deki hatırlatma özelliği gibi) sistematik hâle getirmek, unutup fırsat kaçırmayı önler.',
+  },
+  {
+    category: "Finans Okuryazarlığı",
+    q: "Kâr marjımı nasıl doğru hesaplarım?",
+    a: 'Sadece ürün/hizmet maliyetini değil, o satışa giden dolaylı giderleri (kira, personel zamanı, pazarlama) de payına düşen kadar hesaba katmak gerçek kâr marjınızı gösterir - sadece "aldım-sattım" farkına bakmak yanıltıcı olabilir. Marjı düzenli (aylık) izlemek, hangi ürün/hizmetin gerçekte kârlı olduğunu erken fark ettirir.',
+  },
+  {
+    category: "Finans Okuryazarlığı",
+    q: "İşletmemin finansal sağlığını hangi 3 rakamla takip etmeliyim?",
+    a: "Nakit durumu (elimde/bekleyen ne kadar var), net kâr (gelir eksi tüm giderler) ve bekleyen alacak tutarı, karmaşık tablolara girmeden işin nabzını tutan üç temel göstergedir. Bunları haftalık/aylık düzenli bir alışkanlıkla (Binerly Finans sekmesi gibi) takip etmek, sorunları büyümeden fark etmenizi sağlar.",
+  },
+  {
+    category: "Sürdürülebilirlik",
+    q: "İşletmemi çevreye daha duyarlı hâle nasıl getiririm?",
+    a: "Büyük yatırımlar gerektiren adımlardan önce, ambalaj/kağıt israfını azaltmak veya tedarikçi seçiminde yerel/sürdürülebilir kaynakları tercih etmek gibi düşük maliyetli adımlarla başlamak pratik bir yoldur. Bu çabaları müşterilerinize de (sosyal medya, ambalaj üzerinde) görünür kılmak, günümüzde bazı müşteri segmentlerinde gerçek bir tercih nedeni olabiliyor.",
+  },
+  {
+    category: "Kriz Yönetimi",
+    q: "Bir teknoloji/sistem arızası işimi durdurursa ne yapmalıyım?",
+    a: 'Kritik süreçleriniz (randevu takibi, ödeme alma) için basit bir "yedek plan"ınız olsun (örn. kağıt üzerinde geçici not alma) - sistem geri gelene kadar tamamen durmak yerine devam edebilirsiniz. Arıza sonrası neyin ters gittiğini kısaca not almak, aynı sorunun tekrarını önlemede işe yarar.',
+  },
+  {
+    category: "Müşteri Segmentasyonu",
+    q: "Yeni müşteri ile mevcut müşteriye farklı mı yaklaşmalıyım?",
+    a: "Yeni müşteri güven inşa etme aşamasındadır - net beklenti yönetimi ve hızlı ilk deneyim önceliklidir; mevcut/sadık müşteride ise tanınmışlık ve küçük kişisel jestler daha değerlidir. İkisine aynı genel mesajı göndermek yerine bu farkı pazarlama ve iletişiminize yansıtmak dönüşümü artırır.",
+  },
+  {
+    category: "Ekip Yönetimi",
+    q: "Ekibimde yetki/sorumluluk dağılımını nasıl netleştiririm?",
+    a: '"Bu kararı kim alır" sorusunun cevabı belirsizse aynı iş birden fazla kişi tarafından tekrarlanır veya hiç kimse tarafından yapılmaz - her görev/karar alanı için tek bir sorumlu belirlemek bu boşluğu kapatır. Yazılı bir görev/sorumluluk listesi (kısa bile olsa), ekip büyüdükçe hafızaya güvenmekten çok daha güvenilirdir.',
+  },
+  {
+    category: "Fiyatlandırma",
+    q: "Ücretsiz deneme/numune sunmalı mıyım?",
+    a: "Ücretsiz deneme, müşterinin riski hissetmeden karar vermesini kolaylaştırır ama gerçek maliyeti olan bir hizmette bunu sınırsız sunmak kâr kaybettirebilir - süre veya kapsamı net sınırlı tutmak (ilk hizmet %50 indirimli gibi) daha sürdürülebilirdir. Deneme sonrası dönüşüm oranını takip etmek, bu yatırımın gerçekten işe yarayıp yaramadığını gösterir.",
+  },
+  {
+    category: "Girişimcilik",
+    q: "İşimi büyütmek mi yoksa mevcut hâlini korumak mı daha doğru?",
+    a: 'Her işletmenin büyümesi gerekmez - bazı KOBİ\'ler için mevcut ölçekte yüksek kalite/kâr marjıyla çalışmak, büyüyüp karmaşıklaşmaktan daha kârlı ve daha az stresli olabilir. Büyüme kararını "herkes büyüyor" baskısıyla değil, gerçekten daha fazla talep ve bunu karşılayacak kapasiteniz olup olmadığına göre verin.',
+  },
+  {
+    category: "Satış",
+    q: "Fiyat vermeden önce müşteriyi nasıl daha iyi anlarım (ihtiyaç analizi)?",
+    a: "Hemen fiyat söylemek yerine birkaç soru sorup gerçek ihtiyacı, bütçeyi ve zaman baskısını anlamak, hem doğru paketi önermenizi hem de gereksiz yere düşük/yüksek fiyat vermenizi önler. Müşteri kendi ihtiyacını net anlatmıyorsa, geçmişte benzer taleplerde ne işe yaradığını örnek göstermek karar vermesine yardımcı olur.",
+  },
+  {
+    category: "Nakit Akışı",
+    q: "Sezonluk gelir dalgalanmasında sabit giderlerimi nasıl karşılarım?",
+    a: 'Yüksek sezonda kazanılan fazlanın bir kısmını ayrı bir "düşük sezon tamponu" hesabında tutmak, düşük sezonda panik kararlar (acele kredi, gereksiz indirim) almanızı önler. Sabit giderlerinizin bir kısmını (kira, abonelikler) mümkünse yüksek sezona endeksli/esnek hâle getirmeyi tedarikçi/ev sahibiyle görüşmek de bir seçenektir.',
+  },
+  {
+    category: "Müşteri Deneyimi",
+    q: "Şikayeti fırsata nasıl çeviririm?",
+    a: 'Sorunu hızlı ve fazlasıyla (beklenenden biraz daha fazla telafi ile) çözmek, hiç sorun yaşamamış bir müşteriden bile daha güçlü bir sadakat yaratabilir - buna "hizmet paradoksu" denir. Çözümü sadece özel/görünmez yapmak yerine (uygunsa) herkese açık bir yanıtla da göstermek, diğer potansiyel müşterilere de güven verir.',
+  },
+  {
+    category: "Rekabet",
+    q: "Pazara yeni giren bir rakiple nasıl başa çıkarım?",
+    a: "Panikle fiyat kırmak yerine, mevcut müşterilerinizle olan güveninizi ve geçmiş performansınızı hatırlatan bir iletişim yapmak, sadık müşteri tabanınızı korumanın daha ucuz yoludur. Yeni rakibin sunduğu farklı bir avantaj varsa (daha ucuz, daha hızlı) bunu görmezden gelmek yerine kendi güçlü yönünüzü daha net vurgulayarak yanıt verin.",
+  },
+  {
+    category: "Yeni İşletme",
+    q: "İş fikrimi kaç kişiye danışmalıyım (fikir doğrulama)?",
+    a: 'Sadece yakın çevrenize (aile, arkadaş) danışmak genelde nazik ama gerçekçi olmayan geri bildirim getirir - hedef kitlenizden, sizi tanımayan gerçek potansiyel müşterilerden görüş almak daha değerlidir. "Beğendin mi" yerine "bunun için para öder misin" sorusu çok daha gerçekçi bir sinyal verir.',
+  },
+  {
+    category: "Zaman Yönetimi",
+    q: "Ertelediğim ama önemli işleri nasıl bitiririm?",
+    a: 'Büyük ve belirsiz bir işi ("pazarlama stratejimi güncelle" gibi) küçük, somut ve kısa sürede bitebilecek adımlara bölmek, erteleme eğilimini büyük ölçüde azaltır. Bu tür işlere haftanın belirli bir gününde/saatinde sabit bir zaman ayırmak, "vaktim olunca yaparım" beklentisinden daha güvenilir sonuç verir.',
+  },
+  {
+    category: "Marka",
+    q: "Müşteri yorumlarını/referanslarını nasıl daha etkili kullanırım?",
+    a: 'Genel bir "harika hizmet" yorumu yerine, somut bir sonucu (örn. "randevumu 5 dakikada aldım") anlatan yorumları öne çıkarmak daha ikna edicidir. Memnun bir müşteriden yorum istemeyi işin bitişinden hemen sonraya, memnuniyet en tazeyken denk getirmek, yanıt alma ihtimalini artırır.',
+  },
+  {
+    category: "İşe Alım",
+    q: "Deneme süresini nasıl etkili kullanmalıyım?",
+    a: 'Deneme süresini sadece bekleyip görmek yerine, baştan net ve ölçülebilir hedefler (şu tarihe kadar şunu öğrenmiş/yapabiliyor olması) koymak, sürenin sonunda objektif bir karar vermenizi kolaylaştırır. Deneme süresinde düzenli kısa geri bildirim vermek, kişiye gelişme fırsatı tanırken sizi de sürpriz bir "hayır" kararından korur.',
+  },
+  {
+    category: "Tedarikçi İlişkileri",
+    q: "Tedarikçi ödemelerimi nasıl düzenli yönetirim?",
+    a: "Ödeme tarihlerini kaçırmamak, sadece iyi ilişkiyi değil bazen erken ödeme indirimi gibi somut avantajları da beraberinde getirir. Ödeme takvimini (kimin ne zaman, ne kadar) tek bir yerde (Finans → Giderler) tutmak, tedarikçi bazında sürpriz gecikmeleri önler.",
+  },
+  {
+    category: "Büyüme",
+    q: "Yeni bir bölgeye/şehre açılmadan önce ne test etmeliyim?",
+    a: 'Fiziksel bir yatırım yapmadan önce o bölgeden gelen online sipariş/talep varsa (kargo ile hizmet, danışmanlık gibi işlerde) bunu bir sinyal olarak değerlendirebilirsiniz - gerçek talep olmadan sadece "iyi bir bölge gibi görünüyor" sezgisiyle açılmak risklidir. Küçük/geçici bir varlıkla (pop-up, haftalık hizmet günü) test etmek, kalıcı yatırımdan önce ucuz bir doğrulama yoludur.',
+  },
+  {
+    category: "Vergi",
+    q: "Gider belgelerimi (fatura/fiş) nasıl düzenli tutmalıyım?",
+    a: "Kağıt fişlerin solması/kaybolması yaygın bir sorundur - geldiği gün taranıp dijital olarak (veya Binerly'deki dosya ekleme özelliğiyle ilgili gider kaydına) saklanması, yıl sonunda belge arama telaşını ortadan kaldırır. Kategoriye göre düzenli kaydetmek (Finans → Gider Kategorileri) hem KDV raporunuzu hem denetim durumunda ibrazı kolaylaştırır.",
+  },
+  {
+    category: "Satış Ekibi",
+    q: "Yeni bir satış temsilcisini nasıl hızlı verimli hâle getiririm?",
+    a: "İlk haftalarda gerçek müşteriyle tek başına bırakmadan önce deneyimli biriyle birkaç görüşmeye gözlemci olarak katılmasını sağlamak, öğrenme eğrisini hızlandırır. Erken dönemde küçük, düşük riskli fırsatlarla başlayıp kademeli olarak büyük fırsatlara geçmesi, hem özgüven hem gerçek beceri kazandırır.",
+  },
+  {
+    category: "Müşteri Kaybı Analizi",
+    q: "Kayıp oranımı sektör ortalamasıyla nasıl karşılaştırırım?",
+    a: "Genel bir sektör ortalaması bulmak zor olsa da, kendi geçmiş dönemlerinizle (bu çeyrek vs geçen çeyrek) karşılaştırmak çoğu zaman daha anlamlı ve ulaşılabilir bir referanstır. Kayıp oranınız zamanla yükseliyorsa, tek bir nedene değil (fiyat, hizmet, rekabet) birkaç olası nedene birden bakmak gerekir.",
+  },
+  {
+    category: "Dijital Pazarlama",
+    q: "Web sitem/reklamlarım mobilde iyi görünüyor mu, nasıl kontrol ederim?",
+    a: 'Müşterilerinizin büyük kısmı telefondan geziniyor olabilir - kendi telefonunuzdan siteyi/reklamı düzenli kontrol etmek, sadece bilgisayardan bakıp "iyi görünüyor" sanmaktan daha güvenilirdir. Yavaş açılan veya küçük ekranda okunması zor bir sayfa, ilgi çekmiş bir müşteriyi bile kaybettirebilir.',
+  },
+  {
+    category: "Franchise",
+    q: "Franchise sözleşmemi yenilerken nelere dikkat etmeliyim?",
+    a: "İlk sözleşmedeki şartların hâlâ makul olup olmadığını (royalti oranı, bölge münhasırlığı, destek kapsamı) yeniden değerlendirin - zamanla pazar koşulları değişmiş olabilir. Yenileme öncesi diğer bayilerin deneyimlerini (varsa bir bayi derneği/forumu üzerinden) öğrenmek pazarlık gücünüzü artırır.",
+  },
+];
