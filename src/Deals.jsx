@@ -13,7 +13,15 @@ import {
   AttachmentList,
   PRICE_ITEM_NAME_EXAMPLES,
   TONE_COLORS,
+  matchesDateRange,
+  DateRangeFilter,
 } from "./shared";
+import {
+  PDF_TEMPLATES,
+  buildMergeData,
+  renderTemplateBlocks,
+  TABLE_ROW_HEIGHT,
+} from "./PdfTemplates";
 import {
   dealWordKind,
   STAGES,
@@ -21,6 +29,7 @@ import {
   stageTone,
   stageGuide,
   isAppointmentSector,
+  isIndividualFocusedSector,
   supportsSelfBooking,
   bookingModel,
   supportsSessionPackages,
@@ -2366,3 +2375,1106 @@ export const PAYMENT_MODE_OPTIONS = [
     desc: "Tek adım: ödeme tamamlanınca onay da otomatik gerçekleşir.",
   },
 ];
+
+export function paymentDateLabel(dateStr) {
+  return new Date(dateStr).toLocaleDateString("tr-TR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+const REFUND_REASON_OPTIONS = [
+  { value: "buyer_request", label: "Müşteri talebi" },
+  { value: "double_payment", label: "Mükerrer ödeme" },
+  { value: "other", label: "Diğer" },
+];
+
+// Sadece elle eklenen tahsilatlarda seçilebilir - online (iyzico/PayTR)
+// ödemelerde yöntem zaten "online" olarak biliniyor, ayrıca sorulmaz.
+const PAYMENT_METHOD_LABELS = {
+  nakit: "Nakit",
+  kart: "Kart",
+  havale: "Havale/EFT",
+  diger: "Diğer",
+};
+
+// iyzico/PayTR'da işlem, alındığı gün gün sonu mutabakatından önce iptal
+// edilirse hiç gerçekleşmemiş sayılır ve komisyon kesilmez - ama gün sonu
+// kapanışı geçip muhasebeleştikten sonra yapılan bir iadede kesilen komisyon
+// sağlayıcı tarafından geri ödenmez (bu maliyet üye işyerinde kalır). Bu not,
+// KOBİ iade tutarını girmeden ÖNCE bu maliyeti görsün diye ödemenin gerçek
+// tarihine göre otomatik hesaplanıyor - PayTR'nin gün-sonrası politikası
+// sözleşmeye bağlı olduğu için (iyzico'nun aksine kesin değil) ayrı ifade edildi.
+function refundCommissionNote(payment) {
+  const providerLabel = payment.provider === "paytr" ? "PayTR" : "iyzico";
+  const isSameDay = (payment.paidAt || "").slice(0, 10) === new Date().toISOString().slice(0, 10);
+  if (isSameDay) {
+    return `Bugün alınan bir ödeme - gün sonu kapanışından önce iptal ederseniz ${providerLabel} komisyon kesmez.`;
+  }
+  if (payment.provider === "paytr") {
+    return `Bu ödeme ${paymentDateLabel(payment.paidAt)} tarihinde alındı - gün sonu kapanışı geçtiği için komisyon iadesi üye işyeri sözleşmenizin şartlarına bağlı, genel uygulamada geri ödenmez.`;
+  }
+  return `Bu ödeme ${paymentDateLabel(payment.paidAt)} tarihinde alındı - gün sonu kapanışı geçtiği için iyzico, satıştan kesilen komisyonu iade etmez, bu maliyet üzerinizde kalır.`;
+}
+
+export function DealPayments({
+  deal,
+  payments,
+  sector,
+  onAddPayment,
+  onUpdatePayment,
+  onDeletePayment,
+  onRefundPayment,
+  canDelete,
+}) {
+  const [amount, setAmount] = useState("");
+  const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10));
+  const [note, setNote] = useState("");
+  const [method, setMethod] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editPaidAt, setEditPaidAt] = useState("");
+  const [editNote, setEditNote] = useState("");
+  const [editMethod, setEditMethod] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [refundingId, setRefundingId] = useState(null);
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundReason, setRefundReason] = useState(REFUND_REASON_OPTIONS[0].value);
+  const [refundSaving, setRefundSaving] = useState(false);
+  const [refundError, setRefundError] = useState("");
+
+  const sorted = payments.slice().sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt));
+  const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const remaining = deal.value - totalPaid;
+
+  const refundableFor = (payment) => {
+    const refunded = payments
+      .filter((p) => p.refundOfPaymentId === payment.id)
+      .reduce((sum, p) => sum + Math.abs(p.amount || 0), 0);
+    return payment.amount - refunded;
+  };
+
+  const startEdit = (payment) => {
+    setEditingId(payment.id);
+    setEditAmount(String(payment.amount));
+    setEditPaidAt(payment.paidAt.slice(0, 10));
+    setEditNote(payment.note || "");
+    setEditMethod(payment.method || "");
+    setEditError("");
+  };
+
+  const confirmEdit = async (payment) => {
+    const n = Number(editAmount);
+    if (!n || n <= 0) {
+      setEditError("Geçerli bir tutar girin.");
+      return;
+    }
+    // Bu ödeme hariç tutulunca kalan bakiye: yeni tutar bunu aşamaz.
+    const remainingExcluding = remaining + payment.amount;
+    if (n > remainingExcluding + 0.01) {
+      setEditError(`En fazla ${formatTL(remainingExcluding)} girilebilir.`);
+      return;
+    }
+    setEditSaving(true);
+    await onUpdatePayment({
+      id: payment.id,
+      amount: n,
+      paidAt: editPaidAt,
+      note: editNote.trim(),
+      method: editMethod || null,
+    });
+    setEditSaving(false);
+    setEditingId(null);
+  };
+
+  const startRefund = (payment) => {
+    setRefundingId(payment.id);
+    setRefundAmount(String(refundableFor(payment)));
+    setRefundReason(REFUND_REASON_OPTIONS[0].value);
+    setRefundError("");
+  };
+
+  const confirmRefund = async (payment) => {
+    const n = Number(refundAmount);
+    const refundable = refundableFor(payment);
+    if (!n || n <= 0) {
+      setRefundError("Geçerli bir tutar girin.");
+      return;
+    }
+    if (n > refundable + 0.01) {
+      setRefundError(`En fazla ${formatTL(refundable)} iade edilebilir.`);
+      return;
+    }
+    setRefundSaving(true);
+    const ok = await onRefundPayment({
+      dealId: deal.id,
+      paymentId: payment.id,
+      amount: n,
+      reason: refundReason,
+    });
+    setRefundSaving(false);
+    if (ok) setRefundingId(null);
+  };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    const n = Number(amount);
+    if (!n || n <= 0) return;
+    if (remaining <= 0) {
+      setError(
+        `Bu ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} zaten tamamen tahsil edilmiş, kalan bakiye yok.`,
+      );
+      return;
+    }
+    if (n > remaining + 0.01) {
+      setError(`Girilen tutar kalan bakiyeden (${formatTL(remaining)}) fazla olamaz.`);
+      return;
+    }
+    setError("");
+    setSaving(true);
+    await onAddPayment({
+      dealId: deal.id,
+      amount: n,
+      paidAt,
+      note: note.trim(),
+      method: method || null,
+    });
+    setAmount("");
+    setNote("");
+    setMethod("");
+    setSaving(false);
+  };
+
+  return (
+    <div>
+      <p
+        style={{
+          fontSize: 13,
+          margin: "0 0 12px",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        <span>
+          Toplam: {formatTL(deal.value)} · Tahsil edilen: {formatTL(totalPaid)} · Kalan:{" "}
+          {formatTL(Math.max(remaining, 0))}
+        </span>
+        {totalPaid > 0 && (
+          <Badge tone={remaining <= 0 ? "success" : "warning"}>
+            {remaining <= 0 ? "Ödendi" : "Kısmi ödeme"}
+          </Badge>
+        )}
+      </p>
+
+      <form onSubmit={submit} style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={amount}
+            onChange={(e) => {
+              setAmount(e.target.value);
+              setError("");
+            }}
+            placeholder="Tutar"
+            style={{ flex: 1 }}
+          />
+          <input
+            type="date"
+            value={paidAt}
+            onChange={(e) => setPaidAt(e.target.value)}
+            style={{ width: 140 }}
+          />
+          <select value={method} onChange={(e) => setMethod(e.target.value)} style={{ width: 120 }}>
+            <option value="">Yöntem</option>
+            {Object.entries(PAYMENT_METHOD_LABELS).map(([v, l]) => (
+              <option key={v} value={v}>
+                {l}
+              </option>
+            ))}
+          </select>
+        </div>
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Not (opsiyonel)"
+          style={{ width: "100%", marginBottom: 8 }}
+        />
+        {error && (
+          <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "0 0 8px" }}>{error}</p>
+        )}
+        <button
+          type="submit"
+          disabled={saving || !amount || remaining <= 0}
+          style={{
+            background: "var(--fill-accent)",
+            color: "var(--on-accent)",
+            border: "none",
+            fontSize: 13,
+          }}
+        >
+          Ekle
+        </button>
+      </form>
+
+      {sorted.length === 0 ? (
+        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz tahsilat kaydı yok.</p>
+      ) : (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            maxHeight: 260,
+            overflowY: "auto",
+          }}
+        >
+          {sorted.map((p) => {
+            const isRefund = p.amount < 0;
+            const isOnline =
+              (p.provider === "iyzico" && !!p.iyzicoPaymentTransactionId) ||
+              (p.provider === "paytr" && !!p.paytrMerchantOid);
+            const refundable = isOnline && !isRefund ? refundableFor(p) : 0;
+            return (
+              <div key={p.id}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    fontSize: 13,
+                  }}
+                >
+                  <span style={{ color: isRefund ? "var(--text-danger)" : "inherit" }}>
+                    {isRefund ? "−" : ""}
+                    {formatTL(Math.abs(p.amount))}{" "}
+                    <span style={{ color: "var(--text-muted)" }}>
+                      · {paymentDateLabel(p.paidAt)}
+                      {p.method ? ` · ${PAYMENT_METHOD_LABELS[p.method] || p.method}` : ""}
+                      {p.note ? ` · ${p.note}` : ""}
+                    </span>
+                  </span>
+                  {isRefund ? null : isOnline ? (
+                    refundable > 0.01 ? (
+                      <button type="button" onClick={() => startRefund(p)} style={{ fontSize: 12 }}>
+                        İade Et
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                        Tamamen iade edildi
+                      </span>
+                    )
+                  ) : (
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <IconButton
+                        icon="ti-edit"
+                        title="Düzenle"
+                        size="sm"
+                        onClick={() => startEdit(p)}
+                      />
+                      {canDelete && (
+                        <IconButton
+                          icon="ti-trash"
+                          title="Sil"
+                          size="sm"
+                          onClick={() => setConfirmDeleteId(p.id)}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+                {editingId === p.id && (
+                  <div
+                    style={{
+                      marginTop: 6,
+                      padding: 8,
+                      border: "0.5px solid var(--border)",
+                      borderRadius: "var(--radius)",
+                    }}
+                  >
+                    <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={editAmount}
+                        onChange={(e) => {
+                          setEditAmount(e.target.value);
+                          setEditError("");
+                        }}
+                        style={{ flex: 1, fontSize: 13 }}
+                      />
+                      <input
+                        type="date"
+                        value={editPaidAt}
+                        onChange={(e) => setEditPaidAt(e.target.value)}
+                        style={{ width: 140, fontSize: 13 }}
+                      />
+                      <select
+                        value={editMethod}
+                        onChange={(e) => setEditMethod(e.target.value)}
+                        style={{ width: 120, fontSize: 13 }}
+                      >
+                        <option value="">Yöntem</option>
+                        {Object.entries(PAYMENT_METHOD_LABELS).map(([v, l]) => (
+                          <option key={v} value={v}>
+                            {l}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <input
+                      value={editNote}
+                      onChange={(e) => setEditNote(e.target.value)}
+                      placeholder="Not (opsiyonel)"
+                      style={{ width: "100%", marginBottom: 8, fontSize: 13 }}
+                    />
+                    {editError && (
+                      <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "0 0 8px" }}>
+                        {editError}
+                      </p>
+                    )}
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(null)}
+                        style={{ fontSize: 12 }}
+                      >
+                        Vazgeç
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => confirmEdit(p)}
+                        disabled={editSaving}
+                        style={{
+                          fontSize: 12,
+                          background: "var(--fill-accent)",
+                          color: "var(--on-accent)",
+                          border: "none",
+                        }}
+                      >
+                        {editSaving ? "Kaydediliyor…" : "Kaydet"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {refundingId === p.id && (
+                  <div
+                    style={{
+                      marginTop: 6,
+                      padding: 8,
+                      border: "0.5px solid var(--border)",
+                      borderRadius: "var(--radius)",
+                    }}
+                  >
+                    <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "0 0 8px" }}>
+                      {refundCommissionNote(p)}
+                    </p>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        max={refundable}
+                        value={refundAmount}
+                        onChange={(e) => {
+                          setRefundAmount(e.target.value);
+                          setRefundError("");
+                        }}
+                        style={{ flex: 1, fontSize: 13 }}
+                      />
+                      <select
+                        value={refundReason}
+                        onChange={(e) => setRefundReason(e.target.value)}
+                        style={{ fontSize: 13 }}
+                      >
+                        {REFUND_REASON_OPTIONS.map((r) => (
+                          <option key={r.value} value={r.value}>
+                            {r.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {refundError && (
+                      <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "0 0 8px" }}>
+                        {refundError}
+                      </p>
+                    )}
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() => setRefundingId(null)}
+                        style={{ fontSize: 12 }}
+                      >
+                        Vazgeç
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => confirmRefund(p)}
+                        disabled={refundSaving}
+                        style={{
+                          fontSize: 12,
+                          background: "var(--fill-accent)",
+                          color: "var(--on-accent)",
+                          border: "none",
+                        }}
+                      >
+                        {refundSaving ? "İade ediliyor…" : "İadeyi Onayla"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {confirmDeleteId && (
+        <ConfirmDialog
+          title="Tahsilat silinsin mi?"
+          message="Bu tahsilat kaydı çöp kutusuna taşınır."
+          onConfirm={() => {
+            onDeletePayment(confirmDeleteId);
+            setConfirmDeleteId(null);
+          }}
+          onClose={() => setConfirmDeleteId(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+export function TeklifPrint({
+  deal,
+  customer,
+  companySettings,
+  pdfTemplates,
+  dealLineItems,
+  notify,
+  onClose,
+}) {
+  const kdvRate = deal.kdvRate ?? 20;
+  const netAmount = kdvRate > 0 ? deal.value / (1 + kdvRate / 100) : deal.value;
+  const kdvAmount = deal.value - netAmount;
+  const [downloading, setDownloading] = useState(false);
+  const [validityDays, setValidityDays] = useState(15);
+  const [noExpiry, setNoExpiry] = useState(false);
+  const [extraNote, setExtraNote] = useState("");
+  const noun = isIndividualFocusedSector(companySettings?.sector) ? "fiyat" : "teklif";
+  const belgeBasligi =
+    dealWordKind(companySettings?.sector) === "uyelik"
+      ? "ÜYELİK ÖZETİ"
+      : dealWordKind(companySettings?.sector) === "randevu"
+        ? "RANDEVU ÖZETİ"
+        : dealWordKind(companySettings?.sector) === "rezervasyon"
+          ? "REZERVASYON ÖZETİ"
+          : "TEKLİF";
+  const customTemplate = (pdfTemplates || []).find((t) => t.id === companySettings?.pdfTemplateKey);
+  const template =
+    customTemplate || PDF_TEMPLATES[companySettings?.pdfTemplateKey] || PDF_TEMPLATES.klasik;
+  const mergeData = buildMergeData({
+    deal,
+    customer,
+    companySettings,
+    netAmount,
+    kdvAmount,
+    kdvRate,
+    noExpiry,
+    validityDays,
+    extraNote,
+    belgeBasligi,
+    noun,
+  });
+  // Kalemsiz (bugüne kadarki TÜM) deal'lerde tek kalemlik bir listeye düşer —
+  // bugünkü PDF çıktısıyla birebir aynı sonucu üretir.
+  const dealItems = (dealLineItems || []).filter((li) => li.dealId === deal.id);
+  const printLineItems =
+    dealItems.length > 0
+      ? dealItems.map((li) => ({
+          description: li.description,
+          quantity: li.quantity,
+          unitPrice: li.unitPrice,
+        }))
+      : [{ description: deal.title, quantity: 1, unitPrice: deal.value }];
+  const extraCanvasHeight = Math.max(0, printLineItems.length - 1) * TABLE_ROW_HEIGHT;
+
+  const download = async () => {
+    setDownloading(true);
+    try {
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+        import("jspdf"),
+        import("html2canvas"),
+      ]);
+      const original = document.getElementById("teklif-print");
+      // useCORS olmadan, şirket logosu gibi farklı origin'den (Supabase Storage)
+      // gelen bir <img> canvas'ı "kirletiyor" — sonraki toDataURL() bunun
+      // üzerine bir SecurityError fırlatıyordu (logo yüklemiş her hesapta PDF
+      // indirme sessizce "Hazırlanıyor" durumunda takılı kalıyordu).
+      // Bu düğüm, kendisini saran sabit konumlu/kaydırılabilir bir üst öğenin
+      // içinde olduğu için (windowWidth/windowHeight denemesi yetmedi) sağ
+      // tarafı (tutar sütunu, adresin devamı) hâlâ kırpılıyordu — kesin çözüm,
+      // düğümü hiçbir üst öğe kısıtlaması olmayan ekran dışı bir kopyaya
+      // klonlayıp yakalamayı ORADAN yapmak.
+      const clone = original.cloneNode(true);
+      clone.style.position = "fixed";
+      clone.style.top = "0";
+      clone.style.left = "-99999px";
+      clone.style.margin = "0";
+      document.body.appendChild(clone);
+      let canvas;
+      try {
+        canvas = await html2canvas(clone, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+      } finally {
+        document.body.removeChild(clone);
+      }
+      const imgData = canvas.toDataURL("image/png");
+      // Asıl kırpılma sebebi buradaymış: orientation belirtilmezse jsPDF
+      // varsayılan "portrait"i (dikey) zorluyor ve bizim yatay (genişlik >
+      // yükseklik) format dizimizi SESSİZCE ters çeviriyor (MediaBox'ta
+      // genişlik/yükseklik yer değiştiriyor) — ama görsel eski, ters
+      // çevrilmemiş boyutlarıyla yerleştirildiği için sayfa ile uyuşmuyor ve
+      // sağ/alt taraf kırpılmış görünüyordu. Gerçek en-boy oranına göre
+      // orientation'ı açıkça belirtmek bunu tamamen ortadan kaldırıyor.
+      const pdf = new jsPDF({
+        unit: "px",
+        orientation: canvas.width >= canvas.height ? "l" : "p",
+        format: [canvas.width, canvas.height],
+      });
+      pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+      pdf.save(
+        `${dealWordKind(companySettings?.sector) === "uyelik" ? "Üyelik Özeti" : dealWordKind(companySettings?.sector) === "randevu" ? "Randevu Özeti" : dealWordKind(companySettings?.sector) === "rezervasyon" ? "Rezervasyon Özeti" : "Teklif"} - ${customer?.name || "Musteri"} - ${deal.title}.pdf`,
+      );
+    } catch (err) {
+      notify?.(
+        `PDF hazırlanamadı: ${err.message || "beklenmeyen bir hata oluştu"}. Lütfen tekrar deneyin.`,
+      );
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, background: "#fff", zIndex: 1500, overflowY: "auto" }}
+    >
+      <div
+        className="no-print"
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          background: "#fff",
+          borderBottom: "1px solid #e1e8f0",
+          padding: "12px 24px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 12,
+          zIndex: 1600,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+              color: "#5b7088",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={noExpiry}
+              onChange={(e) => setNoExpiry(e.target.checked)}
+            />
+            Süresiz
+          </label>
+          {!noExpiry && (
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 13,
+                color: "#5b7088",
+              }}
+            >
+              Geçerlilik:
+              <input
+                type="number"
+                min="1"
+                value={validityDays}
+                onChange={(e) => setValidityDays(e.target.value)}
+                style={{ width: 56 }}
+              />
+              gün
+            </label>
+          )}
+          <input
+            value={extraNote}
+            onChange={(e) => setExtraNote(e.target.value)}
+            placeholder="Ek not (opsiyonel)"
+            style={{ fontSize: 13, minWidth: 200 }}
+          />
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={download}
+            disabled={downloading}
+            style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+          >
+            {downloading ? "Hazırlanıyor…" : "İndir (PDF)"}
+          </button>
+          <button onClick={() => window.print()}>Yazdır</button>
+          <button onClick={onClose}>Kapat</button>
+        </div>
+      </div>
+      <div style={{ paddingTop: 80, paddingBottom: 48 }}>
+        <div
+          id="teklif-print"
+          style={{
+            width: template.width,
+            height: template.height + extraCanvasHeight,
+            position: "relative",
+            margin: "0 auto",
+            background: "#fff",
+          }}
+        >
+          {renderTemplateBlocks(template.blocks, mergeData, printLineItems)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const PARASUT_INVOICE_HEADERS = [
+  "MÜŞTERİ ÜNVANI *",
+  "FATURA İSMİ",
+  "FATURA TARİHİ",
+  "DÖVİZ CİNSİ",
+  "DÖVİZ KURU",
+  "VADE TARİHİ",
+  "TAHSİLAT TL KARŞILIĞI",
+  "FATURA TÜRÜ",
+  "FATURA SERİ",
+  "FATURA SIRA NO",
+  "KATEGORİ",
+  "HİZMET/ÜRÜN *",
+  "HİZMET/ÜRÜN AÇIKLAMASI",
+  "ÇIKIŞ DEPOSU *",
+  "MİKTAR *",
+  "BİRİM FİYATI *",
+  "İNDİRİM TUTARI",
+  "KDV ORANI *",
+  "ÖİV ORANI",
+  "KONAKLAMA VERGİSİ ORANI",
+];
+
+// Paraşüt'ün kendi şablonundan birebir alındı — bu metin olmadan (veya başlık
+// satırı 3. satırda değilse) Paraşüt dosyayı "hiçbir veri okuyamadık" diyerek
+// reddediyor. Sadece kendi içe aktarma ekranlarına geri beslemek için kullanılıyor.
+const PARASUT_HELP_TEXT = `Satış Faturaları
+
+- Yıldız ile belirlenen alanları doldurmanız yeterlidir.
+- Faturalar ile beraber Paraşüt'te kayıtlı olmayan Müşteriler ve Hizmet/Ürünler de oluşturulur.
+- Paraşütte kayıtlı olan müşteriler içeri alınan faturalar ile ilişkilendirilir.
+- Fatura Türü, "Fatura", "Taslak" (ya da "Proforma") veya "Konaklama" olabilir. Boş bırakmanız halinde "Fatura" olarak kaydedilir.
+- Fatura döviz cinsi TRL, USD, EUR veya GBP olabilir. Döviz cinsi belirtilmediği takdirde TRL olarak kabul edilir.
+- Proforma faturalarda fatura döviz kuru boş bırakılmalıdır. Eğer bir kur belirtilmişse göz ardı edilir. Faturalarda ise döviz kuru zorunludur.
+- Vade tarihi olmayan veya ileri bir tarihe denk gelen faturalar açık fatura olarak içeri alınır. Geçmiş tarihli tahsilatlar gerçekleşti olarak varsayılır ve kasa hesabınıza eklenir.
+- Yabancı döviz cinsinden kesilen faturalar için yapılan tahsilatların Türk Lirası karşılıklarınin girilmesi zorunludur. TL faturalarda ve diğer açık faturalarda bu alan boş bırakılmalıdır.
+- Bir faturaya birden fazla hizmet/ürün eklemek için faturayı takip eden satırlarda sadece hizmet/ürün detaylarını doldurun.
+- KDV Oranı 10 Temmuz 2023 itibariyle 0, 1, 10 veya 20 olmalıdır.
+- Fatura Sıra Numarasının başına sıfır eklemenize gerek yoktur.
+- Deponun belirtilmemesi durumunda ürünler varsayılan deponuzan çıkmış olarak kabul edilir.
+- Konaklama Vergisi Oranı belirtilmemiş ise Konaklama Vergisi yok, oran 0 ise Konaklama Vergisi istisna kabul edilir.
+- Tablonun sütun yapısını bozmayın.
+- Bu yardım metnini silmeyin.
+
+- Destek için destek@parasut.com veya 0212 292 04 94`;
+
+export function ParasutExportModal({ deals, customerById, totalPaidForDeal, sector, onClose }) {
+  const wonDeals = deals.filter((d) => d.stage === "kazanildi");
+  const [selected, setSelected] = useState(() => new Set(wonDeals.map((d) => d.id)));
+  const [dealQuery, setDealQuery] = useState("");
+  const [minAmount, setMinAmount] = useState("");
+  const [maxAmount, setMaxAmount] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState("all");
+  const selectedDeals = wonDeals.filter((d) => selected.has(d.id));
+
+  const paymentStatus = (d) => {
+    const paid = totalPaidForDeal(d.id);
+    if (paid <= 0) return "odenmedi";
+    return paid < d.value ? "kismi" : "odendi";
+  };
+
+  const dealQueryLower = dealQuery.trim().toLowerCase();
+  const filteredWonDeals = wonDeals.filter((d) => {
+    if (!matchesDateRange(d.createdAt, fromDate, toDate)) return false;
+    if (minAmount !== "" && d.value < Number(minAmount)) return false;
+    if (maxAmount !== "" && d.value > Number(maxAmount)) return false;
+    if (paymentFilter !== "all" && paymentStatus(d) !== paymentFilter) return false;
+    if (!dealQueryLower) return true;
+    return (
+      d.title.toLowerCase().includes(dealQueryLower) ||
+      (customerById(d.customerId)?.name || "").toLowerCase().includes(dealQueryLower)
+    );
+  });
+  const allVisibleSelected =
+    filteredWonDeals.length > 0 && filteredWonDeals.every((d) => selected.has(d.id));
+
+  const toggle = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllVisible = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) filteredWonDeals.forEach((d) => next.delete(d.id));
+      else filteredWonDeals.forEach((d) => next.add(d.id));
+      return next;
+    });
+  };
+
+  const download = async () => {
+    const dataRows = selectedDeals.map((d) => {
+      const invoiceDate = new Date(d.closedAt || d.createdAt);
+      const kdvRate = d.kdvRate ?? 20;
+      // Binerly'deki tutar KDV dahil — Paraşüt birim fiyatın üzerine KDV'yi kendisi
+      // ekliyor, o yüzden burada KDV'siz (net) birim fiyatı geri hesaplıyoruz.
+      const netUnitPrice = kdvRate > 0 ? d.value / (1 + kdvRate / 100) : d.value;
+      return [
+        customerById(d.customerId)?.name || "",
+        d.title,
+        invoiceDate,
+        "",
+        "",
+        invoiceDate,
+        "",
+        "Fatura",
+        "",
+        "",
+        "",
+        d.title,
+        "",
+        "",
+        1,
+        Math.round(netUnitPrice * 100) / 100,
+        0,
+        kdvRate,
+        "",
+        "",
+      ];
+    });
+    // Paraşüt'ün gerçek şablonu: 1. satır (birleştirilmiş A1:F1) yardım metni,
+    // 2. satır boş, 3. satır başlıklar, sonrası veri. Bu yapı birebir aynı
+    // olmazsa (örn. başlık 1. satırda olursa) Paraşüt dosyayı okuyamıyor.
+    const XLSX = await import("xlsx");
+    const sheet = XLSX.utils.aoa_to_sheet([
+      [PARASUT_HELP_TEXT],
+      [],
+      PARASUT_INVOICE_HEADERS,
+      ...dataRows,
+    ]);
+    sheet["!merges"] = [
+      { s: { c: 0, r: 0 }, e: { c: 5, r: 0 } },
+      { s: { c: 9, r: 0 }, e: { c: 14, r: 0 } },
+    ];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, "Satış Faturaları");
+    XLSX.writeFile(workbook, "parasut-satis-faturalari.xlsx");
+    onClose();
+  };
+
+  return (
+    <Modal title="Paraşüt'e Aktar" onClose={onClose}>
+      <p
+        style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 12 }}
+      >
+        "{stageLabel("kazanildi", "kurumsal", sector)}" aşamasındaki{" "}
+        {DEAL_WORD_FORMS[dealWordKind(sector)].plural} arasından aktarmak istediklerinizi seçin.
+        Seçilenler, Paraşüt'ün satış faturası içe aktarma şablonuyla uyumlu bir Excel (.xlsx)
+        dosyası olarak indirilecek - her {DEAL_WORD_FORMS[dealWordKind(sector)].gen} kendi KDV oranı
+        kullanılır. İndirdiğiniz dosyayı Paraşüt'te Satışlar → Faturalar → İçe/Dışa Aktar → İçeri
+        Aktar ile yükleyebilirsiniz.
+      </p>
+
+      {wonDeals.length === 0 ? (
+        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>
+          Aktarılabilecek "{stageLabel("kazanildi", "kurumsal", sector)}"{" "}
+          {DEAL_WORD_FORMS[dealWordKind(sector)].bare} yok.
+        </p>
+      ) : (
+        <div style={{ marginBottom: 16 }}>
+          <label
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Aktarılacak teklifler ({selectedDeals.length}/{wonDeals.length} seçili)
+          </label>
+          <div style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
+            <input
+              value={dealQuery}
+              onChange={(e) => setDealQuery(e.target.value)}
+              placeholder="Müşteri veya başlıkta ara..."
+              style={{ flex: 1, minWidth: 140, fontSize: 13 }}
+            />
+            <input
+              type="number"
+              min="0"
+              value={minAmount}
+              onChange={(e) => setMinAmount(e.target.value)}
+              placeholder="Min. tutar"
+              style={{ width: 100, fontSize: 13 }}
+            />
+            <input
+              type="number"
+              min="0"
+              value={maxAmount}
+              onChange={(e) => setMaxAmount(e.target.value)}
+              placeholder="Maks. tutar"
+              style={{ width: 100, fontSize: 13 }}
+            />
+            <select
+              value={paymentFilter}
+              onChange={(e) => setPaymentFilter(e.target.value)}
+              style={{ fontSize: 13 }}
+            >
+              <option value="all">Tüm ödeme durumları</option>
+              <option value="odendi">Ödendi</option>
+              <option value="kismi">Kısmi ödeme</option>
+              <option value="odenmedi">Ödenmedi</option>
+            </select>
+            <DateRangeFilter
+              from={fromDate}
+              to={toDate}
+              onFromChange={setFromDate}
+              onToChange={setToDate}
+            />
+          </div>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 12.5,
+              color: "var(--text-secondary)",
+              padding: "2px 0 6px",
+              cursor: filteredWonDeals.length === 0 ? "default" : "pointer",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={allVisibleSelected}
+              disabled={filteredWonDeals.length === 0}
+              onChange={toggleAllVisible}
+            />
+            Görünen {filteredWonDeals.length} teklifin tümünü seç / kaldır
+          </label>
+          <div
+            style={{
+              maxHeight: 180,
+              overflowY: "auto",
+              border: "0.5px solid var(--border)",
+              borderRadius: "var(--radius)",
+              padding: 8,
+            }}
+          >
+            {filteredWonDeals.length === 0 ? (
+              <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: 0 }}>
+                Filtreye uyan teklif yok.
+              </p>
+            ) : (
+              filteredWonDeals.map((d) => (
+                <label
+                  key={d.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 13,
+                    padding: "4px 0",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected.has(d.id)}
+                    onChange={() => toggle(d.id)}
+                  />
+                  {customerById(d.customerId)?.name || "Bilinmeyen müşteri"} - {d.title}{" "}
+                  <span style={{ color: "var(--text-muted)" }}>
+                    ({formatTL(d.value)}, KDV %{d.kdvRate ?? 20})
+                  </span>
+                </label>
+              ))
+            )}
+          </div>
+          <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "6px 0 0" }}>
+            KDV oranı yanlış görünüyorsa Vazgeç'e basıp ilgili teklifi düzenleyerek
+            değiştirebilirsiniz.
+          </p>
+        </div>
+      )}
+
+      {(() => {
+        const dealsWithPayments = selectedDeals.filter((d) => totalPaidForDeal(d.id) > 0);
+        if (dealsWithPayments.length === 0) return null;
+        return (
+          <div
+            style={{
+              marginBottom: 16,
+              background: "var(--bg-warning)",
+              borderRadius: "var(--radius)",
+              padding: "0.75rem 1rem",
+            }}
+          >
+            <p
+              style={{
+                fontSize: 12.5,
+                color: "var(--text-warning)",
+                margin: "0 0 8px",
+                lineHeight: 1.6,
+                fontWeight: 600,
+              }}
+            >
+              Dikkat: Excel dosyası tahsilat bilgisi taşımıyor, faturalar Paraşüt'e aktarılınca
+              "ödenmemiş" görünecek. Aşağıdaki {dealsWithPayments.length} teklif için Binerly'de
+              tahsilat kaydı var - Paraşüt'e aktardıktan sonra her biri için:
+            </p>
+            <ol
+              style={{
+                margin: "0 0 10px",
+                paddingLeft: 18,
+                fontSize: 12.5,
+                color: "var(--text-warning)",
+                lineHeight: 1.6,
+              }}
+            >
+              <li>Paraşüt'te o faturayı açın.</li>
+              <li>"TAHSİLAT EKLE" butonuna tıklayın.</li>
+              <li>"Nakit"i seçip aşağıdaki tutarı girin ve kaydedin.</li>
+            </ol>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+                maxHeight: 140,
+                overflowY: "auto",
+              }}
+            >
+              {dealsWithPayments.map((d) => {
+                const paid = totalPaidForDeal(d.id);
+                const remaining = d.value - paid;
+                return (
+                  <div key={d.id} style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                    <strong style={{ color: "var(--text-primary)" }}>
+                      {customerById(d.customerId)?.name || "Bilinmeyen müşteri"} - {d.title}:
+                    </strong>{" "}
+                    Girilecek tutar: <strong>{formatTL(paid)}</strong>
+                    {remaining > 0
+                      ? ` (kalan ${formatTL(remaining)} henüz tahsil edilmedi)`
+                      : " (tamamı ödendi)"}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+        <button onClick={onClose}>Vazgeç</button>
+        <button
+          onClick={download}
+          disabled={selectedDeals.length === 0}
+          style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+        >
+          İndir
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// Onay linki her kopyalandığında açılan, o teklife özel ödeme tercihi seçimi —
+// son seçilen localStorage'dan ön-işaretli gelir, KOBİ'nin her seferinde
+// Ayarlar'a gidip global bir tercih değiştirmesine gerek kalmaz.
+export function PaymentModeModal({ deal, paymentConnected, onConfirm, onClose }) {
+  const [mode, setMode] = useState(
+    deal.paymentMode !== "none"
+      ? deal.paymentMode
+      : localStorage.getItem(PAYMENT_MODE_LAST_CHOICE_KEY) || "none",
+  );
+  return (
+    <Modal title="Onay linki için ödeme tercihi" onClose={onClose}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+        {PAYMENT_MODE_OPTIONS.map((opt) => (
+          <label
+            key={opt.value}
+            style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "flex-start",
+              padding: 10,
+              border: `0.5px solid ${mode === opt.value ? "var(--fill-accent)" : "var(--border)"}`,
+              borderRadius: "var(--radius)",
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="radio"
+              checked={mode === opt.value}
+              onChange={() => setMode(opt.value)}
+              style={{ marginTop: 2 }}
+            />
+            <div>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 500 }}>{opt.label}</p>
+              <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{opt.desc}</p>
+            </div>
+          </label>
+        ))}
+      </div>
+      {mode !== "none" && !paymentConnected && (
+        <p style={{ fontSize: 12.5, color: "var(--text-warning, #b45309)", margin: "0 0 12px" }}>
+          Ödeme almak için önce Ayarlar'dan iyzico veya PayTR hesabınızı bağlamanız gerekiyor.
+        </p>
+      )}
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+        <button onClick={onClose}>Vazgeç</button>
+        <button
+          onClick={() => {
+            localStorage.setItem(PAYMENT_MODE_LAST_CHOICE_KEY, mode);
+            onConfirm(mode);
+          }}
+          disabled={mode !== "none" && !paymentConnected}
+          style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+        >
+          Onayla ve linki kopyala
+        </button>
+      </div>
+    </Modal>
+  );
+}
