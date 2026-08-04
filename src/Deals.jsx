@@ -15,6 +15,7 @@ import {
   TONE_COLORS,
   matchesDateRange,
   DateRangeFilter,
+  RowActionsMenu,
 } from "./shared";
 import {
   PDF_TEMPLATES,
@@ -34,6 +35,7 @@ import {
   bookingModel,
   supportsSessionPackages,
   CustomFieldsSection,
+  TagBadges,
 } from "./Sectors";
 import { DEAL_WORD_FORMS } from "./staticData";
 // Vadesi geçmiş bakiye / kredi limiti uyarısı — GERÇEK BİR ENGEL DEĞİL, sadece
@@ -3476,5 +3478,1184 @@ export function PaymentModeModal({ deal, paymentConnected, onConfirm, onClose })
         </button>
       </div>
     </Modal>
+  );
+}
+
+// Açık (kazanılmamış/kaybedilmemiş) bir kayıt uzunca bir süre hiç ilerlemezse
+// unutulmuş/takip edilmemiş olabilir — sektörden bağımsız, her satış/danışmanlık
+// hattı için geçerli bir sinyal. Ayrı bir "aşama geçmişi" tablosu yok, bu yüzden
+// "ne kadar süredir bu aşamada" yerine "ne kadar süredir hiç kapanmadı"
+// (createdAt'ten) kullanılıyor — daha basit ve yeterince açıklayıcı bir yaklaşım,
+// GERÇEK BİR ENGEL DEĞİL sadece görünürlük.
+export const STUCK_DEAL_DAYS_THRESHOLD = 3;
+export const STUCK_DEAL_DAYS_DANGER_THRESHOLD = 7;
+// Liste ve Kanban'da ortak "kaç gündür açık" rozeti — computeStuckDeals'daki
+// aynı createdAt-bazlı yaklaşımı tek bir kayıt için hesaplar.
+export function dealDaysOpen(deal) {
+  if (!deal.createdAt || deal.stage === "kazanildi" || deal.stage === "kaybedildi") return null;
+  return Math.floor((Date.now() - new Date(deal.createdAt).getTime()) / 86400000);
+}
+function formatViewDuration(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes === 0) return `${seconds} sn`;
+  return `${minutes} dk ${seconds} sn`;
+}
+// Menüdeki tek tek öğeler artık kendi etiketiyle kendini anlatıyor (eskiden
+// hepsi ikon-only butonlardı, tek bir dev InfoTip'te açıklanması gerekiyordu).
+// Sadece Onay Linki'nin davranışı (e-imza yerine geçmediği, e-posta şartı)
+// bariz olmadığı için o öğeye özel kısa bir InfoTip metni kaldı, bkz. aşağıda
+// "Onay Linki" item tanımlarındaki `info` alanı.
+const dealApprovalLinkInfoText =
+  "Müşterinin e-postası kayıtlı olmalı. Görüntüleme ve onay durumları satırda otomatik görünür ama bu resmi bir elektronik imza değildir - önemli anlaşmalarda ıslak/nitelikli e-imza kullanın.";
+export function DealsTab({
+  customers,
+  deals,
+  filteredDeals,
+  companySettings,
+  dealAudience,
+  setDealAudience,
+  updatePreferredCustomerType,
+  dealView,
+  changeDealView,
+  isMembershipSector,
+  dealTodayClassFilter,
+  setDealTodayClassFilter,
+  dealMembershipExpiryFilter,
+  setDealMembershipExpiryFilter,
+  dealQuickDateFilter,
+  setDealQuickDateFilter,
+  setShowDealExport,
+  setShowParasutExport,
+  setShowImportDeals,
+  generateLeadCaptureLink,
+  setAppointmentLink,
+  setEditingDeal,
+  setShowDealForm,
+  dealWords,
+  dealSearch,
+  setDealSearch,
+  dealStageFilter,
+  setDealStageFilter,
+  dealPaymentFilter,
+  setDealPaymentFilter,
+  dealSort,
+  setDealSort,
+  dealFromDate,
+  setDealFromDate,
+  dealToDate,
+  setDealToDate,
+  expandedKanbanStages,
+  setExpandedKanbanStages,
+  dragDealId,
+  setDragDealId,
+  attemptMoveDealStage,
+  customerById,
+  dealPdfLabel,
+  setTeklifDeal,
+  setListingTextDeal,
+  notify,
+  setPaymentModeDeal,
+  handleUseSessionClick,
+  setPaymentsDeal,
+  dealKind,
+  setConfirmDeleteDeal,
+  totalPaidForDeal,
+  pendingArrivalDealIds,
+}) {
+  return (
+    <div>
+      <div
+        className="list-toolbar"
+        style={{ display: "flex", gap: 16, marginBottom: 12, flexWrap: "wrap" }}
+      >
+        <div
+          style={{
+            display: "flex",
+            gap: 4,
+            background: "var(--surface-1)",
+            borderRadius: "var(--radius)",
+            padding: 3,
+            width: "fit-content",
+          }}
+        >
+          <button
+            onClick={() => {
+              setDealAudience("kurumsal");
+              updatePreferredCustomerType("kurumsal");
+            }}
+            style={{
+              border: "none",
+              background: dealAudience === "kurumsal" ? "var(--fill-accent)" : "transparent",
+              color: dealAudience === "kurumsal" ? "var(--on-accent)" : "var(--text-secondary)",
+              fontWeight: dealAudience === "kurumsal" ? 600 : 400,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+            }}
+          >
+            <i className="ti ti-building" style={{ fontSize: 15 }} aria-hidden="true"></i>
+            Kurumsal
+          </button>
+          <button
+            onClick={() => {
+              setDealAudience("bireysel");
+              updatePreferredCustomerType("bireysel");
+            }}
+            style={{
+              border: "none",
+              background: dealAudience === "bireysel" ? "var(--fill-accent)" : "transparent",
+              color: dealAudience === "bireysel" ? "var(--on-accent)" : "var(--text-secondary)",
+              fontWeight: dealAudience === "bireysel" ? 600 : 400,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+            }}
+          >
+            <i className="ti ti-user" style={{ fontSize: 15 }} aria-hidden="true"></i>
+            Bireysel
+          </button>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            gap: 4,
+            background: "var(--surface-1)",
+            borderRadius: "var(--radius)",
+            padding: 3,
+            width: "fit-content",
+          }}
+        >
+          <button
+            onClick={() => changeDealView("list")}
+            style={{
+              border: "none",
+              background: dealView === "list" ? "var(--fill-accent)" : "transparent",
+              color: dealView === "list" ? "var(--on-accent)" : "var(--text-secondary)",
+              fontWeight: dealView === "list" ? 600 : 400,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+            }}
+          >
+            <i className="ti ti-list" style={{ fontSize: 15 }} aria-hidden="true"></i>
+            Liste
+          </button>
+          <button
+            onClick={() => changeDealView("kanban")}
+            style={{
+              border: "none",
+              background: dealView === "kanban" ? "var(--fill-accent)" : "transparent",
+              color: dealView === "kanban" ? "var(--on-accent)" : "var(--text-secondary)",
+              fontWeight: dealView === "kanban" ? 600 : 400,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+            }}
+          >
+            <i className="ti ti-layout-kanban" style={{ fontSize: 15 }} aria-hidden="true"></i>
+            Kanban
+          </button>
+        </div>
+      </div>
+
+      {isMembershipSector ? (
+        <div
+          className="list-toolbar"
+          style={{
+            display: "flex",
+            gap: 8,
+            marginBottom: 12,
+            flexWrap: "wrap",
+            alignItems: "center",
+          }}
+        >
+          <button
+            onClick={() => setDealTodayClassFilter((v) => !v)}
+            style={{
+              background: dealTodayClassFilter ? "var(--fill-accent)" : "var(--surface-1)",
+              color: dealTodayClassFilter ? "var(--on-accent)" : "var(--text-primary)",
+              border: "0.5px solid var(--border)",
+              fontSize: 13,
+            }}
+          >
+            Bugün dersi olanlar
+          </button>
+          <select
+            value={dealMembershipExpiryFilter}
+            onChange={(e) => setDealMembershipExpiryFilter(e.target.value)}
+            style={{ fontSize: 13 }}
+          >
+            <option value="all">Üyelik bitişi: Tümü</option>
+            <option value="1m">1 ay içinde bitecek</option>
+            <option value="3m">3 ay içinde bitecek</option>
+            <option value="6m">6 ay içinde bitecek</option>
+          </select>
+        </div>
+      ) : (
+        <div
+          className="list-toolbar"
+          style={{
+            display: "flex",
+            gap: 4,
+            background: "var(--surface-1)",
+            borderRadius: "var(--radius)",
+            padding: 3,
+            marginBottom: 12,
+            width: "fit-content",
+          }}
+        >
+          {[
+            { id: "all", label: "Tümü" },
+            { id: "today", label: "Bugün" },
+            { id: "week", label: "Bu Hafta" },
+            { id: "month", label: "Bu Ay" },
+          ].map((o) => (
+            <button
+              key={o.id}
+              onClick={() => setDealQuickDateFilter(o.id)}
+              style={{
+                border: "none",
+                background: dealQuickDateFilter === o.id ? "var(--fill-accent)" : "transparent",
+                color: dealQuickDateFilter === o.id ? "var(--on-accent)" : "var(--text-secondary)",
+                fontWeight: dealQuickDateFilter === o.id ? 600 : 400,
+                fontSize: 13,
+              }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div
+        className="list-toolbar"
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginBottom: 12,
+          gap: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        <button
+          onClick={() => setShowDealExport(true)}
+          disabled={filteredDeals.length === 0}
+          style={{
+            background: "var(--surface-1)",
+            border: "0.5px solid var(--border)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
+          Dışa aktar
+        </button>
+        <button
+          onClick={() => setShowParasutExport(true)}
+          style={{
+            background: "var(--surface-1)",
+            border: "0.5px solid var(--border)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <i className="ti ti-receipt" style={{ fontSize: 16 }} aria-hidden="true"></i>
+          Paraşüt'e aktar
+        </button>
+        <button
+          onClick={() => setShowImportDeals(true)}
+          style={{
+            background: "var(--surface-1)",
+            border: "0.5px solid var(--border)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
+          İçe aktar
+        </button>
+        {supportsSelfBooking(companySettings?.sector) &&
+          bookingModel(companySettings?.sector) === "slot" && (
+            <button
+              onClick={async () => {
+                const link = await generateLeadCaptureLink();
+                if (link) setAppointmentLink(link.replace("/lead/", "/randevu-al/"));
+              }}
+              style={{
+                background: "var(--surface-1)",
+                border: "0.5px solid var(--border)",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <i className="ti ti-calendar-event" style={{ fontSize: 16 }} aria-hidden="true"></i>
+              Randevu Alma Linki
+            </button>
+          )}
+        <button
+          onClick={() => {
+            setEditingDeal(null);
+            setShowDealForm(true);
+          }}
+          disabled={customers.length === 0}
+          style={{
+            background: "var(--fill-accent)",
+            color: "var(--on-accent)",
+            border: "none",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
+          {dealWords.addLabel}
+        </button>
+      </div>
+
+      <div
+        className="list-toolbar"
+        style={{ display: "flex", marginBottom: 12, gap: 8, flexWrap: "wrap" }}
+      >
+        <input
+          value={dealSearch}
+          onChange={(e) => setDealSearch(e.target.value)}
+          placeholder={dealWords.searchPlaceholder}
+          style={{ flex: 1, minWidth: 160 }}
+        />
+        <select
+          value={dealStageFilter}
+          onChange={(e) => setDealStageFilter(e.target.value)}
+          style={{ fontSize: 13 }}
+        >
+          <option value="all">Tüm aşamalar</option>
+          <option value="acik">{dealWords.openFilterLabel}</option>
+          {STAGES.map((s) => (
+            <option key={s.id} value={s.id}>
+              {stageLabel(s.id, dealAudience, companySettings?.sector)}
+            </option>
+          ))}
+        </select>
+        <select
+          value={dealPaymentFilter}
+          onChange={(e) => setDealPaymentFilter(e.target.value)}
+          style={{ fontSize: 13 }}
+        >
+          <option value="all">Tüm ödeme durumları</option>
+          <option value="odendi">Ödendi</option>
+          <option value="kismi">Kısmi ödeme</option>
+          <option value="odenmedi">Ödenmedi</option>
+        </select>
+        <select
+          value={dealSort}
+          onChange={(e) => setDealSort(e.target.value)}
+          style={{ fontSize: 13 }}
+        >
+          <option value="newest">En yeni eklenen</option>
+          <option value="oldest">En eski eklenen</option>
+        </select>
+        <DateRangeFilter
+          from={dealFromDate}
+          to={dealToDate}
+          onFromChange={setDealFromDate}
+          onToChange={setDealToDate}
+        />
+      </div>
+
+      {customers.length === 0 && (
+        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>
+          Kayıt eklemeden önce bir müşteri oluşturun.
+        </p>
+      )}
+
+      {filteredDeals.length === 0 ? (
+        deals.length === 0 ? (
+          <div
+            style={{
+              background: "var(--surface-1)",
+              borderRadius: 12,
+              padding: "2rem 1.5rem",
+              textAlign: "center",
+            }}
+          >
+            <p style={{ fontWeight: 500, margin: "0 0 4px" }}>{dealWords.emptyDefault}</p>
+            <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px" }}>
+              Başlamak için ilk kaydınızı ekleyin.
+            </p>
+            <button
+              onClick={() => {
+                setEditingDeal(null);
+                setShowDealForm(true);
+              }}
+              disabled={customers.length === 0}
+              style={{
+                background: "var(--fill-accent)",
+                color: "var(--on-accent)",
+                border: "none",
+              }}
+            >
+              + {dealWords.addLabel}
+            </button>
+          </div>
+        ) : (
+          <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>{dealWords.emptySearch}</p>
+        )
+      ) : dealView === "kanban" ? (
+        <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
+          {STAGES.map((stage) => {
+            const isClosedStage = stage.id === "kazanildi" || stage.id === "kaybedildi";
+            const cap = isClosedStage ? 15 : 20;
+            const expanded = expandedKanbanStages.has(stage.id);
+            const stageDeals = filteredDeals
+              .filter((d) => d.stage === stage.id)
+              .sort((a, b) =>
+                isClosedStage
+                  ? new Date(b.closedAt || b.createdAt || 0) -
+                    new Date(a.closedAt || a.createdAt || 0)
+                  : (dealDaysOpen(b) ?? 0) - (dealDaysOpen(a) ?? 0),
+              );
+            const stageValue = stageDeals.reduce((sum, d) => sum + (d.value || 0), 0);
+            const visibleDeals = expanded ? stageDeals : stageDeals.slice(0, cap);
+            const hiddenCount = stageDeals.length - visibleDeals.length;
+            return (
+              <div
+                key={stage.id}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => {
+                  if (!dragDealId) return;
+                  attemptMoveDealStage(dragDealId, stage.id);
+                  setDragDealId(null);
+                }}
+                style={{
+                  background: "var(--surface-1)",
+                  borderRadius: "var(--radius)",
+                  padding: 10,
+                  minWidth: 220,
+                  flex: "0 0 220px",
+                }}
+              >
+                <div style={{ marginBottom: 8 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 2px" }}>
+                    {stageLabel(stage.id, dealAudience, companySettings?.sector)} ·{" "}
+                    {stageDeals.length}
+                  </p>
+                  <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0 }}>
+                    {formatTL(stageValue)}
+                  </p>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                    minHeight: 40,
+                    maxHeight: 560,
+                    overflowY: "auto",
+                  }}
+                >
+                  {visibleDeals.map((d) => {
+                    const c = customerById(d.customerId);
+                    const daysOpen = dealDaysOpen(d);
+                    return (
+                      <div
+                        key={d.id}
+                        draggable
+                        onDragStart={() => setDragDealId(d.id)}
+                        onClick={() => {
+                          setEditingDeal(d);
+                          setShowDealForm(true);
+                        }}
+                        style={{
+                          background: "var(--surface-2)",
+                          border: "0.5px solid var(--border)",
+                          borderRadius: "var(--radius)",
+                          padding: 10,
+                          cursor: "grab",
+                        }}
+                      >
+                        <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 500 }}>
+                          {c?.name || "Bilinmeyen müşteri"}
+                        </p>
+                        <p
+                          style={{
+                            margin: "0 0 4px",
+                            fontSize: 12,
+                            color: "var(--text-secondary)",
+                          }}
+                        >
+                          {d.title}
+                        </p>
+                        {daysOpen != null && daysOpen >= STUCK_DEAL_DAYS_THRESHOLD && (
+                          <div style={{ marginBottom: 4 }}>
+                            <Badge
+                              tone={
+                                daysOpen >= STUCK_DEAL_DAYS_DANGER_THRESHOLD ? "danger" : "warning"
+                              }
+                            >
+                              {daysOpen >= STUCK_DEAL_DAYS_DANGER_THRESHOLD ? "🔴" : "🟡"}{" "}
+                              {daysOpen} gündür açık
+                            </Badge>
+                          </div>
+                        )}
+                        {d.customFields?.kaynak === "portal" &&
+                          d.customFields?.portal_randevu_zamani && (
+                            <div style={{ marginBottom: 4 }}>
+                              <Badge tone="accent">Portaldan alındı</Badge>
+                            </div>
+                          )}
+                        {d.customFields?.kaynak === "randevu_widget" &&
+                          d.customFields?.portal_randevu_zamani && (
+                            <div style={{ marginBottom: 4 }}>
+                              <Badge tone="accent">Web'den alındı</Badge>
+                            </div>
+                          )}
+                        {d.paymentStatus === "paid" && (
+                          <div style={{ marginBottom: 4 }}>
+                            <Badge tone="success">✓ Online ödendi</Badge>
+                          </div>
+                        )}
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: 13,
+                              fontWeight: 600,
+                              color: "var(--text-accent)",
+                            }}
+                          >
+                            {formatTL(d.value)}
+                          </p>
+                          {/* Liste görünümündeki RowActionsMenu ile birebir aynı öğeler —
+                                  eskiden burada sadece PDF ikonu vardı, Sil/Kopyala/Onay Linki/
+                                  Tahsilat Kanban'dan hiç erişilemiyordu. Kart tıklaması Düzenle'yi
+                                  açtığı için (üstteki onClick) tıklamanın karta sızmaması gerekiyor. */}
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <RowActionsMenu
+                              items={[
+                                {
+                                  icon: "ti-file-text",
+                                  label: dealPdfLabel,
+                                  onClick: () => setTeklifDeal(d),
+                                },
+                                companySettings?.sector === "emlak" && {
+                                  icon: "ti-wand",
+                                  label: "İlan Metni Oluştur",
+                                  onClick: () => setListingTextDeal(d),
+                                },
+                                {
+                                  icon: "ti-link",
+                                  label: "Onay Linki",
+                                  title: c?.email
+                                    ? "Müşterinin onaylayabileceği link - kopyala ve gönder"
+                                    : "Onay linki için müşterinin e-postası kayıtlı olmalı",
+                                  info: dealApprovalLinkInfoText,
+                                  disabled: !c?.email,
+                                  onClick: () => {
+                                    if (!c?.email) {
+                                      notify(
+                                        "Onay linki oluşturmak için önce müşterinin e-postasını ekleyin.",
+                                      );
+                                      return;
+                                    }
+                                    setPaymentModeDeal(d);
+                                  },
+                                },
+                                !!d.sessionTotal &&
+                                  d.sessionUsed < d.sessionTotal && {
+                                    icon: "ti-plus",
+                                    label: "Seans kullanıldı",
+                                    onClick: () => handleUseSessionClick(d),
+                                  },
+                                {
+                                  icon: "ti-cash",
+                                  label: "Tahsilat",
+                                  onClick: () => setPaymentsDeal(d),
+                                },
+                                {
+                                  icon: "ti-copy",
+                                  label: "Kopyala",
+                                  title: `Bu ${DEAL_WORD_FORMS[dealKind].gen} bilgileriyle yeni bir ${DEAL_WORD_FORMS[dealKind].bare} oluştur`,
+                                  onClick: () => {
+                                    setEditingDeal({
+                                      customerId: d.customerId,
+                                      title: d.title,
+                                      value: d.value,
+                                      cost: d.cost,
+                                      kdvRate: d.kdvRate,
+                                      tags: d.tags,
+                                      customFields: d.customFields,
+                                      assignedTo: d.assignedTo,
+                                      createdAt: new Date().toISOString(),
+                                    });
+                                    setShowDealForm(true);
+                                  },
+                                },
+                                {
+                                  icon: "ti-edit",
+                                  label: "Düzenle",
+                                  onClick: () => {
+                                    setEditingDeal(d);
+                                    setShowDealForm(true);
+                                  },
+                                },
+                                {
+                                  icon: "ti-trash",
+                                  label: "Sil",
+                                  danger: true,
+                                  onClick: () => setConfirmDeleteDeal(d),
+                                },
+                              ]}
+                            />
+                          </div>
+                        </div>
+                        {(() => {
+                          // "Online ödendi" rozeti zaten tam ödendiğini gösteriyor —
+                          // aynı bilgiyi burada tekrar "Ödendi" olarak basmak gereksiz
+                          // tekrar oluyordu (kullanıcı bunu Kanban kartında fark etti).
+                          if (d.paymentStatus === "paid") return null;
+                          const paid = totalPaidForDeal(d.id);
+                          if (paid <= 0) return null;
+                          const remaining = d.value - paid;
+                          return (
+                            <div style={{ marginTop: 4 }}>
+                              <Badge tone={remaining <= 0 ? "success" : "warning"}>
+                                {remaining <= 0 ? "Ödendi" : "Kısmi ödeme"}
+                              </Badge>
+                            </div>
+                          );
+                        })()}
+                        {!!d.sessionTotal && (
+                          <div
+                            style={{
+                              marginTop: 4,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: 6,
+                            }}
+                          >
+                            <span
+                              title={
+                                Array.isArray(d.customFields?.package_breakdown)
+                                  ? d.customFields.package_breakdown
+                                      .map((b) => `${b.label}: ${b.used}/${b.total}`)
+                                      .join(", ")
+                                  : undefined
+                              }
+                            >
+                              <Badge tone={d.sessionUsed >= d.sessionTotal ? "success" : "default"}>
+                                {d.sessionUsed >= d.sessionTotal
+                                  ? "Paket tamamlandı"
+                                  : `${d.sessionUsed}/${d.sessionTotal} seans`}
+                              </Badge>
+                            </span>
+                            {d.sessionUsed < d.sessionTotal && (
+                              <IconButton
+                                icon="ti-plus"
+                                title="Seans kullanıldı"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUseSessionClick(d);
+                                }}
+                              />
+                            )}
+                          </div>
+                        )}
+                        {d.reminder && (
+                          <p
+                            style={{
+                              margin: "4px 0 0",
+                              fontSize: 11,
+                              color: "var(--text-warning)",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                            }}
+                          >
+                            <i
+                              className="ti ti-bell"
+                              style={{ fontSize: 12 }}
+                              aria-hidden="true"
+                            ></i>
+                            {d.reminder}
+                          </p>
+                        )}
+                        {d.tags?.length > 0 && (
+                          <div style={{ marginTop: 4 }}>
+                            <TagBadges tags={d.tags} />
+                          </div>
+                        )}
+                        {d.customFields?.sevkiyat_durumu && (
+                          <div style={{ marginTop: 4 }}>
+                            <Badge tone="default">{d.customFields.sevkiyat_durumu}</Badge>
+                          </div>
+                        )}
+                        {d.firstViewedAt && !d.approvedAt && (
+                          <div
+                            style={{ marginTop: 4 }}
+                            title={
+                              d.viewDurationSeconds > 0
+                                ? `Müşteri toplam ${formatViewDuration(d.viewDurationSeconds)} inceledi`
+                                : undefined
+                            }
+                          >
+                            <Badge tone="accent">
+                              👁 Görüntülendi
+                              {d.viewDurationSeconds > 0
+                                ? ` · ${formatViewDuration(d.viewDurationSeconds)}`
+                                : ""}
+                            </Badge>
+                          </div>
+                        )}
+                        {d.approvedAt && (
+                          <div style={{ marginTop: 4 }}>
+                            <Badge tone="success">Onaylandı ✓</Badge>
+                          </div>
+                        )}
+                        {d.customFields?.attendanceConfirmedAt && (
+                          <div
+                            style={{ marginTop: 4 }}
+                            title="Müşteri hatırlatma e-postasındaki linkten geleceğini onayladı"
+                          >
+                            <Badge tone="success">✓ Katılım onayladı</Badge>
+                          </div>
+                        )}
+                        {pendingArrivalDealIds.has(d.id) && (
+                          <div
+                            style={{ display: "flex", gap: 4, marginTop: 6 }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => attemptMoveDealStage(d.id, "kazanildi")}
+                              style={{ fontSize: 11, flex: 1, padding: "4px 6px" }}
+                            >
+                              Geldi ✓
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => attemptMoveDealStage(d.id, "kaybedildi")}
+                              style={{ fontSize: 11, flex: 1, padding: "4px 6px" }}
+                            >
+                              Gelmedi
+                            </button>
+                          </div>
+                        )}
+                        {/* Sürükle-bırak dokunmatik ekranda çalışmıyor (HTML5 DnG
+                                touch'ı desteklemiyor) - bu seçici mobilde aşama
+                                değiştirmenin tek yolu, masaüstünde de sürüklemeye
+                                alternatif. Liste görünümündeki seçiciyle aynı geçit
+                                (attemptMoveDealStage) kullanılır. */}
+                        <div style={{ marginTop: 6 }} onClick={(e) => e.stopPropagation()}>
+                          <select
+                            value={d.stage}
+                            onChange={(e) => attemptMoveDealStage(d.id, e.target.value)}
+                            style={{
+                              width: "100%",
+                              fontSize: 11.5,
+                              fontWeight: 500,
+                              border: "none",
+                              ...TONE_COLORS[stageTone(d.stage)],
+                            }}
+                          >
+                            {STAGES.map((s) => (
+                              <option key={s.id} value={s.id} style={TONE_COLORS[stageTone(s.id)]}>
+                                {stageLabel(
+                                  s.id,
+                                  c?.customerType || "kurumsal",
+                                  companySettings?.sector,
+                                )}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {hiddenCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setExpandedKanbanStages((prev) => new Set(prev).add(stage.id))}
+                      style={{
+                        background: "transparent",
+                        border: "0.5px dashed var(--border-strong)",
+                        color: "var(--text-secondary)",
+                        fontSize: 12,
+                        padding: "6px 8px",
+                      }}
+                    >
+                      +{hiddenCount} tane daha göster
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table
+            className="responsive-table"
+            style={{
+              width: "100%",
+              minWidth: 620,
+              borderCollapse: "separate",
+              borderSpacing: "0 8px",
+            }}
+          >
+            <thead>
+              <tr>
+                <th
+                  style={{
+                    textAlign: "left",
+                    padding: "0 12px",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "var(--text-muted)",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  {dealWords.columnHeader}
+                </th>
+                <th
+                  style={{
+                    textAlign: "left",
+                    padding: "0 12px",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "var(--text-muted)",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.3,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Aşama
+                </th>
+                <th
+                  style={{
+                    textAlign: "left",
+                    padding: "0 12px",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "var(--text-muted)",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.3,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Ödeme
+                </th>
+                <th
+                  style={{
+                    textAlign: "right",
+                    padding: "0 12px",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "var(--text-muted)",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.3,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Tutar
+                </th>
+                <th style={{ textAlign: "right", padding: "0 12px" }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredDeals.map((d) => {
+                const c = customerById(d.customerId);
+                const paid = totalPaidForDeal(d.id);
+                const remaining = d.value - paid;
+                return (
+                  <tr key={d.id} style={{ background: "var(--surface-1)" }}>
+                    <td
+                      data-label={dealWords.columnHeader}
+                      onClick={() => {
+                        setEditingDeal(d);
+                        setShowDealForm(true);
+                      }}
+                      style={{
+                        padding: "10px 12px",
+                        borderRadius: "var(--radius) 0 0 var(--radius)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>
+                        {c?.name || "Bilinmeyen müşteri"} - {d.title}
+                      </p>
+                      <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
+                        {d.createdAt ? new Date(d.createdAt).toLocaleDateString("tr-TR") : ""}
+                        {d.createdAt && new Date(d.createdAt).toTimeString().slice(0, 5) !== "00:00"
+                          ? ` · ${new Date(d.createdAt).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}`
+                          : ""}{" "}
+                        · {d.reminder ? `Hatırlatma: ${d.reminder}` : "Hatırlatma yok"}
+                      </p>
+                      {(() => {
+                        const daysOpen = dealDaysOpen(d);
+                        if (daysOpen == null || daysOpen < STUCK_DEAL_DAYS_THRESHOLD) return null;
+                        const danger = daysOpen >= STUCK_DEAL_DAYS_DANGER_THRESHOLD;
+                        return (
+                          <div style={{ marginTop: 4 }}>
+                            <Badge tone={danger ? "danger" : "warning"}>
+                              {danger ? "🔴" : "🟡"} {daysOpen} gündür açık
+                            </Badge>
+                          </div>
+                        );
+                      })()}
+                      {d.customFields?.kaynak === "portal" &&
+                        d.customFields?.portal_randevu_zamani && (
+                          <div style={{ marginTop: 4 }}>
+                            <Badge tone="accent">Portaldan alındı</Badge>
+                          </div>
+                        )}
+                      {d.customFields?.kaynak === "randevu_widget" &&
+                        d.customFields?.portal_randevu_zamani && (
+                          <div style={{ marginTop: 4 }}>
+                            <Badge tone="accent">Web'den alındı</Badge>
+                          </div>
+                        )}
+                      {d.paymentStatus === "paid" && (
+                        <div style={{ marginTop: 4 }}>
+                          <Badge tone="success">✓ Online ödendi</Badge>
+                        </div>
+                      )}
+                      {!!d.sessionTotal && (
+                        <div
+                          style={{ marginTop: 4 }}
+                          title={
+                            Array.isArray(d.customFields?.package_breakdown)
+                              ? d.customFields.package_breakdown
+                                  .map((b) => `${b.label}: ${b.used}/${b.total}`)
+                                  .join(", ")
+                              : undefined
+                          }
+                        >
+                          <Badge tone={d.sessionUsed >= d.sessionTotal ? "success" : "default"}>
+                            {d.sessionUsed >= d.sessionTotal
+                              ? "Paket tamamlandı"
+                              : `${d.sessionUsed}/${d.sessionTotal} seans`}
+                          </Badge>
+                        </div>
+                      )}
+                      {d.tags?.length > 0 && (
+                        <div style={{ marginTop: 4 }}>
+                          <TagBadges tags={d.tags} />
+                        </div>
+                      )}
+                      {d.customFields?.sevkiyat_durumu && (
+                        <div style={{ marginTop: 4 }}>
+                          <Badge tone="default">{d.customFields.sevkiyat_durumu}</Badge>
+                        </div>
+                      )}
+                      {d.firstViewedAt && !d.approvedAt && (
+                        <div
+                          style={{ marginTop: 4 }}
+                          title={
+                            d.viewDurationSeconds > 0
+                              ? `Müşteri toplam ${formatViewDuration(d.viewDurationSeconds)} inceledi`
+                              : undefined
+                          }
+                        >
+                          <Badge tone="accent">
+                            👁 Görüntülendi
+                            {d.viewDurationSeconds > 0
+                              ? ` · ${formatViewDuration(d.viewDurationSeconds)}`
+                              : ""}
+                          </Badge>
+                        </div>
+                      )}
+                      {d.approvedAt && (
+                        <div style={{ marginTop: 4 }}>
+                          <Badge tone="success">Onaylandı ✓</Badge>
+                        </div>
+                      )}
+                      {d.customFields?.attendanceConfirmedAt && (
+                        <div
+                          style={{ marginTop: 4 }}
+                          title="Müşteri hatırlatma e-postasındaki linkten geleceğini onayladı"
+                        >
+                          <Badge tone="success">✓ Katılım onayladı</Badge>
+                        </div>
+                      )}
+                    </td>
+                    <td data-label="Aşama" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                      {pendingArrivalDealIds.has(d.id) && (
+                        <div
+                          style={{ display: "flex", gap: 4, marginBottom: 4 }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => attemptMoveDealStage(d.id, "kazanildi")}
+                            style={{ fontSize: 11, padding: "4px 6px" }}
+                          >
+                            Geldi ✓
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => attemptMoveDealStage(d.id, "kaybedildi")}
+                            style={{ fontSize: 11, padding: "4px 6px" }}
+                          >
+                            Gelmedi
+                          </button>
+                        </div>
+                      )}
+                      <select
+                        value={d.stage}
+                        onChange={(e) => attemptMoveDealStage(d.id, e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          fontSize: 12.5,
+                          fontWeight: 500,
+                          border: "none",
+                          ...TONE_COLORS[stageTone(d.stage)],
+                        }}
+                      >
+                        {STAGES.map((s) => (
+                          <option key={s.id} value={s.id} style={TONE_COLORS[stageTone(s.id)]}>
+                            {stageLabel(
+                              s.id,
+                              c?.customerType || "kurumsal",
+                              companySettings?.sector,
+                            )}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td
+                      data-label="Ödeme"
+                      onClick={() => setPaymentsDeal(d)}
+                      style={{ padding: "10px 12px", whiteSpace: "nowrap", cursor: "pointer" }}
+                    >
+                      {paid > 0 ? (
+                        <Badge tone={remaining <= 0 ? "success" : "warning"}>
+                          {remaining <= 0 ? "Ödendi" : "Kısmi ödeme"}
+                        </Badge>
+                      ) : (
+                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>-</span>
+                      )}
+                    </td>
+                    <td
+                      data-label="Tutar"
+                      style={{
+                        padding: "10px 12px",
+                        whiteSpace: "nowrap",
+                        textAlign: "right",
+                        fontSize: 13,
+                        fontWeight: 500,
+                      }}
+                    >
+                      {formatTL(d.value)}
+                    </td>
+                    <td
+                      style={{
+                        padding: "10px 12px",
+                        borderRadius: "0 var(--radius) var(--radius) 0",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                        <RowActionsMenu
+                          items={[
+                            {
+                              icon: "ti-file-text",
+                              label: dealPdfLabel,
+                              onClick: () => setTeklifDeal(d),
+                            },
+                            companySettings?.sector === "emlak" && {
+                              icon: "ti-wand",
+                              label: "İlan Metni Oluştur",
+                              onClick: () => setListingTextDeal(d),
+                            },
+                            {
+                              icon: "ti-link",
+                              label: "Onay Linki",
+                              title: c?.email
+                                ? "Müşterinin onaylayabileceği link - kopyala ve gönder"
+                                : "Onay linki için müşterinin e-postası kayıtlı olmalı",
+                              info: dealApprovalLinkInfoText,
+                              disabled: !c?.email,
+                              onClick: () => {
+                                if (!c?.email) {
+                                  notify(
+                                    "Onay linki oluşturmak için önce müşterinin e-postasını ekleyin.",
+                                  );
+                                  return;
+                                }
+                                setPaymentModeDeal(d);
+                              },
+                            },
+                            !!d.sessionTotal &&
+                              d.sessionUsed < d.sessionTotal && {
+                                icon: "ti-plus",
+                                label: "Seans kullanıldı",
+                                onClick: () => handleUseSessionClick(d),
+                              },
+                            {
+                              icon: "ti-cash",
+                              label: "Tahsilat",
+                              onClick: () => setPaymentsDeal(d),
+                            },
+                            {
+                              icon: "ti-copy",
+                              label: "Kopyala",
+                              title: `Bu ${DEAL_WORD_FORMS[dealKind].gen} bilgileriyle yeni bir ${DEAL_WORD_FORMS[dealKind].bare} oluştur`,
+                              onClick: () => {
+                                setEditingDeal({
+                                  customerId: d.customerId,
+                                  title: d.title,
+                                  value: d.value,
+                                  cost: d.cost,
+                                  kdvRate: d.kdvRate,
+                                  tags: d.tags,
+                                  customFields: d.customFields,
+                                  assignedTo: d.assignedTo,
+                                  createdAt: new Date().toISOString(),
+                                });
+                                setShowDealForm(true);
+                              },
+                            },
+                            {
+                              icon: "ti-edit",
+                              label: "Düzenle",
+                              onClick: () => {
+                                setEditingDeal(d);
+                                setShowDealForm(true);
+                              },
+                            },
+                            {
+                              icon: "ti-trash",
+                              label: "Sil",
+                              danger: true,
+                              onClick: () => setConfirmDeleteDeal(d),
+                            },
+                          ]}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }
