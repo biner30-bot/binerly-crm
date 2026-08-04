@@ -6,11 +6,11 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     ignore:
-      # react/react-dom majör surumu ayri ayri PR'larda onerildigi icin
-      # birbirleriyle celisip build'i kiriyor (react-dom 19.x, react'in hala
-      # 18.x olmasini istemiyor). Kasitli bir React 19 gecisi yapilmadan
-      # majör atlama onerilmesin, patch/minor guncellemeler gelmeye devam etsin.
-      - dependency-name: "react"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "react-dom"
+      # Majör surum siçramalari (React 19, Vite 8 gibi) genelde kirilma
+      # riski tasir ve otomatik PR olarak degil, bilincli/test edilmis bir
+      # karar olarak yapilmali - App.jsx bolme/TypeScript gecisi gibi.
+      # Patch/minor guncellemeler (guvenlik yamalari dahil) normal akar,
+      # sadece "x.0.0 -> y.0.0" tarzi buyuk atlamalar onerilmiyor. Elle
+      # majör surume gecmek istersen bu kural hicbir sekilde engel olmaz.
+      - dependency-name: "*"
         update-types: ["version-update:semver-major"]
