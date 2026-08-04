@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
-import { Badge, TONE_COLORS, Modal, MetricCard, InfoTip, isFullNameValid, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, WEEKDAYS_SHORT, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl, translateAuthError, humanizeDbMessage, SELF_BOOKED_SOURCES, formatFileSize, MAX_TEAM_SIZE, parseAppointmentDateTime, RowActionsMenu, AttachmentList, PRICE_ITEM_NAME_EXAMPLES, ExportSelectionModal, SECTORS } from "./shared";
+import { Badge, TONE_COLORS, Modal, MetricCard, InfoTip, isFullNameValid, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, WEEKDAYS_SHORT, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl, translateAuthError, humanizeDbMessage, SELF_BOOKED_SOURCES, formatFileSize, MAX_TEAM_SIZE, parseAppointmentDateTime, RowActionsMenu, AttachmentList, PRICE_ITEM_NAME_EXAMPLES, ExportSelectionModal, SECTORS } from "./shared";
 import { DEAL_WORD_FORMS, DEAL_TAB_STRINGS, SECTOR_DEMO_PRESETS } from "./staticData";
 import { AuthModal, PasswordRecoveryModal } from "./Auth";
 import { SectorPicker, CompanySettingsForm, PaymentCredentialForm, AppSettingsModal } from "./Settings";
@@ -11,7 +11,7 @@ import { staffLeaveDayCount, formatLeaveDateRange, STAFF_LEAVE_TYPE_LABELS, isOp
 import { TRASH_TABLE_LABELS, TrashHistoryModal } from "./TrashHistory";
 import { GroupClassForm, GroupClassRoster, LateCancelPolicyBox, GroupClassesTab, AgendaTab, agendaDateKey, quickDateWindow } from "./GroupClasses";
 import { DealForm, roomTypeConflict, dealLostReasons, TAGS_INFO_TEXT, DealPayments, TeklifPrint, ParasutExportModal, PaymentModeModal } from "./Deals";
-import { CustomerForm, CustomerDetail, CampaignModal, ACTIVITY_TYPES, cariBakiyeInfoText } from "./Customers";
+import { CustomerForm, CustomerDetail, CampaignModal, ACTIVITY_TYPES, CustomersTab } from "./Customers";
 import { AskBubble, AskDock } from "./AskWidget";
 import Pano from "./Pano";
 import Finance, { rowToCompanyExpense } from "./Finance";
@@ -61,14 +61,6 @@ import {
 // başına ayarlanabilir değil, bilinçli olarak (KISS). Kazanıldı/kaybedildi
 // zaten "openDeals" dışında tutulduğu için burada yer almıyor.
 const STAGE_PROBABILITY = { ilk_gorusme: 0.1, teklif: 0.3, muzakere: 0.6 };
-
-function leadScore(lastContact) {
-  if (!lastContact) return { label: "Soğuk", tone: "default" };
-  const diff = Math.floor((Date.now() - new Date(lastContact).getTime()) / 86400000);
-  if (diff <= 7) return { label: "Sıcak", tone: "success" };
-  if (diff <= 30) return { label: "Ilık", tone: "warning" };
-  return { label: "Soğuk", tone: "default" };
-}
 
 // Gölge Avcı eşleşme kartındaki "WhatsApp'tan gönder" butonu için hazır metin —
 // mevcut wa.me linki deseniyle aynı (bkz. portal linki paylaşma butonu):
@@ -272,27 +264,6 @@ function computeAttendanceChurnRisk(customers, deals, groupClassEnrollments, cla
   }
   return alerts.sort((a, b) => b.daysSince - a.daysSince);
 }
-
-const LEAD_INFO_TEXT =
-  "Son temas tarihine göre müşterinin ne kadar güncel takip edildiğini gösterir:\n" +
-  "🟢 Sıcak - son 7 gün içinde temas edildi\n" +
-  "🟠 Ilık - son 8-30 gün içinde temas edildi\n" +
-  "⚪ Soğuk - 30 günden uzun süredir temas yok (veya hiç temas edilmedi)";
-
-const PORTAL_INFO_TEXT =
-  "Müşteri Portalı, müşterilerinizin kendi hesaplarıyla giriş yapıp tekliflerinin durumunu görebildiği, " +
-  "destek talebi açabildiği ve sizinle mesajlaşabildiği ayrı bir alan (portal.binerly.com).\n\n" +
-  "Var - bu müşteri portala kayıt olup kendi hesabını bu müşteri kaydına bağlamış.\n" +
-  "Yok - bu müşteri henüz portala giriş yapmamış. Müşterinizin, kayıtlı e-posta adresiyle " +
-  "portal üzerinden kendi hesabını oluşturması yeterli, özel bir davet göndermenize gerek yok - " +
-  "isterseniz \"Linki paylaş\"a tıklayıp portal adresini WhatsApp'tan hatırlatabilirsiniz.";
-
-const MARKETING_CONSENT_INFO_TEXT =
-  "Türkiye'de kampanya/değerlendirme isteği gibi e-postalar göndermek için müşterinin gerçek, kendi verdiği " +
-  "izni (İYS) gerekiyor - siz adına veremezsiniz.\n\n" +
-  "Var - müşteri izin verdi (Müşteri Kazanma Linki, Müşteri Portalı veya e-posta ile çift onaydan).\n" +
-  "İzin iste - müşteriye onay linkli bir e-posta gönderir.\n" +
-  "İzin linki paylaş - müşterinin e-postası kayıtlı değilse, aynı onay linkini WhatsApp'tan (telefon kayıtlıysa) ya da panoya kopyalayarak paylaşır - müşteri linkten hem e-postasını girip hem izin verebiliyor.";
 
 // Menüdeki tek tek öğeler artık kendi etiketiyle kendini anlatıyor (eskiden
 // hepsi ikon-only butonlardı, tek bir dev InfoTip'te açıklanması gerekiyordu).
@@ -4085,215 +4056,39 @@ export default function App() {
       )}
 
       {tab === "musteri" && (
-        <div>
-          <div className="list-toolbar" style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
-            <button
-              onClick={() => setShowCustomerExport(true)}
-              disabled={filteredCustomers.length === 0}
-              style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
-            >
-              <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
-              Dışa aktar
-            </button>
-            <button
-              onClick={() => setShowImportCustomers(true)}
-              style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
-            >
-              <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
-              İçe aktar
-            </button>
-            <button
-              onClick={() => setShowCampaignModal(true)}
-              disabled={customers.filter((c) => c.email).length === 0}
-              style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
-            >
-              <i className="ti ti-mail-forward" style={{ fontSize: 16 }} aria-hidden="true"></i>
-              Kampanya gönder
-            </button>
-            <button
-              onClick={async () => {
-                const link = await generateLeadCaptureLink();
-                if (link) setLeadCaptureLink(link);
-              }}
-              style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
-            >
-              <i className="ti ti-qrcode" style={{ fontSize: 16 }} aria-hidden="true"></i>
-              Müşteri Kazanma Linki
-            </button>
-            <button
-              onClick={() => setShowPortalLinkModal(true)}
-              style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
-            >
-              <i className="ti ti-users-group" style={{ fontSize: 16 }} aria-hidden="true"></i>
-              Müşteri Portalı Linki
-            </button>
-            <button
-              onClick={() => { setEditingCustomer(null); setShowCustomerForm(true); }}
-              style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
-            >
-              <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
-              Müşteri ekle
-            </button>
-          </div>
-
-          <div className="list-toolbar" style={{ display: "flex", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
-            <input
-              value={customerSearch}
-              onChange={(e) => setCustomerSearch(e.target.value)}
-              placeholder="Müşteri ara (ad, sektör, bölge, telefon, e-posta)..."
-              style={{ flex: 1, minWidth: 200 }}
-            />
-            <select value={customerTypeFilter} onChange={(e) => setCustomerTypeFilter(e.target.value)} style={{ fontSize: 13 }}>
-              <option value="all">Tüm müşteriler</option>
-              <option value="kurumsal">Kurumsal</option>
-              <option value="bireysel">Bireysel</option>
-            </select>
-            <select value={customerSectorFilter} onChange={(e) => setCustomerSectorFilter(e.target.value)} style={{ fontSize: 13 }}>
-              <option value="all">Tüm sektörler</option>
-              {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <select value={customerConsentFilter} onChange={(e) => setCustomerConsentFilter(e.target.value)} style={{ fontSize: 13 }}>
-              <option value="all">Pazarlama izni: hepsi</option>
-              <option value="verildi">İzin verildi</option>
-              <option value="verilmedi">İzin verilmedi</option>
-            </select>
-            <select value={customerSort} onChange={(e) => setCustomerSort(e.target.value)} style={{ fontSize: 13 }}>
-              <option value="newest">En yeni müşteri</option>
-              <option value="oldest">En eski müşteri</option>
-            </select>
-            <DateRangeFilter
-              from={customerFromDate}
-              to={customerToDate}
-              onFromChange={setCustomerFromDate}
-              onToChange={setCustomerToDate}
-            />
-          </div>
-
-          {filteredCustomers.length === 0 ? (
-            customers.length === 0 ? (
-              <div style={{ background: "var(--surface-1)", borderRadius: 12, padding: "2rem 1.5rem", textAlign: "center" }}>
-                <p style={{ fontWeight: 500, margin: "0 0 4px" }}>Henüz müşteri eklenmedi</p>
-                <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px" }}>Başlamak için ilk müşterinizi ekleyin.</p>
-                <button onClick={() => { setEditingCustomer(null); setShowCustomerForm(true); }} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
-                  + Müşteri ekle
-                </button>
-              </div>
-            ) : (
-              <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Aramayla eşleşen müşteri yok.</p>
-            )
-          ) : (
-            <div style={{ overflowX: "auto" }}>
-            <table className="responsive-table" style={{ width: "100%", minWidth: 640, borderCollapse: "separate", borderSpacing: "0 8px" }}>
-              <thead>
-                <tr>
-                  <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>Müşteri</th>
-                  <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>İlgi durumu <InfoTip text={LEAD_INFO_TEXT} /></span>
-                  </th>
-                  <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Son temas</th>
-                  <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Portal <InfoTip text={PORTAL_INFO_TEXT} /></span>
-                  </th>
-                  <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>İzin <InfoTip text={MARKETING_CONSENT_INFO_TEXT} /></span>
-                  </th>
-                  <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Bakiye <InfoTip text={cariBakiyeInfoText(companySettings?.sector)} /></span>
-                  </th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredCustomers.map((c) => {
-                  const customerBalance = wonDealsAll
-                    .filter((d) => d.customerId === c.id)
-                    .reduce((sum, d) => sum + (d.value || 0) - totalPaidForDeal(d.id), 0);
-                  return (
-                  <tr key={c.id} style={{ background: "var(--surface-1)" }}>
-                    <td data-label="Müşteri" onClick={() => setViewingCustomer(c)} style={{ padding: "10px 12px", borderRadius: "var(--radius) 0 0 var(--radius)", cursor: "pointer" }}>
-                      <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{c.name}</p>
-                      <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
-                        {c.sector} {c.region ? `· ${c.region}` : ""} {c.phone ? `· ${c.phone}` : ""}
-                      </p>
-                      {c.tags?.length > 0 && (
-                        <div style={{ marginTop: 4 }}>
-                          <TagBadges tags={c.tags} />
-                        </div>
-                      )}
-                    </td>
-                    <td data-label="İlgi durumu" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                      <Badge tone={leadScore(c.lastContact).tone}>{leadScore(c.lastContact).label}</Badge>
-                    </td>
-                    <td data-label="Son temas" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                      <Badge tone={daysAgo(c.lastContact) === "Bugün" ? "success" : "default"}>
-                        {daysAgo(c.lastContact) || "Temas yok"}
-                      </Badge>
-                    </td>
-                    <td data-label="Portal" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                      {c.portalUserId ? (
-                        <Badge tone="accent">Var</Badge>
-                      ) : (
-                        <button
-                          type="button"
-                          title="Müşteriye portal linkini paylaş"
-                          onClick={() => {
-                            const message = `Merhaba, ${companySettings?.companyName || "işletmemiz"} Müşteri Portalımızdan taleplerinizi/randevularınızı bu kayıtlı e-postanızla takip edebilirsiniz: ${getPortalUrl()}`;
-                            if (c.phone) {
-                              window.open(`https://wa.me/${toWhatsAppNumber(c.phone)}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
-                            } else {
-                              navigator.clipboard.writeText(getPortalUrl());
-                              notify("Portal linki kopyalandı.", "success");
-                            }
-                          }}
-                          style={{ fontSize: 12, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
-                        >
-                          Linki paylaş
-                        </button>
-                      )}
-                    </td>
-                    <td data-label="İzin" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                      {c.marketingConsent ? (
-                        <Badge tone="success">Var</Badge>
-                      ) : (
-                        <button
-                          type="button"
-                          title={c.email ? "İzin e-postası gönder" : "İzin linkini WhatsApp/kopyala ile paylaş"}
-                          onClick={() => requestCustomerConsent(c)}
-                          style={{ fontSize: 12, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
-                        >
-                          {c.email ? "İzin iste" : "İzin linki paylaş"}
-                        </button>
-                      )}
-                    </td>
-                    <td data-label="Bakiye" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                      {customerBalance > 0 ? <Badge tone="warning">{formatTL(customerBalance)}</Badge> : <span style={{ fontSize: 12, color: "var(--text-muted)" }}>-</span>}
-                    </td>
-                    <td style={{ padding: "10px 12px", borderRadius: "0 var(--radius) var(--radius) 0" }}>
-                      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                        {c.phone && (
-                          <a
-                            href={`https://wa.me/${toWhatsAppNumber(c.phone)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="WhatsApp'tan yaz"
-                            style={{ width: 32, height: 32, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", background: "var(--surface-1)", textDecoration: "none" }}
-                          >
-                            <WhatsAppIcon />
-                          </a>
-                        )}
-                        <IconButton icon="ti-history" title="Detay ve iletişim geçmişi" onClick={() => setViewingCustomer(c)} />
-                        <IconButton icon="ti-edit" title="Düzenle" onClick={() => { setEditingCustomer(c); setShowCustomerForm(true); }} />
-                        <IconButton icon="ti-trash" title="Sil" onClick={() => setConfirmDeleteCustomer(c)} />
-                      </div>
-                    </td>
-                  </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            </div>
-          )}
-        </div>
+        <CustomersTab
+          customers={customers}
+          filteredCustomers={filteredCustomers}
+          wonDealsAll={wonDealsAll}
+          companySettings={companySettings}
+          customerSearch={customerSearch}
+          setCustomerSearch={setCustomerSearch}
+          customerFromDate={customerFromDate}
+          setCustomerFromDate={setCustomerFromDate}
+          customerToDate={customerToDate}
+          setCustomerToDate={setCustomerToDate}
+          customerSectorFilter={customerSectorFilter}
+          setCustomerSectorFilter={setCustomerSectorFilter}
+          customerTypeFilter={customerTypeFilter}
+          setCustomerTypeFilter={setCustomerTypeFilter}
+          customerConsentFilter={customerConsentFilter}
+          setCustomerConsentFilter={setCustomerConsentFilter}
+          customerSort={customerSort}
+          setCustomerSort={setCustomerSort}
+          setShowCustomerExport={setShowCustomerExport}
+          setShowImportCustomers={setShowImportCustomers}
+          setShowCampaignModal={setShowCampaignModal}
+          generateLeadCaptureLink={generateLeadCaptureLink}
+          setLeadCaptureLink={setLeadCaptureLink}
+          setShowPortalLinkModal={setShowPortalLinkModal}
+          setEditingCustomer={setEditingCustomer}
+          setShowCustomerForm={setShowCustomerForm}
+          setViewingCustomer={setViewingCustomer}
+          setConfirmDeleteCustomer={setConfirmDeleteCustomer}
+          totalPaidForDeal={totalPaidForDeal}
+          requestCustomerConsent={requestCustomerConsent}
+          notify={notify}
+        />
       )}
 
       {tab === "firsat" && (
