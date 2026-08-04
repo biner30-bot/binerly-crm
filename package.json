@@ -14,7 +14,7 @@
   "dependencies": {
     "@sentry/react": "^10.68.0",
     "@supabase/supabase-js": "^2.110.0",
-    "@tabler/icons-webfont": "^3.44.0",
+    "@tabler/icons-webfont": "^3.46.0",
     "html2canvas": "^1.4.1",
     "iyzipay": "^2.0.69",
     "jspdf": "^4.2.1",
