@@ -19,14 +19,20 @@ export function isFullNameValid(name) {
 // Türkçeye çevrilir, tanınmayanlar için genel ama anlaşılır bir metin döner.
 const AUTH_ERROR_MAP = [
   [/invalid login credentials/i, "E-posta veya şifre hatalı."],
-  [/email not confirmed/i, "E-posta adresiniz henüz doğrulanmadı. Gelen kutunuzu kontrol edip doğrulama linkine tıklayın."],
+  [
+    /email not confirmed/i,
+    "E-posta adresiniz henüz doğrulanmadı. Gelen kutunuzu kontrol edip doğrulama linkine tıklayın.",
+  ],
   [/user already registered/i, "Bu e-posta adresiyle zaten bir hesap var. Giriş yapmayı deneyin."],
   [/password should be at least/i, "Şifre en az 6 karakter olmalıdır."],
   [/unable to validate email address/i, "Geçerli bir e-posta adresi girin."],
   [/valid password/i, "Geçerli bir şifre girin."],
   [/new password should be different/i, "Yeni şifre, eski şifrenizden farklı olmalıdır."],
   [/security purposes|rate limit/i, "Çok sık deneme yapıldı, lütfen biraz sonra tekrar deneyin."],
-  [/failed to fetch|network|load failed/i, "Bağlantı hatası, lütfen internet bağlantınızı kontrol edip tekrar deneyin."],
+  [
+    /failed to fetch|network|load failed/i,
+    "Bağlantı hatası, lütfen internet bağlantınızı kontrol edip tekrar deneyin.",
+  ],
 ];
 
 export function translateAuthError(message) {
@@ -44,18 +50,36 @@ export function translateAuthError(message) {
 // yanlış yorumlanıp yanıltıcı bir mesaj göstermektense OLDUĞU GİBİ bırakılır.
 const DB_ERROR_PATTERNS = [
   [/duplicate key value violates unique constraint[^\n]*/i, "bu kayıt zaten mevcut"],
-  [/update or delete on table "\w+" violates foreign key constraint[^\n]*/i, "bu kayıt başka bir yerde kullanıldığı için işlem yapılamadı"],
-  [/insert or update on table "\w+" violates foreign key constraint[^\n]*/i, "seçilen kayıt bulunamadı, sayfayı yenileyip tekrar deneyin"],
-  [/new row violates row-level security policy for table "\w+"|permission denied for table \w+/i, "bu işlem için yetkiniz yok"],
-  [/null value in column "\w+"[^\n]*violates not-null constraint/i, "zorunlu bir alan boş bırakılamaz"],
+  [
+    /update or delete on table "\w+" violates foreign key constraint[^\n]*/i,
+    "bu kayıt başka bir yerde kullanıldığı için işlem yapılamadı",
+  ],
+  [
+    /insert or update on table "\w+" violates foreign key constraint[^\n]*/i,
+    "seçilen kayıt bulunamadı, sayfayı yenileyip tekrar deneyin",
+  ],
+  [
+    /new row violates row-level security policy for table "\w+"|permission denied for table \w+/i,
+    "bu işlem için yetkiniz yok",
+  ],
+  [
+    /null value in column "\w+"[^\n]*violates not-null constraint/i,
+    "zorunlu bir alan boş bırakılamaz",
+  ],
   [/new row for relation "\w+" violates check constraint[^\n]*/i, "girilen değer geçerli değil"],
   [/JWT expired|invalid JWT|invalid claim/i, "oturumunuz sona erdi, lütfen tekrar giriş yapın"],
-  [/Failed to fetch|NetworkError when attempting to fetch resource|network request failed/i, "bağlantı hatası, internet bağlantınızı kontrol edip tekrar deneyin"],
+  [
+    /Failed to fetch|NetworkError when attempting to fetch resource|network request failed/i,
+    "bağlantı hatası, internet bağlantınızı kontrol edip tekrar deneyin",
+  ],
 ];
 
 export function humanizeDbMessage(message) {
   if (typeof message !== "string" || !message) return message;
-  return DB_ERROR_PATTERNS.reduce((msg, [pattern, replacement]) => msg.replace(pattern, replacement), message);
+  return DB_ERROR_PATTERNS.reduce(
+    (msg, [pattern, replacement]) => msg.replace(pattern, replacement),
+    message,
+  );
 }
 
 export const WEEKDAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
@@ -105,9 +129,11 @@ export function getRangeBounds(range) {
   const now = new Date();
   const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
   if (range === "bu_ay") return { start: new Date(now.getFullYear(), now.getMonth(), 1), end };
-  if (range === "bu_ceyrek") return { start: new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1), end };
+  if (range === "bu_ceyrek")
+    return { start: new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1), end };
   if (range === "bu_yil") return { start: new Date(now.getFullYear(), 0, 1), end };
-  if (range === "son_6_ay") return { start: new Date(now.getFullYear(), now.getMonth() - 5, 1), end };
+  if (range === "son_6_ay")
+    return { start: new Date(now.getFullYear(), now.getMonth() - 5, 1), end };
   return { start: null, end };
 }
 
@@ -147,7 +173,10 @@ export function DateRangeFilter({ from, to, onFromChange, onToChange }) {
       </label>
       {(from || to) && (
         <button
-          onClick={() => { onFromChange(""); onToChange(""); }}
+          onClick={() => {
+            onFromChange("");
+            onToChange("");
+          }}
           title="Tarih filtresini temizle"
           style={{ width: 28, height: 28, padding: 0 }}
         >
@@ -173,19 +202,23 @@ export function useSessionTimeout(session, onTimeout) {
   useEffect(() => {
     if (!session) return;
 
-    let stored = null;
+    let stored;
     try {
       stored = JSON.parse(localStorage.getItem(SESSION_START_KEY) || "null");
     } catch {
       stored = null;
     }
-    const startedAt =
-      stored && stored.userId === session.user.id ? stored.startedAt : Date.now();
+    const startedAt = stored && stored.userId === session.user.id ? stored.startedAt : Date.now();
     if (!stored || stored.userId !== session.user.id) {
-      localStorage.setItem(SESSION_START_KEY, JSON.stringify({ userId: session.user.id, startedAt }));
+      localStorage.setItem(
+        SESSION_START_KEY,
+        JSON.stringify({ userId: session.user.id, startedAt }),
+      );
     }
 
-    const markActivity = () => { localStorage.setItem(SESSION_ACTIVITY_KEY, String(Date.now())); };
+    const markActivity = () => {
+      localStorage.setItem(SESSION_ACTIVITY_KEY, String(Date.now()));
+    };
     markActivity();
     const events = ["mousemove", "keydown", "click", "scroll", "touchstart"];
     events.forEach((e) => window.addEventListener(e, markActivity));
@@ -193,7 +226,10 @@ export function useSessionTimeout(session, onTimeout) {
     const interval = setInterval(() => {
       const now = Date.now();
       const lastActivity = Number(localStorage.getItem(SESSION_ACTIVITY_KEY)) || now;
-      if (now - lastActivity > SESSION_IDLE_LIMIT_MS || now - startedAt > SESSION_ABSOLUTE_LIMIT_MS) {
+      if (
+        now - lastActivity > SESSION_IDLE_LIMIT_MS ||
+        now - startedAt > SESSION_ABSOLUTE_LIMIT_MS
+      ) {
         localStorage.removeItem(SESSION_START_KEY);
         localStorage.removeItem(SESSION_ACTIVITY_KEY);
         onTimeout();
@@ -260,9 +296,16 @@ export function toWhatsAppNumber(phone) {
 
 export function WhatsAppIcon({ size = 16 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="#25D366" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-      <path d="M12.004 2C6.486 2 2.01 6.476 2.01 11.994c0 2.113.652 4.073 1.766 5.688L2 22l4.436-1.744a9.96 9.96 0 0 0 5.568 1.688c5.518 0 9.994-4.476 9.994-9.994C22 6.476 17.522 2 12.004 2zm0 18.06a8.05 8.05 0 0 1-4.318-1.24l-.31-.185-3.204 1.006 1.02-3.127-.204-.322a8.03 8.03 0 0 1-1.238-4.267c0-4.442 3.612-8.054 8.06-8.054 4.44 0 8.05 3.612 8.05 8.054 0 4.44-3.61 8.135-8.056 8.135z"/>
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="#25D366"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
+      <path d="M12.004 2C6.486 2 2.01 6.476 2.01 11.994c0 2.113.652 4.073 1.766 5.688L2 22l4.436-1.744a9.96 9.96 0 0 0 5.568 1.688c5.518 0 9.994-4.476 9.994-9.994C22 6.476 17.522 2 12.004 2zm0 18.06a8.05 8.05 0 0 1-4.318-1.24l-.31-.185-3.204 1.006 1.02-3.127-.204-.322a8.03 8.03 0 0 1-1.238-4.267c0-4.442 3.612-8.054 8.06-8.054 4.44 0 8.05 3.612 8.05 8.054 0 4.44-3.61 8.135-8.056 8.135z" />
     </svg>
   );
 }
@@ -314,14 +357,33 @@ export function TagInput({ tags, onChange, suggestions = [] }) {
           {tags.map((t) => (
             <span
               key={t}
-              style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "var(--surface-1)", color: "var(--text-secondary)", fontSize: 12, fontWeight: 500, padding: "3px 4px 3px 10px", borderRadius: "var(--radius)" }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                background: "var(--surface-1)",
+                color: "var(--text-secondary)",
+                fontSize: 12,
+                fontWeight: 500,
+                padding: "3px 4px 3px 10px",
+                borderRadius: "var(--radius)",
+              }}
             >
               {t}
               <button
                 type="button"
                 onClick={() => onChange(tags.filter((x) => x !== t))}
                 aria-label={`${t} etiketini kaldır`}
-                style={{ width: 16, height: 16, padding: 0, background: "none", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}
+                style={{
+                  width: 16,
+                  height: 16,
+                  padding: 0,
+                  background: "none",
+                  border: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
                 <i className="ti ti-x" style={{ fontSize: 11 }} aria-hidden="true"></i>
               </button>
@@ -349,7 +411,14 @@ export function TagInput({ tags, onChange, suggestions = [] }) {
               key={s}
               type="button"
               onClick={() => add(s)}
-              style={{ fontSize: 12, padding: "2px 8px", background: "none", border: "1px dashed var(--border)", borderRadius: "var(--radius)", color: "var(--text-secondary)" }}
+              style={{
+                fontSize: 12,
+                padding: "2px 8px",
+                background: "none",
+                border: "1px dashed var(--border)",
+                borderRadius: "var(--radius)",
+                color: "var(--text-secondary)",
+              }}
             >
               + {s}
             </button>
@@ -369,7 +438,17 @@ const ICON_BUTTON_SIZES = {
 // aksiyonları (düzenle/sil/PDF vb.) hepsi buradan geçer. Daha önce her yerde
 // elle kopyalanmış farklı boyutlarda (22-32px) inline style vardı, bu tek
 // bileşen sadece iki boyutu (md/sm) destekleyerek tutarlılığı zorunlu kılar.
-export function IconButton({ icon, label, onClick, title, size = "md", active = false, type = "button", disabled = false, ...rest }) {
+export function IconButton({
+  icon,
+  label,
+  onClick,
+  title,
+  size = "md",
+  active = false,
+  type = "button",
+  disabled = false,
+  ...rest
+}) {
   const { box, icon: iconSize } = ICON_BUTTON_SIZES[size] || ICON_BUTTON_SIZES.md;
   return (
     <button
@@ -381,7 +460,16 @@ export function IconButton({ icon, label, onClick, title, size = "md", active = 
       {...rest}
       style={
         label
-          ? { display: "flex", alignItems: "center", gap: 4, height: box, fontSize: 12, color: "var(--text-secondary)", opacity: disabled ? 0.4 : 1, cursor: disabled ? "not-allowed" : "pointer" }
+          ? {
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              height: box,
+              fontSize: 12,
+              color: "var(--text-secondary)",
+              opacity: disabled ? 0.4 : 1,
+              cursor: disabled ? "not-allowed" : "pointer",
+            }
           : {
               width: box,
               height: box,
@@ -419,12 +507,26 @@ export function MenuRow({ icon, label, description, onClick }) {
         textAlign: "left",
       }}
     >
-      <i className={`ti ${icon}`} style={{ fontSize: 18, color: "var(--text-accent)", flexShrink: 0 }} aria-hidden="true"></i>
+      <i
+        className={`ti ${icon}`}
+        style={{ fontSize: 18, color: "var(--text-accent)", flexShrink: 0 }}
+        aria-hidden="true"
+      ></i>
       <span style={{ flex: 1, minWidth: 0 }}>
         <span style={{ display: "block", fontSize: 14, fontWeight: 500 }}>{label}</span>
-        {description && <span style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{description}</span>}
+        {description && (
+          <span
+            style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}
+          >
+            {description}
+          </span>
+        )}
       </span>
-      <i className="ti ti-chevron-right" style={{ fontSize: 16, color: "var(--text-muted)", flexShrink: 0 }} aria-hidden="true"></i>
+      <i
+        className="ti ti-chevron-right"
+        style={{ fontSize: 16, color: "var(--text-muted)", flexShrink: 0 }}
+        aria-hidden="true"
+      ></i>
     </button>
   );
 }
@@ -434,7 +536,8 @@ export function MenuRow({ icon, label, description, onClick }) {
 // bileşen hiç render olmaz, ücretsiz ve ek kütüphane gerektirmez).
 export function VoiceInputButton({ onResult }) {
   const [listening, setListening] = useState(false);
-  const SpeechRecognitionCtor = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+  const SpeechRecognitionCtor =
+    typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
   if (!SpeechRecognitionCtor) return null;
 
   const start = () => {
@@ -449,10 +552,19 @@ export function VoiceInputButton({ onResult }) {
     recognition.start();
   };
 
-  return <IconButton icon="ti-microphone" title="Sesle yaz" size="sm" active={listening} onClick={start} />;
+  return (
+    <IconButton
+      icon="ti-microphone"
+      title="Sesle yaz"
+      size="sm"
+      active={listening}
+      onClick={start}
+    />
+  );
 }
 
-const GOOGLE_CLIENT_ID = "1085737573085-om1meeq6h4msv433eo68ef22uutoecm2.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID =
+  "1085737573085-om1meeq6h4msv433eo68ef22uutoecm2.apps.googleusercontent.com";
 
 function loadGoogleIdentityScript() {
   if (document.getElementById("google-identity-script")) return;
@@ -470,7 +582,9 @@ function loadGoogleIdentityScript() {
 async function generateGoogleNonce() {
   const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))));
   const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(nonce));
-  const hashedNonce = Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const hashedNonce = Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
   return [nonce, hashedNonce];
 }
 
@@ -507,7 +621,9 @@ export function GoogleAuthButton({ onCredential }) {
       });
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [onCredential]);
 
   return <div ref={containerRef} style={{ display: "flex", justifyContent: "center" }} />;
@@ -543,7 +659,10 @@ export function InfoTip({ text, placement = "top", align = "center" }) {
   const [coords, setCoords] = useState(null);
 
   const show = () => setVisible(true);
-  const hide = () => { setVisible(false); setCoords(null); };
+  const hide = () => {
+    setVisible(false);
+    setCoords(null);
+  };
   // Dokunmatik ekranlarda (telefon/tablet) hover/focus olayları hiç
   // tetiklenmiyor veya tutarsız tetikleniyor - hover'a dayalı bu bileşen,
   // sitedeki en yaygın "kafa karışıklığını açıkla" aracı olmasına rağmen
@@ -575,14 +694,21 @@ export function InfoTip({ text, placement = "top", align = "center" }) {
 
     let resolvedPlacement = placement;
     if (resolvedPlacement === "top" && rect.top - 7 - bh < margin) resolvedPlacement = "bottom";
-    else if (resolvedPlacement === "bottom" && rect.bottom + 7 + bh > vh - margin) resolvedPlacement = "top";
+    else if (resolvedPlacement === "bottom" && rect.bottom + 7 + bh > vh - margin)
+      resolvedPlacement = "top";
 
-    let left = align === "right" ? rect.right : align === "left" ? rect.left : rect.left + rect.width / 2;
+    let left =
+      align === "right" ? rect.right : align === "left" ? rect.left : rect.left + rect.width / 2;
     let translateX = align === "right" ? "-100%" : align === "left" ? "0" : "-50%";
     const effectiveLeft = align === "right" ? left - bw : align === "left" ? left : left - bw / 2;
     const effectiveRight = effectiveLeft + bw;
-    if (effectiveLeft < margin) { left = margin; translateX = "0"; }
-    else if (effectiveRight > vw - margin) { left = vw - margin; translateX = "-100%"; }
+    if (effectiveLeft < margin) {
+      left = margin;
+      translateX = "0";
+    } else if (effectiveRight > vw - margin) {
+      left = vw - margin;
+      translateX = "-100%";
+    }
 
     const top = resolvedPlacement === "bottom" ? rect.bottom + 7 : rect.top - 7;
     const translateY = resolvedPlacement === "bottom" ? "0" : "-100%";
@@ -613,28 +739,64 @@ export function InfoTip({ text, placement = "top", align = "center" }) {
       onBlur={hide}
       onClick={toggle}
     >
-      <i className="ti ti-info-circle" style={{ fontSize: 14, color: "var(--text-muted)", cursor: "help" }} aria-hidden="true"></i>
-      {visible && createPortal(
-        <span
-          ref={bubbleRef}
-          className="info-tip-bubble info-tip-bubble--portal"
-          role="tooltip"
-          // İlk mount'ta coords henüz yok — ekran dışına (ama ölçülebilir şekilde)
-          // konumlanır, reposition() gerçek boyutu ölçüp doğru yere taşır.
-          style={coords ? { top: coords.top, left: coords.left, transform: coords.transform } : { top: -9999, left: -9999 }}
-        >
-          {text}
-        </span>,
-        document.body
-      )}
+      <i
+        className="ti ti-info-circle"
+        style={{ fontSize: 14, color: "var(--text-muted)", cursor: "help" }}
+        aria-hidden="true"
+      ></i>
+      {visible &&
+        createPortal(
+          <span
+            ref={bubbleRef}
+            className="info-tip-bubble info-tip-bubble--portal"
+            role="tooltip"
+            // İlk mount'ta coords henüz yok — ekran dışına (ama ölçülebilir şekilde)
+            // konumlanır, reposition() gerçek boyutu ölçüp doğru yere taşır.
+            style={
+              coords
+                ? { top: coords.top, left: coords.left, transform: coords.transform }
+                : { top: -9999, left: -9999 }
+            }
+          >
+            {text}
+          </span>,
+          document.body,
+        )}
     </span>
   );
 }
 
 const COMMON_EMOJIS = [
-  "😀", "😊", "🙂", "😉", "😂", "🥳", "😍", "😮", "😢", "😅",
-  "👍", "👎", "🙏", "👏", "🙌", "🤝", "💪", "👋", "✅", "❌",
-  "❤️", "🔥", "⭐", "🎉", "📅", "⏰", "📌", "📞", "💬", "👀",
+  "😀",
+  "😊",
+  "🙂",
+  "😉",
+  "😂",
+  "🥳",
+  "😍",
+  "😮",
+  "😢",
+  "😅",
+  "👍",
+  "👎",
+  "🙏",
+  "👏",
+  "🙌",
+  "🤝",
+  "💪",
+  "👋",
+  "✅",
+  "❌",
+  "❤️",
+  "🔥",
+  "⭐",
+  "🎉",
+  "📅",
+  "⏰",
+  "📌",
+  "📞",
+  "💬",
+  "👀",
 ];
 
 // Mesajlaşma kutularında emoji eklemek için — OS'in kendi emoji panelleri
@@ -660,25 +822,55 @@ export function EmojiPickerButton({ onSelect }) {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label="Emoji ekle"
-        style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", width: 36, height: 36, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}
+        style={{
+          background: "var(--surface-1)",
+          border: "0.5px solid var(--border)",
+          width: 36,
+          height: 36,
+          padding: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 16,
+        }}
       >
         🙂
       </button>
       {open && (
         <div
           style={{
-            position: "absolute", bottom: "100%", right: 0, marginBottom: 6,
-            background: "var(--surface-2)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)",
-            padding: 8, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 2,
-            boxShadow: "0 8px 24px rgba(12,37,64,0.18)", zIndex: 30, width: 216,
+            position: "absolute",
+            bottom: "100%",
+            right: 0,
+            marginBottom: 6,
+            background: "var(--surface-2)",
+            border: "0.5px solid var(--border)",
+            borderRadius: "var(--radius)",
+            padding: 8,
+            display: "grid",
+            gridTemplateColumns: "repeat(6, 1fr)",
+            gap: 2,
+            boxShadow: "0 8px 24px rgba(12,37,64,0.18)",
+            zIndex: 30,
+            width: 216,
           }}
         >
           {COMMON_EMOJIS.map((e) => (
             <button
               key={e}
               type="button"
-              onClick={() => { onSelect(e); setOpen(false); }}
-              style={{ background: "none", border: "none", fontSize: 18, padding: 4, cursor: "pointer", lineHeight: 1 }}
+              onClick={() => {
+                onSelect(e);
+                setOpen(false);
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                fontSize: 18,
+                padding: 4,
+                cursor: "pointer",
+                lineHeight: 1,
+              }}
             >
               {e}
             </button>
@@ -695,10 +887,22 @@ export function MetricCard({ label, value, sub, tone, onClick }) {
       onClick={onClick}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
-      style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", cursor: onClick ? "pointer" : "default" }}
+      style={{
+        background: "var(--surface-1)",
+        borderRadius: "var(--radius)",
+        padding: "1rem",
+        cursor: onClick ? "pointer" : "default",
+      }}
     >
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 4px" }}>{label}</p>
-      <p style={{ fontSize: 24, fontWeight: 500, margin: sub ? "0 0 2px" : 0, color: tone ? `var(--text-${tone})` : "var(--text-primary)" }}>
+      <p
+        style={{
+          fontSize: 24,
+          fontWeight: 500,
+          margin: sub ? "0 0 2px" : 0,
+          color: tone ? `var(--text-${tone})` : "var(--text-primary)",
+        }}
+      >
         {value}
       </p>
       {sub && <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0 }}>{sub}</p>}
@@ -730,9 +934,27 @@ export function Toast({ message, tone = "danger", onClose }) {
         maxWidth: "90vw",
       }}
     >
-      <i className={`ti ${isSuccess ? "ti-circle-check" : "ti-alert-circle"}`} style={{ fontSize: 16, flexShrink: 0 }} aria-hidden="true"></i>
+      <i
+        className={`ti ${isSuccess ? "ti-circle-check" : "ti-alert-circle"}`}
+        style={{ fontSize: 16, flexShrink: 0 }}
+        aria-hidden="true"
+      ></i>
       <span>{message}</span>
-      <button onClick={onClose} aria-label="Kapat" style={{ background: "none", border: "none", padding: 0, width: 20, height: 20, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <button
+        onClick={onClose}
+        aria-label="Kapat"
+        style={{
+          background: "none",
+          border: "none",
+          padding: 0,
+          width: 20,
+          height: 20,
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
         <i className="ti ti-x" style={{ fontSize: 14 }} aria-hidden="true"></i>
       </button>
     </div>
@@ -769,30 +991,62 @@ export function Modal({ title, onClose, wide, children }) {
           flexDirection: "column",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexShrink: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 12,
+            flexShrink: 0,
+          }}
+        >
           <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{title}</h3>
-          <button onClick={onClose} aria-label="Kapat" style={{ width: 32, height: 32, padding: 0, flexShrink: 0 }}>
+          <button
+            onClick={onClose}
+            aria-label="Kapat"
+            style={{ width: 32, height: 32, padding: 0, flexShrink: 0 }}
+          >
             <i className="ti ti-x" aria-hidden="true"></i>
           </button>
         </div>
-        <div style={{ overflowY: "auto", overflowX: "hidden", minHeight: 0 }}>
-          {children}
-        </div>
+        <div style={{ overflowY: "auto", overflowX: "hidden", minHeight: 0 }}>{children}</div>
       </div>
     </div>
   );
 }
 
-export function ConfirmDialog({ title = "Emin misiniz?", message, confirmLabel = "Sil", onConfirm, onClose }) {
+export function ConfirmDialog({
+  title = "Emin misiniz?",
+  message,
+  confirmLabel = "Sil",
+  onConfirm,
+  onClose,
+}) {
   return (
     <Modal title={title} onClose={onClose}>
-      <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 20px", lineHeight: 1.5 }}>{message}</p>
+      <p
+        style={{
+          fontSize: 14,
+          color: "var(--text-secondary)",
+          margin: "0 0 20px",
+          lineHeight: 1.5,
+        }}
+      >
+        {message}
+      </p>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-        <button type="button" onClick={onClose}>Vazgeç</button>
+        <button type="button" onClick={onClose}>
+          Vazgeç
+        </button>
         <button
           type="button"
           onClick={onConfirm}
-          style={{ background: "var(--bg-danger)", color: "var(--text-danger)", border: "none", fontWeight: 600 }}
+          style={{
+            background: "var(--bg-danger)",
+            color: "var(--text-danger)",
+            border: "none",
+            fontWeight: 600,
+          }}
         >
           {confirmLabel}
         </button>
@@ -843,7 +1097,8 @@ export function NotificationBell({ userId, supabase, dataTour }) {
   const query = search.trim().toLowerCase();
   const filteredNotifications = notifications.filter((n) => {
     if (unreadOnly && n.read_at) return false;
-    if (query && !n.title?.toLowerCase().includes(query) && !n.body?.toLowerCase().includes(query)) return false;
+    if (query && !n.title?.toLowerCase().includes(query) && !n.body?.toLowerCase().includes(query))
+      return false;
     return true;
   });
 
@@ -854,7 +1109,10 @@ export function NotificationBell({ userId, supabase, dataTour }) {
 
   const openNotification = async (n) => {
     if (!n.read_at) {
-      await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", n.id);
+      await supabase
+        .from("notifications")
+        .update({ read_at: new Date().toISOString() })
+        .eq("id", n.id);
     }
     if (n.url) window.location.assign(n.url);
     else setOpen(false);
@@ -863,20 +1121,42 @@ export function NotificationBell({ userId, supabase, dataTour }) {
   const markAllRead = async () => {
     const unreadIds = notifications.filter((n) => !n.read_at).map((n) => n.id);
     if (unreadIds.length === 0) return;
-    await supabase.from("notifications").update({ read_at: new Date().toISOString() }).in("id", unreadIds);
-    setNotifications((prev) => prev.map((n) => (unreadIds.includes(n.id) ? { ...n, read_at: new Date().toISOString() } : n)));
+    await supabase
+      .from("notifications")
+      .update({ read_at: new Date().toISOString() })
+      .in("id", unreadIds);
+    setNotifications((prev) =>
+      prev.map((n) => (unreadIds.includes(n.id) ? { ...n, read_at: new Date().toISOString() } : n)),
+    );
   };
 
   return (
     <div ref={containerRef} style={{ position: "relative" }} data-tour={dataTour}>
       <div style={{ position: "relative" }}>
-        <IconButton icon={unreadCount > 0 ? "ti-bell-ringing" : "ti-bell"} onClick={openBell} title="Bildirimler" active={open} />
+        <IconButton
+          icon={unreadCount > 0 ? "ti-bell-ringing" : "ti-bell"}
+          onClick={openBell}
+          title="Bildirimler"
+          active={open}
+        />
         {unreadCount > 0 && (
           <span
             style={{
-              position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, borderRadius: 8,
-              background: "var(--text-danger)", color: "var(--on-accent)", fontSize: 10, fontWeight: 700,
-              display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", pointerEvents: "none",
+              position: "absolute",
+              top: -4,
+              right: -4,
+              minWidth: 16,
+              height: 16,
+              borderRadius: 8,
+              background: "var(--text-danger)",
+              color: "var(--on-accent)",
+              fontSize: 10,
+              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "0 3px",
+              pointerEvents: "none",
             }}
           >
             {unreadCount}
@@ -888,52 +1168,115 @@ export function NotificationBell({ userId, supabase, dataTour }) {
         <div
           className="notif-dropdown"
           style={{
-            position: "absolute", top: "calc(100% + 6px)", right: 0, width: 320, maxHeight: 400, overflowY: "auto",
-            background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.15)", zIndex: 50,
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            right: 0,
+            width: 320,
+            maxHeight: 400,
+            overflowY: "auto",
+            background: "var(--surface-1)",
+            border: "0.5px solid var(--border)",
+            borderRadius: "var(--radius)",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+            zIndex: 50,
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", borderBottom: "0.5px solid var(--border)" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "10px 12px",
+              borderBottom: "0.5px solid var(--border)",
+            }}
+          >
             <span style={{ fontSize: 13, fontWeight: 600 }}>Bildirimler</span>
             {unreadCount > 0 && (
-              <button type="button" onClick={markAllRead} style={{ fontSize: 12, background: "none", border: "none", color: "var(--text-accent)" }}>
+              <button
+                type="button"
+                onClick={markAllRead}
+                style={{
+                  fontSize: 12,
+                  background: "none",
+                  border: "none",
+                  color: "var(--text-accent)",
+                }}
+              >
                 Tümünü okundu işaretle
               </button>
             )}
           </div>
           {notifications.length > 0 && (
-            <div style={{ display: "flex", gap: 6, alignItems: "center", padding: "8px 12px", borderBottom: "0.5px solid var(--border)" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 6,
+                alignItems: "center",
+                padding: "8px 12px",
+                borderBottom: "0.5px solid var(--border)",
+              }}
+            >
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Bildirimlerde ara..."
                 style={{ flex: 1, fontSize: 12, padding: "5px 8px" }}
               />
-              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--text-secondary)", cursor: "pointer", whiteSpace: "nowrap" }}>
-                <input type="checkbox" checked={unreadOnly} onChange={(e) => setUnreadOnly(e.target.checked)} />
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontSize: 11,
+                  color: "var(--text-secondary)",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={unreadOnly}
+                  onChange={(e) => setUnreadOnly(e.target.checked)}
+                />
                 Okunmamış
               </label>
             </div>
           )}
           {loading ? (
-            <p style={{ fontSize: 13, color: "var(--text-secondary)", padding: 16, margin: 0 }}>Yükleniyor…</p>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", padding: 16, margin: 0 }}>
+              Yükleniyor…
+            </p>
           ) : notifications.length === 0 ? (
-            <p style={{ fontSize: 13, color: "var(--text-muted)", padding: 16, margin: 0 }}>Henüz bildiriminiz yok.</p>
+            <p style={{ fontSize: 13, color: "var(--text-muted)", padding: 16, margin: 0 }}>
+              Henüz bildiriminiz yok.
+            </p>
           ) : filteredNotifications.length === 0 ? (
-            <p style={{ fontSize: 13, color: "var(--text-muted)", padding: 16, margin: 0 }}>Aramayla eşleşen bildirim yok.</p>
+            <p style={{ fontSize: 13, color: "var(--text-muted)", padding: 16, margin: 0 }}>
+              Aramayla eşleşen bildirim yok.
+            </p>
           ) : (
             filteredNotifications.map((n) => (
               <div
                 key={n.id}
                 onClick={() => openNotification(n)}
                 style={{
-                  padding: "10px 12px", cursor: "pointer", borderBottom: "0.5px solid var(--border)",
+                  padding: "10px 12px",
+                  cursor: "pointer",
+                  borderBottom: "0.5px solid var(--border)",
                   background: n.read_at ? "transparent" : "var(--bg-accent)",
                 }}
               >
-                <p style={{ margin: 0, fontSize: 13, fontWeight: n.read_at ? 500 : 700 }}>{n.title}</p>
-                {n.body && <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>{n.body}</p>}
-                <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--text-muted)" }}>{daysAgo(n.created_at)}</p>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: n.read_at ? 500 : 700 }}>
+                  {n.title}
+                </p>
+                {n.body && (
+                  <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>
+                    {n.body}
+                  </p>
+                )}
+                <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--text-muted)" }}>
+                  {daysAgo(n.created_at)}
+                </p>
               </div>
             ))
           )}
@@ -951,16 +1294,56 @@ export function NotificationBell({ userId, supabase, dataTour }) {
 // bir çerçeve çizer. Bu, tab-switching + yeniden ölçüm senkronizasyonunu
 // tamamen ortadan kaldırıyor.
 const TOUR_STEPS = [
-  { target: null, title: "Binerly'ye hoş geldiniz!", body: "Sistemi hızlıca tanıtalım, sadece birkaç adım sürecek." },
-  { target: '[data-tour="tab-pano"]', title: "Pano", body: "Günlük özet, bugün yapılacaklar ve gelir/kâr grafiğinizi burada görürsünüz." },
-  { target: '[data-tour="tab-musteri"]', title: "Müşteriler", body: "Müşterilerinizi buradan ekleyip yönetirsiniz." },
-  { target: '[data-tour="tab-firsat"]', title: "Müşteri Takibi", body: "Teklif, randevu veya üyelik süreçlerinizi buradan takip edersiniz." },
-  { target: '[data-tour="settings-gear"]', title: "Ayarlar", body: "Sektörünüzü, özel alanlarınızı, fiyat listenizi ve müsaitlik saatlerinizi buradan yönetirsiniz." },
-  { target: '[data-tour="notification-bell"]', title: "Bildirimler", body: "Müşteri portaldan bir işlem yaptığında (randevu alma, mesaj vb.) burada anında görürsünüz." },
-  { target: '[data-tour="tab-destek"]', title: "Destek", body: "Müşteri destek taleplerini buradan yönetirsiniz." },
-  { target: '[data-tour="tab-finans"]', title: "Finans", body: "Gelir-Gider Defteri, tahsilatlar ve KDV Özet Raporu'nu burada görürsünüz." },
-  { target: '[data-tour="ask-bubble"]', title: "Soru Sor", body: "Sağ alttaki baloncuktan istediğiniz zaman sorabilirsiniz - kendi verileriniz, \"nasıl yapılır\" rehberleri veya genel işletme tavsiyesi, hepsi tek arama kutusunda." },
-  { target: null, title: "Hepsi bu kadar!", body: "İstediğiniz zaman Ayarlar'dan turu tekrar başlatabilirsiniz." },
+  {
+    target: null,
+    title: "Binerly'ye hoş geldiniz!",
+    body: "Sistemi hızlıca tanıtalım, sadece birkaç adım sürecek.",
+  },
+  {
+    target: '[data-tour="tab-pano"]',
+    title: "Pano",
+    body: "Günlük özet, bugün yapılacaklar ve gelir/kâr grafiğinizi burada görürsünüz.",
+  },
+  {
+    target: '[data-tour="tab-musteri"]',
+    title: "Müşteriler",
+    body: "Müşterilerinizi buradan ekleyip yönetirsiniz.",
+  },
+  {
+    target: '[data-tour="tab-firsat"]',
+    title: "Müşteri Takibi",
+    body: "Teklif, randevu veya üyelik süreçlerinizi buradan takip edersiniz.",
+  },
+  {
+    target: '[data-tour="settings-gear"]',
+    title: "Ayarlar",
+    body: "Sektörünüzü, özel alanlarınızı, fiyat listenizi ve müsaitlik saatlerinizi buradan yönetirsiniz.",
+  },
+  {
+    target: '[data-tour="notification-bell"]',
+    title: "Bildirimler",
+    body: "Müşteri portaldan bir işlem yaptığında (randevu alma, mesaj vb.) burada anında görürsünüz.",
+  },
+  {
+    target: '[data-tour="tab-destek"]',
+    title: "Destek",
+    body: "Müşteri destek taleplerini buradan yönetirsiniz.",
+  },
+  {
+    target: '[data-tour="tab-finans"]',
+    title: "Finans",
+    body: "Gelir-Gider Defteri, tahsilatlar ve KDV Özet Raporu'nu burada görürsünüz.",
+  },
+  {
+    target: '[data-tour="ask-bubble"]',
+    title: "Soru Sor",
+    body: 'Sağ alttaki baloncuktan istediğiniz zaman sorabilirsiniz - kendi verileriniz, "nasıl yapılır" rehberleri veya genel işletme tavsiyesi, hepsi tek arama kutusunda.',
+  },
+  {
+    target: null,
+    title: "Hepsi bu kadar!",
+    body: "İstediğiniz zaman Ayarlar'dan turu tekrar başlatabilirsiniz.",
+  },
 ];
 
 export function OnboardingTour({ step, dealNavLabel, onStepChange, onClose }) {
@@ -969,11 +1352,15 @@ export function OnboardingTour({ step, dealNavLabel, onStepChange, onClose }) {
   // Rezervasyonlar olarak adlanıyor — shared.jsx döngüsel import olmadan Sectors.jsx'i
   // (dealWordKind) kullanamadığı için, gerçek adı App.jsx zaten hesaplayıp prop olarak
   // geçiyor (bkz. dealWords.navLabel).
-  const current = step === 3 && dealNavLabel ? { ...TOUR_STEPS[step], title: dealNavLabel } : TOUR_STEPS[step];
+  const current =
+    step === 3 && dealNavLabel ? { ...TOUR_STEPS[step], title: dealNavLabel } : TOUR_STEPS[step];
 
   useEffect(() => {
     const measure = () => {
-      if (!current.target) { setRect(null); return; }
+      if (!current.target) {
+        setRect(null);
+        return;
+      }
       const el = document.querySelector(current.target);
       setRect(el ? el.getBoundingClientRect() : null);
     };
@@ -1029,23 +1416,59 @@ export function OnboardingTour({ step, dealNavLabel, onStepChange, onClose }) {
           padding: "14px 16px",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            marginBottom: 6,
+          }}
+        >
           <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>{current.title}</p>
-          <button onClick={onClose} aria-label="Turu kapat" style={{ width: 22, height: 22, padding: 0, background: "none", border: "none", flex: "none" }}>
+          <button
+            onClick={onClose}
+            aria-label="Turu kapat"
+            style={{
+              width: 22,
+              height: 22,
+              padding: 0,
+              background: "none",
+              border: "none",
+              flex: "none",
+            }}
+          >
             <i className="ti ti-x" style={{ fontSize: 14 }} aria-hidden="true"></i>
           </button>
         </div>
-        <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{current.body}</p>
+        <p
+          style={{
+            margin: "0 0 12px",
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            lineHeight: 1.5,
+          }}
+        >
+          {current.body}
+        </p>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{step + 1}/{TOUR_STEPS.length}</span>
+          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+            {step + 1}/{TOUR_STEPS.length}
+          </span>
           <div style={{ display: "flex", gap: 6 }}>
             {step > 0 && (
-              <button type="button" onClick={() => onStepChange(step - 1)} style={{ fontSize: 12 }}>Geri</button>
+              <button type="button" onClick={() => onStepChange(step - 1)} style={{ fontSize: 12 }}>
+                Geri
+              </button>
             )}
             <button
               type="button"
               onClick={() => (isLast ? onClose() : onStepChange(step + 1))}
-              style={{ fontSize: 12, background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+              style={{
+                fontSize: 12,
+                background: "var(--fill-accent)",
+                color: "var(--on-accent)",
+                border: "none",
+              }}
             >
               {isLast ? "Bitir" : "İleri"}
             </button>
@@ -1055,3 +1478,13 @@ export function OnboardingTour({ step, dealNavLabel, onStepChange, onClose }) {
     </>
   );
 }
+
+export const SELF_BOOKED_SOURCES = ["portal", "randevu_widget"];
+
+export function formatFileSize(bytes) {
+  if (!bytes) return "0 KB";
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export const MAX_TEAM_SIZE = 5;

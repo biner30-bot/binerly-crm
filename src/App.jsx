@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
-import { Badge, TONE_COLORS, Modal, MetricCard, InfoTip, isFullNameValid, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, WEEKDAYS_SHORT, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl, translateAuthError, humanizeDbMessage } from "./shared";
+import { Badge, TONE_COLORS, Modal, MetricCard, InfoTip, isFullNameValid, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, daysAgo, downloadXlsx, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, WEEKDAYS_SHORT, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl, translateAuthError, humanizeDbMessage, SELF_BOOKED_SOURCES, formatFileSize, MAX_TEAM_SIZE } from "./shared";
 import Finance, { rowToCompanyExpense, expandExpenseOccurrences } from "./Finance";
 import { rowToChannelCredential, rowToChannelMessage } from "./Messages";
 import Support, {
@@ -57,8 +57,6 @@ const STAGE_PROBABILITY = { ilk_gorusme: 0.1, teklif: 0.3, muzakere: 0.6 };
 // kaçmaması gereken talep" muamelesini görür. api/send-push.js'te AYNI liste
 // ayrıca tutuluyor (src/ ile api/ arasında paylaşılan import yok) — biri
 // değişirse diğeri de güncellenmeli.
-const SELF_BOOKED_SOURCES = ["portal", "randevu_widget"];
-
 const SECTORS = [
   "İnşaat", "Medikal / Sağlık", "Gıda", "Tekstil", "Elektrik / Elektronik",
   "Otomotiv", "Mobilya", "Perakende / Mağazacılık", "Toptan Ticaret",
@@ -612,12 +610,6 @@ function rowToAttachment(r) {
     deletedAt: r.deleted_at || null,
     deletedBatchId: r.deleted_batch_id || null,
   };
-}
-
-function formatFileSize(bytes) {
-  if (!bytes) return "0 KB";
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 const BLOCKED_ATTACHMENT_EXTENSIONS = [".exe", ".bat", ".cmd", ".sh", ".msi", ".jar", ".app"];
@@ -11166,8 +11158,6 @@ function TeamDailyLoadPanel({ members, staffShifts, deals, customers, customFiel
 // [[project_binerly_business_goal]]: fiyatlandırma "5 kullanıcıya kadar sabit ücret" üzerine
 // kurulu - işletme sahibi + kabul edilmiş üyeler + bekleyen davetler toplamı bu sayıyı geçemez
 // (davet gönderirken koltuk ayrılır, kabul anında sürpriz reddedilme olmasın diye).
-const MAX_TEAM_SIZE = 5;
-
 function TeamModal({
   session, activeTeamId, companySettings, onClose, notify,
   staffShifts, onAddStaffShift, onDeleteStaffShift, onSetStaffShiftDayOff,
