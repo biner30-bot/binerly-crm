@@ -1488,3 +1488,12 @@ export function formatFileSize(bytes) {
 }
 
 export const MAX_TEAM_SIZE = 5;
+
+// deals.custom_fields'teki datetime-local değeri saat dilimi bilgisi taşımaz
+// (örn. "2026-07-20T14:00") — bu proje sadece Türkiye için, +03:00 olarak
+// yorumlanır (api/send-appointment-reminders.js'teki aynı yaklaşım).
+export function parseAppointmentDateTime(raw) {
+  if (typeof raw !== "string" || raw.length < 16) return null;
+  const d = new Date(`${raw.slice(0, 16)}:00+03:00`);
+  return isNaN(d.getTime()) ? null : d;
+}
