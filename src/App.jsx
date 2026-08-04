@@ -6956,7 +6956,6 @@ function RowActionsMenu({ items }) {
       window.removeEventListener("scroll", onScrollOrResize, true);
       window.removeEventListener("resize", onScrollOrResize);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {
@@ -7118,7 +7117,6 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
     if (packageBreakdown.length === 0) return;
     setSessionTotal(packageBreakdown.reduce((sum, b) => sum + (Number(b.total) || 0), 0));
     setSessionUsed(packageBreakdown.reduce((sum, b) => sum + (Number(b.used) || 0), 0));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [packageBreakdown]);
   const convertToBreakdown = () => setPackageBreakdown([{ label: "", total: Number(sessionTotal) || 1, used: Number(sessionUsed) || 0 }]);
   const addBreakdownRow = () => setPackageBreakdown((prev) => [...prev, { label: "", total: 1, used: 0 }]);
@@ -7245,7 +7243,6 @@ function DealForm({ customers, initial, defaultKdvRate, preferredCustomerType, s
 
   useEffect(() => {
     if (lineItems.length > 0) setValue(String(Math.round((lineItemsTotal - discountAmount) * 100) / 100));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lineItemsTotal, lineItems.length, discountAmount]);
 
   return (
@@ -12638,16 +12635,17 @@ function LandingPage() {
           </p>
         </div>
 
-        {/* Mockup — dört farklı sektörden (inşaat/tekstil/güzellik/spor) örnek satır; her satırda sektör etiketiyle "sisteminiz sektöre göre şekillenir" mesajı verilir, tek işletmenin canlı paneli gibi algılanmasın diye */}
+        {/* Mockup — dört farklı sektörden (inşaat/tekstil/güzellik/spor) örnek satır; her satırda sektör etiketiyle "sisteminiz sektöre göre şekillenir" mesajı verilir, tek işletmenin canlı paneli gibi algılanmasın diye.
+            Not: eskiden burada kırmızı/sarı/yeşil "sahte tarayıcı" noktaları vardı - en çok "şablon" hissi
+            veren eleman olduğu için kaldırıldı, yerine üstte ince bir "canlı" rozeti bırakıldı. */}
         <div style={{ flex: 1, minWidth: 280 }}>
           <p style={{ textAlign: "center", fontSize: 13, fontWeight: 600, color: "#185fa5", margin: "0 0 10px" }}>
             İster kurumsal, ister bireysel müşteriye hitap edin
           </p>
           <div style={{ background: "#0c2540", borderRadius: 16, padding: "1.5rem", boxShadow: "0 20px 60px rgba(12,37,64,0.2)" }}>
-            <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-              <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#ff5f57" }} />
-              <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#ffbd2e" }} />
-              <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#28c840" }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 16 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#3ddc84", display: "inline-block" }} />
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: "#7fb3e8", letterSpacing: 0.4, textTransform: "uppercase" }}>Canlı önizleme</span>
             </div>
             <div className="landing-hero-stats" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
               {[["Açık Teklifler", "12"], ["Toplam Değer", "₺940.000"], ["Bekleyen Randevular", "5"], ["Aktif Üyelikler", "37"]].map(([label, val]) => (
@@ -12731,77 +12729,105 @@ function LandingPage() {
       </div>
 
       {/* Özellikler */}
-      <div id="ozellikler" style={{ maxWidth: 1100, margin: "0 auto", padding: "3rem 2rem" }}>
-        <h2 style={{ textAlign: "center", fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: "0 0 2.5rem" }}>
-          İşinizi büyütmek için ihtiyacınız olan her şey
-        </h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
+      <div id="ozellikler" style={{ maxWidth: 1100, margin: "0 auto", padding: "4rem 2rem 3rem" }}>
+        <div className="landing-section-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 24, flexWrap: "wrap", marginBottom: "2.5rem" }}>
+          <div>
+            <p style={{ fontSize: 12.5, fontWeight: 700, color: "#185fa5", letterSpacing: 0.6, textTransform: "uppercase", margin: "0 0 10px" }}>Özellikler</p>
+            <h2 style={{ fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: 0, maxWidth: 460 }}>
+              İşinizi büyütmek için ihtiyacınız olan her şey
+            </h2>
+          </div>
+          <p style={{ fontSize: 14, color: "#5b7088", maxWidth: 300, margin: 0, lineHeight: 1.6 }}>
+            Üç ana süreç işin omurgasını taşır, geri kalanı onları tamamlar.
+          </p>
+        </div>
+
+        {/* Öne çıkan 3 süreç: büyük sıra numarasıyla, yatayda dönüşümlü kutular */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {[
+            {
+              id: "satis-firsat",
+              num: "01",
+              title: "Satış & Teklif Yönetimi",
+              desc: "İster iş teklifi ister randevu ya da üyelik satışı olsun, ilk temastan kapanışa kadar tüm süreci tek listede aşama aşama takip edin. Hazır şablon galerisinden seçip markalı PDF oluşturun, onay linkiyle müşteriden tek tıkla onay ve isterseniz kartla online ödeme alın.",
+              tags: ["Aşama Takibi", "PDF Şablon Galerisi", "Onay Linki", "Online Tahsilat", "Fiyat Listesi", "Seans/Paket Takibi"],
+            },
+            {
+              id: "musteri-portali",
+              num: "02",
+              title: "Kendi Müşteri Portalınız",
+              desc: "Müşterileriniz kendi hesaplarıyla giriş yapıp destek taleplerini açabilir, sizinle mesajlaşabilir ve teklif/randevu/üyelik kayıtlarının durumunu görebilir. Sizin tanımladığınız müsaitlik saatlerinden kendi randevusunu alabilir - siz her yeni işlemde anında bildirim alırsınız. Telefon trafiğinizi azaltır.",
+              tags: ["Müşteri Portalı", "Kendi Randevusunu Alır", "Grup Dersi Kaydı", "Kendi Talebini Takip"],
+            },
+            {
+              id: "raporlama",
+              num: "03",
+              title: "Raporlama & Analitik",
+              desc: "Kazanma oranı, aşama hunisi, gelecek ay gelir tahmini ve kayıp nedeni analizleriyle stratejik kararlar alın. Cari hesap ve KDV özet raporuyla kimin ne kadar borcu olduğunu, aylık KDV yükünüzü tek bakışta görün.",
+              tags: ["Dashboard", "Aşama Hunisi", "Gelir Tahmini", "Cari Hesap", "KDV Özeti"],
+            },
+          ].map((f, i) => (
+            <div
+              key={f.id}
+              id={f.id}
+              className="landing-feature-row"
+              style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem 2rem", alignItems: "flex-start", background: "#fff", border: "1px solid #e1e8f0", borderRadius: 16, padding: "1.75rem 2rem", flexDirection: i % 2 === 1 ? "row-reverse" : "row", scrollMarginTop: 80 }}
+            >
+              <div style={{ flex: "none", width: 96, fontSize: 54, fontWeight: 800, color: "#dceafa", lineHeight: 1, textAlign: i % 2 === 1 ? "right" : "left" }}>{f.num}</div>
+              <div style={{ flex: 1, minWidth: 260 }}>
+                <h3 style={{ fontSize: 19, fontWeight: 700, color: "#0c2540", margin: "0 0 10px" }}>{f.title}</h3>
+                <p style={{ fontSize: 14.5, color: "#5b7088", margin: "0 0 12px", lineHeight: 1.7, maxWidth: 620 }}>{f.desc}</p>
+                <p style={{ fontSize: 12.5, color: "#7c93a8", margin: 0, fontWeight: 600 }}>{f.tags.join("   ·   ")}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Geri kalanı: kompakt kutu ızgarası */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginTop: 32 }}>
           {[
             {
               id: "musteri-yonetimi",
               icon: "ti-address-book",
               title: "Müşteri & İletişim Yönetimi",
-              desc: "Müşterilerin iletişim bilgileri, e-posta yazışmaları, telefon notları ve geçmiş satın alma kayıtlarını tek veritabanında tutun. Sektör, bölge ve potansiyele göre segmentasyon yapın.",
-              tags: ["İletişim Geçmişi", "Segmentasyon", "Arama & Dışa Aktarma"],
-            },
-            {
-              id: "satis-firsat",
-              icon: "ti-target-arrow",
-              title: "Satış & Teklif Yönetimi",
-              desc: "İster iş teklifi ister randevu ya da üyelik satışı olsun, ilk temastan kapanışa kadar tüm süreci tek listede aşama aşama takip edin. Hazır şablon galerisinden seçip markalı PDF oluşturun, onay linkiyle müşteriden tek tıkla onay ve isterseniz kartla online ödeme alın, sık sattığınız ürün/hizmetleri fiyat listenize kaydedip saniyeler içinde seçin.",
-              tags: ["Aşama Takibi", "PDF Şablon Galerisi", "Onay Linki", "Online Tahsilat", "Fiyat Listesi", "Seans/Paket Takibi"],
+              desc: "İletişim bilgileri, yazışmalar, telefon notları ve geçmiş kayıtları tek veritabanında tutun; sektöre ve potansiyele göre segmentasyon yapın.",
             },
             {
               id: "pazarlama",
               icon: "ti-mail-forward",
               title: "Pazarlama Otomasyonu",
               desc: "E-posta kampanyaları gönderin. Lead scoring ile en sıcak adayları öncelikli görün.",
-              tags: ["E-posta Kampanyası", "Lead Scoring"],
             },
             {
               id: "destek",
               icon: "ti-headset",
               title: "Satış Sonrası Destek",
-              desc: "Müşteri şikayet ve destek taleplerini bilet sistemiyle takip edin. SLA sürelerini izleyin, sıkça sorulan sorular için bilgi bankası oluşturun.",
-              tags: ["Ticketing", "SLA Takibi", "Bilgi Bankası"],
-            },
-            {
-              id: "musteri-portali",
-              icon: "ti-users-group",
-              title: "Kendi Müşteri Portalınız",
-              desc: "Müşterileriniz kendi hesaplarıyla giriş yapıp destek taleplerini açabilir, sizinle mesajlaşabilir ve teklif/randevu/üyelik kayıtlarının durumunu görebilir. Güzellik salonu veya klinikseniz müşteri, sizin tanımladığınız müsaitlik saatlerinden kendi randevusunu alıp gerekirse iptal edebilir; spor merkeziyseniz üyeleriniz grup derslerinize kendi kaydolup çıkabilir - siz her yeni işlemde anında bildirim alırsınız. Telefon trafiğinizi azaltır.",
-              tags: ["Müşteri Portalı", "Kendi Randevusunu Alır", "Grup Dersi Kaydı", "Kendi Talebini Takip"],
-            },
-            {
-              id: "raporlama",
-              icon: "ti-chart-bar",
-              title: "Raporlama & Analitik",
-              desc: "Kazanma oranı, aşama hunisi, gelecek ay gelir tahmini ve kayıp nedeni analizleriyle stratejik kararlar alın. Pasif müşteri oranıyla kimi aramanız gerektiğini görün. Cari hesap ve KDV özet raporuyla kimin ne kadar borcu olduğunu, aylık KDV yükünüzü tek bakışta görün.",
-              tags: ["Dashboard", "Aşama Hunisi", "Gelir Tahmini", "Pasif Müşteri Oranı", "Kayıp Analizi", "Cari Hesap", "KDV Özeti"],
+              desc: "Şikayet ve destek taleplerini bilet sistemiyle takip edin, SLA sürelerini izleyin, bilgi bankası oluşturun.",
             },
             {
               id: "entegrasyonlar",
               icon: "ti-plug-connected",
               title: "Entegrasyonlar & Mobil",
-              desc: "Uygulamayı telefonunuza kurup anında bildirim alın, müşterinize tek tıkla WhatsApp'tan ulaşın. Kazanılan kayıtları tek tıkla Paraşüt'e aktarın. WhatsApp/Instagram gelen kutusu entegrasyonu ve Gmail/Outlook senkronizasyonu yol haritamızda.",
-              tags: ["Mobil Uygulama (PWA)", "Anlık Bildirim", "WhatsApp ile Hızlı İletişim", "Paraşüt'e Aktar"],
+              desc: "Telefonunuza kurup anında bildirim alın, WhatsApp'tan tek tıkla ulaşın, kazanılan kayıtları Paraşüt'e aktarın.",
             },
             {
               id: "is-birligi-agi",
               icon: "ti-handshake",
               title: "KOBİ İş Birliği Ağı",
-              desc: "Binerly'ye kayıtlı KOBİ'ler birbirini keşfedip iş birliği yapabilecek, ücretli veya ücretsiz iş fırsatlarını paylaşabilecek - birbirinizin müşterisi, tedarikçisi veya iş ortağı olun.",
-              tags: ["Yakında"],
+              desc: "Binerly'ye kayıtlı KOBİ'ler birbirini keşfedip iş birliği yapabilecek, iş fırsatı paylaşabilecek.",
+              badge: "Yakında",
             },
           ].map((f) => (
-            <div key={f.title} id={f.id} style={{ background: "#fff", borderRadius: 12, padding: "1.5rem", border: "1px solid #e1e8f0", scrollMarginTop: 80 }}>
-              <i className={`ti ${f.icon}`} style={{ fontSize: 28, color: "#185fa5", display: "block", marginBottom: 12 }} />
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>{f.title}</h3>
-              <p style={{ fontSize: 14, color: "#5b7088", margin: "0 0 12px", lineHeight: 1.6 }}>{f.desc}</p>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {f.tags.map((tag) => (
-                  <span key={tag} style={{ fontSize: 11, fontWeight: 600, background: "#e6f1fb", color: "#185fa5", padding: "3px 10px", borderRadius: 20 }}>{tag}</span>
-                ))}
+            <div key={f.id} id={f.id} style={{ display: "flex", gap: 14, background: "#fff", border: "1px solid #e1e8f0", borderRadius: 12, padding: "1.25rem 1.4rem", scrollMarginTop: 80 }}>
+              <i className={`ti ${f.icon}`} style={{ fontSize: 19, color: "#185fa5", flex: "none", marginTop: 2 }} aria-hidden="true"></i>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <h3 style={{ fontSize: 14.5, fontWeight: 700, color: "#0c2540", margin: "0 0 5px" }}>{f.title}</h3>
+                  {f.badge && (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#185fa5", background: "#e6f1fb", padding: "2px 8px", borderRadius: 20, marginBottom: 5 }}>{f.badge}</span>
+                  )}
+                </div>
+                <p style={{ fontSize: 13, color: "#5b7088", margin: 0, lineHeight: 1.6 }}>{f.desc}</p>
               </div>
             </div>
           ))}
@@ -12842,7 +12868,7 @@ function LandingPage() {
             Türkiye'deki CRM'lerin çoğu kullanıcı başına ücretlendiriyor, bazıları da dolar/euro bazlı - ekibiniz büyüdükçe faturanız da büyüyor, kur dalgalandıkça bütçeniz sarsılıyor. Binerly'de öyle değil: 5 kullanıcıya kadar sabit bir ücretle çalışacağız, her zaman TL bazlı.
           </p>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 2.5 + "rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: "2.5rem" }}>
             {[
               ["%9,9", "10-49 çalışanlı işletmelerin CRM kullanma oranı"],
               ["%18,4", "50-249 çalışanlı işletmelerde bu oran"],
@@ -12866,7 +12892,7 @@ function LandingPage() {
               ["ti-certificate", "Kurumsal görünmeme", "Elle yazılmış teklif, büyük müşteriye karşı güven vermiyor."],
             ].map(([icon, title, desc]) => (
               <div key={title} style={{ background: "#fff", border: "1px solid #e1e8f0", borderRadius: 12, padding: "1.25rem" }}>
-                <i className={`ti ${icon}`} style={{ fontSize: 22, color: "#185fa5", display: "block", marginBottom: 10 }} />
+                <i className={`ti ${icon}`} style={{ fontSize: 22, color: "#185fa5", display: "block", marginBottom: 10 }} aria-hidden="true"></i>
                 <h3 style={{ fontSize: 14.5, fontWeight: 700, color: "#0c2540", margin: "0 0 6px" }}>{title}</h3>
                 <p style={{ fontSize: 13, color: "#5b7088", margin: 0, lineHeight: 1.6 }}>{desc}</p>
               </div>
@@ -12884,35 +12910,19 @@ function LandingPage() {
           <p style={{ maxWidth: 720, margin: "0 auto 2.5rem", fontSize: 16, color: "#5b7088", lineHeight: 1.8, textAlign: "center" }}>
             Binerly'yi, KOBİ'lerin gerçek gündelik dertlerinden yola çıkarak kurduk: dağınık Excel tabloları, kaybolan müşteri notları, takip edilemeyen teklifler. Küçük ve orta ölçekli işletmelerin, kurumsal şirketler kadar güçlü ama onlar kadar karmaşık olmayan bir sisteme ihtiyacı olduğunu gördük.
           </p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
-            <div style={{ background: "#f5f8fc", borderRadius: 12, padding: "1.5rem", border: "1px solid #e1e8f0" }}>
-              <i className="ti ti-bulb" style={{ fontSize: 26, color: "#185fa5", display: "block", marginBottom: 12 }} />
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>Misyonumuz</h3>
-              <p style={{ fontSize: 13.5, color: "#5b7088", margin: 0, lineHeight: 1.7 }}>
-                KOBİ'lerin günlük operasyonel yükünü azaltıp dijitalleştirerek, zamanlarını ve zihinlerini işlerini büyütmeye, işletmelerini daha iyiye taşıyacak kararlar almaya ve müşterileriyle daha kaliteli ilişkiler kurmaya ayırabilmelerini sağlamak.
-              </p>
-            </div>
-            <div style={{ background: "#f5f8fc", borderRadius: 12, padding: "1.5rem", border: "1px solid #e1e8f0" }}>
-              <i className="ti ti-telescope" style={{ fontSize: 26, color: "#185fa5", display: "block", marginBottom: 12 }} />
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>Vizyonumuz</h3>
-              <p style={{ fontSize: 13.5, color: "#5b7088", margin: 0, lineHeight: 1.7 }}>
-                Türkiye'deki her KOBİ'nin, büyüklüğüne bakılmaksızın, büyük şirketlerin sahip olduğu güçlü araçlara kolay ve uygun maliyetle erişebildiği bir gelecek.
-              </p>
-            </div>
-            <div style={{ background: "#f5f8fc", borderRadius: 12, padding: "1.5rem", border: "1px solid #e1e8f0" }}>
-              <i className="ti ti-shield-check" style={{ fontSize: 26, color: "#185fa5", display: "block", marginBottom: 12 }} />
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>Güvenilirlik</h3>
-              <p style={{ fontSize: 13.5, color: "#5b7088", margin: 0, lineHeight: 1.7 }}>
-                Verileriniz, her hesabın yalnızca kendi kayıtlarına erişebildiği satır bazlı erişim kurallarıyla saklanır - başka bir işletmenin verisine teknik olarak erişim mümkün değildir. KVKK'ya uygun işlenir, asla üçüncü taraflarla paylaşılmaz. Kredi kartı istemeden ücretsiz deneyebilir, istediğiniz an ayrılabilirsiniz.
-              </p>
-            </div>
-            <div style={{ background: "#f5f8fc", borderRadius: 12, padding: "1.5rem", border: "1px solid #e1e8f0" }}>
-              <i className="ti ti-heart-handshake" style={{ fontSize: 26, color: "#185fa5", display: "block", marginBottom: 12 }} />
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>Sizi Dinliyoruz</h3>
-              <p style={{ fontSize: 13.5, color: "#5b7088", margin: 0, lineHeight: 1.7 }}>
-                Erken erişim aşamasında olduğumuz için Binerly'yi doğrudan kullanıcılarımızın talepleriyle şekillendiriyoruz. İşinize özel eksik bir özellik veya isteğiniz olursa bize ulaşın - değerlendirip mümkün olan en kısa sürede geliştirip ekleriz.
-              </p>
-            </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "2rem 2.5rem" }}>
+            {[
+              ["ti-bulb", "Misyonumuz", "KOBİ'lerin günlük operasyonel yükünü azaltıp dijitalleştirerek, zamanlarını ve zihinlerini işlerini büyütmeye, işletmelerini daha iyiye taşıyacak kararlar almaya ve müşterileriyle daha kaliteli ilişkiler kurmaya ayırabilmelerini sağlamak."],
+              ["ti-telescope", "Vizyonumuz", "Türkiye'deki her KOBİ'nin, büyüklüğüne bakılmaksızın, büyük şirketlerin sahip olduğu güçlü araçlara kolay ve uygun maliyetle erişebildiği bir gelecek."],
+              ["ti-shield-check", "Güvenilirlik", "Verileriniz, her hesabın yalnızca kendi kayıtlarına erişebildiği satır bazlı erişim kurallarıyla saklanır - başka bir işletmenin verisine teknik olarak erişim mümkün değildir. KVKK'ya uygun işlenir, asla üçüncü taraflarla paylaşılmaz."],
+              ["ti-heart-handshake", "Sizi Dinliyoruz", "Erken erişim aşamasında olduğumuz için Binerly'yi doğrudan kullanıcılarımızın talepleriyle şekillendiriyoruz. İşinize özel eksik bir özellik veya isteğiniz olursa bize ulaşın - değerlendirip mümkün olan en kısa sürede ekleriz."],
+            ].map(([icon, title, desc]) => (
+              <div key={title} style={{ background: "#f5f8fc", borderRadius: 12, padding: "1.5rem", border: "1px solid #e1e8f0" }}>
+                <i className={`ti ${icon}`} style={{ fontSize: 26, color: "#185fa5", display: "block", marginBottom: 12 }} aria-hidden="true"></i>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>{title}</h3>
+                <p style={{ fontSize: 13.5, color: "#5b7088", margin: 0, lineHeight: 1.7 }}>{desc}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -13360,7 +13370,7 @@ export default function App() {
     const url = new URL(window.location.href);
     url.searchParams.delete("tab");
     window.history.replaceState({}, "", url);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // Push bildirimi tıklanınca gelen ?ticket= derin bağlantısı — talepler yüklendikten
@@ -14146,7 +14156,7 @@ export default function App() {
       notify("Bu dosya türü güvenlik nedeniyle yüklenemiyor.");
       return;
     }
-    const safeFileName = file.name.replace(/[^\w.\-]+/g, "_");
+    const safeFileName = file.name.replace(/[^\w.-]+/g, "_");
     const path = `${activeTeamId}/${entityType}/${entityId}/${uid()}-${safeFileName}`;
     const { error: uploadError } = await supabase.storage.from("attachments").upload(path, file);
     if (uploadError) { notify(`Dosya yüklenemedi: ${uploadError.message}`); return; }
