@@ -1479,6 +1479,13 @@ export function OnboardingTour({ step, dealNavLabel, onStepChange, onClose }) {
   );
 }
 
+// Müşterinin kendi kendine aldığı randevu için iki olası kaynak: müşteri
+// portalından giriş yapıp alan (bookAppointment, "portal") veya hiç kaydı
+// olmadan /randevu-al/{token} public widget'ından alan ("randevu_widget",
+// lead-capture.js). İkisi de aynı "KOBİ'nin henüz dokunmadığı, gözden
+// kaçmaması gereken talep" muamelesini görür. api/send-push.js'te AYNI liste
+// ayrıca tutuluyor (src/ ile api/ arasında paylaşılan import yok) — biri
+// değişirse diğeri de güncellenmeli.
 export const SELF_BOOKED_SOURCES = ["portal", "randevu_widget"];
 
 export function formatFileSize(bytes) {
@@ -1923,3 +1930,37 @@ export function ExportSelectionModal({
     </Modal>
   );
 }
+
+export const SECTORS = [
+  "İnşaat",
+  "Medikal / Sağlık",
+  "Gıda",
+  "Tekstil",
+  "Elektrik / Elektronik",
+  "Otomotiv",
+  "Mobilya",
+  "Perakende / Mağazacılık",
+  "Toptan Ticaret",
+  "Lojistik / Nakliye",
+  "Turizm / Otelcilik",
+  "Eğitim",
+  "Danışmanlık",
+  "Hukuk",
+  "Muhasebe / Mali Müşavirlik",
+  "Bilişim / Yazılım",
+  "Reklam / Pazarlama",
+  "Emlak",
+  "Güzellik / Kuaförlük",
+  "Temizlik",
+  "Güvenlik",
+  "Ambalaj",
+  "Kimya",
+  "Metal / Makine",
+  "Enerji",
+  "Tarım",
+  "Sigorta",
+  "Finans / Bankacılık",
+  "Spor",
+  "Sanat / Kültür",
+  "Diğer",
+];
