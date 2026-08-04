@@ -1497,3 +1497,429 @@ export function parseAppointmentDateTime(raw) {
   const d = new Date(`${raw.slice(0, 16)}:00+03:00`);
   return isNaN(d.getTime()) ? null : d;
 }
+
+// Müşteri Takibi satırındaki tekil ikon butonları (PDF, onay linki, tahsilat,
+// kopyala, düzenle, sil...) sayı arttıkça (seans/paket alanlarıyla 7'ye kadar
+// çıkabiliyordu) sıkışık ve okunaksız hale geliyordu. Tek bir "..." menüsünde
+// yazılı etiketlerle toplanıyor — NotificationBell'deki aynı dışa-tıkla-kapat
+// deseni kullanılıyor.
+export function RowActionsMenu({ items }) {
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState(null);
+  const buttonRef = useRef(null);
+  const menuRef = useRef(null);
+  const visibleItems = items.filter(Boolean);
+
+  // Menü eskiden butonun içinde position:absolute ile açılıyordu — tablo
+  // gövdesi gibi overflow-y:auto olan bir üst öğe içindeyse menü kırpılıp
+  // görünmez oluyordu (InfoTip'te yaşanan aynı kök neden, bkz. shared.jsx
+  // InfoTip). document.body'ye portal + fixed konumlandırma ile üst öğe
+  // overflow'undan bağımsız hale getiriliyor.
+  const reposition = () => {
+    const btnEl = buttonRef.current;
+    const menuEl = menuRef.current;
+    if (!btnEl || !menuEl) return;
+    const rect = btnEl.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const margin = 8;
+    const mw = menuEl.offsetWidth;
+    const mh = menuEl.offsetHeight;
+
+    let top = rect.bottom + 4;
+    if (top + mh > vh - margin) top = Math.max(margin, rect.top - 4 - mh);
+
+    let right = vw - rect.right;
+    if (vw - right - mw < margin) right = Math.max(margin, vw - mw - margin);
+
+    setCoords({ top, right });
+  };
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    reposition();
+    const onScrollOrResize = () => reposition();
+    window.addEventListener("scroll", onScrollOrResize, true);
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      window.removeEventListener("scroll", onScrollOrResize, true);
+      window.removeEventListener("resize", onScrollOrResize);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e) => {
+      if (buttonRef.current?.contains(e.target)) return;
+      if (menuRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  if (visibleItems.length === 0) return null;
+
+  return (
+    <div ref={buttonRef} style={{ display: "inline-block" }}>
+      <IconButton
+        icon="ti-dots-vertical"
+        title="İşlemler"
+        onClick={() => setOpen((v) => !v)}
+        active={open}
+      />
+      {open &&
+        createPortal(
+          <div
+            ref={menuRef}
+            style={{
+              position: "fixed",
+              // İlk mount'ta coords henüz yok — ekran dışına (ama ölçülebilir
+              // şekilde) konumlanır, reposition() gerçek boyutu ölçüp doğru yere taşır.
+              top: coords ? coords.top : -9999,
+              right: coords ? coords.right : -9999,
+              minWidth: 210,
+              background: "var(--surface-1)",
+              border: "0.5px solid var(--border)",
+              borderRadius: "var(--radius)",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+              zIndex: 2000,
+              overflow: "hidden",
+            }}
+          >
+            {visibleItems.map((item, i) => (
+              <div
+                key={item.label}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  borderBottom: i < visibleItems.length - 1 ? "0.5px solid var(--border)" : "none",
+                }}
+              >
+                <button
+                  type="button"
+                  disabled={item.disabled}
+                  title={item.title}
+                  onClick={() => {
+                    item.onClick();
+                    setOpen(false);
+                  }}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "9px 12px",
+                    background: "none",
+                    border: "none",
+                    borderRadius: 0,
+                    textAlign: "left",
+                    fontSize: 13,
+                    color: item.danger ? "var(--text-danger)" : "var(--text-primary)",
+                    opacity: item.disabled ? 0.4 : 1,
+                    cursor: item.disabled ? "not-allowed" : "pointer",
+                  }}
+                >
+                  <i
+                    className={`ti ${item.icon}`}
+                    style={{ fontSize: 15, flexShrink: 0 }}
+                    aria-hidden="true"
+                  ></i>
+                  {item.label}
+                </button>
+                {/* Buton İÇİNE değil YANINA konuyor - aksi halde tıklamak (özellikle
+                  dokunmatik) native DOM bubble ile butonun onClick'ini de tetikler. */}
+                {item.info && (
+                  <div style={{ paddingRight: 10, flexShrink: 0 }}>
+                    <InfoTip text={item.info} align="right" />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>,
+          document.body,
+        )}
+    </div>
+  );
+}
+
+export function AttachmentList({
+  entityType,
+  entityId,
+  attachments,
+  onUpload,
+  onDownload,
+  onDelete,
+  onToggleShare,
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const items = attachments.filter((a) => a.entityType === entityType && a.entityId === entityId);
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    await onUpload(entityType, entityId, file);
+    setUploading(false);
+  };
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <label
+        style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}
+      >
+        Dosyalar
+      </label>
+      {items.length === 0 && (
+        <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 6px" }}>
+          Henüz dosya eklenmedi.
+        </p>
+      )}
+      {items.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+          {items.map((a) => (
+            <div
+              key={a.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+                fontSize: 12.5,
+                background: "var(--surface-1)",
+                border: "0.5px solid var(--border)",
+                borderRadius: "var(--radius)",
+                padding: "6px 10px",
+                flexWrap: "wrap",
+              }}
+            >
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {a.fileName}{" "}
+                <span style={{ color: "var(--text-muted)" }}>· {formatFileSize(a.fileSize)}</span>
+                {a.sharedWithCustomer && (
+                  <span style={{ marginLeft: 6 }}>
+                    <Badge tone="accent">Müşteriyle paylaşıldı</Badge>
+                  </span>
+                )}
+              </span>
+              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                {entityType === "deals" && onToggleShare && (
+                  <button
+                    type="button"
+                    onClick={() => onToggleShare(a.id, !a.sharedWithCustomer)}
+                    style={{ fontSize: 12 }}
+                  >
+                    {a.sharedWithCustomer ? "Paylaşımı Kaldır" : "Müşteriyle Paylaş"}
+                  </button>
+                )}
+                <button type="button" onClick={() => onDownload(a)} style={{ fontSize: 12 }}>
+                  İndir
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteId(a.id)}
+                  style={{ fontSize: 12, color: "var(--text-danger)" }}
+                >
+                  Sil
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <label
+        style={{
+          background: "var(--surface-1)",
+          border: "0.5px solid var(--border)",
+          borderRadius: "var(--radius)",
+          padding: "6px 12px",
+          fontSize: 12.5,
+          cursor: uploading ? "default" : "pointer",
+          display: "inline-block",
+        }}
+      >
+        {uploading ? "Yükleniyor…" : "+ Dosya Ekle"}
+        <input type="file" onChange={handleFile} disabled={uploading} style={{ display: "none" }} />
+      </label>
+      <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "4px 0 0" }}>En fazla 10 MB.</p>
+      {confirmDeleteId && (
+        <ConfirmDialog
+          title="Dosya silinsin mi?"
+          message="Bu dosya çöp kutusuna taşınır."
+          onConfirm={() => {
+            onDelete(confirmDeleteId);
+            setConfirmDeleteId(null);
+          }}
+          onClose={() => setConfirmDeleteId(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+export const PRICE_ITEM_NAME_EXAMPLES = {
+  emlak: "Ekspertiz Hizmeti",
+  dijital_ajans: "Sosyal Medya Yönetimi (Aylık)",
+  saglik_klinik: "Muayene",
+  uretim_satis: "Toptan Palet",
+  hizmet_danismanlik: "Saatlik Danışmanlık",
+  perakende: "Standart Paket",
+  guzellik_bakim: "Manikür",
+  spor_merkezi: "Aylık Üyelik",
+  egitim_kurs: "Aylık Yabancı Dil Paketi",
+  sanayi_esnaf: "Yağ Bakımı",
+  otel: "Standart Oda (Gecelik)",
+};
+
+export function ExportSelectionModal({
+  title,
+  items,
+  columns,
+  filename,
+  getLabel,
+  getRow,
+  getPaymentStatus,
+  onClose,
+}) {
+  const [query, setQuery] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState("all");
+  const [selected, setSelected] = useState(() => new Set(items.map((i) => i.id)));
+
+  const queryLower = query.trim().toLowerCase();
+  const filtered = items.filter((i) => {
+    if (getPaymentStatus && paymentFilter !== "all" && getPaymentStatus(i) !== paymentFilter)
+      return false;
+    return !queryLower || getLabel(i).toLowerCase().includes(queryLower);
+  });
+  const allVisibleSelected = filtered.length > 0 && filtered.every((i) => selected.has(i.id));
+  const selectedItems = items.filter((i) => selected.has(i.id));
+
+  const toggle = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllVisible = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) filtered.forEach((i) => next.delete(i.id));
+      else filtered.forEach((i) => next.add(i.id));
+      return next;
+    });
+  };
+
+  return (
+    <Modal title={title} onClose={onClose}>
+      <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 12px" }}>
+        Arayıp istediklerinizi seçin - hepsini dışa aktarabilir, ya da tek bir kaydı bile seçip
+        sadece onu indirebilirsiniz.
+      </p>
+      <div
+        className="list-toolbar"
+        style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}
+      >
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Ara..."
+          style={{ flex: 1, minWidth: 140, fontSize: 13 }}
+        />
+        {getPaymentStatus && (
+          <select
+            value={paymentFilter}
+            onChange={(e) => setPaymentFilter(e.target.value)}
+            style={{ fontSize: 13 }}
+          >
+            <option value="all">Tüm ödeme durumları</option>
+            <option value="odendi">Ödendi</option>
+            <option value="kismi">Kısmi ödeme</option>
+            <option value="odenmedi">Ödenmedi</option>
+          </select>
+        )}
+      </div>
+      <label
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          fontSize: 12.5,
+          color: "var(--text-secondary)",
+          padding: "2px 0 6px",
+          cursor: filtered.length === 0 ? "default" : "pointer",
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={allVisibleSelected}
+          disabled={filtered.length === 0}
+          onChange={toggleAllVisible}
+        />
+        Görünen {filtered.length} kaydın tümünü seç / kaldır
+      </label>
+      <div
+        style={{
+          maxHeight: 260,
+          overflowY: "auto",
+          border: "0.5px solid var(--border)",
+          borderRadius: "var(--radius)",
+          padding: 8,
+          marginBottom: 12,
+        }}
+      >
+        {filtered.length === 0 ? (
+          <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: 0 }}>
+            Filtreye uyan kayıt yok.
+          </p>
+        ) : (
+          filtered.map((item) => (
+            <label
+              key={item.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: 13,
+                padding: "4px 0",
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(item.id)}
+                onChange={() => toggle(item.id)}
+              />
+              {getLabel(item)}
+            </label>
+          ))
+        )}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
+          {selectedItems.length} kayıt seçili
+        </span>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button type="button" onClick={onClose}>
+            Vazgeç
+          </button>
+          <button
+            type="button"
+            disabled={selectedItems.length === 0}
+            onClick={() => {
+              downloadXlsx(filename, columns, selectedItems.map(getRow));
+              onClose();
+            }}
+            style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+          >
+            {selectedItems.length} kaydı indir
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
