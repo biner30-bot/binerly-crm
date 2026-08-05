@@ -1012,6 +1012,24 @@ function LandingPage() {
               Erken erişim aşamasındayız - şu an için tamamen ücretsiz, kart bilgisi gerekmez.
             </p>
           </div>
+
+          {/* Güven rozetleri - "Hakkımızda"/SSS'teki aynı doğrulanmış ifadeler kısaltılarak
+              tekrar kullanıldı, doğrulanmamış iddia (ör. "Türkiye sunucuları") eklenmedi. */}
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "1.5rem 3rem", marginTop: "2.5rem" }}>
+            {[
+              ["ti-shield-check", "KVKK Uyumlu", "Veriler KVKK'ya uygun işlenir, asla paylaşılmaz"],
+              ["ti-lock", "Satır Bazlı Erişim", "Her hesap yalnızca kendi verisine erişebilir"],
+              ["ti-message-circle", "Türkçe Destek", "Uygulama içinden anlık soru sorabilirsiniz"],
+            ].map(([icon, title, desc]) => (
+              <div key={title} style={{ display: "flex", alignItems: "center", gap: 10, maxWidth: 240 }}>
+                <i className={`ti ${icon}`} style={{ fontSize: 26, color: "#185fa5", flex: "none" }} aria-hidden="true"></i>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#0c2540" }}>{title}</div>
+                  <div style={{ fontSize: 11.5, color: "#7c93a8" }}>{desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
