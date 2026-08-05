@@ -34,6 +34,7 @@ import {
   STAGES,
   SECTOR_PRESETS,
   stageLabel,
+  stageTone,
   isAppointmentSector,
   isIndividualFocusedSector,
   dealWordKind,
@@ -645,6 +646,164 @@ function LandingFaq() {
   );
 }
 
+// Hero'daki sektör sekmeleri gerçek dealWordKind/stageLabel eşlemesini
+// kullanıyor - "her sektöre göre şekillenir" iddiasını soyut laf olarak değil,
+// sekme değişince başlık/aşama adı/ton gerçekten değişerek somut gösteriyor.
+const HERO_SECTOR_DEMOS = [
+  {
+    sectorId: "guzellik_bakim",
+    headerTitle: "Randevu Takvimi",
+    listLabel: "Bugünkü Randevular",
+    deals: [
+      { name: "Ayşe Yılmaz", title: "Lazer Epilasyon Randevusu", value: "₺1.200", stage: "teklif" },
+      { name: "Deniz Kaya", title: "Saç Bakım Randevusu", value: "₺450", stage: "kazanildi" },
+    ],
+  },
+  {
+    sectorId: "spor_merkezi",
+    headerTitle: "Üyelik Takibi",
+    listLabel: "Yeni Üyelik Başvuruları",
+    deals: [
+      { name: "Elif Toprak", title: "PT Paketi Görüşmesi", value: "₺2.800", stage: "muzakere" },
+      { name: "Mehmet Kaya", title: "Spor Salonu Üyeliği", value: "₺3.500/ay", stage: "kazanildi" },
+    ],
+  },
+  {
+    sectorId: "otel",
+    headerTitle: "Rezervasyon Defteri",
+    listLabel: "Gelen Rezervasyonlar",
+    deals: [
+      { name: "Can Yıldız", title: "Aile Odası Talebi", value: "₺6.500", stage: "muzakere" },
+      { name: "Zeynep Arslan", title: "Deluxe Oda Rezervasyonu", value: "₺4.200", stage: "kazanildi" },
+    ],
+  },
+  {
+    sectorId: "uretim_satis",
+    headerTitle: "Satış Boru Hattı",
+    listLabel: "Görüşme Bekleyenler",
+    deals: [
+      { name: "Akın İnşaat", title: "Ofis Malzemesi Teklifi", value: "₺180.000", stage: "teklif" },
+      { name: "Ege Tekstil", title: "Toplu Tekstil Siparişi", value: "₺220.000", stage: "kazanildi" },
+    ],
+  },
+];
+
+// STAGE_TONES'un (Sectors.jsx) beş tonu (default/accent/warning/success/danger)
+// için koyu kart zemininde okunaklı renk karşılıkları.
+const HERO_STAGE_TONE_COLORS = {
+  default: { bg: "rgba(148,167,187,0.18)", color: "#c3d7ec" },
+  accent: { bg: "rgba(56,138,221,0.18)", color: "#7fb3e8" },
+  warning: { bg: "rgba(251,146,60,0.18)", color: "#fdba74" },
+  success: { bg: "rgba(52,211,153,0.18)", color: "#6ee7b7" },
+  danger: { bg: "rgba(248,113,113,0.18)", color: "#fca5a5" },
+};
+
+function LandingHeroPipeline() {
+  const [sectorIndex, setSectorIndex] = useState(0);
+  const demo = HERO_SECTOR_DEMOS[sectorIndex];
+  const preset = SECTOR_PRESETS.find((p) => p.id === demo.sectorId);
+  const confirmed = demo.deals[demo.deals.length - 1];
+  const confirmedLabel = stageLabel(confirmed.stage, undefined, demo.sectorId);
+
+  return (
+    <div style={{ flex: 1, minWidth: 280 }}>
+      <p style={{ textAlign: "center", fontSize: 13, fontWeight: 600, color: "#185fa5", margin: "0 0 12px" }}>
+        Sektörünüzü seçin, arayüzün nasıl şekillendiğini görün
+      </p>
+      <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap", marginBottom: 14 }}>
+        {HERO_SECTOR_DEMOS.map((d, i) => {
+          const p = SECTOR_PRESETS.find((s) => s.id === d.sectorId);
+          const active = i === sectorIndex;
+          return (
+            <button
+              key={d.sectorId}
+              onClick={() => setSectorIndex(i)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                background: active ? "#185fa5" : "#fff",
+                color: active ? "#fff" : "#0c2540",
+                border: active ? "1px solid #185fa5" : "1px solid #e1e8f0",
+                borderRadius: 20,
+                padding: "6px 12px",
+                fontSize: 12.5,
+                fontWeight: 600,
+              }}
+            >
+              <i className={`ti ${p.icon}`} style={{ fontSize: 13 }} aria-hidden="true"></i>
+              {p.label}
+            </button>
+          );
+        })}
+      </div>
+      {/* Mockup — sektör sekmesine göre değişen boru hattı önizlemesi. Sahte
+          tarayıcı çerçevesi/blur efekti/sürekli zıplayan rozet yok - "AI
+          şablonu" hissi veren o tür öğeler bilinçli olarak kullanılmadı. */}
+      <div style={{ position: "relative", paddingBottom: 24 }}>
+        <div style={{ background: "#0c2540", borderRadius: 16, padding: "1.25rem", boxShadow: "0 20px 60px rgba(12,37,64,0.2)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, paddingBottom: 12, borderBottom: "1px solid #1e3a5c" }}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{demo.headerTitle}</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#3ddc84", display: "inline-block" }} />
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#7fb3e8", letterSpacing: 0.4, textTransform: "uppercase" }}>Canlı</span>
+            </span>
+          </div>
+          <div style={{ background: "#132b47", borderRadius: 12, padding: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 4px", marginBottom: 8 }}>
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: "#c3d7ec" }}>{demo.listLabel}</span>
+              <span style={{ background: "#1a3a5c", color: "#7fb3e8", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20 }}>{demo.deals.length}</span>
+            </div>
+            {demo.deals.map((d) => {
+              const label = stageLabel(d.stage, undefined, demo.sectorId);
+              const tone = HERO_STAGE_TONE_COLORS[stageTone(d.stage)];
+              return (
+                <div key={d.name} style={{ background: "#fff", borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 4 }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 700, color: "#0c2540" }}>{d.title}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#185fa5", whiteSpace: "nowrap" }}>{d.value}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "#7c93a8", marginBottom: 8 }}>{d.name} · {preset.label}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 9.5, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: tone.bg, color: tone.color }}>{label}</span>
+                    <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#e6f1fb", color: "#185fa5", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
+                      {d.name[0]}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        {/* Sabit (zıplamayan) onay rozeti - sürekli bounce animasyonu klasik "AI şablonu"
+            imzası olduğu için bilinçli olarak kullanılmadı. */}
+        <div style={{ position: "absolute", left: 8, bottom: 0, background: "#fff", borderRadius: 12, padding: "10px 14px", boxShadow: "0 12px 30px rgba(12,37,64,0.18)", border: "1px solid #e1e8f0", display: "flex", alignItems: "center", gap: 10, maxWidth: 220 }}>
+          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#e7f9ef", color: "#16a34a", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
+            <i className="ti ti-circle-check" style={{ fontSize: 17 }} aria-hidden="true"></i>
+          </div>
+          <div>
+            <div style={{ fontSize: 10.5, color: "#7c93a8" }}>{confirmedLabel}</div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: "#0c2540" }}>{confirmed.name} · {confirmed.value}</div>
+          </div>
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginTop: 16 }}>
+        {[
+          { icon: "ti-calendar-event", label: "Randevu Takvimi" },
+          { icon: "ti-credit-card", label: "Ödeme Tahsilatı" },
+          { icon: "ti-address-book", label: "Müşteri Portalı" },
+          { icon: "ti-message-circle", label: "Mesajlaşma" },
+        ].map((m) => (
+          <span key={m.label} style={{ display: "flex", alignItems: "center", gap: 6, background: "#fff", border: "1px solid #e1e8f0", borderRadius: 20, padding: "6px 12px", fontSize: 12, color: "#0c2540" }}>
+            <i className={`ti ${m.icon}`} style={{ fontSize: 13, color: "#185fa5" }} aria-hidden="true"></i>
+            {m.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function LandingPage() {
   const [authModal, setAuthModal] = useState(null);
 
@@ -708,62 +867,7 @@ function LandingPage() {
           </p>
         </div>
 
-        {/* Mockup — Satış Boru Hattı önizlemesi, üç farklı sektörden (inşaat/güzellik/spor)
-            örnek kart; tek işletmenin canlı paneli gibi algılanmasın diye bilinçli olarak
-            çok sektörlü tutuldu. Sahte tarayıcı çerçevesi/blur efekti/sürekli zıplayan
-            rozet yok - "AI şablonu" hissi veren o tür öğeler bilinçli olarak kullanılmadı. */}
-        <div style={{ flex: 1, minWidth: 280 }}>
-          <p style={{ textAlign: "center", fontSize: 13, fontWeight: 600, color: "#185fa5", margin: "0 0 10px" }}>
-            İster kurumsal, ister bireysel müşteriye hitap edin
-          </p>
-          <div style={{ position: "relative", paddingBottom: 24 }}>
-            <div style={{ background: "#0c2540", borderRadius: 16, padding: "1.25rem", boxShadow: "0 20px 60px rgba(12,37,64,0.2)" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, paddingBottom: 12, borderBottom: "1px solid #1e3a5c" }}>
-                <span style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>Satış Boru Hattı</span>
-                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#3ddc84", display: "inline-block" }} />
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "#7fb3e8", letterSpacing: 0.4, textTransform: "uppercase" }}>Canlı</span>
-                </span>
-              </div>
-              <div style={{ background: "#132b47", borderRadius: 12, padding: 10 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 4px", marginBottom: 8 }}>
-                  <span style={{ fontSize: 11.5, fontWeight: 600, color: "#c3d7ec" }}>Görüşme Bekleyenler</span>
-                  <span style={{ background: "#1a3a5c", color: "#7fb3e8", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20 }}>3</span>
-                </div>
-                {[
-                  { name: "Akın İnşaat", sector: "İnşaat", kind: "Ofis Tadilat Teklifi", value: "₺180.000", tag: "Sıcak", tagBg: "rgba(251,146,60,0.18)", tagColor: "#fdba74" },
-                  { name: "Ayşe Yılmaz", sector: "Güzellik", kind: "Lazer Epilasyon Randevusu", value: "₺1.200", tag: "Yeni", tagBg: "rgba(56,138,221,0.18)", tagColor: "#7fb3e8" },
-                  { name: "Mehmet Kaya", sector: "Spor", kind: "Spor Salonu Üyeliği", value: "₺3.500/ay", tag: "Üye oldu", tagBg: "rgba(52,211,153,0.18)", tagColor: "#6ee7b7" },
-                ].map((d) => (
-                  <div key={d.name} style={{ background: "#fff", borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontSize: 12.5, fontWeight: 700, color: "#0c2540" }}>{d.kind}</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: "#185fa5", whiteSpace: "nowrap" }}>{d.value}</span>
-                    </div>
-                    <div style={{ fontSize: 11, color: "#7c93a8", marginBottom: 8 }}>{d.name} · {d.sector}</div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: 9.5, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: d.tagBg, color: d.tagColor }}>{d.tag}</span>
-                      <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#e6f1fb", color: "#185fa5", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
-                        {d.name[0]}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            {/* Sabit (zıplamayan) onay rozeti - sürekli bounce animasyonu klasik "AI şablonu"
-                imzası olduğu için bilinçli olarak kullanılmadı. */}
-            <div style={{ position: "absolute", left: 8, bottom: 0, background: "#fff", borderRadius: 12, padding: "10px 14px", boxShadow: "0 12px 30px rgba(12,37,64,0.18)", border: "1px solid #e1e8f0", display: "flex", alignItems: "center", gap: 10, maxWidth: 220 }}>
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#e7f9ef", color: "#16a34a", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
-                <i className="ti ti-circle-check" style={{ fontSize: 17 }} aria-hidden="true"></i>
-              </div>
-              <div>
-                <div style={{ fontSize: 10.5, color: "#7c93a8" }}>Sipariş Onaylandı</div>
-                <div style={{ fontSize: 12.5, fontWeight: 700, color: "#0c2540" }}>Ege Tekstil · ₺220.000</div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <LandingHeroPipeline />
       </div>
 
       {/* Özellikler */}
