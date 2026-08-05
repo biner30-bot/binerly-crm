@@ -3836,7 +3836,8 @@ export default function App() {
 
   return (
     <div style={{ padding: "24px 16px 64px" }}>
-      <div className="app-header-row" style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: "1.5rem" }}>
+      <div className="app-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: "1.5rem" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 16, flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 10, flex: "none" }}>
           <IconButton icon="ti-menu-2" onClick={() => setSidebarOpen(true)} title="Menü" className="app-sidebar-toggle" />
           <div>
@@ -3942,6 +3943,7 @@ export default function App() {
               )}
             </div>
           )}
+        </div>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
