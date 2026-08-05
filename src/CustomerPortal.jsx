@@ -2422,6 +2422,7 @@ function PasswordRecoveryModal({ notify, onClose }) {
 }
 
 function PortalSettings({
+  section,
   session,
   theme,
   onThemeChange,
@@ -2511,271 +2512,296 @@ function PortalSettings({
 
   return (
     <div>
-      <div style={{ marginBottom: 20 }}>
-        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>
-          Bilgilerim{companyName ? ` (${companyName})` : ""}
-        </p>
-        <form onSubmit={saveProfile}>
-          <div style={{ marginBottom: 8 }}>
-            <label
+      {section === "profile" && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <InitialsAvatar name={customerName || session.user.email} size={48} />
+            <div>
+              <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
+                {customerName || session.user.email}
+              </p>
+              <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
+                {companyName ? `${companyName} müşterisi` : "Profil"}
+              </p>
+            </div>
+          </div>
+          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>
+            Bilgilerim{companyName ? ` (${companyName})` : ""}
+          </p>
+          <form onSubmit={saveProfile}>
+            <div style={{ marginBottom: 8 }}>
+              <label
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  display: "block",
+                  marginBottom: 4,
+                }}
+              >
+                Ad Soyad
+              </label>
+              <input
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+                style={{ width: "100%" }}
+              />
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <label
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  display: "block",
+                  marginBottom: 4,
+                }}
+              >
+                Telefon
+              </label>
+              <input
+                type="tel"
+                value={profilePhone}
+                onChange={(e) => setProfilePhone(e.target.value)}
+                style={{ width: "100%" }}
+              />
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <label
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  display: "block",
+                  marginBottom: 4,
+                }}
+              >
+                E-posta
+              </label>
+              <input
+                type="email"
+                value={profileEmail}
+                onChange={(e) => setProfileEmail(e.target.value)}
+                style={{ width: "100%" }}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={savingProfile || !profileDirty}
               style={{
+                background: "var(--fill-accent)",
+                color: "var(--on-accent)",
+                border: "none",
                 fontSize: 13,
-                color: "var(--text-secondary)",
-                display: "block",
-                marginBottom: 4,
               }}
             >
-              Ad Soyad
-            </label>
-            <input
-              value={profileName}
-              onChange={(e) => setProfileName(e.target.value)}
-              style={{ width: "100%" }}
-            />
-          </div>
-          <div style={{ marginBottom: 8 }}>
-            <label
-              style={{
-                fontSize: 13,
-                color: "var(--text-secondary)",
-                display: "block",
-                marginBottom: 4,
-              }}
-            >
-              Telefon
-            </label>
-            <input
-              type="tel"
-              value={profilePhone}
-              onChange={(e) => setProfilePhone(e.target.value)}
-              style={{ width: "100%" }}
-            />
-          </div>
-          <div style={{ marginBottom: 8 }}>
-            <label
-              style={{
-                fontSize: 13,
-                color: "var(--text-secondary)",
-                display: "block",
-                marginBottom: 4,
-              }}
-            >
-              E-posta
-            </label>
-            <input
-              type="email"
-              value={profileEmail}
-              onChange={(e) => setProfileEmail(e.target.value)}
-              style={{ width: "100%" }}
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={savingProfile || !profileDirty}
-            style={{
-              background: "var(--fill-accent)",
-              color: "var(--on-accent)",
-              border: "none",
-              fontSize: 13,
-            }}
-          >
-            {savingProfile ? "Kaydediliyor…" : "Kaydet"}
-          </button>
-        </form>
-        <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "8px 0 0" }}>
-          Birden fazla işletmeye bağlıysanız, bu bilgiler sadece şu an seçili olan işletme için
-          geçerlidir.
-        </p>
-      </div>
-
-      <div style={{ marginBottom: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
-        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Görünüm</p>
-        <div
-          style={{
-            display: "flex",
-            gap: 4,
-            background: "var(--surface-1)",
-            borderRadius: "var(--radius)",
-            padding: 3,
-            width: "fit-content",
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => onThemeChange("light")}
-            style={{
-              border: "none",
-              background: theme === "light" ? "var(--fill-accent)" : "transparent",
-              color: theme === "light" ? "var(--on-accent)" : "var(--text-secondary)",
-              fontWeight: theme === "light" ? 600 : 400,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 13,
-            }}
-          >
-            <i className="ti ti-sun" style={{ fontSize: 15 }} aria-hidden="true"></i>
-            Açık
-          </button>
-          <button
-            type="button"
-            onClick={() => onThemeChange("dark")}
-            style={{
-              border: "none",
-              background: theme === "dark" ? "var(--fill-accent)" : "transparent",
-              color: theme === "dark" ? "var(--on-accent)" : "var(--text-secondary)",
-              fontWeight: theme === "dark" ? 600 : 400,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 13,
-            }}
-          >
-            <i className="ti ti-moon" style={{ fontSize: 15 }} aria-hidden="true"></i>
-            Koyu
-          </button>
-        </div>
-      </div>
-
-      <div style={{ marginBottom: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
-        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Bildirimler</p>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-            Firma size yanıt verdiğinde anında bildirim
-          </span>
-          <button
-            type="button"
-            onClick={() => (pushSubscribed ? onUnsubscribe() : onSubscribe())}
-            style={{ fontSize: 13 }}
-          >
-            {pushSubscribed ? "Kapat" : "Aç"}
-          </button>
-        </div>
-        <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "8px 0 0" }}>
-          iPhone'da bildirim almak için önce uygulamayı Ana Ekrana eklemeniz gerekir.
-        </p>
-      </div>
-
-      <div style={{ marginBottom: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
-        <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 12px" }}>
-          Bilgileriniz {companyName || "bu işletme"} tarafından yalnızca hizmet/randevu takibi
-          amacıyla saklanır ve işlenir. Aşağıdaki izinler bunun dışında, dilediğiniz zaman
-          değiştirebileceğiniz ek tercihlerdir.
-        </p>
-        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Pazarlama İzni</p>
-        <label
-          style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}
-        >
-          <input
-            type="checkbox"
-            checked={!!marketingConsent}
-            onChange={(e) => onMarketingConsentChange(e.target.checked)}
-          />
-          Bu işletmeden kampanya ve değerlendirme isteği gibi e-postalar almak istiyorum
-        </label>
-        <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "8px 0 0" }}>
-          Bu izin dilediğiniz zaman geri çekilebilir. Birden fazla işletmeye bağlıysanız, sadece şu
-          an seçili olan işletme için geçerlidir.
-        </p>
-      </div>
-
-      {isAppointmentSector(companySector) && (
-        <div style={{ marginBottom: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
-          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Fotoğraf İzni</p>
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontSize: 13,
-              cursor: "pointer",
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={!!photoConsent}
-              onChange={(e) => onPhotoConsentChange(e.target.checked)}
-            />
-            Hizmet öncesi/sonrası fotoğraflarımın çekilip saklanmasına izin veriyorum
-          </label>
+              {savingProfile ? "Kaydediliyor…" : "Kaydet"}
+            </button>
+          </form>
           <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "8px 0 0" }}>
-            Bu izin dilediğiniz zaman geri çekilebilir. Birden fazla işletmeye bağlıysanız, sadece
-            şu an seçili olan işletme için geçerlidir.
+            Birden fazla işletmeye bağlıysanız, bu bilgiler sadece şu an seçili olan işletme için
+            geçerlidir.
           </p>
         </div>
       )}
 
-      <div style={{ paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
-        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Hesap</p>
-        <form onSubmit={changePassword}>
-          <div style={{ marginBottom: 8 }}>
-            <label
+      {section === "account" && (
+        <>
+          <div style={{ marginBottom: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
+            <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Görünüm</p>
+            <div
               style={{
-                fontSize: 13,
-                color: "var(--text-secondary)",
-                display: "block",
-                marginBottom: 4,
+                display: "flex",
+                gap: 4,
+                background: "var(--surface-1)",
+                borderRadius: "var(--radius)",
+                padding: 3,
+                width: "fit-content",
               }}
             >
-              Mevcut şifre
-            </label>
-            <input
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              style={{ width: "100%" }}
-            />
+              <button
+                type="button"
+                onClick={() => onThemeChange("light")}
+                style={{
+                  border: "none",
+                  background: theme === "light" ? "var(--fill-accent)" : "transparent",
+                  color: theme === "light" ? "var(--on-accent)" : "var(--text-secondary)",
+                  fontWeight: theme === "light" ? 600 : 400,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 13,
+                }}
+              >
+                <i className="ti ti-sun" style={{ fontSize: 15 }} aria-hidden="true"></i>
+                Açık
+              </button>
+              <button
+                type="button"
+                onClick={() => onThemeChange("dark")}
+                style={{
+                  border: "none",
+                  background: theme === "dark" ? "var(--fill-accent)" : "transparent",
+                  color: theme === "dark" ? "var(--on-accent)" : "var(--text-secondary)",
+                  fontWeight: theme === "dark" ? 600 : 400,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 13,
+                }}
+              >
+                <i className="ti ti-moon" style={{ fontSize: 15 }} aria-hidden="true"></i>
+                Koyu
+              </button>
+            </div>
           </div>
-          <div style={{ marginBottom: 8 }}>
+
+          <div style={{ marginBottom: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
+            <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Bildirimler</p>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                Firma size yanıt verdiğinde anında bildirim
+              </span>
+              <button
+                type="button"
+                onClick={() => (pushSubscribed ? onUnsubscribe() : onSubscribe())}
+                style={{ fontSize: 13 }}
+              >
+                {pushSubscribed ? "Kapat" : "Aç"}
+              </button>
+            </div>
+            <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "8px 0 0" }}>
+              iPhone'da bildirim almak için önce uygulamayı Ana Ekrana eklemeniz gerekir.
+            </p>
+          </div>
+
+          <div style={{ marginBottom: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
+            <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 12px" }}>
+              Bilgileriniz {companyName || "bu işletme"} tarafından yalnızca hizmet/randevu takibi
+              amacıyla saklanır ve işlenir. Aşağıdaki izinler bunun dışında, dilediğiniz zaman
+              değiştirebileceğiniz ek tercihlerdir.
+            </p>
+            <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Pazarlama İzni</p>
             <label
               style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
                 fontSize: 13,
-                color: "var(--text-secondary)",
-                display: "block",
-                marginBottom: 4,
+                cursor: "pointer",
               }}
             >
-              Yeni şifre
+              <input
+                type="checkbox"
+                checked={!!marketingConsent}
+                onChange={(e) => onMarketingConsentChange(e.target.checked)}
+              />
+              Bu işletmeden kampanya ve değerlendirme isteği gibi e-postalar almak istiyorum
             </label>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              style={{ width: "100%" }}
-            />
+            <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "8px 0 0" }}>
+              Bu izin dilediğiniz zaman geri çekilebilir. Birden fazla işletmeye bağlıysanız, sadece
+              şu an seçili olan işletme için geçerlidir.
+            </p>
           </div>
-          <div style={{ marginBottom: 8 }}>
-            <label
-              style={{
-                fontSize: 13,
-                color: "var(--text-secondary)",
-                display: "block",
-                marginBottom: 4,
-              }}
+
+          {isAppointmentSector(companySector) && (
+            <div
+              style={{ marginBottom: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}
             >
-              Yeni şifre (tekrar)
-            </label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              style={{ width: "100%" }}
-            />
+              <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Fotoğraf İzni</p>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 13,
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={!!photoConsent}
+                  onChange={(e) => onPhotoConsentChange(e.target.checked)}
+                />
+                Hizmet öncesi/sonrası fotoğraflarımın çekilip saklanmasına izin veriyorum
+              </label>
+              <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "8px 0 0" }}>
+                Bu izin dilediğiniz zaman geri çekilebilir. Birden fazla işletmeye bağlıysanız,
+                sadece şu an seçili olan işletme için geçerlidir.
+              </p>
+            </div>
+          )}
+
+          <div style={{ paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
+            <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Hesap</p>
+            <form onSubmit={changePassword}>
+              <div style={{ marginBottom: 8 }}>
+                <label
+                  style={{
+                    fontSize: 13,
+                    color: "var(--text-secondary)",
+                    display: "block",
+                    marginBottom: 4,
+                  }}
+                >
+                  Mevcut şifre
+                </label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  style={{ width: "100%" }}
+                />
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <label
+                  style={{
+                    fontSize: 13,
+                    color: "var(--text-secondary)",
+                    display: "block",
+                    marginBottom: 4,
+                  }}
+                >
+                  Yeni şifre
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  style={{ width: "100%" }}
+                />
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <label
+                  style={{
+                    fontSize: 13,
+                    color: "var(--text-secondary)",
+                    display: "block",
+                    marginBottom: 4,
+                  }}
+                >
+                  Yeni şifre (tekrar)
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  style={{ width: "100%" }}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={saving || !currentPassword || !newPassword}
+                style={{
+                  background: "var(--fill-accent)",
+                  color: "var(--on-accent)",
+                  border: "none",
+                  fontSize: 13,
+                }}
+              >
+                {saving ? "Kaydediliyor…" : "Şifreyi değiştir"}
+              </button>
+            </form>
           </div>
-          <button
-            type="submit"
-            disabled={saving || !currentPassword || !newPassword}
-            style={{
-              background: "var(--fill-accent)",
-              color: "var(--on-accent)",
-              border: "none",
-              fontSize: 13,
-            }}
-          >
-            {saving ? "Kaydediliyor…" : "Şifreyi değiştir"}
-          </button>
-        </form>
-      </div>
+        </>
+      )}
     </div>
   );
 }
@@ -3828,9 +3854,9 @@ export default function CustomerPortal() {
             title="Ayarlar"
           />
           <button
-            onClick={() => setPortalTab("ayarlar")}
-            title="Profil / Ayarlar"
-            aria-label="Profil / Ayarlar"
+            onClick={() => setPortalTab("profil")}
+            title="Profilim"
+            aria-label="Profilim"
             style={{
               background: "none",
               border: "none",
@@ -4219,8 +4245,31 @@ export default function CustomerPortal() {
                   />
                 )}
 
+                {portalTab === "profil" && (
+                  <PortalSettings
+                    section="profile"
+                    session={session}
+                    theme={theme}
+                    onThemeChange={setTheme}
+                    pushSubscribed={pushSubscribed}
+                    onSubscribe={subscribeToPush}
+                    onUnsubscribe={unsubscribeFromPush}
+                    marketingConsent={activeCustomerRow?.marketingConsent}
+                    onMarketingConsentChange={setMarketingConsent}
+                    companyName={activeCustomerRow?.companyName}
+                    companySector={activeCustomerRow?.companySector}
+                    photoConsent={activeCustomerRow?.photoConsent}
+                    onPhotoConsentChange={setPhotoConsent}
+                    customerName={activeCustomerRow?.name}
+                    customerPhone={activeCustomerRow?.phone}
+                    customerEmail={activeCustomerRow?.email}
+                    onUpdateProfile={updateProfile}
+                    notify={notify}
+                  />
+                )}
                 {portalTab === "ayarlar" && (
                   <PortalSettings
+                    section="account"
                     session={session}
                     theme={theme}
                     onThemeChange={setTheme}
