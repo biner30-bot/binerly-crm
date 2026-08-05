@@ -493,18 +493,12 @@ export default function Pano({
                     gap: 8,
                     fontSize: 13,
                     cursor: "pointer",
-                    padding: "4px 0",
+                    padding: "8px 10px",
+                    background: "var(--bg-accent)",
+                    borderLeft: "3px solid var(--text-accent)",
+                    borderRadius: "var(--radius)",
                   }}
                 >
-                  <span
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: "50%",
-                      background: "var(--fill-accent)",
-                      flexShrink: 0,
-                    }}
-                  />
                   <span style={{ flex: 1 }}>
                     {c?.name || "Bilinmeyen müşteri"} - {d.title}
                   </span>
@@ -540,18 +534,12 @@ export default function Pano({
                       gap: 8,
                       fontSize: 13,
                       cursor: "pointer",
-                      padding: "4px 0",
+                      padding: "8px 10px",
+                      background: sla.isBreached ? "var(--bg-danger)" : "var(--bg-warning)",
+                      borderLeft: `3px solid ${sla.isBreached ? "var(--text-danger)" : "var(--fill-warning)"}`,
+                      borderRadius: "var(--radius)",
                     }}
                   >
-                    <span
-                      style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: "50%",
-                        background: sla.isBreached ? "var(--text-danger)" : "var(--fill-warning)",
-                        flexShrink: 0,
-                      }}
-                    />
                     <span style={{ flex: 1 }}>{t.subject}</span>
                     <Badge tone={sla.isBreached ? "danger" : "warning"}>{sla.label}</Badge>
                   </div>
@@ -574,18 +562,12 @@ export default function Pano({
                     gap: 8,
                     fontSize: 13,
                     cursor: "pointer",
-                    padding: "4px 0",
+                    padding: "8px 10px",
+                    background: overdue ? "var(--bg-danger)" : "var(--bg-warning)",
+                    borderLeft: `3px solid ${overdue ? "var(--text-danger)" : "var(--fill-warning)"}`,
+                    borderRadius: "var(--radius)",
                   }}
                 >
-                  <span
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: "50%",
-                      background: overdue ? "var(--text-danger)" : "var(--fill-warning)",
-                      flexShrink: 0,
-                    }}
-                  />
                   <span style={{ flex: 1 }}>
                     {c?.name || "Bilinmeyen müşteri"} - {d.reminder}
                   </span>
@@ -604,18 +586,12 @@ export default function Pano({
                   alignItems: "center",
                   gap: 8,
                   fontSize: 13,
-                  padding: "4px 0",
+                  padding: "8px 10px",
+                  background: "var(--bg-warning)",
+                  borderLeft: "3px solid var(--fill-warning)",
+                  borderRadius: "var(--radius)",
                 }}
               >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background: "var(--fill-warning)",
-                    flexShrink: 0,
-                  }}
-                />
                 <span
                   style={{ flex: 1, cursor: "pointer" }}
                   onClick={() => setViewingCustomer(customer)}
@@ -657,18 +633,12 @@ export default function Pano({
                   gap: 8,
                   fontSize: 13,
                   cursor: "pointer",
-                  padding: "4px 0",
+                  padding: "8px 10px",
+                  background: "var(--bg-danger)",
+                  borderLeft: "3px solid var(--text-danger)",
+                  borderRadius: "var(--radius)",
                 }}
               >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background: "var(--text-danger)",
-                    flexShrink: 0,
-                  }}
-                />
                 <span style={{ flex: 1 }}>
                   {item.name} - {item.quantityOnHand} {item.unit} kaldı (kritik seviye{" "}
                   {item.reorderThreshold} {item.unit})
@@ -684,18 +654,12 @@ export default function Pano({
                   alignItems: "center",
                   gap: 8,
                   fontSize: 13,
-                  padding: "4px 0",
+                  padding: "8px 10px",
+                  background: "var(--bg-warning)",
+                  borderLeft: "3px solid var(--fill-warning)",
+                  borderRadius: "var(--radius)",
                 }}
               >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background: "var(--fill-warning)",
-                    flexShrink: 0,
-                  }}
-                />
                 <span
                   style={{ flex: 1, cursor: "pointer" }}
                   onClick={() => {
@@ -744,18 +708,12 @@ export default function Pano({
                   alignItems: "center",
                   gap: 8,
                   fontSize: 13,
-                  padding: "4px 0",
+                  padding: "8px 10px",
+                  background: "var(--bg-danger)",
+                  borderLeft: "3px solid var(--text-danger)",
+                  borderRadius: "var(--radius)",
                 }}
               >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background: "var(--text-danger)",
-                    flexShrink: 0,
-                  }}
-                />
                 <span
                   style={{ flex: 1, cursor: "pointer" }}
                   onClick={() => setViewingCustomer(alert.customer)}
@@ -793,18 +751,12 @@ export default function Pano({
                   alignItems: "center",
                   gap: 8,
                   fontSize: 13,
-                  padding: "4px 0",
+                  padding: "8px 10px",
+                  background: "var(--bg-accent)",
+                  borderLeft: "3px solid var(--text-accent)",
+                  borderRadius: "var(--radius)",
                 }}
               >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background: "var(--fill-accent)",
-                    flexShrink: 0,
-                  }}
-                />
                 <span style={{ flex: 1 }}>
                   {group.name} dersinde yer açıldı - yedek listede {waitCount} kişi var
                 </span>
@@ -831,18 +783,12 @@ export default function Pano({
                   gap: 8,
                   fontSize: 13,
                   cursor: "pointer",
-                  padding: "4px 0",
+                  padding: "8px 10px",
+                  background: "var(--bg-warning)",
+                  borderLeft: "3px solid var(--fill-warning)",
+                  borderRadius: "var(--radius)",
                 }}
               >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background: "var(--fill-warning)",
-                    flexShrink: 0,
-                  }}
-                />
                 <span style={{ flex: 1 }}>
                   {customerById(deal.customerId)?.name || "Bilinmeyen müşteri"} -{" "}
                   {stageLabel(deal.stage, undefined, companySettings?.sector)} aşamasında {daysOpen}{" "}
@@ -861,18 +807,12 @@ export default function Pano({
                   gap: 8,
                   fontSize: 13,
                   cursor: "pointer",
-                  padding: "4px 0",
+                  padding: "8px 10px",
+                  background: "var(--bg-accent)",
+                  borderLeft: "3px solid var(--text-accent)",
+                  borderRadius: "var(--radius)",
                 }}
               >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background: "var(--fill-accent)",
-                    flexShrink: 0,
-                  }}
-                />
                 <span style={{ flex: 1 }}>
                   {apptTime.toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}{" "}
                   {apptTime.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} -{" "}
@@ -896,18 +836,12 @@ export default function Pano({
                   gap: 8,
                   fontSize: 13,
                   cursor: "pointer",
-                  padding: "4px 0",
+                  padding: "8px 10px",
+                  background: "var(--bg-warning)",
+                  borderLeft: "3px solid var(--fill-warning)",
+                  borderRadius: "var(--radius)",
                 }}
               >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background: "var(--fill-warning)",
-                    flexShrink: 0,
-                  }}
-                />
                 <span style={{ flex: 1 }}>
                   {apptTime.toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}{" "}
                   {apptTime.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} -{" "}
