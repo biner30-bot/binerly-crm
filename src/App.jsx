@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
-import { Badge, TONE_COLORS, Modal, MetricCard, InfoTip, isFullNameValid, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, WEEKDAYS_SHORT, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl, translateAuthError, humanizeDbMessage, SELF_BOOKED_SOURCES, formatFileSize, MAX_TEAM_SIZE, parseAppointmentDateTime, RowActionsMenu, AttachmentList, PRICE_ITEM_NAME_EXAMPLES, ExportSelectionModal, SECTORS } from "./shared";
+import { Badge, TONE_COLORS, Modal, MetricCard, InfoTip, isFullNameValid, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, WEEKDAYS_SHORT, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl, translateAuthError, humanizeDbMessage, SELF_BOOKED_SOURCES, formatFileSize, MAX_TEAM_SIZE, parseAppointmentDateTime, RowActionsMenu, AttachmentList, PRICE_ITEM_NAME_EXAMPLES, ExportSelectionModal, SECTORS, InitialsAvatar } from "./shared";
 import { DEAL_WORD_FORMS, DEAL_TAB_STRINGS, SECTOR_DEMO_PRESETS } from "./staticData";
 import { AuthModal, PasswordRecoveryModal } from "./Auth";
 import { SectorPicker, CompanySettingsForm, PaymentCredentialForm, AppSettingsModal } from "./Settings";
@@ -1123,6 +1123,8 @@ export default function App() {
   const [acknowledgedInviteIds, setAcknowledgedInviteIds] = useState([]);
   const [showSettingsHub, setShowSettingsHub] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [globalSearchQuery, setGlobalSearchQuery] = useState("");
+  const [globalSearchFocused, setGlobalSearchFocused] = useState(false);
   const [showSettingsForm, setShowSettingsForm] = useState(false);
   const [showSectorFields, setShowSectorFields] = useState(false);
   const [showImportPriceList, setShowImportPriceList] = useState(false);
@@ -3522,6 +3524,23 @@ export default function App() {
   const dealKind = dealWordKind(companySettings?.sector);
   const dealWords = DEAL_TAB_STRINGS[dealKind];
   const dealPdfLabel = DEAL_WORD_FORMS[dealKind].pdfLabel;
+
+  // Ust bardaki genel arama - her sekmeye gitmeden musteri/kayit bulup
+  // dogrudan acabilmek icin. Zaten client-side'da tutulan customers/deals
+  // dizilerini filtreliyor, ayri bir sorgu gerekmiyor.
+  const globalSearchQueryNorm = globalSearchQuery.trim().toLowerCase();
+  const globalSearchActive = globalSearchQueryNorm.length >= 2;
+  const globalSearchCustomers = globalSearchActive
+    ? customers
+        .filter((c) => !c.deletedAt && [c.name, c.phone, c.email].some((f) => (f || "").toLowerCase().includes(globalSearchQueryNorm)))
+        .slice(0, 5)
+    : [];
+  const globalSearchDeals = globalSearchActive
+    ? deals
+        .filter((d) => !d.deletedAt && (d.title || "").toLowerCase().includes(globalSearchQueryNorm))
+        .slice(0, 5)
+    : [];
+  const globalSearchHasResults = globalSearchCustomers.length > 0 || globalSearchDeals.length > 0;
   // "Randevularım" sekmesi için — appointment-availability.js/send-appointment-
   // reminders.js'in yaptığı gibi, sektöre göre değişen randevu tarihi alanının
   // gerçek anahtarını aktif "Tarih & Saat" tipindeki tanımdan buluyoruz.
@@ -3785,8 +3804,8 @@ export default function App() {
 
   return (
     <div style={{ padding: "24px 16px 64px" }}>
-      <div className="app-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+      <div className="app-header-row" style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: "1.5rem" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 10, flex: "none" }}>
           <IconButton icon="ti-menu-2" onClick={() => setSidebarOpen(true)} title="Menü" className="app-sidebar-toggle" />
           <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
@@ -3796,13 +3815,15 @@ export default function App() {
               <>
                 <span style={{ width: 1, height: 18, background: "var(--border)" }} aria-hidden="true" />
                 <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  {companySettings.logoUrl && (
+                  {companySettings.logoUrl ? (
                     <img
                       src={companySettings.logoUrl}
                       alt=""
                       style={{ width: 18, height: 18, borderRadius: 4, objectFit: "contain" }}
                       onError={(e) => { e.currentTarget.style.display = "none"; }}
                     />
+                  ) : (
+                    <InitialsAvatar name={companySettings.companyName} size={18} />
                   )}
                   <span style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 500 }}>{companySettings.companyName}</span>
                 </span>
@@ -3812,8 +3833,70 @@ export default function App() {
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>KOBİ satış takip sistemi</p>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+
+        <div className="app-header-search" style={{ position: "relative", flex: 1, maxWidth: 360, minWidth: 0, alignSelf: "center" }}>
+          <i className="ti ti-search" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 15, color: "var(--text-muted)", pointerEvents: "none" }} aria-hidden="true"></i>
+          <input
+            type="text"
+            value={globalSearchQuery}
+            onChange={(e) => setGlobalSearchQuery(e.target.value)}
+            onFocus={() => setGlobalSearchFocused(true)}
+            onBlur={() => setGlobalSearchFocused(false)}
+            onKeyDown={(e) => { if (e.key === "Escape") e.currentTarget.blur(); }}
+            placeholder="Müşteri veya kayıt ara..."
+            style={{ width: "100%", padding: "8px 12px 8px 32px", borderRadius: "var(--radius)", fontSize: 13 }}
+          />
+          {globalSearchFocused && globalSearchActive && (
+            <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-md)", zIndex: 400, maxHeight: 360, overflowY: "auto", padding: 6 }}>
+              {!globalSearchHasResults ? (
+                <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0, padding: "8px 10px" }}>Sonuç bulunamadı.</p>
+              ) : (
+                <>
+                  {globalSearchCustomers.length > 0 && (
+                    <>
+                      <p style={{ fontSize: 10.5, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, margin: "4px 10px" }}>Müşteriler</p>
+                      {globalSearchCustomers.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          className="global-search-result"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => { setViewingCustomer(c); setGlobalSearchQuery(""); }}
+                          style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 10px", borderRadius: "var(--radius)", background: "none", border: "none", boxShadow: "none", fontSize: 13 }}
+                        >
+                          <span style={{ fontWeight: 500 }}>{c.name}</span>
+                          {c.phone && <span style={{ color: "var(--text-muted)", marginLeft: 6 }}>{c.phone}</span>}
+                        </button>
+                      ))}
+                    </>
+                  )}
+                  {globalSearchDeals.length > 0 && (
+                    <>
+                      <p style={{ fontSize: 10.5, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, margin: "4px 10px" }}>{dealWords.navLabel}</p>
+                      {globalSearchDeals.map((d) => (
+                        <button
+                          key={d.id}
+                          type="button"
+                          className="global-search-result"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => { setTab("firsat"); setEditingDeal(d); setShowDealForm(true); setGlobalSearchQuery(""); }}
+                          style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 10px", borderRadius: "var(--radius)", background: "none", border: "none", boxShadow: "none", fontSize: 13 }}
+                        >
+                          <span style={{ fontWeight: 500 }}>{d.title}</span>
+                          {customerById(d.customerId) && <span style={{ color: "var(--text-muted)", marginLeft: 6 }}>{customerById(d.customerId).name}</span>}
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
           <NotificationBell userId={session.user.id} supabase={supabase} dataTour="notification-bell" />
+          <InitialsAvatar name={session.user.user_metadata?.full_name || session.user.email} size={30} />
           <IconButton icon="ti-logout" label="Çıkış" onClick={() => supabase.auth.signOut()} title="Çıkış yap" className="app-header-logout-btn" />
         </div>
       </div>

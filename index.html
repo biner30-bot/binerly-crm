@@ -338,6 +338,15 @@
         .app-header-row { flex-wrap: wrap !important; row-gap: 8px; }
         .app-header-logout-btn span { display: none !important; }
       }
+      /* Ust bardaki genel arama kutusu - dar/orta genislikte sol (logo/sirket)
+         ve sag (bildirim/profil/cikis) bloklariyla ayni satirda sikisip
+         tasmayi onlemek icin gizlenir, tipki referans tasarimdaki gibi
+         (masaustune ozel bir kolaylik, aramanin kendisi hicbir yerde
+         kaybolmuyor - ilgili sekmeden yine erisilebiliyor). */
+      @media (max-width: 640px) {
+        .app-header-search { display: none !important; }
+      }
+      .global-search-result:hover { background: var(--surface-2) !important; }
       /* Müşteriler/Randevular gibi liste ekranlarındaki tablolar dar ekranda
          yatay kaydırmaya zorluyordu (sütunlar sığmıyordu). CSS-only "responsive
          table" deseni: satır bloğa döner (kart gibi), her hücre kendi
