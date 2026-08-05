@@ -333,11 +333,14 @@ export function GroupClassRoster({
                   ? attendance.find((a) => a.customerId === e.customerId)
                   : null;
                 return (
-                  <tr key={e.id} style={{ background: "var(--surface-1)" }}>
+                  <tr
+                    key={e.id}
+                    style={{ background: "var(--surface-1)", boxShadow: "var(--shadow-sm)" }}
+                  >
                     <td
                       style={{
                         padding: "8px 10px",
-                        borderRadius: "var(--radius) 0 0 var(--radius)",
+                        borderRadius: "var(--radius-lg) 0 0 var(--radius-lg)",
                         fontSize: 13,
                       }}
                     >
@@ -394,7 +397,7 @@ export function GroupClassRoster({
                       style={{
                         textAlign: "right",
                         padding: "6px 10px",
-                        borderRadius: "0 var(--radius) var(--radius) 0",
+                        borderRadius: "0 var(--radius-lg) var(--radius-lg) 0",
                       }}
                     >
                       <IconButton
@@ -524,7 +527,8 @@ export function LateCancelPolicyBox({ companySettings, onSave }) {
         marginBottom: 16,
         background: "var(--surface-1)",
         border: "0.5px solid var(--border)",
-        borderRadius: "var(--radius)",
+        borderRadius: "var(--radius-lg)",
+        boxShadow: "var(--shadow-sm)",
         padding: 12,
       }}
     >
@@ -791,7 +795,8 @@ export function GroupClassesTab({
                         style={{
                           background: "var(--surface-1)",
                           border: "0.5px solid var(--border)",
-                          borderRadius: "var(--radius)",
+                          borderRadius: "var(--radius-lg)",
+                          boxShadow: "var(--shadow-sm)",
                           padding: "10px 12px",
                           cursor: "pointer",
                           opacity: full ? 0.7 : 1,
