@@ -3946,8 +3946,20 @@ export default function App() {
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
           <NotificationBell userId={session.user.id} supabase={supabase} dataTour="notification-bell" />
-          <InitialsAvatar name={session.user.user_metadata?.full_name || session.user.email} size={30} />
           <IconButton icon="ti-logout" label="Çıkış" onClick={() => supabase.auth.signOut()} title="Çıkış yap" className="app-header-logout-btn" />
+          <button
+            type="button"
+            onClick={() => setShowAppSettings(true)}
+            title="Profil ayarları"
+            aria-label="Profil ayarları"
+            style={{ background: "none", border: "none", padding: 0, boxShadow: "none", cursor: "pointer", display: "flex", lineHeight: 0 }}
+          >
+            {session.user.user_metadata?.avatar_url ? (
+              <img src={session.user.user_metadata.avatar_url} alt="" style={{ width: 30, height: 30, borderRadius: "50%", objectFit: "cover" }} />
+            ) : (
+              <InitialsAvatar name={session.user.user_metadata?.full_name || session.user.email} size={30} />
+            )}
+          </button>
         </div>
       </div>
 

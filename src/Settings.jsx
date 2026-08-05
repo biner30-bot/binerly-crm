@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { supabase } from "./supabase";
-import { Modal, InfoTip, ConfirmDialog, translateAuthError } from "./shared";
+import { Modal, InfoTip, ConfirmDialog, translateAuthError, InitialsAvatar } from "./shared";
 import { SECTOR_PRESETS, STAGES, stageLabel, dealWordKind } from "./Sectors";
 import { DEAL_WORD_FORMS } from "./staticData";
 const COMPANY_NAME_EXAMPLES = {
@@ -779,6 +779,8 @@ export function AppSettingsModal({
 }) {
   const [name, setName] = useState(session.user.user_metadata?.full_name || "");
   const [savingName, setSavingName] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState(session.user.user_metadata?.avatar_url || "");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -798,6 +800,54 @@ export function AppSettingsModal({
       return;
     }
     notify("Adınız güncellendi.", "success");
+  };
+
+  // Şirket logosuyla aynı public "logos" bucket'ı - {userId}/... yolu, storage
+  // RLS'inde zaten "kendi auth.uid() klasörüne herkes yazabilir" kuralına
+  // giriyor, yeni bir bucket/policy gerekmiyor.
+  const handlePhotoFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      notify("Sadece resim dosyası yükleyebilirsiniz.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      notify("Fotoğraf en fazla 2 MB olabilir.");
+      return;
+    }
+    setUploadingPhoto(true);
+    const ext = file.name.split(".").pop();
+    const path = `${session.user.id}/avatar-${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from("logos")
+      .upload(path, file, { upsert: true });
+    if (uploadError) {
+      setUploadingPhoto(false);
+      notify(`Fotoğraf yüklenemedi: ${uploadError.message}`);
+      return;
+    }
+    const { data } = supabase.storage.from("logos").getPublicUrl(path);
+    const { error } = await supabase.auth.updateUser({ data: { avatar_url: data.publicUrl } });
+    setUploadingPhoto(false);
+    if (error) {
+      notify(`Fotoğraf kaydedilemedi: ${translateAuthError(error.message)}`);
+      return;
+    }
+    setPhotoUrl(data.publicUrl);
+    notify("Profil fotoğrafınız güncellendi.", "success");
+  };
+
+  const removePhoto = async () => {
+    setUploadingPhoto(true);
+    const { error } = await supabase.auth.updateUser({ data: { avatar_url: null } });
+    setUploadingPhoto(false);
+    if (error) {
+      notify(`Kaldırılamadı: ${translateAuthError(error.message)}`);
+      return;
+    }
+    setPhotoUrl("");
   };
 
   const changePassword = async (e) => {
@@ -836,6 +886,56 @@ export function AppSettingsModal({
     <Modal title="Ayarlar" onClose={onClose}>
       <div style={{ marginBottom: 20 }}>
         <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Profil</p>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+          {photoUrl ? (
+            <img
+              src={photoUrl}
+              alt=""
+              style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover" }}
+            />
+          ) : (
+            <InitialsAvatar name={name || session.user.email} size={56} />
+          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label
+              style={{
+                background: "var(--surface-1)",
+                border: "0.5px solid var(--border)",
+                borderRadius: "var(--radius)",
+                padding: "6px 12px",
+                fontSize: 13,
+                cursor: uploadingPhoto ? "default" : "pointer",
+                width: "fit-content",
+              }}
+            >
+              {uploadingPhoto ? "Yükleniyor…" : photoUrl ? "Fotoğrafı değiştir" : "Fotoğraf yükle"}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoFile}
+                disabled={uploadingPhoto}
+                style={{ display: "none" }}
+              />
+            </label>
+            {photoUrl && !uploadingPhoto && (
+              <button
+                type="button"
+                onClick={removePhoto}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--text-danger)",
+                  fontSize: 12,
+                  padding: 0,
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                Kaldır
+              </button>
+            )}
+          </div>
+        </div>
         <form onSubmit={saveName} style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
           <div style={{ flex: 1 }}>
             <label
