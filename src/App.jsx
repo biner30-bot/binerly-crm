@@ -847,9 +847,9 @@ function LandingPage() {
             KOBİ'ler için CRM
           </div>
           <h1 style={{ fontSize: "clamp(2rem, 4vw, 3rem)", fontWeight: 800, color: "#0c2540", lineHeight: 1.2, margin: "0 0 1.25rem" }}>
-            Müşterinizle ilişkinizi{" "}
-            <span style={{ color: "#185fa5" }}>baştan sona</span>{" "}
-            tek yerde yönetin
+            KOBİ'ler için{" "}
+            <span style={{ color: "#185fa5" }}>Akıllı İş Takip</span>{" "}
+            Sistemi
           </h1>
           <p style={{ fontSize: 17, color: "#5b7088", lineHeight: 1.7, margin: "0 0 2rem", maxWidth: 480 }}>
             Müşteri veya danışan takibi, teklif, randevu ya da üyelik süreci, destek ve müşterinizin kendi portalı - hepsi bir arada, sektörünüze göre şekillenen tek bir sistemde.
