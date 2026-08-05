@@ -4384,7 +4384,10 @@ export function DealsTab({
                 const paid = totalPaidForDeal(d.id);
                 const remaining = d.value - paid;
                 return (
-                  <tr key={d.id} style={{ background: "var(--surface-1)" }}>
+                  <tr
+                    key={d.id}
+                    style={{ background: "var(--surface-1)", boxShadow: "var(--shadow-sm)" }}
+                  >
                     <td
                       data-label={dealWords.columnHeader}
                       onClick={() => {
@@ -4393,7 +4396,7 @@ export function DealsTab({
                       }}
                       style={{
                         padding: "10px 12px",
-                        borderRadius: "var(--radius) 0 0 var(--radius)",
+                        borderRadius: "var(--radius-lg) 0 0 var(--radius-lg)",
                         cursor: "pointer",
                       }}
                     >
@@ -4567,7 +4570,7 @@ export function DealsTab({
                     <td
                       style={{
                         padding: "10px 12px",
-                        borderRadius: "0 var(--radius) var(--radius) 0",
+                        borderRadius: "0 var(--radius-lg) var(--radius-lg) 0",
                       }}
                     >
                       <div style={{ display: "flex", justifyContent: "flex-end" }}>

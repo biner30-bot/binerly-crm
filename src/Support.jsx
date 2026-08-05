@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { Badge, Modal, InfoTip, ConfirmDialog, IconButton, uid, matchesDateRange, DateRangeFilter, downloadXlsx, EmojiPickerButton } from "./shared";
+import {
+  Badge,
+  Modal,
+  InfoTip,
+  ConfirmDialog,
+  IconButton,
+  uid,
+  matchesDateRange,
+  DateRangeFilter,
+  downloadXlsx,
+  EmojiPickerButton,
+} from "./shared";
 import { ImportModal } from "./ImportExport";
 import { SECTOR_PRESETS, supportExamples } from "./Sectors";
 
@@ -367,8 +378,8 @@ const SLA_INFO_TEXT =
   "🟢 Zamanında - kalan süre hedefin %20'sinden fazla\n" +
   "🟠 Süre yaklaşıyor - kalan süre hedefin son %20'lik diliminde (Acil'de son 48 dk, Yüksek'te son ~5 sa, Orta'da son ~10 sa, Düşük'te son ~14 sa)\n" +
   "🔴 SLA aşıldı - hedef süre geçti, talep hâlâ açık\n\n" +
-  "Talep Çözüldü/Kapatıldı ise kırmızı alarm gösterilmez: çözülme anı hedeften önceyse \"Zamanında çözüldü\", " +
-  "sonraysa turuncu \"Geç çözüldü\" etiketiyle sadece geçmişe dönük bir kayıt olarak gösterilir - talep artık aktif değildir.";
+  'Talep Çözüldü/Kapatıldı ise kırmızı alarm gösterilmez: çözülme anı hedeften önceyse "Zamanında çözüldü", ' +
+  'sonraysa turuncu "Geç çözüldü" etiketiyle sadece geçmişe dönük bir kayıt olarak gösterilir - talep artık aktif değildir.';
 
 const MESSAGE_DIRECTIONS = [
   { id: "giden", label: "Giden (müşteriye)", icon: "ti-arrow-up-right" },
@@ -376,13 +387,13 @@ const MESSAGE_DIRECTIONS = [
 ];
 
 const STATUS_INFO_TEXT =
-  "Durumu \"Çözüldü\" veya \"Kapatıldı\" yaptığınızda, e-posta bildirimleri açıksa (Ayarlar → İşletme Bilgileri) " +
+  'Durumu "Çözüldü" veya "Kapatıldı" yaptığınızda, e-posta bildirimleri açıksa (Ayarlar → İşletme Bilgileri) ' +
   "müşteriye otomatik bir bilgilendirme e-postası gider.\n\n" +
-  "İkisi arasındaki fark tamamen size kalmış - örn. \"Çözüldü\" sorunun giderildiğini, \"Kapatıldı\" konunun " +
+  'İkisi arasındaki fark tamamen size kalmış - örn. "Çözüldü" sorunun giderildiğini, "Kapatıldı" konunun ' +
   "artık takip edilmeyeceğini belirtmek için kullanılabilir. İkisi de SLA süresini durdurur.";
 
 const DIRECTION_INFO_TEXT =
-  "\"Giden (müşteriye)\" bir e-posta GÖNDERMEZ - sadece bu mesajı kaydeder ve müşteri, kendi hesabıyla " +
+  '"Giden (müşteriye)" bir e-posta GÖNDERMEZ - sadece bu mesajı kaydeder ve müşteri, kendi hesabıyla ' +
   "Müşteri Portalı'na (portal.binerly.com) giriş yaptığında görebilir. Müşteriye gerçekten e-posta atmak için " +
   "WhatsApp/e-posta gibi kendi iletişim kanallarınızı kullanmanız gerekir.";
 
@@ -418,7 +429,13 @@ export function getSlaStatus(ticket) {
     return { dueAt, isBreached: true, isApproaching: false, tone: "danger", label: "SLA aşıldı" };
   }
   if (remainingMs <= totalMs * 0.2) {
-    return { dueAt, isBreached: false, isApproaching: true, tone: "warning", label: "Süre yaklaşıyor" };
+    return {
+      dueAt,
+      isBreached: false,
+      isApproaching: true,
+      tone: "warning",
+      label: "Süre yaklaşıyor",
+    };
   }
   return { dueAt, isBreached: false, isApproaching: false, tone: "success", label: "Zamanında" };
 }
@@ -464,8 +481,11 @@ export function rowToKbArticle(r) {
 
 function formatDateTime(dateStr) {
   const d = new Date(dateStr);
-  return d.toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" }) +
-    " · " + d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  return (
+    d.toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" }) +
+    " · " +
+    d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })
+  );
 }
 
 function TicketForm({ customers, initial, onSave, onCancel, sector }) {
@@ -490,49 +510,138 @@ function TicketForm({ customers, initial, onSave, onCancel, sector }) {
           description: description.trim(),
           priority,
           status,
-          resolvedAt: isTerminal ? (initial?.resolvedAt || new Date().toISOString()) : null,
+          resolvedAt: isTerminal ? initial?.resolvedAt || new Date().toISOString() : null,
           createdAt: initial?.createdAt || new Date().toISOString(),
         });
         setSaving(false);
       }}
     >
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Müşteri</label>
+        <label
+          style={{
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            display: "block",
+            marginBottom: 4,
+          }}
+        >
+          Müşteri
+        </label>
         {initial ? (
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>{customers.find((c) => c.id === customerId)?.name || "Bilinmeyen müşteri"}</p>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>
+            {customers.find((c) => c.id === customerId)?.name || "Bilinmeyen müşteri"}
+          </p>
         ) : customers.length === 0 ? (
           <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Önce bir müşteri ekleyin.</p>
         ) : (
-          <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} style={{ width: "100%" }}>
-            {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          <select
+            value={customerId}
+            onChange={(e) => setCustomerId(e.target.value)}
+            style={{ width: "100%" }}
+          >
+            {customers.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
           </select>
         )}
       </div>
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Konu</label>
-        <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={`Örn. ${supportExamples(sector).subject}`} style={{ width: "100%" }} />
+        <label
+          style={{
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            display: "block",
+            marginBottom: 4,
+          }}
+        >
+          Konu
+        </label>
+        <input
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          placeholder={`Örn. ${supportExamples(sector).subject}`}
+          style={{ width: "100%" }}
+        />
       </div>
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Öncelik</label>
-          <select value={priority} onChange={(e) => setPriority(e.target.value)} style={{ width: "100%" }}>
-            {PRIORITIES.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+          <label
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Öncelik
+          </label>
+          <select
+            value={priority}
+            onChange={(e) => setPriority(e.target.value)}
+            style={{ width: "100%" }}
+          >
+            {PRIORITIES.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
           </select>
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>Durum <InfoTip text={STATUS_INFO_TEXT} /></label>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ width: "100%" }}>
-            {STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+          <label
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              marginBottom: 4,
+            }}
+          >
+            Durum <InfoTip text={STATUS_INFO_TEXT} />
+          </label>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            style={{ width: "100%" }}
+          >
+            {STATUSES.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
+              </option>
+            ))}
           </select>
         </div>
       </div>
       <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Açıklama</label>
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Talebin detayları" style={{ width: "100%", minHeight: 80, resize: "vertical" }} />
+        <label
+          style={{
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            display: "block",
+            marginBottom: 4,
+          }}
+        >
+          Açıklama
+        </label>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Talebin detayları"
+          style={{ width: "100%", minHeight: 80, resize: "vertical" }}
+        />
       </div>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-        <button type="button" onClick={onCancel}>Vazgeç</button>
-        <button type="submit" disabled={customers.length === 0 || saving} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+        <button type="button" onClick={onCancel}>
+          Vazgeç
+        </button>
+        <button
+          type="submit"
+          disabled={customers.length === 0 || saving}
+          style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+        >
           {saving ? "Kaydediliyor…" : "Kaydet"}
         </button>
       </div>
@@ -568,53 +677,159 @@ function TicketList({
 
   return (
     <div>
-      <div className="list-toolbar" style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+      <div
+        className="list-toolbar"
+        style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}
+      >
         <input
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Talep ara (konu, müşteri)..."
           style={{ flex: 1, minWidth: 160 }}
         />
-        <select value={statusFilter} onChange={(e) => onFilterChange(e.target.value)} style={{ fontSize: 13 }}>
+        <select
+          value={statusFilter}
+          onChange={(e) => onFilterChange(e.target.value)}
+          style={{ fontSize: 13 }}
+        >
           <option value="all">Tüm durumlar</option>
-          {STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+          {STATUSES.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.label}
+            </option>
+          ))}
         </select>
-        <select value={priorityFilter} onChange={(e) => onPriorityFilterChange(e.target.value)} style={{ fontSize: 13 }}>
+        <select
+          value={priorityFilter}
+          onChange={(e) => onPriorityFilterChange(e.target.value)}
+          style={{ fontSize: 13 }}
+        >
           <option value="all">Tüm öncelikler</option>
-          {PRIORITIES.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+          {PRIORITIES.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label}
+            </option>
+          ))}
         </select>
-        <select value={slaFilter} onChange={(e) => onSlaFilterChange(e.target.value)} style={{ fontSize: 13 }}>
+        <select
+          value={slaFilter}
+          onChange={(e) => onSlaFilterChange(e.target.value)}
+          style={{ fontSize: 13 }}
+        >
           <option value="all">Tüm SLA durumları</option>
           <option value="gecikti">Gecikti</option>
           <option value="yaklasiyor">Yaklaşıyor</option>
           <option value="zamaninda">Zamanında</option>
         </select>
-        <DateRangeFilter from={fromDate} to={toDate} onFromChange={onFromDateChange} onToChange={onToDateChange} />
+        <DateRangeFilter
+          from={fromDate}
+          to={toDate}
+          onFromChange={onFromDateChange}
+          onToChange={onToDateChange}
+        />
       </div>
       {sorted.length === 0 ? (
         totalCount === 0 ? (
-          <div style={{ background: "var(--surface-1)", borderRadius: 12, padding: "2rem 1.5rem", textAlign: "center" }}>
+          <div
+            style={{
+              background: "var(--surface-1)",
+              borderRadius: 12,
+              padding: "2rem 1.5rem",
+              textAlign: "center",
+            }}
+          >
             <p style={{ fontWeight: 500, margin: "0 0 4px" }}>Henüz talep eklenmedi</p>
-            <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px" }}>Müşteri portaldan yazdığında burada görünür, isterseniz kendiniz de bir talep oluşturabilirsiniz.</p>
-            <button onClick={onCreateNew} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+            <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px" }}>
+              Müşteri portaldan yazdığında burada görünür, isterseniz kendiniz de bir talep
+              oluşturabilirsiniz.
+            </p>
+            <button
+              onClick={onCreateNew}
+              style={{
+                background: "var(--fill-accent)",
+                color: "var(--on-accent)",
+                border: "none",
+              }}
+            >
               + Yeni Talep
             </button>
           </div>
         ) : (
-          <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Aramayla eşleşen talep yok.</p>
+          <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
+            Aramayla eşleşen talep yok.
+          </p>
         )
       ) : (
         <div style={{ overflowX: "auto" }}>
-          <table className="responsive-table" style={{ width: "100%", minWidth: 600, borderCollapse: "separate", borderSpacing: "0 8px" }}>
+          <table
+            className="responsive-table"
+            style={{
+              width: "100%",
+              minWidth: 600,
+              borderCollapse: "separate",
+              borderSpacing: "0 8px",
+            }}
+          >
             <thead>
               <tr>
-                <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>Talep</th>
-                <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Öncelik <InfoTip text={PRIORITY_INFO_TEXT} /></span>
+                <th
+                  style={{
+                    textAlign: "left",
+                    padding: "0 12px",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "var(--text-muted)",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  Talep
                 </th>
-                <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>Durum</th>
-                <th style={{ textAlign: "left", padding: "0 12px", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>SLA <InfoTip text={SLA_INFO_TEXT} /></span>
+                <th
+                  style={{
+                    textAlign: "left",
+                    padding: "0 12px",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "var(--text-muted)",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.3,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    Öncelik <InfoTip text={PRIORITY_INFO_TEXT} />
+                  </span>
+                </th>
+                <th
+                  style={{
+                    textAlign: "left",
+                    padding: "0 12px",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "var(--text-muted)",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.3,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Durum
+                </th>
+                <th
+                  style={{
+                    textAlign: "left",
+                    padding: "0 12px",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "var(--text-muted)",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.3,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    SLA <InfoTip text={SLA_INFO_TEXT} />
+                  </span>
                 </th>
                 <th></th>
               </tr>
@@ -626,19 +841,53 @@ function TicketList({
                 const priorityInfo = PRIORITIES.find((p) => p.id === t.priority);
                 const sla = getSlaStatus(t);
                 return (
-                  <tr key={t.id} style={{ background: "var(--surface-1)" }}>
-                    <td data-label="Talep" onClick={() => onOpenTicket(t)} style={{ padding: "10px 12px", borderRadius: "var(--radius) 0 0 var(--radius)", cursor: "pointer" }}>
-                      <p style={{ margin: 0, fontWeight: 500, fontSize: 14, display: "flex", alignItems: "center", gap: 6 }}>
+                  <tr
+                    key={t.id}
+                    style={{ background: "var(--surface-1)", boxShadow: "var(--shadow-sm)" }}
+                  >
+                    <td
+                      data-label="Talep"
+                      onClick={() => onOpenTicket(t)}
+                      style={{
+                        padding: "10px 12px",
+                        borderRadius: "var(--radius-lg) 0 0 var(--radius-lg)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <p
+                        style={{
+                          margin: 0,
+                          fontWeight: 500,
+                          fontSize: 14,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                        }}
+                      >
                         {t.subject}
                         {unreadCountByTicket[t.id] > 0 && (
                           <Badge tone="accent">{unreadCountByTicket[t.id]} yeni mesaj</Badge>
                         )}
                       </p>
-                      <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{c?.name || "Bilinmeyen müşteri"}</p>
+                      <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
+                        {c?.name || "Bilinmeyen müşteri"}
+                      </p>
                     </td>
                     <td data-label="Öncelik" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                      <span style={{ fontSize: 12, color: `var(--text-${PRIORITY_TONE[t.priority]})`, display: "flex", alignItems: "center", gap: 4 }}>
-                        <i className="ti ti-point-filled" style={{ fontSize: 14 }} aria-hidden="true"></i>
+                      <span
+                        style={{
+                          fontSize: 12,
+                          color: `var(--text-${PRIORITY_TONE[t.priority]})`,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <i
+                          className="ti ti-point-filled"
+                          style={{ fontSize: 14 }}
+                          aria-hidden="true"
+                        ></i>
                         {priorityInfo?.label}
                       </span>
                     </td>
@@ -648,11 +897,28 @@ function TicketList({
                     <td data-label="SLA" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                       <Badge tone={sla.tone}>{sla.label}</Badge>
                     </td>
-                    <td style={{ padding: "10px 12px", borderRadius: "0 var(--radius) var(--radius) 0" }}>
+                    <td
+                      style={{
+                        padding: "10px 12px",
+                        borderRadius: "0 var(--radius-lg) var(--radius-lg) 0",
+                      }}
+                    >
                       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                        <IconButton icon="ti-message-circle" title="Detay ve mesaj geçmişi" onClick={() => onOpenTicket(t)} />
-                        <IconButton icon="ti-edit" title="Düzenle" onClick={() => onEditTicket(t)} />
-                        <IconButton icon="ti-trash" title="Sil" onClick={() => setConfirmDelete(t)} />
+                        <IconButton
+                          icon="ti-message-circle"
+                          title="Detay ve mesaj geçmişi"
+                          onClick={() => onOpenTicket(t)}
+                        />
+                        <IconButton
+                          icon="ti-edit"
+                          title="Düzenle"
+                          onClick={() => onEditTicket(t)}
+                        />
+                        <IconButton
+                          icon="ti-trash"
+                          title="Sil"
+                          onClick={() => setConfirmDelete(t)}
+                        />
                       </div>
                     </td>
                   </tr>
@@ -667,7 +933,10 @@ function TicketList({
         <ConfirmDialog
           title="Talebi sil"
           message="Bu destek talebi çöp kutusuna taşınacak (mesaj geçmişi korunur), dilediğiniz zaman geri yükleyebilirsiniz."
-          onConfirm={() => { onDeleteTicket(confirmDelete.id); setConfirmDelete(null); }}
+          onConfirm={() => {
+            onDeleteTicket(confirmDelete.id);
+            setConfirmDelete(null);
+          }}
           onClose={() => setConfirmDelete(null)}
         />
       )}
@@ -675,7 +944,15 @@ function TicketList({
   );
 }
 
-function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange, onClose, sector }) {
+function TicketDetail({
+  ticket,
+  customer,
+  messages,
+  onAddMessage,
+  onStatusChange,
+  onClose,
+  sector,
+}) {
   const [direction, setDirection] = useState("giden");
   const [content, setContent] = useState("");
   const [isInternal, setIsInternal] = useState(false);
@@ -684,22 +961,30 @@ function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange
 
   const sla = getSlaStatus(ticket);
   const priorityInfo = PRIORITIES.find((p) => p.id === ticket.priority);
-  const sortedMessages = [...messages].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  const sortedMessages = [...messages].sort(
+    (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
+  );
   // Yeni talep açılırken açıklama otomatik olarak ilk "gelen" mesaj da oluyor —
   // aynı metni iki kez göstermeyelim.
-  const descriptionIsFirstMessage = sortedMessages.length > 0 && sortedMessages[0].content === ticket.description;
+  const descriptionIsFirstMessage =
+    sortedMessages.length > 0 && sortedMessages[0].content === ticket.description;
 
   const submit = async (e) => {
     e.preventDefault();
     if (!content.trim()) return;
     setSaving(true);
     setNotice("");
-    const result = await onAddMessage({ ticketId: ticket.id, direction, content: content.trim(), isInternal });
+    const result = await onAddMessage({
+      ticketId: ticket.id,
+      direction,
+      content: content.trim(),
+      isInternal,
+    });
     if (result && !result.notified) {
       setNotice(
         result.hasEmail
           ? "Mesaj portala eklendi ama e-posta bildirimi gönderilemedi - müşteri portalı kontrol etmedikçe bu yanıttan haberi olmaz."
-          : "Bu müşterinin e-postası kayıtlı olmadığı için bildirim gönderilemedi - mesaj yalnızca portalda görünüyor, müşteriye başka bir yoldan (telefon/WhatsApp) haber vermeniz gerekebilir."
+          : "Bu müşterinin e-postası kayıtlı olmadığı için bildirim gönderilemedi - mesaj yalnızca portalda görünüyor, müşteriye başka bir yoldan (telefon/WhatsApp) haber vermeniz gerekebilir.",
       );
     }
     setContent("");
@@ -711,46 +996,130 @@ function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange
     <Modal title={ticket.subject} onClose={onClose}>
       <div style={{ marginBottom: 16 }}>
         <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
-          {customer?.name || "Bilinmeyen müşteri"} {customer?.phone ? `· ${customer.phone}` : ""} {customer?.email ? `· ${customer.email}` : ""}
+          {customer?.name || "Bilinmeyen müşteri"} {customer?.phone ? `· ${customer.phone}` : ""}{" "}
+          {customer?.email ? `· ${customer.email}` : ""}
         </p>
         {ticket.description && !descriptionIsFirstMessage && (
-          <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--text-secondary)" }}>{ticket.description}</p>
+          <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--text-secondary)" }}>
+            {ticket.description}
+          </p>
         )}
-        <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>Öncelik: {priorityInfo?.label}</span>
+        <div
+          style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}
+        >
+          <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+            Öncelik: {priorityInfo?.label}
+          </span>
           <Badge tone={sla.tone}>{sla.label}</Badge>
-          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Hedef: {formatDateTime(sla.dueAt)}</span>
+          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+            Hedef: {formatDateTime(sla.dueAt)}
+          </span>
           <InfoTip placement="bottom" align="right" text={SLA_INFO_TEXT} />
         </div>
       </div>
 
       <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Durum</label>
-        <select value={ticket.status} onChange={(e) => onStatusChange(ticket.id, e.target.value)} style={{ width: "100%" }}>
-          {STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+        <label
+          style={{
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            display: "block",
+            marginBottom: 4,
+          }}
+        >
+          Durum
+        </label>
+        <select
+          value={ticket.status}
+          onChange={(e) => onStatusChange(ticket.id, e.target.value)}
+          style={{ width: "100%" }}
+        >
+          {STATUSES.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.label}
+            </option>
+          ))}
         </select>
       </div>
 
-      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px", display: "flex", alignItems: "center", gap: 4 }}>
+      <p
+        style={{
+          fontSize: 13,
+          fontWeight: 500,
+          margin: "0 0 8px",
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+        }}
+      >
         Mesaj geçmişi <InfoTip align="left" text={DIRECTION_INFO_TEXT} />
       </p>
       <form onSubmit={submit} style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-          <select value={direction} onChange={(e) => setDirection(e.target.value)} style={{ width: 190 }}>
-            {MESSAGE_DIRECTIONS.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+          <select
+            value={direction}
+            onChange={(e) => setDirection(e.target.value)}
+            style={{ width: 190 }}
+          >
+            {MESSAGE_DIRECTIONS.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.label}
+              </option>
+            ))}
           </select>
-          <input value={content} onChange={(e) => setContent(e.target.value)} placeholder={`Örn. ${supportExamples(sector).message}`} style={{ flex: 1 }} />
+          <input
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder={`Örn. ${supportExamples(sector).message}`}
+            style={{ flex: 1 }}
+          />
         </div>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-secondary)", marginBottom: 8, cursor: "pointer" }}>
-          <input type="checkbox" checked={isInternal} onChange={(e) => setIsInternal(e.target.checked)} />
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 12,
+            color: "var(--text-secondary)",
+            marginBottom: 8,
+            cursor: "pointer",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={isInternal}
+            onChange={(e) => setIsInternal(e.target.checked)}
+          />
           Dahili not (müşteri portalında görünmez)
         </label>
-        <button type="submit" disabled={saving || !content.trim()} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
+        <button
+          type="submit"
+          disabled={saving || !content.trim()}
+          style={{
+            background: "var(--fill-accent)",
+            color: "var(--on-accent)",
+            border: "none",
+            fontSize: 13,
+          }}
+        >
           Ekle
         </button>
         {notice && (
-          <p style={{ fontSize: 12, color: "var(--text-warning)", margin: "8px 0 0", display: "flex", alignItems: "flex-start", gap: 4 }}>
-            <i className="ti ti-alert-triangle" style={{ fontSize: 13, marginTop: 1, flexShrink: 0 }} aria-hidden="true"></i>
+          <p
+            style={{
+              fontSize: 12,
+              color: "var(--text-warning)",
+              margin: "8px 0 0",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 4,
+            }}
+          >
+            <i
+              className="ti ti-alert-triangle"
+              style={{ fontSize: 13, marginTop: 1, flexShrink: 0 }}
+              aria-hidden="true"
+            ></i>
             {notice}
           </p>
         )}
@@ -759,12 +1128,29 @@ function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange
       {sortedMessages.length === 0 ? (
         <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz mesaj yok.</p>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 260, overflowY: "auto" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            maxHeight: 260,
+            overflowY: "auto",
+          }}
+        >
           {sortedMessages.map((m) => {
-            const dirInfo = MESSAGE_DIRECTIONS.find((d) => d.id === m.direction) || MESSAGE_DIRECTIONS[0];
+            const dirInfo =
+              MESSAGE_DIRECTIONS.find((d) => d.id === m.direction) || MESSAGE_DIRECTIONS[0];
             return (
               <div key={m.id} style={{ display: "flex", gap: 10 }}>
-                <i className={`ti ${m.isInternal ? "ti-lock" : dirInfo.icon}`} style={{ fontSize: 16, color: m.isInternal ? "var(--text-muted)" : "var(--text-accent)", marginTop: 2 }} aria-hidden="true"></i>
+                <i
+                  className={`ti ${m.isInternal ? "ti-lock" : dirInfo.icon}`}
+                  style={{
+                    fontSize: 16,
+                    color: m.isInternal ? "var(--text-muted)" : "var(--text-accent)",
+                    marginTop: 2,
+                  }}
+                  aria-hidden="true"
+                ></i>
                 <div>
                   <p style={{ margin: 0, fontSize: 13 }}>{m.content}</p>
                   <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>
@@ -786,7 +1172,9 @@ function TicketDetail({ ticket, customer, messages, onAddMessage, onStatusChange
 export function computeChatConversations(chatTickets, chatMessages, customerById) {
   return chatTickets
     .map((t) => {
-      const msgs = [...chatMessages.filter((m) => m.ticketId === t.id)].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      const msgs = [...chatMessages.filter((m) => m.ticketId === t.id)].sort(
+        (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
+      );
       return {
         ticket: t,
         customer: customerById(t.customerId),
@@ -802,7 +1190,13 @@ export function computeChatConversations(chatTickets, chatMessages, customerById
 // Portal "Mesajlar" sekmesinin admin karşılığı — talep akışının dışında,
 // WhatsApp/Instagram gelen kutusuna (Messages.jsx) benzer sade bir sohbet
 // arayüzü. Konu/durum/öncelik yok; sadece müşteri başlattıysa bir konuşma var.
-export function ChatInbox({ conversations, selectedTicketId, onSelect, selectedConversation, onSend }) {
+export function ChatInbox({
+  conversations,
+  selectedTicketId,
+  onSelect,
+  selectedConversation,
+  onSend,
+}) {
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
 
@@ -816,27 +1210,69 @@ export function ChatInbox({ conversations, selectedTicketId, onSelect, selectedC
   };
 
   if (conversations.length === 0) {
-    return <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Henüz müşteriden gelen bir mesaj yok - müşteri portaldaki "Mesajlar" sekmesinden yazınca burada görünecek.</p>;
+    return (
+      <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
+        Henüz müşteriden gelen bir mesaj yok - müşteri portaldaki "Mesajlar" sekmesinden yazınca
+        burada görünecek.
+      </p>
+    );
   }
 
   return (
-    <div className="messages-grid" data-has-selection={selectedConversation ? "true" : "false"} style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 16, alignItems: "start" }}>
-      <div className="msg-list-pane" style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 8, maxHeight: 560, overflowY: "auto" }}>
+    <div
+      className="messages-grid"
+      data-has-selection={selectedConversation ? "true" : "false"}
+      style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 16, alignItems: "start" }}
+    >
+      <div
+        className="msg-list-pane"
+        style={{
+          background: "var(--surface-1)",
+          borderRadius: "var(--radius)",
+          padding: 8,
+          maxHeight: 560,
+          overflowY: "auto",
+        }}
+      >
         {conversations.map((c) => (
           <div
             key={c.ticket.id}
             onClick={() => onSelect(c.ticket.id)}
             style={{
-              display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: "var(--radius)",
-              cursor: "pointer", background: selectedTicketId === c.ticket.id ? "var(--surface-2)" : "transparent",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "8px 10px",
+              borderRadius: "var(--radius)",
+              cursor: "pointer",
+              background: selectedTicketId === c.ticket.id ? "var(--surface-2)" : "transparent",
             }}
           >
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
                 {c.customer?.name || "Bilinmeyen müşteri"}
               </p>
-              <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {c.lastMessage.direction === "giden" ? "Siz: " : ""}{c.lastMessage.content}
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 12,
+                  color: "var(--text-muted)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {c.lastMessage.direction === "giden" ? "Siz: " : ""}
+                {c.lastMessage.content}
               </p>
             </div>
             {c.unread > 0 && <Badge tone="accent">{c.unread}</Badge>}
@@ -844,39 +1280,120 @@ export function ChatInbox({ conversations, selectedTicketId, onSelect, selectedC
         ))}
       </div>
 
-      <div className="msg-thread-pane" style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", display: "flex", flexDirection: "column", height: 560 }}>
-        <button type="button" className="msg-back-button" onClick={() => onSelect(null)} style={{ display: "none", alignItems: "center", gap: 6, fontSize: 13, marginBottom: 10, background: "none", border: "none", color: "var(--text-accent)", padding: 0, cursor: "pointer" }}>
-          <i className="ti ti-arrow-left" style={{ fontSize: 16 }} aria-hidden="true"></i> Konuşmalara dön
+      <div
+        className="msg-thread-pane"
+        style={{
+          background: "var(--surface-1)",
+          borderRadius: "var(--radius)",
+          padding: "1rem",
+          display: "flex",
+          flexDirection: "column",
+          height: 560,
+        }}
+      >
+        <button
+          type="button"
+          className="msg-back-button"
+          onClick={() => onSelect(null)}
+          style={{
+            display: "none",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 13,
+            marginBottom: 10,
+            background: "none",
+            border: "none",
+            color: "var(--text-accent)",
+            padding: 0,
+            cursor: "pointer",
+          }}
+        >
+          <i className="ti ti-arrow-left" style={{ fontSize: 16 }} aria-hidden="true"></i>{" "}
+          Konuşmalara dön
         </button>
         {!selectedConversation ? (
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 13 }}>
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--text-muted)",
+              fontSize: 13,
+            }}
+          >
             Bir konuşma seçin
           </div>
         ) : (
           <>
-            <p style={{ margin: "0 0 12px", fontWeight: 500, fontSize: 14 }}>{selectedConversation.customer?.name || "Bilinmeyen müşteri"}</p>
-            <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+            <p style={{ margin: "0 0 12px", fontWeight: 500, fontSize: 14 }}>
+              {selectedConversation.customer?.name || "Bilinmeyen müşteri"}
+            </p>
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+                marginBottom: 12,
+              }}
+            >
               {selectedConversation.messages.map((m) => (
-                <div key={m.id} style={{ alignSelf: m.direction === "giden" ? "flex-end" : "flex-start", maxWidth: "75%" }}>
+                <div
+                  key={m.id}
+                  style={{
+                    alignSelf: m.direction === "giden" ? "flex-end" : "flex-start",
+                    maxWidth: "75%",
+                  }}
+                >
                   <div
                     style={{
-                      background: m.direction === "giden" ? "var(--fill-accent)" : "var(--surface-2)",
+                      background:
+                        m.direction === "giden" ? "var(--fill-accent)" : "var(--surface-2)",
                       color: m.direction === "giden" ? "var(--on-accent)" : "var(--text-primary)",
-                      borderRadius: "var(--radius)", padding: "6px 10px", fontSize: 13,
+                      borderRadius: "var(--radius)",
+                      padding: "6px 10px",
+                      fontSize: 13,
                     }}
                   >
                     {m.content}
                   </div>
-                  <p style={{ margin: "2px 4px 0", fontSize: 10, color: "var(--text-muted)", textAlign: m.direction === "giden" ? "right" : "left" }}>
-                    {new Date(m.createdAt).toLocaleString("tr-TR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                  <p
+                    style={{
+                      margin: "2px 4px 0",
+                      fontSize: 10,
+                      color: "var(--text-muted)",
+                      textAlign: m.direction === "giden" ? "right" : "left",
+                    }}
+                  >
+                    {new Date(m.createdAt).toLocaleString("tr-TR", {
+                      day: "numeric",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </p>
                 </div>
               ))}
             </div>
             <form onSubmit={submit} style={{ display: "flex", gap: 8 }}>
-              <input value={content} onChange={(e) => setContent(e.target.value)} placeholder="Mesaj yazın..." style={{ flex: 1 }} />
+              <input
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="Mesaj yazın..."
+                style={{ flex: 1 }}
+              />
               <EmojiPickerButton onSelect={(emoji) => setContent((c) => c + emoji)} />
-              <button type="submit" disabled={sending || !content.trim()} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+              <button
+                type="submit"
+                disabled={sending || !content.trim()}
+                style={{
+                  background: "var(--fill-accent)",
+                  color: "var(--on-accent)",
+                  border: "none",
+                }}
+              >
                 Gönder
               </button>
             </form>
@@ -912,10 +1429,28 @@ function KbList({
 
   return (
     <div>
-      <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 10px", display: "flex", alignItems: "center", gap: 4 }}>
+      <p
+        style={{
+          fontSize: 12,
+          color: "var(--text-muted)",
+          margin: "0 0 10px",
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+        }}
+      >
         Sadece siz ve ekibiniz görür <InfoTip text={KB_INFO_TEXT} />
       </p>
-      <div className="list-toolbar" style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
+      <div
+        className="list-toolbar"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginBottom: 12,
+          gap: 8,
+          flexWrap: "wrap",
+        }}
+      >
         <input
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
@@ -923,15 +1458,34 @@ function KbList({
           style={{ flex: 1, minWidth: 200 }}
         />
         {categories.length > 0 && (
-          <select value={categoryFilter} onChange={(e) => onCategoryFilterChange(e.target.value)} style={{ fontSize: 13 }}>
+          <select
+            value={categoryFilter}
+            onChange={(e) => onCategoryFilterChange(e.target.value)}
+            style={{ fontSize: 13 }}
+          >
             <option value="all">Tüm kategoriler</option>
-            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
           </select>
         )}
-        <DateRangeFilter from={fromDate} to={toDate} onFromChange={onFromDateChange} onToChange={onToDateChange} />
+        <DateRangeFilter
+          from={fromDate}
+          to={toDate}
+          onFromChange={onFromDateChange}
+          onToChange={onToDateChange}
+        />
         <button
           onClick={() => setShowTemplates((v) => !v)}
-          style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+          style={{
+            background: "var(--surface-1)",
+            border: "0.5px solid var(--border)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
         >
           <i className="ti ti-sparkles" style={{ fontSize: 16 }} aria-hidden="true"></i>
           Örnek şablonlar
@@ -939,18 +1493,50 @@ function KbList({
       </div>
 
       {showTemplates && (
-        <div style={{ background: "var(--bg-accent)", borderRadius: "var(--radius)", padding: "0.9rem 1rem", marginBottom: 16 }}>
-          <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 500, color: "var(--text-accent)" }}>
-            {sectorLabel ? `${sectorLabel} sektörüne uygun örnek makaleler` : "Hızlı başlangıç için örnek makaleler"} - "Kullan" ile taslağı açar, düzenleyip kaydedebilirsin.
+        <div
+          style={{
+            background: "var(--bg-accent)",
+            borderRadius: "var(--radius)",
+            padding: "0.9rem 1rem",
+            marginBottom: 16,
+          }}
+        >
+          <p
+            style={{
+              margin: "0 0 8px",
+              fontSize: 13,
+              fontWeight: 500,
+              color: "var(--text-accent)",
+            }}
+          >
+            {sectorLabel
+              ? `${sectorLabel} sektörüne uygun örnek makaleler`
+              : "Hızlı başlangıç için örnek makaleler"}{" "}
+            - "Kullan" ile taslağı açar, düzenleyip kaydedebilirsin.
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {templates.map((t) => (
-              <div key={t.title} style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.6rem 0.8rem", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <div
+                key={t.title}
+                style={{
+                  background: "var(--surface-1)",
+                  borderRadius: "var(--radius)",
+                  padding: "0.6rem 0.8rem",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  flexWrap: "wrap",
+                }}
+              >
                 <div style={{ flex: 1, minWidth: 200 }}>
                   <p style={{ margin: 0, fontWeight: 500, fontSize: 13 }}>{t.title}</p>
-                  <p style={{ margin: 0, fontSize: 11, color: "var(--text-secondary)" }}>{t.category}</p>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--text-secondary)" }}>
+                    {t.category}
+                  </p>
                 </div>
-                <button onClick={() => onUseTemplate(t)} style={{ fontSize: 12 }}>Kullan</button>
+                <button onClick={() => onUseTemplate(t)} style={{ fontSize: 12 }}>
+                  Kullan
+                </button>
               </div>
             ))}
           </div>
@@ -964,16 +1550,35 @@ function KbList({
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {filtered.map((a) => (
-            <div key={a.id} style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <div
+              key={a.id}
+              style={{
+                background: "var(--surface-1)",
+                border: "0.5px solid var(--border)",
+                borderRadius: "var(--radius)",
+                padding: "0.75rem 1rem",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
               <div style={{ flex: 1, minWidth: 200 }}>
                 <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{a.title}</p>
                 <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
-                  {a.category ? `${a.category} · ` : ""}{a.content.slice(0, 80)}{a.content.length > 80 ? "…" : ""}
+                  {a.category ? `${a.category} · ` : ""}
+                  {a.content.slice(0, 80)}
+                  {a.content.length > 80 ? "…" : ""}
                 </p>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                 <IconButton icon="ti-edit" title="Düzenle" size="sm" onClick={() => onEdit(a)} />
-                <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(a)} />
+                <IconButton
+                  icon="ti-trash"
+                  title="Sil"
+                  size="sm"
+                  onClick={() => setConfirmDelete(a)}
+                />
               </div>
             </div>
           ))}
@@ -984,7 +1589,10 @@ function KbList({
         <ConfirmDialog
           title="Makaleyi sil"
           message={`"${confirmDelete.title}" makalesi çöp kutusuna taşınacak, dilediğiniz zaman geri yükleyebilirsiniz.`}
-          onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
+          onConfirm={() => {
+            onDelete(confirmDelete.id);
+            setConfirmDelete(null);
+          }}
           onClose={() => setConfirmDelete(null)}
         />
       )}
@@ -1012,20 +1620,69 @@ function KbArticleForm({ initial, onSave, onCancel, sector }) {
       }}
     >
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Başlık</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={`Örn. ${supportExamples(sector).kbTitle}`} style={{ width: "100%" }} />
+        <label
+          style={{
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            display: "block",
+            marginBottom: 4,
+          }}
+        >
+          Başlık
+        </label>
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder={`Örn. ${supportExamples(sector).kbTitle}`}
+          style={{ width: "100%" }}
+        />
       </div>
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kategori</label>
-        <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder={`Örn. ${supportExamples(sector).kbCategory}`} style={{ width: "100%" }} />
+        <label
+          style={{
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            display: "block",
+            marginBottom: 4,
+          }}
+        >
+          Kategori
+        </label>
+        <input
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          placeholder={`Örn. ${supportExamples(sector).kbCategory}`}
+          style={{ width: "100%" }}
+        />
       </div>
       <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>İçerik</label>
-        <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Yanıt metnini yazın" style={{ width: "100%", minHeight: 150, resize: "vertical" }} />
+        <label
+          style={{
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            display: "block",
+            marginBottom: 4,
+          }}
+        >
+          İçerik
+        </label>
+        <textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="Yanıt metnini yazın"
+          style={{ width: "100%", minHeight: 150, resize: "vertical" }}
+        />
       </div>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-        <button type="button" onClick={onCancel}>Vazgeç</button>
-        <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
+        <button type="button" onClick={onCancel}>
+          Vazgeç
+        </button>
+        <button
+          type="submit"
+          style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+        >
+          Kaydet
+        </button>
       </div>
     </form>
   );
@@ -1091,8 +1748,12 @@ export default function Support({
     setEditingKbArticle(null);
   };
 
-  const currentTicket = viewingTicket ? tickets.find((t) => t.id === viewingTicket.id) || viewingTicket : null;
-  const currentTicketMessages = currentTicket ? ticketMessages.filter((m) => m.ticketId === currentTicket.id) : [];
+  const currentTicket = viewingTicket
+    ? tickets.find((t) => t.id === viewingTicket.id) || viewingTicket
+    : null;
+  const currentTicketMessages = currentTicket
+    ? ticketMessages.filter((m) => m.ticketId === currentTicket.id)
+    : [];
 
   const unreadCountByTicket = ticketMessages.reduce((acc, m) => {
     if (m.direction === "gelen" && !m.readAt) acc[m.ticketId] = (acc[m.ticketId] || 0) + 1;
@@ -1111,7 +1772,10 @@ export default function Support({
       if (ticketSlaFilter === "zamaninda" && (sla.isBreached || sla.isApproaching)) return false;
     }
     if (!ticketQuery) return true;
-    return t.subject.toLowerCase().includes(ticketQuery) || (customerById(t.customerId)?.name || "").toLowerCase().includes(ticketQuery);
+    return (
+      t.subject.toLowerCase().includes(ticketQuery) ||
+      (customerById(t.customerId)?.name || "").toLowerCase().includes(ticketQuery)
+    );
   });
   const ticketSlaRank = { danger: 0, warning: 1, success: 2 };
   const sortedTickets = [...filteredTickets].sort((a, b) => {
@@ -1134,18 +1798,48 @@ export default function Support({
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginBottom: 12,
+          gap: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            gap: 4,
+            background: "var(--surface-1)",
+            borderRadius: "var(--radius)",
+            padding: 3,
+          }}
+        >
           <button
             onClick={() => setSupportView("talepler")}
-            style={{ border: "none", background: supportView === "talepler" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+            style={{
+              border: "none",
+              background: supportView === "talepler" ? "var(--surface-2)" : "transparent",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+            }}
           >
             <i className="ti ti-ticket" style={{ fontSize: 15 }} aria-hidden="true"></i>
             Talepler
           </button>
           <button
             onClick={() => setSupportView("bilgi-bankasi")}
-            style={{ border: "none", background: supportView === "bilgi-bankasi" ? "var(--surface-2)" : "transparent", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+            style={{
+              border: "none",
+              background: supportView === "bilgi-bankasi" ? "var(--surface-2)" : "transparent",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+            }}
           >
             <i className="ti ti-book" style={{ fontSize: 15 }} aria-hidden="true"></i>
             Bilgi Bankası
@@ -1165,26 +1859,48 @@ export default function Support({
                       PRIORITIES.find((p) => p.id === t.priority)?.label || t.priority,
                       STATUSES.find((s) => s.id === t.status)?.label || t.status,
                       t.createdAt ? new Date(t.createdAt).toLocaleDateString("tr-TR") : "",
-                    ])
+                    ]),
                   )
                 }
                 disabled={sortedTickets.length === 0}
-                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+                style={{
+                  background: "var(--surface-1)",
+                  border: "0.5px solid var(--border)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
               >
                 <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
                 Dışa aktar
               </button>
               <button
                 onClick={() => setShowImportTickets(true)}
-                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+                style={{
+                  background: "var(--surface-1)",
+                  border: "0.5px solid var(--border)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
               >
                 <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
                 İçe aktar
               </button>
               <button
-                onClick={() => { setEditingTicket(null); setShowTicketForm(true); }}
+                onClick={() => {
+                  setEditingTicket(null);
+                  setShowTicketForm(true);
+                }}
                 disabled={customers.length === 0}
-                style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
+                style={{
+                  background: "var(--fill-accent)",
+                  color: "var(--on-accent)",
+                  border: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
               >
                 <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
                 Talep ekle
@@ -1197,25 +1913,47 @@ export default function Support({
                   downloadXlsx(
                     "bilgi-bankasi.xlsx",
                     ["Başlık", "Kategori", "İçerik"],
-                    filteredKbArticles.map((a) => [a.title, a.category, a.content])
+                    filteredKbArticles.map((a) => [a.title, a.category, a.content]),
                   )
                 }
                 disabled={filteredKbArticles.length === 0}
-                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+                style={{
+                  background: "var(--surface-1)",
+                  border: "0.5px solid var(--border)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
               >
                 <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
                 Dışa aktar
               </button>
               <button
                 onClick={() => setShowImportKbArticles(true)}
-                style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}
+                style={{
+                  background: "var(--surface-1)",
+                  border: "0.5px solid var(--border)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
               >
                 <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
                 İçe aktar
               </button>
               <button
-                onClick={() => { setEditingKbArticle(null); setShowKbForm(true); }}
-                style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
+                onClick={() => {
+                  setEditingKbArticle(null);
+                  setShowKbForm(true);
+                }}
+                style={{
+                  background: "var(--fill-accent)",
+                  color: "var(--on-accent)",
+                  border: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
               >
                 <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
                 Makale ekle
@@ -1226,7 +1964,9 @@ export default function Support({
       </div>
 
       {supportView === "talepler" && customers.length === 0 && (
-        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>Talep eklemeden önce bir müşteri oluşturun.</p>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>
+          Talep eklemeden önce bir müşteri oluşturun.
+        </p>
       )}
 
       {supportView === "talepler" ? (
@@ -1248,9 +1988,15 @@ export default function Support({
           onFromDateChange={setTicketFromDate}
           onToDateChange={setTicketToDate}
           onOpenTicket={setViewingTicket}
-          onEditTicket={(t) => { setEditingTicket(t); setShowTicketForm(true); }}
+          onEditTicket={(t) => {
+            setEditingTicket(t);
+            setShowTicketForm(true);
+          }}
           onDeleteTicket={onDeleteTicket}
-          onCreateNew={() => { setEditingTicket(null); setShowTicketForm(true); }}
+          onCreateNew={() => {
+            setEditingTicket(null);
+            setShowTicketForm(true);
+          }}
         />
       ) : (
         <KbList
@@ -1265,22 +2011,57 @@ export default function Support({
           toDate={kbToDate}
           onFromDateChange={setKbFromDate}
           onToDateChange={setKbToDate}
-          onEdit={(a) => { setEditingKbArticle(a); setShowKbForm(true); }}
+          onEdit={(a) => {
+            setEditingKbArticle(a);
+            setShowKbForm(true);
+          }}
           onDelete={onDeleteKbArticle}
-          onUseTemplate={(t) => { setEditingKbArticle(t); setShowKbForm(true); }}
+          onUseTemplate={(t) => {
+            setEditingKbArticle(t);
+            setShowKbForm(true);
+          }}
           sector={sector}
         />
       )}
 
       {showTicketForm && (
-        <Modal title={editingTicket ? "Talebi düzenle" : "Yeni destek talebi"} onClose={() => { setShowTicketForm(false); setEditingTicket(null); }}>
-          <TicketForm customers={customers} initial={editingTicket} onSave={saveTicket} onCancel={() => { setShowTicketForm(false); setEditingTicket(null); }} sector={sector} />
+        <Modal
+          title={editingTicket ? "Talebi düzenle" : "Yeni destek talebi"}
+          onClose={() => {
+            setShowTicketForm(false);
+            setEditingTicket(null);
+          }}
+        >
+          <TicketForm
+            customers={customers}
+            initial={editingTicket}
+            onSave={saveTicket}
+            onCancel={() => {
+              setShowTicketForm(false);
+              setEditingTicket(null);
+            }}
+            sector={sector}
+          />
         </Modal>
       )}
 
       {showKbForm && (
-        <Modal title={editingKbArticle?.id ? "Makaleyi düzenle" : "Yeni makale"} onClose={() => { setShowKbForm(false); setEditingKbArticle(null); }}>
-          <KbArticleForm initial={editingKbArticle} onSave={saveKbArticle} onCancel={() => { setShowKbForm(false); setEditingKbArticle(null); }} sector={sector} />
+        <Modal
+          title={editingKbArticle?.id ? "Makaleyi düzenle" : "Yeni makale"}
+          onClose={() => {
+            setShowKbForm(false);
+            setEditingKbArticle(null);
+          }}
+        >
+          <KbArticleForm
+            initial={editingKbArticle}
+            onSave={saveKbArticle}
+            onCancel={() => {
+              setShowKbForm(false);
+              setEditingKbArticle(null);
+            }}
+            sector={sector}
+          />
         </Modal>
       )}
 

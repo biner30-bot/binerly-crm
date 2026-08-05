@@ -1456,13 +1456,16 @@ export function CustomersTab({
                   .filter((d) => d.customerId === c.id)
                   .reduce((sum, d) => sum + (d.value || 0) - totalPaidForDeal(d.id), 0);
                 return (
-                  <tr key={c.id} style={{ background: "var(--surface-1)" }}>
+                  <tr
+                    key={c.id}
+                    style={{ background: "var(--surface-1)", boxShadow: "var(--shadow-sm)" }}
+                  >
                     <td
                       data-label="Müşteri"
                       onClick={() => setViewingCustomer(c)}
                       style={{
                         padding: "10px 12px",
-                        borderRadius: "var(--radius) 0 0 var(--radius)",
+                        borderRadius: "var(--radius-lg) 0 0 var(--radius-lg)",
                         cursor: "pointer",
                       }}
                     >
@@ -1562,7 +1565,7 @@ export function CustomersTab({
                     <td
                       style={{
                         padding: "10px 12px",
-                        borderRadius: "0 var(--radius) var(--radius) 0",
+                        borderRadius: "0 var(--radius-lg) var(--radius-lg) 0",
                       }}
                     >
                       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>

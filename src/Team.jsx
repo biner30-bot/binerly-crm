@@ -289,14 +289,17 @@ export function StaffShiftGrid({
         </thead>
         <tbody>
           {people.map((p) => (
-            <tr key={p.id} style={{ background: "var(--surface-1)" }}>
+            <tr
+              key={p.id}
+              style={{ background: "var(--surface-1)", boxShadow: "var(--shadow-sm)" }}
+            >
               <td
                 data-label="Personel"
                 style={{
                   padding: "8px 10px",
                   fontSize: 12.5,
                   fontWeight: 500,
-                  borderRadius: "var(--radius) 0 0 var(--radius)",
+                  borderRadius: "var(--radius-lg) 0 0 var(--radius-lg)",
                   whiteSpace: "nowrap",
                 }}
               >
@@ -482,14 +485,17 @@ export function StaffShiftHistoryModal({ people, staffShifts, onClose }) {
             </thead>
             <tbody>
               {people.map((p) => (
-                <tr key={p.id} style={{ background: "var(--surface-1)" }}>
+                <tr
+                  key={p.id}
+                  style={{ background: "var(--surface-1)", boxShadow: "var(--shadow-sm)" }}
+                >
                   <td
                     style={{
                       padding: "8px 10px",
                       fontSize: 12.5,
                       fontWeight: 500,
                       whiteSpace: "nowrap",
-                      borderRadius: "var(--radius) 0 0 var(--radius)",
+                      borderRadius: "var(--radius-lg) 0 0 var(--radius-lg)",
                     }}
                   >
                     {p.label}
