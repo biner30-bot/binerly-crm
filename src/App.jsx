@@ -880,6 +880,32 @@ function LandingPage() {
         <p style={{ textAlign: "center", fontSize: 15, color: "#5b7088", maxWidth: 640, margin: "0 auto 2rem" }}>
           Sektörünüzü seçtiğinizde aşama isimleri, alanlar ve hatta "teklif mi, randevu mu, üyelik mi" dediğimiz otomatik ayarlanır - herkese aynı kalıp değil, işinize uygun bir sistem.
         </p>
+
+        {/* En derin sektörel özellik yatırımı yapılmış 3 sektörden gerçek terminoloji
+            örneği - Stitch mockup'ındaki "Portföy"/"Proje" gibi etiketler koddaki
+            dealWordKind() eşlemesinde yok, bu yüzden sadece gerçekte üretilen 3
+            terim (randevu/üyelik/teklif) kullanıldı. */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, maxWidth: 720, margin: "0 auto 1.5rem" }}>
+          {[
+            { sector: "Güzellik & Bakım", icon: "ti-scissors", term: "Randevu", color: "#0d9488", bg: "#ccfbf1" },
+            { sector: "Spor Merkezi", icon: "ti-barbell", term: "Üyelik", color: "#7c3aed", bg: "#ede9fe" },
+            { sector: "Üretim / Satış", icon: "ti-truck-delivery", term: "Teklif", color: "#185fa5", bg: "#e6f1fb" },
+          ].map((s) => (
+            <div key={s.sector} style={{ background: "#fff", border: "1px solid #e1e8f0", borderRadius: 12, padding: "1.25rem 1rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, textAlign: "center" }}>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", background: s.bg, color: s.color, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <i className={`ti ${s.icon}`} style={{ fontSize: 21 }} aria-hidden="true"></i>
+              </div>
+              <span style={{ fontSize: 13.5, fontWeight: 700, color: "#0c2540" }}>{s.sector}</span>
+              <span style={{ fontSize: 12.5, color: "#7c93a8", display: "flex", alignItems: "center", gap: 5 }}>
+                Satış <i className="ti ti-arrow-right" style={{ fontSize: 13 }} aria-hidden="true"></i>
+                <span style={{ color: s.color, fontWeight: 700 }}>{s.term}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+        <p style={{ textAlign: "center", fontSize: 13, color: "#94a7bb", margin: "0 0 2rem", fontWeight: 500 }}>
+          ...ve 8 farklı sektör için daha hazır şablonlar
+        </p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
           {SECTOR_PRESETS.filter((s) => s.id !== "genel").map((s) => (
             <div key={s.id} style={{ background: "#fff", border: "1px solid #e1e8f0", borderRadius: 12, padding: "1rem", display: "flex", alignItems: "center", gap: 10 }}>
