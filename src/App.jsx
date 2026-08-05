@@ -664,6 +664,7 @@ function LandingPage() {
             <a href="#ozellikler" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Hizmetlerimiz</a>
             <a href="#sektorler" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Sektörler</a>
             <a href="#neden-binerly" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Neden Binerly?</a>
+            <a href="#fiyatlandirma" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Fiyatlandırma</a>
             <a href="#hakkimizda" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Hakkımızda</a>
             <a href="/blog" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Blog</a>
           </div>
@@ -961,6 +962,55 @@ function LandingPage() {
                 <p style={{ fontSize: 13, color: "#5b7088", margin: 0, lineHeight: 1.6 }}>{desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Fiyatlandırma */}
+      <div id="fiyatlandirma" style={{ scrollMarginTop: 64 }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "4rem 2rem" }}>
+          <h2 style={{ textAlign: "center", fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: "0 0 0.75rem" }}>
+            Kullanıcı Başı Değil, Sabit Ücret
+          </h2>
+          <p style={{ textAlign: "center", fontSize: 15, color: "#5b7088", maxWidth: 560, margin: "0 auto 2.5rem" }}>
+            Ekibiniz büyüdükçe faturanız katlanmaz. Şeffaf, öngörülebilir, her zaman TL bazlı.
+          </p>
+          <div style={{ background: "#fff", border: "2px solid #185fa5", borderRadius: 16, padding: "2rem", maxWidth: 420, margin: "0 auto", boxShadow: "0 8px 24px rgba(12,37,64,0.08)" }}>
+            <div style={{ textAlign: "center" }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: "#0c2540" }}>KOBİ Paketi</span>
+            </div>
+            <p style={{ textAlign: "center", fontSize: 12.5, color: "#7c93a8", margin: "4px 0 20px" }}>Tüm özellikler tek pakette</p>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 4, marginBottom: 6 }}>
+              <span style={{ fontSize: 44, fontWeight: 800, color: "#0c2540" }}>₺750</span>
+              <span style={{ fontSize: 14, color: "#7c93a8" }}>/ay</span>
+            </div>
+            <p style={{ textAlign: "center", fontSize: 12.5, color: "#94a7bb", margin: "0 0 16px" }}>
+              veya yıllık ₺7.200 - yaklaşık ₺1.800 tasarruf
+            </p>
+            <div style={{ textAlign: "center", marginBottom: 24 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#185fa5", background: "#e6f1fb", padding: "4px 12px", borderRadius: 20 }}>
+                5 kullanıcıya kadar geçerli
+              </span>
+            </div>
+            <ul style={{ listStyle: "none", padding: 0, margin: "0 0 24px", display: "flex", flexDirection: "column", gap: 10 }}>
+              {[
+                "Tüm sektör şablonları",
+                "Sınırsız teklif, randevu, müşteri",
+                "Online tahsilat (iyzico / PayTR)",
+                "Müşteri portalı ve destek sistemi",
+              ].map((item) => (
+                <li key={item} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 14, color: "#0c2540" }}>
+                  <i className="ti ti-check" style={{ fontSize: 16, color: "#16a34a", flex: "none", marginTop: 2 }} aria-hidden="true"></i>
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <button onClick={() => setAuthModal("register")} style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "13px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
+              Ücretsiz Kullanmaya Başla
+            </button>
+            <p style={{ textAlign: "center", fontSize: 12, color: "#94a7bb", margin: "10px 0 0" }}>
+              Erken erişim aşamasındayız - şu an için tamamen ücretsiz, kart bilgisi gerekmez.
+            </p>
           </div>
         </div>
       </div>
