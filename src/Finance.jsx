@@ -1,12 +1,44 @@
 import React, { useState } from "react";
-import { Badge, Modal, MetricCard, ConfirmDialog, IconButton, InfoTip, formatTL, PANO_RANGES, getRangeBounds, inRange, downloadXlsx } from "./shared";
+import {
+  Badge,
+  Modal,
+  MetricCard,
+  ConfirmDialog,
+  IconButton,
+  InfoTip,
+  formatTL,
+  PANO_RANGES,
+  getRangeBounds,
+  inRange,
+  downloadXlsx,
+} from "./shared";
 import { stageLabel, dealWordKind } from "./Sectors";
 
 const FINANCE_DEAL_WORDS = {
-  teklif: { bare: "Teklif", locativePlural: "tekliflerdeki", genPlural: "tekliflerin", noWonEmpty: "Henüz kazanılmış bir teklifiniz yok." },
-  randevu: { bare: "Randevu", locativePlural: "randevulardaki", genPlural: "randevuların", noWonEmpty: "Henüz tamamlanmış bir randevunuz yok." },
-  uyelik: { bare: "Üyelik", locativePlural: "üyeliklerdeki", genPlural: "üyeliklerin", noWonEmpty: "Henüz kazanılmış bir üyeliğiniz yok." },
-  rezervasyon: { bare: "Rezervasyon", locativePlural: "rezervasyonlardaki", genPlural: "rezervasyonların", noWonEmpty: "Henüz tamamlanmış bir rezervasyonunuz yok." },
+  teklif: {
+    bare: "Teklif",
+    locativePlural: "tekliflerdeki",
+    genPlural: "tekliflerin",
+    noWonEmpty: "Henüz kazanılmış bir teklifiniz yok.",
+  },
+  randevu: {
+    bare: "Randevu",
+    locativePlural: "randevulardaki",
+    genPlural: "randevuların",
+    noWonEmpty: "Henüz tamamlanmış bir randevunuz yok.",
+  },
+  uyelik: {
+    bare: "Üyelik",
+    locativePlural: "üyeliklerdeki",
+    genPlural: "üyeliklerin",
+    noWonEmpty: "Henüz kazanılmış bir üyeliğiniz yok.",
+  },
+  rezervasyon: {
+    bare: "Rezervasyon",
+    locativePlural: "rezervasyonlardaki",
+    genPlural: "rezervasyonların",
+    noWonEmpty: "Henüz tamamlanmış bir rezervasyonunuz yok.",
+  },
 };
 
 const RECURRING_INFO_TEXT =
@@ -17,7 +49,7 @@ const totalExpenseInfoText = (sector) => {
   const noun = FINANCE_DEAL_WORDS[dealWordKind(sector)].locativePlural;
   return (
     `Elle eklediğiniz işletme giderlerinin yanı sıra, kazanılan ${noun} "Gider" tutarlarını da içerir. ` +
-    "Aşağıdaki \"Kategoriye göre gider\" listesi sadece elle eklenenleri gösterdiği için bu toplamla tam eşleşmeyebilir."
+    'Aşağıdaki "Kategoriye göre gider" listesi sadece elle eklenenleri gösterdiği için bu toplamla tam eşleşmeyebilir.'
   );
 };
 
@@ -62,7 +94,9 @@ export function rowToCompanyExpense(r) {
 // zaman gerçek satırı hedefler.
 export function expandExpenseOccurrences(expense, bounds) {
   if (!expense.isRecurring) {
-    return inRange(expense.expenseDate, bounds) ? [{ ...expense, occurrenceDate: expense.expenseDate, isProjected: false }] : [];
+    return inRange(expense.expenseDate, bounds)
+      ? [{ ...expense, occurrenceDate: expense.expenseDate, isProjected: false }]
+      : [];
   }
   const original = new Date(expense.expenseDate);
   const day = original.getDate();
@@ -82,7 +116,11 @@ export function expandExpenseOccurrences(expense, bounds) {
       const daysInMonth = new Date(year, month + 1, 0).getDate();
       const occDate = new Date(year, month, Math.min(day, daysInMonth), hh, mm);
       if (inRange(occDate.toISOString(), bounds)) {
-        occurrences.push({ ...expense, occurrenceDate: occDate.toISOString(), isProjected: year !== original.getFullYear() });
+        occurrences.push({
+          ...expense,
+          occurrenceDate: occDate.toISOString(),
+          isProjected: year !== original.getFullYear(),
+        });
       }
     }
     return occurrences;
@@ -92,13 +130,31 @@ export function expandExpenseOccurrences(expense, bounds) {
     // Uzun bir "tüm zamanlar" aralığında gereksiz yere binlerce eski günü
     // dolaşmamak için, aralığın başlangıcından önceki günleri atlıyoruz.
     const startFrom = bounds.start && bounds.start > original ? bounds.start : original;
-    let cursor = new Date(startFrom.getFullYear(), startFrom.getMonth(), startFrom.getDate(), hh, mm);
-    const endCursorDaily = new Date(genEnd.getFullYear(), genEnd.getMonth(), genEnd.getDate(), hh, mm);
+    let cursor = new Date(
+      startFrom.getFullYear(),
+      startFrom.getMonth(),
+      startFrom.getDate(),
+      hh,
+      mm,
+    );
+    const endCursorDaily = new Date(
+      genEnd.getFullYear(),
+      genEnd.getMonth(),
+      genEnd.getDate(),
+      hh,
+      mm,
+    );
     while (cursor <= endCursorDaily) {
       if (inRange(cursor.toISOString(), bounds)) {
         const isOriginalDay =
-          cursor.getFullYear() === original.getFullYear() && cursor.getMonth() === original.getMonth() && cursor.getDate() === original.getDate();
-        occurrences.push({ ...expense, occurrenceDate: cursor.toISOString(), isProjected: !isOriginalDay });
+          cursor.getFullYear() === original.getFullYear() &&
+          cursor.getMonth() === original.getMonth() &&
+          cursor.getDate() === original.getDate();
+        occurrences.push({
+          ...expense,
+          occurrenceDate: cursor.toISOString(),
+          isProjected: !isOriginalDay,
+        });
       }
       cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1, hh, mm);
     }
@@ -109,10 +165,22 @@ export function expandExpenseOccurrences(expense, bounds) {
   let cursor = new Date(original.getFullYear(), original.getMonth(), 1);
   while (cursor <= endCursor) {
     const daysInMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
-    const occDate = new Date(cursor.getFullYear(), cursor.getMonth(), Math.min(day, daysInMonth), hh, mm);
+    const occDate = new Date(
+      cursor.getFullYear(),
+      cursor.getMonth(),
+      Math.min(day, daysInMonth),
+      hh,
+      mm,
+    );
     if (inRange(occDate.toISOString(), bounds)) {
-      const isOriginalMonth = cursor.getFullYear() === original.getFullYear() && cursor.getMonth() === original.getMonth();
-      occurrences.push({ ...expense, occurrenceDate: occDate.toISOString(), isProjected: !isOriginalMonth });
+      const isOriginalMonth =
+        cursor.getFullYear() === original.getFullYear() &&
+        cursor.getMonth() === original.getMonth();
+      occurrences.push({
+        ...expense,
+        occurrenceDate: occDate.toISOString(),
+        isProjected: !isOriginalMonth,
+      });
     }
     cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
   }
@@ -120,12 +188,29 @@ export function expandExpenseOccurrences(expense, bounds) {
 }
 
 const EXPENSE_CATEGORIES = [
-  "Kira", "Maaş", "Fatura / Abonelik", "Ofis / Sarf Malzemesi", "Pazarlama", "Vergi / SGK", "Ulaşım", "Ödeme Komisyonu",
-  "Eğitim", "Danışmanlık", "Sigorta", "Bakım / Onarım", "Seyahat / Konaklama", "Temsil ve Ağırlama", "Diğer",
+  "Kira",
+  "Maaş",
+  "Fatura / Abonelik",
+  "Ofis / Sarf Malzemesi",
+  "Pazarlama",
+  "Vergi / SGK",
+  "Ulaşım",
+  "Ödeme Komisyonu",
+  "Eğitim",
+  "Danışmanlık",
+  "Sigorta",
+  "Bakım / Onarım",
+  "Seyahat / Konaklama",
+  "Temsil ve Ağırlama",
+  "Diğer",
 ];
 
 function paymentDateLabel(dateStr) {
-  return new Date(dateStr).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" });
+  return new Date(dateStr).toLocaleDateString("tr-TR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function expenseDateTimeLabel(dateStr) {
@@ -147,12 +232,19 @@ function kdvAmountOf(grossAmount, rate) {
 }
 
 function CompanyExpenseForm({ initial, onSave, onCancel }) {
-  const initialIsCustomCategory = initial?.category && !EXPENSE_CATEGORIES.includes(initial.category);
+  const initialIsCustomCategory =
+    initial?.category && !EXPENSE_CATEGORIES.includes(initial.category);
   const [title, setTitle] = useState(initial?.title || "");
-  const [category, setCategory] = useState(initialIsCustomCategory ? "Diğer" : (initial?.category || EXPENSE_CATEGORIES[0]));
-  const [customCategory, setCustomCategory] = useState(initialIsCustomCategory ? initial.category : "");
+  const [category, setCategory] = useState(
+    initialIsCustomCategory ? "Diğer" : initial?.category || EXPENSE_CATEGORIES[0],
+  );
+  const [customCategory, setCustomCategory] = useState(
+    initialIsCustomCategory ? initial.category : "",
+  );
   const [amount, setAmount] = useState(initial?.amount ?? "");
-  const [date, setDate] = useState(initial?.expenseDate ? initial.expenseDate.slice(0, 10) : new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(
+    initial?.expenseDate ? initial.expenseDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
+  );
   const [time, setTime] = useState(() => {
     if (!initial?.expenseDate) return "";
     const d = new Date(initial.expenseDate);
@@ -162,7 +254,9 @@ function CompanyExpenseForm({ initial, onSave, onCancel }) {
   });
   const [note, setNote] = useState(initial?.note || "");
   const [isRecurring, setIsRecurring] = useState(initial?.isRecurring || false);
-  const [recurrenceInterval, setRecurrenceInterval] = useState(initial?.recurrenceInterval || "monthly");
+  const [recurrenceInterval, setRecurrenceInterval] = useState(
+    initial?.recurrenceInterval || "monthly",
+  );
   const [kdvRate, setKdvRate] = useState(initial?.kdvRate ?? "");
   const [saving, setSaving] = useState(false);
 
@@ -193,32 +287,106 @@ function CompanyExpenseForm({ initial, onSave, onCancel }) {
     <Modal title={initial ? "Gideri düzenle" : "Gider ekle"} onClose={onCancel}>
       <form onSubmit={submit}>
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Başlık</label>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ofis kirası" style={{ width: "100%" }} />
+          <label
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Başlık
+          </label>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Ofis kirası"
+            style={{ width: "100%" }}
+          />
         </div>
         <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 140 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kategori</label>
-            <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ width: "100%" }}>
-              {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
+              Kategori
+            </label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              style={{ width: "100%" }}
+            >
+              {EXPENSE_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
             </select>
           </div>
           <div style={{ flex: 1, minWidth: 140 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tutar (TL)</label>
-            <input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" style={{ width: "100%" }} />
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
+              Tutar (TL)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0"
+              style={{ width: "100%" }}
+            />
           </div>
         </div>
         {category === "Diğer" && (
           <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kategori adı</label>
-            <input value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} placeholder="Kategorinizi yazın" style={{ width: "100%" }} />
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
+              Kategori adı
+            </label>
+            <input
+              value={customCategory}
+              onChange={(e) => setCustomCategory(e.target.value)}
+              placeholder="Kategorinizi yazın"
+              style={{ width: "100%" }}
+            />
           </div>
         )}
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
-            KDV oranı <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span>
+          <label
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            KDV oranı{" "}
+            <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span>
           </label>
-          <select value={kdvRate} onChange={(e) => setKdvRate(e.target.value)} style={{ width: "100%" }}>
+          <select
+            value={kdvRate}
+            onChange={(e) => setKdvRate(e.target.value)}
+            style={{ width: "100%" }}
+          >
             <option value="">KDV bilgisi yok</option>
             <option value={20}>%20</option>
             <option value={10}>%10</option>
@@ -231,34 +399,87 @@ function CompanyExpenseForm({ initial, onSave, onCancel }) {
         </div>
         <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 140 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tarih</label>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: "100%" }} />
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
+              Tarih
+            </label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              style={{ width: "100%" }}
+            />
           </div>
           <div style={{ flex: 1, minWidth: 140 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
               Saat <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span>
             </label>
-            <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={{ width: "100%" }} />
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              style={{ width: "100%" }}
+            />
           </div>
         </div>
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Not (opsiyonel)</label>
+          <label
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Not (opsiyonel)
+          </label>
           <input value={note} onChange={(e) => setNote(e.target.value)} style={{ width: "100%" }} />
         </div>
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-secondary)", cursor: "pointer" }}>
-            <input type="checkbox" checked={isRecurring} onChange={(e) => setIsRecurring(e.target.checked)} />
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={isRecurring}
+              onChange={(e) => setIsRecurring(e.target.checked)}
+            />
             Düzenli tekrarlanan bir gider (örn. kira, sabit fatura)
           </label>
           {isRecurring ? (
             <div style={{ margin: "8px 0 0 26px", maxWidth: 200 }}>
-              <select value={recurrenceInterval} onChange={(e) => setRecurrenceInterval(e.target.value)} style={{ width: "100%" }}>
+              <select
+                value={recurrenceInterval}
+                onChange={(e) => setRecurrenceInterval(e.target.value)}
+                style={{ width: "100%" }}
+              >
                 <option value="daily">Her gün tekrarla</option>
                 <option value="monthly">Her ay tekrarla</option>
                 <option value="yearly">Her yıl tekrarla</option>
               </select>
               <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0" }}>
-                Bu gideri her seferinde tekrar eklemenize gerek kalmaz, aynı tutar seçtiğiniz sıklıkta otomatik sayılır.
+                Bu gideri her seferinde tekrar eklemenize gerek kalmaz, aynı tutar seçtiğiniz
+                sıklıkta otomatik sayılır.
               </p>
             </div>
           ) : (
@@ -268,10 +489,14 @@ function CompanyExpenseForm({ initial, onSave, onCancel }) {
           )}
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button type="button" onClick={onCancel}>Vazgeç</button>
+          <button type="button" onClick={onCancel}>
+            Vazgeç
+          </button>
           <button
             type="submit"
-            disabled={saving || !title.trim() || !amount || (category === "Diğer" && !customCategory.trim())}
+            disabled={
+              saving || !title.trim() || !amount || (category === "Diğer" && !customCategory.trim())
+            }
             style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
           >
             Kaydet
@@ -303,15 +528,39 @@ function DealCostEditForm({ deal, sector, onSave, onCancel }) {
     <Modal title={`Gideri düzenle - ${deal.title}`} onClose={onCancel}>
       <form onSubmit={submit}>
         <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Gider (TL)</label>
-          <input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: "100%" }} autoFocus />
+          <label
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Gider (TL)
+          </label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            style={{ width: "100%" }}
+            autoFocus
+          />
           <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0" }}>
-            Bu, {words.locativePlural} kaydın "Gider" alanıyla aynıdır - burada değiştirirseniz orada da yansır.
+            Bu, {words.locativePlural} kaydın "Gider" alanıyla aynıdır - burada değiştirirseniz
+            orada da yansır.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button type="button" onClick={onCancel}>Vazgeç</button>
-          <button type="submit" disabled={saving} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+          <button type="button" onClick={onCancel}>
+            Vazgeç
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+          >
             Kaydet
           </button>
         </div>
@@ -320,7 +569,21 @@ function DealCostEditForm({ deal, sector, onSave, onCancel }) {
   );
 }
 
-export default function Finance({ deals, payments, companyExpenses, customers, onAddExpense, onUpdateExpense, onDeleteExpense, onUpdatePayment, onDeletePayment, onUpdateDealCost, onOpenPayments, sector, canDelete }) {
+export default function Finance({
+  deals,
+  payments,
+  companyExpenses,
+  customers,
+  onAddExpense,
+  onUpdateExpense,
+  onDeleteExpense,
+  onUpdatePayment,
+  onDeletePayment,
+  onUpdateDealCost,
+  onOpenPayments,
+  sector,
+  canDelete,
+}) {
   const [financeView, setFinanceView] = useState("tahsilat");
   const [financeRange, setFinanceRange] = useState("bu_ay");
   const [ledgerTypeFilter, setLedgerTypeFilter] = useState("all");
@@ -329,7 +592,9 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
   const [tahsilatBalanceFilter, setTahsilatBalanceFilter] = useState("all");
   // Muhasebeciye gönder — DB'ye/hesaba bağlı bir alan değil, sadece bu tarayıcıda
   // hatırlanan bir kolaylık (yeni bir sütun/migration gerektirmeden).
-  const [accountantEmail, setAccountantEmail] = useState(() => localStorage.getItem("binerly_accountant_email") || "");
+  const [accountantEmail, setAccountantEmail] = useState(
+    () => localStorage.getItem("binerly_accountant_email") || "",
+  );
   const [kdvMonth, setKdvMonth] = useState(new Date().toISOString().slice(0, 7));
   const [expandedCustomerId, setExpandedCustomerId] = useState(null);
   const [newPaymentCustomerId, setNewPaymentCustomerId] = useState("");
@@ -353,7 +618,8 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
   const rangePayments = payments.filter((p) => inRange(p.paidAt, bounds));
   const rangeExpenses = companyExpenses.flatMap((e) => expandExpenseOccurrences(e, bounds));
   const wonDealsWithCost = deals.filter(
-    (d) => d.stage === "kazanildi" && (d.cost || 0) > 0 && inRange(d.closedAt || d.createdAt, bounds)
+    (d) =>
+      d.stage === "kazanildi" && (d.cost || 0) > 0 && inRange(d.closedAt || d.createdAt, bounds),
   );
 
   const totalIncome = rangePayments.reduce((sum, p) => sum + (p.amount || 0), 0);
@@ -372,7 +638,9 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
       const deal = dealById(p.dealId);
       const customer = customerById(deal?.customerId);
       const isRefund = p.amount < 0;
-      const isOnline = (p.provider === "iyzico" && !!p.iyzicoPaymentTransactionId) || (p.provider === "paytr" && !!p.paytrMerchantOid);
+      const isOnline =
+        (p.provider === "iyzico" && !!p.iyzicoPaymentTransactionId) ||
+        (p.provider === "paytr" && !!p.paytrMerchantOid);
       return {
         id: `payment-${p.id}`,
         type: isRefund ? "gider" : "gelir",
@@ -424,12 +692,22 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
   });
 
   const kdvBounds = monthBounds(kdvMonth);
-  const kdvWonDeals = deals.filter((d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, kdvBounds));
-  const satisKdv = kdvWonDeals.reduce((sum, d) => sum + kdvAmountOf(d.value || 0, d.kdvRate ?? 20), 0);
-  const kdvExpenseOccurrences = companyExpenses.flatMap((e) => expandExpenseOccurrences(e, kdvBounds));
+  const kdvWonDeals = deals.filter(
+    (d) => d.stage === "kazanildi" && inRange(d.closedAt || d.createdAt, kdvBounds),
+  );
+  const satisKdv = kdvWonDeals.reduce(
+    (sum, d) => sum + kdvAmountOf(d.value || 0, d.kdvRate ?? 20),
+    0,
+  );
+  const kdvExpenseOccurrences = companyExpenses.flatMap((e) =>
+    expandExpenseOccurrences(e, kdvBounds),
+  );
   const expensesWithKdv = kdvExpenseOccurrences.filter((e) => e.kdvRate != null);
   const expensesWithoutKdvCount = kdvExpenseOccurrences.length - expensesWithKdv.length;
-  const alisKdv = expensesWithKdv.reduce((sum, e) => sum + kdvAmountOf(e.amount || 0, e.kdvRate), 0);
+  const alisKdv = expensesWithKdv.reduce(
+    (sum, e) => sum + kdvAmountOf(e.amount || 0, e.kdvRate),
+    0,
+  );
   const odenecekKdv = satisKdv - alisKdv;
 
   // mailto: kullanılıyor — yeni bir sunucu/e-posta altyapısı gerektirmeden
@@ -459,16 +737,24 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
         item.hasTime ? expenseDateTimeLabel(item.date) : paymentDateLabel(item.date),
         item.label,
         item.amount,
-      ])
+      ]),
     );
-    openAccountantMail("Gelir-Gider Defteri", "Merhaba,\n\nGelir-Gider Defteri raporumu ekte paylaşıyorum.\n\nİyi çalışmalar.");
+    openAccountantMail(
+      "Gelir-Gider Defteri",
+      "Merhaba,\n\nGelir-Gider Defteri raporumu ekte paylaşıyorum.\n\nİyi çalışmalar.",
+    );
   };
 
   const customerBalances = customers
     .map((customer) => {
       const wonDeals = deals
         .filter((d) => d.customerId === customer.id && d.stage === "kazanildi")
-        .map((d) => ({ ...d, remaining: (d.value || 0) - payments.filter((p) => p.dealId === d.id).reduce((sum, p) => sum + (p.amount || 0), 0) }));
+        .map((d) => ({
+          ...d,
+          remaining:
+            (d.value || 0) -
+            payments.filter((p) => p.dealId === d.id).reduce((sum, p) => sum + (p.amount || 0), 0),
+        }));
       const totalDebt = wonDeals.reduce((sum, d) => sum + (d.value || 0), 0);
       const balance = wonDeals.reduce((sum, d) => sum + d.remaining, 0);
       return { customer, wonDeals, totalDebt, totalCollected: totalDebt - balance, balance };
@@ -491,78 +777,162 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: 12, width: "fit-content" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 4,
+          background: "var(--surface-1)",
+          borderRadius: "var(--radius)",
+          padding: 3,
+          marginBottom: 12,
+          width: "fit-content",
+        }}
+      >
         <button
           onClick={() => setFinanceView("tahsilat")}
-          style={{ border: "none", background: financeView === "tahsilat" ? "var(--fill-accent)" : "transparent", color: financeView === "tahsilat" ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: financeView === "tahsilat" ? 600 : 400, fontSize: 13 }}
+          style={{
+            border: "none",
+            background: financeView === "tahsilat" ? "var(--fill-accent)" : "transparent",
+            color: financeView === "tahsilat" ? "var(--on-accent)" : "var(--text-secondary)",
+            fontWeight: financeView === "tahsilat" ? 600 : 400,
+            fontSize: 13,
+          }}
         >
           Tahsilat / Cari Hesap
         </button>
         <button
           onClick={() => setFinanceView("defter")}
-          style={{ border: "none", background: financeView === "defter" ? "var(--fill-accent)" : "transparent", color: financeView === "defter" ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: financeView === "defter" ? 600 : 400, fontSize: 13 }}
+          style={{
+            border: "none",
+            background: financeView === "defter" ? "var(--fill-accent)" : "transparent",
+            color: financeView === "defter" ? "var(--on-accent)" : "var(--text-secondary)",
+            fontWeight: financeView === "defter" ? 600 : 400,
+            fontSize: 13,
+          }}
         >
           Gelir-Gider Defteri
         </button>
         <button
           onClick={() => setFinanceView("kdv")}
-          style={{ border: "none", background: financeView === "kdv" ? "var(--fill-accent)" : "transparent", color: financeView === "kdv" ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: financeView === "kdv" ? 600 : 400, fontSize: 13 }}
+          style={{
+            border: "none",
+            background: financeView === "kdv" ? "var(--fill-accent)" : "transparent",
+            color: financeView === "kdv" ? "var(--on-accent)" : "var(--text-secondary)",
+            fontWeight: financeView === "kdv" ? 600 : 400,
+            fontSize: 13,
+          }}
         >
           KDV Özet Raporu
         </button>
       </div>
 
       {financeView === "defter" && (
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, width: "fit-content" }}>
-            {PANO_RANGES.map((r) => (
-              <button
-                key={r.id}
-                onClick={() => setFinanceRange(r.id)}
-                style={{ border: "none", background: financeRange === r.id ? "var(--fill-accent)" : "transparent", color: financeRange === r.id ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: financeRange === r.id ? 600 : 400, fontSize: 13 }}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <input
-              type="email"
-              value={accountantEmail}
-              onChange={(e) => { setAccountantEmail(e.target.value); localStorage.setItem("binerly_accountant_email", e.target.value); }}
-              placeholder="Muhasebeci e-postası"
-              style={{ fontSize: 12.5, width: 190 }}
-            />
-            <button
-              type="button"
-              onClick={sendDefterToAccountant}
-              disabled={filteredLedger.length === 0}
-              style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 4 }}
+        <div style={{ marginBottom: 16 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                gap: 4,
+                background: "var(--surface-1)",
+                borderRadius: "var(--radius)",
+                padding: 3,
+                width: "fit-content",
+              }}
             >
-              <i className="ti ti-download" style={{ fontSize: 14 }} aria-hidden="true"></i>
-              İndir ve E-posta Aç
-            </button>
-            <InfoTip text={'Defteri .xlsx olarak indirir ve e-posta taslağı açar - mailto: dosyayı otomatik ekleyemediği için, az önce inen "gelir-gider-defteri.xlsx" dosyasını göndermeden önce e-postaya elle eklemeyi unutmayın.'} placement="bottom" />
+              {PANO_RANGES.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => setFinanceRange(r.id)}
+                  style={{
+                    border: "none",
+                    background: financeRange === r.id ? "var(--fill-accent)" : "transparent",
+                    color: financeRange === r.id ? "var(--on-accent)" : "var(--text-secondary)",
+                    fontWeight: financeRange === r.id ? 600 : 400,
+                    fontSize: 13,
+                  }}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <input
+                type="email"
+                value={accountantEmail}
+                onChange={(e) => {
+                  setAccountantEmail(e.target.value);
+                  localStorage.setItem("binerly_accountant_email", e.target.value);
+                }}
+                placeholder="Muhasebeci e-postası"
+                style={{ fontSize: 12.5, width: 190 }}
+              />
+              <button
+                type="button"
+                onClick={sendDefterToAccountant}
+                disabled={filteredLedger.length === 0}
+                style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 4 }}
+              >
+                <i className="ti ti-download" style={{ fontSize: 14 }} aria-hidden="true"></i>
+                İndir ve E-posta Aç
+              </button>
+              <InfoTip
+                text={
+                  'Defteri .xlsx olarak indirir ve e-posta taslağı açar - mailto: dosyayı otomatik ekleyemediği için, az önce inen "gelir-gider-defteri.xlsx" dosyasını göndermeden önce e-postaya elle eklemeyi unutmayın.'
+                }
+                placement="bottom"
+              />
+            </div>
           </div>
-        </div>
-        {/* Bu bilgi eskiden sadece hover'da açılan InfoTip'teydi - "Gönder" adında
+          {/* Bu bilgi eskiden sadece hover'da açılan InfoTip'teydi - "Gönder" adında
             bir butona basıp hiçbir dosya eklenmeden boş bir taslak açılması
             kafa karıştırıyordu, şimdi buton adı ("İndir ve E-posta Aç") ve bu
             satır tıklamadan önce ne olacağını doğrudan söylüyor. */}
-        <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "6px 0 0", textAlign: "right" }}>
-          Excel dosyası inecek ve boş bir e-posta taslağı açılacak - göndermeden önce dosyayı e-postaya elle eklemeyi unutmayın.
-        </p>
-      </div>
+          <p
+            style={{
+              fontSize: 11.5,
+              color: "var(--text-muted)",
+              margin: "6px 0 0",
+              textAlign: "right",
+            }}
+          >
+            Excel dosyası inecek ve boş bir e-posta taslağı açılacak - göndermeden önce dosyayı
+            e-postaya elle eklemeyi unutmayın.
+          </p>
+        </div>
       )}
       {financeView === "kdv" && (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 12, flexWrap: "wrap" }}>
-          <input type="month" value={kdvMonth} onChange={(e) => setKdvMonth(e.target.value)} style={{ width: 180 }} />
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 16,
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <input
+            type="month"
+            value={kdvMonth}
+            onChange={(e) => setKdvMonth(e.target.value)}
+            style={{ width: 180 }}
+          />
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <input
               type="email"
               value={accountantEmail}
-              onChange={(e) => { setAccountantEmail(e.target.value); localStorage.setItem("binerly_accountant_email", e.target.value); }}
+              onChange={(e) => {
+                setAccountantEmail(e.target.value);
+                localStorage.setItem("binerly_accountant_email", e.target.value);
+              }}
               placeholder="Muhasebeci e-postası"
               style={{ fontSize: 12.5, width: 190 }}
             />
@@ -581,26 +951,70 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
 
       {financeView === "tahsilat" ? (
         <div>
-          <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", marginBottom: 16 }}>
-            <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 4 }}>
+          <div
+            style={{
+              background: "var(--surface-1)",
+              borderRadius: "var(--radius-lg)",
+              boxShadow: "var(--shadow-sm)",
+              padding: "1rem",
+              marginBottom: 16,
+            }}
+          >
+            <p
+              style={{
+                fontSize: 14,
+                fontWeight: 500,
+                margin: "0 0 12px",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
               Yeni Tahsilat <InfoTip text={yeniTahsilatInfoText(sector)} />
             </p>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
               <div style={{ flex: 1, minWidth: 160 }}>
-                <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Müşteri</label>
+                <label
+                  style={{
+                    fontSize: 12,
+                    color: "var(--text-secondary)",
+                    display: "block",
+                    marginBottom: 4,
+                  }}
+                >
+                  Müşteri
+                </label>
                 <select
                   value={newPaymentCustomerId}
-                  onChange={(e) => { setNewPaymentCustomerId(e.target.value); setNewPaymentDealId(""); }}
+                  onChange={(e) => {
+                    setNewPaymentCustomerId(e.target.value);
+                    setNewPaymentDealId("");
+                  }}
                   style={{ width: "100%" }}
                 >
                   <option value="">Müşteri seçin</option>
                   {customers
-                    .filter((c) => deals.some((d) => d.customerId === c.id && d.stage === "kazanildi"))
-                    .map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    .filter((c) =>
+                      deals.some((d) => d.customerId === c.id && d.stage === "kazanildi"),
+                    )
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
                 </select>
               </div>
               <div style={{ flex: 1, minWidth: 160 }}>
-                <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>{FINANCE_DEAL_WORDS[dealWordKind(sector)].bare}</label>
+                <label
+                  style={{
+                    fontSize: 12,
+                    color: "var(--text-secondary)",
+                    display: "block",
+                    marginBottom: 4,
+                  }}
+                >
+                  {FINANCE_DEAL_WORDS[dealWordKind(sector)].bare}
+                </label>
                 <select
                   value={newPaymentDealId}
                   onChange={(e) => setNewPaymentDealId(e.target.value)}
@@ -608,7 +1022,11 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
                   style={{ width: "100%" }}
                 >
                   <option value="">Seçin</option>
-                  {newPaymentDealOptions.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}
+                  {newPaymentDealOptions.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.title}
+                    </option>
+                  ))}
                 </select>
               </div>
               <button
@@ -616,9 +1034,14 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
                 onClick={() => {
                   const deal = deals.find((d) => d.id === newPaymentDealId);
                   if (deal) onOpenPayments(deal);
-                  setNewPaymentCustomerId(""); setNewPaymentDealId("");
+                  setNewPaymentCustomerId("");
+                  setNewPaymentDealId("");
                 }}
-                style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+                style={{
+                  background: "var(--fill-accent)",
+                  color: "var(--on-accent)",
+                  border: "none",
+                }}
               >
                 Devam
               </button>
@@ -626,237 +1049,438 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
           </div>
 
           {customerBalances.length === 0 ? (
-            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>{FINANCE_DEAL_WORDS[dealWordKind(sector)].noWonEmpty}</p>
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+              {FINANCE_DEAL_WORDS[dealWordKind(sector)].noWonEmpty}
+            </p>
           ) : (
             <div>
-              <div className="list-toolbar" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+              <div
+                className="list-toolbar"
+                style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}
+              >
                 <input
                   value={tahsilatSearch}
                   onChange={(e) => setTahsilatSearch(e.target.value)}
                   placeholder="Müşteri ara..."
                   style={{ flex: 1, minWidth: 160, fontSize: 13 }}
                 />
-                <select value={tahsilatBalanceFilter} onChange={(e) => setTahsilatBalanceFilter(e.target.value)} style={{ fontSize: 13 }}>
+                <select
+                  value={tahsilatBalanceFilter}
+                  onChange={(e) => setTahsilatBalanceFilter(e.target.value)}
+                  style={{ fontSize: 13 }}
+                >
                   <option value="all">Tümü</option>
                   <option value="bekleyen">Bekleyen bakiyesi olanlar</option>
                   <option value="tahsil_edildi">Tamamı tahsil edilenler</option>
                 </select>
               </div>
               {filteredCustomerBalances.length === 0 ? (
-                <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Aramayla eşleşen kayıt yok.</p>
+                <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                  Aramayla eşleşen kayıt yok.
+                </p>
               ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {filteredCustomerBalances.map((cb) => (
-                <div key={cb.customer.id} style={{ border: "0.5px solid var(--border)", borderRadius: "var(--radius)" }}>
-                  <div
-                    onClick={() => setExpandedCustomerId(expandedCustomerId === cb.customer.id ? null : cb.customer.id)}
-                    style={{ padding: "0.75rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
-                  >
-                    <span style={{ fontSize: 13, fontWeight: 500 }}>{cb.customer.name}</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Borç {formatTL(cb.totalDebt)} · Tahsilat {formatTL(cb.totalCollected)}</span>
-                      <Badge tone={cb.balance > 0 ? "warning" : "success"}>{formatTL(cb.balance)}</Badge>
-                      <i className={`ti ${expandedCustomerId === cb.customer.id ? "ti-chevron-up" : "ti-chevron-down"}`} style={{ fontSize: 15, color: "var(--text-muted)" }} aria-hidden="true"></i>
-                    </div>
-                  </div>
-                  {expandedCustomerId === cb.customer.id && (
-                    <div style={{ padding: "0 1rem 0.75rem", display: "flex", flexDirection: "column", gap: 6 }}>
-                      {cb.wonDeals.map((d) => (
-                        <div key={d.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, padding: "6px 0", borderTop: "0.5px solid var(--border)" }}>
-                          <span>{d.title}</span>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ color: "var(--text-secondary)" }}>{d.remaining > 0 ? `Kalan ${formatTL(d.remaining)}` : "Ödendi"}</span>
-                            <button onClick={() => onOpenPayments(d)} style={{ fontSize: 12 }}>Tahsilat ekle</button>
-                          </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {filteredCustomerBalances.map((cb) => (
+                    <div
+                      key={cb.customer.id}
+                      style={{ border: "0.5px solid var(--border)", borderRadius: "var(--radius)" }}
+                    >
+                      <div
+                        onClick={() =>
+                          setExpandedCustomerId(
+                            expandedCustomerId === cb.customer.id ? null : cb.customer.id,
+                          )
+                        }
+                        style={{
+                          padding: "0.75rem 1rem",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span style={{ fontSize: 13, fontWeight: 500 }}>{cb.customer.name}</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                            Borç {formatTL(cb.totalDebt)} · Tahsilat {formatTL(cb.totalCollected)}
+                          </span>
+                          <Badge tone={cb.balance > 0 ? "warning" : "success"}>
+                            {formatTL(cb.balance)}
+                          </Badge>
+                          <i
+                            className={`ti ${expandedCustomerId === cb.customer.id ? "ti-chevron-up" : "ti-chevron-down"}`}
+                            style={{ fontSize: 15, color: "var(--text-muted)" }}
+                            aria-hidden="true"
+                          ></i>
                         </div>
-                      ))}
+                      </div>
+                      {expandedCustomerId === cb.customer.id && (
+                        <div
+                          style={{
+                            padding: "0 1rem 0.75rem",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 6,
+                          }}
+                        >
+                          {cb.wonDeals.map((d) => (
+                            <div
+                              key={d.id}
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                fontSize: 13,
+                                padding: "6px 0",
+                                borderTop: "0.5px solid var(--border)",
+                              }}
+                            >
+                              <span>{d.title}</span>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <span style={{ color: "var(--text-secondary)" }}>
+                                  {d.remaining > 0 ? `Kalan ${formatTL(d.remaining)}` : "Ödendi"}
+                                </span>
+                                <button onClick={() => onOpenPayments(d)} style={{ fontSize: 12 }}>
+                                  Tahsilat ekle
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
+                  ))}
                 </div>
-              ))}
-              </div>
               )}
             </div>
           )}
         </div>
       ) : financeView === "kdv" ? (
         <div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px,1fr))", gap: 12, marginBottom: 12 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(160px,1fr))",
+              gap: 12,
+              marginBottom: 12,
+            }}
+          >
             <MetricCard label="Satış KDV'si" value={formatTL(satisKdv)} tone="success" />
             <MetricCard label="Alış KDV'si" value={formatTL(alisKdv)} tone="danger" />
             <MetricCard
-              label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Ödenecek/Devreden KDV <InfoTip text={kdvReportInfoText(sector)} /></span>}
+              label={
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  Ödenecek/Devreden KDV <InfoTip text={kdvReportInfoText(sector)} />
+                </span>
+              }
               value={formatTL(odenecekKdv)}
               tone={odenecekKdv >= 0 ? "danger" : "success"}
             />
           </div>
           {expensesWithoutKdvCount > 0 && (
             <p style={{ fontSize: 12.5, color: "var(--text-warning)", margin: 0 }}>
-              {expensesWithoutKdvCount} gider KDV bilgisi olmadığı için Alış KDV'sine dahil edilmedi.
+              {expensesWithoutKdvCount} gider KDV bilgisi olmadığı için Alış KDV'sine dahil
+              edilmedi.
             </p>
           )}
         </div>
       ) : (
-      <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px,1fr))", gap: 12, marginBottom: 20 }}>
-        <MetricCard label="Toplam Gelir" value={formatTL(totalIncome)} tone="success" />
-        <MetricCard
-          label={<span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>Toplam Gider <InfoTip text={totalExpenseInfoText(sector)} /></span>}
-          value={formatTL(totalExpense)}
-          tone="danger"
-        />
-        <MetricCard label="Net Kalan" value={formatTL(netRemaining)} tone={netRemaining >= 0 ? "success" : "danger"} />
-      </div>
-      <div className="finance-ledger-grid" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, alignItems: "start" }}>
-        <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", minWidth: 280 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-            <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>Gelir-Gider Defteri</p>
-            <button
-              onClick={() => setShowExpenseForm(true)}
-              style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
-            >
-              <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
-              Gider ekle
-            </button>
-          </div>
-          <div className="list-toolbar" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-            <input
-              value={ledgerSearch}
-              onChange={(e) => setLedgerSearch(e.target.value)}
-              placeholder="Kayıt ara (müşteri, başlık, kategori)..."
-              style={{ flex: 1, minWidth: 140, fontSize: 13 }}
+        <div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(160px,1fr))",
+              gap: 12,
+              marginBottom: 20,
+            }}
+          >
+            <MetricCard label="Toplam Gelir" value={formatTL(totalIncome)} tone="success" />
+            <MetricCard
+              label={
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  Toplam Gider <InfoTip text={totalExpenseInfoText(sector)} />
+                </span>
+              }
+              value={formatTL(totalExpense)}
+              tone="danger"
             />
-            <select value={ledgerTypeFilter} onChange={(e) => setLedgerTypeFilter(e.target.value)} style={{ fontSize: 13 }}>
-              <option value="all">Tümü</option>
-              <option value="gelir">Sadece Gelir</option>
-              <option value="gider">Sadece Gider</option>
-            </select>
+            <MetricCard
+              label="Net Kalan"
+              value={formatTL(netRemaining)}
+              tone={netRemaining >= 0 ? "success" : "danger"}
+            />
           </div>
-          {ledger.length === 0 ? (
-            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Bu aralıkta hiç kayıt yok.</p>
-          ) : filteredLedger.length === 0 ? (
-            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Aramayla eşleşen kayıt yok.</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 420, overflowY: "auto" }}>
-              {filteredLedger.map((item) => (
-                <div
-                  key={item.id}
-                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, padding: "6px 0", borderBottom: "0.5px solid var(--border)" }}
+          <div
+            className="finance-ledger-grid"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "2fr 1fr",
+              gap: 16,
+              alignItems: "start",
+            }}
+          >
+            <div
+              style={{
+                background: "var(--surface-1)",
+                borderRadius: "var(--radius-lg)",
+                boxShadow: "var(--shadow-sm)",
+                padding: "1rem",
+                minWidth: 280,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 12,
+                  flexWrap: "wrap",
+                  gap: 8,
+                }}
+              >
+                <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>Gelir-Gider Defteri</p>
+                <button
+                  onClick={() => setShowExpenseForm(true)}
+                  style={{
+                    background: "var(--fill-accent)",
+                    color: "var(--on-accent)",
+                    border: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 13,
+                  }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Badge tone={item.type === "gelir" ? "success" : "danger"}>{item.type === "gelir" ? "Gelir" : "Gider"}</Badge>
-                    <div>
-                      <p style={{ margin: 0, display: "flex", alignItems: "center", gap: 5 }}>
-                        {item.label}
-                        {item.isRecurring && (
-                          <i
-                            className="ti ti-repeat"
-                            title={
-                              item.recurrenceInterval === "yearly"
-                                ? "Her yıl tekrarlanan gider"
-                                : item.recurrenceInterval === "daily"
-                                ? "Her gün tekrarlanan gider"
-                                : "Her ay tekrarlanan gider"
-                            }
-                            style={{ fontSize: 13, color: "var(--text-muted)" }}
-                            aria-hidden="true"
-                          ></i>
-                        )}
-                        {item.isRecurring && <InfoTip text={RECURRING_INFO_TEXT} />}
-                      </p>
-                      <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>
-                        {item.hasTime ? expenseDateTimeLabel(item.date) : paymentDateLabel(item.date)}
-                      </p>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontWeight: 500, color: item.type === "gelir" ? "var(--text-success)" : "var(--text-danger)" }}>
-                      {item.type === "gelir" ? "+" : "-"}{formatTL(item.amount)}
-                    </span>
-                    {item.expenseId && (
-                      <>
-                        <IconButton
-                          icon="ti-edit"
-                          title="Düzenle"
-                          size="sm"
-                          onClick={() => setEditingExpense(companyExpenses.find((e) => e.id === item.expenseId))}
-                        />
-                        {canDelete && (
-                          <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(item)} />
-                        )}
-                      </>
-                    )}
-                    {item.isOnlinePayment && (
-                      <button
-                        type="button"
-                        onClick={() => { const deal = dealById(item.dealId); if (deal) onOpenPayments(deal); }}
-                        style={{ fontSize: 12 }}
-                      >
-                        İade Et
-                      </button>
-                    )}
-                    {item.isManualPayment && (
-                      <>
-                        <IconButton
-                          icon="ti-edit"
-                          title="Düzenle"
-                          size="sm"
-                          onClick={() => {
-                            const payment = payments.find((p) => p.id === item.paymentId);
-                            setEditingPayment(payment);
-                            setEditPaymentAmount(String(payment.amount));
-                            setEditPaymentDate(payment.paidAt.slice(0, 10));
-                            setEditPaymentNote(payment.note || "");
+                  <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                  Gider ekle
+                </button>
+              </div>
+              <div
+                className="list-toolbar"
+                style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}
+              >
+                <input
+                  value={ledgerSearch}
+                  onChange={(e) => setLedgerSearch(e.target.value)}
+                  placeholder="Kayıt ara (müşteri, başlık, kategori)..."
+                  style={{ flex: 1, minWidth: 140, fontSize: 13 }}
+                />
+                <select
+                  value={ledgerTypeFilter}
+                  onChange={(e) => setLedgerTypeFilter(e.target.value)}
+                  style={{ fontSize: 13 }}
+                >
+                  <option value="all">Tümü</option>
+                  <option value="gelir">Sadece Gelir</option>
+                  <option value="gider">Sadece Gider</option>
+                </select>
+              </div>
+              {ledger.length === 0 ? (
+                <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                  Bu aralıkta hiç kayıt yok.
+                </p>
+              ) : filteredLedger.length === 0 ? (
+                <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                  Aramayla eşleşen kayıt yok.
+                </p>
+              ) : (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                    maxHeight: 420,
+                    overflowY: "auto",
+                  }}
+                >
+                  {filteredLedger.map((item) => (
+                    <div
+                      key={item.id}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        fontSize: 13,
+                        padding: "6px 0",
+                        borderBottom: "0.5px solid var(--border)",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <Badge tone={item.type === "gelir" ? "success" : "danger"}>
+                          {item.type === "gelir" ? "Gelir" : "Gider"}
+                        </Badge>
+                        <div>
+                          <p style={{ margin: 0, display: "flex", alignItems: "center", gap: 5 }}>
+                            {item.label}
+                            {item.isRecurring && (
+                              <i
+                                className="ti ti-repeat"
+                                title={
+                                  item.recurrenceInterval === "yearly"
+                                    ? "Her yıl tekrarlanan gider"
+                                    : item.recurrenceInterval === "daily"
+                                      ? "Her gün tekrarlanan gider"
+                                      : "Her ay tekrarlanan gider"
+                                }
+                                style={{ fontSize: 13, color: "var(--text-muted)" }}
+                                aria-hidden="true"
+                              ></i>
+                            )}
+                            {item.isRecurring && <InfoTip text={RECURRING_INFO_TEXT} />}
+                          </p>
+                          <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>
+                            {item.hasTime
+                              ? expenseDateTimeLabel(item.date)
+                              : paymentDateLabel(item.date)}
+                          </p>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span
+                          style={{
+                            fontWeight: 500,
+                            color:
+                              item.type === "gelir" ? "var(--text-success)" : "var(--text-danger)",
                           }}
-                        />
-                        {canDelete && (
-                          <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDeletePayment(item)} />
+                        >
+                          {item.type === "gelir" ? "+" : "-"}
+                          {formatTL(item.amount)}
+                        </span>
+                        {item.expenseId && (
+                          <>
+                            <IconButton
+                              icon="ti-edit"
+                              title="Düzenle"
+                              size="sm"
+                              onClick={() =>
+                                setEditingExpense(
+                                  companyExpenses.find((e) => e.id === item.expenseId),
+                                )
+                              }
+                            />
+                            {canDelete && (
+                              <IconButton
+                                icon="ti-trash"
+                                title="Sil"
+                                size="sm"
+                                onClick={() => setConfirmDelete(item)}
+                              />
+                            )}
+                          </>
                         )}
-                      </>
-                    )}
-                    {item.dealCostId && (
-                      <>
-                        <IconButton
-                          icon="ti-edit"
-                          title="Düzenle"
-                          size="sm"
-                          onClick={() => setEditingDealCost(dealById(item.dealCostId))}
-                        />
-                        <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmClearDealCost(item)} />
-                      </>
-                    )}
-                  </div>
+                        {item.isOnlinePayment && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const deal = dealById(item.dealId);
+                              if (deal) onOpenPayments(deal);
+                            }}
+                            style={{ fontSize: 12 }}
+                          >
+                            İade Et
+                          </button>
+                        )}
+                        {item.isManualPayment && (
+                          <>
+                            <IconButton
+                              icon="ti-edit"
+                              title="Düzenle"
+                              size="sm"
+                              onClick={() => {
+                                const payment = payments.find((p) => p.id === item.paymentId);
+                                setEditingPayment(payment);
+                                setEditPaymentAmount(String(payment.amount));
+                                setEditPaymentDate(payment.paidAt.slice(0, 10));
+                                setEditPaymentNote(payment.note || "");
+                              }}
+                            />
+                            {canDelete && (
+                              <IconButton
+                                icon="ti-trash"
+                                title="Sil"
+                                size="sm"
+                                onClick={() => setConfirmDeletePayment(item)}
+                              />
+                            )}
+                          </>
+                        )}
+                        {item.dealCostId && (
+                          <>
+                            <IconButton
+                              icon="ti-edit"
+                              title="Düzenle"
+                              size="sm"
+                              onClick={() => setEditingDealCost(dealById(item.dealCostId))}
+                            />
+                            <IconButton
+                              icon="ti-trash"
+                              title="Sil"
+                              size="sm"
+                              onClick={() => setConfirmClearDealCost(item)}
+                            />
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </div>
 
-        <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", minWidth: 200 }}>
-          <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 4 }}>
-            Kategoriye göre gider
-            <InfoTip text={`Sadece elle eklenen işletme giderlerini gösterir, kazanılan ${FINANCE_DEAL_WORDS[dealWordKind(sector)].locativePlural} gider tutarlarını içermez - bu yüzden yukarıdaki Toplam Gider'le tam eşleşmeyebilir.`} />
-          </p>
-          {Object.keys(categoryTotals).length === 0 ? (
-            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Bu aralıkta işletme gideri yok.</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]).map(([category, total]) => (
-                <div key={category} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                  <span>{category}</span>
-                  <span style={{ fontWeight: 500 }}>{formatTL(total)}</span>
+            <div
+              style={{
+                background: "var(--surface-1)",
+                borderRadius: "var(--radius-lg)",
+                boxShadow: "var(--shadow-sm)",
+                padding: "1rem",
+                minWidth: 200,
+              }}
+            >
+              <p
+                style={{
+                  fontSize: 14,
+                  fontWeight: 500,
+                  margin: "0 0 12px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                Kategoriye göre gider
+                <InfoTip
+                  text={`Sadece elle eklenen işletme giderlerini gösterir, kazanılan ${FINANCE_DEAL_WORDS[dealWordKind(sector)].locativePlural} gider tutarlarını içermez - bu yüzden yukarıdaki Toplam Gider'le tam eşleşmeyebilir.`}
+                />
+              </p>
+              {Object.keys(categoryTotals).length === 0 ? (
+                <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                  Bu aralıkta işletme gideri yok.
+                </p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {Object.entries(categoryTotals)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([category, total]) => (
+                      <div
+                        key={category}
+                        style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}
+                      >
+                        <span>{category}</span>
+                        <span style={{ fontWeight: 500 }}>{formatTL(total)}</span>
+                      </div>
+                    ))}
                 </div>
-              ))}
+              )}
             </div>
-          )}
+          </div>
         </div>
-      </div>
-      </div>
       )}
 
       {showExpenseForm && (
         <CompanyExpenseForm
-          onSave={async (expense) => { await onAddExpense(expense); setShowExpenseForm(false); }}
+          onSave={async (expense) => {
+            await onAddExpense(expense);
+            setShowExpenseForm(false);
+          }}
           onCancel={() => setShowExpenseForm(false)}
         />
       )}
@@ -864,7 +1488,10 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
       {editingExpense && (
         <CompanyExpenseForm
           initial={editingExpense}
-          onSave={async (expense) => { await onUpdateExpense(expense); setEditingExpense(null); }}
+          onSave={async (expense) => {
+            await onUpdateExpense(expense);
+            setEditingExpense(null);
+          }}
           onCancel={() => setEditingExpense(null)}
         />
       )}
@@ -877,7 +1504,10 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
               ? "Bu tekrarlayan bir gider - silerseniz geçmiş ve gelecekteki TÜM tekrarları çöp kutusuna taşınır, sadece bu ay/yıl değil. Dilediğiniz zaman geri yükleyebilirsiniz."
               : "Bu gider çöp kutusuna taşınacak, dilediğiniz zaman geri yükleyebilirsiniz."
           }
-          onConfirm={() => { onDeleteExpense(confirmDelete.expenseId); setConfirmDelete(null); }}
+          onConfirm={() => {
+            onDeleteExpense(confirmDelete.expenseId);
+            setConfirmDelete(null);
+          }}
           onClose={() => setConfirmDelete(null)}
         />
       )}
@@ -886,30 +1516,84 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
         <Modal title="Tahsilatı düzenle" onClose={() => setEditingPayment(null)}>
           <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
             <div style={{ flex: 1, minWidth: 140 }}>
-              <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tutar (TL)</label>
-              <input type="number" min="0" step="0.01" value={editPaymentAmount} onChange={(e) => setEditPaymentAmount(e.target.value)} style={{ width: "100%" }} />
+              <label
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  display: "block",
+                  marginBottom: 4,
+                }}
+              >
+                Tutar (TL)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={editPaymentAmount}
+                onChange={(e) => setEditPaymentAmount(e.target.value)}
+                style={{ width: "100%" }}
+              />
             </div>
             <div style={{ flex: 1, minWidth: 140 }}>
-              <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tarih</label>
-              <input type="date" value={editPaymentDate} onChange={(e) => setEditPaymentDate(e.target.value)} style={{ width: "100%" }} />
+              <label
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  display: "block",
+                  marginBottom: 4,
+                }}
+              >
+                Tarih
+              </label>
+              <input
+                type="date"
+                value={editPaymentDate}
+                onChange={(e) => setEditPaymentDate(e.target.value)}
+                style={{ width: "100%" }}
+              />
             </div>
           </div>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Not (opsiyonel)</label>
-            <input value={editPaymentNote} onChange={(e) => setEditPaymentNote(e.target.value)} style={{ width: "100%" }} />
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
+              Not (opsiyonel)
+            </label>
+            <input
+              value={editPaymentNote}
+              onChange={(e) => setEditPaymentNote(e.target.value)}
+              style={{ width: "100%" }}
+            />
           </div>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button type="button" onClick={() => setEditingPayment(null)}>Vazgeç</button>
+            <button type="button" onClick={() => setEditingPayment(null)}>
+              Vazgeç
+            </button>
             <button
               type="button"
               disabled={editPaymentSaving || !editPaymentAmount}
               onClick={async () => {
                 setEditPaymentSaving(true);
-                await onUpdatePayment({ id: editingPayment.id, amount: Number(editPaymentAmount), paidAt: editPaymentDate, note: editPaymentNote.trim() });
+                await onUpdatePayment({
+                  id: editingPayment.id,
+                  amount: Number(editPaymentAmount),
+                  paidAt: editPaymentDate,
+                  note: editPaymentNote.trim(),
+                });
                 setEditPaymentSaving(false);
                 setEditingPayment(null);
               }}
-              style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+              style={{
+                background: "var(--fill-accent)",
+                color: "var(--on-accent)",
+                border: "none",
+              }}
             >
               {editPaymentSaving ? "Kaydediliyor…" : "Kaydet"}
             </button>
@@ -921,7 +1605,10 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
         <ConfirmDialog
           title="Tahsilat silinsin mi?"
           message="Bu tahsilat kaydı çöp kutusuna taşınır."
-          onConfirm={() => { onDeletePayment(confirmDeletePayment.paymentId); setConfirmDeletePayment(null); }}
+          onConfirm={() => {
+            onDeletePayment(confirmDeletePayment.paymentId);
+            setConfirmDeletePayment(null);
+          }}
           onClose={() => setConfirmDeletePayment(null)}
         />
       )}
@@ -930,7 +1617,10 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
         <DealCostEditForm
           deal={editingDealCost}
           sector={sector}
-          onSave={async (cost) => { await onUpdateDealCost(editingDealCost.id, cost); setEditingDealCost(null); }}
+          onSave={async (cost) => {
+            await onUpdateDealCost(editingDealCost.id, cost);
+            setEditingDealCost(null);
+          }}
           onCancel={() => setEditingDealCost(null)}
         />
       )}
@@ -939,7 +1629,10 @@ export default function Finance({ deals, payments, companyExpenses, customers, o
         <ConfirmDialog
           title="Gider kaldırılsın mı?"
           message={`${confirmClearDealCost.label.split(" - ")[0]} müşterisinin bu kayıttan kaynaklanan Gider tutarı 0'a çekilecek - bu, ${FINANCE_DEAL_WORDS[dealWordKind(sector)].locativePlural} kayıtta da aynı şekilde yansır.`}
-          onConfirm={() => { onUpdateDealCost(confirmClearDealCost.dealCostId, 0); setConfirmClearDealCost(null); }}
+          onConfirm={() => {
+            onUpdateDealCost(confirmClearDealCost.dealCostId, 0);
+            setConfirmClearDealCost(null);
+          }}
           onClose={() => setConfirmClearDealCost(null)}
         />
       )}
