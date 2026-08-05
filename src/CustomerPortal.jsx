@@ -20,6 +20,7 @@ import {
   IconButton,
   translateAuthError,
   humanizeDbMessage,
+  InitialsAvatar,
 } from "./shared";
 import {
   STAGES,
@@ -3420,17 +3421,15 @@ export default function CustomerPortal() {
         applicationServerKey: urlBase64ToUint8Array(import.meta.env.VITE_VAPID_PUBLIC_KEY),
       });
       const json = subscription.toJSON();
-      const { error } = await supabase
-        .from("push_subscriptions")
-        .upsert(
-          {
-            user_id: session.user.id,
-            endpoint: json.endpoint,
-            p256dh: json.keys.p256dh,
-            auth_key: json.keys.auth,
-          },
-          { onConflict: "endpoint" },
-        );
+      const { error } = await supabase.from("push_subscriptions").upsert(
+        {
+          user_id: session.user.id,
+          endpoint: json.endpoint,
+          p256dh: json.keys.p256dh,
+          auth_key: json.keys.auth,
+        },
+        { onConflict: "endpoint" },
+      );
       if (error) {
         notify(`Bildirim aboneliği kaydedilemedi: ${error.message}`);
         return;
@@ -3664,54 +3663,23 @@ export default function CustomerPortal() {
         style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "flex-start",
+          alignItems: "center",
           marginBottom: "1.5rem",
         }}
       >
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-            <IconButton
-              icon="ti-menu-2"
-              onClick={() => setSidebarOpen(true)}
-              title="Menü"
-              className="app-sidebar-toggle"
-            />
-            <img src="/favicon.svg" alt="Binerly" style={{ width: 31, height: 31 }} />
-            <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
-              {activeCustomerRow ? (
-                <>
-                  {activeCustomerRow.companyName || activeCustomerRow.name}{" "}
-                  <span style={{ fontWeight: 400, fontSize: 13, color: "var(--text-secondary)" }}>
-                    (Binerly ile)
-                  </span>
-                </>
-              ) : (
-                "Binerly - Müşteri Bilgi Sistemi"
-              )}
-            </h1>
-          </div>
-          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>
-            Taleplerinizi ve {PORTAL_DEAL_WORDS[dealKind].possAcc} buradan takip edin
-          </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <IconButton
+            icon="ti-menu-2"
+            onClick={() => setSidebarOpen(true)}
+            title="Menü"
+            className="app-sidebar-toggle"
+          />
+          <img src="/favicon.svg" alt="Binerly" style={{ width: 24, height: 24 }} />
+          <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
+            Binerly
+          </span>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <NotificationBell userId={session.user.id} supabase={supabase} />
-          <button
-            onClick={() => setPortalTab("ayarlar")}
-            style={{
-              fontSize: 12,
-              color: "var(--text-secondary)",
-              background: "none",
-              border: "0.5px solid var(--border)",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-            }}
-            title="Ayarlar"
-          >
-            <i className="ti ti-adjustments" style={{ fontSize: 14 }} aria-hidden="true"></i>
-            Ayarlar
-          </button>
           {customerRows.length > 1 && activeCustomerRow && (
             <button
               onClick={() => setSelectedCompanyId(null)}
@@ -3730,21 +3698,27 @@ export default function CustomerPortal() {
               İşletme değiştir
             </button>
           )}
+          <NotificationBell userId={session.user.id} supabase={supabase} />
+          <IconButton
+            icon="ti-adjustments"
+            onClick={() => setPortalTab("ayarlar")}
+            title="Ayarlar"
+          />
           <button
-            onClick={() => supabase.auth.signOut()}
+            onClick={() => setPortalTab("ayarlar")}
+            title="Profil / Ayarlar"
+            aria-label="Profil / Ayarlar"
             style={{
-              fontSize: 12,
-              color: "var(--text-secondary)",
               background: "none",
-              border: "0.5px solid var(--border)",
+              border: "none",
+              padding: 0,
+              boxShadow: "none",
+              cursor: "pointer",
               display: "flex",
-              alignItems: "center",
-              gap: 4,
+              lineHeight: 0,
             }}
-            title="Çıkış yap"
           >
-            <i className="ti ti-logout" style={{ fontSize: 14 }} aria-hidden="true"></i>
-            Çıkış
+            <InitialsAvatar name={activeCustomerRow?.name || session.user.email} size={30} />
           </button>
         </div>
       </div>
@@ -3835,6 +3809,36 @@ export default function CustomerPortal() {
                   top: 24,
                 }}
               >
+                {activeCustomerRow && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "6px 10px 14px",
+                    }}
+                  >
+                    <InitialsAvatar
+                      name={activeCustomerRow.companyName || activeCustomerRow.name}
+                      size={38}
+                    />
+                    <div style={{ minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 700,
+                          color: "var(--text-primary)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {activeCustomerRow.companyName || activeCustomerRow.name}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>Binerly ile</div>
+                    </div>
+                  </div>
+                )}
                 {[
                   { id: "talepler", label: "Taleplerim", icon: "ti-ticket" },
                   { id: "mesajlar", label: "Mesajlar", icon: "ti-message-circle" },
@@ -3856,11 +3860,11 @@ export default function CustomerPortal() {
                     }}
                     className={portalTab === t.id ? undefined : "app-sidebar-tab"}
                     style={{
-                      border:
-                        portalTab === t.id
-                          ? "0.5px solid var(--border-strong)"
-                          : "0.5px solid transparent",
-                      background: portalTab === t.id ? "var(--surface-1)" : "transparent",
+                      border: "0.5px solid transparent",
+                      background: portalTab === t.id ? "var(--fill-accent)" : "transparent",
+                      color: portalTab === t.id ? "var(--on-accent)" : "var(--text-primary)",
+                      fontWeight: portalTab === t.id ? 600 : 400,
+                      boxShadow: portalTab === t.id ? "var(--shadow-sm)" : "none",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "flex-start",
@@ -3900,6 +3904,33 @@ export default function CustomerPortal() {
                     )}
                   </button>
                 ))}
+                <div
+                  style={{ height: 1, background: "var(--border)", margin: "8px 10px" }}
+                  aria-hidden="true"
+                />
+                <button
+                  onClick={() => supabase.auth.signOut()}
+                  className="app-sidebar-tab"
+                  style={{
+                    border: "0.5px solid transparent",
+                    background: "transparent",
+                    color: "var(--text-secondary)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "flex-start",
+                    gap: 8,
+                    padding: "8px 10px",
+                    width: "100%",
+                    textAlign: "left",
+                  }}
+                >
+                  <i
+                    className="ti ti-logout"
+                    style={{ fontSize: 16, flexShrink: 0 }}
+                    aria-hidden="true"
+                  ></i>
+                  <span style={{ flex: 1 }}>Çıkış Yap</span>
+                </button>
               </nav>
 
               <div style={{ flex: 1, minWidth: 0 }}>
