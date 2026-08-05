@@ -3898,8 +3898,11 @@ export default function App() {
             data-tour={`tab-${t.id}`}
             className={tab === t.id ? undefined : "app-sidebar-tab"}
             style={{
-              border: tab === t.id ? "0.5px solid var(--border-strong)" : "0.5px solid transparent",
-              background: tab === t.id ? "var(--surface-1)" : "transparent",
+              border: "0.5px solid transparent",
+              background: tab === t.id ? "var(--fill-accent)" : "transparent",
+              color: tab === t.id ? "var(--on-accent)" : "var(--text-primary)",
+              fontWeight: tab === t.id ? 600 : 400,
+              boxShadow: tab === t.id ? "var(--shadow-sm)" : "none",
               display: "flex",
               alignItems: "center",
               justifyContent: "flex-start",
