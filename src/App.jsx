@@ -793,6 +793,9 @@ function LandingHeroPipeline() {
           { icon: "ti-credit-card", label: "Ödeme Tahsilatı" },
           { icon: "ti-address-book", label: "Müşteri Portalı" },
           { icon: "ti-message-circle", label: "Mesajlaşma" },
+          { icon: "ti-package", label: "Stok & Malzeme" },
+          { icon: "ti-users-group", label: "Takım Yönetimi" },
+          { icon: "ti-clock", label: "Kişi & Cihaz Müsaitliği" },
         ].map((m) => (
           <span key={m.label} style={{ display: "flex", alignItems: "center", gap: 6, background: "#fff", border: "1px solid #e1e8f0", borderRadius: 20, padding: "6px 12px", fontSize: 12, color: "#0c2540" }}>
             <i className={`ti ${m.icon}`} style={{ fontSize: 13, color: "#185fa5" }} aria-hidden="true"></i>
