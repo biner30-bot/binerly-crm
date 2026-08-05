@@ -1,13 +1,66 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
-import { Badge, Modal, Toast, ConfirmDialog, formatTL, useSessionTimeout, useTheme, GoogleAuthButton, AuthDivider, uid, isFullNameValid, WEEKDAYS, nextWeeklyOccurrence, NotificationBell, getPortalUrl, EmojiPickerButton, IconButton, translateAuthError, humanizeDbMessage } from "./shared";
-import { STAGES, stageLabel, dealWordKind, isAppointmentSector, supportsSelfBooking, bookingModel, supportsGroupClasses, groupClassWords, supportExamples, appointmentNoteExample, SECTOR_PRESETS, computeAppointmentPenaltyBurn } from "./Sectors";
+import {
+  Badge,
+  Modal,
+  Toast,
+  ConfirmDialog,
+  formatTL,
+  useSessionTimeout,
+  useTheme,
+  GoogleAuthButton,
+  AuthDivider,
+  uid,
+  isFullNameValid,
+  WEEKDAYS,
+  nextWeeklyOccurrence,
+  NotificationBell,
+  getPortalUrl,
+  EmojiPickerButton,
+  IconButton,
+  translateAuthError,
+  humanizeDbMessage,
+} from "./shared";
+import {
+  STAGES,
+  stageLabel,
+  dealWordKind,
+  isAppointmentSector,
+  supportsSelfBooking,
+  bookingModel,
+  supportsGroupClasses,
+  groupClassWords,
+  supportExamples,
+  appointmentNoteExample,
+  SECTOR_PRESETS,
+  computeAppointmentPenaltyBurn,
+} from "./Sectors";
 
 const PORTAL_DEAL_WORDS = {
-  teklif: { emptyList: "Henüz bir teklifiniz yok.", possAcc: "tekliflerinizi", tabLabel: "Tekliflerim", plural: "teklifler" },
-  randevu: { emptyList: "Henüz bir randevunuz yok.", possAcc: "randevularınızı", tabLabel: "Randevularım", plural: "randevular" },
-  uyelik: { emptyList: "Henüz bir üyeliğiniz yok.", possAcc: "üyeliklerinizi", tabLabel: "Üyeliklerim", plural: "üyelikler" },
-  rezervasyon: { emptyList: "Henüz bir rezervasyonunuz yok.", possAcc: "rezervasyonlarınızı", tabLabel: "Rezervasyonlarım", plural: "rezervasyonlar" },
+  teklif: {
+    emptyList: "Henüz bir teklifiniz yok.",
+    possAcc: "tekliflerinizi",
+    tabLabel: "Tekliflerim",
+    plural: "teklifler",
+  },
+  randevu: {
+    emptyList: "Henüz bir randevunuz yok.",
+    possAcc: "randevularınızı",
+    tabLabel: "Randevularım",
+    plural: "randevular",
+  },
+  uyelik: {
+    emptyList: "Henüz bir üyeliğiniz yok.",
+    possAcc: "üyeliklerinizi",
+    tabLabel: "Üyeliklerim",
+    plural: "üyelikler",
+  },
+  rezervasyon: {
+    emptyList: "Henüz bir rezervasyonunuz yok.",
+    possAcc: "rezervasyonlarınızı",
+    tabLabel: "Rezervasyonlarım",
+    plural: "rezervasyonlar",
+  },
 };
 // "Gelecek/geçmiş" filtresi randevu ve rezervasyon (Otel) için anlamlı — ikisi
 // de somut bir tarih/saat taşıyor (portal_randevu_zamani); teklif/üyelikte
@@ -73,7 +126,14 @@ function rowToTicketMessage(r) {
 // SADECE bu listedeki anahtarları taşır. Yeni bir yerde d.customFields?.X
 // okumaya başlarsan X'i buraya da eklemeyi unutma — yoksa (uyelik_bitis_tarihi/
 // kurs_bitis_tarihi'nde olduğu gibi) o alan sessizce undefined gelir.
-const PORTAL_VISIBLE_DEAL_CUSTOM_FIELD_KEYS = ["portal_randevu_zamani", "kaynak", "uyelik_bitis_tarihi", "kurs_bitis_tarihi", "sevkiyat_durumu", "service_ids"];
+const PORTAL_VISIBLE_DEAL_CUSTOM_FIELD_KEYS = [
+  "portal_randevu_zamani",
+  "kaynak",
+  "uyelik_bitis_tarihi",
+  "kurs_bitis_tarihi",
+  "sevkiyat_durumu",
+  "service_ids",
+];
 
 function rowToDeal(r) {
   const cf = r.custom_fields || {};
@@ -124,20 +184,38 @@ function rowToPriceListItem(r) {
 // customer_payments_view'den geliyor (bkz. sql/2026-08-03_portal_self_service.sql)
 // - iade satırları (amount negatif) DIŞLANMADI, PortalPayments bunları ayrı gösterir.
 function rowToPayment(r) {
-  return { id: r.id, dealId: r.deal_id, amount: Number(r.amount) || 0, paidAt: r.paid_at, createdAt: r.created_at, note: r.note, dealTitle: r.deal_title, customerId: r.customer_id };
+  return {
+    id: r.id,
+    dealId: r.deal_id,
+    amount: Number(r.amount) || 0,
+    paidAt: r.paid_at,
+    createdAt: r.created_at,
+    note: r.note,
+    dealTitle: r.deal_title,
+    customerId: r.customer_id,
+  };
 }
 
 // Sadece işletmenin açıkça "Müşteriyle Paylaş" dediği dosyalar buraya düşer -
 // RLS zaten shared_with_customer=true VE kendi deal'i şartını uyguluyor
 // (bkz. sql/2026-07-31_attachment_customer_sharing.sql), burada sadece alan eşlemesi var.
 function rowToPortalAttachment(r) {
-  return { id: r.id, dealId: r.entity_id, fileName: r.file_name, storagePath: r.storage_path, fileSize: r.file_size || 0 };
+  return {
+    id: r.id,
+    dealId: r.entity_id,
+    fileName: r.file_name,
+    storagePath: r.storage_path,
+    fileSize: r.file_size || 0,
+  };
 }
 
 function formatDateTime(dateStr) {
   const d = new Date(dateStr);
-  return d.toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" }) +
-    " · " + d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  return (
+    d.toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" }) +
+    " · " +
+    d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })
+  );
 }
 
 // Randevu iptal/gelmeme politikası tamamen kobiye bırakılmıştır (Ayarlar →
@@ -161,33 +239,83 @@ function CustomerPortalLanding({ onEnter }) {
     { icon: "ti-bell", text: "Yeni gelişmelerde anında bildirim alın" },
   ];
   return (
-    <div style={{ minHeight: "100vh", background: "#f5f8fc", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#f5f8fc",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "1rem",
+      }}
+    >
       <div style={{ maxWidth: 440, width: "100%" }}>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <img src="/favicon.svg" alt="Binerly" style={{ width: 52, height: 52, marginBottom: 14 }} />
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>Binerly Müşteri Portalı</h1>
+          <img
+            src="/favicon.svg"
+            alt="Binerly"
+            style={{ width: 52, height: 52, marginBottom: 14 }}
+          />
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>
+            Binerly Müşteri Portalı
+          </h1>
           <p style={{ fontSize: 14, color: "#5b7088", lineHeight: 1.6, margin: 0 }}>
             Hizmet aldığınız işletmeyle ilgili her şeyi tek yerden takip edin.
           </p>
         </div>
         <div style={{ background: "#fff", borderRadius: 16, padding: "1.5rem", marginBottom: 20 }}>
           {features.map((f) => (
-            <div key={f.text} style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 14 }}>
-              <i className={`ti ${f.icon}`} style={{ fontSize: 18, color: "#185fa5", marginTop: 1, flex: "none" }} aria-hidden="true"></i>
+            <div
+              key={f.text}
+              style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 14 }}
+            >
+              <i
+                className={`ti ${f.icon}`}
+                style={{ fontSize: 18, color: "#185fa5", marginTop: 1, flex: "none" }}
+                aria-hidden="true"
+              ></i>
               <span style={{ fontSize: 14, color: "#0c2540" }}>{f.text}</span>
             </div>
           ))}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <button onClick={() => onEnter("login")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "13px", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
+          <button
+            onClick={() => onEnter("login")}
+            style={{
+              background: "#185fa5",
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              padding: "13px",
+              fontSize: 15,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
             Giriş Yap
           </button>
-          <button onClick={() => onEnter("register")} style={{ background: "#fff", color: "#185fa5", border: "1.5px solid #185fa5", borderRadius: 8, padding: "13px", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
+          <button
+            onClick={() => onEnter("register")}
+            style={{
+              background: "#fff",
+              color: "#185fa5",
+              border: "1.5px solid #185fa5",
+              borderRadius: 8,
+              padding: "13px",
+              fontSize: 15,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
             Hesap Oluştur
           </button>
         </div>
         <p style={{ fontSize: 12, color: "#94a7bb", textAlign: "center", marginTop: 20 }}>
-          Bir işletme sahibi misiniz? <a href="https://binerly.com" style={{ color: "#185fa5" }}>binerly.com</a>'u ziyaret edin.
+          Bir işletme sahibi misiniz?{" "}
+          <a href="https://binerly.com" style={{ color: "#185fa5" }}>
+            binerly.com
+          </a>
+          'u ziyaret edin.
         </p>
       </div>
     </div>
@@ -196,7 +324,9 @@ function CustomerPortalLanding({ onEnter }) {
 
 function CustomerPortalEntry() {
   const params = new URLSearchParams(window.location.search);
-  const [mode, setMode] = useState(params.get("register") ? "register" : params.get("login") ? "login" : null);
+  const [mode, setMode] = useState(
+    params.get("register") ? "register" : params.get("login") ? "login" : null,
+  );
   if (!mode) return <CustomerPortalLanding onEnter={setMode} />;
   return <CustomerAuthForm initialMode={mode} onBack={() => setMode(null)} />;
 }
@@ -217,8 +347,16 @@ function CustomerAuthForm({ initialMode = "login", onBack }) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setMessage(translateAuthError(error.message));
     } else {
-      if (!isFullNameValid(name)) { setMessage("Lütfen ad ve soyadınızı girin."); setLoading(false); return; }
-      const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name.trim() }, emailRedirectTo: getPortalUrl() } });
+      if (!isFullNameValid(name)) {
+        setMessage("Lütfen ad ve soyadınızı girin.");
+        setLoading(false);
+        return;
+      }
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: name.trim() }, emailRedirectTo: getPortalUrl() },
+      });
       if (error) setMessage(translateAuthError(error.message));
       else setMessage("Kayıt başarılı! E-postanıza gelen doğrulama linkine tıklayın.");
     }
@@ -226,26 +364,56 @@ function CustomerAuthForm({ initialMode = "login", onBack }) {
   };
 
   const sendResetEmail = async () => {
-    if (!email) { setMessage("Önce e-posta adresinizi yazın."); return; }
+    if (!email) {
+      setMessage("Önce e-posta adresinizi yazın.");
+      return;
+    }
     setLoading(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: getPortalUrl(),
     });
     setLoading(false);
-    setMessage(error ? translateAuthError(error.message) : "E-postanıza bir şifre sıfırlama bağlantısı gönderdik.");
+    setMessage(
+      error
+        ? translateAuthError(error.message)
+        : "E-postanıza bir şifre sıfırlama bağlantısı gönderdik.",
+    );
   };
 
   const handleGoogleCredential = async (idToken, nonce) => {
-    const { error } = await supabase.auth.signInWithIdToken({ provider: "google", token: idToken, nonce });
+    const { error } = await supabase.auth.signInWithIdToken({
+      provider: "google",
+      token: idToken,
+      nonce,
+    });
     if (error) setMessage(translateAuthError(error.message));
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5f8fc", padding: "1rem" }}>
-      <div style={{ background: "#fff", borderRadius: 16, padding: "2rem", width: "100%", maxWidth: 400 }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#f5f8fc",
+        padding: "1rem",
+      }}
+    >
+      <div
+        style={{
+          background: "#fff",
+          borderRadius: 16,
+          padding: "2rem",
+          width: "100%",
+          maxWidth: 400,
+        }}
+      >
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
           <img src="/favicon.svg" alt="Binerly" style={{ width: 39, height: 39 }} />
-          <span style={{ fontWeight: 700, fontSize: 16, color: "#0c2540" }}>Binerly Müşteri Bilgi Sistemi</span>
+          <span style={{ fontWeight: 700, fontSize: 16, color: "#0c2540" }}>
+            Binerly Müşteri Bilgi Sistemi
+          </span>
         </div>
         <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 4px", color: "#0c2540" }}>
           {mode === "login" ? "Giriş yap" : "Hesap oluştur"}
@@ -256,28 +424,103 @@ function CustomerAuthForm({ initialMode = "login", onBack }) {
         <form onSubmit={submit}>
           {mode === "register" && (
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>Ad Soyad</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} required style={{ width: "100%", padding: "10px 12px", border: "1px solid #e1e8f0", borderRadius: 8, fontSize: 14, boxSizing: "border-box" }} />
+              <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>
+                Ad Soyad
+              </label>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  border: "1px solid #e1e8f0",
+                  borderRadius: 8,
+                  fontSize: 14,
+                  boxSizing: "border-box",
+                }}
+              />
             </div>
           )}
           <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>E-posta</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: "100%", padding: "10px 12px", border: "1px solid #e1e8f0", borderRadius: 8, fontSize: 14, boxSizing: "border-box" }} />
+            <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>
+              E-posta
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                border: "1px solid #e1e8f0",
+                borderRadius: 8,
+                fontSize: 14,
+                boxSizing: "border-box",
+              }}
+            />
           </div>
           <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>Şifre</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={mode === "register" ? 6 : undefined} style={{ width: "100%", padding: "10px 12px", border: "1px solid #e1e8f0", borderRadius: 8, fontSize: 14, boxSizing: "border-box" }} />
-            {mode === "register" && <p style={{ fontSize: 11.5, color: "#94a7bb", margin: "4px 0 0" }}>En az 6 karakter olmalı.</p>}
+            <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>
+              Şifre
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={mode === "register" ? 6 : undefined}
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                border: "1px solid #e1e8f0",
+                borderRadius: 8,
+                fontSize: 14,
+                boxSizing: "border-box",
+              }}
+            />
+            {mode === "register" && (
+              <p style={{ fontSize: 11.5, color: "#94a7bb", margin: "4px 0 0" }}>
+                En az 6 karakter olmalı.
+              </p>
+            )}
           </div>
           {mode === "login" && (
             <p style={{ margin: "0 0 16px" }}>
-              <button type="button" onClick={sendResetEmail} disabled={loading} style={{ background: "none", border: "none", color: "#185fa5", padding: 0, cursor: "pointer", fontSize: 12 }}>
+              <button
+                type="button"
+                onClick={sendResetEmail}
+                disabled={loading}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#185fa5",
+                  padding: 0,
+                  cursor: "pointer",
+                  fontSize: 12,
+                }}
+              >
                 Şifremi unuttum
               </button>
             </p>
           )}
           {message && <p style={{ fontSize: 13, color: "#b45309", marginBottom: 12 }}>{message}</p>}
-          <button type="submit" disabled={loading} style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: "100%",
+              background: "#185fa5",
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              padding: "11px",
+              fontSize: 15,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
             {loading ? "Yükleniyor…" : mode === "login" ? "Giriş yap" : "Kayıt ol"}
           </button>
         </form>
@@ -285,12 +528,39 @@ function CustomerAuthForm({ initialMode = "login", onBack }) {
         <GoogleAuthButton onCredential={handleGoogleCredential} />
         <p style={{ fontSize: 13, textAlign: "center", marginTop: 16, color: "#5b7088" }}>
           {mode === "login" ? "Hesabın yok mu? " : "Hesabın var mı? "}
-          <button onClick={() => { setMode(mode === "login" ? "register" : "login"); setMessage(""); }} style={{ background: "none", border: "none", color: "#185fa5", padding: 0, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+          <button
+            onClick={() => {
+              setMode(mode === "login" ? "register" : "login");
+              setMessage("");
+            }}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#185fa5",
+              padding: 0,
+              cursor: "pointer",
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
             {mode === "login" ? "Kayıt ol" : "Giriş yap"}
           </button>
         </p>
         <p style={{ fontSize: 12, textAlign: "center", marginTop: 20 }}>
-          <button type="button" onClick={onBack} style={{ background: "none", border: "none", color: "#94a7bb", cursor: "pointer", fontSize: 12, padding: 0 }}>← Geri</button>
+          <button
+            type="button"
+            onClick={onBack}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#94a7bb",
+              cursor: "pointer",
+              fontSize: 12,
+              padding: 0,
+            }}
+          >
+            ← Geri
+          </button>
         </p>
       </div>
     </div>
@@ -313,29 +583,87 @@ function PortalNewTicketForm({ customerRows, onSave, onCancel }) {
     >
       {customerRows.length > 1 && (
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Hangi firma için?</label>
-          <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} style={{ width: "100%" }}>
-            {customerRows.map((c) => <option key={c.id} value={c.id}>{c.companyName || c.name}</option>)}
+          <label
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Hangi firma için?
+          </label>
+          <select
+            value={customerId}
+            onChange={(e) => setCustomerId(e.target.value)}
+            style={{ width: "100%" }}
+          >
+            {customerRows.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.companyName || c.name}
+              </option>
+            ))}
           </select>
         </div>
       )}
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Konu</label>
-        <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={`Örn. ${supportExamples(selectedSector).subject}`} style={{ width: "100%" }} />
+        <label
+          style={{
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            display: "block",
+            marginBottom: 4,
+          }}
+        >
+          Konu
+        </label>
+        <input
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          placeholder={`Örn. ${supportExamples(selectedSector).subject}`}
+          style={{ width: "100%" }}
+        />
       </div>
       <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Açıklama</label>
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Talebinizin detayları" style={{ width: "100%", minHeight: 80, resize: "vertical" }} />
+        <label
+          style={{
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            display: "block",
+            marginBottom: 4,
+          }}
+        >
+          Açıklama
+        </label>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Talebinizin detayları"
+          style={{ width: "100%", minHeight: 80, resize: "vertical" }}
+        />
       </div>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-        <button type="button" onClick={onCancel}>Vazgeç</button>
-        <button type="submit" style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Gönder</button>
+        <button type="button" onClick={onCancel}>
+          Vazgeç
+        </button>
+        <button
+          type="submit"
+          style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+        >
+          Gönder
+        </button>
       </div>
     </form>
   );
 }
 
-function PortalTicketList({ tickets, unreadCountByTicket, onOpenTicket, companyNameByCustomerId, showCompany }) {
+function PortalTicketList({
+  tickets,
+  unreadCountByTicket,
+  onOpenTicket,
+  companyNameByCustomerId,
+  showCompany,
+}) {
   if (tickets.length === 0) {
     return <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Henüz bir talebiniz yok.</p>;
   }
@@ -348,15 +676,37 @@ function PortalTicketList({ tickets, unreadCountByTicket, onOpenTicket, companyN
           <div
             key={t.id}
             onClick={() => onOpenTicket(t)}
-            style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", cursor: "pointer" }}
+            style={{
+              background: "var(--surface-1)",
+              borderRadius: "var(--radius)",
+              padding: "0.75rem 1rem",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
+              cursor: "pointer",
+            }}
           >
             <div>
-              <p style={{ margin: 0, fontWeight: 500, fontSize: 14, display: "flex", alignItems: "center", gap: 6 }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontWeight: 500,
+                  fontSize: 14,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
                 {t.subject}
-                {unreadCountByTicket[t.id] > 0 && <Badge tone="accent">{unreadCountByTicket[t.id]} yeni mesaj</Badge>}
+                {unreadCountByTicket[t.id] > 0 && (
+                  <Badge tone="accent">{unreadCountByTicket[t.id]} yeni mesaj</Badge>
+                )}
               </p>
               <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
-                {showCompany && `${companyNameByCustomerId[t.customerId] || "Bilinmeyen firma"} · `}{formatDateTime(t.createdAt)}
+                {showCompany && `${companyNameByCustomerId[t.customerId] || "Bilinmeyen firma"} · `}
+                {formatDateTime(t.createdAt)}
               </p>
             </div>
             <Badge tone={STATUS_TONE[t.status] || "default"}>{statusInfo?.label}</Badge>
@@ -387,7 +737,9 @@ function PortalTicketDetail({ ticket, messages, onAddMessage, onClose }) {
     <Modal title={ticket.subject} onClose={onClose}>
       <div style={{ marginBottom: 16 }}>
         {ticket.description && !descriptionIsFirstMessage && (
-          <p style={{ margin: "0 0 8px", fontSize: 13, color: "var(--text-secondary)" }}>{ticket.description}</p>
+          <p style={{ margin: "0 0 8px", fontSize: 13, color: "var(--text-secondary)" }}>
+            {ticket.description}
+          </p>
         )}
         <Badge tone={STATUS_TONE[ticket.status] || "default"}>{statusInfo?.label}</Badge>
       </div>
@@ -395,9 +747,23 @@ function PortalTicketDetail({ ticket, messages, onAddMessage, onClose }) {
       <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Mesajlar</p>
       <form onSubmit={submit} style={{ marginBottom: 16 }}>
         <div style={{ marginBottom: 8 }}>
-          <input value={content} onChange={(e) => setContent(e.target.value)} placeholder="Mesajınızı yazın" style={{ width: "100%" }} />
+          <input
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Mesajınızı yazın"
+            style={{ width: "100%" }}
+          />
         </div>
-        <button type="submit" disabled={saving || !content.trim()} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
+        <button
+          type="submit"
+          disabled={saving || !content.trim()}
+          style={{
+            background: "var(--fill-accent)",
+            color: "var(--on-accent)",
+            border: "none",
+            fontSize: 13,
+          }}
+        >
           Gönder
         </button>
       </form>
@@ -405,7 +771,15 @@ function PortalTicketDetail({ ticket, messages, onAddMessage, onClose }) {
       {sorted.length === 0 ? (
         <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz mesaj yok.</p>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 260, overflowY: "auto" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            maxHeight: 260,
+            overflowY: "auto",
+          }}
+        >
           {sorted.map((m) => (
             <div key={m.id}>
               <p style={{ margin: 0, fontSize: 13 }}>{m.content}</p>
@@ -436,26 +810,71 @@ function PortalMessagesPanel({ messages, onSend, sending, companyName }) {
   };
 
   return (
-    <div style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "1rem", display: "flex", flexDirection: "column", height: 480 }}>
-      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+    <div
+      style={{
+        background: "var(--surface-1)",
+        borderRadius: "var(--radius-lg)",
+        boxShadow: "var(--shadow-sm)",
+        padding: "1rem",
+        display: "flex",
+        flexDirection: "column",
+        height: 480,
+      }}
+    >
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+          marginBottom: 12,
+        }}
+      >
         {sorted.length === 0 ? (
-          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz mesaj yok - işletmeye buradan yazabilirsiniz.</p>
+          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+            Henüz mesaj yok - işletmeye buradan yazabilirsiniz.
+          </p>
         ) : (
           sorted.map((m) => (
-            <div key={m.id} style={{ alignSelf: m.direction === "gelen" ? "flex-end" : "flex-start", maxWidth: "75%" }}>
+            <div
+              key={m.id}
+              style={{
+                alignSelf: m.direction === "gelen" ? "flex-end" : "flex-start",
+                maxWidth: "75%",
+              }}
+            >
               {m.direction !== "gelen" && companyName && (
-                <p style={{ margin: "0 0 2px 4px", fontSize: 11, fontWeight: 600, color: "var(--text-secondary)" }}>{companyName}</p>
+                <p
+                  style={{
+                    margin: "0 0 2px 4px",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  {companyName}
+                </p>
               )}
               <div
                 style={{
                   background: m.direction === "gelen" ? "var(--fill-accent)" : "var(--surface-2)",
                   color: m.direction === "gelen" ? "var(--on-accent)" : "var(--text-primary)",
-                  borderRadius: "var(--radius)", padding: "6px 10px", fontSize: 13,
+                  borderRadius: "var(--radius)",
+                  padding: "6px 10px",
+                  fontSize: 13,
                 }}
               >
                 {m.content}
               </div>
-              <p style={{ margin: "2px 4px 0", fontSize: 10, color: "var(--text-muted)", textAlign: m.direction === "gelen" ? "right" : "left" }}>
+              <p
+                style={{
+                  margin: "2px 4px 0",
+                  fontSize: 10,
+                  color: "var(--text-muted)",
+                  textAlign: m.direction === "gelen" ? "right" : "left",
+                }}
+              >
                 {formatDateTime(m.createdAt)}
               </p>
             </div>
@@ -463,9 +882,18 @@ function PortalMessagesPanel({ messages, onSend, sending, companyName }) {
         )}
       </div>
       <form onSubmit={submit} style={{ display: "flex", gap: 8 }}>
-        <input value={content} onChange={(e) => setContent(e.target.value)} placeholder="Mesajınızı yazın..." style={{ flex: 1 }} />
+        <input
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="Mesajınızı yazın..."
+          style={{ flex: 1 }}
+        />
         <EmojiPickerButton onSelect={(emoji) => setContent((c) => c + emoji)} />
-        <button type="submit" disabled={sending || !content.trim()} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+        <button
+          type="submit"
+          disabled={sending || !content.trim()}
+          style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+        >
           Gönder
         </button>
       </form>
@@ -473,7 +901,23 @@ function PortalMessagesPanel({ messages, onSend, sending, companyName }) {
   );
 }
 
-function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, hardBlockHoursByCustomerId = {}, appointmentPenaltyHoursByCustomerId = {}, appointmentPenaltyStrikeLimitByCustomerId = {}, appointmentPenaltyBurnsSessionByCustomerId = {}, appointmentPartialChargeHoursByCustomerId = {}, sector, showCompany, dealKind, onCancelAppointment, onReschedule, sharedAttachments = [], onDownloadAttachment }) {
+function PortalDealList({
+  deals,
+  companyNameByCustomerId,
+  sectorByCustomerId,
+  hardBlockHoursByCustomerId = {},
+  appointmentPenaltyHoursByCustomerId = {},
+  appointmentPenaltyStrikeLimitByCustomerId = {},
+  appointmentPenaltyBurnsSessionByCustomerId = {},
+  appointmentPartialChargeHoursByCustomerId = {},
+  sector,
+  showCompany,
+  dealKind,
+  onCancelAppointment,
+  onReschedule,
+  sharedAttachments = [],
+  onDownloadAttachment,
+}) {
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
@@ -483,17 +927,23 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
   const [periodFilter, setPeriodFilter] = useState(hasPeriodFilter ? "gelecek" : "all");
 
   if (deals.length === 0) {
-    return <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>{PORTAL_DEAL_WORDS[dealKind].emptyList}</p>;
+    return (
+      <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
+        {PORTAL_DEAL_WORDS[dealKind].emptyList}
+      </p>
+    );
   }
 
   const query = search.trim().toLowerCase();
   const now = Date.now();
   const filtered = deals.filter((d) => {
     if (query && !d.title.toLowerCase().includes(query)) return false;
-    if (stageFilter === "acik" && (d.stage === "kazanildi" || d.stage === "kaybedildi")) return false;
+    if (stageFilter === "acik" && (d.stage === "kazanildi" || d.stage === "kaybedildi"))
+      return false;
     if (stageFilter !== "all" && stageFilter !== "acik" && d.stage !== stageFilter) return false;
     if (paymentFilter === "odendi" && d.paymentStatus !== "paid") return false;
-    if (paymentFilter === "odenmedi" && (d.paymentMode === "none" || d.paymentStatus === "paid")) return false;
+    if (paymentFilter === "odenmedi" && (d.paymentMode === "none" || d.paymentStatus === "paid"))
+      return false;
     if (hasPeriodFilter && periodFilter !== "all") {
       const dt = d.customFields?.portal_randevu_zamani;
       // Tarihi bilinmeyen (örn. henüz aynalanmamış eski) bir kayıt "geçmiş"e
@@ -508,25 +958,44 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
 
   return (
     <div>
-      <div className="list-toolbar" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+      <div
+        className="list-toolbar"
+        style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}
+      >
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={`${PORTAL_DEAL_WORDS[dealKind].tabLabel} ara...`}
           style={{ flex: 1, minWidth: 140, fontSize: 13 }}
         />
-        <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)} style={{ fontSize: 13 }}>
+        <select
+          value={stageFilter}
+          onChange={(e) => setStageFilter(e.target.value)}
+          style={{ fontSize: 13 }}
+        >
           <option value="all">Tüm aşamalar</option>
           <option value="acik">Açık olanlar</option>
-          {STAGES.map((s) => <option key={s.id} value={s.id}>{stageLabel(s.id, "bireysel", sector)}</option>)}
+          {STAGES.map((s) => (
+            <option key={s.id} value={s.id}>
+              {stageLabel(s.id, "bireysel", sector)}
+            </option>
+          ))}
         </select>
-        <select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} style={{ fontSize: 13 }}>
+        <select
+          value={paymentFilter}
+          onChange={(e) => setPaymentFilter(e.target.value)}
+          style={{ fontSize: 13 }}
+        >
           <option value="all">Tüm ödeme durumları</option>
           <option value="odendi">Ödendi</option>
           <option value="odenmedi">Ödenmedi</option>
         </select>
         {hasPeriodFilter && (
-          <select value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value)} style={{ fontSize: 13 }}>
+          <select
+            value={periodFilter}
+            onChange={(e) => setPeriodFilter(e.target.value)}
+            style={{ fontSize: 13 }}
+          >
             <option value="all">Tüm zamanlar</option>
             <option value="gelecek">{`Gelecek ${PORTAL_DEAL_WORDS[dealKind].plural}`}</option>
             <option value="gecmis">{`Geçmiş ${PORTAL_DEAL_WORDS[dealKind].plural}`}</option>
@@ -536,136 +1005,227 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
       {sorted.length === 0 ? (
         <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Aramayla eşleşen kayıt yok.</p>
       ) : (
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      {sorted.map((d) => {
-        const stageText = stageLabel(d.stage, "bireysel", sectorByCustomerId[d.customerId]);
-        const tone = d.stage === "kazanildi" ? "success" : d.stage === "kaybedildi" ? "default" : d.stage === "muzakere" ? "warning" : "accent";
-        const randevuTarihi = d.customFields?.portal_randevu_zamani;
-        const cancellable = d.stage === "ilk_gorusme" && randevuTarihi;
-        const hardBlockHours = hardBlockHoursByCustomerId[d.customerId];
-        const penaltyHours = appointmentPenaltyHoursByCustomerId[d.customerId];
-        const partialChargeHours = appointmentPartialChargeHoursByCustomerId[d.customerId];
-        const { canCancel, isLate, hoursLeft } = cancellable
-          ? appointmentCancelDecision(randevuTarihi, hardBlockHours, penaltyHours)
-          : { canCancel: false, isLate: false, hoursLeft: null };
-        // Sadece bilgilendirme amaçlı bir ÖNİZLEME — cezanın gerçek uygulanışı
-        // cancelAppointment'ta (isLate onaylanınca) aynı fonksiyonla tekrar
-        // hesaplanıyor. Burada erken göstermek müşteriye "bu iptal ne yapacak"
-        // sorusunu iptal etmeden önce, detaylı açıklayarak yanıtlıyor.
-        const willBurnSession = isLate && !!computeAppointmentPenaltyBurn({
-          customerId: d.customerId,
-          deals,
-          burnsSessionEnabled: appointmentPenaltyBurnsSessionByCustomerId[d.customerId] === true,
-          strikeLimit: appointmentPenaltyStrikeLimitByCustomerId[d.customerId],
-        });
-        // Kısmi kesinti sınırı — sadece bilgi amaçlı bir bölge etiketi, otomatik
-        // para hareketi yapmaz (bkz. AppointmentCancelPolicyBox InfoTip'i).
-        const chargeZone = isLate && partialChargeHours != null
-          ? (hoursLeft >= partialChargeHours ? "partial" : "full")
-          : null;
-        // Onay ve ödeme birbirinden bağımsız — /onay/{token} sayfası zaten
-        // hangi moda göre ne göstereceğini kendi kararlaştırıyor, burada
-        // sadece o sayfaya giden tek bir uyarlanmış link/rozet sunuluyor.
-        const isApproved = !!d.approvedAt;
-        const isPaid = d.paymentStatus === "paid";
-        const needsPayment = d.paymentMode !== "none" && !isPaid;
-        // İş tamamlanmışsa (stage=kazanildi) saf onay adımının artık bir anlamı
-        // yok — müşteri işi zaten yüz yüze/telefonla onaylamış ya da hizmet
-        // doğrudan verilmiş demektir. Ödeme hâlâ eksikse yine de gösterilir,
-        // ama "Onayla" değil sadece "Öde" olarak.
-        const isCompleted = d.stage === "kazanildi";
-        // Portaldan kendi alınan randevu/üyelik/rezervasyonlarda (kaynak: "portal")
-        // onay diye bir kavram yok — müşteri zaten kendi almış, tek eylem ödeme.
-        const isSelfBooked = SELF_BOOKED_SOURCES.has(d.customFields?.kaynak);
-        const actionLabel = isCompleted || isSelfBooked
-          ? "Öde"
-          : !isApproved
-            ? (d.paymentMode === "required" ? "Onayla ve Öde" : d.paymentMode === "optional" ? "Onayla / Öde" : "Onayla")
-            : "Öde";
-        // Ödeyen müşteri artık kaynağı ne olursa olsun approved_at alıyor
-        // (api/deal-approval.js) — self-booked+ödenmiş bir kayıtta bile
-        // isApproved true olabilir. actionLabel/showAction bunu isCompleted
-        // gibi ele alıp needsPayment'a bakıyor, o yüzden buton mantığı
-        // etkilenmiyor; ama "✓ Onaylandı" rozeti self-booked'ta bilerek
-        // gösterilmiyor (bkz. aşağı) — müşteri kendi aldığı bir randevuyu
-        // "onaylamadı", sadece ödedi, o zaten ayrı bir rozetle belli oluyor.
-        const showAction = d.approvalToken && ((isCompleted || isSelfBooked) ? needsPayment : (!isApproved || needsPayment));
-        const dealDocs = sharedAttachments.filter((a) => a.dealId === d.id);
-        return (
-          <div key={d.id} style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <div>
-              <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{d.title}</p>
-              {randevuTarihi && (
-                <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{formatDateTime(randevuTarihi)}</p>
-              )}
-              {showCompany && (
-                <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{companyNameByCustomerId[d.customerId] || "Bilinmeyen firma"}</p>
-              )}
-              {/* Eskiden sadece span'ın title tooltip'indeydi - dokunmatik ekranda
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {sorted.map((d) => {
+            const stageText = stageLabel(d.stage, "bireysel", sectorByCustomerId[d.customerId]);
+            const tone =
+              d.stage === "kazanildi"
+                ? "success"
+                : d.stage === "kaybedildi"
+                  ? "default"
+                  : d.stage === "muzakere"
+                    ? "warning"
+                    : "accent";
+            const randevuTarihi = d.customFields?.portal_randevu_zamani;
+            const cancellable = d.stage === "ilk_gorusme" && randevuTarihi;
+            const hardBlockHours = hardBlockHoursByCustomerId[d.customerId];
+            const penaltyHours = appointmentPenaltyHoursByCustomerId[d.customerId];
+            const partialChargeHours = appointmentPartialChargeHoursByCustomerId[d.customerId];
+            const { canCancel, isLate, hoursLeft } = cancellable
+              ? appointmentCancelDecision(randevuTarihi, hardBlockHours, penaltyHours)
+              : { canCancel: false, isLate: false, hoursLeft: null };
+            // Sadece bilgilendirme amaçlı bir ÖNİZLEME — cezanın gerçek uygulanışı
+            // cancelAppointment'ta (isLate onaylanınca) aynı fonksiyonla tekrar
+            // hesaplanıyor. Burada erken göstermek müşteriye "bu iptal ne yapacak"
+            // sorusunu iptal etmeden önce, detaylı açıklayarak yanıtlıyor.
+            const willBurnSession =
+              isLate &&
+              !!computeAppointmentPenaltyBurn({
+                customerId: d.customerId,
+                deals,
+                burnsSessionEnabled:
+                  appointmentPenaltyBurnsSessionByCustomerId[d.customerId] === true,
+                strikeLimit: appointmentPenaltyStrikeLimitByCustomerId[d.customerId],
+              });
+            // Kısmi kesinti sınırı — sadece bilgi amaçlı bir bölge etiketi, otomatik
+            // para hareketi yapmaz (bkz. AppointmentCancelPolicyBox InfoTip'i).
+            const chargeZone =
+              isLate && partialChargeHours != null
+                ? hoursLeft >= partialChargeHours
+                  ? "partial"
+                  : "full"
+                : null;
+            // Onay ve ödeme birbirinden bağımsız — /onay/{token} sayfası zaten
+            // hangi moda göre ne göstereceğini kendi kararlaştırıyor, burada
+            // sadece o sayfaya giden tek bir uyarlanmış link/rozet sunuluyor.
+            const isApproved = !!d.approvedAt;
+            const isPaid = d.paymentStatus === "paid";
+            const needsPayment = d.paymentMode !== "none" && !isPaid;
+            // İş tamamlanmışsa (stage=kazanildi) saf onay adımının artık bir anlamı
+            // yok — müşteri işi zaten yüz yüze/telefonla onaylamış ya da hizmet
+            // doğrudan verilmiş demektir. Ödeme hâlâ eksikse yine de gösterilir,
+            // ama "Onayla" değil sadece "Öde" olarak.
+            const isCompleted = d.stage === "kazanildi";
+            // Portaldan kendi alınan randevu/üyelik/rezervasyonlarda (kaynak: "portal")
+            // onay diye bir kavram yok — müşteri zaten kendi almış, tek eylem ödeme.
+            const isSelfBooked = SELF_BOOKED_SOURCES.has(d.customFields?.kaynak);
+            const actionLabel =
+              isCompleted || isSelfBooked
+                ? "Öde"
+                : !isApproved
+                  ? d.paymentMode === "required"
+                    ? "Onayla ve Öde"
+                    : d.paymentMode === "optional"
+                      ? "Onayla / Öde"
+                      : "Onayla"
+                  : "Öde";
+            // Ödeyen müşteri artık kaynağı ne olursa olsun approved_at alıyor
+            // (api/deal-approval.js) — self-booked+ödenmiş bir kayıtta bile
+            // isApproved true olabilir. actionLabel/showAction bunu isCompleted
+            // gibi ele alıp needsPayment'a bakıyor, o yüzden buton mantığı
+            // etkilenmiyor; ama "✓ Onaylandı" rozeti self-booked'ta bilerek
+            // gösterilmiyor (bkz. aşağı) — müşteri kendi aldığı bir randevuyu
+            // "onaylamadı", sadece ödedi, o zaten ayrı bir rozetle belli oluyor.
+            const showAction =
+              d.approvalToken &&
+              (isCompleted || isSelfBooked ? needsPayment : !isApproved || needsPayment);
+            const dealDocs = sharedAttachments.filter((a) => a.dealId === d.id);
+            return (
+              <div
+                key={d.id}
+                style={{
+                  background: "var(--surface-1)",
+                  borderRadius: "var(--radius)",
+                  padding: "0.75rem 1rem",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div>
+                  <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{d.title}</p>
+                  {randevuTarihi && (
+                    <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
+                      {formatDateTime(randevuTarihi)}
+                    </p>
+                  )}
+                  {showCompany && (
+                    <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
+                      {companyNameByCustomerId[d.customerId] || "Bilinmeyen firma"}
+                    </p>
+                  )}
+                  {/* Eskiden sadece span'ın title tooltip'indeydi - dokunmatik ekranda
                   hover olmadığı için bu bilgi mobilde hiç görünmüyordu. */}
-              {cancellable && !canCancel && (
-                <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--text-muted)" }}>
-                  Randevu saatine {hardBlockHours} saatten az kaldığı için iptal edilemez
-                </p>
-              )}
-              {dealDocs.length > 0 && (
-                <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 2 }}>
-                  {dealDocs.map((doc) => (
-                    <button
-                      key={doc.id}
-                      type="button"
-                      onClick={() => onDownloadAttachment(doc)}
-                      style={{ background: "none", border: "none", padding: 0, color: "var(--text-accent)", fontSize: 12, textAlign: "left", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
-                    >
-                      <i className="ti ti-file-download" style={{ fontSize: 14 }} aria-hidden="true"></i>
-                      {doc.fileName}
-                    </button>
-                  ))}
+                  {cancellable && !canCancel && (
+                    <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--text-muted)" }}>
+                      Randevu saatine {hardBlockHours} saatten az kaldığı için iptal edilemez
+                    </p>
+                  )}
+                  {dealDocs.length > 0 && (
+                    <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 2 }}>
+                      {dealDocs.map((doc) => (
+                        <button
+                          key={doc.id}
+                          type="button"
+                          onClick={() => onDownloadAttachment(doc)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            padding: 0,
+                            color: "var(--text-accent)",
+                            fontSize: 12,
+                            textAlign: "left",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                          }}
+                        >
+                          <i
+                            className="ti ti-file-download"
+                            style={{ fontSize: 14 }}
+                            aria-hidden="true"
+                          ></i>
+                          {doc.fileName}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            <div className="list-toolbar" style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <Badge tone={tone}>{stageText}</Badge>
-              {d.customFields?.sevkiyat_durumu && <Badge tone="accent">{d.customFields.sevkiyat_durumu}</Badge>}
-              {isApproved && !isSelfBooked && <Badge tone="success">✓ Onaylandı</Badge>}
-              {isPaid && <Badge tone="success">✓ Ödendi</Badge>}
-              {showAction && (
-                <a
-                  href={`/onay/${d.approvalToken}`}
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: 6,
-                    fontSize: 13, fontWeight: 600, color: "var(--on-accent)",
-                    background: "var(--fill-accent)", padding: "7px 14px",
-                    borderRadius: "var(--radius)", textDecoration: "none", whiteSpace: "nowrap",
-                  }}
+                <div
+                  className="list-toolbar"
+                  style={{ display: "flex", gap: 12, alignItems: "center" }}
                 >
-                  <i className="ti ti-credit-card" style={{ fontSize: 15 }} aria-hidden="true"></i>
-                  {actionLabel}
-                </a>
-              )}
-              {d.value > 0 && (
-                <span style={{ fontSize: 13, fontWeight: 600, minWidth: 90, textAlign: "right" }}>{formatTL(d.value)}</span>
-              )}
-              {/* Erteleme sadece saat-slotu bazlı randevularda (Güzellik & Bakım,
+                  <Badge tone={tone}>{stageText}</Badge>
+                  {d.customFields?.sevkiyat_durumu && (
+                    <Badge tone="accent">{d.customFields.sevkiyat_durumu}</Badge>
+                  )}
+                  {isApproved && !isSelfBooked && <Badge tone="success">✓ Onaylandı</Badge>}
+                  {isPaid && <Badge tone="success">✓ Ödendi</Badge>}
+                  {showAction && (
+                    <a
+                      href={`/onay/${d.approvalToken}`}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "var(--on-accent)",
+                        background: "var(--fill-accent)",
+                        padding: "7px 14px",
+                        borderRadius: "var(--radius)",
+                        textDecoration: "none",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <i
+                        className="ti ti-credit-card"
+                        style={{ fontSize: 15 }}
+                        aria-hidden="true"
+                      ></i>
+                      {actionLabel}
+                    </a>
+                  )}
+                  {d.value > 0 && (
+                    <span
+                      style={{ fontSize: 13, fontWeight: 600, minWidth: 90, textAlign: "right" }}
+                    >
+                      {formatTL(d.value)}
+                    </span>
+                  )}
+                  {/* Erteleme sadece saat-slotu bazlı randevularda (Güzellik & Bakım,
                   Sağlık/Klinik) destekleniyor — Otel'in giriş/çıkış tarih aralığı +
                   oda stoku modeli (bookingModel === "inventory") çok farklı bir
                   form gerektirir, kapsam dışı bırakıldı. İptal ile AYNI hardBlock
                   kapısını (canCancel) kullanır - randevu saatine çok az kalmışsa
                   ne iptal ne erteleme yapılabilir, ikisi de işletmeye aynı son
                   dakika etkisini yaratır. */}
-              {cancellable && canCancel && onReschedule && bookingModel(sectorByCustomerId[d.customerId]) !== "inventory" && (
-                <button type="button" onClick={() => onReschedule(d)} style={{ fontSize: 13 }}>Ertele</button>
-              )}
-              {cancellable && (canCancel ? (
-                <button type="button" onClick={() => onCancelAppointment(d.id, isLate, willBurnSession, chargeZone)} style={{ fontSize: 13 }}>İptal Et</button>
-              ) : (
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>İptal edilemez</span>
-              ))}
-            </div>
-          </div>
-        );
-      })}
-      </div>
+                  {cancellable &&
+                    canCancel &&
+                    onReschedule &&
+                    bookingModel(sectorByCustomerId[d.customerId]) !== "inventory" && (
+                      <button
+                        type="button"
+                        onClick={() => onReschedule(d)}
+                        style={{ fontSize: 13 }}
+                      >
+                        Ertele
+                      </button>
+                    )}
+                  {cancellable &&
+                    (canCancel ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onCancelAppointment(d.id, isLate, willBurnSession, chargeZone)
+                        }
+                        style={{ fontSize: 13 }}
+                      >
+                        İptal Et
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                        İptal edilemez
+                      </span>
+                    ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
@@ -675,14 +1235,20 @@ function PortalDealList({ deals, companyNameByCustomerId, sectorByCustomerId, ha
 // olarak yazılıyor), formatDateTime'daki saat kısmı burada anlamsız olurdu.
 function formatPaymentDate(dateStr) {
   if (!dateStr) return "";
-  return new Date(`${dateStr}T12:00:00`).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" });
+  return new Date(`${dateStr}T12:00:00`).toLocaleDateString("tr-TR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function PortalPayments({ payments, showCompany, companyNameByCustomerId }) {
   if (payments.length === 0) {
     return <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Henüz bir ödemeniz yok.</p>;
   }
-  const sorted = [...payments].sort((a, b) => new Date(b.paidAt || b.createdAt) - new Date(a.paidAt || a.createdAt));
+  const sorted = [...payments].sort(
+    (a, b) => new Date(b.paidAt || b.createdAt) - new Date(a.paidAt || a.createdAt),
+  );
   const total = payments.reduce((sum, p) => sum + p.amount, 0);
   return (
     <div>
@@ -693,19 +1259,51 @@ function PortalPayments({ payments, showCompany, companyNameByCustomerId }) {
         {sorted.map((p) => {
           const isRefund = p.amount < 0;
           return (
-            <div key={p.id} style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <div
+              key={p.id}
+              style={{
+                background: "var(--surface-1)",
+                borderRadius: "var(--radius)",
+                padding: "0.75rem 1rem",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
               <div>
-                <p style={{ margin: 0, fontWeight: 500, fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}>
+                <p
+                  style={{
+                    margin: 0,
+                    fontWeight: 500,
+                    fontSize: 14,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
                   {p.dealTitle || "Ödeme"}
                   {isRefund && <Badge tone="warning">İade</Badge>}
                 </p>
-                <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{formatPaymentDate(p.paidAt)}</p>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
+                  {formatPaymentDate(p.paidAt)}
+                </p>
                 {showCompany && (
-                  <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>{companyNameByCustomerId[p.customerId] || "Bilinmeyen firma"}</p>
+                  <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
+                    {companyNameByCustomerId[p.customerId] || "Bilinmeyen firma"}
+                  </p>
                 )}
               </div>
-              <span style={{ fontSize: 14, fontWeight: 600, color: isRefund ? "var(--text-danger)" : "var(--text-success)" }}>
-                {isRefund ? "" : "+"}{formatTL(p.amount)}
+              <span
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: isRefund ? "var(--text-danger)" : "var(--text-success)",
+                }}
+              >
+                {isRefund ? "" : "+"}
+                {formatTL(p.amount)}
               </span>
             </div>
           );
@@ -715,29 +1313,56 @@ function PortalPayments({ payments, showCompany, companyNameByCustomerId }) {
   );
 }
 
-function PortalGroupClasses({ groupClasses, groupClassEnrollments, groupClassWaitlist, customerRows, showCompany, hasActiveMembership, getMembershipDeal, onEnroll, onCancel, onJoinWaitlist, onLeaveWaitlist }) {
+function PortalGroupClasses({
+  groupClasses,
+  groupClassEnrollments,
+  groupClassWaitlist,
+  customerRows,
+  showCompany,
+  hasActiveMembership,
+  getMembershipDeal,
+  onEnroll,
+  onCancel,
+  onJoinWaitlist,
+  onLeaveWaitlist,
+}) {
   const words = groupClassWords(customerRows[0]?.companySector);
-  const companyNameByUserId = Object.fromEntries(customerRows.map((c) => [c.userId, c.companyName || c.name]));
+  const companyNameByUserId = Object.fromEntries(
+    customerRows.map((c) => [c.userId, c.companyName || c.name]),
+  );
   const myCustomerIds = new Set(customerRows.map((c) => c.id));
   const myEnrollments = groupClassEnrollments.filter((e) => myCustomerIds.has(e.customerId));
   const myWaitlistEntries = groupClassWaitlist.filter((w) => myCustomerIds.has(w.customerId));
   const myEnrolledClassIds = new Set(myEnrollments.map((e) => e.groupClassId));
   const enrolled = groupClasses.filter((g) => myEnrolledClassIds.has(g.id));
   const joinable = groupClasses.filter((g) => !myEnrolledClassIds.has(g.id));
-  const countFor = (classId) => groupClassEnrollments.filter((e) => e.groupClassId === classId).length;
+  const countFor = (classId) =>
+    groupClassEnrollments.filter((e) => e.groupClassId === classId).length;
 
-  const rowStyle = { background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.75rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" };
+  const rowStyle = {
+    background: "var(--surface-1)",
+    borderRadius: "var(--radius)",
+    padding: "0.75rem 1rem",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+    flexWrap: "wrap",
+  };
 
   return (
     <div>
       <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 8px" }}>Kayıtlı olduklarım</p>
       {enrolled.length === 0 ? (
-        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20 }}>Henüz kayıtlı bir dersiniz yok.</p>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20 }}>
+          Henüz kayıtlı bir dersiniz yok.
+        </p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
           {enrolled.map((g) => {
             const myEnrollment = myEnrollments.find((e) => e.groupClassId === g.id);
-            const hoursLeft = (nextWeeklyOccurrence(g.weekday, g.startTime).getTime() - Date.now()) / 3600000;
+            const hoursLeft =
+              (nextWeeklyOccurrence(g.weekday, g.startTime).getTime() - Date.now()) / 3600000;
             const ownerRow = customerRows.find((c) => c.userId === g.userId);
             // Üç ayarı da işletme kendi belirler (İşletme Bilgileri'nde), üçü de
             // opsiyonel: hardBlockHours boşsa varsayılan 2 saat (eski sabit davranış).
@@ -749,22 +1374,27 @@ function PortalGroupClasses({ groupClasses, groupClassEnrollments, groupClassWai
             const canCancel = hoursLeft >= hardBlockHours;
             const isLate = canCancel && lateCancelHours != null && hoursLeft < lateCancelHours;
             const membershipDeal = isLate ? getMembershipDeal(myEnrollment.customerId) : null;
-            const nextStrikeCount = membershipDeal ? (membershipDeal.lateCancelCount || 0) + 1 : null;
-            const willBurnSession = isLate && membershipDeal?.sessionTotal > 0 && nextStrikeCount >= strikeLimit;
+            const nextStrikeCount = membershipDeal
+              ? (membershipDeal.lateCancelCount || 0) + 1
+              : null;
+            const willBurnSession =
+              isLate && membershipDeal?.sessionTotal > 0 && nextStrikeCount >= strikeLimit;
             return (
               <div key={g.id} style={rowStyle}>
                 <div>
                   <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{g.name}</p>
                   <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
-                    {WEEKDAYS[g.weekday - 1]} {g.startTime}{g.instructorName ? ` · ${g.instructorName}` : ""}{showCompany ? ` · ${companyNameByUserId[g.userId]}` : ""}
+                    {WEEKDAYS[g.weekday - 1]} {g.startTime}
+                    {g.instructorName ? ` · ${g.instructorName}` : ""}
+                    {showCompany ? ` · ${companyNameByUserId[g.userId]}` : ""}
                   </p>
                   {isLate && (
                     <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--text-warning)" }}>
                       {willBurnSession
                         ? "Bu süreden az kala iptal ederseniz 1 seansınız düşülür"
                         : membershipDeal?.sessionTotal > 0
-                        ? `Bu süreden az kala iptal ederseniz geç iptal sayınız ${nextStrikeCount}/${strikeLimit} olur, ${strikeLimit}. geç iptalden itibaren seans düşer`
-                        : "Bu süreden az kala iptal ediyorsunuz"}
+                          ? `Bu süreden az kala iptal ederseniz geç iptal sayınız ${nextStrikeCount}/${strikeLimit} olur, ${strikeLimit}. geç iptalden itibaren seans düşer`
+                          : "Bu süreden az kala iptal ediyorsunuz"}
                     </p>
                   )}
                   {/* Eskiden sadece span'ın title tooltip'indeydi - dokunmatik
@@ -777,16 +1407,20 @@ function PortalGroupClasses({ groupClasses, groupClassEnrollments, groupClassWai
                 </div>
                 {canCancel ? (
                   <button
-                    onClick={() => onCancel(
-                      myEnrollment.id,
-                      isLate
-                        ? {
-                            dealId: membershipDeal.id,
-                            newLateCancelCount: nextStrikeCount,
-                            newSessionUsed: willBurnSession ? (membershipDeal.sessionUsed || 0) + 1 : null,
-                          }
-                        : null
-                    )}
+                    onClick={() =>
+                      onCancel(
+                        myEnrollment.id,
+                        isLate
+                          ? {
+                              dealId: membershipDeal.id,
+                              newLateCancelCount: nextStrikeCount,
+                              newSessionUsed: willBurnSession
+                                ? (membershipDeal.sessionUsed || 0) + 1
+                                : null,
+                            }
+                          : null,
+                      )
+                    }
                     style={{ fontSize: 13 }}
                   >
                     İptal Et
@@ -802,7 +1436,9 @@ function PortalGroupClasses({ groupClasses, groupClassEnrollments, groupClassWai
 
       <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 8px" }}>Katılabileceklerim</p>
       {joinable.length === 0 ? (
-        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Katılabileceğiniz başka ders yok.</p>
+        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+          Katılabileceğiniz başka ders yok.
+        </p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {joinable.map((g) => {
@@ -816,23 +1452,49 @@ function PortalGroupClasses({ groupClasses, groupClassEnrollments, groupClassWai
                 <div>
                   <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{g.name}</p>
                   <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
-                    {WEEKDAYS[g.weekday - 1]} {g.startTime}{g.instructorName ? ` · ${g.instructorName}` : ""}{showCompany ? ` · ${companyNameByUserId[g.userId]}` : ""}
+                    {WEEKDAYS[g.weekday - 1]} {g.startTime}
+                    {g.instructorName ? ` · ${g.instructorName}` : ""}
+                    {showCompany ? ` · ${companyNameByUserId[g.userId]}` : ""}
                   </p>
-                  {!eligible && <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--text-muted)" }}>{words.portalEligibility}</p>}
+                  {!eligible && (
+                    <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--text-muted)" }}>
+                      {words.portalEligibility}
+                    </p>
+                  )}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <Badge tone={full ? "danger" : "success"}>{count}/{g.capacity} dolu</Badge>
+                  <Badge tone={full ? "danger" : "success"}>
+                    {count}/{g.capacity} dolu
+                  </Badge>
                   {full && eligible ? (
                     myWaitlistEntry ? (
                       <>
                         <Badge tone="warning">Yedek listedesiniz</Badge>
-                        <button onClick={() => onLeaveWaitlist(myWaitlistEntry.id)} style={{ fontSize: 13 }}>Vazgeç</button>
+                        <button
+                          onClick={() => onLeaveWaitlist(myWaitlistEntry.id)}
+                          style={{ fontSize: 13 }}
+                        >
+                          Vazgeç
+                        </button>
                       </>
                     ) : (
-                      <button onClick={() => onJoinWaitlist({ groupClassId: g.id, customerId: myCustomerId })} style={{ fontSize: 13 }}>Yedek Listeye Katıl</button>
+                      <button
+                        onClick={() =>
+                          onJoinWaitlist({ groupClassId: g.id, customerId: myCustomerId })
+                        }
+                        style={{ fontSize: 13 }}
+                      >
+                        Yedek Listeye Katıl
+                      </button>
                     )
                   ) : (
-                    <button disabled={full || !eligible} onClick={() => onEnroll({ groupClassId: g.id, customerId: myCustomerId })} style={{ fontSize: 13 }}>Katıl</button>
+                    <button
+                      disabled={full || !eligible}
+                      onClick={() => onEnroll({ groupClassId: g.id, customerId: myCustomerId })}
+                      style={{ fontSize: 13 }}
+                    >
+                      Katıl
+                    </button>
                   )}
                 </div>
               </div>
@@ -850,7 +1512,12 @@ function PortalGroupClasses({ groupClasses, groupClassEnrollments, groupClassWai
 // olarak veriyordu (aynı sınıf hata api/send-appointment-reminders.js'te de
 // bulunup düzeltilmişti). Europe/Istanbul takvim gününü doğrudan hesaplar.
 function istanbulDateStr(date) {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Istanbul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
 }
 
 // AppointmentRequestPage.jsx'teki AYNI fonksiyon (kasıtlı kopya, route bazlı
@@ -859,7 +1526,10 @@ function istanbulDateStr(date) {
 function shortDayLabel(dateStr) {
   const d = new Date(`${dateStr}T12:00:00Z`);
   const weekday = new Intl.DateTimeFormat("tr-TR", { weekday: "short" }).format(d);
-  return { weekday: weekday.charAt(0).toUpperCase() + weekday.slice(1), day: String(d.getUTCDate()) };
+  return {
+    weekday: weekday.charAt(0).toUpperCase() + weekday.slice(1),
+    day: String(d.getUTCDate()),
+  };
 }
 
 // Otel gibi oda-stoklu (bookingModel === "inventory") sektörlerde müsaitlik bir
@@ -875,7 +1545,15 @@ function AppointmentBookingModal({ customerRow, priceListItems, onBook, onClose,
   if (bookingModel(customerRow.companySector) === "inventory") {
     return <RoomBookingModal customerRow={customerRow} onBook={onBook} onClose={onClose} />;
   }
-  return <SlotBookingModal customerRow={customerRow} priceListItems={priceListItems} onBook={onBook} onClose={onClose} reschedule={reschedule} />;
+  return (
+    <SlotBookingModal
+      customerRow={customerRow}
+      priceListItems={priceListItems}
+      onBook={onBook}
+      onClose={onClose}
+      reschedule={reschedule}
+    />
+  );
 }
 
 function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, reschedule }) {
@@ -894,7 +1572,10 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
   const [dayOverview, setDayOverview] = useState(null); // [{ date, slotCount }] - hangi günlerde boşluk olduğunu tek tek denemeden görebilsin diye
 
   useEffect(() => {
-    if (!date || !customerRow.userId) { setSlotsError("İşletme bilgisi eksik, müsaitlik sorgulanamadı."); return; }
+    if (!date || !customerRow.userId) {
+      setSlotsError("İşletme bilgisi eksik, müsaitlik sorgulanamadı.");
+      return;
+    }
     setLoadingSlots(true);
     setSlotsError("");
     setSelectedTime("");
@@ -902,8 +1583,12 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
     // TAM saat eşleşmesine değil gerçek aralık çakışmasına bakmasını sağlar -
     // seçim değişince (hizmet eklenip/çıkarılınca) liste yeniden hesaplanmalı,
     // bkz. api/appointment-availability.js computeDaySlots.
-    const serviceQuery = serviceIds.length ? `&serviceIds=${encodeURIComponent(serviceIds.join(","))}` : "";
-    fetch(`/api/appointment-availability?businessUserId=${customerRow.userId}&date=${date}${serviceQuery}`)
+    const serviceQuery = serviceIds.length
+      ? `&serviceIds=${encodeURIComponent(serviceIds.join(","))}`
+      : "";
+    fetch(
+      `/api/appointment-availability?businessUserId=${customerRow.userId}&date=${date}${serviceQuery}`,
+    )
       .then(async (r) => {
         const data = await r.json();
         if (!r.ok) throw new Error(data?.error || "Müsaitlik alınamadı.");
@@ -911,7 +1596,10 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
         setDateTimeKey(data.dateTimeKey || null);
         setHasPaymentProvider(!!data.hasPaymentProvider);
       })
-      .catch((err) => { setSlots([]); setSlotsError(err.message || "Müsaitlik alınamadı."); })
+      .catch((err) => {
+        setSlots([]);
+        setSlotsError(err.message || "Müsaitlik alınamadı.");
+      })
       .finally(() => setLoadingSlots(false));
   }, [date, customerRow.userId, serviceIds]);
 
@@ -945,24 +1633,48 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
     });
   };
   const stripFreeWord = (name) => {
-    const words = (name || "").split(/\s+/).filter((w) => w && w.localeCompare("ücretsiz", "tr", { sensitivity: "base" }) !== 0);
+    const words = (name || "")
+      .split(/\s+/)
+      .filter((w) => w && w.localeCompare("ücretsiz", "tr", { sensitivity: "base" }) !== 0);
     return words.join(" ").trim() || name || "";
   };
-  const selectedTotal = (priceListItems || []).filter((p) => serviceIds.includes(p.id)).reduce((sum, p) => sum + (Number(p.price) || 0), 0);
+  const selectedTotal = (priceListItems || [])
+    .filter((p) => serviceIds.includes(p.id))
+    .reduce((sum, p) => sum + (Number(p.price) || 0), 0);
 
   const confirm = async () => {
     if (!selectedTime || !note.trim() || !dateTimeKey) return;
     setBooking(true);
-    const ok = await onBook({ customerId: customerRow.id, businessUserId: customerRow.userId, dateTime: `${date}T${selectedTime}:00`, dateTimeKey, note, serviceIds, hasPaymentProvider });
+    const ok = await onBook({
+      customerId: customerRow.id,
+      businessUserId: customerRow.userId,
+      dateTime: `${date}T${selectedTime}:00`,
+      dateTimeKey,
+      note,
+      serviceIds,
+      hasPaymentProvider,
+    });
     setBooking(false);
     if (ok) onClose();
   };
 
   return (
-    <Modal title={`${customerRow.companyName || customerRow.name} - ${reschedule ? "Randevunuzu Erteleyin" : "Randevu Al"}`} onClose={onClose}>
+    <Modal
+      title={`${customerRow.companyName || customerRow.name} - ${reschedule ? "Randevunuzu Erteleyin" : "Randevu Al"}`}
+      onClose={onClose}
+    >
       {dayOverview && dayOverview.length > 0 && (
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Müsait günler</label>
+          <label
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Müsait günler
+          </label>
           <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
             {dayOverview.map((d) => {
               const { weekday, day } = shortDayLabel(d.date);
@@ -975,15 +1687,29 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
                   disabled={empty}
                   onClick={() => setDate(d.date)}
                   style={{
-                    flex: "0 0 auto", width: 52, padding: "8px 4px", borderRadius: 8, textAlign: "center", cursor: empty ? "default" : "pointer",
+                    flex: "0 0 auto",
+                    width: 52,
+                    padding: "8px 4px",
+                    borderRadius: 8,
+                    textAlign: "center",
+                    cursor: empty ? "default" : "pointer",
                     border: selected ? "2px solid var(--fill-accent)" : "0.5px solid var(--border)",
                     background: selected ? "var(--surface-2)" : "var(--surface-1)",
                     opacity: empty ? 0.45 : 1,
                   }}
                 >
                   <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{weekday}</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{day}</div>
-                  <div style={{ fontSize: 10, color: empty ? "var(--text-muted)" : "var(--text-success)" }}>{d.closed ? "Kapalı" : empty ? "Dolu" : `${d.slotCount} boş`}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>
+                    {day}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 10,
+                      color: empty ? "var(--text-muted)" : "var(--text-success)",
+                    }}
+                  >
+                    {d.closed ? "Kapalı" : empty ? "Dolu" : `${d.slotCount} boş`}
+                  </div>
                 </button>
               );
             })}
@@ -991,11 +1717,36 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
         </div>
       )}
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ya da farklı bir tarih seçin</label>
-        <input type="date" min={todayStr} max={maxDateStr} value={date} onChange={(e) => setDate(e.target.value)} style={{ width: "100%" }} />
+        <label
+          style={{
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            display: "block",
+            marginBottom: 4,
+          }}
+        >
+          Ya da farklı bir tarih seçin
+        </label>
+        <input
+          type="date"
+          min={todayStr}
+          max={maxDateStr}
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          style={{ width: "100%" }}
+        />
       </div>
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Saat</label>
+        <label
+          style={{
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            display: "block",
+            marginBottom: 4,
+          }}
+        >
+          Saat
+        </label>
         {loadingSlots ? (
           <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Yükleniyor…</p>
         ) : slotsError ? (
@@ -1012,7 +1763,9 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
                 style={{
                   background: selectedTime === s ? "var(--fill-accent)" : "var(--surface-1)",
                   color: selectedTime === s ? "var(--on-accent)" : "var(--text-primary)",
-                  border: "0.5px solid var(--border)", fontSize: 13, padding: "6px 10px",
+                  border: "0.5px solid var(--border)",
+                  fontSize: 13,
+                  padding: "6px 10px",
                 }}
               >
                 {s}
@@ -1023,7 +1776,16 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
       </div>
       {priceListItems && priceListItems.length > 0 && (
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Hizmet (opsiyonel, birden fazla seçebilirsiniz)</label>
+          <label
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Hizmet (opsiyonel, birden fazla seçebilirsiniz)
+          </label>
           {freeServices.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
               {freeServices.map((s) => (
@@ -1032,9 +1794,14 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
                   type="button"
                   onClick={() => toggleService(s.id)}
                   style={{
-                    background: serviceIds.includes(s.id) ? "var(--fill-accent)" : "var(--surface-1)",
+                    background: serviceIds.includes(s.id)
+                      ? "var(--fill-accent)"
+                      : "var(--surface-1)",
                     color: serviceIds.includes(s.id) ? "var(--on-accent)" : "var(--text-primary)",
-                    border: "0.5px solid var(--border)", fontSize: 12.5, padding: "6px 10px", borderRadius: 999,
+                    border: "0.5px solid var(--border)",
+                    fontSize: 12.5,
+                    padding: "6px 10px",
+                    borderRadius: 999,
                   }}
                 >
                   {stripFreeWord(s.name)} - Ücretsiz
@@ -1045,46 +1812,104 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
           {paidServices.filter((s) => !serviceIds.includes(s.id)).length > 0 && (
             <select
               value=""
-              onChange={(e) => { if (e.target.value) toggleService(e.target.value); }}
+              onChange={(e) => {
+                if (e.target.value) toggleService(e.target.value);
+              }}
               style={{ width: "100%" }}
             >
               <option value="">Hizmet ekle…</option>
-              {paidServices.filter((s) => !serviceIds.includes(s.id)).map((s) => (
-                <option key={s.id} value={s.id}>{s.name} - {formatTL(s.price)}</option>
-              ))}
+              {paidServices
+                .filter((s) => !serviceIds.includes(s.id))
+                .map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} - {formatTL(s.price)}
+                  </option>
+                ))}
             </select>
           )}
           {paidServices.filter((s) => serviceIds.includes(s.id)).length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6 }}>
-              {paidServices.filter((s) => serviceIds.includes(s.id)).map((s) => (
-                <div key={s.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 13, background: "var(--surface-1)", borderRadius: 6, padding: "6px 8px" }}>
-                  <span>{s.name} - {formatTL(s.price)}</span>
-                  <button type="button" onClick={() => toggleService(s.id)} style={{ fontSize: 12, padding: "2px 6px", flexShrink: 0 }}>Kaldır</button>
-                </div>
-              ))}
+              {paidServices
+                .filter((s) => serviceIds.includes(s.id))
+                .map((s) => (
+                  <div
+                    key={s.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 8,
+                      fontSize: 13,
+                      background: "var(--surface-1)",
+                      borderRadius: 6,
+                      padding: "6px 8px",
+                    }}
+                  >
+                    <span>
+                      {s.name} - {formatTL(s.price)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => toggleService(s.id)}
+                      style={{ fontSize: 12, padding: "2px 6px", flexShrink: 0 }}
+                    >
+                      Kaldır
+                    </button>
+                  </div>
+                ))}
             </div>
           )}
           {selectedTotal > 0 && (
-            <p style={{ fontSize: 12.5, color: "var(--text-secondary)", margin: "8px 0 0", fontWeight: 600 }}>
+            <p
+              style={{
+                fontSize: 12.5,
+                color: "var(--text-secondary)",
+                margin: "8px 0 0",
+                fontWeight: 600,
+              }}
+            >
               Toplam: {formatTL(selectedTotal)}
-              {hasPaymentProvider && " - randevunuzu aldıktan sonra dilerseniz kartla online ödeme yapabilirsiniz."}
+              {hasPaymentProvider &&
+                " - randevunuzu aldıktan sonra dilerseniz kartla online ödeme yapabilirsiniz."}
             </p>
           )}
         </div>
       )}
       <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ne için randevu almak istiyorsunuz?</label>
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={`Örn. ${appointmentNoteExample(customerRow.companySector)}`} style={{ width: "100%" }} />
+        <label
+          style={{
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            display: "block",
+            marginBottom: 4,
+          }}
+        >
+          Ne için randevu almak istiyorsunuz?
+        </label>
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder={`Örn. ${appointmentNoteExample(customerRow.companySector)}`}
+          style={{ width: "100%" }}
+        />
       </div>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-        <button type="button" onClick={onClose}>Vazgeç</button>
+        <button type="button" onClick={onClose}>
+          Vazgeç
+        </button>
         <button
           type="button"
           disabled={!selectedTime || !note.trim() || !dateTimeKey || booking}
           onClick={confirm}
           style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
         >
-          {booking ? (reschedule ? "Erteleniyor…" : "Alınıyor…") : (reschedule ? "Ertele" : "Randevuyu Onayla")}
+          {booking
+            ? reschedule
+              ? "Erteleniyor…"
+              : "Alınıyor…"
+            : reschedule
+              ? "Ertele"
+              : "Randevuyu Onayla"}
         </button>
       </div>
     </Modal>
@@ -1095,7 +1920,17 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
 // tarafında CustomFieldsSection ile otomatik gelirken, portalda genel özel alan
 // render'ı olmadığı (custom_field_defs portala hiç açılmıyor) için burada elle
 // tutuluyor. İkisi birden değişirse ikisini de güncellemeyi unutma.
-const VISIT_PURPOSE_OPTIONS = ["Belirtilmedi", "Tatil", "İş seyahati", "Balayı", "Evlilik yıldönümü", "Doğum günü", "Evlilik teklifi", "Toplantı/Organizasyon", "Diğer"];
+const VISIT_PURPOSE_OPTIONS = [
+  "Belirtilmedi",
+  "Tatil",
+  "İş seyahati",
+  "Balayı",
+  "Evlilik yıldönümü",
+  "Doğum günü",
+  "Evlilik teklifi",
+  "Toplantı/Organizasyon",
+  "Diğer",
+];
 
 function RoomBookingModal({ customerRow, onBook, onClose }) {
   const todayStr = istanbulDateStr(new Date());
@@ -1117,23 +1952,34 @@ function RoomBookingModal({ customerRow, onBook, onClose }) {
   // alır — kullanıcı elle her seferinde ikisini de güncellemek zorunda kalmasın.
   useEffect(() => {
     if (checkOut <= checkIn) {
-      setCheckOut(istanbulDateStr(new Date(new Date(`${checkIn}T00:00:00`).getTime() + 24 * 60 * 60 * 1000)));
+      setCheckOut(
+        istanbulDateStr(new Date(new Date(`${checkIn}T00:00:00`).getTime() + 24 * 60 * 60 * 1000)),
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkIn]);
 
   useEffect(() => {
-    if (!checkIn || !checkOut || checkOut <= checkIn || !customerRow.userId) { setRooms([]); setSelectedRoomType(""); return; }
+    if (!checkIn || !checkOut || checkOut <= checkIn || !customerRow.userId) {
+      setRooms([]);
+      setSelectedRoomType("");
+      return;
+    }
     setLoadingRooms(true);
     setRoomsError("");
     setSelectedRoomType("");
-    fetch(`/api/appointment-availability?businessUserId=${customerRow.userId}&checkIn=${checkIn}&checkOut=${checkOut}`)
+    fetch(
+      `/api/appointment-availability?businessUserId=${customerRow.userId}&checkIn=${checkIn}&checkOut=${checkOut}`,
+    )
       .then(async (r) => {
         const data = await r.json();
         if (!r.ok) throw new Error(data?.error || "Müsaitlik alınamadı.");
         setRooms(data.rooms || []);
       })
-      .catch((err) => { setRooms([]); setRoomsError(err.message || "Müsaitlik alınamadı."); })
+      .catch((err) => {
+        setRooms([]);
+        setRoomsError(err.message || "Müsaitlik alınamadı.");
+      })
       .finally(() => setLoadingRooms(false));
   }, [checkIn, checkOut, customerRow.userId]);
 
@@ -1157,35 +2003,110 @@ function RoomBookingModal({ customerRow, onBook, onClose }) {
   const availableRooms = rooms.filter((r) => r.available);
 
   return (
-    <Modal title={`${customerRow.companyName || customerRow.name} - Rezervasyon Yap`} onClose={onClose}>
+    <Modal
+      title={`${customerRow.companyName || customerRow.name} - Rezervasyon Yap`}
+      onClose={onClose}
+    >
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Giriş tarihi</label>
-          <input type="date" min={todayStr} max={maxDateStr} value={checkIn} onChange={(e) => setCheckIn(e.target.value)} style={{ width: "100%" }} />
+          <label
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Giriş tarihi
+          </label>
+          <input
+            type="date"
+            min={todayStr}
+            max={maxDateStr}
+            value={checkIn}
+            onChange={(e) => setCheckIn(e.target.value)}
+            style={{ width: "100%" }}
+          />
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Çıkış tarihi</label>
-          <input type="date" min={checkIn} value={checkOut} onChange={(e) => setCheckOut(e.target.value)} style={{ width: "100%" }} />
+          <label
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Çıkış tarihi
+          </label>
+          <input
+            type="date"
+            min={checkIn}
+            value={checkOut}
+            onChange={(e) => setCheckOut(e.target.value)}
+            style={{ width: "100%" }}
+          />
         </div>
       </div>
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Tahmini varış saati <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span></label>
-          <input type="time" value={arrivalTime} onChange={(e) => setArrivalTime(e.target.value)} style={{ width: "100%" }} />
+          <label
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Tahmini varış saati{" "}
+            <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span>
+          </label>
+          <input
+            type="time"
+            value={arrivalTime}
+            onChange={(e) => setArrivalTime(e.target.value)}
+            style={{ width: "100%" }}
+          />
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Kişi sayısı</label>
-          <input type="number" min="1" value={partySize} onChange={(e) => setPartySize(e.target.value)} style={{ width: "100%" }} />
+          <label
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Kişi sayısı
+          </label>
+          <input
+            type="number"
+            min="1"
+            value={partySize}
+            onChange={(e) => setPartySize(e.target.value)}
+            style={{ width: "100%" }}
+          />
         </div>
       </div>
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>Oda Tipi</label>
+        <label
+          style={{
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            display: "block",
+            marginBottom: 6,
+          }}
+        >
+          Oda Tipi
+        </label>
         {loadingRooms ? (
           <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Yükleniyor…</p>
         ) : roomsError ? (
           <p style={{ fontSize: 13, color: "var(--text-danger)" }}>{roomsError}</p>
         ) : availableRooms.length === 0 ? (
-          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Bu tarihler için müsait oda yok.</p>
+          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+            Bu tarihler için müsait oda yok.
+          </p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {availableRooms.map((r) => (
@@ -1195,14 +2116,24 @@ function RoomBookingModal({ customerRow, onBook, onClose }) {
                 onClick={() => setSelectedRoomType(r.roomType)}
                 style={{
                   textAlign: "left",
-                  background: selectedRoomType === r.roomType ? "var(--fill-accent)" : "var(--surface-1)",
-                  color: selectedRoomType === r.roomType ? "var(--on-accent)" : "var(--text-primary)",
-                  border: "0.5px solid var(--border)", fontSize: 13, padding: "8px 10px", borderRadius: 8,
+                  background:
+                    selectedRoomType === r.roomType ? "var(--fill-accent)" : "var(--surface-1)",
+                  color:
+                    selectedRoomType === r.roomType ? "var(--on-accent)" : "var(--text-primary)",
+                  border: "0.5px solid var(--border)",
+                  fontSize: 13,
+                  padding: "8px 10px",
+                  borderRadius: 8,
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                  <span style={{ fontWeight: 600 }}>{r.roomType}{r.capacity ? ` · ${r.capacity} kişilik` : ""}</span>
-                  <span style={{ fontSize: 12, opacity: 0.85 }}>{r.remaining}/{r.quantity} müsait</span>
+                  <span style={{ fontWeight: 600 }}>
+                    {r.roomType}
+                    {r.capacity ? ` · ${r.capacity} kişilik` : ""}
+                  </span>
+                  <span style={{ fontSize: 12, opacity: 0.85 }}>
+                    {r.remaining}/{r.quantity} müsait
+                  </span>
                 </div>
                 {r.description && (
                   <p style={{ margin: "3px 0 0", fontSize: 12, opacity: 0.85 }}>{r.description}</p>
@@ -1211,29 +2142,65 @@ function RoomBookingModal({ customerRow, onBook, onClose }) {
             ))}
           </div>
         )}
-        {selectedRoomType && (() => {
-          const room = availableRooms.find((r) => r.roomType === selectedRoomType);
-          if (!room?.capacity || Number(partySize) <= room.capacity) return null;
-          return (
-            <p style={{ fontSize: 12, color: "var(--text-warning, #b45309)", margin: "6px 0 0" }}>
-              Seçtiğiniz oda {room.capacity} kişilik - kişi sayınız bunu aşıyor, işletmeyle iletişime geçmeniz gerekebilir.
-            </p>
-          );
-        })()}
+        {selectedRoomType &&
+          (() => {
+            const room = availableRooms.find((r) => r.roomType === selectedRoomType);
+            if (!room?.capacity || Number(partySize) <= room.capacity) return null;
+            return (
+              <p style={{ fontSize: 12, color: "var(--text-warning, #b45309)", margin: "6px 0 0" }}>
+                Seçtiğiniz oda {room.capacity} kişilik - kişi sayınız bunu aşıyor, işletmeyle
+                iletişime geçmeniz gerekebilir.
+              </p>
+            );
+          })()}
       </div>
       <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ziyaret Amacı / Özel Gün <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span></label>
-        <select value={visitPurpose} onChange={(e) => setVisitPurpose(e.target.value)} style={{ width: "100%" }}>
+        <label
+          style={{
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            display: "block",
+            marginBottom: 4,
+          }}
+        >
+          Ziyaret Amacı / Özel Gün{" "}
+          <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span>
+        </label>
+        <select
+          value={visitPurpose}
+          onChange={(e) => setVisitPurpose(e.target.value)}
+          style={{ width: "100%" }}
+        >
           <option value="">Seçiniz</option>
-          {VISIT_PURPOSE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+          {VISIT_PURPOSE_OPTIONS.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
         </select>
       </div>
       <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Not <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span></label>
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Eklemek istediğiniz bir not varsa yazın" style={{ width: "100%" }} />
+        <label
+          style={{
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            display: "block",
+            marginBottom: 4,
+          }}
+        >
+          Not <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span>
+        </label>
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Eklemek istediğiniz bir not varsa yazın"
+          style={{ width: "100%" }}
+        />
       </div>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-        <button type="button" onClick={onClose}>Vazgeç</button>
+        <button type="button" onClick={onClose}>
+          Vazgeç
+        </button>
         <button
           type="button"
           disabled={!selectedRoomType || booking}
@@ -1254,12 +2221,21 @@ function PasswordRecoveryModal({ notify, onClose }) {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (newPassword.length < 6) { notify("Şifre en az 6 karakter olmalı."); return; }
-    if (newPassword !== confirmPassword) { notify("Şifreler eşleşmiyor."); return; }
+    if (newPassword.length < 6) {
+      notify("Şifre en az 6 karakter olmalı.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      notify("Şifreler eşleşmiyor.");
+      return;
+    }
     setSaving(true);
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     setSaving(false);
-    if (error) { notify(`Şifre güncellenemedi: ${translateAuthError(error.message)}`); return; }
+    if (error) {
+      notify(`Şifre güncellenemedi: ${translateAuthError(error.message)}`);
+      return;
+    }
     notify("Şifreniz güncellendi.", "success");
     onClose();
   };
@@ -1271,15 +2247,48 @@ function PasswordRecoveryModal({ notify, onClose }) {
       </p>
       <form onSubmit={submit}>
         <div style={{ marginBottom: 8 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Yeni şifre</label>
-          <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={{ width: "100%" }} autoFocus />
+          <label
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Yeni şifre
+          </label>
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            style={{ width: "100%" }}
+            autoFocus
+          />
         </div>
         <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Yeni şifre (tekrar)</label>
-          <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} style={{ width: "100%" }} />
+          <label
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Yeni şifre (tekrar)
+          </label>
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            style={{ width: "100%" }}
+          />
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <button type="submit" disabled={saving || !newPassword} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>
+          <button
+            type="submit"
+            disabled={saving || !newPassword}
+            style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+          >
             {saving ? "Kaydediliyor…" : "Şifreyi kaydet"}
           </button>
         </div>
@@ -1288,7 +2297,25 @@ function PasswordRecoveryModal({ notify, onClose }) {
   );
 }
 
-function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubscribe, onUnsubscribe, marketingConsent, onMarketingConsentChange, companyName, companySector, photoConsent, onPhotoConsentChange, customerName, customerPhone, customerEmail, onUpdateProfile, notify }) {
+function PortalSettings({
+  session,
+  theme,
+  onThemeChange,
+  pushSubscribed,
+  onSubscribe,
+  onUnsubscribe,
+  marketingConsent,
+  onMarketingConsentChange,
+  companyName,
+  companySector,
+  photoConsent,
+  onPhotoConsentChange,
+  customerName,
+  customerPhone,
+  customerEmail,
+  onUpdateProfile,
+  notify,
+}) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -1306,12 +2333,21 @@ function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubsc
     setProfilePhone(customerPhone || "");
     setProfileEmail(customerEmail || "");
   }, [customerName, customerPhone, customerEmail]);
-  const profileDirty = profileName.trim() !== (customerName || "") || profilePhone.trim() !== (customerPhone || "") || profileEmail.trim() !== (customerEmail || "");
+  const profileDirty =
+    profileName.trim() !== (customerName || "") ||
+    profilePhone.trim() !== (customerPhone || "") ||
+    profileEmail.trim() !== (customerEmail || "");
 
   const saveProfile = async (e) => {
     e.preventDefault();
-    if (!profileName.trim()) { notify("Ad Soyad boş olamaz."); return; }
-    if (!profilePhone.trim() && !profileEmail.trim()) { notify("Telefon veya e-postadan en az biri gerekli."); return; }
+    if (!profileName.trim()) {
+      notify("Ad Soyad boş olamaz.");
+      return;
+    }
+    if (!profilePhone.trim() && !profileEmail.trim()) {
+      notify("Telefon veya e-postadan en az biri gerekli.");
+      return;
+    }
     setSavingProfile(true);
     await onUpdateProfile({ name: profileName, phone: profilePhone, email: profileEmail });
     setSavingProfile(false);
@@ -1319,10 +2355,19 @@ function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubsc
 
   const changePassword = async (e) => {
     e.preventDefault();
-    if (newPassword.length < 6) { notify("Yeni şifre en az 6 karakter olmalı."); return; }
-    if (newPassword !== confirmPassword) { notify("Yeni şifreler eşleşmiyor."); return; }
+    if (newPassword.length < 6) {
+      notify("Yeni şifre en az 6 karakter olmalı.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      notify("Yeni şifreler eşleşmiyor.");
+      return;
+    }
     setSaving(true);
-    const { error: verifyError } = await supabase.auth.signInWithPassword({ email: session.user.email, password: currentPassword });
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: session.user.email,
+      password: currentPassword,
+    });
     if (verifyError) {
       setSaving(false);
       notify("Mevcut şifreniz yanlış.");
@@ -1330,7 +2375,10 @@ function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubsc
     }
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     setSaving(false);
-    if (error) { notify(`Şifre değiştirilemedi: ${translateAuthError(error.message)}`); return; }
+    if (error) {
+      notify(`Şifre değiştirilemedi: ${translateAuthError(error.message)}`);
+      return;
+    }
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
@@ -1340,36 +2388,107 @@ function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubsc
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Bilgilerim{companyName ? ` (${companyName})` : ""}</p>
+        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>
+          Bilgilerim{companyName ? ` (${companyName})` : ""}
+        </p>
         <form onSubmit={saveProfile}>
           <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Ad Soyad</label>
-            <input value={profileName} onChange={(e) => setProfileName(e.target.value)} style={{ width: "100%" }} />
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
+              Ad Soyad
+            </label>
+            <input
+              value={profileName}
+              onChange={(e) => setProfileName(e.target.value)}
+              style={{ width: "100%" }}
+            />
           </div>
           <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Telefon</label>
-            <input type="tel" value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} style={{ width: "100%" }} />
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
+              Telefon
+            </label>
+            <input
+              type="tel"
+              value={profilePhone}
+              onChange={(e) => setProfilePhone(e.target.value)}
+              style={{ width: "100%" }}
+            />
           </div>
           <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>E-posta</label>
-            <input type="email" value={profileEmail} onChange={(e) => setProfileEmail(e.target.value)} style={{ width: "100%" }} />
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
+              E-posta
+            </label>
+            <input
+              type="email"
+              value={profileEmail}
+              onChange={(e) => setProfileEmail(e.target.value)}
+              style={{ width: "100%" }}
+            />
           </div>
-          <button type="submit" disabled={savingProfile || !profileDirty} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
+          <button
+            type="submit"
+            disabled={savingProfile || !profileDirty}
+            style={{
+              background: "var(--fill-accent)",
+              color: "var(--on-accent)",
+              border: "none",
+              fontSize: 13,
+            }}
+          >
             {savingProfile ? "Kaydediliyor…" : "Kaydet"}
           </button>
         </form>
         <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "8px 0 0" }}>
-          Birden fazla işletmeye bağlıysanız, bu bilgiler sadece şu an seçili olan işletme için geçerlidir.
+          Birden fazla işletmeye bağlıysanız, bu bilgiler sadece şu an seçili olan işletme için
+          geçerlidir.
         </p>
       </div>
 
       <div style={{ marginBottom: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
         <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Görünüm</p>
-        <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, width: "fit-content" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 4,
+            background: "var(--surface-1)",
+            borderRadius: "var(--radius)",
+            padding: 3,
+            width: "fit-content",
+          }}
+        >
           <button
             type="button"
             onClick={() => onThemeChange("light")}
-            style={{ border: "none", background: theme === "light" ? "var(--fill-accent)" : "transparent", color: theme === "light" ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: theme === "light" ? 600 : 400, display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+            style={{
+              border: "none",
+              background: theme === "light" ? "var(--fill-accent)" : "transparent",
+              color: theme === "light" ? "var(--on-accent)" : "var(--text-secondary)",
+              fontWeight: theme === "light" ? 600 : 400,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+            }}
           >
             <i className="ti ti-sun" style={{ fontSize: 15 }} aria-hidden="true"></i>
             Açık
@@ -1377,7 +2496,16 @@ function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubsc
           <button
             type="button"
             onClick={() => onThemeChange("dark")}
-            style={{ border: "none", background: theme === "dark" ? "var(--fill-accent)" : "transparent", color: theme === "dark" ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: theme === "dark" ? 600 : 400, display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+            style={{
+              border: "none",
+              background: theme === "dark" ? "var(--fill-accent)" : "transparent",
+              color: theme === "dark" ? "var(--on-accent)" : "var(--text-secondary)",
+              fontWeight: theme === "dark" ? 600 : 400,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+            }}
           >
             <i className="ti ti-moon" style={{ fontSize: 15 }} aria-hidden="true"></i>
             Koyu
@@ -1391,7 +2519,11 @@ function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubsc
           <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
             Firma size yanıt verdiğinde anında bildirim
           </span>
-          <button type="button" onClick={() => (pushSubscribed ? onUnsubscribe() : onSubscribe())} style={{ fontSize: 13 }}>
+          <button
+            type="button"
+            onClick={() => (pushSubscribed ? onUnsubscribe() : onSubscribe())}
+            style={{ fontSize: 13 }}
+          >
             {pushSubscribed ? "Kapat" : "Aç"}
           </button>
         </div>
@@ -1402,27 +2534,49 @@ function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubsc
 
       <div style={{ marginBottom: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
         <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 12px" }}>
-          Bilgileriniz {companyName || "bu işletme"} tarafından yalnızca hizmet/randevu takibi amacıyla saklanır ve işlenir. Aşağıdaki izinler bunun dışında, dilediğiniz zaman değiştirebileceğiniz ek tercihlerdir.
+          Bilgileriniz {companyName || "bu işletme"} tarafından yalnızca hizmet/randevu takibi
+          amacıyla saklanır ve işlenir. Aşağıdaki izinler bunun dışında, dilediğiniz zaman
+          değiştirebileceğiniz ek tercihlerdir.
         </p>
         <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Pazarlama İzni</p>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
-          <input type="checkbox" checked={!!marketingConsent} onChange={(e) => onMarketingConsentChange(e.target.checked)} />
+        <label
+          style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}
+        >
+          <input
+            type="checkbox"
+            checked={!!marketingConsent}
+            onChange={(e) => onMarketingConsentChange(e.target.checked)}
+          />
           Bu işletmeden kampanya ve değerlendirme isteği gibi e-postalar almak istiyorum
         </label>
         <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "8px 0 0" }}>
-          Bu izin dilediğiniz zaman geri çekilebilir. Birden fazla işletmeye bağlıysanız, sadece şu an seçili olan işletme için geçerlidir.
+          Bu izin dilediğiniz zaman geri çekilebilir. Birden fazla işletmeye bağlıysanız, sadece şu
+          an seçili olan işletme için geçerlidir.
         </p>
       </div>
 
       {isAppointmentSector(companySector) && (
         <div style={{ marginBottom: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
           <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Fotoğraf İzni</p>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
-            <input type="checkbox" checked={!!photoConsent} onChange={(e) => onPhotoConsentChange(e.target.checked)} />
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 13,
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={!!photoConsent}
+              onChange={(e) => onPhotoConsentChange(e.target.checked)}
+            />
             Hizmet öncesi/sonrası fotoğraflarımın çekilip saklanmasına izin veriyorum
           </label>
           <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "8px 0 0" }}>
-            Bu izin dilediğiniz zaman geri çekilebilir. Birden fazla işletmeye bağlıysanız, sadece şu an seçili olan işletme için geçerlidir.
+            Bu izin dilediğiniz zaman geri çekilebilir. Birden fazla işletmeye bağlıysanız, sadece
+            şu an seçili olan işletme için geçerlidir.
           </p>
         </div>
       )}
@@ -1431,18 +2585,69 @@ function PortalSettings({ session, theme, onThemeChange, pushSubscribed, onSubsc
         <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Hesap</p>
         <form onSubmit={changePassword}>
           <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Mevcut şifre</label>
-            <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} style={{ width: "100%" }} />
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
+              Mevcut şifre
+            </label>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              style={{ width: "100%" }}
+            />
           </div>
           <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Yeni şifre</label>
-            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={{ width: "100%" }} />
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
+              Yeni şifre
+            </label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              style={{ width: "100%" }}
+            />
           </div>
           <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Yeni şifre (tekrar)</label>
-            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} style={{ width: "100%" }} />
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
+              Yeni şifre (tekrar)
+            </label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              style={{ width: "100%" }}
+            />
           </div>
-          <button type="submit" disabled={saving || !currentPassword || !newPassword} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", fontSize: 13 }}>
+          <button
+            type="submit"
+            disabled={saving || !currentPassword || !newPassword}
+            style={{
+              background: "var(--fill-accent)",
+              color: "var(--on-accent)",
+              border: "none",
+              fontSize: 13,
+            }}
+          >
             {saving ? "Kaydediliyor…" : "Şifreyi değiştir"}
           </button>
         </form>
@@ -1460,7 +2665,9 @@ export default function CustomerPortal() {
   const [deals, setDeals] = useState([]);
   const [payments, setPayments] = useState([]);
   const [customerRows, setCustomerRows] = useState([]);
-  const [selectedCompanyId, setSelectedCompanyId] = useState(() => localStorage.getItem("binerly_portal_company") || null);
+  const [selectedCompanyId, setSelectedCompanyId] = useState(
+    () => localStorage.getItem("binerly_portal_company") || null,
+  );
   const [groupClasses, setGroupClasses] = useState([]);
   const [groupClassEnrollments, setGroupClassEnrollments] = useState([]);
   const [groupClassWaitlist, setGroupClassWaitlist] = useState([]);
@@ -1478,7 +2685,8 @@ export default function CustomerPortal() {
   const [confirmCancel, setConfirmCancel] = useState(null); // { type: "appointment" | "enrollment", id }
   const [loadError, setLoadError] = useState(false);
 
-  const notify = (message, tone = "danger") => setToast({ message: humanizeDbMessage(message), tone });
+  const notify = (message, tone = "danger") =>
+    setToast({ message: humanizeDbMessage(message), tone });
 
   useEffect(() => {
     if (!toast) return;
@@ -1493,7 +2701,9 @@ export default function CustomerPortal() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       if (event === "PASSWORD_RECOVERY") setShowPasswordRecovery(true);
     });
@@ -1501,7 +2711,10 @@ export default function CustomerPortal() {
   }, []);
 
   useEffect(() => {
-    if (!session || !("serviceWorker" in navigator)) { setPushSubscribed(false); return; }
+    if (!session || !("serviceWorker" in navigator)) {
+      setPushSubscribed(false);
+      return;
+    }
     navigator.serviceWorker.ready
       .then((registration) => registration.pushManager.getSubscription())
       .then((sub) => setPushSubscribed(!!sub))
@@ -1542,11 +2755,26 @@ export default function CustomerPortal() {
     if (!row) return;
     const channel = supabase
       .channel(`portal-messages-${row.id}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ticket_messages", filter: `user_id=eq.${row.userId}` }, (payload) => {
-        setTicketMessages((prev) => (prev.some((m) => m.id === payload.new.id) ? prev : [...prev, rowToTicketMessage(payload.new)]));
-      })
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "ticket_messages",
+          filter: `user_id=eq.${row.userId}`,
+        },
+        (payload) => {
+          setTicketMessages((prev) =>
+            prev.some((m) => m.id === payload.new.id)
+              ? prev
+              : [...prev, rowToTicketMessage(payload.new)],
+          );
+        },
+      )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [customerRows, selectedCompanyId]);
 
   useEffect(() => {
@@ -1562,13 +2790,18 @@ export default function CustomerPortal() {
     setBookingFor(null);
     setViewingTicket(null);
     setShowNewTicketForm(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCompanyId]);
 
   useEffect(() => {
     if (!session) {
-      setTickets([]); setTicketMessages([]); setDeals([]); setPayments([]); setCustomerRows([]);
-      setGroupClasses([]); setGroupClassEnrollments([]); setPriceListItems([]);
+      setTickets([]);
+      setTicketMessages([]);
+      setDeals([]);
+      setPayments([]);
+      setCustomerRows([]);
+      setGroupClasses([]);
+      setGroupClassEnrollments([]);
+      setPriceListItems([]);
       setLoading(false);
       return;
     }
@@ -1578,7 +2811,10 @@ export default function CustomerPortal() {
       try {
         await supabase
           .from("customer_portal_users")
-          .upsert({ id: session.user.id, email: session.user.email }, { onConflict: "id", ignoreDuplicates: true });
+          .upsert(
+            { id: session.user.id, email: session.user.email },
+            { onConflict: "id", ignoreDuplicates: true },
+          );
         await supabase
           .from("customers")
           .update({ portal_user_id: session.user.id })
@@ -1590,7 +2826,9 @@ export default function CustomerPortal() {
         // sorgularını bilerek bu customer_id'lerle sınırlıyoruz — RLS'e tek başına güvenmiyoruz,
         // çünkü aynı hesap hem şirket sahibi hem müşteri ise RLS politikaları "veya" ile birleşip
         // şirketin TÜM taleplerini de döndürebilir. Bu ekstra filtre buna karşı bir güvenlik katmanı.
-        const { data: c, error: profileError } = await supabase.from("customer_profile_view").select("*");
+        const { data: c, error: profileError } = await supabase
+          .from("customer_profile_view")
+          .select("*");
         if (profileError) {
           // Burada sessizce customerRows=[] set edilirse müşteriye "hesabınız hiçbir
           // firmayla eşleşmedi" gibi YANLIŞ bir mesaj gösterilir — oysa asıl sebep
@@ -1600,14 +2838,21 @@ export default function CustomerPortal() {
           return;
         }
         const rows = (c || []).map((r) => ({
-          id: r.id, userId: r.user_id, name: r.name, phone: r.phone, email: r.email, companyName: r.company_name, companySector: r.company_sector,
+          id: r.id,
+          userId: r.user_id,
+          name: r.name,
+          phone: r.phone,
+          email: r.email,
+          companyName: r.company_name,
+          companySector: r.company_sector,
           companyLateCancelHours: r.company_late_cancel_hours ?? null,
           companyHardBlockHours: r.company_hard_block_hours ?? null,
           companyLateCancelStrikeLimit: r.company_late_cancel_strike_limit ?? null,
           companyAppointmentCancelHours: r.company_appointment_cancel_hours ?? null,
           companyAppointmentPenaltyHours: r.company_appointment_penalty_hours ?? null,
           companyAppointmentPenaltyStrikeLimit: r.company_appointment_penalty_strike_limit ?? null,
-          companyAppointmentPenaltyBurnsSession: r.company_appointment_penalty_burns_session === true,
+          companyAppointmentPenaltyBurnsSession:
+            r.company_appointment_penalty_burns_session === true,
           companyAppointmentPartialChargeHours: r.company_appointment_partial_charge_hours ?? null,
           marketingConsent: r.marketing_consent === true,
           marketingConsentAt: r.marketing_consent_at || null,
@@ -1618,8 +2863,13 @@ export default function CustomerPortal() {
         const customerIds = rows.map((r) => r.id);
 
         if (customerIds.length === 0) {
-          setTickets([]); setTicketMessages([]); setDeals([]); setPayments([]);
-          setGroupClasses([]); setGroupClassEnrollments([]); setPriceListItems([]);
+          setTickets([]);
+          setTicketMessages([]);
+          setDeals([]);
+          setPayments([]);
+          setGroupClasses([]);
+          setGroupClassEnrollments([]);
+          setPriceListItems([]);
           return;
         }
 
@@ -1633,18 +2883,40 @@ export default function CustomerPortal() {
           { data: pli, error: pliError },
           { data: pay, error: payError },
         ] = await Promise.all([
-          supabase.from("tickets").select("*").is("deleted_at", null).in("customer_id", customerIds).order("created_at"),
+          supabase
+            .from("tickets")
+            .select("*")
+            .is("deleted_at", null)
+            .in("customer_id", customerIds)
+            .order("created_at"),
           // Diğer sorgular gibi (tickets/group_classes) customer_id ile bilerek
           // sınırlanıyor — RLS'e tek başına güvenmeme prensibi (yukarıdaki yorum)
           // burada da geçerli.
-          supabase.from("customer_deal_view").select("*").in("customer_id", customerIds).order("created_at"),
+          supabase
+            .from("customer_deal_view")
+            .select("*")
+            .in("customer_id", customerIds)
+            .order("created_at"),
           supabase.from("group_class_enrollments").select("*").in("customer_id", customerIds),
-          supabase.from("group_classes").select("*").is("deleted_at", null).in("user_id", businessUserIds).order("weekday").order("start_time"),
-          supabase.from("price_list_items").select("*").in("user_id", businessUserIds).order("name"),
+          supabase
+            .from("group_classes")
+            .select("*")
+            .is("deleted_at", null)
+            .in("user_id", businessUserIds)
+            .order("weekday")
+            .order("start_time"),
+          supabase
+            .from("price_list_items")
+            .select("*")
+            .in("user_id", businessUserIds)
+            .order("name"),
           supabase.from("customer_payments_view").select("*").in("customer_id", customerIds),
         ]);
         const firstError = tError || dError || gceError || gcError || pliError;
-        if (firstError) { console.error("customer portal data load error:", firstError.message); setLoadError(true); }
+        if (firstError) {
+          console.error("customer portal data load error:", firstError.message);
+          setLoadError(true);
+        }
         // payError bilerek firstError'a dahil edilmedi — customer_payments_view
         // henüz oluşturulmamışsa (yeni migration çalıştırılmadan önce) "Ödemelerim"
         // sekmesi boş görünsün, portalın geri kalanı tam bir hata ekranına düşmesin.
@@ -1654,13 +2926,21 @@ export default function CustomerPortal() {
         // Yedek liste — RLS zaten sadece BENİM (portal_user_id=auth.uid()) müşteri
         // kayıtlarıma ait satırları döndürüyor, .in() burada ek bir gereklilik değil
         // ama diğer sorgularla aynı savunmacı deseni koruyoruz.
-        const { data: gcw } = await supabase.from("group_class_waitlist").select("*").in("customer_id", customerIds);
+        const { data: gcw } = await supabase
+          .from("group_class_waitlist")
+          .select("*")
+          .in("customer_id", customerIds);
         setGroupClassWaitlist((gcw || []).map(rowToWaitlistEntry));
         setPriceListItems((pli || []).map(rowToPriceListItem));
         setPayments((pay || []).map(rowToPayment));
         const ticketIds = (t || []).map((row) => row.id);
         const { data: tm, error: tmError } = ticketIds.length
-          ? await supabase.from("ticket_messages").select("*").eq("is_internal", false).in("ticket_id", ticketIds).order("created_at")
+          ? await supabase
+              .from("ticket_messages")
+              .select("*")
+              .eq("is_internal", false)
+              .in("ticket_id", ticketIds)
+              .order("created_at")
           : { data: [] };
         if (tmError) console.error("ticket_messages load error:", tmError.message);
 
@@ -1674,7 +2954,12 @@ export default function CustomerPortal() {
         // sorgularla aynı savunmacı desen.
         const dealIds = (d || []).map((row) => row.id);
         const { data: att } = dealIds.length
-          ? await supabase.from("attachments").select("*").eq("entity_type", "deals").eq("shared_with_customer", true).in("entity_id", dealIds)
+          ? await supabase
+              .from("attachments")
+              .select("*")
+              .eq("entity_type", "deals")
+              .eq("shared_with_customer", true)
+              .in("entity_id", dealIds)
           : { data: [] };
         setSharedAttachments((att || []).map(rowToPortalAttachment));
       } catch (err) {
@@ -1691,10 +2976,20 @@ export default function CustomerPortal() {
     if (!row) return;
     const { data, error } = await supabase
       .from("tickets")
-      .insert({ user_id: row.userId, customer_id: customerId, subject, description, priority: "orta", status: "acik" })
+      .insert({
+        user_id: row.userId,
+        customer_id: customerId,
+        subject,
+        description,
+        priority: "orta",
+        status: "acik",
+      })
       .select()
       .single();
-    if (error) { notify(`Talep gönderilemedi: ${error.message}`); return; }
+    if (error) {
+      notify(`Talep gönderilemedi: ${error.message}`);
+      return;
+    }
     setTickets((prev) => [...prev, rowToTicket(data)]);
     setShowNewTicketForm(false);
 
@@ -1703,7 +2998,13 @@ export default function CustomerPortal() {
     // rozetini ve anlık bildirimi tetikliyor; yoksa müşterinin ilk teması sessiz kalırdı.
     const { data: msgData, error: msgError } = await supabase
       .from("ticket_messages")
-      .insert({ user_id: row.userId, ticket_id: data.id, direction: "gelen", is_internal: false, content: description || subject })
+      .insert({
+        user_id: row.userId,
+        ticket_id: data.id,
+        direction: "gelen",
+        is_internal: false,
+        content: description || subject,
+      })
       .select()
       .single();
     if (!msgError) setTicketMessages((prev) => [...prev, rowToTicketMessage(msgData)]);
@@ -1721,16 +3022,37 @@ export default function CustomerPortal() {
     const row = customerRows.find((c) => c.id === customerId);
     const group = groupClasses.find((g) => g.id === groupClassId);
     if (!row || !group) return;
-    if (!hasActiveMembership(customerId)) { notify(groupClassWords(row.companySector).portalEligibility); return; }
+    if (!hasActiveMembership(customerId)) {
+      notify(groupClassWords(row.companySector).portalEligibility);
+      return;
+    }
     const count = groupClassEnrollments.filter((e) => e.groupClassId === groupClassId).length;
-    if (count >= group.capacity) { notify("Bu ders dolu."); return; }
-    if (groupClassEnrollments.some((e) => e.groupClassId === groupClassId && e.customerId === customerId)) { notify("Zaten kayıtlısınız."); return; }
+    if (count >= group.capacity) {
+      notify("Bu ders dolu.");
+      return;
+    }
+    if (
+      groupClassEnrollments.some(
+        (e) => e.groupClassId === groupClassId && e.customerId === customerId,
+      )
+    ) {
+      notify("Zaten kayıtlısınız.");
+      return;
+    }
     const { data, error } = await supabase
       .from("group_class_enrollments")
-      .insert({ id: uid(), user_id: row.userId, group_class_id: groupClassId, customer_id: customerId })
+      .insert({
+        id: uid(),
+        user_id: row.userId,
+        group_class_id: groupClassId,
+        customer_id: customerId,
+      })
       .select()
       .single();
-    if (error) { notify(`Derse katılamadınız: ${error.message}`); return; }
+    if (error) {
+      notify(`Derse katılamadınız: ${error.message}`);
+      return;
+    }
     setGroupClassEnrollments((prev) => [...prev, rowToGroupClassEnrollment(data)]);
     notify("Derse kaydınız yapıldı.", "success");
   };
@@ -1740,16 +3062,34 @@ export default function CustomerPortal() {
   // iptalse doldurulur (bkz. PortalGroupClasses). Ayarlanmadıysa (varsayılan)
   // hiçbir şey yanmaz — sadece kayıt silinir, önceki davranışla birebir aynı.
   const joinWaitlist = async ({ groupClassId, customerId }) => {
-    const row = { id: uid(), user_id: customerRows.find((c) => c.id === customerId)?.userId, group_class_id: groupClassId, customer_id: customerId };
-    const { data, error } = await supabase.from("group_class_waitlist").insert(row).select().single();
-    if (error) { notify(`Yedek listeye eklenemedi: ${error.message}`); return; }
+    const row = {
+      id: uid(),
+      user_id: customerRows.find((c) => c.id === customerId)?.userId,
+      group_class_id: groupClassId,
+      customer_id: customerId,
+    };
+    const { data, error } = await supabase
+      .from("group_class_waitlist")
+      .insert(row)
+      .select()
+      .single();
+    if (error) {
+      notify(`Yedek listeye eklenemedi: ${error.message}`);
+      return;
+    }
     setGroupClassWaitlist((prev) => [...prev, rowToWaitlistEntry(data)]);
-    notify("Yedek listeye eklendiniz - yer açılınca otomatik veya işletme tarafından eklenebilirsiniz.", "success");
+    notify(
+      "Yedek listeye eklendiniz - yer açılınca otomatik veya işletme tarafından eklenebilirsiniz.",
+      "success",
+    );
   };
 
   const leaveWaitlist = async (waitlistId) => {
     const { error } = await supabase.from("group_class_waitlist").delete().eq("id", waitlistId);
-    if (error) { notify(`Yedek listeden çıkılamadı: ${error.message}`); return; }
+    if (error) {
+      notify(`Yedek listeden çıkılamadı: ${error.message}`);
+      return;
+    }
     setGroupClassWaitlist((prev) => prev.filter((w) => w.id !== waitlistId));
   };
 
@@ -1761,21 +3101,58 @@ export default function CustomerPortal() {
   // Hiçbir politika ayarlanmadıysa (varsayılan) burn hep null — önceki
   // davranışla birebir aynı.
   const cancelEnrollment = async (enrollmentId, burn) => {
-    const { error } = await supabase.from("group_class_enrollments").delete().eq("id", enrollmentId);
-    if (error) { notify(`İptal edilemedi: ${error.message}`); return; }
+    const { error } = await supabase
+      .from("group_class_enrollments")
+      .delete()
+      .eq("id", enrollmentId);
+    if (error) {
+      notify(`İptal edilemedi: ${error.message}`);
+      return;
+    }
     setGroupClassEnrollments((prev) => prev.filter((e) => e.id !== enrollmentId));
     if (burn) {
       const update = { late_cancel_count: burn.newLateCancelCount };
       if (burn.newSessionUsed != null) update.session_used = burn.newSessionUsed;
-      const { error: burnError } = await supabase.from("deals").update(update).eq("id", burn.dealId);
+      const { error: burnError } = await supabase
+        .from("deals")
+        .update(update)
+        .eq("id", burn.dealId);
       if (!burnError) {
-        setDeals((prev) => prev.map((d) => (d.id === burn.dealId ? { ...d, lateCancelCount: burn.newLateCancelCount, ...(burn.newSessionUsed != null ? { sessionUsed: burn.newSessionUsed } : {}) } : d)));
+        setDeals((prev) =>
+          prev.map((d) =>
+            d.id === burn.dealId
+              ? {
+                  ...d,
+                  lateCancelCount: burn.newLateCancelCount,
+                  ...(burn.newSessionUsed != null ? { sessionUsed: burn.newSessionUsed } : {}),
+                }
+              : d,
+          ),
+        );
       }
     }
-    notify(burn?.newSessionUsed != null ? "Kaydınız iptal edildi, 1 seansınız düşüldü." : "Kaydınız iptal edildi.", "success");
+    notify(
+      burn?.newSessionUsed != null
+        ? "Kaydınız iptal edildi, 1 seansınız düşüldü."
+        : "Kaydınız iptal edildi.",
+      "success",
+    );
   };
 
-  const bookAppointment = async ({ customerId, businessUserId, dateTime, dateTimeKey, note, serviceIds, hasPaymentProvider, checkIn, checkOut, roomType, partySize, visitPurpose }) => {
+  const bookAppointment = async ({
+    customerId,
+    businessUserId,
+    dateTime,
+    dateTimeKey,
+    note,
+    serviceIds,
+    hasPaymentProvider,
+    checkIn,
+    checkOut,
+    roomType,
+    partySize,
+    visitPurpose,
+  }) => {
     // Otel gibi oda-stoklu (bookingModel === "inventory") sektörlerde RoomBookingModal
     // dateTime/dateTimeKey yerine checkIn/checkOut/roomType gönderiyor — saat slotu
     // yerine giriş/çıkış tarih aralığı + oda tipi yazılıyor. Kayıt SUNUCU
@@ -1786,14 +3163,31 @@ export default function CustomerPortal() {
         notify("Geçmiş bir tarih için rezervasyon alınamaz.");
         return false;
       }
-      const { data: { session: roomSession } } = await supabase.auth.getSession();
+      const {
+        data: { session: roomSession },
+      } = await supabase.auth.getSession();
       const roomRes = await fetch("/api/appointment-availability", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${roomSession?.access_token || ""}` },
-        body: JSON.stringify({ customerId, businessUserId, note, checkIn, checkOut, roomType, partySize, visitPurpose }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${roomSession?.access_token || ""}`,
+        },
+        body: JSON.stringify({
+          customerId,
+          businessUserId,
+          note,
+          checkIn,
+          checkOut,
+          roomType,
+          partySize,
+          visitPurpose,
+        }),
       });
       const roomResult = await roomRes.json().catch(() => ({}));
-      if (!roomRes.ok) { notify(roomResult.error || "Rezervasyon alınamadı."); return false; }
+      if (!roomRes.ok) {
+        notify(roomResult.error || "Rezervasyon alınamadı.");
+        return false;
+      }
       setDeals((prev) => [...prev, rowToDeal(roomResult.deal)]);
       notify("Rezervasyonunuz alındı.", "success");
       return true;
@@ -1809,14 +3203,22 @@ export default function CustomerPortal() {
       notify("Geçmiş bir tarih/saat için randevu alınamaz.");
       return false;
     }
-    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    const {
+      data: { session: currentSession },
+    } = await supabase.auth.getSession();
     const res = await fetch("/api/appointment-availability", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${currentSession?.access_token || ""}` },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${currentSession?.access_token || ""}`,
+      },
       body: JSON.stringify({ customerId, businessUserId, dateTime, dateTimeKey, note, serviceIds }),
     });
     const result = await res.json().catch(() => ({}));
-    if (!res.ok) { notify(result.error || "Randevu alınamadı."); return false; }
+    if (!res.ok) {
+      notify(result.error || "Randevu alınamadı.");
+      return false;
+    }
     setDeals((prev) => [...prev, rowToDeal(result.deal)]);
     notify("Randevunuz alındı.", "success");
     return true;
@@ -1832,19 +3234,33 @@ export default function CustomerPortal() {
   const rescheduleAppointment = async (oldDeal, bookingParams) => {
     const ok = await bookAppointment(bookingParams);
     if (!ok) return false;
-    const { error } = await supabase.from("deals").update({ stage: "kaybedildi", lost_reason: "Randevusunu erteledi" }).eq("id", oldDeal.id);
+    const { error } = await supabase
+      .from("deals")
+      .update({ stage: "kaybedildi", lost_reason: "Randevusunu erteledi" })
+      .eq("id", oldDeal.id);
     if (error) {
-      notify(`Yeni randevunuz alındı ama eski randevunuz kapatılamadı, lütfen destekle iletişime geçin: ${error.message}`);
+      notify(
+        `Yeni randevunuz alındı ama eski randevunuz kapatılamadı, lütfen destekle iletişime geçin: ${error.message}`,
+      );
       return true;
     }
-    setDeals((prev) => prev.map((d) => (d.id === oldDeal.id ? { ...d, stage: "kaybedildi", lostReason: "Randevusunu erteledi" } : d)));
+    setDeals((prev) =>
+      prev.map((d) =>
+        d.id === oldDeal.id ? { ...d, stage: "kaybedildi", lostReason: "Randevusunu erteledi" } : d,
+      ),
+    );
     notify("Randevunuz ertelendi.", "success");
     return true;
   };
 
   const downloadSharedAttachment = async (attachment) => {
-    const { data, error } = await supabase.storage.from("attachments").createSignedUrl(attachment.storagePath, 60);
-    if (error || !data?.signedUrl) { notify(`Dosya indirilemedi: ${error?.message || ""}`); return; }
+    const { data, error } = await supabase.storage
+      .from("attachments")
+      .createSignedUrl(attachment.storagePath, 60);
+    if (error || !data?.signedUrl) {
+      notify(`Dosya indirilemedi: ${error?.message || ""}`);
+      return;
+    }
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   };
 
@@ -1855,10 +3271,18 @@ export default function CustomerPortal() {
     // için — App.jsx'teki computeNoShowRisk bunu "Randevuya gelmedi" ile
     // AYNI sayaçta birleştirip kaçıncı ihlalde ödeme zorunlu olacağını hesaplar.
     const lostReason = isLate ? "Geç iptal etti" : "İptal etti";
-    const { error } = await supabase.from("deals").update({ stage: "kaybedildi", lost_reason: lostReason }).eq("id", dealId);
-    if (error) { notify(`İptal edilemedi: ${error.message}`); return; }
+    const { error } = await supabase
+      .from("deals")
+      .update({ stage: "kaybedildi", lost_reason: lostReason })
+      .eq("id", dealId);
+    if (error) {
+      notify(`İptal edilemedi: ${error.message}`);
+      return;
+    }
     const cancelledDeal = deals.find((d) => d.id === dealId);
-    setDeals((prev) => prev.map((d) => (d.id === dealId ? { ...d, stage: "kaybedildi", lostReason } : d)));
+    setDeals((prev) =>
+      prev.map((d) => (d.id === dealId ? { ...d, stage: "kaybedildi", lostReason } : d)),
+    );
     notify("Randevunuz iptal edildi.", "success");
     // Paket sahibi müşterilerde ("paket sahiplerinde seans yaksın" açıksa)
     // ödeme zorunluluğu YERİNE ihlal ANINDA paketten 1 seans düşülür — bkz.
@@ -1873,8 +3297,16 @@ export default function CustomerPortal() {
         strikeLimit: ownerRow?.companyAppointmentPenaltyStrikeLimit,
       });
       if (burn) {
-        const { error: burnError } = await supabase.from("deals").update({ session_used: burn.newSessionUsed }).eq("id", burn.packageDealId);
-        if (!burnError) setDeals((prev) => prev.map((d) => (d.id === burn.packageDealId ? { ...d, sessionUsed: burn.newSessionUsed } : d)));
+        const { error: burnError } = await supabase
+          .from("deals")
+          .update({ session_used: burn.newSessionUsed })
+          .eq("id", burn.packageDealId);
+        if (!burnError)
+          setDeals((prev) =>
+            prev.map((d) =>
+              d.id === burn.packageDealId ? { ...d, sessionUsed: burn.newSessionUsed } : d,
+            ),
+          );
       }
     }
   };
@@ -1893,14 +3325,32 @@ export default function CustomerPortal() {
     setCreatingChat(true);
     const { data, error } = await supabase
       .from("tickets")
-      .insert({ user_id: activeCustomerRow.userId, customer_id: activeCustomerRow.id, subject: "Genel Mesajlaşma", description: "", priority: "orta", status: "acik", is_general_chat: true })
+      .insert({
+        user_id: activeCustomerRow.userId,
+        customer_id: activeCustomerRow.id,
+        subject: "Genel Mesajlaşma",
+        description: "",
+        priority: "orta",
+        status: "acik",
+        is_general_chat: true,
+      })
       .select()
       .single();
-    if (error) { notify(`Mesaj gönderilemedi: ${error.message}`); setCreatingChat(false); return; }
+    if (error) {
+      notify(`Mesaj gönderilemedi: ${error.message}`);
+      setCreatingChat(false);
+      return;
+    }
     setTickets((prev) => [...prev, rowToTicket(data)]);
     const { data: msgData, error: msgError } = await supabase
       .from("ticket_messages")
-      .insert({ user_id: activeCustomerRow.userId, ticket_id: data.id, direction: "gelen", is_internal: false, content })
+      .insert({
+        user_id: activeCustomerRow.userId,
+        ticket_id: data.id,
+        direction: "gelen",
+        is_internal: false,
+        content,
+      })
       .select()
       .single();
     if (!msgError) setTicketMessages((prev) => [...prev, rowToTicketMessage(msgData)]);
@@ -1912,17 +3362,28 @@ export default function CustomerPortal() {
     if (!ticket) return;
     const { data, error } = await supabase
       .from("ticket_messages")
-      .insert({ user_id: ticket.userId, ticket_id: ticketId, direction: "gelen", is_internal: false, content })
+      .insert({
+        user_id: ticket.userId,
+        ticket_id: ticketId,
+        direction: "gelen",
+        is_internal: false,
+        content,
+      })
       .select()
       .single();
-    if (error) { notify(`Mesaj gönderilemedi: ${error.message}`); return; }
+    if (error) {
+      notify(`Mesaj gönderilemedi: ${error.message}`);
+      return;
+    }
     setTicketMessages((prev) => [...prev, rowToTicketMessage(data)]);
     // Yanıt vermek, firmadan gelen bekleyen mesajı "okundu/yanıtlandı" sayar.
     await markMessagesRead(ticketId, "giden");
   };
 
   const markMessagesRead = async (ticketId, direction) => {
-    const hasUnread = ticketMessages.some((m) => m.ticketId === ticketId && m.direction === direction && !m.readAt);
+    const hasUnread = ticketMessages.some(
+      (m) => m.ticketId === ticketId && m.direction === direction && !m.readAt,
+    );
     if (!hasUnread) return;
     const now = new Date().toISOString();
     const { error } = await supabase
@@ -1933,7 +3394,11 @@ export default function CustomerPortal() {
       .is("read_at", null);
     if (error) return;
     setTicketMessages((prev) =>
-      prev.map((m) => (m.ticketId === ticketId && m.direction === direction && !m.readAt ? { ...m, readAt: now } : m))
+      prev.map((m) =>
+        m.ticketId === ticketId && m.direction === direction && !m.readAt
+          ? { ...m, readAt: now }
+          : m,
+      ),
     );
   };
 
@@ -1955,11 +3420,21 @@ export default function CustomerPortal() {
         applicationServerKey: urlBase64ToUint8Array(import.meta.env.VITE_VAPID_PUBLIC_KEY),
       });
       const json = subscription.toJSON();
-      const { error } = await supabase.from("push_subscriptions").upsert(
-        { user_id: session.user.id, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth_key: json.keys.auth },
-        { onConflict: "endpoint" }
-      );
-      if (error) { notify(`Bildirim aboneliği kaydedilemedi: ${error.message}`); return; }
+      const { error } = await supabase
+        .from("push_subscriptions")
+        .upsert(
+          {
+            user_id: session.user.id,
+            endpoint: json.endpoint,
+            p256dh: json.keys.p256dh,
+            auth_key: json.keys.auth,
+          },
+          { onConflict: "endpoint" },
+        );
+      if (error) {
+        notify(`Bildirim aboneliği kaydedilemedi: ${error.message}`);
+        return;
+      }
       setPushSubscribed(true);
     } catch {
       notify("Bildirim izni alınamadı.");
@@ -2011,15 +3486,28 @@ export default function CustomerPortal() {
     if (!row || !supportsSelfBooking(row.companySector)) return;
     initialAppointmentTabRef.current = true;
     setPortalTab("teklifler");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerRows, selectedCompanyId]);
 
-  if (session === undefined) return <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
+  if (session === undefined)
+    return (
+      <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>
+        Yükleniyor…
+      </div>
+    );
   if (!session) return <CustomerPortalEntry />;
-  if (loading) return <div style={{ padding: "2rem 0", textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor…</div>;
+  if (loading)
+    return (
+      <div style={{ padding: "2rem 0", textAlign: "center", color: "var(--text-secondary)" }}>
+        Yükleniyor…
+      </div>
+    );
 
-  const currentTicket = viewingTicket ? tickets.find((t) => t.id === viewingTicket.id) || viewingTicket : null;
-  const currentMessages = currentTicket ? ticketMessages.filter((m) => m.ticketId === currentTicket.id) : [];
+  const currentTicket = viewingTicket
+    ? tickets.find((t) => t.id === viewingTicket.id) || viewingTicket
+    : null;
+  const currentMessages = currentTicket
+    ? ticketMessages.filter((m) => m.ticketId === currentTicket.id)
+    : [];
 
   // Birden fazla firmaya bağlıysa (aynı e-posta ile), müşteri önce hangi firmayla
   // işlem yapmak istediğini seçer — sonrasında tüm ekran (sekmeler, randevu/ders
@@ -2033,20 +3521,48 @@ export default function CustomerPortal() {
   // portalı), sadece o an seçili olan firma için izin değişir, diğerleri etkilenmez.
   const setMarketingConsent = async (consent) => {
     if (!activeCustomerRow) return;
-    const { error } = await supabase.rpc("set_my_marketing_consent", { p_customer_id: activeCustomerRow.id, p_consent: consent });
-    if (error) { notify(`Güncellenemedi: ${error.message}`); return; }
+    const { error } = await supabase.rpc("set_my_marketing_consent", {
+      p_customer_id: activeCustomerRow.id,
+      p_consent: consent,
+    });
+    if (error) {
+      notify(`Güncellenemedi: ${error.message}`);
+      return;
+    }
     setCustomerRows((prev) =>
-      prev.map((r) => (r.id === activeCustomerRow.id ? { ...r, marketingConsent: consent, marketingConsentAt: consent ? new Date().toISOString() : r.marketingConsentAt } : r))
+      prev.map((r) =>
+        r.id === activeCustomerRow.id
+          ? {
+              ...r,
+              marketingConsent: consent,
+              marketingConsentAt: consent ? new Date().toISOString() : r.marketingConsentAt,
+            }
+          : r,
+      ),
     );
     notify(consent ? "Pazarlama e-postası izniniz kaydedildi." : "İzniniz kaldırıldı.", "success");
   };
 
   const setPhotoConsent = async (consent) => {
     if (!activeCustomerRow) return;
-    const { error } = await supabase.rpc("set_my_photo_consent", { p_customer_id: activeCustomerRow.id, p_consent: consent });
-    if (error) { notify(`Güncellenemedi: ${error.message}`); return; }
+    const { error } = await supabase.rpc("set_my_photo_consent", {
+      p_customer_id: activeCustomerRow.id,
+      p_consent: consent,
+    });
+    if (error) {
+      notify(`Güncellenemedi: ${error.message}`);
+      return;
+    }
     setCustomerRows((prev) =>
-      prev.map((r) => (r.id === activeCustomerRow.id ? { ...r, photoConsent: consent, photoConsentAt: consent ? new Date().toISOString() : r.photoConsentAt } : r))
+      prev.map((r) =>
+        r.id === activeCustomerRow.id
+          ? {
+              ...r,
+              photoConsent: consent,
+              photoConsentAt: consent ? new Date().toISOString() : r.photoConsentAt,
+            }
+          : r,
+      ),
     );
     notify(consent ? "Fotoğraf izniniz kaydedildi." : "İzniniz kaldırıldı.", "success");
   };
@@ -2057,10 +3573,27 @@ export default function CustomerPortal() {
   // ad/telefon/e-posta ile kayıtlı olabilir, sadece o an seçili firma değişir.
   const updateProfile = async ({ name, phone, email }) => {
     if (!activeCustomerRow) return false;
-    const { error } = await supabase.rpc("set_my_profile", { p_customer_id: activeCustomerRow.id, p_name: name, p_phone: phone, p_email: email });
-    if (error) { notify(`Bilgileriniz güncellenemedi: ${error.message}`); return false; }
+    const { error } = await supabase.rpc("set_my_profile", {
+      p_customer_id: activeCustomerRow.id,
+      p_name: name,
+      p_phone: phone,
+      p_email: email,
+    });
+    if (error) {
+      notify(`Bilgileriniz güncellenemedi: ${error.message}`);
+      return false;
+    }
     setCustomerRows((prev) =>
-      prev.map((r) => (r.id === activeCustomerRow.id ? { ...r, name: name.trim() || r.name, phone: phone.trim() || null, email: email.trim() || null } : r))
+      prev.map((r) =>
+        r.id === activeCustomerRow.id
+          ? {
+              ...r,
+              name: name.trim() || r.name,
+              phone: phone.trim() || null,
+              email: email.trim() || null,
+            }
+          : r,
+      ),
     );
     notify("Bilgileriniz güncellendi.", "success");
     return true;
@@ -2069,12 +3602,22 @@ export default function CustomerPortal() {
   const visibleCustomerRows = activeCustomerRow ? [activeCustomerRow] : [];
   // "Mesajlar" sohbeti (is_general_chat) Taleplerim listesinde görünmez — kendi
   // sekmesinde, konu/durum olmadan düz bir sohbet olarak gösteriliyor.
-  const visibleTickets = activeCustomerRow ? tickets.filter((t) => t.customerId === activeCustomerRow.id && !t.isGeneralChat) : [];
-  const visibleDeals = activeCustomerRow ? deals.filter((d) => d.customerId === activeCustomerRow.id) : [];
-  const visiblePayments = activeCustomerRow ? payments.filter((p) => p.customerId === activeCustomerRow.id) : [];
-  const visibleGroupClasses = activeCustomerRow ? groupClasses.filter((g) => g.userId === activeCustomerRow.userId) : [];
+  const visibleTickets = activeCustomerRow
+    ? tickets.filter((t) => t.customerId === activeCustomerRow.id && !t.isGeneralChat)
+    : [];
+  const visibleDeals = activeCustomerRow
+    ? deals.filter((d) => d.customerId === activeCustomerRow.id)
+    : [];
+  const visiblePayments = activeCustomerRow
+    ? payments.filter((p) => p.customerId === activeCustomerRow.id)
+    : [];
+  const visibleGroupClasses = activeCustomerRow
+    ? groupClasses.filter((g) => g.userId === activeCustomerRow.userId)
+    : [];
 
-  const chatTicket = activeCustomerRow ? tickets.find((t) => t.customerId === activeCustomerRow.id && t.isGeneralChat) || null : null;
+  const chatTicket = activeCustomerRow
+    ? tickets.find((t) => t.customerId === activeCustomerRow.id && t.isGeneralChat) || null
+    : null;
   const chatMessages = chatTicket ? ticketMessages.filter((m) => m.ticketId === chatTicket.id) : [];
   const chatUnreadCount = chatMessages.filter((m) => m.direction === "giden" && !m.readAt).length;
 
@@ -2083,44 +3626,87 @@ export default function CustomerPortal() {
     return acc;
   }, {});
 
-  const companyNameByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companyName || c.name]));
-  const sectorByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companySector]));
-  const hardBlockHoursByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companyAppointmentCancelHours]));
-  const appointmentPenaltyHoursByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companyAppointmentPenaltyHours]));
-  const appointmentPenaltyStrikeLimitByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companyAppointmentPenaltyStrikeLimit]));
-  const appointmentPenaltyBurnsSessionByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companyAppointmentPenaltyBurnsSession]));
-  const appointmentPartialChargeHoursByCustomerId = Object.fromEntries(visibleCustomerRows.map((c) => [c.id, c.companyAppointmentPartialChargeHours]));
+  const companyNameByCustomerId = Object.fromEntries(
+    visibleCustomerRows.map((c) => [c.id, c.companyName || c.name]),
+  );
+  const sectorByCustomerId = Object.fromEntries(
+    visibleCustomerRows.map((c) => [c.id, c.companySector]),
+  );
+  const hardBlockHoursByCustomerId = Object.fromEntries(
+    visibleCustomerRows.map((c) => [c.id, c.companyAppointmentCancelHours]),
+  );
+  const appointmentPenaltyHoursByCustomerId = Object.fromEntries(
+    visibleCustomerRows.map((c) => [c.id, c.companyAppointmentPenaltyHours]),
+  );
+  const appointmentPenaltyStrikeLimitByCustomerId = Object.fromEntries(
+    visibleCustomerRows.map((c) => [c.id, c.companyAppointmentPenaltyStrikeLimit]),
+  );
+  const appointmentPenaltyBurnsSessionByCustomerId = Object.fromEntries(
+    visibleCustomerRows.map((c) => [c.id, c.companyAppointmentPenaltyBurnsSession]),
+  );
+  const appointmentPartialChargeHoursByCustomerId = Object.fromEntries(
+    visibleCustomerRows.map((c) => [c.id, c.companyAppointmentPartialChargeHours]),
+  );
   const totalUnreadTickets = visibleTickets.filter((t) => unreadCountByTicket[t.id] > 0).length;
 
   const dealKind = dealWordKind(activeCustomerRow?.companySector);
-  const appointmentCompanies = activeCustomerRow && supportsSelfBooking(activeCustomerRow.companySector) ? [activeCustomerRow] : [];
-  const showDersler = supportsGroupClasses(activeCustomerRow?.companySector) && visibleGroupClasses.length > 0;
+  const appointmentCompanies =
+    activeCustomerRow && supportsSelfBooking(activeCustomerRow.companySector)
+      ? [activeCustomerRow]
+      : [];
+  const showDersler =
+    supportsGroupClasses(activeCustomerRow?.companySector) && visibleGroupClasses.length > 0;
 
   return (
     <div style={{ padding: "24px 16px 64px" }}>
-      <div className="app-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
+      <div
+        className="app-header-row"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: "1.5rem",
+        }}
+      >
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-            <IconButton icon="ti-menu-2" onClick={() => setSidebarOpen(true)} title="Menü" className="app-sidebar-toggle" />
+            <IconButton
+              icon="ti-menu-2"
+              onClick={() => setSidebarOpen(true)}
+              title="Menü"
+              className="app-sidebar-toggle"
+            />
             <img src="/favicon.svg" alt="Binerly" style={{ width: 31, height: 31 }} />
             <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
               {activeCustomerRow ? (
                 <>
                   {activeCustomerRow.companyName || activeCustomerRow.name}{" "}
-                  <span style={{ fontWeight: 400, fontSize: 13, color: "var(--text-secondary)" }}>(Binerly ile)</span>
+                  <span style={{ fontWeight: 400, fontSize: 13, color: "var(--text-secondary)" }}>
+                    (Binerly ile)
+                  </span>
                 </>
               ) : (
                 "Binerly - Müşteri Bilgi Sistemi"
               )}
             </h1>
           </div>
-          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>Taleplerinizi ve {PORTAL_DEAL_WORDS[dealKind].possAcc} buradan takip edin</p>
+          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>
+            Taleplerinizi ve {PORTAL_DEAL_WORDS[dealKind].possAcc} buradan takip edin
+          </p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <NotificationBell userId={session.user.id} supabase={supabase} />
           <button
             onClick={() => setPortalTab("ayarlar")}
-            style={{ fontSize: 12, color: "var(--text-secondary)", background: "none", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 4 }}
+            style={{
+              fontSize: 12,
+              color: "var(--text-secondary)",
+              background: "none",
+              border: "0.5px solid var(--border)",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
             title="Ayarlar"
           >
             <i className="ti ti-adjustments" style={{ fontSize: 14 }} aria-hidden="true"></i>
@@ -2129,7 +3715,15 @@ export default function CustomerPortal() {
           {customerRows.length > 1 && activeCustomerRow && (
             <button
               onClick={() => setSelectedCompanyId(null)}
-              style={{ fontSize: 12, color: "var(--text-secondary)", background: "none", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 4 }}
+              style={{
+                fontSize: 12,
+                color: "var(--text-secondary)",
+                background: "none",
+                border: "0.5px solid var(--border)",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}
               title="Başka bir işletme seç"
             >
               <i className="ti ti-building-store" style={{ fontSize: 14 }} aria-hidden="true"></i>
@@ -2138,7 +3732,15 @@ export default function CustomerPortal() {
           )}
           <button
             onClick={() => supabase.auth.signOut()}
-            style={{ fontSize: 12, color: "var(--text-secondary)", background: "none", border: "0.5px solid var(--border)", display: "flex", alignItems: "center", gap: 4 }}
+            style={{
+              fontSize: 12,
+              color: "var(--text-secondary)",
+              background: "none",
+              border: "0.5px solid var(--border)",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
             title="Çıkış yap"
           >
             <i className="ti ti-logout" style={{ fontSize: 14 }} aria-hidden="true"></i>
@@ -2148,193 +3750,331 @@ export default function CustomerPortal() {
       </div>
 
       <div style={{ maxWidth: 1300 }}>
-      {loadError ? (
-        <p style={{ fontSize: 14, color: "var(--text-danger)" }}>
-          Verileriniz yüklenirken bir hata oluştu. Lütfen sayfayı yenileyip tekrar deneyin.
-        </p>
-      ) : customerRows.length === 0 ? (
-        <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
-          Hesabınız henüz bir firmayla eşleşmedi. Kayıt olurken kullandığınız e-postanın, ilgili firmanın sisteminde kayıtlı e-posta ile aynı olduğundan emin olun.
-        </p>
-      ) : customerRows.length === 1 && !activeCustomerRow ? (
-        // Tek firmaya bağlı müşteri için otomatik seçim efekti henüz işlenmeden
-        // önceki tek karelik an — boş sekme yerine kısa bir yükleniyor gösterilir.
-        <div style={{ textAlign: "center", color: "var(--text-secondary)", padding: "2rem 0" }}>Yükleniyor…</div>
-      ) : showCompanyPicker ? (
-        <div>
-          <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px" }}>
-            Birden fazla işletmeyle bağlantılısınız - hangisiyle işlem yapmak istiyorsunuz?
+        {loadError ? (
+          <p style={{ fontSize: 14, color: "var(--text-danger)" }}>
+            Verileriniz yüklenirken bir hata oluştu. Lütfen sayfayı yenileyip tekrar deneyin.
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {customerRows.map((row) => {
-              const preset = SECTOR_PRESETS.find((s) => s.id === row.companySector);
-              return (
-                <button
-                  key={row.id}
-                  onClick={() => setSelectedCompanyId(row.id)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 12, textAlign: "left",
-                    background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)",
-                    padding: "0.9rem 1rem", fontSize: 14, color: "var(--text-primary)",
-                  }}
-                >
-                  <i className={`ti ${preset?.icon || "ti-building-store"}`} style={{ fontSize: 20, color: "var(--fill-accent)", flex: "none" }} aria-hidden="true"></i>
-                  <span style={{ flex: 1 }}>
-                    <span style={{ display: "block", fontWeight: 600 }}>{row.companyName || row.name}</span>
-                    {preset && <span style={{ display: "block", fontSize: 12, color: "var(--text-secondary)" }}>{preset.label}</span>}
-                  </span>
-                  <i className="ti ti-chevron-right" style={{ fontSize: 16, color: "var(--text-muted)" }} aria-hidden="true"></i>
-                </button>
-              );
-            })}
+        ) : customerRows.length === 0 ? (
+          <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
+            Hesabınız henüz bir firmayla eşleşmedi. Kayıt olurken kullandığınız e-postanın, ilgili
+            firmanın sisteminde kayıtlı e-posta ile aynı olduğundan emin olun.
+          </p>
+        ) : customerRows.length === 1 && !activeCustomerRow ? (
+          // Tek firmaya bağlı müşteri için otomatik seçim efekti henüz işlenmeden
+          // önceki tek karelik an — boş sekme yerine kısa bir yükleniyor gösterilir.
+          <div style={{ textAlign: "center", color: "var(--text-secondary)", padding: "2rem 0" }}>
+            Yükleniyor…
           </div>
-        </div>
-      ) : (
-        <>
-          <div style={{ display: "flex", gap: 32, alignItems: "flex-start" }}>
-          {sidebarOpen && <div className="app-sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
-          <nav className={`app-sidebar${sidebarOpen ? " open" : ""}`} style={{ width: 200, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4, position: "sticky", top: 24 }}>
-            {[
-              { id: "talepler", label: "Taleplerim", icon: "ti-ticket" },
-              { id: "mesajlar", label: "Mesajlar", icon: "ti-message-circle" },
-              { id: "teklifler", label: PORTAL_DEAL_WORDS[dealKind].tabLabel, icon: "ti-file-text" },
-              ...(showDersler ? [{ id: "dersler", label: "Derslerim", icon: "ti-calendar-time" }] : []),
-              { id: "odemeler", label: "Ödemelerim", icon: "ti-receipt" },
-            ].map((t) => (
-              <button
-                key={t.id}
-                onClick={() => { setPortalTab(t.id); setSidebarOpen(false); }}
-                className={portalTab === t.id ? undefined : "app-sidebar-tab"}
-                style={{
-                  border: portalTab === t.id ? "0.5px solid var(--border-strong)" : "0.5px solid transparent",
-                  background: portalTab === t.id ? "var(--surface-1)" : "transparent",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "flex-start",
-                  gap: 8,
-                  position: "relative",
-                  padding: "8px 10px",
-                  width: "100%",
-                  textAlign: "left",
-                }}
-              >
-                <i className={`ti ${t.icon}`} style={{ fontSize: 16, flexShrink: 0 }} aria-hidden="true"></i>
-                <span style={{ flex: 1 }}>{t.label}</span>
-                {((t.id === "talepler" && totalUnreadTickets > 0) || (t.id === "mesajlar" && chatUnreadCount > 0)) && (
-                  <span
+        ) : showCompanyPicker ? (
+          <div>
+            <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px" }}>
+              Birden fazla işletmeyle bağlantılısınız - hangisiyle işlem yapmak istiyorsunuz?
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {customerRows.map((row) => {
+                const preset = SECTOR_PRESETS.find((s) => s.id === row.companySector);
+                return (
+                  <button
+                    key={row.id}
+                    onClick={() => setSelectedCompanyId(row.id)}
                     style={{
-                      minWidth: 18, height: 18, borderRadius: 9,
-                      background: "var(--text-danger)", color: "var(--on-accent)", fontSize: 11, fontWeight: 700,
-                      display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", flexShrink: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      textAlign: "left",
+                      background: "var(--surface-1)",
+                      border: "0.5px solid var(--border)",
+                      borderRadius: "var(--radius)",
+                      padding: "0.9rem 1rem",
+                      fontSize: 14,
+                      color: "var(--text-primary)",
                     }}
                   >
-                    {t.id === "talepler" ? totalUnreadTickets : chatUnreadCount}
-                  </span>
-                )}
-              </button>
-            ))}
-          </nav>
-
-          <div style={{ flex: 1, minWidth: 0 }}>
-
-          {portalTab === "talepler" && (
-            <div>
-              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-                <button
-                  onClick={() => setShowNewTicketForm(true)}
-                  style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
-                >
-                  <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                  Yeni talep
-                </button>
-              </div>
-              <PortalTicketList
-                tickets={visibleTickets}
-                unreadCountByTicket={unreadCountByTicket}
-                onOpenTicket={setViewingTicket}
-                companyNameByCustomerId={companyNameByCustomerId}
-                showCompany={false}
-              />
+                    <i
+                      className={`ti ${preset?.icon || "ti-building-store"}`}
+                      style={{ fontSize: 20, color: "var(--fill-accent)", flex: "none" }}
+                      aria-hidden="true"
+                    ></i>
+                    <span style={{ flex: 1 }}>
+                      <span style={{ display: "block", fontWeight: 600 }}>
+                        {row.companyName || row.name}
+                      </span>
+                      {preset && (
+                        <span
+                          style={{ display: "block", fontSize: 12, color: "var(--text-secondary)" }}
+                        >
+                          {preset.label}
+                        </span>
+                      )}
+                    </span>
+                    <i
+                      className="ti ti-chevron-right"
+                      style={{ fontSize: 16, color: "var(--text-muted)" }}
+                      aria-hidden="true"
+                    ></i>
+                  </button>
+                );
+              })}
             </div>
-          )}
-
-          {portalTab === "mesajlar" && (
-            <PortalMessagesPanel messages={chatMessages} onSend={sendChatMessage} sending={creatingChat} companyName={activeCustomerRow?.companyName || activeCustomerRow?.name} />
-          )}
-
-          {portalTab === "teklifler" && (
-            <div>
-              {appointmentCompanies.length > 0 && (
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-                  {appointmentCompanies.map((row) => (
-                    <button
-                      key={row.id}
-                      onClick={() => setBookingFor(row)}
-                      style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", display: "flex", alignItems: "center", gap: 6 }}
-                    >
-                      <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
-                      {(() => {
-                        const label = bookingModel(row.companySector) === "inventory" ? "Rezervasyon Yap" : "Randevu Al";
-                        return appointmentCompanies.length > 1 ? `${row.companyName || row.name} - ${label}` : label;
-                      })()}
-                    </button>
-                  ))}
-                </div>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: "flex", gap: 32, alignItems: "flex-start" }}>
+              {sidebarOpen && (
+                <div className="app-sidebar-backdrop" onClick={() => setSidebarOpen(false)} />
               )}
-              <PortalDealList deals={visibleDeals} companyNameByCustomerId={companyNameByCustomerId} sectorByCustomerId={sectorByCustomerId} hardBlockHoursByCustomerId={hardBlockHoursByCustomerId} appointmentPenaltyHoursByCustomerId={appointmentPenaltyHoursByCustomerId} appointmentPenaltyStrikeLimitByCustomerId={appointmentPenaltyStrikeLimitByCustomerId} appointmentPenaltyBurnsSessionByCustomerId={appointmentPenaltyBurnsSessionByCustomerId} appointmentPartialChargeHoursByCustomerId={appointmentPartialChargeHoursByCustomerId} sector={activeCustomerRow?.companySector} showCompany={false} dealKind={dealKind} onCancelAppointment={(id, isLate, willBurnSession, chargeZone) => setConfirmCancel({ type: "appointment", id, isLate, willBurnSession, chargeZone })} onReschedule={setReschedulingDeal} sharedAttachments={sharedAttachments} onDownloadAttachment={downloadSharedAttachment} />
+              <nav
+                className={`app-sidebar${sidebarOpen ? " open" : ""}`}
+                style={{
+                  width: 200,
+                  flexShrink: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                  position: "sticky",
+                  top: 24,
+                }}
+              >
+                {[
+                  { id: "talepler", label: "Taleplerim", icon: "ti-ticket" },
+                  { id: "mesajlar", label: "Mesajlar", icon: "ti-message-circle" },
+                  {
+                    id: "teklifler",
+                    label: PORTAL_DEAL_WORDS[dealKind].tabLabel,
+                    icon: "ti-file-text",
+                  },
+                  ...(showDersler
+                    ? [{ id: "dersler", label: "Derslerim", icon: "ti-calendar-time" }]
+                    : []),
+                  { id: "odemeler", label: "Ödemelerim", icon: "ti-receipt" },
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => {
+                      setPortalTab(t.id);
+                      setSidebarOpen(false);
+                    }}
+                    className={portalTab === t.id ? undefined : "app-sidebar-tab"}
+                    style={{
+                      border:
+                        portalTab === t.id
+                          ? "0.5px solid var(--border-strong)"
+                          : "0.5px solid transparent",
+                      background: portalTab === t.id ? "var(--surface-1)" : "transparent",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "flex-start",
+                      gap: 8,
+                      position: "relative",
+                      padding: "8px 10px",
+                      width: "100%",
+                      textAlign: "left",
+                    }}
+                  >
+                    <i
+                      className={`ti ${t.icon}`}
+                      style={{ fontSize: 16, flexShrink: 0 }}
+                      aria-hidden="true"
+                    ></i>
+                    <span style={{ flex: 1 }}>{t.label}</span>
+                    {((t.id === "talepler" && totalUnreadTickets > 0) ||
+                      (t.id === "mesajlar" && chatUnreadCount > 0)) && (
+                      <span
+                        style={{
+                          minWidth: 18,
+                          height: 18,
+                          borderRadius: 9,
+                          background: "var(--text-danger)",
+                          color: "var(--on-accent)",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          padding: "0 4px",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {t.id === "talepler" ? totalUnreadTickets : chatUnreadCount}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </nav>
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {portalTab === "talepler" && (
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+                      <button
+                        onClick={() => setShowNewTicketForm(true)}
+                        style={{
+                          background: "var(--fill-accent)",
+                          color: "var(--on-accent)",
+                          border: "none",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                        }}
+                      >
+                        <i className="ti ti-plus" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                        Yeni talep
+                      </button>
+                    </div>
+                    <PortalTicketList
+                      tickets={visibleTickets}
+                      unreadCountByTicket={unreadCountByTicket}
+                      onOpenTicket={setViewingTicket}
+                      companyNameByCustomerId={companyNameByCustomerId}
+                      showCompany={false}
+                    />
+                  </div>
+                )}
+
+                {portalTab === "mesajlar" && (
+                  <PortalMessagesPanel
+                    messages={chatMessages}
+                    onSend={sendChatMessage}
+                    sending={creatingChat}
+                    companyName={activeCustomerRow?.companyName || activeCustomerRow?.name}
+                  />
+                )}
+
+                {portalTab === "teklifler" && (
+                  <div>
+                    {appointmentCompanies.length > 0 && (
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "flex-end",
+                          gap: 8,
+                          marginBottom: 12,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        {appointmentCompanies.map((row) => (
+                          <button
+                            key={row.id}
+                            onClick={() => setBookingFor(row)}
+                            style={{
+                              background: "var(--fill-accent)",
+                              color: "var(--on-accent)",
+                              border: "none",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 6,
+                            }}
+                          >
+                            <i
+                              className="ti ti-plus"
+                              style={{ fontSize: 16 }}
+                              aria-hidden="true"
+                            ></i>
+                            {(() => {
+                              const label =
+                                bookingModel(row.companySector) === "inventory"
+                                  ? "Rezervasyon Yap"
+                                  : "Randevu Al";
+                              return appointmentCompanies.length > 1
+                                ? `${row.companyName || row.name} - ${label}`
+                                : label;
+                            })()}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <PortalDealList
+                      deals={visibleDeals}
+                      companyNameByCustomerId={companyNameByCustomerId}
+                      sectorByCustomerId={sectorByCustomerId}
+                      hardBlockHoursByCustomerId={hardBlockHoursByCustomerId}
+                      appointmentPenaltyHoursByCustomerId={appointmentPenaltyHoursByCustomerId}
+                      appointmentPenaltyStrikeLimitByCustomerId={
+                        appointmentPenaltyStrikeLimitByCustomerId
+                      }
+                      appointmentPenaltyBurnsSessionByCustomerId={
+                        appointmentPenaltyBurnsSessionByCustomerId
+                      }
+                      appointmentPartialChargeHoursByCustomerId={
+                        appointmentPartialChargeHoursByCustomerId
+                      }
+                      sector={activeCustomerRow?.companySector}
+                      showCompany={false}
+                      dealKind={dealKind}
+                      onCancelAppointment={(id, isLate, willBurnSession, chargeZone) =>
+                        setConfirmCancel({
+                          type: "appointment",
+                          id,
+                          isLate,
+                          willBurnSession,
+                          chargeZone,
+                        })
+                      }
+                      onReschedule={setReschedulingDeal}
+                      sharedAttachments={sharedAttachments}
+                      onDownloadAttachment={downloadSharedAttachment}
+                    />
+                  </div>
+                )}
+
+                {portalTab === "dersler" && (
+                  <PortalGroupClasses
+                    groupClasses={visibleGroupClasses}
+                    groupClassEnrollments={groupClassEnrollments}
+                    groupClassWaitlist={groupClassWaitlist}
+                    customerRows={visibleCustomerRows}
+                    showCompany={false}
+                    hasActiveMembership={hasActiveMembership}
+                    getMembershipDeal={activeMembershipDeal}
+                    onEnroll={enrollInClass}
+                    onCancel={(id, burn) => setConfirmCancel({ type: "enrollment", id, burn })}
+                    onJoinWaitlist={joinWaitlist}
+                    onLeaveWaitlist={leaveWaitlist}
+                  />
+                )}
+
+                {portalTab === "odemeler" && (
+                  <PortalPayments
+                    payments={visiblePayments}
+                    showCompany={false}
+                    companyNameByCustomerId={companyNameByCustomerId}
+                  />
+                )}
+
+                {portalTab === "ayarlar" && (
+                  <PortalSettings
+                    session={session}
+                    theme={theme}
+                    onThemeChange={setTheme}
+                    pushSubscribed={pushSubscribed}
+                    onSubscribe={subscribeToPush}
+                    onUnsubscribe={unsubscribeFromPush}
+                    marketingConsent={activeCustomerRow?.marketingConsent}
+                    onMarketingConsentChange={setMarketingConsent}
+                    companyName={activeCustomerRow?.companyName}
+                    companySector={activeCustomerRow?.companySector}
+                    photoConsent={activeCustomerRow?.photoConsent}
+                    onPhotoConsentChange={setPhotoConsent}
+                    customerName={activeCustomerRow?.name}
+                    customerPhone={activeCustomerRow?.phone}
+                    customerEmail={activeCustomerRow?.email}
+                    onUpdateProfile={updateProfile}
+                    notify={notify}
+                  />
+                )}
+              </div>
             </div>
-          )}
-
-          {portalTab === "dersler" && (
-            <PortalGroupClasses
-              groupClasses={visibleGroupClasses}
-              groupClassEnrollments={groupClassEnrollments}
-              groupClassWaitlist={groupClassWaitlist}
-              customerRows={visibleCustomerRows}
-              showCompany={false}
-              hasActiveMembership={hasActiveMembership}
-              getMembershipDeal={activeMembershipDeal}
-              onEnroll={enrollInClass}
-              onCancel={(id, burn) => setConfirmCancel({ type: "enrollment", id, burn })}
-              onJoinWaitlist={joinWaitlist}
-              onLeaveWaitlist={leaveWaitlist}
-            />
-          )}
-
-          {portalTab === "odemeler" && (
-            <PortalPayments payments={visiblePayments} showCompany={false} companyNameByCustomerId={companyNameByCustomerId} />
-          )}
-
-          {portalTab === "ayarlar" && (
-            <PortalSettings
-              session={session}
-              theme={theme}
-              onThemeChange={setTheme}
-              pushSubscribed={pushSubscribed}
-              onSubscribe={subscribeToPush}
-              onUnsubscribe={unsubscribeFromPush}
-              marketingConsent={activeCustomerRow?.marketingConsent}
-              onMarketingConsentChange={setMarketingConsent}
-              companyName={activeCustomerRow?.companyName}
-              companySector={activeCustomerRow?.companySector}
-              photoConsent={activeCustomerRow?.photoConsent}
-              onPhotoConsentChange={setPhotoConsent}
-              customerName={activeCustomerRow?.name}
-              customerPhone={activeCustomerRow?.phone}
-              customerEmail={activeCustomerRow?.email}
-              onUpdateProfile={updateProfile}
-              notify={notify}
-            />
-          )}
-          </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
       </div>
 
       {showNewTicketForm && (
         <Modal title="Yeni destek talebi" onClose={() => setShowNewTicketForm(false)}>
-          <PortalNewTicketForm customerRows={visibleCustomerRows} onSave={createTicket} onCancel={() => setShowNewTicketForm(false)} />
+          <PortalNewTicketForm
+            customerRows={visibleCustomerRows}
+            onSave={createTicket}
+            onCancel={() => setShowNewTicketForm(false)}
+          />
         </Modal>
       )}
 
@@ -2360,44 +4100,55 @@ export default function CustomerPortal() {
         />
       )}
 
-      {reschedulingDeal && (() => {
-        const rescheduleCustomerRow = customerRows.find((r) => r.id === reschedulingDeal.customerId);
-        if (!rescheduleCustomerRow) return null;
-        return (
-          <AppointmentBookingModal
-            customerRow={rescheduleCustomerRow}
-            priceListItems={priceListItems.filter((p) => p.userId === rescheduleCustomerRow.userId)}
-            reschedule={{ initialNote: reschedulingDeal.title, initialServiceIds: Array.isArray(reschedulingDeal.customFields?.service_ids) ? reschedulingDeal.customFields.service_ids : [] }}
-            onBook={(params) => rescheduleAppointment(reschedulingDeal, params)}
-            onClose={() => setReschedulingDeal(null)}
-          />
-        );
-      })()}
+      {reschedulingDeal &&
+        (() => {
+          const rescheduleCustomerRow = customerRows.find(
+            (r) => r.id === reschedulingDeal.customerId,
+          );
+          if (!rescheduleCustomerRow) return null;
+          return (
+            <AppointmentBookingModal
+              customerRow={rescheduleCustomerRow}
+              priceListItems={priceListItems.filter(
+                (p) => p.userId === rescheduleCustomerRow.userId,
+              )}
+              reschedule={{
+                initialNote: reschedulingDeal.title,
+                initialServiceIds: Array.isArray(reschedulingDeal.customFields?.service_ids)
+                  ? reschedulingDeal.customFields.service_ids
+                  : [],
+              }}
+              onBook={(params) => rescheduleAppointment(reschedulingDeal, params)}
+              onClose={() => setReschedulingDeal(null)}
+            />
+          );
+        })()}
 
       {confirmCancel && (
         <ConfirmDialog
           title="İptal edilsin mi?"
           message={
             confirmCancel.type === "appointment"
-              ? (confirmCancel.willBurnSession
-                  ? "Randevunuzu iptal etmek istediğinizden emin misiniz? Randevu saatine az kaldığı için bu iptal paketinizden 1 seans düşürecek. Bu işlem geri alınamaz."
-                  : confirmCancel.chargeZone === "full"
+              ? confirmCancel.willBurnSession
+                ? "Randevunuzu iptal etmek istediğinizden emin misiniz? Randevu saatine az kaldığı için bu iptal paketinizden 1 seans düşürecek. Bu işlem geri alınamaz."
+                : confirmCancel.chargeZone === "full"
                   ? "Randevunuzu iptal etmek istediğinizden emin misiniz? Randevu saatine çok az kaldığı için bu iptal 'geç iptal' olarak işaretlenecek ve tam kesinti (seans yapılmış sayılabilir) bölgesinde. Bu işlem geri alınamaz."
                   : confirmCancel.chargeZone === "partial"
-                  ? "Randevunuzu iptal etmek istediğinizden emin misiniz? Randevu saatine az kaldığı için bu iptal 'geç iptal' olarak işaretlenecek ve kısmi kesinti (~%50) önerilen bölgede. Bu işlem geri alınamaz."
-                  : confirmCancel.isLate
-                  ? "Randevunuzu iptal etmek istediğinizden emin misiniz? Randevu saatine az kaldığı için bu iptal 'geç iptal' olarak işaretlenecek. Bu işlem geri alınamaz."
-                  : "Randevunuzu iptal etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.")
+                    ? "Randevunuzu iptal etmek istediğinizden emin misiniz? Randevu saatine az kaldığı için bu iptal 'geç iptal' olarak işaretlenecek ve kısmi kesinti (~%50) önerilen bölgede. Bu işlem geri alınamaz."
+                    : confirmCancel.isLate
+                      ? "Randevunuzu iptal etmek istediğinizden emin misiniz? Randevu saatine az kaldığı için bu iptal 'geç iptal' olarak işaretlenecek. Bu işlem geri alınamaz."
+                      : "Randevunuzu iptal etmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
               : confirmCancel.burn?.newSessionUsed != null
-              ? "Bu derse kaydınızı iptal etmek istediğinizden emin misiniz? Bu süreden az kala iptal ettiğiniz için 1 seansınız düşülecek. Bu işlem geri alınamaz."
-              : confirmCancel.burn
-              ? "Bu derse kaydınızı iptal etmek istediğinizden emin misiniz? Bu süreden az kala iptal ediyorsunuz, tekrarlanırsa ileride seans düşebilir. Bu işlem geri alınamaz."
-              : "Bu derse kaydınızı iptal etmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
+                ? "Bu derse kaydınızı iptal etmek istediğinizden emin misiniz? Bu süreden az kala iptal ettiğiniz için 1 seansınız düşülecek. Bu işlem geri alınamaz."
+                : confirmCancel.burn
+                  ? "Bu derse kaydınızı iptal etmek istediğinizden emin misiniz? Bu süreden az kala iptal ediyorsunuz, tekrarlanırsa ileride seans düşebilir. Bu işlem geri alınamaz."
+                  : "Bu derse kaydınızı iptal etmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
           }
           confirmLabel="İptal Et"
           onClose={() => setConfirmCancel(null)}
           onConfirm={async () => {
-            if (confirmCancel.type === "appointment") await cancelAppointment(confirmCancel.id, confirmCancel.isLate);
+            if (confirmCancel.type === "appointment")
+              await cancelAppointment(confirmCancel.id, confirmCancel.isLate);
             else await cancelEnrollment(confirmCancel.id, confirmCancel.burn);
             setConfirmCancel(null);
           }}
