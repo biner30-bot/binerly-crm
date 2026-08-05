@@ -918,6 +918,7 @@ function PortalDealList({
   onReschedule,
   sharedAttachments = [],
   onDownloadAttachment,
+  onBookNew,
 }) {
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState("all");
@@ -1006,7 +1007,13 @@ function PortalDealList({
       {sorted.length === 0 ? (
         <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Aramayla eşleşen kayıt yok.</p>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: 12,
+          }}
+        >
           {sorted.map((d) => {
             const stageText = stageLabel(d.stage, "bireysel", sectorByCustomerId[d.customerId]);
             const tone =
@@ -1081,151 +1088,264 @@ function PortalDealList({
               d.approvalToken &&
               (isCompleted || isSelfBooked ? needsPayment : !isApproved || needsPayment);
             const dealDocs = sharedAttachments.filter((a) => a.dealId === d.id);
+            const sectorIcon =
+              SECTOR_PRESETS.find((s) => s.id === sectorByCustomerId[d.customerId])?.icon ||
+              "ti-file-text";
             return (
               <div
                 key={d.id}
                 style={{
                   background: "var(--surface-1)",
-                  borderRadius: "var(--radius)",
-                  padding: "0.75rem 1rem",
+                  borderRadius: "var(--radius-lg)",
+                  boxShadow: "var(--shadow-sm)",
+                  padding: "1rem 1.1rem",
                   display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 12,
-                  flexWrap: "wrap",
+                  flexDirection: "column",
+                  gap: 10,
                 }}
               >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: 8,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: "50%",
+                      background: "var(--bg-accent)",
+                      color: "var(--text-accent)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flex: "none",
+                    }}
+                  >
+                    <i
+                      className={`ti ${sectorIcon}`}
+                      style={{ fontSize: 19 }}
+                      aria-hidden="true"
+                    ></i>
+                  </div>
+                  <Badge tone={tone}>{stageText}</Badge>
+                </div>
+
                 <div>
-                  <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{d.title}</p>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontWeight: 700,
+                      fontSize: 15,
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    {d.title}
+                  </p>
                   {randevuTarihi && (
-                    <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
+                    <p
+                      style={{
+                        margin: "4px 0 0",
+                        fontSize: 12.5,
+                        color: "var(--text-secondary)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 5,
+                      }}
+                    >
+                      <i className="ti ti-clock" style={{ fontSize: 13 }} aria-hidden="true"></i>
                       {formatDateTime(randevuTarihi)}
                     </p>
                   )}
                   {showCompany && (
-                    <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
+                    <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>
                       {companyNameByCustomerId[d.customerId] || "Bilinmeyen firma"}
                     </p>
                   )}
                   {/* Eskiden sadece span'ın title tooltip'indeydi - dokunmatik ekranda
                   hover olmadığı için bu bilgi mobilde hiç görünmüyordu. */}
                   {cancellable && !canCancel && (
-                    <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "var(--text-muted)" }}>
+                    <p style={{ margin: "4px 0 0", fontSize: 11.5, color: "var(--text-muted)" }}>
                       Randevu saatine {hardBlockHours} saatten az kaldığı için iptal edilemez
                     </p>
                   )}
-                  {dealDocs.length > 0 && (
-                    <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 2 }}>
-                      {dealDocs.map((doc) => (
-                        <button
-                          key={doc.id}
-                          type="button"
-                          onClick={() => onDownloadAttachment(doc)}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            padding: 0,
-                            color: "var(--text-accent)",
-                            fontSize: 12,
-                            textAlign: "left",
-                            cursor: "pointer",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 4,
-                          }}
-                        >
-                          <i
-                            className="ti ti-file-download"
-                            style={{ fontSize: 14 }}
-                            aria-hidden="true"
-                          ></i>
-                          {doc.fileName}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div
-                  className="list-toolbar"
-                  style={{ display: "flex", gap: 12, alignItems: "center" }}
-                >
-                  <Badge tone={tone}>{stageText}</Badge>
-                  {d.customFields?.sevkiyat_durumu && (
-                    <Badge tone="accent">{d.customFields.sevkiyat_durumu}</Badge>
-                  )}
-                  {isApproved && !isSelfBooked && <Badge tone="success">✓ Onaylandı</Badge>}
-                  {isPaid && <Badge tone="success">✓ Ödendi</Badge>}
-                  {showAction && (
-                    <a
-                      href={`/onay/${d.approvalToken}`}
+                  {d.value > 0 && (
+                    <p
                       style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: "var(--on-accent)",
-                        background: "var(--fill-accent)",
-                        padding: "7px 14px",
-                        borderRadius: "var(--radius)",
-                        textDecoration: "none",
-                        whiteSpace: "nowrap",
+                        margin: "6px 0 0",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: "var(--text-primary)",
                       }}
                     >
-                      <i
-                        className="ti ti-credit-card"
-                        style={{ fontSize: 15 }}
-                        aria-hidden="true"
-                      ></i>
-                      {actionLabel}
-                    </a>
-                  )}
-                  {d.value > 0 && (
-                    <span
-                      style={{ fontSize: 13, fontWeight: 600, minWidth: 90, textAlign: "right" }}
-                    >
                       {formatTL(d.value)}
-                    </span>
+                    </p>
                   )}
-                  {/* Erteleme sadece saat-slotu bazlı randevularda (Güzellik & Bakım,
-                  Sağlık/Klinik) destekleniyor — Otel'in giriş/çıkış tarih aralığı +
-                  oda stoku modeli (bookingModel === "inventory") çok farklı bir
-                  form gerektirir, kapsam dışı bırakıldı. İptal ile AYNI hardBlock
-                  kapısını (canCancel) kullanır - randevu saatine çok az kalmışsa
-                  ne iptal ne erteleme yapılabilir, ikisi de işletmeye aynı son
-                  dakika etkisini yaratır. */}
-                  {cancellable &&
-                    canCancel &&
-                    onReschedule &&
-                    bookingModel(sectorByCustomerId[d.customerId]) !== "inventory" && (
-                      <button
-                        type="button"
-                        onClick={() => onReschedule(d)}
-                        style={{ fontSize: 13 }}
-                      >
-                        Ertele
-                      </button>
-                    )}
-                  {cancellable &&
-                    (canCancel ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          onCancelAppointment(d.id, isLate, willBurnSession, chargeZone)
-                        }
-                        style={{ fontSize: 13 }}
-                      >
-                        İptal Et
-                      </button>
-                    ) : (
-                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                        İptal edilemez
-                      </span>
-                    ))}
                 </div>
+
+                {(d.customFields?.sevkiyat_durumu || (isApproved && !isSelfBooked) || isPaid) && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {d.customFields?.sevkiyat_durumu && (
+                      <Badge tone="accent">{d.customFields.sevkiyat_durumu}</Badge>
+                    )}
+                    {isApproved && !isSelfBooked && <Badge tone="success">✓ Onaylandı</Badge>}
+                    {isPaid && <Badge tone="success">✓ Ödendi</Badge>}
+                  </div>
+                )}
+
+                {dealDocs.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    {dealDocs.map((doc) => (
+                      <button
+                        key={doc.id}
+                        type="button"
+                        onClick={() => onDownloadAttachment(doc)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          padding: 0,
+                          color: "var(--text-accent)",
+                          fontSize: 12,
+                          textAlign: "left",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <i
+                          className="ti ti-file-download"
+                          style={{ fontSize: 14 }}
+                          aria-hidden="true"
+                        ></i>
+                        {doc.fileName}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Erteleme sadece saat-slotu bazlı randevularda (Güzellik & Bakım,
+                Sağlık/Klinik) destekleniyor — Otel'in giriş/çıkış tarih aralığı +
+                oda stoku modeli (bookingModel === "inventory") çok farklı bir
+                form gerektirir, kapsam dışı bırakıldı. İptal ile AYNI hardBlock
+                kapısını (canCancel) kullanır - randevu saatine çok az kalmışsa
+                ne iptal ne erteleme yapılabilir, ikisi de işletmeye aynı son
+                dakika etkisini yaratır. */}
+                {(showAction || cancellable) && (
+                  <div
+                    style={{
+                      borderTop: "1px solid var(--border)",
+                      marginTop: 2,
+                      paddingTop: 10,
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    {showAction && (
+                      <a
+                        href={`/onay/${d.approvalToken}`}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "var(--on-accent)",
+                          background: "var(--fill-accent)",
+                          padding: "7px 14px",
+                          borderRadius: "var(--radius)",
+                          textDecoration: "none",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        <i
+                          className="ti ti-credit-card"
+                          style={{ fontSize: 15 }}
+                          aria-hidden="true"
+                        ></i>
+                        {actionLabel}
+                      </a>
+                    )}
+                    {cancellable &&
+                      canCancel &&
+                      onReschedule &&
+                      bookingModel(sectorByCustomerId[d.customerId]) !== "inventory" && (
+                        <button
+                          type="button"
+                          onClick={() => onReschedule(d)}
+                          style={{ fontSize: 13 }}
+                        >
+                          Ertele
+                        </button>
+                      )}
+                    {cancellable &&
+                      (canCancel ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onCancelAppointment(d.id, isLate, willBurnSession, chargeZone)
+                          }
+                          style={{ fontSize: 13 }}
+                        >
+                          İptal Et
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                          İptal edilemez
+                        </span>
+                      ))}
+                  </div>
+                )}
               </div>
             );
           })}
+          {onBookNew && (
+            <button
+              type="button"
+              onClick={onBookNew}
+              style={{
+                background: "none",
+                border: "1.5px dashed var(--border-strong)",
+                borderRadius: "var(--radius-lg)",
+                padding: "1rem",
+                minHeight: 140,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                cursor: "pointer",
+                color: "var(--text-secondary)",
+              }}
+            >
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  background: "var(--bg-accent)",
+                  color: "var(--text-accent)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <i className="ti ti-plus" style={{ fontSize: 18 }} aria-hidden="true"></i>
+              </div>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>
+                {bookingModel(sector) === "inventory" ? "Yeni Rezervasyon" : "Yeni Randevu"}
+              </span>
+              <span style={{ fontSize: 12, textAlign: "center" }}>
+                Hızlıca yeni bir {bookingModel(sector) === "inventory" ? "rezervasyon" : "randevu"}{" "}
+                oluşturun
+              </span>
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -3974,47 +4094,65 @@ export default function CustomerPortal() {
 
                 {portalTab === "teklifler" && (
                   <div>
-                    {appointmentCompanies.length > 0 && (
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "flex-end",
-                          gap: 8,
-                          marginBottom: 12,
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        {appointmentCompanies.map((row) => (
-                          <button
-                            key={row.id}
-                            onClick={() => setBookingFor(row)}
-                            style={{
-                              background: "var(--fill-accent)",
-                              color: "var(--on-accent)",
-                              border: "none",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 6,
-                            }}
-                          >
-                            <i
-                              className="ti ti-plus"
-                              style={{ fontSize: 16 }}
-                              aria-hidden="true"
-                            ></i>
-                            {(() => {
-                              const label =
-                                bookingModel(row.companySector) === "inventory"
-                                  ? "Rezervasyon Yap"
-                                  : "Randevu Al";
-                              return appointmentCompanies.length > 1
-                                ? `${row.companyName || row.name} - ${label}`
-                                : label;
-                            })()}
-                          </button>
-                        ))}
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        gap: 12,
+                        flexWrap: "wrap",
+                        marginBottom: 20,
+                      }}
+                    >
+                      <div>
+                        <h2
+                          style={{
+                            margin: "0 0 4px",
+                            fontSize: 22,
+                            fontWeight: 700,
+                            color: "var(--text-primary)",
+                          }}
+                        >
+                          {PORTAL_DEAL_WORDS[dealKind].tabLabel}
+                        </h2>
+                        <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
+                          {`Yaklaşan ve geçmiş ${PORTAL_DEAL_WORDS[dealKind].plural} buradan yönetebilirsiniz.`}
+                        </p>
                       </div>
-                    )}
+                      {appointmentCompanies.length > 0 && (
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          {appointmentCompanies.map((row) => (
+                            <button
+                              key={row.id}
+                              onClick={() => setBookingFor(row)}
+                              style={{
+                                background: "var(--fill-accent)",
+                                color: "var(--on-accent)",
+                                border: "none",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 6,
+                              }}
+                            >
+                              <i
+                                className="ti ti-plus"
+                                style={{ fontSize: 16 }}
+                                aria-hidden="true"
+                              ></i>
+                              {(() => {
+                                const label =
+                                  bookingModel(row.companySector) === "inventory"
+                                    ? "Rezervasyon Yap"
+                                    : "Randevu Al";
+                                return appointmentCompanies.length > 1
+                                  ? `${row.companyName || row.name} - ${label}`
+                                  : label;
+                              })()}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <PortalDealList
                       deals={visibleDeals}
                       companyNameByCustomerId={companyNameByCustomerId}
@@ -4033,6 +4171,11 @@ export default function CustomerPortal() {
                       sector={activeCustomerRow?.companySector}
                       showCompany={false}
                       dealKind={dealKind}
+                      onBookNew={
+                        appointmentCompanies.length > 0
+                          ? () => setBookingFor(appointmentCompanies[0])
+                          : undefined
+                      }
                       onCancelAppointment={(id, isLate, willBurnSession, chargeZone) =>
                         setConfirmCancel({
                           type: "appointment",
