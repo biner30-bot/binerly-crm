@@ -3540,7 +3540,39 @@ export default function App() {
         .filter((d) => !d.deletedAt && (d.title || "").toLowerCase().includes(globalSearchQueryNorm))
         .slice(0, 5)
     : [];
-  const globalSearchHasResults = globalSearchCustomers.length > 0 || globalSearchDeals.length > 0;
+  // Ayarlar hub'ındaki satırlarla birebir aynı liste - kullanıcı "Ayarlar"a
+  // girmeden de "kdv", "takım" gibi yazıp doğrudan ilgili paneli açabilsin.
+  const settingsSearchItems = [
+    ...(canEditCompanySettings
+      ? [
+          { label: "İşletme Bilgileri", description: "İşletme adı, adres, iletişim, KDV oranı", onOpen: () => setShowSettingsForm(true) },
+          { label: "Sektör & Özel Alanlar", description: "Aşama isimleri, etiket önerileri, özel alanlar", onOpen: () => setShowSectorFields(true) },
+          { label: "Teklif Şablonları", description: "PDF teklifinizin tasarımını seçin", onOpen: () => setShowPdfTemplates(true) },
+          { label: "Ödeme Bağlantısı", description: "Onay linkinden kartla tahsilat almak için iyzico veya PayTR bağlayın", onOpen: () => setShowPaymentSettings(true) },
+          ...(bookingModel(companySettings?.sector) === "slot"
+            ? [{ label: "Müsaitlik Saatleri", description: "Müşteri portalından randevu alınabilecek gün/saatleri belirleyin", onOpen: () => setShowBusinessHours(true) }]
+            : []),
+          ...(bookingModel(companySettings?.sector) === "inventory"
+            ? [{ label: "Oda Stoku", description: "Her oda tipinden kaç adet olduğunu belirleyin", onOpen: () => setShowRoomInventory(true) }]
+            : []),
+        ]
+      : []),
+    { label: "Görünüm, Bildirimler & Hesap", description: "Tema, push bildirimleri, şifre", onOpen: () => setShowAppSettings(true) },
+    { label: "Takım", description: "Üyeler ve davetler", onOpen: () => setShowTeamModal(true) },
+    { label: "Çöp Kutusu ve Geçmiş", description: "Silinen kayıtlar, işlem geçmişi", onOpen: () => setShowTrashHistory(true) },
+    { label: "Müşteri Kazanma Linki", description: "Müşteri kendi bilgisini bıraksın, elle girmeyin", onOpen: async () => { const link = await generateLeadCaptureLink(); if (link) setLeadCaptureLink(link); } },
+    ...(supportsSelfBooking(companySettings?.sector) && bookingModel(companySettings?.sector) === "slot"
+      ? [{ label: "Randevu Alma Linki", description: "Müşteri girişsiz kendi randevusunu seçip talep etsin", onOpen: async () => { const link = await generateLeadCaptureLink(); if (link) setAppointmentLink(link.replace("/lead/", "/randevu-al/")); } }]
+      : []),
+    { label: "Müşteri Portalı Linki", description: "Mevcut müşterileriniz için - kendi hesaplarıyla giriş yapıp takip etsinler", onOpen: () => setShowPortalLinkModal(true) },
+    { label: "Turu Tekrar Başlat", description: "Sistemin nasıl çalıştığını gösteren kısa turu tekrar izleyin", onOpen: () => { setTourStep(0); setShowTour(true); } },
+  ];
+  const globalSearchSettings = globalSearchActive
+    ? settingsSearchItems
+        .filter((s) => s.label.toLowerCase().includes(globalSearchQueryNorm) || s.description.toLowerCase().includes(globalSearchQueryNorm))
+        .slice(0, 5)
+    : [];
+  const globalSearchHasResults = globalSearchCustomers.length > 0 || globalSearchDeals.length > 0 || globalSearchSettings.length > 0;
   // "Randevularım" sekmesi için — appointment-availability.js/send-appointment-
   // reminders.js'in yaptığı gibi, sektöre göre değişen randevu tarihi alanının
   // gerçek anahtarını aktif "Tarih & Saat" tipindeki tanımdan buluyoruz.
@@ -3884,6 +3916,24 @@ export default function App() {
                         >
                           <span style={{ fontWeight: 500 }}>{d.title}</span>
                           {customerById(d.customerId) && <span style={{ color: "var(--text-muted)", marginLeft: 6 }}>{customerById(d.customerId).name}</span>}
+                        </button>
+                      ))}
+                    </>
+                  )}
+                  {globalSearchSettings.length > 0 && (
+                    <>
+                      <p style={{ fontSize: 10.5, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3, margin: "4px 10px" }}>Ayarlar</p>
+                      {globalSearchSettings.map((s) => (
+                        <button
+                          key={s.label}
+                          type="button"
+                          className="global-search-result"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => { s.onOpen(); setGlobalSearchQuery(""); }}
+                          style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 10px", borderRadius: "var(--radius)", background: "none", border: "none", boxShadow: "none", fontSize: 13 }}
+                        >
+                          <span style={{ fontWeight: 500 }}>{s.label}</span>
+                          <span style={{ color: "var(--text-muted)", marginLeft: 6 }}>{s.description}</span>
                         </button>
                       ))}
                     </>
