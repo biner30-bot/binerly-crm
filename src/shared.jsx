@@ -889,7 +889,8 @@ export function MetricCard({ label, value, sub, tone, onClick }) {
       tabIndex={onClick ? 0 : undefined}
       style={{
         background: "var(--surface-1)",
-        borderRadius: "var(--radius)",
+        borderRadius: "var(--radius-lg)",
+        boxShadow: "var(--shadow-sm)",
         padding: "1rem",
         cursor: onClick ? "pointer" : "default",
       }}
@@ -910,6 +911,46 @@ export function MetricCard({ label, value, sub, tone, onClick }) {
   );
 }
 
+const AVATAR_TONES = ["accent", "success", "warning"];
+
+function hashString(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+// Gerçek kullanıcı fotoğrafı/avatar altyapısı yok - isimden türetilen baş
+// harf rozeti, sahte veri olmadan kişiye özel görsel ayrım sağlıyor.
+export function InitialsAvatar({ name, size = 28 }) {
+  const label = (name || "?").trim();
+  const parts = label.split(/\s+/).filter(Boolean);
+  const initials = parts.length > 1 ? parts[0][0] + parts[1][0] : label.slice(0, 2);
+  const tone = AVATAR_TONES[hashString(label) % AVATAR_TONES.length];
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: `var(--bg-${tone})`,
+        color: `var(--text-${tone})`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: size * 0.4,
+        fontWeight: 600,
+        flexShrink: 0,
+        textTransform: "uppercase",
+      }}
+    >
+      {initials.toUpperCase()}
+    </div>
+  );
+}
+
 export function Toast({ message, tone = "danger", onClose }) {
   const isSuccess = tone === "success";
   return (
@@ -926,7 +967,7 @@ export function Toast({ message, tone = "danger", onClose }) {
         padding: "10px 14px",
         fontSize: 13,
         fontWeight: 500,
-        boxShadow: "0 8px 24px rgba(12,37,64,0.18)",
+        boxShadow: "var(--shadow-md)",
         display: "flex",
         alignItems: "center",
         gap: 10,
@@ -981,7 +1022,7 @@ export function Modal({ title, onClose, wide, children }) {
         style={{
           background: "var(--surface-2)",
           border: "0.5px solid var(--border)",
-          borderRadius: 12,
+          borderRadius: "var(--radius-lg)",
           padding: "1.25rem",
           width: "100%",
           maxWidth: wide ? 640 : 420,
@@ -1588,8 +1629,8 @@ export function RowActionsMenu({ items }) {
               minWidth: 210,
               background: "var(--surface-1)",
               border: "0.5px solid var(--border)",
-              borderRadius: "var(--radius)",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+              borderRadius: "var(--radius-lg)",
+              boxShadow: "var(--shadow-md)",
               zIndex: 2000,
               overflow: "hidden",
             }}
