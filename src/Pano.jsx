@@ -7,6 +7,7 @@ import {
   toWhatsAppNumber,
   PANO_RANGES,
   TONE_COLORS,
+  InitialsAvatar,
 } from "./shared";
 import { DEAL_WORD_FORMS } from "./staticData";
 import {
@@ -192,7 +193,8 @@ export default function Pano({
             <div
               style={{
                 background: "var(--surface-1)",
-                borderRadius: "var(--radius)",
+                borderRadius: "var(--radius-lg)",
+                boxShadow: "var(--shadow-sm)",
                 padding: "1rem",
                 marginBottom: "1.5rem",
               }}
@@ -257,7 +259,8 @@ export default function Pano({
         <div
           style={{
             background: "var(--surface-1)",
-            borderRadius: "var(--radius)",
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "var(--shadow-sm)",
             padding: "1rem",
             marginBottom: "1.5rem",
           }}
@@ -353,7 +356,8 @@ export default function Pano({
         <div
           style={{
             background: "var(--surface-1)",
-            borderRadius: "var(--radius)",
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "var(--shadow-sm)",
             padding: "1rem",
             marginBottom: "1.5rem",
           }}
@@ -442,7 +446,8 @@ export default function Pano({
       <div
         style={{
           background: "var(--surface-1)",
-          borderRadius: "var(--radius)",
+          borderRadius: "var(--radius-lg)",
+          boxShadow: "var(--shadow-sm)",
           padding: "1rem",
           marginBottom: "1.5rem",
         }}
@@ -1313,7 +1318,10 @@ export default function Pano({
                       padding: "8px 12px",
                     }}
                   >
-                    <span style={{ fontSize: 13 }}>{label}</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <InitialsAvatar name={label} />
+                      <span style={{ fontSize: 13 }}>{label}</span>
+                    </span>
                     <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
                       {stats.won} {DEAL_WORD_FORMS[dealKind].bare} ·{" "}
                       <strong style={{ color: "var(--text-primary)" }}>
@@ -1352,7 +1360,8 @@ export default function Pano({
         <div
           style={{
             background: "var(--surface-1)",
-            borderRadius: 12,
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "var(--shadow-sm)",
             padding: "2rem 1.5rem",
             textAlign: "center",
           }}
@@ -1473,7 +1482,8 @@ export default function Pano({
           <div
             style={{
               background: "var(--surface-1)",
-              borderRadius: "var(--radius)",
+              borderRadius: "var(--radius-lg)",
+              boxShadow: "var(--shadow-sm)",
               padding: "1rem",
             }}
           >
@@ -1591,7 +1601,8 @@ export default function Pano({
           <div
             style={{
               background: "var(--surface-1)",
-              borderRadius: "var(--radius)",
+              borderRadius: "var(--radius-lg)",
+              boxShadow: "var(--shadow-sm)",
               padding: "1rem",
             }}
           >
@@ -1658,7 +1669,8 @@ export default function Pano({
           <div
             style={{
               background: "var(--surface-1)",
-              borderRadius: "var(--radius)",
+              borderRadius: "var(--radius-lg)",
+              boxShadow: "var(--shadow-sm)",
               padding: "1rem",
             }}
           >
