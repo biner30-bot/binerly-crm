@@ -809,7 +809,7 @@ function LandingPage() {
               key={f.id}
               id={f.id}
               className="landing-feature-row"
-              style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem 2rem", alignItems: "flex-start", background: "#fff", border: "1px solid #e1e8f0", borderRadius: 16, padding: "1.75rem 2rem", flexDirection: i % 2 === 1 ? "row-reverse" : "row", scrollMarginTop: 80 }}
+              style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem 2rem", alignItems: "flex-start", background: "#fff", border: "1px solid #e1e8f0", borderRadius: 16, padding: "1.75rem 2rem", boxShadow: "0 4px 12px rgba(12,37,64,0.05)", flexDirection: i % 2 === 1 ? "row-reverse" : "row", scrollMarginTop: 80 }}
             >
               <div style={{ flex: "none", width: 96, fontSize: 54, fontWeight: 800, color: "#dceafa", lineHeight: 1, textAlign: i % 2 === 1 ? "right" : "left" }}>{f.num}</div>
               <div style={{ flex: 1, minWidth: 260 }}>
@@ -856,7 +856,7 @@ function LandingPage() {
               badge: "Yakında",
             },
           ].map((f) => (
-            <div key={f.id} id={f.id} style={{ display: "flex", gap: 14, background: "#fff", border: "1px solid #e1e8f0", borderRadius: 12, padding: "1.25rem 1.4rem", scrollMarginTop: 80 }}>
+            <div key={f.id} id={f.id} style={{ display: "flex", gap: 14, background: "#fff", border: "1px solid #e1e8f0", borderRadius: 12, padding: "1.25rem 1.4rem", boxShadow: "0 4px 12px rgba(12,37,64,0.05)", scrollMarginTop: 80 }}>
               <i className={`ti ${f.icon}`} style={{ fontSize: 19, color: "#185fa5", flex: "none", marginTop: 2 }} aria-hidden="true"></i>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
