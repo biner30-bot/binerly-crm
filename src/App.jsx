@@ -3814,7 +3814,6 @@ export default function App() {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <NotificationBell userId={session.user.id} supabase={supabase} dataTour="notification-bell" />
-          <IconButton icon="ti-settings" onClick={() => setShowSettingsHub(true)} title="Ayarlar" data-tour="settings-gear" />
           <IconButton icon="ti-logout" label="Çıkış" onClick={() => supabase.auth.signOut()} title="Çıkış yap" className="app-header-logout-btn" />
         </div>
       </div>
@@ -3939,6 +3938,29 @@ export default function App() {
             )}
           </button>
         ))}
+        <div style={{ height: 1, background: "var(--border)", margin: "4px 10px" }} aria-hidden="true" />
+        <button
+          onClick={() => { setShowSettingsHub(true); setSidebarOpen(false); }}
+          data-tour="settings-gear"
+          className={showSettingsHub ? undefined : "app-sidebar-tab"}
+          style={{
+            border: "0.5px solid transparent",
+            background: showSettingsHub ? "var(--fill-accent)" : "transparent",
+            color: showSettingsHub ? "var(--on-accent)" : "var(--text-primary)",
+            fontWeight: showSettingsHub ? 600 : 400,
+            boxShadow: showSettingsHub ? "var(--shadow-sm)" : "none",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-start",
+            gap: 8,
+            padding: "8px 10px",
+            width: "100%",
+            textAlign: "left",
+          }}
+        >
+          <i className="ti ti-settings" style={{ fontSize: 16, flexShrink: 0 }} aria-hidden="true"></i>
+          <span style={{ flex: 1 }}>Ayarlar</span>
+        </button>
       </nav>
 
       <div style={{ flex: 1, minWidth: 0 }}>
