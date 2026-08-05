@@ -39,7 +39,7 @@ export function AppointmentCancelPolicyBox({ companySettings, onSave }) {
   };
 
   return (
-    <div style={{ marginBottom: 16, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 12 }}>
+    <div style={{ marginBottom: 16, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-sm)", padding: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <p style={{ fontSize: 13, fontWeight: 500, margin: 0, display: "flex", alignItems: "center", gap: 4 }}>
           Randevu iptal / gelmeme politikası
@@ -139,7 +139,7 @@ export function AppointmentDepositBox({ companySettings, hasPaymentConnection, o
   };
 
   return (
-    <div style={{ marginBottom: 16, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 12 }}>
+    <div style={{ marginBottom: 16, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-sm)", padding: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <p style={{ fontSize: 13, fontWeight: 500, margin: 0, display: "flex", alignItems: "center", gap: 4 }}>
           Randevu kaporası
@@ -200,7 +200,7 @@ export function AppointmentConcurrencyBox({ companySettings, onSave }) {
   };
 
   return (
-    <div style={{ marginBottom: 16, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 12 }}>
+    <div style={{ marginBottom: 16, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-sm)", padding: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <p style={{ fontSize: 13, fontWeight: 500, margin: 0, display: "flex", alignItems: "center", gap: 4 }}>
           Eş zamanlı randevu kapasitesi
@@ -263,7 +263,7 @@ export function AppointmentPrepNoteBox({ companySettings, onSave }) {
   // söylemiyordu, KOBİ notu yazıp kaydedip fark etmeden boşa bekleyebilirdi.
   const remindersOff = companySettings?.appointmentRemindersEnabled === false;
   return (
-    <div style={{ marginBottom: 16, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 12 }}>
+    <div style={{ marginBottom: 16, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-sm)", padding: 12 }}>
       <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>Randevu öncesi not (opsiyonel)</p>
       <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 8px" }}>
         İşletme Bilgileri'ndeki "Randevu hatırlatma e-postası gönder" ayarı açıkken, randevu saatinden 2 saat önce müşteriye giden hatırlatma e-postasının sonuna eklenir - {appointmentPrepNoteExample(companySettings?.sector)}
