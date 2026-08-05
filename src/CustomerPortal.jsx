@@ -243,7 +243,7 @@ function CustomerPortalLanding({ onEnter }) {
     <div
       style={{
         minHeight: "100vh",
-        background: "#f5f8fc",
+        background: "var(--bg)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -257,25 +257,53 @@ function CustomerPortalLanding({ onEnter }) {
             alt="Binerly"
             style={{ width: 52, height: 52, marginBottom: 14 }}
           />
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>
+          <h1
+            style={{
+              fontSize: 22,
+              fontWeight: 700,
+              color: "var(--text-primary)",
+              margin: "0 0 8px",
+            }}
+          >
             Binerly Müşteri Portalı
           </h1>
-          <p style={{ fontSize: 14, color: "#5b7088", lineHeight: 1.6, margin: 0 }}>
+          <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6, margin: 0 }}>
             Hizmet aldığınız işletmeyle ilgili her şeyi tek yerden takip edin.
           </p>
         </div>
-        <div style={{ background: "#fff", borderRadius: 16, padding: "1.5rem", marginBottom: 20 }}>
+        <div
+          style={{
+            background: "var(--surface-1)",
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "var(--shadow-sm)",
+            padding: "1.5rem",
+            marginBottom: 20,
+          }}
+        >
           {features.map((f) => (
             <div
               key={f.text}
-              style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 14 }}
+              style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}
             >
-              <i
-                className={`ti ${f.icon}`}
-                style={{ fontSize: 18, color: "#185fa5", marginTop: 1, flex: "none" }}
-                aria-hidden="true"
-              ></i>
-              <span style={{ fontSize: 14, color: "#0c2540" }}>{f.text}</span>
+              <span
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  background: "var(--bg-accent)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flex: "none",
+                }}
+              >
+                <i
+                  className={`ti ${f.icon}`}
+                  style={{ fontSize: 16, color: "var(--text-accent)" }}
+                  aria-hidden="true"
+                ></i>
+              </span>
+              <span style={{ fontSize: 14, color: "var(--text-primary)" }}>{f.text}</span>
             </div>
           ))}
         </div>
@@ -283,14 +311,13 @@ function CustomerPortalLanding({ onEnter }) {
           <button
             onClick={() => onEnter("login")}
             style={{
-              background: "#185fa5",
-              color: "#fff",
+              background: "var(--fill-accent)",
+              color: "var(--on-accent)",
               border: "none",
-              borderRadius: 8,
+              borderRadius: "var(--radius)",
               padding: "13px",
               fontSize: 15,
               fontWeight: 600,
-              cursor: "pointer",
             }}
           >
             Giriş Yap
@@ -298,22 +325,21 @@ function CustomerPortalLanding({ onEnter }) {
           <button
             onClick={() => onEnter("register")}
             style={{
-              background: "#fff",
-              color: "#185fa5",
-              border: "1.5px solid #185fa5",
-              borderRadius: 8,
+              background: "var(--surface-1)",
+              color: "var(--text-accent)",
+              border: "1.5px solid var(--border-strong)",
+              borderRadius: "var(--radius)",
               padding: "13px",
               fontSize: 15,
               fontWeight: 600,
-              cursor: "pointer",
             }}
           >
             Hesap Oluştur
           </button>
         </div>
-        <p style={{ fontSize: 12, color: "#94a7bb", textAlign: "center", marginTop: 20 }}>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center", marginTop: 20 }}>
           Bir işletme sahibi misiniz?{" "}
-          <a href="https://binerly.com" style={{ color: "#185fa5" }}>
+          <a href="https://binerly.com" style={{ color: "var(--text-accent)" }}>
             binerly.com
           </a>
           'u ziyaret edin.
@@ -397,14 +423,15 @@ function CustomerAuthForm({ initialMode = "login", onBack }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "#f5f8fc",
+        background: "var(--bg)",
         padding: "1rem",
       }}
     >
       <div
         style={{
-          background: "#fff",
-          borderRadius: 16,
+          background: "var(--surface-1)",
+          borderRadius: "var(--radius-lg)",
+          boxShadow: "var(--shadow-sm)",
           padding: "2rem",
           width: "100%",
           maxWidth: 400,
@@ -412,39 +439,48 @@ function CustomerAuthForm({ initialMode = "login", onBack }) {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
           <img src="/favicon.svg" alt="Binerly" style={{ width: 39, height: 39 }} />
-          <span style={{ fontWeight: 700, fontSize: 16, color: "#0c2540" }}>
+          <span style={{ fontWeight: 700, fontSize: 16, color: "var(--text-primary)" }}>
             Binerly Müşteri Bilgi Sistemi
           </span>
         </div>
-        <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 4px", color: "#0c2540" }}>
+        <h2
+          style={{ fontSize: 18, fontWeight: 700, margin: "0 0 4px", color: "var(--text-primary)" }}
+        >
           {mode === "login" ? "Giriş yap" : "Hesap oluştur"}
         </h2>
-        <p style={{ fontSize: 13, color: "#5b7088", margin: "0 0 20px" }}>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 20px" }}>
           Bir firmanın müşterisiyseniz, taleplerinizi ve kayıtlarınızı buradan takip edin.
         </p>
         <form onSubmit={submit}>
           {mode === "register" && (
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>
+              <label
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  display: "block",
+                  marginBottom: 4,
+                }}
+              >
                 Ad Soyad
               </label>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  border: "1px solid #e1e8f0",
-                  borderRadius: 8,
-                  fontSize: 14,
-                  boxSizing: "border-box",
-                }}
+                style={{ width: "100%", boxSizing: "border-box" }}
               />
             </div>
           )}
           <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
               E-posta
             </label>
             <input
@@ -452,18 +488,18 @@ function CustomerAuthForm({ initialMode = "login", onBack }) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                border: "1px solid #e1e8f0",
-                borderRadius: 8,
-                fontSize: 14,
-                boxSizing: "border-box",
-              }}
+              style={{ width: "100%", boxSizing: "border-box" }}
             />
           </div>
           <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
               Şifre
             </label>
             <input
@@ -472,17 +508,10 @@ function CustomerAuthForm({ initialMode = "login", onBack }) {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={mode === "register" ? 6 : undefined}
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                border: "1px solid #e1e8f0",
-                borderRadius: 8,
-                fontSize: 14,
-                boxSizing: "border-box",
-              }}
+              style={{ width: "100%", boxSizing: "border-box" }}
             />
             {mode === "register" && (
-              <p style={{ fontSize: 11.5, color: "#94a7bb", margin: "4px 0 0" }}>
+              <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "4px 0 0" }}>
                 En az 6 karakter olmalı.
               </p>
             )}
@@ -496,9 +525,9 @@ function CustomerAuthForm({ initialMode = "login", onBack }) {
                 style={{
                   background: "none",
                   border: "none",
-                  color: "#185fa5",
+                  boxShadow: "none",
+                  color: "var(--text-accent)",
                   padding: 0,
-                  cursor: "pointer",
                   fontSize: 12,
                 }}
               >
@@ -512,14 +541,13 @@ function CustomerAuthForm({ initialMode = "login", onBack }) {
             disabled={loading}
             style={{
               width: "100%",
-              background: "#185fa5",
-              color: "#fff",
+              background: "var(--fill-accent)",
+              color: "var(--on-accent)",
               border: "none",
-              borderRadius: 8,
+              borderRadius: "var(--radius)",
               padding: "11px",
               fontSize: 15,
               fontWeight: 600,
-              cursor: "pointer",
             }}
           >
             {loading ? "Yükleniyor…" : mode === "login" ? "Giriş yap" : "Kayıt ol"}
@@ -527,7 +555,14 @@ function CustomerAuthForm({ initialMode = "login", onBack }) {
         </form>
         <AuthDivider />
         <GoogleAuthButton onCredential={handleGoogleCredential} />
-        <p style={{ fontSize: 13, textAlign: "center", marginTop: 16, color: "#5b7088" }}>
+        <p
+          style={{
+            fontSize: 13,
+            textAlign: "center",
+            marginTop: 16,
+            color: "var(--text-secondary)",
+          }}
+        >
           {mode === "login" ? "Hesabın yok mu? " : "Hesabın var mı? "}
           <button
             onClick={() => {
@@ -537,9 +572,9 @@ function CustomerAuthForm({ initialMode = "login", onBack }) {
             style={{
               background: "none",
               border: "none",
-              color: "#185fa5",
+              boxShadow: "none",
+              color: "var(--text-accent)",
               padding: 0,
-              cursor: "pointer",
               fontSize: 13,
               fontWeight: 600,
             }}
@@ -554,8 +589,8 @@ function CustomerAuthForm({ initialMode = "login", onBack }) {
             style={{
               background: "none",
               border: "none",
-              color: "#94a7bb",
-              cursor: "pointer",
+              boxShadow: "none",
+              color: "var(--text-muted)",
               fontSize: 12,
               padding: 0,
             }}
