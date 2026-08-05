@@ -679,7 +679,8 @@ function PortalTicketList({
             onClick={() => onOpenTicket(t)}
             style={{
               background: "var(--surface-1)",
-              borderRadius: "var(--radius)",
+              borderRadius: "var(--radius-lg)",
+              boxShadow: "var(--shadow-sm)",
               padding: "0.75rem 1rem",
               display: "flex",
               justifyContent: "space-between",
