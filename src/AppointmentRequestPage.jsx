@@ -174,6 +174,9 @@ export default function AppointmentRequestPage() {
   // listeden çıkarılır - aksi halde aynı hizmet iki yerde birden görünür.
   const freeServices = (company?.services || []).filter((s) => Number(s.price) === 0);
   const paidServices = (company?.services || []).filter((s) => Number(s.price) !== 0);
+  const selectedDuration = (company?.services || [])
+    .filter((s) => serviceIds.includes(s.id))
+    .reduce((sum, s) => sum + (Number(s.duration_minutes) || 0), 0);
 
   const toggleService = (id) => {
     setServiceIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -254,7 +257,7 @@ export default function AppointmentRequestPage() {
                         background: serviceIds.includes(s.id) ? "#dcfce7" : "#f0fdf4", color: "#15803d", fontWeight: 700, fontSize: 14,
                       }}
                     >
-                      🎁 {stripFreeWord(s.name)} - Ücretsiz{serviceIds.includes(s.id) ? " ✓" : ""}
+                      🎁 {stripFreeWord(s.name)} - Ücretsiz{s.duration_minutes ? ` · ${s.duration_minutes} dk` : ""}{serviceIds.includes(s.id) ? " ✓" : ""}
                     </button>
                   ))}
                 </div>
@@ -270,7 +273,7 @@ export default function AppointmentRequestPage() {
                     >
                       <option value="">Hizmet ekle…</option>
                       {paidServices.filter((s) => !serviceIds.includes(s.id)).map((s) => (
-                        <option key={s.id} value={s.id}>{s.name}{s.price ? ` - ${s.price} TL` : ""}</option>
+                        <option key={s.id} value={s.id}>{s.name}{s.price ? ` - ${s.price} TL` : ""}{s.duration_minutes ? ` · ${s.duration_minutes} dk` : ""}</option>
                       ))}
                     </select>
                   )}
@@ -278,13 +281,18 @@ export default function AppointmentRequestPage() {
                     <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6 }}>
                       {paidServices.filter((s) => serviceIds.includes(s.id)).map((s) => (
                         <div key={s.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 13, background: "#f5f8fc", borderRadius: 6, padding: "6px 8px" }}>
-                          <span>{s.name}{s.price ? ` - ${s.price} TL` : ""}</span>
+                          <span>{s.name}{s.price ? ` - ${s.price} TL` : ""}{s.duration_minutes ? ` · ${s.duration_minutes} dk` : ""}</span>
                           <button type="button" onClick={() => toggleService(s.id)} style={{ fontSize: 12, padding: "2px 6px", flexShrink: 0 }}>Kaldır</button>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
+              )}
+              {selectedDuration > 0 && (
+                <p style={{ fontSize: 12, color: "#5b7088", margin: "0 0 10px" }}>
+                  Tahmini süre: {selectedDuration} dk. Süreler tahminidir, hizmetin seyrine göre değişebilir.
+                </p>
               )}
               {dayOverview && dayOverview.length > 0 && (
                 <div style={{ marginBottom: 10 }}>

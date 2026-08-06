@@ -54,7 +54,7 @@ export default async function handler(req, res) {
     // fonksiyon sınırı zaten dolu olduğu için ayrı bir api/*.js açılmadı).
     const [{ data: fieldDefs }, { data: services }, { data: cred }] = await Promise.all([
       supabaseAdmin.from("custom_field_defs").select("key").eq("user_id", settings.user_id).eq("entity", "deal").eq("field_type", "datetime").eq("active", true).limit(1),
-      supabaseAdmin.from("price_list_items").select("id, name, price").eq("user_id", settings.user_id).order("name"),
+      supabaseAdmin.from("price_list_items").select("id, name, price, duration_minutes").eq("user_id", settings.user_id).order("name"),
       supabaseAdmin.from("payment_credentials").select("id").eq("user_id", settings.user_id).maybeSingle(),
     ]);
     // Kapora sadece Ödeme Bağlantısı gerçekten kuruluysa anlamlı - KOBİ tutarı

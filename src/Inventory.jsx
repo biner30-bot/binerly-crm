@@ -171,7 +171,7 @@ export function PriceListEditModal({ item, sector, onSave, onClose }) {
               Süre (dk)
               <InfoTip
                 align="left"
-                text="Opsiyonel - girerseniz, bu hizmet bir randevuya kalem olarak eklendiğinde randevunun süresi buna göre hesaplanır; aynı randevuda birden fazla hizmet varsa süreleri toplanır ve çakışma kontrolü buna göre yapılır."
+                text="Opsiyonel - girerseniz, bu hizmet bir randevuya kalem olarak eklendiğinde randevunun süresi buna göre hesaplanır; aynı randevuda birden fazla hizmet varsa süreleri toplanır ve çakışma kontrolü buna göre yapılır. Ayrıca randevu alma ekranında müşteriye tahmini süre olarak gösterilir - boş bırakırsanız müşteriye süre bilgisi gösterilmez."
               />
             </label>
             <input
@@ -438,7 +438,7 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
             Süre (dk)
             <InfoTip
               align="left"
-              text="Opsiyonel - girerseniz, bu hizmet bir randevuya kalem olarak eklendiğinde randevunun süresi buna göre hesaplanır; aynı randevuda birden fazla hizmet varsa süreleri toplanır ve çakışma kontrolü buna göre yapılır."
+              text="Opsiyonel - girerseniz, bu hizmet bir randevuya kalem olarak eklendiğinde randevunun süresi buna göre hesaplanır; aynı randevuda birden fazla hizmet varsa süreleri toplanır ve çakışma kontrolü buna göre yapılır. Ayrıca randevu alma ekranında müşteriye tahmini süre olarak gösterilir - boş bırakırsanız müşteriye süre bilgisi gösterilmez."
             />
           </label>
           <input

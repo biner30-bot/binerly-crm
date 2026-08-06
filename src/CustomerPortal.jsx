@@ -179,7 +179,13 @@ function rowToWaitlistEntry(r) {
 }
 
 function rowToPriceListItem(r) {
-  return { id: r.id, userId: r.user_id, name: r.name, price: r.price };
+  return {
+    id: r.id,
+    userId: r.user_id,
+    name: r.name,
+    price: r.price,
+    durationMinutes: r.duration_minutes || null,
+  };
 }
 
 // customer_payments_view'den geliyor (bkz. sql/2026-08-03_portal_self_service.sql)
@@ -1800,6 +1806,9 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
   const selectedTotal = (priceListItems || [])
     .filter((p) => serviceIds.includes(p.id))
     .reduce((sum, p) => sum + (Number(p.price) || 0), 0);
+  const selectedDuration = (priceListItems || [])
+    .filter((p) => serviceIds.includes(p.id))
+    .reduce((sum, p) => sum + (Number(p.durationMinutes) || 0), 0);
 
   const confirm = async () => {
     if (!selectedTime || !note.trim() || !dateTimeKey) return;
@@ -1964,6 +1973,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
                   }}
                 >
                   {stripFreeWord(s.name)} - Ücretsiz
+                  {s.durationMinutes ? ` · ${s.durationMinutes} dk` : ""}
                 </button>
               ))}
             </div>
@@ -1982,6 +1992,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
                 .map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name} - {formatTL(s.price)}
+                    {s.durationMinutes ? ` · ${s.durationMinutes} dk` : ""}
                   </option>
                 ))}
             </select>
@@ -2006,6 +2017,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
                   >
                     <span>
                       {s.name} - {formatTL(s.price)}
+                      {s.durationMinutes ? ` · ${s.durationMinutes} dk` : ""}
                     </span>
                     <button
                       type="button"
@@ -2030,6 +2042,12 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
               Toplam: {formatTL(selectedTotal)}
               {hasPaymentProvider &&
                 " - randevunuzu aldıktan sonra dilerseniz kartla online ödeme yapabilirsiniz."}
+            </p>
+          )}
+          {selectedDuration > 0 && (
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>
+              Tahmini süre: {selectedDuration} dk. Süreler tahminidir, hizmetin seyrine göre
+              değişebilir.
             </p>
           )}
         </div>
