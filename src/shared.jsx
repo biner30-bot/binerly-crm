@@ -127,9 +127,15 @@ export const PANO_RANGES = [
   { id: "tum_zamanlar", label: "Tüm zamanlar" },
 ];
 
-export function getRangeBounds(range) {
+export function getRangeBounds(range, custom) {
   const now = new Date();
   const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  if (range === "ozel") {
+    return {
+      start: custom?.from ? new Date(`${custom.from}T00:00:00`) : null,
+      end: custom?.to ? new Date(`${custom.to}T23:59:59.999`) : end,
+    };
+  }
   if (range === "bugun")
     return { start: new Date(now.getFullYear(), now.getMonth(), now.getDate()), end };
   if (range === "bu_hafta") {

@@ -397,12 +397,16 @@ const dealImportFields = (sector) => [
 
 // "Tüm zamanlar" seçiliyken en eski kazanılan fırsattan bugüne kadar aylık bucket
 // üretir; çok eski hesaplarda grafiğin şişmemesi için en fazla 24 ay gösterilir.
-function getMonthlyBuckets(range, wonDealsAll) {
+function getMonthlyBuckets(range, wonDealsAll, customBounds) {
   const now = new Date();
   let startYear, startMonth;
   const endYear = now.getFullYear(), endMonth = now.getMonth();
 
-  if (range === "bugun" || range === "bu_hafta" || range === "bu_ay") { startYear = endYear; startMonth = endMonth; }
+  if (range === "ozel" && customBounds?.from) {
+    const d = new Date(`${customBounds.from}T00:00:00`);
+    startYear = d.getFullYear(); startMonth = d.getMonth();
+  }
+  else if (range === "bugun" || range === "bu_hafta" || range === "bu_ay") { startYear = endYear; startMonth = endMonth; }
   else if (range === "bu_ceyrek") { startYear = endYear; startMonth = Math.floor(endMonth / 3) * 3; }
   else if (range === "bu_yil") { startYear = endYear; startMonth = 0; }
   else if (range === "son_6_ay") {
@@ -1307,6 +1311,8 @@ export default function App() {
   const [emlakMatches, setEmlakMatches] = useState(null); // { deal, matches } — Gölge Avcı sonuçları
   const [listingTextDeal, setListingTextDeal] = useState(null); // İlan Metni Sihirbazı için seçili teklif
   const [panoRange, setPanoRange] = useState("tum_zamanlar");
+  const [panoRangeFrom, setPanoRangeFrom] = useState("");
+  const [panoRangeTo, setPanoRangeTo] = useState("");
   const [pendingLostReasonMove, setPendingLostReasonMove] = useState(null); // { dealId }
   const [showCampaignModal, setShowCampaignModal] = useState(false);
   const [confirmDeleteCustomer, setConfirmDeleteCustomer] = useState(null);
@@ -3573,7 +3579,7 @@ export default function App() {
   const lostDealsAll = deals.filter((d) => d.stage === "kaybedildi");
   const dealsWithOutstanding = wonDealsAll.filter((d) => d.value - totalPaidForDeal(d.id) > 0);
   const totalOutstanding = dealsWithOutstanding.reduce((sum, d) => sum + (d.value - totalPaidForDeal(d.id)), 0);
-  const rangeBounds = getRangeBounds(panoRange);
+  const rangeBounds = getRangeBounds(panoRange, { from: panoRangeFrom, to: panoRangeTo });
   const wonDeals = wonDealsAll.filter((d) => inRange(d.closedAt || d.createdAt, rangeBounds));
   const lostDeals = lostDealsAll.filter((d) => inRange(d.closedAt || d.createdAt, rangeBounds));
   // Randevu sektörlerinde "kaybedildi" nedeni artık "İptal etti"/"Randevuya
@@ -3960,7 +3966,7 @@ export default function App() {
   const closedCount = wonDeals.length + lostDeals.length;
   const winRate = closedCount > 0 ? Math.round((wonDeals.length / closedCount) * 100) : null;
 
-  const monthBuckets = getMonthlyBuckets(panoRange, wonDealsAll);
+  const monthBuckets = getMonthlyBuckets(panoRange, wonDealsAll, { from: panoRangeFrom, to: panoRangeTo });
   const revenueProfitByBucket = monthBuckets.map(({ key, label }) => {
     const bucketDeals = wonDeals.filter((d) => {
       const dd = new Date(d.closedAt || d.createdAt);
@@ -3972,7 +3978,12 @@ export default function App() {
   });
   const maxBucketValue = Math.max(1, ...revenueProfitByBucket.map((m) => Math.max(m.revenue, m.profit, 0)));
 
-  const rangeLabel = PANO_RANGES.find((r) => r.id === panoRange)?.label || "";
+  const rangeLabel =
+    panoRange === "ozel"
+      ? panoRangeFrom || panoRangeTo
+        ? `${panoRangeFrom ? new Date(`${panoRangeFrom}T00:00:00`).toLocaleDateString("tr-TR") : "başlangıç"} - ${panoRangeTo ? new Date(`${panoRangeTo}T00:00:00`).toLocaleDateString("tr-TR") : "bugün"}`
+        : "Özel aralık"
+      : PANO_RANGES.find((r) => r.id === panoRange)?.label || "";
   const rangeRevenue = wonDeals.reduce((sum, d) => sum + (d.value || 0), 0);
   const rangeCost = wonDeals.reduce((sum, d) => sum + (d.cost || 0), 0);
   const rangeProfit = rangeRevenue - rangeCost;
@@ -4280,6 +4291,16 @@ export default function App() {
           priceListItems={priceListItems}
           panoRange={panoRange}
           setPanoRange={setPanoRange}
+          panoRangeFrom={panoRangeFrom}
+          panoRangeTo={panoRangeTo}
+          onPanoRangeFromChange={(v) => {
+            setPanoRangeFrom(v);
+            setPanoRange("ozel");
+          }}
+          onPanoRangeToChange={(v) => {
+            setPanoRangeTo(v);
+            setPanoRange("ozel");
+          }}
           activationChecklistDismissedClick={activationChecklistDismissedClick}
           setActivationChecklistDismissedClick={setActivationChecklistDismissedClick}
           setTab={setTab}

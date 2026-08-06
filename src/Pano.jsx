@@ -6,6 +6,7 @@ import {
   downloadXlsx,
   toWhatsAppNumber,
   RangeFilter,
+  DateRangeFilter,
   TONE_COLORS,
   InitialsAvatar,
 } from "./shared";
@@ -66,6 +67,10 @@ export default function Pano({
   priceListItems,
   panoRange,
   setPanoRange,
+  panoRangeFrom,
+  panoRangeTo,
+  onPanoRangeFromChange,
+  onPanoRangeToChange,
   activationChecklistDismissedClick,
   setActivationChecklistDismissedClick,
   setTab,
@@ -877,8 +882,24 @@ export default function Pano({
         )}
       </div>
 
-      <div style={{ marginBottom: "1.5rem" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          alignItems: "center",
+          flexWrap: "wrap",
+          marginBottom: "1.5rem",
+        }}
+      >
         <RangeFilter value={panoRange} onChange={setPanoRange} />
+        <div style={{ marginLeft: "auto" }}>
+          <DateRangeFilter
+            from={panoRangeFrom}
+            to={panoRangeTo}
+            onFromChange={onPanoRangeFromChange}
+            onToChange={onPanoRangeToChange}
+          />
+        </div>
       </div>
 
       <p
