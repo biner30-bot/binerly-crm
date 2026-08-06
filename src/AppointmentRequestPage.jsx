@@ -196,7 +196,7 @@ export default function AppointmentRequestPage() {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#f5f8fc", fontFamily: "system-ui, -apple-system, sans-serif", padding: "1rem" }}>
-      <div style={{ background: "#fff", borderRadius: 12, padding: "2rem", width: "100%", maxWidth: 420, border: "1px solid #e1e8f0" }}>
+      <div style={{ background: "#fff", borderRadius: 16, padding: "2.25rem 2rem", width: "100%", maxWidth: 420, border: "1px solid #e1e8f0", boxShadow: "0 20px 60px rgba(12,37,64,0.08)" }}>
         {loading ? (
           <p style={{ textAlign: "center", color: "#5b7088" }}>Yükleniyor…</p>
         ) : error ? (
@@ -239,20 +239,25 @@ export default function AppointmentRequestPage() {
           </>
         ) : (
           <>
-            {company.logoUrl && <img src={company.logoUrl} alt="" style={{ maxHeight: 48, display: "block", margin: "0 auto 12px" }} />}
-            <h1 style={{ fontSize: 18, fontWeight: 700, color: "#0c2540", textAlign: "center", margin: "0 0 20px" }}>
+            {company.logoUrl && <img src={company.logoUrl} alt="" style={{ maxHeight: 64, display: "block", margin: "0 auto 14px" }} />}
+            <h1 style={{ fontSize: 21, fontWeight: 800, color: "#0c2540", textAlign: "center", margin: "0 0 24px", lineHeight: 1.3 }}>
               {company.companyName} - Randevu Al
             </h1>
             <form onSubmit={submit}>
+              {(freeServices.length > 0 || paidServices.length > 0) && (
+                <p style={{ fontSize: 12.5, fontWeight: 700, color: "#185fa5", letterSpacing: 0.3, textTransform: "uppercase", margin: "0 0 10px" }}>
+                  Hizmet Seçin
+                </p>
+              )}
               {freeServices.length > 0 && (
-                <div style={{ marginBottom: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ marginBottom: 14, display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {freeServices.map((s) => (
                     <button
                       key={s.id}
                       type="button"
                       onClick={() => toggleService(s.id)}
                       style={{
-                        width: "100%", textAlign: "left", padding: "12px 14px", borderRadius: 8, cursor: "pointer",
+                        flex: "1 1 45%", textAlign: "left", padding: "14px", borderRadius: 12, cursor: "pointer",
                         border: serviceIds.includes(s.id) ? "2px solid #15803d" : "1px solid #bbf7d0",
                         background: serviceIds.includes(s.id) ? "#dcfce7" : "#f0fdf4", color: "#15803d", fontWeight: 700, fontSize: 14,
                       }}
@@ -263,13 +268,13 @@ export default function AppointmentRequestPage() {
                 </div>
               )}
               {paidServices.length > 0 && (
-                <div style={{ marginBottom: 10 }}>
-                  <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>Hizmet seçin (opsiyonel, birden fazla seçebilirsiniz)</label>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 6 }}>Birden fazla seçebilirsiniz (opsiyonel)</label>
                   {paidServices.some((s) => !serviceIds.includes(s.id)) && (
                     <select
                       value=""
                       onChange={(e) => { if (e.target.value) toggleService(e.target.value); }}
-                      style={{ width: "100%" }}
+                      style={{ width: "100%", borderRadius: 10, padding: "10px 12px" }}
                     >
                       <option value="">Hizmet ekle…</option>
                       {paidServices.filter((s) => !serviceIds.includes(s.id)).map((s) => (
@@ -278,11 +283,11 @@ export default function AppointmentRequestPage() {
                     </select>
                   )}
                   {paidServices.filter((s) => serviceIds.includes(s.id)).length > 0 && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
                       {paidServices.filter((s) => serviceIds.includes(s.id)).map((s) => (
-                        <div key={s.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 13, background: "#f5f8fc", borderRadius: 6, padding: "6px 8px" }}>
-                          <span>{s.name}{s.price ? ` - ${s.price} TL` : ""}{s.duration_minutes ? ` · ${s.duration_minutes} dk` : ""}</span>
-                          <button type="button" onClick={() => toggleService(s.id)} style={{ fontSize: 12, padding: "2px 6px", flexShrink: 0 }}>Kaldır</button>
+                        <div key={s.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 13.5, background: "#eaf2fb", border: "1px solid #cfe2f5", borderRadius: 10, padding: "10px 12px" }}>
+                          <span style={{ fontWeight: 600, color: "#0c2540" }}>{s.name}{s.price ? ` - ${s.price} TL` : ""}{s.duration_minutes ? ` · ${s.duration_minutes} dk` : ""}</span>
+                          <button type="button" onClick={() => toggleService(s.id)} style={{ fontSize: 12, padding: "3px 8px", flexShrink: 0, borderRadius: 20 }}>Kaldır</button>
                         </div>
                       ))}
                     </div>
@@ -290,14 +295,17 @@ export default function AppointmentRequestPage() {
                 </div>
               )}
               {selectedDuration > 0 && (
-                <p style={{ fontSize: 12, color: "#5b7088", margin: "0 0 10px" }}>
+                <p style={{ fontSize: 12, color: "#5b7088", margin: "0 0 14px" }}>
                   Tahmini süre: {selectedDuration} dk. Süreler tahminidir, hizmetin seyrine göre değişebilir.
                 </p>
               )}
+              <div style={{ borderTop: "1px solid #eef2f6", margin: "4px 0 16px" }} />
               {dayOverview && dayOverview.length > 0 && (
-                <div style={{ marginBottom: 10 }}>
-                  <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>Müsait günler</label>
-                  <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
+                <div style={{ marginBottom: 12 }}>
+                  <p style={{ fontSize: 12.5, fontWeight: 700, color: "#185fa5", letterSpacing: 0.3, textTransform: "uppercase", margin: "0 0 10px" }}>
+                    Müsait Günler
+                  </p>
+                  <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
                     {dayOverview.map((d) => {
                       const { weekday, day } = shortDayLabel(d.date);
                       const selected = d.date === date;
@@ -309,14 +317,15 @@ export default function AppointmentRequestPage() {
                           disabled={empty}
                           onClick={() => setDate(d.date)}
                           style={{
-                            flex: "0 0 auto", width: 52, padding: "8px 4px", borderRadius: 8, textAlign: "center", cursor: empty ? "default" : "pointer",
+                            flex: "0 0 auto", width: 58, padding: "10px 4px", borderRadius: 12, textAlign: "center", cursor: empty ? "default" : "pointer",
                             border: selected ? "2px solid #185fa5" : "1px solid #e1e8f0",
                             background: selected ? "#eaf2fb" : empty ? "#f5f8fc" : "#fff",
+                            boxShadow: selected ? "0 6px 16px rgba(24,95,165,0.18)" : "none",
                             opacity: empty ? 0.45 : 1,
                           }}
                         >
                           <div style={{ fontSize: 11, color: "#5b7088" }}>{weekday}</div>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: "#0c2540" }}>{day}</div>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: "#0c2540" }}>{day}</div>
                           <div style={{ fontSize: 10, color: empty ? "#9aa8b8" : "#15803d" }}>{d.closed ? "Kapalı" : empty ? "Dolu" : `${d.slotCount} boş`}</div>
                         </button>
                       );
@@ -324,12 +333,12 @@ export default function AppointmentRequestPage() {
                   </div>
                 </div>
               )}
-              <div style={{ marginBottom: 10 }}>
-                <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>Ya da farklı bir tarih seçin</label>
-                <input type="date" min={todayStr} max={maxDateStr} value={date} onChange={(e) => setDate(e.target.value)} style={{ width: "100%" }} />
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 6 }}>Ya da farklı bir tarih seçin</label>
+                <input type="date" min={todayStr} max={maxDateStr} value={date} onChange={(e) => setDate(e.target.value)} style={{ width: "100%", borderRadius: 10, padding: "10px 12px" }} />
               </div>
-              <div style={{ marginBottom: 10 }}>
-                <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>Saat</label>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 6 }}>Saat</label>
                 {loadingSlots ? (
                   <p style={{ fontSize: 13, color: "#9aa8b8" }}>Yükleniyor…</p>
                 ) : slotsError ? (
@@ -337,7 +346,7 @@ export default function AppointmentRequestPage() {
                 ) : slots.length === 0 ? (
                   <p style={{ fontSize: 13, color: "#9aa8b8" }}>Bu tarihte müsait saat yok.</p>
                 ) : (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                     {slots.map((s) => (
                       <button
                         key={s}
@@ -346,7 +355,8 @@ export default function AppointmentRequestPage() {
                         style={{
                           background: selectedTime === s ? "#185fa5" : "#f5f8fc",
                           color: selectedTime === s ? "#fff" : "#0c2540",
-                          border: "1px solid #e1e8f0", borderRadius: 6, fontSize: 13, padding: "6px 10px", cursor: "pointer",
+                          border: "1px solid #e1e8f0", borderRadius: 10, fontSize: 13.5, fontWeight: 600, padding: "9px 14px", cursor: "pointer",
+                          boxShadow: selectedTime === s ? "0 6px 16px rgba(24,95,165,0.25)" : "none",
                         }}
                       >
                         {s}
@@ -355,17 +365,21 @@ export default function AppointmentRequestPage() {
                   </div>
                 )}
               </div>
+              <div style={{ borderTop: "1px solid #eef2f6", margin: "4px 0 16px" }} />
+              <p style={{ fontSize: 12.5, fontWeight: 700, color: "#185fa5", letterSpacing: 0.3, textTransform: "uppercase", margin: "0 0 12px" }}>
+                İletişim Bilgileriniz
+              </p>
               <div style={{ marginBottom: 10 }}>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ad Soyad" required style={{ width: "100%" }} />
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ad Soyad" required style={{ width: "100%", borderRadius: 10, padding: "10px 12px" }} />
               </div>
               <div style={{ marginBottom: 10 }}>
-                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Telefon" style={{ width: "100%" }} />
+                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Telefon" style={{ width: "100%", borderRadius: 10, padding: "10px 12px" }} />
               </div>
               <div style={{ marginBottom: 10 }}>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-posta" style={{ width: "100%" }} />
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-posta" style={{ width: "100%", borderRadius: 10, padding: "10px 12px" }} />
               </div>
               <div style={{ marginBottom: 16 }}>
-                <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Not (opsiyonel)" style={{ width: "100%", minHeight: 50, resize: "vertical" }} />
+                <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Not (opsiyonel)" style={{ width: "100%", minHeight: 50, resize: "vertical", borderRadius: 10, padding: "10px 12px" }} />
               </div>
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12.5, color: email.trim() ? "#5b7088" : "#9aa8b8", cursor: email.trim() ? "pointer" : "default" }}>
@@ -386,7 +400,7 @@ export default function AppointmentRequestPage() {
               <button
                 type="submit"
                 disabled={sending || !selectedTime}
-                style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, cursor: "pointer", opacity: sending || !selectedTime ? 0.6 : 1 }}
+                style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 10, padding: "14px", fontWeight: 700, fontSize: 15.5, cursor: "pointer", opacity: sending || !selectedTime ? 0.6 : 1, boxShadow: "0 10px 24px rgba(24,95,165,0.25)" }}
               >
                 {sending ? "Gönderiliyor…" : "Randevu Talebi Gönder"}
               </button>

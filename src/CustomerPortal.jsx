@@ -1832,18 +1832,20 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
       onClose={onClose}
     >
       {dayOverview && dayOverview.length > 0 && (
-        <div style={{ marginBottom: 12 }}>
-          <label
+        <div style={{ marginBottom: 14 }}>
+          <p
             style={{
-              fontSize: 13,
-              color: "var(--text-secondary)",
-              display: "block",
-              marginBottom: 4,
+              fontSize: 12.5,
+              fontWeight: 700,
+              color: "var(--text-accent)",
+              letterSpacing: 0.3,
+              textTransform: "uppercase",
+              margin: "0 0 10px",
             }}
           >
-            Müsait günler
-          </label>
-          <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
+            Müsait Günler
+          </p>
+          <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
             {dayOverview.map((d) => {
               const { weekday, day } = shortDayLabel(d.date);
               const selected = d.date === date;
@@ -1856,18 +1858,21 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
                   onClick={() => setDate(d.date)}
                   style={{
                     flex: "0 0 auto",
-                    width: 52,
-                    padding: "8px 4px",
-                    borderRadius: 8,
+                    width: 58,
+                    padding: "10px 4px",
+                    borderRadius: 12,
                     textAlign: "center",
                     cursor: empty ? "default" : "pointer",
-                    border: selected ? "2px solid var(--fill-accent)" : "0.5px solid var(--border)",
-                    background: selected ? "var(--surface-2)" : "var(--surface-1)",
+                    border: selected
+                      ? "2px solid var(--border-strong)"
+                      : "0.5px solid var(--border)",
+                    background: selected ? "var(--bg-accent)" : "var(--surface-1)",
+                    boxShadow: selected ? "var(--shadow-sm)" : "none",
                     opacity: empty ? 0.45 : 1,
                   }}
                 >
                   <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{weekday}</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
                     {day}
                   </div>
                   <div
@@ -1884,7 +1889,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
           </div>
         </div>
       )}
-      <div style={{ marginBottom: 12 }}>
+      <div style={{ marginBottom: 14 }}>
         <label
           style={{
             fontSize: 13,
@@ -1922,7 +1927,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
         ) : slots.length === 0 ? (
           <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Bu tarihte müsait saat yok.</p>
         ) : (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {slots.map((s) => (
               <button
                 key={s}
@@ -1932,8 +1937,11 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
                   background: selectedTime === s ? "var(--fill-accent)" : "var(--surface-1)",
                   color: selectedTime === s ? "var(--on-accent)" : "var(--text-primary)",
                   border: "0.5px solid var(--border)",
-                  fontSize: 13,
-                  padding: "6px 10px",
+                  borderRadius: 10,
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  padding: "9px 14px",
+                  boxShadow: selectedTime === s ? "var(--shadow-sm)" : "none",
                 }}
               >
                 {s}
@@ -1943,19 +1951,31 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
         )}
       </div>
       {priceListItems && priceListItems.length > 0 && (
-        <div style={{ marginBottom: 12 }}>
-          <label
+        <div style={{ marginBottom: 14 }}>
+          <p
             style={{
-              fontSize: 13,
-              color: "var(--text-secondary)",
-              display: "block",
-              marginBottom: 4,
+              fontSize: 12.5,
+              fontWeight: 700,
+              color: "var(--text-accent)",
+              letterSpacing: 0.3,
+              textTransform: "uppercase",
+              margin: "0 0 10px",
             }}
           >
-            Hizmet (opsiyonel, birden fazla seçebilirsiniz)
+            Hizmet Seçin
+          </p>
+          <label
+            style={{
+              fontSize: 12.5,
+              color: "var(--text-muted)",
+              display: "block",
+              marginBottom: 6,
+            }}
+          >
+            Opsiyonel, birden fazla seçebilirsiniz
           </label>
           {freeServices.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
               {freeServices.map((s) => (
                 <button
                   key={s.id}
@@ -1968,7 +1988,8 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
                     color: serviceIds.includes(s.id) ? "var(--on-accent)" : "var(--text-primary)",
                     border: "0.5px solid var(--border)",
                     fontSize: 12.5,
-                    padding: "6px 10px",
+                    fontWeight: 600,
+                    padding: "8px 14px",
                     borderRadius: 999,
                   }}
                 >
@@ -1984,7 +2005,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
               onChange={(e) => {
                 if (e.target.value) toggleService(e.target.value);
               }}
-              style={{ width: "100%" }}
+              style={{ width: "100%", borderRadius: 10, padding: "10px 12px" }}
             >
               <option value="">Hizmet ekle…</option>
               {paidServices
@@ -1998,7 +2019,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
             </select>
           )}
           {paidServices.filter((s) => serviceIds.includes(s.id)).length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
               {paidServices
                 .filter((s) => serviceIds.includes(s.id))
                 .map((s) => (
@@ -2009,20 +2030,21 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
                       alignItems: "center",
                       justifyContent: "space-between",
                       gap: 8,
-                      fontSize: 13,
-                      background: "var(--surface-1)",
-                      borderRadius: 6,
-                      padding: "6px 8px",
+                      fontSize: 13.5,
+                      background: "var(--bg-accent)",
+                      border: "0.5px solid var(--border-strong)",
+                      borderRadius: 10,
+                      padding: "10px 12px",
                     }}
                   >
-                    <span>
+                    <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
                       {s.name} - {formatTL(s.price)}
                       {s.durationMinutes ? ` · ${s.durationMinutes} dk` : ""}
                     </span>
                     <button
                       type="button"
                       onClick={() => toggleService(s.id)}
-                      style={{ fontSize: 12, padding: "2px 6px", flexShrink: 0 }}
+                      style={{ fontSize: 12, padding: "3px 8px", flexShrink: 0, borderRadius: 20 }}
                     >
                       Kaldır
                     </button>
