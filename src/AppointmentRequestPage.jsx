@@ -394,7 +394,8 @@ export default function AppointmentRequestPage() {
                 </label>
               </div>
               <p style={{ fontSize: 11, color: "#9aa8b8", margin: "0 0 16px" }}>
-                Bilgileriniz {company.companyName} tarafından {marketingConsent ? "hizmet/randevu takibi ve onayladığınız kampanya e-postaları" : "yalnızca hizmet/randevu takibi"} amacıyla saklanır ve işlenir.
+                Bilgileriniz {company.companyName} tarafından {marketingConsent ? "hizmet/randevu takibi ve onayladığınız kampanya e-postaları" : "yalnızca hizmet/randevu takibi"} amacıyla saklanır ve işlenir. Detaylar için{" "}
+                <a href="/kvkk" target="_blank" rel="noopener noreferrer" style={{ color: "#185fa5" }}>KVKK Aydınlatma Metni</a>.
               </p>
               {submitError && <p style={{ color: "#b91c1c", fontSize: 13, margin: "0 0 12px" }}>{submitError}</p>}
               <button

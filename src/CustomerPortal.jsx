@@ -371,6 +371,7 @@ function CustomerAuthForm({ initialMode = "login", onBack }) {
   const [mode, setMode] = useState(initialMode);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -382,6 +383,13 @@ function CustomerAuthForm({ initialMode = "login", onBack }) {
     } else {
       if (!isFullNameValid(name)) {
         setMessage("Lütfen ad ve soyadınızı girin.");
+        setLoading(false);
+        return;
+      }
+      if (!termsAccepted) {
+        setMessage(
+          "Devam etmek için Kullanım Koşulları ve Gizlilik Politikası'nı kabul etmeniz gerekiyor.",
+        );
         setLoading(false);
         return;
       }
@@ -540,6 +548,56 @@ function CustomerAuthForm({ initialMode = "login", onBack }) {
                 Şifremi unuttum
               </button>
             </p>
+          )}
+          {mode === "register" && (
+            <div style={{ marginBottom: 16 }}>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 8,
+                  fontSize: 12.5,
+                  color: "var(--text-secondary)",
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  style={{ marginTop: 2 }}
+                />
+                <span>
+                  <a
+                    href="/portal-kullanim-kosullari"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: "var(--text-accent)" }}
+                  >
+                    Kullanım Koşulları
+                  </a>
+                  {"'nı, "}
+                  <a
+                    href="/gizlilik"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: "var(--text-accent)" }}
+                  >
+                    Gizlilik Politikası
+                  </a>
+                  {"'nı ve "}
+                  <a
+                    href="/kvkk"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: "var(--text-accent)" }}
+                  >
+                    KVKK Aydınlatma Metni
+                  </a>
+                  {"'ni okudum, kabul ediyorum."}
+                </span>
+              </label>
+            </div>
           )}
           {message && <p style={{ fontSize: 13, color: "#b45309", marginBottom: 12 }}>{message}</p>}
           <button

@@ -189,7 +189,16 @@ export default function LeadCapturePage() {
                 {marketingConsent
                   ? "hizmet/randevu takibi ve onayladığınız kampanya e-postaları"
                   : "yalnızca hizmet/randevu takibi"}{" "}
-                amacıyla saklanır ve işlenir.
+                amacıyla saklanır ve işlenir. Detaylar için{" "}
+                <a
+                  href="/kvkk"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "#185fa5" }}
+                >
+                  KVKK Aydınlatma Metni
+                </a>
+                .
               </p>
               {submitError && (
                 <p style={{ color: "#b91c1c", fontSize: 13, margin: "0 0 12px" }}>{submitError}</p>
