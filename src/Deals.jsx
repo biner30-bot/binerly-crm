@@ -432,7 +432,9 @@ export function DealForm({
   const [valueError, setValueError] = useState("");
   const [tags, setTags] = useState(initial?.tags || []);
   const [customFields, setCustomFields] = useState(initial?.customFields || {});
-  const [assignedTo, setAssignedTo] = useState(initial?.assignedTo || currentUserId || "");
+  const [assignedTo, setAssignedTo] = useState(
+    initial ? initial.assignedTo || "" : currentUserId || "",
+  );
   const [resourceId, setResourceId] = useState(initial?.customFields?.resource_id || "");
   const [notifyCustomer, setNotifyCustomer] = useState(initial?.notifyCustomer || false);
   const [conflictError, setConflictError] = useState("");
@@ -1698,6 +1700,7 @@ export function DealForm({
                   onChange={(e) => setAssignedTo(e.target.value)}
                   style={{ width: "100%" }}
                 >
+                  <option value="">Atanmamış</option>
                   {currentUserId && <option value={currentUserId}>Ben ({currentUserEmail})</option>}
                   {teamMembers
                     .filter((m) => m.id !== currentUserId)
