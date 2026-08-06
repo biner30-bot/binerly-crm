@@ -808,6 +808,42 @@ function LandingHeroPipeline() {
   );
 }
 
+// Hero altındaki bölümler sayfa yüklenirken değil, kullanıcı gerçekten o
+// noktaya kaydırdığında beliriyor - hero'daki fade-in'le aynı sakin his,
+// ama scroll'a bağlı. IntersectionObserver ile sadece bir kez tetiklenir,
+// tekrar yukarı kaydırılınca kaybolmaz (dikkat dağıtan bir "AI şablonu"
+// jimmick'i değil, tek seferlik bir giriş).
+function useScrollReveal() {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -60px 0px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return [ref, visible];
+}
+
+function ScrollReveal({ children, className, delay, style, ...rest }) {
+  const [ref, visible] = useScrollReveal();
+  const cls = ["landing-reveal", visible && "landing-reveal-visible", className].filter(Boolean).join(" ");
+  return (
+    <div ref={ref} className={cls} style={{ ...style, transitionDelay: delay ? `${delay}ms` : undefined }} {...rest}>
+      {children}
+    </div>
+  );
+}
+
 function LandingPage() {
   const [authModal, setAuthModal] = useState(null);
 
@@ -876,7 +912,7 @@ function LandingPage() {
 
       {/* Özellikler */}
       <div id="ozellikler" style={{ maxWidth: 1100, margin: "0 auto", padding: "4rem 2rem 3rem" }}>
-        <div className="landing-section-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 24, flexWrap: "wrap", marginBottom: "2.5rem" }}>
+        <ScrollReveal className="landing-section-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 24, flexWrap: "wrap", marginBottom: "2.5rem" }}>
           <div>
             <p style={{ fontSize: 12.5, fontWeight: 700, color: "#185fa5", letterSpacing: 0.6, textTransform: "uppercase", margin: "0 0 10px" }}>Özellikler</p>
             <h2 style={{ fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: 0, maxWidth: 460 }}>
@@ -886,7 +922,7 @@ function LandingPage() {
           <p style={{ fontSize: 14, color: "#5b7088", maxWidth: 300, margin: 0, lineHeight: 1.6 }}>
             Üç ana süreç işin omurgasını taşır, geri kalanı onları tamamlar.
           </p>
-        </div>
+        </ScrollReveal>
 
         {/* Öne çıkan 3 süreç: büyük sıra numarasıyla, yatayda dönüşümlü kutular */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -913,10 +949,11 @@ function LandingPage() {
               tags: ["Dashboard", "Aşama Hunisi", "Gelir Tahmini", "Cari Hesap", "KDV Özeti"],
             },
           ].map((f, i) => (
-            <div
+            <ScrollReveal
               key={f.id}
               id={f.id}
               className="landing-feature-row"
+              delay={i * 100}
               style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem 2rem", alignItems: "flex-start", background: "#fff", border: "1px solid #e1e8f0", borderRadius: 16, padding: "1.75rem 2rem", boxShadow: "0 4px 12px rgba(12,37,64,0.05)", flexDirection: i % 2 === 1 ? "row-reverse" : "row", scrollMarginTop: 80 }}
             >
               <div style={{ flex: "none", width: 96, fontSize: 54, fontWeight: 800, color: "#dceafa", lineHeight: 1, textAlign: i % 2 === 1 ? "right" : "left" }}>{f.num}</div>
@@ -925,12 +962,12 @@ function LandingPage() {
                 <p style={{ fontSize: 14.5, color: "#5b7088", margin: "0 0 12px", lineHeight: 1.7, maxWidth: 620 }}>{f.desc}</p>
                 <p style={{ fontSize: 12.5, color: "#7c93a8", margin: 0, fontWeight: 600 }}>{f.tags.join("   ·   ")}</p>
               </div>
-            </div>
+            </ScrollReveal>
           ))}
         </div>
 
         {/* Geri kalanı: kompakt kutu ızgarası */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginTop: 32 }}>
+        <ScrollReveal style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginTop: 32 }}>
           {[
             {
               id: "musteri-yonetimi",
@@ -977,23 +1014,25 @@ function LandingPage() {
               </div>
             </div>
           ))}
-        </div>
+        </ScrollReveal>
       </div>
 
       {/* Sektörler */}
       <div id="sektorler" style={{ maxWidth: 1100, margin: "0 auto", padding: "1rem 2rem 3rem" }}>
-        <h2 style={{ textAlign: "center", fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: "0 0 0.75rem" }}>
-          Hangi işi yapıyorsanız, dili de ona göre değişir
-        </h2>
-        <p style={{ textAlign: "center", fontSize: 15, color: "#5b7088", maxWidth: 640, margin: "0 auto 2rem" }}>
-          Sektörünüzü seçtiğinizde aşama isimleri, alanlar ve hatta "teklif mi, randevu mu, üyelik mi" dediğimiz otomatik ayarlanır - herkese aynı kalıp değil, işinize uygun bir sistem.
-        </p>
+        <ScrollReveal>
+          <h2 style={{ textAlign: "center", fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: "0 0 0.75rem" }}>
+            Hangi işi yapıyorsanız, dili de ona göre değişir
+          </h2>
+          <p style={{ textAlign: "center", fontSize: 15, color: "#5b7088", maxWidth: 640, margin: "0 auto 2rem" }}>
+            Sektörünüzü seçtiğinizde aşama isimleri, alanlar ve hatta "teklif mi, randevu mu, üyelik mi" dediğimiz otomatik ayarlanır - herkese aynı kalıp değil, işinize uygun bir sistem.
+          </p>
+        </ScrollReveal>
 
         {/* En derin sektörel özellik yatırımı yapılmış 3 sektörden gerçek terminoloji
             örneği - Stitch mockup'ındaki "Portföy"/"Proje" gibi etiketler koddaki
             dealWordKind() eşlemesinde yok, bu yüzden sadece gerçekte üretilen 3
             terim (randevu/üyelik/teklif) kullanıldı. */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, maxWidth: 720, margin: "0 auto 1.5rem" }}>
+        <ScrollReveal style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, maxWidth: 720, margin: "0 auto 1.5rem" }}>
           {[
             { sector: "Güzellik & Bakım", icon: "ti-scissors", term: "Randevu", color: "#0d9488", bg: "#ccfbf1" },
             { sector: "Spor Merkezi", icon: "ti-barbell", term: "Üyelik", color: "#7c3aed", bg: "#ede9fe" },
@@ -1010,18 +1049,18 @@ function LandingPage() {
               </span>
             </div>
           ))}
-        </div>
+        </ScrollReveal>
         <p style={{ textAlign: "center", fontSize: 13, color: "#94a7bb", margin: "0 0 2rem", fontWeight: 500 }}>
           ...ve 8 farklı sektör için daha hazır şablonlar
         </p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
+        <ScrollReveal style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
           {SECTOR_PRESETS.filter((s) => s.id !== "genel").map((s) => (
             <div key={s.id} style={{ background: "#fff", border: "1px solid #e1e8f0", borderRadius: 12, padding: "1rem", display: "flex", alignItems: "center", gap: 10 }}>
               <i className={`ti ${s.icon}`} style={{ fontSize: 20, color: "#185fa5", flex: "none" }} />
               <span style={{ fontSize: 13.5, fontWeight: 600, color: "#0c2540" }}>{s.label}</span>
             </div>
           ))}
-        </div>
+        </ScrollReveal>
         <p style={{ textAlign: "center", fontSize: 13, color: "#94a7bb", margin: "1.5rem 0 0" }}>
           Listede yoksa da sorun değil - "Genel" ile başlayıp kendi özel alanlarınızı ekleyebilirsiniz.
         </p>
@@ -1030,17 +1069,19 @@ function LandingPage() {
       {/* Neden Binerly */}
       <div id="neden-binerly" style={{ background: "#f5f8fc", borderTop: "1px solid #e1e8f0", borderBottom: "1px solid #e1e8f0", scrollMarginTop: 64 }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "4rem 2rem" }}>
-          <div style={{ display: "inline-block", background: "#e6f1fb", color: "#185fa5", fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 20, marginBottom: 16 }}>
-            Neden Binerly?
-          </div>
-          <h2 style={{ fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: "0 0 1.25rem", maxWidth: 640 }}>
-            Ekibiniz büyüsün, faturanız büyümesin
-          </h2>
-          <p style={{ maxWidth: 680, fontSize: 16, color: "#5b7088", lineHeight: 1.8, margin: "0 0 2.5rem" }}>
-            Türkiye'deki CRM'lerin çoğu kullanıcı başına ücretlendiriyor, bazıları da dolar/euro bazlı - ekibiniz büyüdükçe faturanız da büyüyor, kur dalgalandıkça bütçeniz sarsılıyor. Binerly'de öyle değil: 5 kullanıcıya kadar sabit bir ücretle çalışacağız, her zaman TL bazlı.
-          </p>
+          <ScrollReveal>
+            <div style={{ display: "inline-block", background: "#e6f1fb", color: "#185fa5", fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 20, marginBottom: 16 }}>
+              Neden Binerly?
+            </div>
+            <h2 style={{ fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: "0 0 1.25rem", maxWidth: 640 }}>
+              Ekibiniz büyüsün, faturanız büyümesin
+            </h2>
+            <p style={{ maxWidth: 680, fontSize: 16, color: "#5b7088", lineHeight: 1.8, margin: "0 0 2.5rem" }}>
+              Türkiye'deki CRM'lerin çoğu kullanıcı başına ücretlendiriyor, bazıları da dolar/euro bazlı - ekibiniz büyüdükçe faturanız da büyüyor, kur dalgalandıkça bütçeniz sarsılıyor. Binerly'de öyle değil: 5 kullanıcıya kadar sabit bir ücretle çalışacağız, her zaman TL bazlı.
+            </p>
+          </ScrollReveal>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: "2.5rem" }}>
+          <ScrollReveal style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: "2.5rem" }}>
             {[
               ["%9,9", "10-49 çalışanlı işletmelerin CRM kullanma oranı"],
               ["%18,4", "50-249 çalışanlı işletmelerde bu oran"],
@@ -1051,12 +1092,12 @@ function LandingPage() {
                 <div style={{ fontSize: 12.5, color: "#5b7088", marginTop: 6, lineHeight: 1.5 }}>{cap}</div>
               </div>
             ))}
-          </div>
+          </ScrollReveal>
           <p style={{ fontSize: 11.5, color: "#94a7bb", margin: "-14px 0 2.5rem" }}>
             Kaynak: TÜİK, Girişimlerde Bilişim Teknolojileri Kullanım Araştırması, 2025
           </p>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+          <ScrollReveal style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
             {[
               ["ti-list-details", "Dağınıklık", "Müşteri bilgisi telefonda, WhatsApp'ta, Excel'de ve kafanızda - dört farklı yerde."],
               ["ti-eye-off", "Kör nokta", "Bir çalışan izinliyken veya ayrılınca, bildiği müşteri geçmişi de onunla gidiyor."],
@@ -1069,20 +1110,22 @@ function LandingPage() {
                 <p style={{ fontSize: 13, color: "#5b7088", margin: 0, lineHeight: 1.6 }}>{desc}</p>
               </div>
             ))}
-          </div>
+          </ScrollReveal>
         </div>
       </div>
 
       {/* Hakkımızda */}
       <div id="hakkimizda" style={{ background: "#fff", borderTop: "1px solid #e1e8f0", borderBottom: "1px solid #e1e8f0", scrollMarginTop: 64 }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "4rem 2rem" }}>
-          <h2 style={{ textAlign: "center", fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: "0 0 1.25rem" }}>
-            Hakkımızda
-          </h2>
-          <p style={{ maxWidth: 720, margin: "0 auto 2.5rem", fontSize: 16, color: "#5b7088", lineHeight: 1.8, textAlign: "center" }}>
-            Binerly'yi, KOBİ'lerin gerçek gündelik dertlerinden yola çıkarak kurduk: dağınık Excel tabloları, kaybolan müşteri notları, takip edilemeyen teklifler. Küçük ve orta ölçekli işletmelerin, kurumsal şirketler kadar güçlü ama onlar kadar karmaşık olmayan bir sisteme ihtiyacı olduğunu gördük.
-          </p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "2rem 2.5rem" }}>
+          <ScrollReveal>
+            <h2 style={{ textAlign: "center", fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: "0 0 1.25rem" }}>
+              Hakkımızda
+            </h2>
+            <p style={{ maxWidth: 720, margin: "0 auto 2.5rem", fontSize: 16, color: "#5b7088", lineHeight: 1.8, textAlign: "center" }}>
+              Binerly'yi, KOBİ'lerin gerçek gündelik dertlerinden yola çıkarak kurduk: dağınık Excel tabloları, kaybolan müşteri notları, takip edilemeyen teklifler. Küçük ve orta ölçekli işletmelerin, kurumsal şirketler kadar güçlü ama onlar kadar karmaşık olmayan bir sisteme ihtiyacı olduğunu gördük.
+            </p>
+          </ScrollReveal>
+          <ScrollReveal style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "2rem 2.5rem" }}>
             {[
               ["ti-bulb", "Misyonumuz", "KOBİ'lerin günlük operasyonel yükünü azaltıp dijitalleştirerek, zamanlarını ve zihinlerini işlerini büyütmeye, işletmelerini daha iyiye taşıyacak kararlar almaya ve müşterileriyle daha kaliteli ilişkiler kurmaya ayırabilmelerini sağlamak."],
               ["ti-telescope", "Vizyonumuz", "Türkiye'deki her KOBİ'nin, büyüklüğüne bakılmaksızın, büyük şirketlerin sahip olduğu güçlü araçlara kolay ve uygun maliyetle erişebildiği bir gelecek."],
@@ -1095,27 +1138,31 @@ function LandingPage() {
                 <p style={{ fontSize: 13.5, color: "#5b7088", margin: 0, lineHeight: 1.7 }}>{desc}</p>
               </div>
             ))}
-          </div>
+          </ScrollReveal>
         </div>
       </div>
 
       {/* SSS */}
       <div style={{ background: "#f5f8fc", padding: "4rem 2rem" }}>
-        <h2 style={{ textAlign: "center", fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: "0 0 2rem" }}>
-          Sıkça Sorulan Sorular
-        </h2>
-        <LandingFaq />
+        <ScrollReveal>
+          <h2 style={{ textAlign: "center", fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: "0 0 2rem" }}>
+            Sıkça Sorulan Sorular
+          </h2>
+          <LandingFaq />
+        </ScrollReveal>
       </div>
 
       {/* CTA */}
       <div style={{ background: "#185fa5", padding: "4rem 2rem", textAlign: "center" }}>
-        <h2 style={{ fontSize: "1.75rem", fontWeight: 800, color: "#fff", margin: "0 0 1rem" }}>
-          İlk işletmelerden biri olun, ücretsiz kullanın
-        </h2>
-        <p style={{ fontSize: 16, color: "#b8d4f0", margin: "0 0 2rem" }}>Kredi kartı gerekmez. Erken erişim aşamasındayız, şu an için tamamen ücretsiz.</p>
-        <button onClick={() => setAuthModal("register")} style={{ background: "#fff", color: "#185fa5", border: "none", borderRadius: 8, padding: "14px 32px", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
-          Ücretsiz Hesap Oluştur
-        </button>
+        <ScrollReveal>
+          <h2 style={{ fontSize: "1.75rem", fontWeight: 800, color: "#fff", margin: "0 0 1rem" }}>
+            İlk işletmelerden biri olun, ücretsiz kullanın
+          </h2>
+          <p style={{ fontSize: 16, color: "#b8d4f0", margin: "0 0 2rem" }}>Kredi kartı gerekmez. Erken erişim aşamasındayız, şu an için tamamen ücretsiz.</p>
+          <button onClick={() => setAuthModal("register")} style={{ background: "#fff", color: "#185fa5", border: "none", borderRadius: 8, padding: "14px 32px", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
+            Ücretsiz Hesap Oluştur
+          </button>
+        </ScrollReveal>
       </div>
 
       {/* Footer */}
