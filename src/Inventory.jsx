@@ -7,8 +7,14 @@ import {
   PRICE_ITEM_NAME_EXAMPLES,
   Badge,
   IconButton,
+  SegmentedControl,
 } from "./shared";
 import { dealWordKind } from "./Sectors";
+
+const STOCK_MANAGER_TABS = [
+  { id: "stok", label: "Stok Kalemleri" },
+  { id: "recete", label: "Reçeteler" },
+];
 import { DEAL_WORD_FORMS } from "./staticData";
 // FreeServiceModal'daki isim örneği — sadece randevu bazlı (slot) sektörlerde
 // gösterildiği için otel/üretim/perakende gibi ilgisiz sektörler burada yok.
@@ -727,41 +733,8 @@ export function StockManager({
 
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          gap: 4,
-          background: "var(--surface-1)",
-          borderRadius: "var(--radius)",
-          padding: 3,
-          marginBottom: 16,
-          width: "fit-content",
-        }}
-      >
-        <button
-          onClick={() => setTab("stok")}
-          style={{
-            border: "none",
-            background: tab === "stok" ? "var(--fill-accent)" : "transparent",
-            color: tab === "stok" ? "var(--on-accent)" : "var(--text-secondary)",
-            fontWeight: tab === "stok" ? 600 : 400,
-            fontSize: 13,
-          }}
-        >
-          Stok Kalemleri
-        </button>
-        <button
-          onClick={() => setTab("recete")}
-          style={{
-            border: "none",
-            background: tab === "recete" ? "var(--fill-accent)" : "transparent",
-            color: tab === "recete" ? "var(--on-accent)" : "var(--text-secondary)",
-            fontWeight: tab === "recete" ? 600 : 400,
-            fontSize: 13,
-          }}
-        >
-          Reçeteler
-        </button>
+      <div style={{ marginBottom: 16 }}>
+        <SegmentedControl value={tab} onChange={setTab} options={STOCK_MANAGER_TABS} />
       </div>
 
       {tab === "stok" ? (

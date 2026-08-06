@@ -16,6 +16,7 @@ import {
   matchesDateRange,
   DateRangeFilter,
   RowActionsMenu,
+  SegmentedControl,
 } from "./shared";
 import {
   PDF_TEMPLATES,
@@ -45,6 +46,55 @@ import { DEAL_WORD_FORMS } from "./staticData";
 // ödenmemiş kazanılmış teklifin kapanma tarihine bu süre eklenip "vadesi geçti
 // mi" hesaplanıyor. "Peşin" vade 0 gün sayılır (hiç beklememesi gerekirdi).
 const PAYMENT_TERM_DAYS = { Peşin: 0, "30 gün": 30, "60 gün": 60, "90 gün": 90 };
+
+const DEAL_AUDIENCE_OPTIONS = [
+  {
+    id: "kurumsal",
+    label: (
+      <>
+        <i className="ti ti-building" style={{ fontSize: 15 }} aria-hidden="true"></i>
+        Kurumsal
+      </>
+    ),
+  },
+  {
+    id: "bireysel",
+    label: (
+      <>
+        <i className="ti ti-user" style={{ fontSize: 15 }} aria-hidden="true"></i>
+        Bireysel
+      </>
+    ),
+  },
+];
+
+const DEAL_VIEW_OPTIONS = [
+  {
+    id: "list",
+    label: (
+      <>
+        <i className="ti ti-list" style={{ fontSize: 15 }} aria-hidden="true"></i>
+        Liste
+      </>
+    ),
+  },
+  {
+    id: "kanban",
+    label: (
+      <>
+        <i className="ti ti-layout-kanban" style={{ fontSize: 15 }} aria-hidden="true"></i>
+        Kanban
+      </>
+    ),
+  },
+];
+
+const DEAL_QUICK_DATE_OPTIONS = [
+  { id: "all", label: "Tümü" },
+  { id: "today", label: "Bugün" },
+  { id: "week", label: "Bu Hafta" },
+  { id: "month", label: "Bu Ay" },
+];
 
 export function computeCustomerCreditRisk(customer, deals, payments) {
   const creditLimit = Number(customer.customFields?.kredi_limiti) || 0;
@@ -3572,98 +3622,15 @@ export function DealsTab({
         className="list-toolbar"
         style={{ display: "flex", gap: 16, marginBottom: 12, flexWrap: "wrap" }}
       >
-        <div
-          style={{
-            display: "flex",
-            gap: 4,
-            background: "var(--surface-1)",
-            borderRadius: "var(--radius)",
-            padding: 3,
-            width: "fit-content",
+        <SegmentedControl
+          value={dealAudience}
+          onChange={(v) => {
+            setDealAudience(v);
+            updatePreferredCustomerType(v);
           }}
-        >
-          <button
-            onClick={() => {
-              setDealAudience("kurumsal");
-              updatePreferredCustomerType("kurumsal");
-            }}
-            style={{
-              border: "none",
-              background: dealAudience === "kurumsal" ? "var(--fill-accent)" : "transparent",
-              color: dealAudience === "kurumsal" ? "var(--on-accent)" : "var(--text-secondary)",
-              fontWeight: dealAudience === "kurumsal" ? 600 : 400,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 13,
-            }}
-          >
-            <i className="ti ti-building" style={{ fontSize: 15 }} aria-hidden="true"></i>
-            Kurumsal
-          </button>
-          <button
-            onClick={() => {
-              setDealAudience("bireysel");
-              updatePreferredCustomerType("bireysel");
-            }}
-            style={{
-              border: "none",
-              background: dealAudience === "bireysel" ? "var(--fill-accent)" : "transparent",
-              color: dealAudience === "bireysel" ? "var(--on-accent)" : "var(--text-secondary)",
-              fontWeight: dealAudience === "bireysel" ? 600 : 400,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 13,
-            }}
-          >
-            <i className="ti ti-user" style={{ fontSize: 15 }} aria-hidden="true"></i>
-            Bireysel
-          </button>
-        </div>
-        <div
-          style={{
-            display: "flex",
-            gap: 4,
-            background: "var(--surface-1)",
-            borderRadius: "var(--radius)",
-            padding: 3,
-            width: "fit-content",
-          }}
-        >
-          <button
-            onClick={() => changeDealView("list")}
-            style={{
-              border: "none",
-              background: dealView === "list" ? "var(--fill-accent)" : "transparent",
-              color: dealView === "list" ? "var(--on-accent)" : "var(--text-secondary)",
-              fontWeight: dealView === "list" ? 600 : 400,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 13,
-            }}
-          >
-            <i className="ti ti-list" style={{ fontSize: 15 }} aria-hidden="true"></i>
-            Liste
-          </button>
-          <button
-            onClick={() => changeDealView("kanban")}
-            style={{
-              border: "none",
-              background: dealView === "kanban" ? "var(--fill-accent)" : "transparent",
-              color: dealView === "kanban" ? "var(--on-accent)" : "var(--text-secondary)",
-              fontWeight: dealView === "kanban" ? 600 : 400,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 13,
-            }}
-          >
-            <i className="ti ti-layout-kanban" style={{ fontSize: 15 }} aria-hidden="true"></i>
-            Kanban
-          </button>
-        </div>
+          options={DEAL_AUDIENCE_OPTIONS}
+        />
+        <SegmentedControl value={dealView} onChange={changeDealView} options={DEAL_VIEW_OPTIONS} />
       </div>
 
       {isMembershipSector ? (
@@ -3700,38 +3667,12 @@ export function DealsTab({
           </select>
         </div>
       ) : (
-        <div
-          className="list-toolbar"
-          style={{
-            display: "flex",
-            gap: 4,
-            background: "var(--surface-1)",
-            borderRadius: "var(--radius)",
-            padding: 3,
-            marginBottom: 12,
-            width: "fit-content",
-          }}
-        >
-          {[
-            { id: "all", label: "Tümü" },
-            { id: "today", label: "Bugün" },
-            { id: "week", label: "Bu Hafta" },
-            { id: "month", label: "Bu Ay" },
-          ].map((o) => (
-            <button
-              key={o.id}
-              onClick={() => setDealQuickDateFilter(o.id)}
-              style={{
-                border: "none",
-                background: dealQuickDateFilter === o.id ? "var(--fill-accent)" : "transparent",
-                color: dealQuickDateFilter === o.id ? "var(--on-accent)" : "var(--text-secondary)",
-                fontWeight: dealQuickDateFilter === o.id ? 600 : 400,
-                fontSize: 13,
-              }}
-            >
-              {o.label}
-            </button>
-          ))}
+        <div className="list-toolbar" style={{ marginBottom: 12 }}>
+          <SegmentedControl
+            value={dealQuickDateFilter}
+            onChange={setDealQuickDateFilter}
+            options={DEAL_QUICK_DATE_OPTIONS}
+          />
         </div>
       )}
 

@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { supabase } from "./supabase";
-import { Modal, InfoTip, ConfirmDialog, translateAuthError, InitialsAvatar } from "./shared";
+import {
+  Modal,
+  InfoTip,
+  ConfirmDialog,
+  translateAuthError,
+  InitialsAvatar,
+  SegmentedControl,
+  THEME_OPTIONS,
+} from "./shared";
 import { SECTOR_PRESETS, STAGES, stageLabel, dealWordKind } from "./Sectors";
 import { DEAL_WORD_FORMS } from "./staticData";
 const COMPANY_NAME_EXAMPLES = {
@@ -971,51 +979,7 @@ export function AppSettingsModal({
 
       <div style={{ marginBottom: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
         <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Görünüm</p>
-        <div
-          style={{
-            display: "flex",
-            gap: 4,
-            background: "var(--surface-1)",
-            borderRadius: "var(--radius)",
-            padding: 3,
-            width: "fit-content",
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => onThemeChange("light")}
-            style={{
-              border: "none",
-              background: theme === "light" ? "var(--fill-accent)" : "transparent",
-              color: theme === "light" ? "var(--on-accent)" : "var(--text-secondary)",
-              fontWeight: theme === "light" ? 600 : 400,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 13,
-            }}
-          >
-            <i className="ti ti-sun" style={{ fontSize: 15 }} aria-hidden="true"></i>
-            Açık
-          </button>
-          <button
-            type="button"
-            onClick={() => onThemeChange("dark")}
-            style={{
-              border: "none",
-              background: theme === "dark" ? "var(--fill-accent)" : "transparent",
-              color: theme === "dark" ? "var(--on-accent)" : "var(--text-secondary)",
-              fontWeight: theme === "dark" ? 600 : 400,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 13,
-            }}
-          >
-            <i className="ti ti-moon" style={{ fontSize: 15 }} aria-hidden="true"></i>
-            Koyu
-          </button>
-        </div>
+        <SegmentedControl value={theme} onChange={onThemeChange} options={THEME_OPTIONS} />
       </div>
 
       <div style={{ marginBottom: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>

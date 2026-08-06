@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
-import { Badge, TONE_COLORS, Modal, MetricCard, InfoTip, isFullNameValid, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, getRangeBounds, inRange, WEEKDAYS, WEEKDAYS_SHORT, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl, translateAuthError, humanizeDbMessage, SELF_BOOKED_SOURCES, formatFileSize, MAX_TEAM_SIZE, parseAppointmentDateTime, RowActionsMenu, AttachmentList, PRICE_ITEM_NAME_EXAMPLES, ExportSelectionModal, SECTORS, InitialsAvatar } from "./shared";
+import { Badge, TONE_COLORS, Modal, MetricCard, InfoTip, isFullNameValid, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, SegmentedControl, getRangeBounds, inRange, WEEKDAYS, WEEKDAYS_SHORT, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl, translateAuthError, humanizeDbMessage, SELF_BOOKED_SOURCES, formatFileSize, MAX_TEAM_SIZE, parseAppointmentDateTime, RowActionsMenu, AttachmentList, PRICE_ITEM_NAME_EXAMPLES, ExportSelectionModal, SECTORS, InitialsAvatar } from "./shared";
 import { DEAL_WORD_FORMS, DEAL_TAB_STRINGS, SECTOR_DEMO_PRESETS } from "./staticData";
 import { AuthModal, PasswordRecoveryModal } from "./Auth";
 import { SectorPicker, CompanySettingsForm, PaymentCredentialForm, AppSettingsModal } from "./Settings";
@@ -402,7 +402,7 @@ function getMonthlyBuckets(range, wonDealsAll) {
   let startYear, startMonth;
   const endYear = now.getFullYear(), endMonth = now.getMonth();
 
-  if (range === "bu_ay") { startYear = endYear; startMonth = endMonth; }
+  if (range === "bugun" || range === "bu_hafta" || range === "bu_ay") { startYear = endYear; startMonth = endMonth; }
   else if (range === "bu_ceyrek") { startYear = endYear; startMonth = Math.floor(endMonth / 3) * 3; }
   else if (range === "bu_yil") { startYear = endYear; startMonth = 0; }
   else if (range === "son_6_ay") {
@@ -435,6 +435,12 @@ function getMonthlyBuckets(range, wonDealsAll) {
   });
 }
 
+const BUSINESS_HOURS_TABS = [
+  { id: "saatler", label: "Müsaitlik Saatleri" },
+  { id: "politika", label: "Randevu iptal / gelmeme politikası" },
+  { id: "hazirlik_notu", label: "Randevu Öncesi Not" },
+  { id: "kaynaklar", label: "Kaynaklar (Cihaz/Oda)" },
+];
 
 function rowToActivity(r) {
   return {
@@ -4919,17 +4925,8 @@ export default function App() {
 
       {showBusinessHours && (
         <Modal title="Müsaitlik Saatleri" wide onClose={() => setShowBusinessHours(false)}>
-          <div style={{ display: "flex", gap: 4, background: "var(--surface-1)", borderRadius: "var(--radius)", padding: 3, marginBottom: 16, flexWrap: "wrap" }}>
-            {[["saatler", "Müsaitlik Saatleri"], ["politika", "Randevu iptal / gelmeme politikası"], ["hazirlik_notu", "Randevu Öncesi Not"], ["kaynaklar", "Kaynaklar (Cihaz/Oda)"]].map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setBusinessHoursTab(id)}
-                style={{ border: "none", background: businessHoursTab === id ? "var(--fill-accent)" : "transparent", color: businessHoursTab === id ? "var(--on-accent)" : "var(--text-secondary)", fontWeight: businessHoursTab === id ? 600 : 400, fontSize: 13 }}
-              >
-                {label}
-              </button>
-            ))}
+          <div style={{ marginBottom: 16 }}>
+            <SegmentedControl value={businessHoursTab} onChange={setBusinessHoursTab} options={BUSINESS_HOURS_TABS} />
           </div>
           {businessHoursTab === "saatler" ? (
             <>

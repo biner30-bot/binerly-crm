@@ -10,6 +10,7 @@ import {
   WEEKDAYS,
   WEEKDAYS_SHORT,
   DateRangeFilter,
+  SegmentedControl,
 } from "./shared";
 
 export function isOpenStaffShift(s) {
@@ -1124,36 +1125,15 @@ export function TeamModal({
           Bu hesap <strong>{companySettings?.companyName || "bir işletme"}</strong> takımının bir
           üyesi. Tüm müşteri, teklif ve destek verisi bu takımla paylaşılıyor.
         </p>
-        <div
-          style={{
-            display: "flex",
-            gap: 4,
-            background: "var(--surface-1)",
-            borderRadius: "var(--radius)",
-            padding: 3,
-            margin: "16px 0",
-            flexWrap: "wrap",
-          }}
-        >
-          {[
-            ["vardiya", "Vardiya"],
-            ["izinler", "İzinlerim"],
-          ].map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setTeamTab(id)}
-              style={{
-                border: "none",
-                background: teamTab === id ? "var(--fill-accent)" : "transparent",
-                color: teamTab === id ? "var(--on-accent)" : "var(--text-secondary)",
-                fontWeight: teamTab === id ? 600 : 400,
-                fontSize: 13,
-              }}
-            >
-              {label}
-            </button>
-          ))}
+        <div style={{ margin: "16px 0" }}>
+          <SegmentedControl
+            value={teamTab}
+            onChange={setTeamTab}
+            options={[
+              { id: "vardiya", label: "Vardiya" },
+              { id: "izinler", label: "İzinlerim" },
+            ]}
+          />
         </div>
         {teamTab === "vardiya" ? (
           <div style={{ marginBottom: 16 }}>
@@ -1245,37 +1225,16 @@ export function TeamModal({
         <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>Yükleniyor…</p>
       ) : (
         <>
-          <div
-            style={{
-              display: "flex",
-              gap: 4,
-              background: "var(--surface-1)",
-              borderRadius: "var(--radius)",
-              padding: 3,
-              marginBottom: 16,
-              flexWrap: "wrap",
-            }}
-          >
-            {[
-              ["vardiya", "Vardiya"],
-              ["izinler", "İzinler"],
-              ["uyeler", `Üyeler (${occupiedSeats}/${MAX_TEAM_SIZE})`],
-            ].map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setTeamTab(id)}
-                style={{
-                  border: "none",
-                  background: teamTab === id ? "var(--fill-accent)" : "transparent",
-                  color: teamTab === id ? "var(--on-accent)" : "var(--text-secondary)",
-                  fontWeight: teamTab === id ? 600 : 400,
-                  fontSize: 13,
-                }}
-              >
-                {label}
-              </button>
-            ))}
+          <div style={{ marginBottom: 16 }}>
+            <SegmentedControl
+              value={teamTab}
+              onChange={setTeamTab}
+              options={[
+                { id: "vardiya", label: "Vardiya" },
+                { id: "izinler", label: "İzinler" },
+                { id: "uyeler", label: `Üyeler (${occupiedSeats}/${MAX_TEAM_SIZE})` },
+              ]}
+            />
           </div>
           {teamTab === "vardiya" ? (
             <>

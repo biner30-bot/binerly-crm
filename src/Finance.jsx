@@ -7,12 +7,19 @@ import {
   IconButton,
   InfoTip,
   formatTL,
-  PANO_RANGES,
+  RangeFilter,
+  SegmentedControl,
   getRangeBounds,
   inRange,
   downloadXlsx,
 } from "./shared";
 import { stageLabel, dealWordKind } from "./Sectors";
+
+const FINANCE_VIEWS = [
+  { id: "tahsilat", label: "Tahsilat / Cari Hesap" },
+  { id: "defter", label: "Gelir-Gider Defteri" },
+  { id: "kdv", label: "KDV Özet Raporu" },
+];
 
 const FINANCE_DEAL_WORDS = {
   teklif: {
@@ -777,53 +784,8 @@ export default function Finance({
 
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          gap: 4,
-          background: "var(--surface-1)",
-          borderRadius: "var(--radius)",
-          padding: 3,
-          marginBottom: 12,
-          width: "fit-content",
-        }}
-      >
-        <button
-          onClick={() => setFinanceView("tahsilat")}
-          style={{
-            border: "none",
-            background: financeView === "tahsilat" ? "var(--fill-accent)" : "transparent",
-            color: financeView === "tahsilat" ? "var(--on-accent)" : "var(--text-secondary)",
-            fontWeight: financeView === "tahsilat" ? 600 : 400,
-            fontSize: 13,
-          }}
-        >
-          Tahsilat / Cari Hesap
-        </button>
-        <button
-          onClick={() => setFinanceView("defter")}
-          style={{
-            border: "none",
-            background: financeView === "defter" ? "var(--fill-accent)" : "transparent",
-            color: financeView === "defter" ? "var(--on-accent)" : "var(--text-secondary)",
-            fontWeight: financeView === "defter" ? 600 : 400,
-            fontSize: 13,
-          }}
-        >
-          Gelir-Gider Defteri
-        </button>
-        <button
-          onClick={() => setFinanceView("kdv")}
-          style={{
-            border: "none",
-            background: financeView === "kdv" ? "var(--fill-accent)" : "transparent",
-            color: financeView === "kdv" ? "var(--on-accent)" : "var(--text-secondary)",
-            fontWeight: financeView === "kdv" ? 600 : 400,
-            fontSize: 13,
-          }}
-        >
-          KDV Özet Raporu
-        </button>
+      <div style={{ marginBottom: 12 }}>
+        <SegmentedControl value={financeView} onChange={setFinanceView} options={FINANCE_VIEWS} />
       </div>
 
       {financeView === "defter" && (
@@ -837,32 +799,7 @@ export default function Finance({
               flexWrap: "wrap",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                gap: 4,
-                background: "var(--surface-1)",
-                borderRadius: "var(--radius)",
-                padding: 3,
-                width: "fit-content",
-              }}
-            >
-              {PANO_RANGES.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => setFinanceRange(r.id)}
-                  style={{
-                    border: "none",
-                    background: financeRange === r.id ? "var(--fill-accent)" : "transparent",
-                    color: financeRange === r.id ? "var(--on-accent)" : "var(--text-secondary)",
-                    fontWeight: financeRange === r.id ? 600 : 400,
-                    fontSize: 13,
-                  }}
-                >
-                  {r.label}
-                </button>
-              ))}
-            </div>
+            <RangeFilter value={financeRange} onChange={setFinanceRange} />
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               <input
                 type="email"

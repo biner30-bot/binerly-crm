@@ -118,6 +118,8 @@ export function matchesDateRange(dateStr, fromDate, toDate) {
 }
 
 export const PANO_RANGES = [
+  { id: "bugun", label: "Bugün" },
+  { id: "bu_hafta", label: "Bu hafta" },
   { id: "bu_ay", label: "Bu ay" },
   { id: "bu_ceyrek", label: "Bu çeyrek" },
   { id: "bu_yil", label: "Bu yıl" },
@@ -128,6 +130,12 @@ export const PANO_RANGES = [
 export function getRangeBounds(range) {
   const now = new Date();
   const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  if (range === "bugun")
+    return { start: new Date(now.getFullYear(), now.getMonth(), now.getDate()), end };
+  if (range === "bu_hafta") {
+    const dayOffset = now.getDay() === 0 ? -6 : 1 - now.getDay();
+    return { start: new Date(now.getFullYear(), now.getMonth(), now.getDate() + dayOffset), end };
+  }
   if (range === "bu_ay") return { start: new Date(now.getFullYear(), now.getMonth(), 1), end };
   if (range === "bu_ceyrek")
     return { start: new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1), end };
@@ -136,6 +144,71 @@ export function getRangeBounds(range) {
     return { start: new Date(now.getFullYear(), now.getMonth() - 5, 1), end };
   return { start: null, end };
 }
+
+export function SegmentedControl({ value, onChange, options }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 4,
+        background: "var(--surface-1)",
+        boxShadow: "var(--shadow-sm)",
+        borderRadius: "var(--radius)",
+        padding: 3,
+        width: "fit-content",
+        flexWrap: "wrap",
+      }}
+    >
+      {options.map((o) => (
+        <button
+          key={o.id}
+          onClick={() => onChange(o.id)}
+          style={{
+            border: "none",
+            borderRadius: "calc(var(--radius) - 3px)",
+            padding: "6px 12px",
+            background: value === o.id ? "var(--fill-accent)" : "transparent",
+            color: value === o.id ? "var(--on-accent)" : "var(--text-primary)",
+            fontWeight: value === o.id ? 600 : 500,
+            fontSize: 13,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function RangeFilter({ value, onChange, ranges = PANO_RANGES }) {
+  return <SegmentedControl value={value} onChange={onChange} options={ranges} />;
+}
+
+export const THEME_OPTIONS = [
+  {
+    id: "light",
+    label: (
+      <>
+        <i className="ti ti-sun" style={{ fontSize: 15 }} aria-hidden="true"></i>
+        Açık
+      </>
+    ),
+  },
+  {
+    id: "dark",
+    label: (
+      <>
+        <i className="ti ti-moon" style={{ fontSize: 15 }} aria-hidden="true"></i>
+        Koyu
+      </>
+    ),
+  },
+];
 
 export function inRange(dateStr, { start, end }) {
   const t = new Date(dateStr).getTime();

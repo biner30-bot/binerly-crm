@@ -5,7 +5,7 @@ import {
   formatTL,
   downloadXlsx,
   toWhatsAppNumber,
-  PANO_RANGES,
+  RangeFilter,
   TONE_COLORS,
   InitialsAvatar,
 } from "./shared";
@@ -877,32 +877,8 @@ export default function Pano({
         )}
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          gap: 4,
-          background: "var(--surface-1)",
-          borderRadius: "var(--radius)",
-          padding: 3,
-          marginBottom: "1.5rem",
-          flexWrap: "wrap",
-        }}
-      >
-        {PANO_RANGES.map((r) => (
-          <button
-            key={r.id}
-            onClick={() => setPanoRange(r.id)}
-            style={{
-              border: "none",
-              background: panoRange === r.id ? "var(--fill-accent)" : "transparent",
-              color: panoRange === r.id ? "var(--on-accent)" : "var(--text-secondary)",
-              fontWeight: panoRange === r.id ? 600 : 400,
-              fontSize: 13,
-            }}
-          >
-            {r.label}
-          </button>
-        ))}
+      <div style={{ marginBottom: "1.5rem" }}>
+        <RangeFilter value={panoRange} onChange={setPanoRange} />
       </div>
 
       <p
