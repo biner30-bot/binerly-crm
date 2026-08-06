@@ -841,7 +841,7 @@ function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "5rem 2rem 3rem", display: "flex", alignItems: "center", gap: "4rem", flexWrap: "wrap" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "5rem 2rem 3rem", display: "flex", alignItems: "flex-start", gap: "4rem", flexWrap: "wrap" }}>
         <div style={{ flex: 1, minWidth: 300 }}>
           <div style={{ display: "inline-block", background: "#e6f1fb", color: "#185fa5", fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 20, marginBottom: 20 }}>
             Sektörünüze Özel Takip Sistemi
