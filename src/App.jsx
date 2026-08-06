@@ -729,6 +729,7 @@ function LandingHeroPipeline() {
                 padding: "6px 12px",
                 fontSize: 12.5,
                 fontWeight: 600,
+                transition: "background 0.15s ease, color 0.15s ease, border-color 0.15s ease",
               }}
             >
               <i className={`ti ${p.icon}`} style={{ fontSize: 13 }} aria-hidden="true"></i>
@@ -741,11 +742,11 @@ function LandingHeroPipeline() {
           tarayıcı çerçevesi/blur efekti/sürekli zıplayan rozet yok - "AI
           şablonu" hissi veren o tür öğeler bilinçli olarak kullanılmadı. */}
       <div style={{ position: "relative", paddingBottom: 24 }}>
-        <div style={{ background: "#0c2540", borderRadius: 16, padding: "1.25rem", boxShadow: "0 20px 60px rgba(12,37,64,0.2)" }}>
+        <div key={demo.sectorId} className="landing-fade-in" style={{ background: "#0c2540", borderRadius: 16, padding: "1.25rem", boxShadow: "0 20px 60px rgba(12,37,64,0.2)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, paddingBottom: 12, borderBottom: "1px solid #1e3a5c" }}>
             <span style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{demo.headerTitle}</span>
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#3ddc84", display: "inline-block" }} />
+              <span className="landing-live-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#3ddc84", display: "inline-block" }} />
               <span style={{ fontSize: 10, fontWeight: 700, color: "#7fb3e8", letterSpacing: 0.4, textTransform: "uppercase" }}>Canlı</span>
             </span>
           </div>
@@ -777,7 +778,7 @@ function LandingHeroPipeline() {
         </div>
         {/* Sabit (zıplamayan) onay rozeti - sürekli bounce animasyonu klasik "AI şablonu"
             imzası olduğu için bilinçli olarak kullanılmadı. */}
-        <div style={{ position: "absolute", left: 8, bottom: 0, background: "#fff", borderRadius: 12, padding: "10px 14px", boxShadow: "0 12px 30px rgba(12,37,64,0.18)", border: "1px solid #e1e8f0", display: "flex", alignItems: "center", gap: 10, maxWidth: 220 }}>
+        <div key={`${demo.sectorId}-confirmed`} className="landing-fade-in" style={{ position: "absolute", left: 8, bottom: 0, background: "#fff", borderRadius: 12, padding: "10px 14px", boxShadow: "0 12px 30px rgba(12,37,64,0.18)", border: "1px solid #e1e8f0", display: "flex", alignItems: "center", gap: 10, maxWidth: 220 }}>
           <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#e7f9ef", color: "#16a34a", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
             <i className="ti ti-circle-check" style={{ fontSize: 17 }} aria-hidden="true"></i>
           </div>
