@@ -125,7 +125,14 @@ export function AuthModal({ initialMode = "login", onClose }) {
         options: { data: { full_name: name.trim() } },
       });
       if (error) setMessage(translateAuthError(error.message));
-      else setMessage("Kayıt başarılı! E-postanıza gelen doğrulama linkine tıklayın.");
+      // Supabase, zaten kayıtlı+onaylı bir e-postayla tekrar signUp çağrılınca
+      // e-posta numaralandırma saldırılarını önlemek için hata DÖNDÜRMEZ - mesaj
+      // bu yüzden iki durumu da kapsayacak şekilde nötr yazılıyor, kayıtlı/kayıtsız
+      // ayrımını dışarı sızdırmıyoruz.
+      else
+        setMessage(
+          "Bu e-posta ile daha önce kayıt olmadıysanız doğrulama linki gönderildi. Zaten kayıtlıysanız buradan giriş yapabilirsiniz.",
+        );
     }
     setLoading(false);
   };
