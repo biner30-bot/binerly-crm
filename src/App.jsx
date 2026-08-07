@@ -5017,6 +5017,7 @@ export default function App() {
         <OnboardingTour
           step={tourStep}
           dealNavLabel={dealWords.navLabel}
+          dealTourBody={dealWords.tourBody}
           onStepChange={setTourStep}
           onClose={() => {
             if (activeTeamId) localStorage.setItem(`binerly_tour_dismissed_${activeTeamId}`, "1");

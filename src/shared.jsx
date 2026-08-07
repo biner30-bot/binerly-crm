@@ -1471,14 +1471,18 @@ const TOUR_STEPS = [
   },
 ];
 
-export function OnboardingTour({ step, dealNavLabel, onStepChange, onClose }) {
+export function OnboardingTour({ step, dealNavLabel, dealTourBody, onStepChange, onClose }) {
   const [rect, setRect] = useState(null);
   // "Müşteri Takibi" sekmesi artık sektöre göre Teklifler/Randevular/Üyelikler/
   // Rezervasyonlar olarak adlanıyor — shared.jsx döngüsel import olmadan Sectors.jsx'i
   // (dealWordKind) kullanamadığı için, gerçek adı App.jsx zaten hesaplayıp prop olarak
-  // geçiyor (bkz. dealWords.navLabel).
+  // geçiyor (bkz. dealWords.navLabel/tourBody). Otel'de title "Rezervasyonlar" olurken
+  // body sabit "Teklif, randevu veya üyelik..." kalıyordu (rezervasyon hiç geçmiyordu) —
+  // body de artık aynı şekilde dinamik.
   const current =
-    step === 3 && dealNavLabel ? { ...TOUR_STEPS[step], title: dealNavLabel } : TOUR_STEPS[step];
+    step === 3 && dealNavLabel
+      ? { ...TOUR_STEPS[step], title: dealNavLabel, body: dealTourBody || TOUR_STEPS[step].body }
+      : TOUR_STEPS[step];
 
   useEffect(() => {
     const measure = () => {

@@ -66,6 +66,7 @@ export const DEAL_WORD_FORMS = {
 export const DEAL_TAB_STRINGS = {
   teklif: {
     navLabel: "Teklifler",
+    tourBody: "Teklif süreçlerinizi buradan takip edersiniz.",
     addLabel: "Teklif ekle",
     searchPlaceholder: "Teklif ara (başlık, müşteri)...",
     openFilterLabel: "Açık teklifler",
@@ -82,6 +83,7 @@ export const DEAL_TAB_STRINGS = {
   },
   randevu: {
     navLabel: "Randevular",
+    tourBody: "Randevu süreçlerinizi buradan takip edersiniz.",
     addLabel: "Randevu ekle",
     searchPlaceholder: "Randevu ara (başlık, müşteri)...",
     openFilterLabel: "Bekleyen randevular",
@@ -98,6 +100,7 @@ export const DEAL_TAB_STRINGS = {
   },
   uyelik: {
     navLabel: "Üyelikler",
+    tourBody: "Üyelik süreçlerinizi buradan takip edersiniz.",
     addLabel: "Üyelik ekle",
     searchPlaceholder: "Üyelik ara (başlık, müşteri)...",
     openFilterLabel: "Bekleyen üyelikler",
@@ -114,6 +117,7 @@ export const DEAL_TAB_STRINGS = {
   },
   rezervasyon: {
     navLabel: "Rezervasyonlar",
+    tourBody: "Rezervasyon süreçlerinizi buradan takip edersiniz.",
     addLabel: "Rezervasyon ekle",
     searchPlaceholder: "Rezervasyon ara (başlık, müşteri)...",
     openFilterLabel: "Bekleyen rezervasyonlar",
