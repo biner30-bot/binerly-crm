@@ -637,17 +637,17 @@ function LandingFaq() {
       {LANDING_FAQS.map((item, i) => {
         const open = openIndex === i;
         return (
-          <div key={item.q} style={{ borderBottom: "1px solid #e1e8f0" }}>
+          <div key={item.q} style={{ borderBottom: "1px solid var(--border)" }}>
             <button
               type="button"
               onClick={() => setOpenIndex(open ? null : i)}
               style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, background: "none", border: "none", padding: "16px 4px", textAlign: "left", cursor: "pointer" }}
             >
-              <span style={{ fontSize: 15, fontWeight: 600, color: "#0c2540" }}>{item.q}</span>
-              <i className={`ti ${open ? "ti-chevron-up" : "ti-chevron-down"}`} style={{ color: "#5b7088", flexShrink: 0 }} aria-hidden="true"></i>
+              <span style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>{item.q}</span>
+              <i className={`ti ${open ? "ti-chevron-up" : "ti-chevron-down"}`} style={{ color: "var(--text-secondary)", flexShrink: 0 }} aria-hidden="true"></i>
             </button>
             {open && (
-              <p style={{ margin: "0 0 16px", fontSize: 14, color: "#5b7088", lineHeight: 1.7 }}>{item.a}</p>
+              <p style={{ margin: "0 0 16px", fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.7 }}>{item.a}</p>
             )}
           </div>
         );
@@ -717,7 +717,7 @@ function LandingHeroPipeline() {
 
   return (
     <div style={{ flex: 1, minWidth: 280 }}>
-      <p style={{ textAlign: "center", fontSize: 13, fontWeight: 600, color: "#185fa5", margin: "0 0 12px" }}>
+      <p style={{ textAlign: "center", fontSize: 13, fontWeight: 600, color: "var(--text-accent)", margin: "0 0 12px" }}>
         Sektörünüzü seçin, arayüzün nasıl şekillendiğini görün
       </p>
       <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap", marginBottom: 14 }}>
@@ -732,9 +732,9 @@ function LandingHeroPipeline() {
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                background: active ? "#185fa5" : "#fff",
-                color: active ? "#fff" : "#0c2540",
-                border: active ? "1px solid #185fa5" : "1px solid #e1e8f0",
+                background: active ? "var(--fill-accent)" : "var(--surface-1)",
+                color: active ? "var(--on-accent)" : "var(--text-primary)",
+                border: active ? "1px solid var(--fill-accent)" : "1px solid var(--border)",
                 borderRadius: 20,
                 padding: "6px 12px",
                 fontSize: 12.5,
@@ -858,29 +858,29 @@ function LandingPage() {
   const [authModal, setAuthModal] = useState(null);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f5f8fc" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
       <TrackingScripts />
       {authModal && <AuthModal initialMode={authModal} onClose={() => setAuthModal(null)} />}
 
       {/* Navbar */}
-      <nav className="landing-navbar" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 2rem", height: 64, background: "#fff", borderBottom: "1px solid #e1e8f0", position: "sticky", top: 0, zIndex: 100 }}>
+      <nav className="landing-navbar" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 2rem", height: 64, background: "var(--surface-1)", borderBottom: "1px solid var(--border)", position: "sticky", top: 0, zIndex: 100 }}>
         <div onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
           <img src="/favicon.svg" alt="Binerly" style={{ width: 39, height: 39 }} />
-          <span style={{ fontWeight: 700, fontSize: 18, color: "#0c2540" }}>Binerly</span>
+          <span style={{ fontWeight: 700, fontSize: 18, color: "var(--text-primary)" }}>Binerly</span>
         </div>
         <div style={{ display: "flex", gap: 28, alignItems: "center" }}>
           <div className="landing-nav-links" style={{ display: "flex", gap: 24 }}>
-            <a href="#ozellikler" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Hizmetlerimiz</a>
-            <a href="#sektorler" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Sektörler</a>
-            <a href="#neden-binerly" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Neden Binerly?</a>
-            <a href="#hakkimizda" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Hakkımızda</a>
-            <a href="/blog" style={{ color: "#0c2540", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Blog</a>
+            <a href="#ozellikler" style={{ color: "var(--text-primary)", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Hizmetlerimiz</a>
+            <a href="#sektorler" style={{ color: "var(--text-primary)", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Sektörler</a>
+            <a href="#neden-binerly" style={{ color: "var(--text-primary)", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Neden Binerly?</a>
+            <a href="#hakkimizda" style={{ color: "var(--text-primary)", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Hakkımızda</a>
+            <a href="/blog" style={{ color: "var(--text-primary)", fontWeight: 500, fontSize: 14, textDecoration: "none" }}>Blog</a>
           </div>
           <div className="landing-nav-actions" style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <button className="landing-nav-login" onClick={() => setAuthModal("login")} style={{ background: "none", border: "none", color: "#185fa5", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "8px 12px" }}>
+            <button className="landing-nav-login" onClick={() => setAuthModal("login")} style={{ background: "none", border: "none", color: "var(--text-accent)", fontWeight: 600, fontSize: 14, cursor: "pointer", padding: "8px 12px" }}>
               Giriş Yap
             </button>
-            <button className="landing-nav-cta" onClick={() => setAuthModal("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
+            <button className="landing-nav-cta" onClick={() => setAuthModal("register")} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
               Ücretsiz Kullan
             </button>
           </div>
@@ -890,29 +890,29 @@ function LandingPage() {
       {/* Hero */}
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "5rem 2rem 3rem", display: "flex", alignItems: "flex-start", gap: "4rem", flexWrap: "wrap" }}>
         <div style={{ flex: 1, minWidth: 300 }}>
-          <div style={{ display: "inline-block", background: "#e6f1fb", color: "#185fa5", fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 20, marginBottom: 20 }}>
+          <div style={{ display: "inline-block", background: "var(--bg-accent)", color: "var(--text-accent)", fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 20, marginBottom: 20 }}>
             Sektörünüze Özel Takip Sistemi
           </div>
-          <h1 style={{ fontSize: "clamp(2rem, 4vw, 3rem)", fontWeight: 800, color: "#0c2540", lineHeight: 1.2, margin: "0 0 1.25rem" }}>
+          <h1 style={{ fontSize: "clamp(2rem, 4vw, 3rem)", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.2, margin: "0 0 1.25rem" }}>
             KOBİ'ler için{" "}
-            <span style={{ color: "#185fa5" }}>Akıllı İş Takip</span>{" "}
+            <span style={{ color: "var(--text-accent)" }}>Akıllı İş Takip</span>{" "}
             Sistemi
           </h1>
-          <p style={{ fontSize: 17, color: "#5b7088", lineHeight: 1.7, margin: "0 0 2rem", maxWidth: 480 }}>
+          <p style={{ fontSize: 17, color: "var(--text-secondary)", lineHeight: 1.7, margin: "0 0 2rem", maxWidth: 480 }}>
             Müşteri veya danışan takibi, teklif, randevu ya da üyelik süreci, destek ve müşterinizin kendi portalı - hepsi bir arada, sektörünüze göre şekillenen tek bir sistemde.
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <button onClick={() => setAuthModal("register")} style={{ background: "#185fa5", color: "#fff", border: "none", borderRadius: 8, padding: "13px 28px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
+            <button onClick={() => setAuthModal("register")} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none", borderRadius: 8, padding: "13px 28px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
               Ücretsiz Kullanmaya Başla →
             </button>
-            <button onClick={() => setAuthModal("login")} style={{ background: "#fff", color: "#185fa5", border: "1.5px solid #185fa5", borderRadius: 8, padding: "13px 28px", fontWeight: 600, fontSize: 15, cursor: "pointer" }}>
+            <button onClick={() => setAuthModal("login")} style={{ background: "var(--surface-1)", color: "var(--text-accent)", border: "1.5px solid var(--fill-accent)", borderRadius: 8, padding: "13px 28px", fontWeight: 600, fontSize: 15, cursor: "pointer" }}>
               Giriş Yap
             </button>
           </div>
-          <p style={{ fontSize: 13, color: "#185fa5", fontWeight: 600, margin: "12px 0 0" }}>
+          <p style={{ fontSize: 13, color: "var(--text-accent)", fontWeight: 600, margin: "12px 0 0" }}>
             Kart bilgisi gerekmez. Erken erişim aşamasındayız, şu an için tamamen ücretsiz.
           </p>
-          <p style={{ fontSize: 13, color: "#5b7088", margin: "6px 0 0" }}>
+          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "6px 0 0" }}>
             💬 Sizi dinliyoruz - talepleriniz doğrultusunda hızla geliştiriyoruz.
           </p>
         </div>
@@ -924,12 +924,12 @@ function LandingPage() {
       <div id="ozellikler" style={{ maxWidth: 1100, margin: "0 auto", padding: "4rem 2rem 3rem" }}>
         <ScrollReveal className="landing-section-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 24, flexWrap: "wrap", marginBottom: "2.5rem" }}>
           <div>
-            <p style={{ fontSize: 12.5, fontWeight: 700, color: "#185fa5", letterSpacing: 0.6, textTransform: "uppercase", margin: "0 0 10px" }}>Özellikler</p>
-            <h2 style={{ fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: 0, maxWidth: 460 }}>
+            <p style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-accent)", letterSpacing: 0.6, textTransform: "uppercase", margin: "0 0 10px" }}>Özellikler</p>
+            <h2 style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--text-primary)", margin: 0, maxWidth: 460 }}>
               İşinizi büyütmek için ihtiyacınız olan her şey
             </h2>
           </div>
-          <p style={{ fontSize: 14, color: "#5b7088", maxWidth: 300, margin: 0, lineHeight: 1.6 }}>
+          <p style={{ fontSize: 14, color: "var(--text-secondary)", maxWidth: 300, margin: 0, lineHeight: 1.6 }}>
             Üç ana süreç işin omurgasını taşır, geri kalanı onları tamamlar.
           </p>
         </ScrollReveal>
@@ -964,13 +964,13 @@ function LandingPage() {
               id={f.id}
               className="landing-feature-row"
               delay={i * 100}
-              style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem 2rem", alignItems: "flex-start", background: "#fff", border: "1px solid #e1e8f0", borderRadius: 16, padding: "1.75rem 2rem", boxShadow: "0 4px 12px rgba(12,37,64,0.05)", flexDirection: i % 2 === 1 ? "row-reverse" : "row", scrollMarginTop: 80 }}
+              style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem 2rem", alignItems: "flex-start", background: "var(--surface-1)", border: "1px solid var(--border)", borderRadius: 16, padding: "1.75rem 2rem", boxShadow: "var(--shadow-sm)", flexDirection: i % 2 === 1 ? "row-reverse" : "row", scrollMarginTop: 80 }}
             >
-              <div style={{ flex: "none", width: 96, fontSize: 54, fontWeight: 800, color: "#dceafa", lineHeight: 1, textAlign: i % 2 === 1 ? "right" : "left" }}>{f.num}</div>
+              <div style={{ flex: "none", width: 96, fontSize: 54, fontWeight: 800, color: "var(--bg-accent)", lineHeight: 1, textAlign: i % 2 === 1 ? "right" : "left" }}>{f.num}</div>
               <div style={{ flex: 1, minWidth: 260 }}>
-                <h3 style={{ fontSize: 19, fontWeight: 700, color: "#0c2540", margin: "0 0 10px" }}>{f.title}</h3>
-                <p style={{ fontSize: 14.5, color: "#5b7088", margin: "0 0 12px", lineHeight: 1.7, maxWidth: 620 }}>{f.desc}</p>
-                <p style={{ fontSize: 12.5, color: "#7c93a8", margin: 0, fontWeight: 600 }}>{f.tags.join("   ·   ")}</p>
+                <h3 style={{ fontSize: 19, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 10px" }}>{f.title}</h3>
+                <p style={{ fontSize: 14.5, color: "var(--text-secondary)", margin: "0 0 12px", lineHeight: 1.7, maxWidth: 620 }}>{f.desc}</p>
+                <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: 0, fontWeight: 600 }}>{f.tags.join("   ·   ")}</p>
               </div>
             </ScrollReveal>
           ))}
@@ -1011,16 +1011,16 @@ function LandingPage() {
               badge: "Yakında",
             },
           ].map((f) => (
-            <div key={f.id} id={f.id} style={{ display: "flex", gap: 14, background: "#fff", border: "1px solid #e1e8f0", borderRadius: 12, padding: "1.25rem 1.4rem", boxShadow: "0 4px 12px rgba(12,37,64,0.05)", scrollMarginTop: 80 }}>
-              <i className={`ti ${f.icon}`} style={{ fontSize: 19, color: "#185fa5", flex: "none", marginTop: 2 }} aria-hidden="true"></i>
+            <div key={f.id} id={f.id} style={{ display: "flex", gap: 14, background: "var(--surface-1)", border: "1px solid var(--border)", borderRadius: 12, padding: "1.25rem 1.4rem", boxShadow: "var(--shadow-sm)", scrollMarginTop: 80 }}>
+              <i className={`ti ${f.icon}`} style={{ fontSize: 19, color: "var(--text-accent)", flex: "none", marginTop: 2 }} aria-hidden="true"></i>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <h3 style={{ fontSize: 14.5, fontWeight: 700, color: "#0c2540", margin: "0 0 5px" }}>{f.title}</h3>
+                  <h3 style={{ fontSize: 14.5, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 5px" }}>{f.title}</h3>
                   {f.badge && (
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "#185fa5", background: "#e6f1fb", padding: "2px 8px", borderRadius: 20, marginBottom: 5 }}>{f.badge}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-accent)", background: "var(--bg-accent)", padding: "2px 8px", borderRadius: 20, marginBottom: 5 }}>{f.badge}</span>
                   )}
                 </div>
-                <p style={{ fontSize: 13, color: "#5b7088", margin: 0, lineHeight: 1.6 }}>{f.desc}</p>
+                <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0, lineHeight: 1.6 }}>{f.desc}</p>
               </div>
             </div>
           ))}
@@ -1030,10 +1030,10 @@ function LandingPage() {
       {/* Sektörler */}
       <div id="sektorler" style={{ maxWidth: 1100, margin: "0 auto", padding: "1rem 2rem 3rem" }}>
         <ScrollReveal>
-          <h2 style={{ textAlign: "center", fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: "0 0 0.75rem" }}>
+          <h2 style={{ textAlign: "center", fontSize: "1.75rem", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 0.75rem" }}>
             Hangi işi yapıyorsanız, dili de ona göre değişir
           </h2>
-          <p style={{ textAlign: "center", fontSize: 15, color: "#5b7088", maxWidth: 640, margin: "0 auto 2rem" }}>
+          <p style={{ textAlign: "center", fontSize: 15, color: "var(--text-secondary)", maxWidth: 640, margin: "0 auto 2rem" }}>
             Sektörünüzü seçtiğinizde aşama isimleri, alanlar ve hatta "teklif mi, randevu mu, üyelik mi" dediğimiz otomatik ayarlanır - herkese aynı kalıp değil, işinize uygun bir sistem.
           </p>
         </ScrollReveal>
@@ -1041,52 +1041,53 @@ function LandingPage() {
         {/* En derin sektörel özellik yatırımı yapılmış 3 sektörden gerçek terminoloji
             örneği - Stitch mockup'ındaki "Portföy"/"Proje" gibi etiketler koddaki
             dealWordKind() eşlemesinde yok, bu yüzden sadece gerçekte üretilen 3
-            terim (randevu/üyelik/teklif) kullanıldı. */}
+            terim (randevu/üyelik/teklif) kullanıldı. Üç sektörün rengi (teal/mor/mavi)
+            bilinçli olarak farklılaştırma amaçlı sabit tutuldu, tema token'ı değil. */}
         <ScrollReveal style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, maxWidth: 720, margin: "0 auto 1.5rem" }}>
           {[
             { sector: "Güzellik & Bakım", icon: "ti-scissors", term: "Randevu", color: "#0d9488", bg: "#ccfbf1" },
             { sector: "Spor Merkezi", icon: "ti-barbell", term: "Üyelik", color: "#7c3aed", bg: "#ede9fe" },
             { sector: "Üretim / Satış", icon: "ti-truck-delivery", term: "Teklif", color: "#185fa5", bg: "#e6f1fb" },
           ].map((s) => (
-            <div key={s.sector} style={{ background: "#fff", border: "1px solid #e1e8f0", borderRadius: 12, padding: "1.25rem 1rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, textAlign: "center" }}>
+            <div key={s.sector} style={{ background: "var(--surface-1)", border: "1px solid var(--border)", borderRadius: 12, padding: "1.25rem 1rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, textAlign: "center" }}>
               <div style={{ width: 44, height: 44, borderRadius: "50%", background: s.bg, color: s.color, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <i className={`ti ${s.icon}`} style={{ fontSize: 21 }} aria-hidden="true"></i>
               </div>
-              <span style={{ fontSize: 13.5, fontWeight: 700, color: "#0c2540" }}>{s.sector}</span>
-              <span style={{ fontSize: 12.5, color: "#7c93a8", display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text-primary)" }}>{s.sector}</span>
+              <span style={{ fontSize: 12.5, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 5 }}>
                 Satış <i className="ti ti-arrow-right" style={{ fontSize: 13 }} aria-hidden="true"></i>
                 <span style={{ color: s.color, fontWeight: 700 }}>{s.term}</span>
               </span>
             </div>
           ))}
         </ScrollReveal>
-        <p style={{ textAlign: "center", fontSize: 13, color: "#94a7bb", margin: "0 0 2rem", fontWeight: 500 }}>
+        <p style={{ textAlign: "center", fontSize: 13, color: "var(--text-muted)", margin: "0 0 2rem", fontWeight: 500 }}>
           ...ve 8 farklı sektör için daha hazır şablonlar
         </p>
         <ScrollReveal style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
           {SECTOR_PRESETS.filter((s) => s.id !== "genel").map((s) => (
-            <div key={s.id} style={{ background: "#fff", border: "1px solid #e1e8f0", borderRadius: 12, padding: "1rem", display: "flex", alignItems: "center", gap: 10 }}>
-              <i className={`ti ${s.icon}`} style={{ fontSize: 20, color: "#185fa5", flex: "none" }} />
-              <span style={{ fontSize: 13.5, fontWeight: 600, color: "#0c2540" }}>{s.label}</span>
+            <div key={s.id} style={{ background: "var(--surface-1)", border: "1px solid var(--border)", borderRadius: 12, padding: "1rem", display: "flex", alignItems: "center", gap: 10 }}>
+              <i className={`ti ${s.icon}`} style={{ fontSize: 20, color: "var(--text-accent)", flex: "none" }} />
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text-primary)" }}>{s.label}</span>
             </div>
           ))}
         </ScrollReveal>
-        <p style={{ textAlign: "center", fontSize: 13, color: "#94a7bb", margin: "1.5rem 0 0" }}>
+        <p style={{ textAlign: "center", fontSize: 13, color: "var(--text-muted)", margin: "1.5rem 0 0" }}>
           Listede yoksa da sorun değil - "Genel" ile başlayıp kendi özel alanlarınızı ekleyebilirsiniz.
         </p>
       </div>
 
       {/* Neden Binerly */}
-      <div id="neden-binerly" style={{ background: "#f5f8fc", borderTop: "1px solid #e1e8f0", borderBottom: "1px solid #e1e8f0", scrollMarginTop: 64 }}>
+      <div id="neden-binerly" style={{ background: "var(--bg)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", scrollMarginTop: 64 }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "4rem 2rem" }}>
           <ScrollReveal>
-            <div style={{ display: "inline-block", background: "#e6f1fb", color: "#185fa5", fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 20, marginBottom: 16 }}>
+            <div style={{ display: "inline-block", background: "var(--bg-accent)", color: "var(--text-accent)", fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 20, marginBottom: 16 }}>
               Neden Binerly?
             </div>
-            <h2 style={{ fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: "0 0 1.25rem", maxWidth: 640 }}>
+            <h2 style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 1.25rem", maxWidth: 640 }}>
               Ekibiniz büyüsün, faturanız büyümesin
             </h2>
-            <p style={{ maxWidth: 680, fontSize: 16, color: "#5b7088", lineHeight: 1.8, margin: "0 0 2.5rem" }}>
+            <p style={{ maxWidth: 680, fontSize: 16, color: "var(--text-secondary)", lineHeight: 1.8, margin: "0 0 2.5rem" }}>
               Türkiye'deki CRM'lerin çoğu kullanıcı başına ücretlendiriyor, bazıları da dolar/euro bazlı - ekibiniz büyüdükçe faturanız da büyüyor, kur dalgalandıkça bütçeniz sarsılıyor. Binerly'de öyle değil: 5 kullanıcıya kadar sabit bir ücretle çalışacağız, her zaman TL bazlı.
             </p>
           </ScrollReveal>
@@ -1097,13 +1098,13 @@ function LandingPage() {
               ["%18,4", "50-249 çalışanlı işletmelerde bu oran"],
               ["%90+", "Küçük işletmelerin hâlâ sistemsiz çalıştığı tahmini pay"],
             ].map(([val, cap]) => (
-              <div key={cap} style={{ background: "#fff", border: "1px solid #e1e8f0", borderRadius: 12, padding: "1.25rem" }}>
-                <div style={{ fontSize: 28, fontWeight: 800, color: "#185fa5" }}>{val}</div>
-                <div style={{ fontSize: 12.5, color: "#5b7088", marginTop: 6, lineHeight: 1.5 }}>{cap}</div>
+              <div key={cap} style={{ background: "var(--surface-1)", border: "1px solid var(--border)", borderRadius: 12, padding: "1.25rem" }}>
+                <div style={{ fontSize: 28, fontWeight: 800, color: "var(--text-accent)" }}>{val}</div>
+                <div style={{ fontSize: 12.5, color: "var(--text-secondary)", marginTop: 6, lineHeight: 1.5 }}>{cap}</div>
               </div>
             ))}
           </ScrollReveal>
-          <p style={{ fontSize: 11.5, color: "#94a7bb", margin: "-14px 0 2.5rem" }}>
+          <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "-14px 0 2.5rem" }}>
             Kaynak: TÜİK, Girişimlerde Bilişim Teknolojileri Kullanım Araştırması, 2025
           </p>
 
@@ -1114,10 +1115,10 @@ function LandingPage() {
               ["ti-clock-x", "Kaçan takip", "\"Yarın ararım\" dediğiniz teklifi unutup fırsatı rakibe kaptırıyorsunuz."],
               ["ti-certificate", "Kurumsal görünmeme", "Elle yazılmış teklif, büyük müşteriye karşı güven vermiyor."],
             ].map(([icon, title, desc]) => (
-              <div key={title} style={{ background: "#fff", border: "1px solid #e1e8f0", borderRadius: 12, padding: "1.25rem" }}>
-                <i className={`ti ${icon}`} style={{ fontSize: 22, color: "#185fa5", display: "block", marginBottom: 10 }} aria-hidden="true"></i>
-                <h3 style={{ fontSize: 14.5, fontWeight: 700, color: "#0c2540", margin: "0 0 6px" }}>{title}</h3>
-                <p style={{ fontSize: 13, color: "#5b7088", margin: 0, lineHeight: 1.6 }}>{desc}</p>
+              <div key={title} style={{ background: "var(--surface-1)", border: "1px solid var(--border)", borderRadius: 12, padding: "1.25rem" }}>
+                <i className={`ti ${icon}`} style={{ fontSize: 22, color: "var(--text-accent)", display: "block", marginBottom: 10 }} aria-hidden="true"></i>
+                <h3 style={{ fontSize: 14.5, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>{title}</h3>
+                <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0, lineHeight: 1.6 }}>{desc}</p>
               </div>
             ))}
           </ScrollReveal>
@@ -1125,13 +1126,13 @@ function LandingPage() {
       </div>
 
       {/* Hakkımızda */}
-      <div id="hakkimizda" style={{ background: "#fff", borderTop: "1px solid #e1e8f0", borderBottom: "1px solid #e1e8f0", scrollMarginTop: 64 }}>
+      <div id="hakkimizda" style={{ background: "var(--surface-1)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", scrollMarginTop: 64 }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "4rem 2rem" }}>
           <ScrollReveal>
-            <h2 style={{ textAlign: "center", fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: "0 0 1.25rem" }}>
+            <h2 style={{ textAlign: "center", fontSize: "1.75rem", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 1.25rem" }}>
               Hakkımızda
             </h2>
-            <p style={{ maxWidth: 720, margin: "0 auto 2.5rem", fontSize: 16, color: "#5b7088", lineHeight: 1.8, textAlign: "center" }}>
+            <p style={{ maxWidth: 720, margin: "0 auto 2.5rem", fontSize: 16, color: "var(--text-secondary)", lineHeight: 1.8, textAlign: "center" }}>
               Binerly'yi, KOBİ'lerin gerçek gündelik dertlerinden yola çıkarak kurduk: dağınık Excel tabloları, kaybolan müşteri notları, takip edilemeyen teklifler. Küçük ve orta ölçekli işletmelerin, kurumsal şirketler kadar güçlü ama onlar kadar karmaşık olmayan bir sisteme ihtiyacı olduğunu gördük.
             </p>
           </ScrollReveal>
@@ -1142,10 +1143,10 @@ function LandingPage() {
               ["ti-shield-check", "Güvenilirlik", "Verileriniz, her hesabın yalnızca kendi kayıtlarına erişebildiği satır bazlı erişim kurallarıyla saklanır - başka bir işletmenin verisine teknik olarak erişim mümkün değildir. KVKK'ya uygun işlenir, asla üçüncü taraflarla paylaşılmaz."],
               ["ti-heart-handshake", "Sizi Dinliyoruz", "Erken erişim aşamasında olduğumuz için Binerly'yi doğrudan kullanıcılarımızın talepleriyle şekillendiriyoruz. İşinize özel eksik bir özellik veya isteğiniz olursa bize ulaşın - değerlendirip mümkün olan en kısa sürede ekleriz."],
             ].map(([icon, title, desc]) => (
-              <div key={title} style={{ background: "#f5f8fc", borderRadius: 12, padding: "1.5rem", border: "1px solid #e1e8f0" }}>
-                <i className={`ti ${icon}`} style={{ fontSize: 26, color: "#185fa5", display: "block", marginBottom: 12 }} aria-hidden="true"></i>
-                <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>{title}</h3>
-                <p style={{ fontSize: 13.5, color: "#5b7088", margin: 0, lineHeight: 1.7 }}>{desc}</p>
+              <div key={title} style={{ background: "var(--bg)", borderRadius: 12, padding: "1.5rem", border: "1px solid var(--border)" }}>
+                <i className={`ti ${icon}`} style={{ fontSize: 26, color: "var(--text-accent)", display: "block", marginBottom: 12 }} aria-hidden="true"></i>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 8px" }}>{title}</h3>
+                <p style={{ fontSize: 13.5, color: "var(--text-secondary)", margin: 0, lineHeight: 1.7 }}>{desc}</p>
               </div>
             ))}
           </ScrollReveal>
@@ -1153,74 +1154,76 @@ function LandingPage() {
       </div>
 
       {/* SSS */}
-      <div style={{ background: "#f5f8fc", padding: "4rem 2rem" }}>
+      <div style={{ background: "var(--bg)", padding: "4rem 2rem" }}>
         <ScrollReveal>
-          <h2 style={{ textAlign: "center", fontSize: "1.75rem", fontWeight: 700, color: "#0c2540", margin: "0 0 2rem" }}>
+          <h2 style={{ textAlign: "center", fontSize: "1.75rem", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 2rem" }}>
             Sıkça Sorulan Sorular
           </h2>
           <LandingFaq />
         </ScrollReveal>
       </div>
 
-      {/* CTA */}
-      <div style={{ background: "#185fa5", padding: "4rem 2rem", textAlign: "center" }}>
+      {/* CTA — marka rengi zemin bilerek var(--fill-accent) kullanıyor (temaya göre
+          değişir ama her zaman "accent" kalır); üzerindeki metin/buton var(--on-accent)
+          ile hep beyaz/ters-kontrast, hangi accent tonu olursa olsun okunaklı kalır. */}
+      <div style={{ background: "var(--fill-accent)", padding: "4rem 2rem", textAlign: "center" }}>
         <ScrollReveal>
-          <h2 style={{ fontSize: "1.75rem", fontWeight: 800, color: "#fff", margin: "0 0 1rem" }}>
+          <h2 style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--on-accent)", margin: "0 0 1rem" }}>
             İlk işletmelerden biri olun, ücretsiz kullanın
           </h2>
-          <p style={{ fontSize: 16, color: "#b8d4f0", margin: "0 0 2rem" }}>Kredi kartı gerekmez. Erken erişim aşamasındayız, şu an için tamamen ücretsiz.</p>
-          <button onClick={() => setAuthModal("register")} style={{ background: "#fff", color: "#185fa5", border: "none", borderRadius: 8, padding: "14px 32px", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
+          <p style={{ fontSize: 16, color: "rgba(255,255,255,0.8)", margin: "0 0 2rem" }}>Kredi kartı gerekmez. Erken erişim aşamasındayız, şu an için tamamen ücretsiz.</p>
+          <button onClick={() => setAuthModal("register")} style={{ background: "var(--on-accent)", color: "var(--fill-accent)", border: "none", borderRadius: 8, padding: "14px 32px", fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
             Ücretsiz Hesap Oluştur
           </button>
         </ScrollReveal>
       </div>
 
       {/* Footer */}
-      <div style={{ background: "#fff", borderTop: "1px solid #e1e8f0", padding: "3rem 2rem 1.5rem" }}>
+      <div style={{ background: "var(--surface-1)", borderTop: "1px solid var(--border)", padding: "3rem 2rem 1.5rem" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 32 }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <img src="/favicon.svg" alt="Binerly" style={{ width: 31, height: 31 }} />
-              <span style={{ fontWeight: 700, fontSize: 15, color: "#185fa5" }}>BINERLY</span>
+              <span style={{ fontWeight: 700, fontSize: 15, color: "var(--text-accent)" }}>BINERLY</span>
             </div>
-            <p style={{ fontSize: 14, fontWeight: 700, color: "#0c2540", margin: "0 0 8px", lineHeight: 1.4 }}>
+            <p style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 8px", lineHeight: 1.4 }}>
               KOBİ müşteri ilişkileri, satış ve destek yönetimi için tek platform
             </p>
-            <p style={{ fontSize: 13, color: "#5b7088", lineHeight: 1.6, margin: 0 }}>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, margin: 0 }}>
               Müşteri takibi, teklif ve anlaşmalar, satış sonrası destek ve müşteri bilgi sistemini tek yapıda bir araya getirir.
             </p>
           </div>
           <div>
-            <p style={{ fontSize: 12, fontWeight: 700, color: "#0c2540", letterSpacing: 0.5, margin: "0 0 14px" }}>ÇÖZÜMLER</p>
+            <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", letterSpacing: 0.5, margin: "0 0 14px" }}>ÇÖZÜMLER</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <a href="#musteri-yonetimi" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Müşteri Yönetimi</a>
-              <a href="#satis-firsat" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Satış & Teklif Yönetimi</a>
-              <a href="#destek" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Satış Sonrası Destek</a>
-              <a href="#musteri-portali" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Kendi Müşteri Portalınız</a>
-              <a href="#raporlama" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Raporlama & Analitik</a>
+              <a href="#musteri-yonetimi" style={{ fontSize: 13, color: "var(--text-secondary)", textDecoration: "none" }}>Müşteri Yönetimi</a>
+              <a href="#satis-firsat" style={{ fontSize: 13, color: "var(--text-secondary)", textDecoration: "none" }}>Satış & Teklif Yönetimi</a>
+              <a href="#destek" style={{ fontSize: 13, color: "var(--text-secondary)", textDecoration: "none" }}>Satış Sonrası Destek</a>
+              <a href="#musteri-portali" style={{ fontSize: 13, color: "var(--text-secondary)", textDecoration: "none" }}>Kendi Müşteri Portalınız</a>
+              <a href="#raporlama" style={{ fontSize: 13, color: "var(--text-secondary)", textDecoration: "none" }}>Raporlama & Analitik</a>
             </div>
           </div>
           <div>
-            <p style={{ fontSize: 12, fontWeight: 700, color: "#0c2540", letterSpacing: 0.5, margin: "0 0 14px" }}>HIZLI ERİŞİM</p>
+            <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", letterSpacing: 0.5, margin: "0 0 14px" }}>HIZLI ERİŞİM</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <a href="/" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Ana Sayfa</a>
-              <a href="#sektorler" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Sektörler</a>
-              <a href="#hakkimizda" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Hakkımızda</a>
-              <a href="/blog" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Blog</a>
-              <a href="mailto:info@binerly.com" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>İletişim</a>
-              <a href={getPortalUrl()} style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Müşteri misiniz? Giriş yapın →</a>
+              <a href="/" style={{ fontSize: 13, color: "var(--text-secondary)", textDecoration: "none" }}>Ana Sayfa</a>
+              <a href="#sektorler" style={{ fontSize: 13, color: "var(--text-secondary)", textDecoration: "none" }}>Sektörler</a>
+              <a href="#hakkimizda" style={{ fontSize: 13, color: "var(--text-secondary)", textDecoration: "none" }}>Hakkımızda</a>
+              <a href="/blog" style={{ fontSize: 13, color: "var(--text-secondary)", textDecoration: "none" }}>Blog</a>
+              <a href="mailto:info@binerly.com" style={{ fontSize: 13, color: "var(--text-secondary)", textDecoration: "none" }}>İletişim</a>
+              <a href={getPortalUrl()} style={{ fontSize: 13, color: "var(--text-secondary)", textDecoration: "none" }}>Müşteri misiniz? Giriş yapın →</a>
             </div>
           </div>
           <div>
-            <p style={{ fontSize: 12, fontWeight: 700, color: "#0c2540", letterSpacing: 0.5, margin: "0 0 14px" }}>YASAL</p>
+            <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", letterSpacing: 0.5, margin: "0 0 14px" }}>YASAL</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <a href="/gizlilik" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Gizlilik Politikası</a>
-              <a href="/kullanim-kosullari" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>Kullanım Koşulları</a>
-              <a href="/kvkk" style={{ fontSize: 13, color: "#5b7088", textDecoration: "none" }}>KVKK Aydınlatma Metni</a>
+              <a href="/gizlilik" style={{ fontSize: 13, color: "var(--text-secondary)", textDecoration: "none" }}>Gizlilik Politikası</a>
+              <a href="/kullanim-kosullari" style={{ fontSize: 13, color: "var(--text-secondary)", textDecoration: "none" }}>Kullanım Koşulları</a>
+              <a href="/kvkk" style={{ fontSize: 13, color: "var(--text-secondary)", textDecoration: "none" }}>KVKK Aydınlatma Metni</a>
             </div>
           </div>
         </div>
-        <div style={{ maxWidth: 1100, margin: "2rem auto 0", paddingTop: "1.5rem", borderTop: "1px solid #e1e8f0", fontSize: 13, color: "#94a7bb" }}>
+        <div style={{ maxWidth: 1100, margin: "2rem auto 0", paddingTop: "1.5rem", borderTop: "1px solid var(--border)", fontSize: 13, color: "var(--text-muted)" }}>
           © 2026 Binerly · KOBİ'ler için CRM · Tüm hakları saklıdır.
         </div>
       </div>
