@@ -178,7 +178,7 @@ export function AuthModal({ initialMode = "login", onClose }) {
     >
       <div
         style={{
-          background: "#fff",
+          background: "var(--surface-2)",
           borderRadius: 16,
           padding: "2rem",
           width: "100%",
@@ -197,15 +197,17 @@ export function AuthModal({ initialMode = "login", onClose }) {
             border: "none",
             fontSize: 20,
             cursor: "pointer",
-            color: "#666",
+            color: "var(--text-secondary)",
           }}
         >
           ✕
         </button>
-        <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 4px", color: "#0c2540" }}>
+        <h2
+          style={{ fontSize: 20, fontWeight: 700, margin: "0 0 4px", color: "var(--text-primary)" }}
+        >
           {mode === "login" ? "Giriş yap" : "Ücretsiz başla"}
         </h2>
-        <p style={{ fontSize: 13, color: "#5b7088", margin: "0 0 1.5rem" }}>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 1.5rem" }}>
           Binerly CRM'e hoş geldiniz
         </p>
         {/* Google ile giriş eskiden formun ALTINDA, ikincil bir seçenekti - e-posta
@@ -216,7 +218,14 @@ export function AuthModal({ initialMode = "login", onClose }) {
         <form onSubmit={submit}>
           {mode === "register" && (
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>
+              <label
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  display: "block",
+                  marginBottom: 4,
+                }}
+              >
                 Ad Soyad
               </label>
               <input
@@ -226,7 +235,7 @@ export function AuthModal({ initialMode = "login", onClose }) {
                 style={{
                   width: "100%",
                   padding: "10px 12px",
-                  border: "1px solid #e1e8f0",
+                  border: "1px solid var(--border)",
                   borderRadius: 8,
                   fontSize: 14,
                   boxSizing: "border-box",
@@ -235,7 +244,14 @@ export function AuthModal({ initialMode = "login", onClose }) {
             </div>
           )}
           <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
               E-posta
             </label>
             <input
@@ -246,7 +262,7 @@ export function AuthModal({ initialMode = "login", onClose }) {
               style={{
                 width: "100%",
                 padding: "10px 12px",
-                border: "1px solid #e1e8f0",
+                border: "1px solid var(--border)",
                 borderRadius: 8,
                 fontSize: 14,
                 boxSizing: "border-box",
@@ -254,7 +270,14 @@ export function AuthModal({ initialMode = "login", onClose }) {
             />
           </div>
           <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 4 }}>
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
               Şifre
             </label>
             <input
@@ -266,14 +289,14 @@ export function AuthModal({ initialMode = "login", onClose }) {
               style={{
                 width: "100%",
                 padding: "10px 12px",
-                border: "1px solid #e1e8f0",
+                border: "1px solid var(--border)",
                 borderRadius: 8,
                 fontSize: 14,
                 boxSizing: "border-box",
               }}
             />
             {mode === "register" && (
-              <p style={{ fontSize: 11.5, color: "#94a7bb", margin: "4px 0 0" }}>
+              <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "4px 0 0" }}>
                 En az 6 karakter olmalı.
               </p>
             )}
@@ -287,7 +310,7 @@ export function AuthModal({ initialMode = "login", onClose }) {
                 style={{
                   background: "none",
                   border: "none",
-                  color: "#185fa5",
+                  color: "var(--text-accent)",
                   padding: 0,
                   cursor: "pointer",
                   fontSize: 12,
@@ -305,7 +328,7 @@ export function AuthModal({ initialMode = "login", onClose }) {
                   alignItems: "flex-start",
                   gap: 8,
                   fontSize: 12.5,
-                  color: "#5b7088",
+                  color: "var(--text-secondary)",
                   cursor: "pointer",
                 }}
               >
@@ -320,7 +343,7 @@ export function AuthModal({ initialMode = "login", onClose }) {
                     href="/kullanim-kosullari"
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ color: "#185fa5" }}
+                    style={{ color: "var(--text-accent)" }}
                   >
                     Kullanım Koşulları
                   </a>
@@ -329,7 +352,7 @@ export function AuthModal({ initialMode = "login", onClose }) {
                     href="/gizlilik"
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ color: "#185fa5" }}
+                    style={{ color: "var(--text-accent)" }}
                   >
                     Gizlilik Politikası
                   </a>
@@ -338,7 +361,7 @@ export function AuthModal({ initialMode = "login", onClose }) {
                     href="/kvkk"
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ color: "#185fa5" }}
+                    style={{ color: "var(--text-accent)" }}
                   >
                     KVKK Aydınlatma Metni
                   </a>
@@ -347,14 +370,18 @@ export function AuthModal({ initialMode = "login", onClose }) {
               </label>
             </div>
           )}
-          {message && <p style={{ fontSize: 13, color: "#b45309", marginBottom: 12 }}>{message}</p>}
+          {message && (
+            <p style={{ fontSize: 13, color: "var(--text-warning)", marginBottom: 12 }}>
+              {message}
+            </p>
+          )}
           <button
             type="submit"
             disabled={loading}
             style={{
               width: "100%",
-              background: "#185fa5",
-              color: "#fff",
+              background: "var(--fill-accent)",
+              color: "var(--on-accent)",
               border: "none",
               borderRadius: 8,
               padding: "11px",
@@ -366,7 +393,14 @@ export function AuthModal({ initialMode = "login", onClose }) {
             {loading ? "Yükleniyor…" : mode === "login" ? "Giriş yap" : "Kayıt ol"}
           </button>
         </form>
-        <p style={{ fontSize: 13, textAlign: "center", marginTop: 12, color: "#5b7088" }}>
+        <p
+          style={{
+            fontSize: 13,
+            textAlign: "center",
+            marginTop: 12,
+            color: "var(--text-secondary)",
+          }}
+        >
           {mode === "login" ? "Hesabın yok mu? " : "Hesabın var mı? "}
           <button
             onClick={() => {
@@ -376,7 +410,7 @@ export function AuthModal({ initialMode = "login", onClose }) {
             style={{
               background: "none",
               border: "none",
-              color: "#185fa5",
+              color: "var(--text-accent)",
               padding: 0,
               cursor: "pointer",
               fontSize: 13,

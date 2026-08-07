@@ -716,9 +716,9 @@ export function GoogleAuthButton({ onCredential }) {
 export function AuthDivider() {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "12px 0" }}>
-      <div style={{ flex: 1, height: 1, background: "#e1e8f0" }} />
-      <span style={{ fontSize: 12, color: "#94a7bb" }}>veya</span>
-      <div style={{ flex: 1, height: 1, background: "#e1e8f0" }} />
+      <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>veya</span>
+      <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
     </div>
   );
 }

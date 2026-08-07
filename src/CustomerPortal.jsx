@@ -608,7 +608,11 @@ function CustomerAuthForm({ initialMode = "login", onBack }) {
               </label>
             </div>
           )}
-          {message && <p style={{ fontSize: 13, color: "#b45309", marginBottom: 12 }}>{message}</p>}
+          {message && (
+            <p style={{ fontSize: 13, color: "var(--text-warning)", marginBottom: 12 }}>
+              {message}
+            </p>
+          )}
           <button
             type="submit"
             disabled={loading}
