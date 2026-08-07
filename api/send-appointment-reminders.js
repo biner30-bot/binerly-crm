@@ -48,8 +48,15 @@ export default async function handler(req, res) {
     if (!defs || defs.length === 0) return res.status(200).json({ remindersSent: 0 });
 
     const now = Date.now();
-    const windowStart = now + 110 * 60 * 1000; // ~1sa50dk sonrası
-    const windowEnd = now + 130 * 60 * 1000; // ~2sa10dk sonrası — 15dk'lık kontrol aralığına güvenli pay
+    // GitHub Actions'ın "*/15 * * * *" zamanlaması güvenilir değil — gerçek
+    // çalışma aralığı 15dk yerine saatlerce sürebiliyor (2026-08-07'de doğrulandı:
+    // 15 run arasında ortalama ~1.5-3sa boşluk). Eskiden dar bir "110-130dk
+    // öncesi" penceresine bakılıyordu — cron bu dar pencereyi atladığında ilgili
+    // randevu için hatırlatma SESSİZCE VE KALICI OLARAK hiç gönderilmiyordu (randevu
+    // saati geçince pencere bir daha hiç tutmuyordu). Şimdi "randevu hâlâ gelecekte
+    // VE 130dk içinde" bakılıyor — cron ne zaman çalışırsa çalışsın, randevu
+    // gerçekleşene kadar her çalışmada tekrar denenir, en az bir kez yakalanır.
+    const windowEnd = now + 130 * 60 * 1000; // ~2sa10dk sonrasına kadar
 
     const userIds = [...new Set(defs.map((d) => d.user_id))];
     const [{ data: deals, error: dealsError }, { data: settingsRows }] = await Promise.all([
@@ -80,7 +87,7 @@ export default async function handler(req, res) {
         // — bu proje sadece Türkiye için, bu yüzden +03:00 olarak yorumluyoruz.
         // Bu adımı atlamak, sunucunun UTC saatiyle karşılaştırıp saatleri kaydırırdı.
         const apptTime = new Date(`${raw}:00+03:00`).getTime();
-        return !isNaN(apptTime) && apptTime >= windowStart && apptTime <= windowEnd;
+        return !isNaN(apptTime) && apptTime > now && apptTime <= windowEnd;
       });
     });
 
