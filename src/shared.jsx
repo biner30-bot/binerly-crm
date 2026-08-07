@@ -934,7 +934,7 @@ export function EmojiPickerButton({ onSelect }) {
             display: "grid",
             gridTemplateColumns: "repeat(6, 1fr)",
             gap: 2,
-            boxShadow: "0 8px 24px rgba(12,37,64,0.18)",
+            boxShadow: "var(--shadow-md)",
             zIndex: 30,
             width: 216,
           }}
@@ -1302,7 +1302,7 @@ export function NotificationBell({ userId, supabase, dataTour }) {
             background: "var(--surface-1)",
             border: "0.5px solid var(--border)",
             borderRadius: "var(--radius)",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+            boxShadow: "var(--shadow-md)",
             zIndex: 50,
           }}
         >
@@ -1541,7 +1541,7 @@ export function OnboardingTour({ step, dealNavLabel, dealTourBody, onStepChange,
           background: "var(--surface-2)",
           border: "0.5px solid var(--border)",
           borderRadius: "var(--radius)",
-          boxShadow: "0 12px 32px rgba(0,0,0,0.25)",
+          boxShadow: "var(--shadow-md)",
           padding: "14px 16px",
         }}
       >

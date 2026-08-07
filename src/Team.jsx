@@ -756,7 +756,7 @@ export function StaffLeaveManager({
                       <Badge tone="default">{STAFF_LEAVE_TYPE_LABELS[r.leaveType]}</Badge>{" "}
                       {formatLeaveDateRange(r.startDate, r.endDate)} ·{" "}
                       {staffLeaveDayCount(r.startDate, r.endDate)} gün
-                      {r.note && <span style={{ color: "var(--text-muted)" }}> — {r.note}</span>}
+                      {r.note && <span style={{ color: "var(--text-muted)" }}> - {r.note}</span>}
                     </span>
                     {!readOnly && (
                       <IconButton
@@ -1150,7 +1150,7 @@ export function TeamModal({
               Vardiya{" "}
               <InfoTip
                 placement="bottom"
-                text="Sadece görüntüleme — vardiyayı düzenlemek için işletme sahibiyle konuşun."
+                text="Sadece görüntüleme - vardiyayı düzenlemek için işletme sahibiyle konuşun."
               />
               <button
                 type="button"
@@ -1252,7 +1252,7 @@ export function TeamModal({
                   Vardiya{" "}
                   <InfoTip
                     placement="bottom"
-                    text="Bu sadece ekip içi bir planlama görünümü — müşteri portalındaki randevu saatlerini etkilemez, orada tek geçerli olan Müsaitlik Saatleri'dir. Bir hücreye tıklayıp o günün saatini ekleyin/düzenleyin."
+                    text="Bu sadece ekip içi bir planlama görünümü - müşteri portalındaki randevu saatlerini etkilemez, orada tek geçerli olan Müsaitlik Saatleri'dir. Bir hücreye tıklayıp o günün saatini ekleyin/düzenleyin."
                   />
                   <button
                     type="button"
