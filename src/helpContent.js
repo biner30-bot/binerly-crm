@@ -608,7 +608,7 @@ export const HELP_TOPICS = [
   {
     category: "Takım",
     q: "Takıma üye eklemek ek ücrete tabi mi?",
-    a: "Hayır, 5 kullanıcıya kadar ek bir ücret alınmaz - abonelik ücretiniz sabittir. Daha büyük bir ekibiniz varsa bizimle iletişime geçip vaka bazlı bir çözüm bulabiliriz.",
+    a: "Şu an erken erişim aşamasındayız, kullanım (5 kullanıcıya kadar takım üyeliği dahil) tamamen ücretsiz. Ücretlendirme netleştiğinde mevcut kullanıcılara önceden haber verilecek.",
   },
   {
     category: "Takım",
