@@ -3095,7 +3095,12 @@ export default function App() {
     if (error) { notify(`İşletme ayarları kaydedilemedi: ${error.message}`); return; }
     setCompanySettings(rowToCompanySettings(data));
     setShowSettingsForm(false);
-    if (row.sector) await applySectorCustomFields(row.sector);
+    // Yalnızca sektör GERÇEKTEN değiştiyse tetiklenir — aksi halde adres/logo
+    // gibi sektörle ilgisi olmayan bir alanı kaydetmek bile applySectorCustomFields'ı
+    // tekrar çalıştırıp kullanıcının bilerek gizlediği preset alanlarını sessizce
+    // yeniden aktifleştiriyordu (companySettings burada henüz eski değeri taşıyor,
+    // setCompanySettings'in bu closure'ı etkilemesi mümkün değil).
+    if (row.sector && row.sector !== companySettings?.sector) await applySectorCustomFields(row.sector);
   };
 
   const addCustomFieldDef = async ({ entity, key, label, type, options, sector = null, audience = null }) => {
@@ -3132,10 +3137,15 @@ export default function App() {
     setCustomFieldDefs((prev) => prev.map((d) => (ids.includes(d.id) ? { ...d, active } : d)));
   };
 
+  // Onay diyaloğu ("değerler silinmez, sadece görünmez olur" - Sectors.jsx
+  // CustomFieldDefsManager) kalıcı silmeyle tutarsızdı: applySectorCustomFields
+  // aynı (entity,key) preset alanını bulamayınca sıfırdan yeniden oluşturup eski
+  // JSONB değerlerini sessizce geri getiriyordu. Artık diğer gizleme yoluyla
+  // (setCustomFieldDefsActive) aynı soft-hide davranışını kullanıyor.
   const deleteCustomFieldDef = async (id) => {
-    const { error } = await supabase.from("custom_field_defs").delete().eq("id", id);
+    const { error } = await supabase.from("custom_field_defs").update({ active: false }).eq("id", id);
     if (error) { notify(`Özel alan silinemedi: ${error.message}`); return; }
-    setCustomFieldDefs((prev) => prev.filter((d) => d.id !== id));
+    setCustomFieldDefs((prev) => prev.map((d) => (d.id === id ? { ...d, active: false } : d)));
   };
 
   const addPriceListItem = async ({ name, price, refreshDays, durationMinutes }) => {
@@ -3531,7 +3541,14 @@ export default function App() {
       const existing = customFieldDefs.find((d) => d.entity === f.entity && d.key === f.key);
       if (!existing) {
         await addCustomFieldDef({ ...f, sector: sectorId });
-      } else if (existing.sector !== sectorId || !existing.active || existing.type !== f.type) {
+      } else if (existing.sector !== sectorId || existing.type !== f.type) {
+        // !existing.active BİLEREK kontrol dışı — burası sadece sektör GERÇEKTEN
+        // değiştiğinde (existing.sector !== sectorId) veya preset tipi güncellendiğinde
+        // devreye girer. Aksi halde kullanıcının bilerek gizlediği (active:false yaptığı)
+        // bir alan, aynı sektörde kalınsa bile bu fonksiyon her tetiklendiğinde
+        // (upsertCompanySettings çağrısı veya "yeni alanlar getir" butonu) sessizce
+        // yeniden aktifleşiyordu.
+        //
         // type de kontrol/düzeltiliyor — aksi halde örn. elle "Randevu Tarihi"
         // adında "Tarih" (date) tipinde bir alan daha önce oluşturulmuşsa, bu
         // sektöre "reclaim" edilirken sadece etiket/sektör/aktiflik güncellenip
