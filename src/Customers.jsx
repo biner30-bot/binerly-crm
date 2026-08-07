@@ -130,8 +130,14 @@ export function CustomerForm({
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (!name.trim()) return;
-        if (isKurumsal && sector === "Diğer" && !customSector.trim()) return;
+        if (!name.trim()) {
+          setFormError(isKurumsal ? "Firma adı girin." : "Ad soyad girin.");
+          return;
+        }
+        if (isKurumsal && sector === "Diğer" && !customSector.trim()) {
+          setFormError("Sektörünüzü yazın.");
+          return;
+        }
         if (!email.trim() && !phone.trim()) {
           setFormError("Telefon veya e-postadan en az biri girilmelidir.");
           return;

@@ -477,6 +477,7 @@ export function DealForm({
     ),
   );
   const [dateError, setDateError] = useState("");
+  const [titleError, setTitleError] = useState("");
   const [isPackageDeal, setIsPackageDeal] = useState(!!initial?.sessionTotal);
   const [sessionTotal, setSessionTotal] = useState(initial?.sessionTotal ?? 10);
   const [sessionUsed, setSessionUsed] = useState(initial?.sessionUsed ?? 0);
@@ -660,7 +661,11 @@ export function DealForm({
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (!customerId || !title.trim()) return;
+        if (!customerId || !title.trim()) {
+          setTitleError(!title.trim() ? "Başlık girin." : "Önce bir müşteri seçin.");
+          return;
+        }
+        setTitleError("");
         if (totalPaid > 0 && Number(value) < totalPaid) {
           setValueError(
             `Tutar, zaten tahsil edilen ${formatTL(totalPaid)}'nin altına düşürülemez.`,
@@ -1431,7 +1436,10 @@ export function DealForm({
             </label>
             <input
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                setTitleError("");
+              }}
               placeholder={
                 DEAL_TITLE_EXAMPLES[sector] ||
                 (selectedCustomerType === "bireysel"
@@ -1446,6 +1454,11 @@ export function DealForm({
                 <option key={t} value={t} />
               ))}
             </datalist>
+            {titleError && (
+              <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "4px 0 0" }}>
+                {titleError}
+              </p>
+            )}
           </div>
           <div style={{ flex: "1 1 140px" }}>
             <label
@@ -2609,7 +2622,10 @@ export function DealPayments({
   const submit = async (e) => {
     e.preventDefault();
     const n = Number(amount);
-    if (!n || n <= 0) return;
+    if (!n || n <= 0) {
+      setError("Geçerli bir tutar girin.");
+      return;
+    }
     if (remaining <= 0) {
       setError(
         `Bu ${DEAL_WORD_FORMS[dealWordKind(sector)].bare} zaten tamamen tahsil edilmiş, kalan bakiye yok.`,
