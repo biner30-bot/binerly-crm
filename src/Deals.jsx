@@ -3666,7 +3666,13 @@ export function DealsTab({
     <div>
       <div
         className="list-toolbar"
-        style={{ display: "flex", gap: 16, marginBottom: 12, flexWrap: "wrap" }}
+        style={{
+          display: "flex",
+          gap: 16,
+          marginBottom: 12,
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
       >
         <SegmentedControl
           value={dealAudience}
@@ -3677,50 +3683,38 @@ export function DealsTab({
           options={DEAL_AUDIENCE_OPTIONS}
         />
         <SegmentedControl value={dealView} onChange={changeDealView} options={DEAL_VIEW_OPTIONS} />
-      </div>
-
-      {isMembershipSector ? (
-        <div
-          className="list-toolbar"
-          style={{
-            display: "flex",
-            gap: 8,
-            marginBottom: 12,
-            flexWrap: "wrap",
-            alignItems: "center",
-          }}
-        >
-          <button
-            onClick={() => setDealTodayClassFilter((v) => !v)}
-            style={{
-              background: dealTodayClassFilter ? "var(--fill-accent)" : "var(--surface-1)",
-              color: dealTodayClassFilter ? "var(--on-accent)" : "var(--text-primary)",
-              border: "0.5px solid var(--border)",
-              fontSize: 13,
-            }}
-          >
-            Bugün dersi olanlar
-          </button>
-          <select
-            value={dealMembershipExpiryFilter}
-            onChange={(e) => setDealMembershipExpiryFilter(e.target.value)}
-            style={{ fontSize: 13 }}
-          >
-            <option value="all">Üyelik bitişi: Tümü</option>
-            <option value="1m">1 ay içinde bitecek</option>
-            <option value="3m">3 ay içinde bitecek</option>
-            <option value="6m">6 ay içinde bitecek</option>
-          </select>
-        </div>
-      ) : (
-        <div className="list-toolbar" style={{ marginBottom: 12 }}>
+        {isMembershipSector ? (
+          <>
+            <button
+              onClick={() => setDealTodayClassFilter((v) => !v)}
+              style={{
+                background: dealTodayClassFilter ? "var(--fill-accent)" : "var(--surface-1)",
+                color: dealTodayClassFilter ? "var(--on-accent)" : "var(--text-primary)",
+                border: "0.5px solid var(--border)",
+                fontSize: 13,
+              }}
+            >
+              Bugün dersi olanlar
+            </button>
+            <select
+              value={dealMembershipExpiryFilter}
+              onChange={(e) => setDealMembershipExpiryFilter(e.target.value)}
+              style={{ fontSize: 13 }}
+            >
+              <option value="all">Üyelik bitişi: Tümü</option>
+              <option value="1m">1 ay içinde bitecek</option>
+              <option value="3m">3 ay içinde bitecek</option>
+              <option value="6m">6 ay içinde bitecek</option>
+            </select>
+          </>
+        ) : (
           <SegmentedControl
             value={dealQuickDateFilter}
             onChange={setDealQuickDateFilter}
             options={DEAL_QUICK_DATE_OPTIONS}
           />
-        </div>
-      )}
+        )}
+      </div>
 
       <div
         className="list-toolbar"
