@@ -2540,14 +2540,17 @@ export default function App() {
     });
     if (!burn) return;
     const packageDeal = dealsBeforeChange.find((d) => d.id === burn.packageDealId);
-    setDeals((prev) => prev.map((d) => (d.id === burn.packageDealId ? { ...d, sessionUsed: burn.newSessionUsed } : d)));
-    const { error } = await supabase.from("deals").update({ session_used: burn.newSessionUsed }).eq("id", burn.packageDealId);
+    // Artık istemcide hesaplanan bir değer yazılmıyor — DB'de atomik increment
+    // yapan burn_appointment_penalty_session RPC'si çağrılıyor (bkz. migration
+    // add_burn_appointment_penalty_session_rpc), aynı anda iki ihlal gelirse
+    // (personel + portal) ikisi de doğru sayılır.
+    const { data: newSessionUsed, error } = await supabase.rpc("burn_appointment_penalty_session", { p_deal_id: burn.packageDealId });
     if (error) {
       notify(`Paket seansı güncellenemedi: ${error.message}`);
-      setDeals((prev) => prev.map((d) => (d.id === burn.packageDealId ? { ...d, sessionUsed: packageDeal?.sessionUsed ?? 0 } : d)));
       return;
     }
-    logAction("deals", burn.packageDealId, "updated", `Geç iptal/gelmeme cezası: ${burn.newSessionUsed}. seans otomatik düşüldü (${burn.newSessionUsed}/${packageDeal?.sessionTotal})`);
+    setDeals((prev) => prev.map((d) => (d.id === burn.packageDealId ? { ...d, sessionUsed: newSessionUsed } : d)));
+    logAction("deals", burn.packageDealId, "updated", `Geç iptal/gelmeme cezası: ${newSessionUsed}. seans otomatik düşüldü (${newSessionUsed}/${packageDeal?.sessionTotal})`);
   };
 
   // Simetrik adalet: işletme/personel kaynaklı geç iptallerde (randevu saatine

@@ -3545,14 +3545,19 @@ export default function CustomerPortal() {
         strikeLimit: ownerRow?.companyAppointmentPenaltyStrikeLimit,
       });
       if (burn) {
-        const { error: burnError } = await supabase
-          .from("deals")
-          .update({ session_used: burn.newSessionUsed })
-          .eq("id", burn.packageDealId);
+        // deals_cancel_portal RLS policy'si sadece stage='ilk_gorusme' satırlarını
+        // kapsıyor, paket kaydı (stage='kazanildi') bu kapsamın dışında kalıyordu —
+        // düz bir .update() burada RLS tarafından sessizce (hatasız) hiçbir satırı
+        // etkilemeden geçiştirilirdi. burn_appointment_penalty_session RPC'si hem
+        // bunu (kendi yetki kontrolüyle) çözüyor hem de increment'i atomik yapıyor.
+        const { data: newSessionUsed, error: burnError } = await supabase.rpc(
+          "burn_appointment_penalty_session",
+          { p_deal_id: burn.packageDealId },
+        );
         if (!burnError)
           setDeals((prev) =>
             prev.map((d) =>
-              d.id === burn.packageDealId ? { ...d, sessionUsed: burn.newSessionUsed } : d,
+              d.id === burn.packageDealId ? { ...d, sessionUsed: newSessionUsed } : d,
             ),
           );
       }
