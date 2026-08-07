@@ -208,6 +208,11 @@ export function AuthModal({ initialMode = "login", onClose }) {
         <p style={{ fontSize: 13, color: "#5b7088", margin: "0 0 1.5rem" }}>
           Binerly CRM'e hoş geldiniz
         </p>
+        {/* Google ile giriş eskiden formun ALTINDA, ikincil bir seçenekti - e-posta
+            yolu ise kayıt sonrası doğrulama linki bekletiyor. Google anında hesap
+            açtığı için birincil, üstte gösteriliyor; e-posta/şifre altta kalıyor. */}
+        <GoogleAuthButton onCredential={handleGoogleCredential} />
+        <AuthDivider />
         <form onSubmit={submit}>
           {mode === "register" && (
             <div style={{ marginBottom: 12 }}>
@@ -361,8 +366,6 @@ export function AuthModal({ initialMode = "login", onClose }) {
             {loading ? "Yükleniyor…" : mode === "login" ? "Giriş yap" : "Kayıt ol"}
           </button>
         </form>
-        <AuthDivider />
-        <GoogleAuthButton onCredential={handleGoogleCredential} />
         <p style={{ fontSize: 13, textAlign: "center", marginTop: 12, color: "#5b7088" }}>
           {mode === "login" ? "Hesabın yok mu? " : "Hesabın var mı? "}
           <button
