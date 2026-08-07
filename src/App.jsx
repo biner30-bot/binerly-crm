@@ -966,7 +966,7 @@ function LandingPage() {
               id: "musteri-portali",
               num: "02",
               title: "Kendi Müşteri Portalınız",
-              desc: "Müşterileriniz kendi hesaplarıyla giriş yapıp destek taleplerini açabilir, sizinle mesajlaşabilir ve teklif/randevu/üyelik kayıtlarının durumunu görebilir. Sizin tanımladığınız müsaitlik saatlerinden kendi randevusunu alabilir - siz her yeni işlemde anında bildirim alırsınız. Telefon trafiğinizi azaltır.",
+              desc: "Müşterileriniz kendi hesaplarıyla giriş yapıp destek taleplerini açabilir, sizinle mesajlaşabilir ve teklif/randevu/üyelik/rezervasyon kayıtlarının durumunu görebilir. Sizin tanımladığınız müsaitlik saatlerinden kendi randevusunu alabilir - siz her yeni işlemde anında bildirim alırsınız. Telefon trafiğinizi azaltır.",
               tags: ["Müşteri Portalı", "Kendi Randevusunu Alır", "Grup Dersi Kaydı", "Kendi Talebini Takip"],
             },
             {
@@ -4761,7 +4761,7 @@ export default function App() {
       {showPortalLinkModal && (
         <Modal title="Müşteri Portalı Linki" onClose={() => setShowPortalLinkModal(false)}>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px" }}>
-            Bu linki (veya QR kodu) mevcut müşterilerinizle paylaşın - kayıtlı e-postalarıyla kendi hesaplarını oluşturup teklif/randevu/üyelik durumlarını görebilir, destek talebi açabilirler. Belirli bir müşteriye özel paylaşmak isterseniz Müşteriler listesindeki "Linki paylaş" butonunu da kullanabilirsiniz.
+            Bu linki (veya QR kodu) mevcut müşterilerinizle paylaşın - kayıtlı e-postalarıyla kendi hesaplarını oluşturup {dealWords.columnHeader.toLowerCase()} durumlarını görebilir, destek talebi açabilirler. Belirli bir müşteriye özel paylaşmak isterseniz Müşteriler listesindeki "Linki paylaş" butonunu da kullanabilirsiniz.
           </p>
           <img
             src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(getPortalUrl())}`}

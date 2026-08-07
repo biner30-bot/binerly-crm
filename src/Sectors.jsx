@@ -1069,8 +1069,11 @@ export const appointmentNoteExample = (sector) =>
 const APPOINTMENT_PREP_NOTE_EXAMPLES = {
   guzellik_bakim: '"Makyajsız gelin", "saçınızı yıkamadan gelin" gibi.',
   saglik_klinik: '"Aç karnına gelin", "kimliğinizi getirin" gibi.',
-  spor_merkezi: '"Spor kıyafetleriyle gelin", "su şişenizi getirin" gibi.',
   emlak: '"Tapu/kimlik fotokopisi getirin" gibi.',
+  dijital_ajans:
+    '"Marka renkleri/logo dosyalarınızı ve beğendiğiniz örnek çalışmaları hazır bulundurun" gibi.',
+  hizmet_danismanlik:
+    '"Görüşmeden önce paylaşmak istediğiniz belge veya soruları hazırlayın" gibi.',
 };
 export const appointmentPrepNoteExample = (sector) =>
   APPOINTMENT_PREP_NOTE_EXAMPLES[sector] || '"Randevunuzdan 15 dakika önce gelin" gibi.';

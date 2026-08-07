@@ -795,7 +795,7 @@ export const HELP_TOPICS = [
   },
   {
     category: "İçe/Dışa Aktarma",
-    q: "Kayıt (teklif/randevu/üyelik) içe aktarırken aşama belirtmezsem ne olur?",
+    q: "Kayıt (teklif/randevu/üyelik/rezervasyon) içe aktarırken aşama belirtmezsem ne olur?",
     a: 'Aşama sütununu boş bırakırsanız kayıt otomatik olarak en baştaki aşamada ("İlk Görüşme") açılır.',
   },
   {
@@ -4353,7 +4353,7 @@ export const ANSWER_LIBRARY = [
       if (active.length === 0) return "Henüz aktif bir özel alanınız yok.";
       const customerCount = active.filter((d) => d.entity === "customer").length;
       const dealCount = active.filter((d) => d.entity === "deal").length;
-      return `Müşteri tarafında ${customerCount}, kayıt (teklif/randevu/üyelik) tarafında ${dealCount} aktif özel alanınız var.`;
+      return `Müşteri tarafında ${customerCount}, kayıt (teklif/randevu/üyelik/rezervasyon) tarafında ${dealCount} aktif özel alanınız var.`;
     },
   },
   {
@@ -4397,7 +4397,7 @@ export const ANSWER_LIBRARY = [
       if (ctx.attachments.length === 0) return "Henüz bir dosya yüklenmemiş.";
       const customerCount = ctx.attachments.filter((a) => a.entityType === "customers").length;
       const dealCount = ctx.attachments.filter((a) => a.entityType === "deals").length;
-      return `Müşteri kayıtlarında ${customerCount}, teklif/randevu/üyelik kayıtlarında ${dealCount} dosyanız var.`;
+      return `Müşteri kayıtlarında ${customerCount}, teklif/randevu/üyelik/rezervasyon kayıtlarında ${dealCount} dosyanız var.`;
     },
   },
   {
