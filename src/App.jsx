@@ -3275,16 +3275,20 @@ export default function App() {
     logAction("group_classes", id, "deleted", `${group?.name || "Ders"} çöp kutusuna taşındı`);
   };
 
+  // ok:false döndüğü tüm dallarda notify zaten çağrıldı (kullanıcı neden
+  // eklenmediğini görür) — dönüş değeri sadece çağıranın (promoteFromWaitlistIfAny)
+  // "gerçekten kaydoldu mu" bilgisine göre kendi sonraki adımına (waitlist'ten
+  // silme, başarı mesajı) karar verebilmesi için var.
   const enrollMember = async ({ groupClassId, customerId, silent = false }) => {
     const group = groupClasses.find((g) => g.id === groupClassId);
-    if (!group) return;
-    if (!activeMemberships.some((d) => d.customerId === customerId)) { notify(groupClassWords(companySettings?.sector).noMembershipToast); return; }
+    if (!group) return { ok: false, reason: "not_found" };
+    if (!activeMemberships.some((d) => d.customerId === customerId)) { notify(groupClassWords(companySettings?.sector).noMembershipToast); return { ok: false, reason: "no_membership" }; }
     const currentCount = groupClassEnrollments.filter((e) => e.groupClassId === groupClassId).length;
-    if (currentCount >= group.capacity) { notify("Bu ders dolu."); return; }
-    if (groupClassEnrollments.some((e) => e.groupClassId === groupClassId && e.customerId === customerId)) { notify("Bu müşteri zaten kayıtlı."); return; }
+    if (currentCount >= group.capacity) { notify("Bu ders dolu."); return { ok: false, reason: "full" }; }
+    if (groupClassEnrollments.some((e) => e.groupClassId === groupClassId && e.customerId === customerId)) { notify("Bu müşteri zaten kayıtlı."); return { ok: false, reason: "already_enrolled" }; }
     const row = { id: uid(), user_id: activeTeamId, group_class_id: groupClassId, customer_id: customerId };
     const { data, error } = await supabase.from("group_class_enrollments").insert(row).select().single();
-    if (error) { notify(`${groupClassWords(companySettings?.sector).addErrorPrefix}: ${error.message}`); return; }
+    if (error) { notify(`${groupClassWords(companySettings?.sector).addErrorPrefix}: ${error.message}`); return { ok: false, reason: "db_error" }; }
     setGroupClassEnrollments((prev) => [...prev, rowToGroupClassEnrollment(data)]);
     if (!silent) {
       const customer = customers.find((c) => c.id === customerId);
@@ -3296,6 +3300,7 @@ export default function App() {
         );
       }
     }
+    return { ok: true };
   };
 
   const removeMember = async (enrollmentId) => {
@@ -3316,7 +3321,12 @@ export default function App() {
       .filter((w) => w.groupClassId === groupClassId)
       .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))[0];
     if (!next) return;
-    await enrollMember({ groupClassId, customerId: next.customerId, silent: true });
+    // Kayıt gerçekten oluşmadıysa (dolu/DB hatası/vb.) kişi yedek listede
+    // kalmalı ki bir sonraki yer açılışında tekrar denensin — enrollMember
+    // zaten neden eklenemediğini notify ile göstermiş oluyor, burada ayrıca
+    // yanlış bir "başarı" mesajı gösterilmez.
+    const result = await enrollMember({ groupClassId, customerId: next.customerId, silent: true });
+    if (!result.ok) return;
     const { error } = await supabase.from("group_class_waitlist").delete().eq("id", next.id);
     if (!error) setGroupClassWaitlist((prev) => prev.filter((w) => w.id !== next.id));
     const customer = customers.find((c) => c.id === next.customerId);
