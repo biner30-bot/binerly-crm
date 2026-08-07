@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 import {
   Modal,
@@ -416,6 +417,32 @@ export function DealForm({
   const [freightFlatFee, setFreightFlatFee] = useState(
     () => localStorage.getItem("binerly_freight_flat_fee") || "",
   );
+  // Popover eskiden position:absolute idi — bu form her zaman Modal wide
+  // içinde render edildiğinden (bkz. App.jsx), Modal'ın overflowX:hidden
+  // içerik kabı butona yakın açıldığında popover'ı kırpabiliyordu. InfoTip/
+  // RowActionsMenu'deki aynı gerekçeyle document.body'ye portal + fixed
+  // konumlama kullanılıyor.
+  const freightBtnRef = useRef(null);
+  const [freightCoords, setFreightCoords] = useState(null);
+  useLayoutEffect(() => {
+    if (!showFreightCalc) return;
+    const reposition = () => {
+      const btn = freightBtnRef.current;
+      if (!btn) return;
+      const rect = btn.getBoundingClientRect();
+      const margin = 8;
+      const width = 220;
+      const left = Math.min(rect.left, window.innerWidth - width - margin);
+      setFreightCoords({ top: rect.bottom + 4, left: Math.max(margin, left) });
+    };
+    reposition();
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [showFreightCalc]);
   const [cost, setCost] = useState(initial?.cost ?? "");
   // Yeni tekliflerde son seçilen ödeme tercihi hatırlanır (localStorage) —
   // kaydetmeden formu kapatıp tekrar açsa bile "Sadece onaylasın"a sıfırlanmasın.
@@ -1189,141 +1216,144 @@ export function DealForm({
             {sector === "uretim_satis" && (
               <div style={{ position: "relative" }}>
                 <button
+                  ref={freightBtnRef}
                   type="button"
                   onClick={() => setShowFreightCalc((v) => !v)}
                   style={{ fontSize: 12 }}
                 >
                   + Navlun/Gümrük ekle
                 </button>
-                {showFreightCalc && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "calc(100% + 4px)",
-                      left: 0,
-                      zIndex: 20,
-                      background: "var(--surface-1)",
-                      border: "0.5px solid var(--border)",
-                      borderRadius: "var(--radius)",
-                      padding: 10,
-                      width: 220,
-                      boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
-                    }}
-                  >
-                    <label
+                {showFreightCalc &&
+                  createPortal(
+                    <div
                       style={{
-                        fontSize: 11,
-                        color: "var(--text-muted)",
-                        display: "block",
-                        marginBottom: 2,
+                        position: "fixed",
+                        top: freightCoords?.top ?? -9999,
+                        left: freightCoords?.left ?? -9999,
+                        zIndex: 2000,
+                        background: "var(--surface-1)",
+                        border: "0.5px solid var(--border)",
+                        borderRadius: "var(--radius)",
+                        padding: 10,
+                        width: 220,
+                        boxShadow: "var(--shadow-md)",
                       }}
                     >
-                      Teslim Şekli
-                    </label>
-                    <select
-                      value={freightIncoterm}
-                      onChange={(e) => setFreightIncoterm(e.target.value)}
-                      style={{ width: "100%", fontSize: 13, marginBottom: 6 }}
-                    >
-                      <option value="FOB">FOB</option>
-                      <option value="CIF">CIF</option>
-                      <option value="EXW">EXW</option>
-                      <option value="DAP">DAP</option>
-                    </select>
-                    <label
-                      style={{
-                        fontSize: 11,
-                        color: "var(--text-muted)",
-                        display: "block",
-                        marginBottom: 2,
-                      }}
-                    >
-                      Navlun/Gümrük Oranı (%)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      value={freightPercent}
-                      onChange={(e) => setFreightPercent(e.target.value)}
-                      placeholder="Örn. 8"
-                      style={{ width: "100%", fontSize: 13, marginBottom: 6 }}
-                    />
-                    <label
-                      style={{
-                        fontSize: 11,
-                        color: "var(--text-muted)",
-                        display: "block",
-                        marginBottom: 2,
-                      }}
-                    >
-                      Sabit Navlun Ücreti (TL)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={freightFlatFee}
-                      onChange={(e) => setFreightFlatFee(e.target.value)}
-                      placeholder="Opsiyonel"
-                      style={{ width: "100%", fontSize: 13, marginBottom: 8 }}
-                    />
-                    <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 8px" }}>
-                      Oran, mevcut kalem toplamı üzerinden hesaplanır - bu kendi sabit oranınız,
-                      canlı gümrük/navlun verisi değildir.
-                    </p>
-                    <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                      <button
-                        type="button"
-                        onClick={() => setShowFreightCalc(false)}
-                        style={{ fontSize: 12 }}
-                      >
-                        Vazgeç
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const percent = Number(freightPercent) || 0;
-                          const flatFee = Number(freightFlatFee) || 0;
-                          const baseTotal = lineItemsTotal || Number(value) || 0;
-                          const amount = Math.round(baseTotal * (percent / 100) + flatFee);
-                          if (amount <= 0) return;
-                          localStorage.setItem("binerly_freight_incoterm", freightIncoterm);
-                          localStorage.setItem("binerly_freight_percent", freightPercent);
-                          localStorage.setItem("binerly_freight_flat_fee", freightFlatFee);
-                          setLineItems((prev) => {
-                            const newRow = {
-                              localId: uid(),
-                              description: `Navlun/Gümrük (${freightIncoterm}${percent ? `, %${percent}` : ""})`,
-                              quantity: 1,
-                              unitPrice: amount,
-                            };
-                            if (prev.length === 0 && title.trim() && Number(value) > 0) {
-                              return [
-                                {
-                                  localId: uid(),
-                                  description: title.trim(),
-                                  quantity: 1,
-                                  unitPrice: Number(value),
-                                },
-                                newRow,
-                              ];
-                            }
-                            return [...prev, newRow];
-                          });
-                          setShowFreightCalc(false);
-                        }}
+                      <label
                         style={{
-                          fontSize: 12,
-                          background: "var(--fill-accent)",
-                          color: "var(--on-accent)",
-                          border: "none",
+                          fontSize: 11,
+                          color: "var(--text-muted)",
+                          display: "block",
+                          marginBottom: 2,
                         }}
                       >
-                        Kalem olarak ekle
-                      </button>
-                    </div>
-                  </div>
-                )}
+                        Teslim Şekli
+                      </label>
+                      <select
+                        value={freightIncoterm}
+                        onChange={(e) => setFreightIncoterm(e.target.value)}
+                        style={{ width: "100%", fontSize: 13, marginBottom: 6 }}
+                      >
+                        <option value="FOB">FOB</option>
+                        <option value="CIF">CIF</option>
+                        <option value="EXW">EXW</option>
+                        <option value="DAP">DAP</option>
+                      </select>
+                      <label
+                        style={{
+                          fontSize: 11,
+                          color: "var(--text-muted)",
+                          display: "block",
+                          marginBottom: 2,
+                        }}
+                      >
+                        Navlun/Gümrük Oranı (%)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={freightPercent}
+                        onChange={(e) => setFreightPercent(e.target.value)}
+                        placeholder="Örn. 8"
+                        style={{ width: "100%", fontSize: 13, marginBottom: 6 }}
+                      />
+                      <label
+                        style={{
+                          fontSize: 11,
+                          color: "var(--text-muted)",
+                          display: "block",
+                          marginBottom: 2,
+                        }}
+                      >
+                        Sabit Navlun Ücreti (TL)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={freightFlatFee}
+                        onChange={(e) => setFreightFlatFee(e.target.value)}
+                        placeholder="Opsiyonel"
+                        style={{ width: "100%", fontSize: 13, marginBottom: 8 }}
+                      />
+                      <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 8px" }}>
+                        Oran, mevcut kalem toplamı üzerinden hesaplanır - bu kendi sabit oranınız,
+                        canlı gümrük/navlun verisi değildir.
+                      </p>
+                      <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                        <button
+                          type="button"
+                          onClick={() => setShowFreightCalc(false)}
+                          style={{ fontSize: 12 }}
+                        >
+                          Vazgeç
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const percent = Number(freightPercent) || 0;
+                            const flatFee = Number(freightFlatFee) || 0;
+                            const baseTotal = lineItemsTotal || Number(value) || 0;
+                            const amount = Math.round(baseTotal * (percent / 100) + flatFee);
+                            if (amount <= 0) return;
+                            localStorage.setItem("binerly_freight_incoterm", freightIncoterm);
+                            localStorage.setItem("binerly_freight_percent", freightPercent);
+                            localStorage.setItem("binerly_freight_flat_fee", freightFlatFee);
+                            setLineItems((prev) => {
+                              const newRow = {
+                                localId: uid(),
+                                description: `Navlun/Gümrük (${freightIncoterm}${percent ? `, %${percent}` : ""})`,
+                                quantity: 1,
+                                unitPrice: amount,
+                              };
+                              if (prev.length === 0 && title.trim() && Number(value) > 0) {
+                                return [
+                                  {
+                                    localId: uid(),
+                                    description: title.trim(),
+                                    quantity: 1,
+                                    unitPrice: Number(value),
+                                  },
+                                  newRow,
+                                ];
+                              }
+                              return [...prev, newRow];
+                            });
+                            setShowFreightCalc(false);
+                          }}
+                          style={{
+                            fontSize: 12,
+                            background: "var(--fill-accent)",
+                            color: "var(--on-accent)",
+                            border: "none",
+                          }}
+                        >
+                          Kalem olarak ekle
+                        </button>
+                      </div>
+                    </div>,
+                    document.body,
+                  )}
               </div>
             )}
           </div>
