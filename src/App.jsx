@@ -623,12 +623,10 @@ function rowToCompanySettings(r) {
 // kartlarının içine düz metin olarak gömülüydü.
 const LANDING_FAQS = [
   { q: "Kredi kartı bilgisi girmem gerekiyor mu?", a: "Hayır. Kayıt olurken kart bilgisi istenmez, erken erişim aşamasında kullanım tamamen ücretsizdir." },
-  { q: "Erken erişim bitince ne kadar ödeyeceğim?", a: "5 kullanıcıya kadar aylık 750 TL veya yıllık 7.200 TL sabit ücret olacak - kullanıcı sayınız değil, 5'i aşan bir takım büyüklüğü fiyatı etkiler. Erken erişim aşaması bitmeden mevcut kullanıcılara e-posta ile önceden haber verilir, sürpriz fatura çıkmaz." },
   { q: "Verilerim ne kadar güvende?", a: "Her hesap yalnızca kendi kayıtlarına erişebilir (satır bazlı erişim kuralları) - başka bir işletmenin verisine teknik olarak erişim mümkün değildir. Veriler KVKK'ya uygun işlenir, asla üçüncü taraflarla paylaşılmaz." },
-  { q: "İstediğim zaman ayrılabilir miyim?", a: "Evet, herhangi bir taahhüt veya cayma bedeli yoktur. Ayarlar bölümünden istediğiniz zaman hesabınızı kapatabilirsiniz." },
   { q: "Kuruluma ne kadar zaman ayırmam gerekiyor?", a: "Kayıt olduktan sonra sektörünüzü seçip ilk müşteri ve teklif/randevu kaydınızı birkaç dakikada girebilirsiniz - isterseniz \"Örnek verilerle başla\" seçeneğiyle sektörünüze uygun demo verilerle dolu bir panoyu tek tıkla görebilirsiniz. Ayrı bir kurulum veya eğitim süreci gerekmez." },
   { q: "Kullanmayı öğrenmek zor mu, teknik bilgi gerekir mi?", a: "Hayır - Binerly günlük kullanılan basit programlar kadar sade olacak şekilde tasarlandı. Sektörünüzü seçtiğinizde arayüz otomatik şekillenir, ekranın içindeki Yardım bölümünden anlık soru sorabilirsiniz." },
-  { q: "Ekip arkadaşlarımla birlikte kullanabilir miyim?", a: "Evet, işletme sahibi dahil 5 kullanıcıya kadar takım üyesi davet edebilirsiniz - herkes aynı müşteri/teklif/randevu verisini görüp güncelleyebilir, ek ücret alınmaz. Daha büyük bir ekibiniz varsa bize ulaşın." },
+  { q: "Ekip arkadaşlarımla birlikte kullanabilir miyim?", a: "Evet, işletme sahibi dahil 5 kullanıcıya kadar takım üyesi davet edebilirsiniz - herkes aynı müşteri/teklif/randevu verisini görüp güncelleyebilir. Daha büyük bir ekibiniz varsa bize ulaşın." },
   { q: "Sadece benim sektörüme mi uygun, yoksa genel bir CRM mi?", a: "Binerly genel bir CRM'dir ama sektörünüzü seçtiğinizde (Güzellik & Bakım, Sağlık/Klinik, Emlak, Spor Merkezi ve daha fazlası) form alanları, aşama isimleri ve randevu/üyelik gibi özellikler otomatik olarak sektörünüze göre şekillenir." },
 ];
 
@@ -1105,10 +1103,10 @@ function LandingPage() {
               Neden Binerly?
             </div>
             <h2 style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 1.25rem", maxWidth: 640 }}>
-              Ekibiniz büyüsün, faturanız büyümesin
+              Karmaşık CRM'ler değil, sade bir sistem
             </h2>
             <p style={{ maxWidth: 680, fontSize: 16, color: "var(--text-secondary)", lineHeight: 1.8, margin: "0 0 2.5rem" }}>
-              Türkiye'deki CRM'lerin çoğu kullanıcı başına ücretlendiriyor, bazıları da dolar/euro bazlı - ekibiniz büyüdükçe faturanız da büyüyor, kur dalgalandıkça bütçeniz sarsılıyor. Binerly'de öyle değil: 5 kullanıcıya kadar sabit bir ücretle çalışacağız, her zaman TL bazlı.
+              Türkiye'deki küçük ve orta ölçekli işletmelerin çoğu müşteri takibini hâlâ Excel, WhatsApp ve kağıt notlarla yürütüyor; kurumsal CRM'ler ise bu ölçek için genelde gereğinden karmaşık kalıyor. Binerly, büyük şirketlerin sahip olduğu takip gücünü KOBİ'ler için sadeleştiriyor.
             </p>
           </ScrollReveal>
 
@@ -1292,10 +1290,8 @@ export default function App() {
   const [tourStep, setTourStep] = useState(0);
   const [activationChecklistDismissedClick, setActivationChecklistDismissedClick] = useState(false);
   const [showAskDock, setShowAskDock] = useState(false);
-  // v1: üye sayısı kod tarafında henüz sınırlanmıyor, henüz billing yok.
-  // Hedef fiyatlandırma "5 kullanıcıya kadar sabit ücret" olarak siteye
-  // yazıldı (App.jsx LandingPage, "Neden Binerly" bölümü) — billing
-  // eklendiğinde davet oluşturma burada 5 üyeyle sınırlanmalı.
+  // Takım üyesi sayısı MAX_TEAM_SIZE (shared.jsx) ile sınırlanıyor - gerçek
+  // ödeme/billing tahsilatı henüz yok, fiyatlandırma netleşmedi.
   const [activeTeamId, setActiveTeamId] = useState(undefined);
   const [pendingInvites, setPendingInvites] = useState([]);
   const [dismissedInviteIds, setDismissedInviteIds] = useState([]);
