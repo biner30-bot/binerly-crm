@@ -1065,23 +1065,7 @@ export function Toast({ message, tone = "danger", onClose }) {
         aria-hidden="true"
       ></i>
       <span>{message}</span>
-      <button
-        onClick={onClose}
-        aria-label="Kapat"
-        style={{
-          background: "none",
-          border: "none",
-          padding: 0,
-          width: 20,
-          height: 20,
-          flexShrink: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <i className="ti ti-x" style={{ fontSize: 14 }} aria-hidden="true"></i>
-      </button>
+      <IconButton icon="ti-x" title="Kapat" onClick={onClose} size="sm" />
     </div>
   );
 }
@@ -1126,13 +1110,7 @@ export function Modal({ title, onClose, wide, children }) {
           }}
         >
           <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{title}</h3>
-          <button
-            onClick={onClose}
-            aria-label="Kapat"
-            style={{ width: 32, height: 32, padding: 0, flexShrink: 0 }}
-          >
-            <i className="ti ti-x" aria-hidden="true"></i>
-          </button>
+          <IconButton icon="ti-x" title="Kapat" onClick={onClose} size="md" />
         </div>
         <div style={{ overflowY: "auto", overflowX: "hidden", minHeight: 0 }}>{children}</div>
       </div>
@@ -1554,20 +1532,7 @@ export function OnboardingTour({ step, dealNavLabel, dealTourBody, onStepChange,
           }}
         >
           <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>{current.title}</p>
-          <button
-            onClick={onClose}
-            aria-label="Turu kapat"
-            style={{
-              width: 22,
-              height: 22,
-              padding: 0,
-              background: "none",
-              border: "none",
-              flex: "none",
-            }}
-          >
-            <i className="ti ti-x" style={{ fontSize: 14 }} aria-hidden="true"></i>
-          </button>
+          <IconButton icon="ti-x" title="Turu kapat" onClick={onClose} size="sm" />
         </div>
         <p
           style={{
