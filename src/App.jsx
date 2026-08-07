@@ -672,6 +672,15 @@ const HERO_SECTOR_DEMOS = [
     ],
   },
   {
+    sectorId: "saglik_klinik",
+    headerTitle: "Hasta Takip Sistemi",
+    listLabel: "Bekleyen Muayeneler",
+    deals: [
+      { name: "Onur Demirtaş", title: "Diş İmplant Tedavisi", value: "₺18.000", stage: "teklif" },
+      { name: "Aslı Yıldırım", title: "Genel Check-up", value: "₺2.400", stage: "kazanildi" },
+    ],
+  },
+  {
     sectorId: "spor_merkezi",
     headerTitle: "Üyelik Takibi",
     listLabel: "Yeni Üyelik Başvuruları",
@@ -696,6 +705,15 @@ const HERO_SECTOR_DEMOS = [
     deals: [
       { name: "Akın İnşaat", title: "Ofis Malzemesi Teklifi", value: "₺180.000", stage: "teklif" },
       { name: "Ege Tekstil", title: "Toplu Tekstil Siparişi", value: "₺220.000", stage: "kazanildi" },
+    ],
+  },
+  {
+    sectorId: "emlak",
+    headerTitle: "Emlak Portföyü",
+    listLabel: "Aktif Görüşmeler",
+    deals: [
+      { name: "Cem Arslan", title: "3+1 Daire Satışı", value: "₺2.850.000", stage: "muzakere" },
+      { name: "Buse Kılıç", title: "Kiralık Ofis Görüşmesi", value: "₺45.000/yıl", stage: "kazanildi" },
     ],
   },
 ];

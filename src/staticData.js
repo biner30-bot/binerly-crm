@@ -509,4 +509,43 @@ export const SECTOR_DEMO_PRESETS = {
       },
     ],
   },
+  otel: {
+    customers: [
+      { name: "Örnek Misafir - Burak Aksoy", customerType: "bireysel", phone: "0532 000 01 11" },
+      { name: "Örnek Misafir - Selin Öztürk", customerType: "bireysel", phone: "0532 000 01 12" },
+    ],
+    deals: [
+      {
+        customerIndex: 0,
+        title: "Deluxe Oda Rezervasyonu",
+        value: 4200,
+        cost: 0,
+        stage: "kazanildi",
+        customFields: {
+          oda_tipi: "Deluxe Oda",
+          kisi_sayisi: 2,
+          kapora_durumu: "Tamamı alındı",
+          ziyaret_amaci: "Tatil",
+        },
+      },
+      {
+        customerIndex: 1,
+        title: "Aile Odası Talebi",
+        value: 6500,
+        cost: 0,
+        stage: "muzakere",
+        reminderToday: true,
+        reminder: "Kapora için tekrar ara",
+        customFields: { oda_tipi: "Aile Odası", kisi_sayisi: 4, kapora_durumu: "Alınmadı" },
+      },
+      {
+        customerIndex: 0,
+        title: "Standart Oda Rezervasyon Talebi",
+        value: 1800,
+        cost: 0,
+        stage: "ilk_gorusme",
+        customFields: { oda_tipi: "Standart Oda", kisi_sayisi: 1 },
+      },
+    ],
+  },
 };
