@@ -1911,46 +1911,20 @@ export default function App() {
     if (isNew && customer.email) requestCustomerConsent(customer);
   };
 
+  // Tüm cascade (payments->deals->tickets->customers->group_class_enrollments->
+  // attachments x2) delete_customer_cascade RPC'sinde tek bir transaction —
+  // eskiden ayrı ayrı await edilen adımlardan biri (örn. payments'in owner-only
+  // RLS'i) başarısız olursa önceki adımlar geri alınmıyor, son 3 adımda hiç
+  // hata kontrolü yapılmıyordu (bkz. migration add_delete_customer_cascade_rpc).
   const deleteCustomer = async (id) => {
     const customer = customers.find((c) => c.id === id);
     const customerDeals = deals.filter((d) => d.customerId === id);
     const customerTickets = tickets.filter((t) => t.customerId === id);
     const dealIds = customerDeals.map((d) => d.id);
     const cascadePayments = payments.filter((p) => dealIds.includes(p.dealId));
-    const batchId = uid();
-    const now = new Date().toISOString();
 
-    if (dealIds.length > 0) {
-      const { error: payErr } = await supabase
-        .from("payments")
-        .update({ deleted_at: now, deleted_batch_id: batchId })
-        .in("deal_id", dealIds);
-      if (payErr) { notify(`Müşteri silinemedi: ${payErr.message}`); return; }
-    }
-    const { error: dealErr } = await supabase
-      .from("deals")
-      .update({ deleted_at: now, deleted_batch_id: batchId })
-      .eq("customer_id", id);
-    if (dealErr) { notify(`Müşteri silinemedi: ${dealErr.message}`); return; }
-    const { error: ticketErr } = await supabase
-      .from("tickets")
-      .update({ deleted_at: now, deleted_batch_id: batchId })
-      .eq("customer_id", id);
-    if (ticketErr) { notify(`Müşteri silinemedi: ${ticketErr.message}`); return; }
-    const { error } = await supabase
-      .from("customers")
-      .update({ deleted_at: now, deleted_batch_id: batchId })
-      .eq("id", id);
+    const { error } = await supabase.rpc("delete_customer_cascade", { p_customer_id: id });
     if (error) { notify(`Müşteri silinemedi: ${error.message}`); return; }
-    // group_class_enrollments'ın deleted_at'i yok (deleteGroupClass ile aynı
-    // desen — hard delete) — yoksa "hayalet" kayıt kontenjanı işgal etmeye
-    // devam eder, ders geri geldiğinde müşteri zaten silinmiş olur.
-    await supabase.from("group_class_enrollments").delete().eq("customer_id", id);
-    await supabase.from("attachments").update({ deleted_at: now, deleted_batch_id: batchId }).eq("entity_type", "customers").eq("entity_id", id);
-    if (dealIds.length > 0) {
-      await supabase.from("attachments").update({ deleted_at: now, deleted_batch_id: batchId }).eq("entity_type", "deals").in("entity_id", dealIds);
-      await supabase.from("attachments").update({ deleted_at: now, deleted_batch_id: batchId }).eq("entity_type", "deal_photos").in("entity_id", dealIds);
-    }
 
     const ticketIds = customerTickets.map((t) => t.id);
     setCustomers((prev) => prev.filter((c) => c.id !== id));
