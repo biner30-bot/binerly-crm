@@ -1157,6 +1157,7 @@ function PortalDealList({
                 burnsSessionEnabled:
                   appointmentPenaltyBurnsSessionByCustomerId[d.customerId] === true,
                 strikeLimit: appointmentPenaltyStrikeLimitByCustomerId[d.customerId],
+                missedPriceItemId: d.customFields?.price_item_id,
               });
             // Kısmi kesinti sınırı — sadece bilgi amaçlı bir bölge etiketi, otomatik
             // para hareketi yapmaz (bkz. AppointmentCancelPolicyBox InfoTip'i).
@@ -3547,6 +3548,7 @@ export default function CustomerPortal() {
         deals,
         burnsSessionEnabled: ownerRow?.companyAppointmentPenaltyBurnsSession === true,
         strikeLimit: ownerRow?.companyAppointmentPenaltyStrikeLimit,
+        missedPriceItemId: cancelledDeal.customFields?.price_item_id,
       });
       if (burn) {
         // deals_cancel_portal RLS policy'si sadece stage='ilk_gorusme' satırlarını

@@ -2071,7 +2071,7 @@ export default function App() {
       await applyServiceCompletionEffects(deal, lineItemsForDeal);
     }
     if (deal.stage === "kaybedildi" && previousStage !== "kaybedildi" && (deal.lostReason === "Randevuya gelmedi" || deal.lostReason === "Geç iptal etti")) {
-      await applyAppointmentPenaltyBurn(deal.customerId, deals);
+      await applyAppointmentPenaltyBurn(deal, deals);
     }
     if (deal.stage === "kaybedildi" && previousStage !== "kaybedildi" && deal.lostReason === "İşletme iptal etti") {
       await applyAppointmentCreditGrant(deal);
@@ -2525,12 +2525,13 @@ export default function App() {
   // ile aynı çifte-hook deseni) müşterinin aktif paketi varsa oradan 1 seans
   // düşer. dealsBeforeChange, BU kapanışı henüz yansıtmayan eski deals array'i
   // olmalı — computeAppointmentPenaltyBurn geçmiş ihlal sayısını ondan sayıyor.
-  const applyAppointmentPenaltyBurn = async (customerId, dealsBeforeChange) => {
+  const applyAppointmentPenaltyBurn = async (missedDeal, dealsBeforeChange) => {
     const burn = computeAppointmentPenaltyBurn({
-      customerId,
+      customerId: missedDeal.customerId,
       deals: dealsBeforeChange,
       burnsSessionEnabled: companySettings?.appointmentPenaltyBurnsSession === true,
       strikeLimit: companySettings?.appointmentPenaltyStrikeLimit,
+      missedPriceItemId: missedDeal.customFields?.price_item_id,
     });
     if (!burn) return;
     const packageDeal = dealsBeforeChange.find((d) => d.id === burn.packageDealId);
@@ -2593,7 +2594,7 @@ export default function App() {
         await applyServiceCompletionEffects({ ...current, stage }, dealLineItems.filter((li) => li.dealId === id));
       }
       if (current && stage === "kaybedildi" && previousStage !== "kaybedildi" && (nextLostReason === "Randevuya gelmedi" || nextLostReason === "Geç iptal etti")) {
-        await applyAppointmentPenaltyBurn(current.customerId, deals);
+        await applyAppointmentPenaltyBurn(current, deals);
       }
       if (current && stage === "kaybedildi" && previousStage !== "kaybedildi" && nextLostReason === "İşletme iptal etti") {
         await applyAppointmentCreditGrant(current);

@@ -760,9 +760,10 @@ export function computeAppointmentPenaltyBurn({
   deals,
   burnsSessionEnabled,
   strikeLimit,
+  missedPriceItemId,
 }) {
   if (!burnsSessionEnabled || !strikeLimit) return null;
-  const activePackage = deals
+  const activePackages = deals
     .filter(
       (d) =>
         d.customerId === customerId &&
@@ -770,8 +771,16 @@ export function computeAppointmentPenaltyBurn({
         d.sessionTotal > 0 &&
         (d.sessionUsed || 0) < d.sessionTotal,
     )
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
-  if (!activePackage) return null;
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  if (activePackages.length === 0) return null;
+  // Müşterinin birden fazla aktif paketi olabilir (örn. hem Lazer Epilasyon hem
+  // Fizyoterapi paketi) - kaçırılan randevunun hizmetiyle eşleşen paket varsa
+  // ONU seç, yoksa (karma paket ya da hizmet bilgisi taşınmadıysa) eskisi gibi
+  // en yeni oluşturulan aktif pakete düş.
+  const matchingPackage = missedPriceItemId
+    ? activePackages.find((d) => d.customFields?.price_item_id === missedPriceItemId)
+    : null;
+  const activePackage = matchingPackage || activePackages[0];
   const pastViolations = deals.filter(
     (d) =>
       d.customerId === customerId &&
