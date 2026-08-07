@@ -378,6 +378,11 @@
         .app-header-search { display: none !important; }
       }
       .global-search-result:hover { background: var(--surface-2) !important; }
+      /* Pano'daki tıklanabilir uyarı satırları (stuckDeals, dueReminderDeals vb.)
+         renkli sabit bir arka plan (bg-warning/bg-danger/bg-accent) kullanıyor -
+         tek bir background değeriyle hover yazmak yerine, hangi tonda olursa
+         olsun çalışan brightness filtresi tercih edildi. */
+      .pano-alert-row:hover { filter: brightness(0.95); }
       /* Müşteriler/Randevular gibi liste ekranlarındaki tablolar dar ekranda
          yatay kaydırmaya zorluyordu (sütunlar sığmıyordu). CSS-only "responsive
          table" deseni: satır bloğa döner (kart gibi), her hücre kendi

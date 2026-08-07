@@ -327,6 +327,7 @@ export default function Pano({
                     }}
                   />
                   <span
+                    className="pano-alert-row"
                     style={{ flex: 1, cursor: "pointer" }}
                     onClick={() => {
                       setTab("firsat");
@@ -382,6 +383,7 @@ export default function Pano({
             {otelArrivalsToday.map((d) => (
               <div
                 key={`arrival-${d.id}`}
+                className="pano-alert-row"
                 onClick={() => {
                   setTab("firsat");
                   setEditingDeal(d);
@@ -415,6 +417,7 @@ export default function Pano({
             {otelDeparturesToday.map((d) => (
               <div
                 key={`departure-${d.id}`}
+                className="pano-alert-row"
                 onClick={() => {
                   setTab("firsat");
                   setEditingDeal(d);
@@ -487,6 +490,7 @@ export default function Pano({
               return (
                 <div
                   key={`portal-${d.id}`}
+                  className="pano-alert-row"
                   onClick={() => {
                     setTab("firsat");
                     setEditingDeal(d);
@@ -529,6 +533,7 @@ export default function Pano({
                 return (
                   <div
                     key={`ticket-${t.id}`}
+                    className="pano-alert-row"
                     onClick={() => {
                       setTab("destek");
                       setInitialViewTicketId(t.id);
@@ -556,6 +561,7 @@ export default function Pano({
               return (
                 <div
                   key={`deal-${d.id}`}
+                  className="pano-alert-row"
                   onClick={() => {
                     setTab("firsat");
                     setEditingDeal(d);
@@ -598,6 +604,7 @@ export default function Pano({
                 }}
               >
                 <span
+                  className="pano-alert-row"
                   style={{ flex: 1, cursor: "pointer" }}
                   onClick={() => setViewingCustomer(customer)}
                 >
@@ -631,6 +638,7 @@ export default function Pano({
             {lowStockItems.map((item) => (
               <div
                 key={`stock-${item.id}`}
+                className="pano-alert-row"
                 onClick={() => setTab("stokmalzeme")}
                 style={{
                   display: "flex",
@@ -666,6 +674,7 @@ export default function Pano({
                 }}
               >
                 <span
+                  className="pano-alert-row"
                   style={{ flex: 1, cursor: "pointer" }}
                   onClick={() => {
                     setEditingDeal(alert.deal);
@@ -720,6 +729,7 @@ export default function Pano({
                 }}
               >
                 <span
+                  className="pano-alert-row"
                   style={{ flex: 1, cursor: "pointer" }}
                   onClick={() => setViewingCustomer(alert.customer)}
                 >
@@ -777,6 +787,7 @@ export default function Pano({
             {stuckDeals.map(({ deal, daysOpen }) => (
               <div
                 key={`stuck-${deal.id}`}
+                className="pano-alert-row"
                 onClick={() => {
                   setTab("firsat");
                   setEditingDeal(deal);
@@ -805,6 +816,7 @@ export default function Pano({
             {freedAppointmentAlerts.map(({ deal, apptTime }) => (
               <div
                 key={`freed-${deal.id}`}
+                className="pano-alert-row"
                 onClick={() => setTab("musteri")}
                 style={{
                   display: "flex",
@@ -830,6 +842,7 @@ export default function Pano({
             {unassignedUpcomingAppointments.map(({ deal, apptTime }) => (
               <div
                 key={`unassigned-${deal.id}`}
+                className="pano-alert-row"
                 onClick={() => {
                   setTab("firsat");
                   setEditingDeal(deal);
