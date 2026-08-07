@@ -3893,7 +3893,10 @@ export function DealsTab({
           <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>{dealWords.emptySearch}</p>
         )
       ) : dealView === "kanban" ? (
-        <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
+        <div
+          className="kanban-scroll"
+          style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}
+        >
           {STAGES.map((stage) => {
             const isClosedStage = stage.id === "kazanildi" || stage.id === "kaybedildi";
             const cap = isClosedStage ? 15 : 20;
@@ -3912,6 +3915,7 @@ export function DealsTab({
             return (
               <div
                 key={stage.id}
+                className="kanban-column"
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => {
                   if (!dragDealId) return;

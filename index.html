@@ -383,6 +383,16 @@
          tek bir background değeriyle hover yazmak yerine, hangi tonda olursa
          olsun çalışan brightness filtresi tercih edildi. */
       .pano-alert-row:hover { filter: brightness(0.95); }
+      /* Kanban sütunları dar ekranda (telefon) 220px sabit genişlikte kalınca
+         aynı anda ~1.5 sütun görünüyor, "genel bakış" kayboluyor - mobilde
+         sütun genişliği daraltılıp scroll-snap ile sütun sütun kaydırma
+         eklendi (yatay scroll'un kendisi kaldırılmadı, tek ekranda tüm
+         sütunları sığdırmak ayrı bir görünüm gerektirir). */
+      .kanban-scroll { scroll-snap-type: x proximity; }
+      .kanban-column { scroll-snap-align: start; }
+      @media (max-width: 640px) {
+        .kanban-column { min-width: 172px !important; flex-basis: 172px !important; }
+      }
       /* Müşteriler/Randevular gibi liste ekranlarındaki tablolar dar ekranda
          yatay kaydırmaya zorluyordu (sütunlar sığmıyordu). CSS-only "responsive
          table" deseni: satır bloğa döner (kart gibi), her hücre kendi
