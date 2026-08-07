@@ -1180,8 +1180,15 @@ function slugifyKey(label) {
 
 export function SectorOnboardingModal({ onPick, onSkip }) {
   const [companyName, setCompanyName] = useState("");
+  // "Genel" SECTOR_PRESETS'in son elemanı — 12 seçenek arasında dizinin sonuna
+  // düşünce, kendi işini net bir kategoriye oturtamayan kararsız bir kullanıcı
+  // güvenli seçeneğe ulaşmak için tüm listeyi taramak zorunda kalıyordu.
+  const orderedPresets = [
+    ...SECTOR_PRESETS.filter((p) => p.id === "genel"),
+    ...SECTOR_PRESETS.filter((p) => p.id !== "genel"),
+  ];
   return (
-    <Modal title="İşletmenizi tanıyalım" onClose={onSkip}>
+    <Modal title="İşletmenizi tanıyalım" onClose={onSkip} wide>
       <div style={{ marginBottom: 16 }}>
         <label
           style={{
@@ -1204,29 +1211,49 @@ export function SectorOnboardingModal({ onPick, onSkip }) {
         Seçtiğiniz sektöre göre satış aşamalarınız, önerilen etiketler ve size özel alanlar otomatik
         hazırlanır. İstediğiniz zaman İşletme ayarları'ndan değiştirebilirsiniz.
       </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-        {SECTOR_PRESETS.map((p) => (
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+          gap: 10,
+          marginBottom: 16,
+          overflowY: "auto",
+        }}
+      >
+        {orderedPresets.map((p) => (
           <button
             key={p.id}
             type="button"
             onClick={() => onPick(p.id, companyName.trim())}
             style={{
               display: "flex",
+              flexDirection: "column",
               alignItems: "center",
-              gap: 10,
-              padding: "10px 12px",
+              gap: 8,
+              padding: "14px 8px",
               background: "var(--surface-1)",
               border: "0.5px solid var(--border)",
               borderRadius: "var(--radius)",
-              textAlign: "left",
-              fontSize: 14,
+              textAlign: "center",
+              fontSize: 13,
+              fontWeight: 500,
             }}
           >
-            <i
-              className={`ti ${p.icon}`}
-              style={{ fontSize: 18, color: "var(--text-accent)" }}
-              aria-hidden="true"
-            ></i>
+            <span
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: "50%",
+                background: "var(--bg-accent)",
+                color: "var(--text-accent)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <i className={`ti ${p.icon}`} style={{ fontSize: 18 }} aria-hidden="true"></i>
+            </span>
             {p.label}
           </button>
         ))}
