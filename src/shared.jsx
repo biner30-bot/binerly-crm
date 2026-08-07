@@ -398,7 +398,12 @@ export function daysAgo(dateStr) {
 }
 
 export const TONE_COLORS = {
-  default: { background: "var(--surface-1)", color: "var(--text-secondary)" },
+  // background daha önce var(--surface-1) idi — bu, kart/tablo satırlarının en
+  // yaygın arka plan rengiyle birebir aynı olduğu için (örn. Deals.jsx'teki
+  // sevkiyat durumu rozeti, Inventory.jsx/Team.jsx'teki rozetler) Badge kendi
+  // zemininde görünmez bir "pill" olarak kalıyordu. var(--border) hem light hem
+  // dark temada surface'lerden görsel olarak ayrışıyor.
+  default: { background: "var(--border)", color: "var(--text-secondary)" },
   warning: { background: "var(--bg-warning)", color: "var(--text-warning)" },
   success: { background: "var(--bg-success)", color: "var(--text-success)" },
   accent: { background: "var(--bg-accent)", color: "var(--text-accent)" },
