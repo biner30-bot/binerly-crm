@@ -27,13 +27,26 @@ function computeDaySlots(windows, isToday, nowMinutes, takenRanges, durationMinu
     const [endH, endM] = window.end_time.slice(0, 5).split(":").map(Number);
     const step = window.slot_duration_minutes;
     const svcDuration = durationMinutes > 0 ? durationMinutes : step;
-    const end = endH * 60 + endM;
-    // Cursor step yerine svcDuration ile ilerler - süre bilinen bir hizmette
-    // (ör. 20dk) öneriler o hizmetin kendi süresine hizalanır (09:00, 09:20,
-    // 09:40…), ardışık randevular arasında sabit slot adımından (ör. 30dk)
-    // kalan kullanılamaz boşluk oluşmaz. Süre bilinmiyorsa svcDuration=step
-    // olduğu için davranış değişmez.
-    for (let cursor = startH * 60 + startM; cursor + svcDuration <= end; cursor += svcDuration) {
+    const windowStart = startH * 60 + startM;
+    const windowEnd = endH * 60 + endM;
+    // Tam boşluk doldurma: aday başlangıç noktaları SADECE pencere başından
+    // sabit adımlarla (windowStart, windowStart+svcDuration, ...) değil, AYRICA
+    // mevcut her doluluğun (genel VEYA kaynak bazlı) bittiği an da denenir - bir
+    // randevu ızgaraya denk gelmeyen bir saatte bitse bile (ör. 09:00 başlayan
+    // 45dk'lık randevu 09:45'te biter, 30dk'lık ızgara 10:00'a kadar bir sonraki
+    // adayı denemezdi) o an hemen yeni bir aday olarak değerlendirilir. Sabit
+    // ızgara ayrıca korunur ki hiç randevu yokken önceki alışılmış ritim (09:00,
+    // 09:30, 10:00…) bozulmasın.
+    const candidates = new Set();
+    for (let c = windowStart; c + svcDuration <= windowEnd; c += svcDuration) candidates.add(c);
+    for (const r of takenRanges) candidates.add(r.end);
+    if (resourceUnitRanges) {
+      for (const ranges of resourceUnitRanges.values()) {
+        for (const r of ranges) candidates.add(r.end);
+      }
+    }
+    for (const cursor of candidates) {
+      if (cursor < windowStart || cursor + svcDuration > windowEnd) continue;
       if (isToday && cursor <= nowMinutes) continue;
       const candidateEnd = cursor + svcDuration;
       const overlapCount = takenRanges.filter((r) => cursor < r.end && r.start < candidateEnd).length;
@@ -48,7 +61,7 @@ function computeDaySlots(windows, isToday, nowMinutes, takenRanges, durationMinu
       slots.push(time);
     }
   }
-  return slots.sort();
+  return [...new Set(slots)].sort();
 }
 
 function resolveConcurrency(settings) {
