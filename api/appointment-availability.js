@@ -23,7 +23,12 @@ function computeDaySlots(windows, isToday, nowMinutes, takenRanges, durationMinu
     const step = window.slot_duration_minutes;
     const svcDuration = durationMinutes > 0 ? durationMinutes : step;
     const end = endH * 60 + endM;
-    for (let cursor = startH * 60 + startM; cursor + svcDuration <= end; cursor += step) {
+    // Cursor step yerine svcDuration ile ilerler - süre bilinen bir hizmette
+    // (ör. 20dk) öneriler o hizmetin kendi süresine hizalanır (09:00, 09:20,
+    // 09:40…), ardışık randevular arasında sabit slot adımından (ör. 30dk)
+    // kalan kullanılamaz boşluk oluşmaz. Süre bilinmiyorsa svcDuration=step
+    // olduğu için davranış değişmez.
+    for (let cursor = startH * 60 + startM; cursor + svcDuration <= end; cursor += svcDuration) {
       if (isToday && cursor <= nowMinutes) continue;
       const candidateEnd = cursor + svcDuration;
       const overlapCount = takenRanges.filter((r) => cursor < r.end && r.start < candidateEnd).length;
