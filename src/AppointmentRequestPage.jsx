@@ -174,9 +174,20 @@ export default function AppointmentRequestPage() {
   // listeden çıkarılır - aksi halde aynı hizmet iki yerde birden görünür.
   const freeServices = (company?.services || []).filter((s) => Number(s.price) === 0);
   const paidServices = (company?.services || []).filter((s) => Number(s.price) !== 0);
-  const selectedDuration = (company?.services || [])
-    .filter((s) => serviceIds.includes(s.id))
-    .reduce((sum, s) => sum + (Number(s.duration_minutes) || 0), 0);
+  // api/lead-capture.js'teki groupedDurationMinutes ile AYNI ilke (kasıtlı
+  // kopya) - aynı parallel_group'taki hizmetler MAX (eşzamanlı), farklı
+  // gruptaki/grupsuz hizmetler SUM (ardışık) alınır. Sunucunun booking anında
+  // gerçekte ayıracağı süreyle tutarlı görünsün diye burada da uygulanıyor.
+  const selectedDuration = (() => {
+    const groups = new Map();
+    (company?.services || [])
+      .filter((s) => serviceIds.includes(s.id))
+      .forEach((s, i) => {
+        const key = s.parallel_group || `__solo_${s.id ?? i}`;
+        groups.set(key, Math.max(groups.get(key) || 0, Number(s.duration_minutes) || 0));
+      });
+    return [...groups.values()].reduce((sum, v) => sum + v, 0);
+  })();
 
   const toggleService = (id) => {
     setServiceIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));

@@ -34,6 +34,18 @@ async function resolveAutoAssignResource(supabaseAdmin, businessUserId, serviceI
   if (!data || data.length !== 1) return null;
   return data[0].id;
 }
+// src/Deals.jsx:lineItemsDurationMinutes ile AYNI ilke (kasıtlı kopya) -
+// parallel_group'a göre gruplanır (boş/null her satır kendi tek kişilik
+// grubunda), grup içi MAX (eşzamanlı), gruplar arası SUM (ardışık).
+function groupedDurationMinutes(items) {
+  const groups = new Map();
+  (items || []).forEach((item, i) => {
+    const key = item.parallel_group || `__solo_${item.id ?? i}`;
+    groups.set(key, Math.max(groups.get(key) || 0, Number(item.duration_minutes) || 0));
+  });
+  return [...groups.values()].reduce((sum, v) => sum + v, 0);
+}
+
 function buildAppointmentBounds(dateTimeStr, durationMinutes) {
   const start = new Date(`${dateTimeStr.slice(0, 16)}:00+03:00`);
   if (Number.isNaN(start.getTime())) return null;
@@ -79,7 +91,7 @@ export default async function handler(req, res) {
     // fonksiyon sınırı zaten dolu olduğu için ayrı bir api/*.js açılmadı).
     const [{ data: fieldDefs }, { data: services }, { data: cred }] = await Promise.all([
       supabaseAdmin.from("custom_field_defs").select("key").eq("user_id", settings.user_id).eq("entity", "deal").eq("field_type", "datetime").eq("active", true).limit(1),
-      supabaseAdmin.from("price_list_items").select("id, name, price, duration_minutes").eq("user_id", settings.user_id).order("name"),
+      supabaseAdmin.from("price_list_items").select("id, name, price, duration_minutes, parallel_group").eq("user_id", settings.user_id).order("name"),
       supabaseAdmin.from("payment_credentials").select("id").eq("user_id", settings.user_id).maybeSingle(),
     ]);
     // Kapora sadece Ödeme Bağlantısı gerçekten kuruluysa anlamlı - KOBİ tutarı
@@ -177,13 +189,13 @@ export default async function handler(req, res) {
     let servicePrice = 0;
     let serviceDurationMinutes = 0;
     if (cleanServiceIds.length > 0) {
-      const { data: services } = await supabaseAdmin.from("price_list_items").select("name, price, duration_minutes").eq("user_id", settings.user_id).in("id", cleanServiceIds);
+      const { data: services } = await supabaseAdmin.from("price_list_items").select("id, name, price, duration_minutes, parallel_group").eq("user_id", settings.user_id).in("id", cleanServiceIds);
       if (services?.length) {
         serviceName = services.map((s) => s.name).join(", ");
         servicePrice = services.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
         // Miktar süreyi katlamıyor, kalem sayısı toplanıyor - App.jsx'teki
-        // lineItemsDurationMinutes ile AYNI ilke.
-        serviceDurationMinutes = services.reduce((sum, s) => sum + (Number(s.duration_minutes) || 0), 0);
+        // lineItemsDurationMinutes ile AYNI ilke (parallel_group dahil).
+        serviceDurationMinutes = groupedDurationMinutes(services);
       }
     }
 

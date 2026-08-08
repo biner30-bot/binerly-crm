@@ -108,6 +108,7 @@ export function PriceListEditModal({ item, sector, resources, onSave, onClose })
     item.commissionPercent != null ? String(item.commissionPercent) : "",
   );
   const [resourceId, setResourceId] = useState(item.resourceId || "");
+  const [parallelGroup, setParallelGroup] = useState(item.parallelGroup || "");
 
   const submit = (e) => {
     e.preventDefault();
@@ -120,6 +121,7 @@ export function PriceListEditModal({ item, sector, resources, onSave, onClose })
       durationMinutes: Number(durationMinutes) || null,
       commissionPercent: commissionPercent !== "" ? Number(commissionPercent) : null,
       resourceId: resourceId || null,
+      parallelGroup: parallelGroup.trim() || null,
     });
   };
 
@@ -179,7 +181,7 @@ export function PriceListEditModal({ item, sector, resources, onSave, onClose })
               Süre (dk)
               <InfoTip
                 align="left"
-                text="Opsiyonel - girerseniz, bu hizmet bir randevuya kalem olarak eklendiğinde randevunun süresi buna göre hesaplanır; aynı randevuda birden fazla hizmet varsa süreleri toplanır ve çakışma kontrolü buna göre yapılır. Ayrıca randevu alma ekranında müşteriye tahmini süre olarak gösterilir - boş bırakırsanız müşteriye süre bilgisi gösterilmez."
+                text="Opsiyonel - girerseniz, bu hizmet bir randevuya kalem olarak eklendiğinde randevunun süresi buna göre hesaplanır; aynı randevuda birden fazla hizmet varsa süreleri ardışık toplanır (Paralel Grup ile eşleştirilmiş hizmetler hariç, aşağıya bkz.) ve çakışma kontrolü buna göre yapılır. Ayrıca randevu alma ekranında müşteriye tahmini süre olarak gösterilir - boş bırakırsanız müşteriye süre bilgisi gösterilmez."
               />
             </label>
             <input
@@ -277,6 +279,33 @@ export function PriceListEditModal({ item, sector, resources, onSave, onClose })
             </select>
           </div>
         )}
+        {bookingModel(sector) === "slot" && (
+          <div style={{ marginBottom: 10 }}>
+            <label
+              style={{
+                fontSize: 12,
+                color: "var(--text-secondary)",
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
+                marginBottom: 4,
+              }}
+            >
+              Paralel Grup
+              <InfoTip
+                align="left"
+                text="Opsiyonel - aynı grup adını birden fazla hizmete verirseniz, bu hizmetler bir randevuda birlikte seçildiğinde eşzamanlı yapılıyor kabul edilir (ör. manikür yapılırken kaş lifting) - randevu süresi toplanmaz, en uzun süren hizmet baz alınır. Farklı gruptaki ya da grupsuz hizmetler her zaman ardışık (art arda, toplanarak) hesaplanır."
+              />
+            </label>
+            <input
+              list="parallel-group-options"
+              value={parallelGroup}
+              onChange={(e) => setParallelGroup(e.target.value)}
+              placeholder="Örn. Manikür + Kaş Kombinasyonu"
+              style={{ width: "100%" }}
+            />
+          </div>
+        )}
         {bookingModel(sector) === "slot" && !durationMinutes && (
           <p style={{ fontSize: 11.5, color: "var(--text-warning)", margin: "0 0 10px" }}>
             Süre boş bırakılırsa Müsaitlik Saatleri'ndeki genel slot süresi varsayılır - gerçek süre
@@ -305,6 +334,7 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector, res
   const [refreshDays, setRefreshDays] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
   const [resourceId, setResourceId] = useState("");
+  const [parallelGroup, setParallelGroup] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
   const [search, setSearch] = useState("");
@@ -312,6 +342,7 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector, res
   const filteredItems = query
     ? items.filter((item) => item.name.toLowerCase().includes(query))
     : items;
+  const existingGroups = [...new Set(items.map((i) => i.parallelGroup).filter(Boolean))];
 
   const submit = (e) => {
     e.preventDefault();
@@ -323,12 +354,14 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector, res
       refreshDays: Number(refreshDays) || null,
       durationMinutes: Number(durationMinutes) || null,
       resourceId: resourceId || null,
+      parallelGroup: parallelGroup.trim() || null,
     });
     setName("");
     setPrice("");
     setRefreshDays("");
     setDurationMinutes("");
     setResourceId("");
+    setParallelGroup("");
   };
 
   return (
@@ -417,6 +450,11 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector, res
                         </Badge>
                       </span>
                     )}
+                    {item.parallelGroup && (
+                      <span title="Paralel Grup - bu gruptaki hizmetler birlikte seçilince eşzamanlı yapılıyor kabul edilir">
+                        <Badge tone="default">⇄ {item.parallelGroup}</Badge>
+                      </span>
+                    )}
                     <IconButton
                       icon="ti-edit"
                       title="Düzenle"
@@ -494,7 +532,7 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector, res
             Süre (dk)
             <InfoTip
               align="left"
-              text="Opsiyonel - girerseniz, bu hizmet bir randevuya kalem olarak eklendiğinde randevunun süresi buna göre hesaplanır; aynı randevuda birden fazla hizmet varsa süreleri toplanır ve çakışma kontrolü buna göre yapılır. Ayrıca randevu alma ekranında müşteriye tahmini süre olarak gösterilir - boş bırakırsanız müşteriye süre bilgisi gösterilmez."
+              text="Opsiyonel - girerseniz, bu hizmet bir randevuya kalem olarak eklendiğinde randevunun süresi buna göre hesaplanır; aynı randevuda birden fazla hizmet varsa süreleri ardışık toplanır (Paralel Grup ile eşleştirilmiş hizmetler hariç, aşağıya bkz.) ve çakışma kontrolü buna göre yapılır. Ayrıca randevu alma ekranında müşteriye tahmini süre olarak gösterilir - boş bırakırsanız müşteriye süre bilgisi gösterilmez."
             />
           </label>
           <input
@@ -562,6 +600,38 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector, res
                 </option>
               ))}
             </select>
+          </div>
+        )}
+        {bookingModel(sector) === "slot" && (
+          <div style={{ width: 190 }}>
+            <label
+              style={{
+                fontSize: 12,
+                color: "var(--text-secondary)",
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
+                marginBottom: 4,
+              }}
+            >
+              Paralel Grup
+              <InfoTip
+                align="left"
+                text="Opsiyonel - aynı grup adını birden fazla hizmete verirseniz, bu hizmetler bir randevuda birlikte seçildiğinde eşzamanlı yapılıyor kabul edilir (ör. manikür yapılırken kaş lifting) - randevu süresi toplanmaz, en uzun süren hizmet baz alınır. Farklı gruptaki ya da grupsuz hizmetler her zaman ardışık (art arda, toplanarak) hesaplanır."
+              />
+            </label>
+            <input
+              list="parallel-group-options"
+              value={parallelGroup}
+              onChange={(e) => setParallelGroup(e.target.value)}
+              placeholder="Örn. Manikür + Kaş Kombinasyonu"
+              style={{ width: "100%", fontSize: 13 }}
+            />
+            <datalist id="parallel-group-options">
+              {existingGroups.map((g) => (
+                <option key={g} value={g} />
+              ))}
+            </datalist>
           </div>
         )}
         <button

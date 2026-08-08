@@ -187,6 +187,7 @@ function rowToPriceListItem(r) {
     name: r.name,
     price: r.price,
     durationMinutes: r.duration_minutes || null,
+    parallelGroup: r.parallel_group || null,
   };
 }
 
@@ -1878,9 +1879,19 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
   const selectedTotal = (priceListItems || [])
     .filter((p) => serviceIds.includes(p.id))
     .reduce((sum, p) => sum + (Number(p.price) || 0), 0);
-  const selectedDuration = (priceListItems || [])
-    .filter((p) => serviceIds.includes(p.id))
-    .reduce((sum, p) => sum + (Number(p.durationMinutes) || 0), 0);
+  // api/lead-capture.js'teki groupedDurationMinutes ile AYNI ilke (kasıtlı
+  // kopya) - aynı parallel_group'taki hizmetler MAX (eşzamanlı), farklı
+  // gruptaki/grupsuz hizmetler SUM (ardışık) alınır.
+  const selectedDuration = (() => {
+    const groups = new Map();
+    (priceListItems || [])
+      .filter((p) => serviceIds.includes(p.id))
+      .forEach((p, i) => {
+        const key = p.parallelGroup || `__solo_${p.id ?? i}`;
+        groups.set(key, Math.max(groups.get(key) || 0, Number(p.durationMinutes) || 0));
+      });
+    return [...groups.values()].reduce((sum, v) => sum + v, 0);
+  })();
 
   const confirm = async () => {
     if (!selectedTime || !note.trim() || !dateTimeKey) return;

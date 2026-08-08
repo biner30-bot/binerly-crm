@@ -183,11 +183,21 @@ export function roomTypeConflict(
 // süresini çıkarır. Miktar süreye çarpılmıyor - bir kalemin 2 adet olması
 // randevunun 2 katı sürmesi anlamına gelmiyor (ör. 2 ürün satışı); süreyi
 // gerçekten katlamak isteyen KOBİ aynı hizmeti iki ayrı kalem olarak ekleyebilir.
+//
+// Kalemler price_list_items.parallel_group'a göre gruplanır (boş/null olan
+// her kalem KENDİ tek kişilik grubunda sayılır) - aynı gruptaki hizmetler
+// paralel/eşzamanlı yapılıyor kabul edilir (süre MAX alınır, toplanmaz; ör.
+// manikür yapılırken kaş lifting), farklı gruptaki/grupsuz hizmetler eskisi
+// gibi ardışık (SUM) hesaplanır.
 export function lineItemsDurationMinutes(lineItemsForDeal, priceListItems) {
-  return (lineItemsForDeal || []).reduce((sum, li) => {
+  const groups = new Map();
+  (lineItemsForDeal || []).forEach((li, i) => {
     const priceItem = li.priceItemId ? priceListItems.find((p) => p.id === li.priceItemId) : null;
-    return sum + (priceItem?.durationMinutes || 0);
-  }, 0);
+    const duration = priceItem?.durationMinutes || 0;
+    const key = priceItem?.parallelGroup || `__solo_${li.localId ?? i}`;
+    groups.set(key, Math.max(groups.get(key) || 0, duration));
+  });
+  return [...groups.values()].reduce((sum, v) => sum + v, 0);
 }
 
 // Kalemlerden süre çıkmıyorsa (fiyat listesinde girilmemiş/elle giriş), o an

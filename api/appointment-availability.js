@@ -148,6 +148,18 @@ function buildResourceUnitRangesByDate(unitIds, dealsRows, dateStrs) {
   return byDate;
 }
 
+// src/Deals.jsx:lineItemsDurationMinutes ile AYNI ilke (kasıtlı kopya) -
+// parallel_group'a göre gruplanır (boş/null her satır kendi tek kişilik
+// grubunda), grup içi MAX (eşzamanlı), gruplar arası SUM (ardışık).
+function groupedDurationMinutes(items) {
+  const groups = new Map();
+  (items || []).forEach((item, i) => {
+    const key = item.parallel_group || `__solo_${item.id ?? i}`;
+    groups.set(key, Math.max(groups.get(key) || 0, Number(item.duration_minutes) || 0));
+  });
+  return [...groups.values()].reduce((sum, v) => sum + v, 0);
+}
+
 // serviceIds (virgülle ayrılmış price_list_items id listesi) verilirse
 // toplam süreyi SUNUCU TARAFINDA price_list_items'tan hesaplar - istemciden
 // bir süre sayısı asla kabul edilmez (App.jsx DealForm'daki lineItemsDurationMinutes
@@ -155,8 +167,8 @@ function buildResourceUnitRangesByDate(unitIds, dealsRows, dateStrs) {
 async function resolveDurationMinutes(supabaseAdmin, businessUserId, serviceIdsParam) {
   const ids = (serviceIdsParam || "").split(",").map((s) => s.trim()).filter(Boolean);
   if (ids.length === 0) return 0;
-  const { data } = await supabaseAdmin.from("price_list_items").select("id, duration_minutes").eq("user_id", businessUserId).in("id", ids);
-  return (data || []).reduce((sum, item) => sum + (Number(item.duration_minutes) || 0), 0);
+  const { data } = await supabaseAdmin.from("price_list_items").select("id, duration_minutes, parallel_group").eq("user_id", businessUserId).in("id", ids);
+  return groupedDurationMinutes(data);
 }
 
 // Müşteri portalındaki bir kullanıcı, RLS gereği sadece KENDİ randevularını
@@ -255,11 +267,11 @@ async function handleBooking(req, res, supabaseAdmin) {
   let durationMinutes = 0;
   let serviceName = null;
   if (cleanServiceIds.length > 0) {
-    const { data: services } = await supabaseAdmin.from("price_list_items").select("name, price, duration_minutes").eq("user_id", businessUserId).in("id", cleanServiceIds);
+    const { data: services } = await supabaseAdmin.from("price_list_items").select("id, name, price, duration_minutes, parallel_group").eq("user_id", businessUserId).in("id", cleanServiceIds);
     if (services?.length) {
       serviceName = services.map((s) => s.name).join(", ");
       dealValue = services.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
-      durationMinutes = services.reduce((sum, s) => sum + (Number(s.duration_minutes) || 0), 0);
+      durationMinutes = groupedDurationMinutes(services);
     }
   } else {
     dealValue = Number(value) || 0;
