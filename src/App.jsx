@@ -486,7 +486,7 @@ function rowToDealLineItem(r) {
 }
 
 function rowToPriceListItem(r) {
-  return { id: r.id, name: r.name, price: r.price, refreshDays: r.refresh_days || null, durationMinutes: r.duration_minutes || null, commissionPercent: r.commission_percent ?? null };
+  return { id: r.id, name: r.name, price: r.price, refreshDays: r.refresh_days || null, durationMinutes: r.duration_minutes || null, commissionPercent: r.commission_percent ?? null, resourceId: r.resource_id || null };
 }
 
 function rowToStockItem(r) {
@@ -3207,15 +3207,15 @@ export default function App() {
     setCustomFieldDefs((prev) => prev.map((d) => (d.id === id ? { ...d, active: false } : d)));
   };
 
-  const addPriceListItem = async ({ name, price, refreshDays, durationMinutes }) => {
-    const row = { id: uid(), user_id: activeTeamId, name, price, refresh_days: refreshDays || null, duration_minutes: durationMinutes || null };
+  const addPriceListItem = async ({ name, price, refreshDays, durationMinutes, resourceId }) => {
+    const row = { id: uid(), user_id: activeTeamId, name, price, refresh_days: refreshDays || null, duration_minutes: durationMinutes || null, resource_id: resourceId || null };
     const { data, error } = await supabase.from("price_list_items").insert(row).select().single();
     if (error) { notify(`Ürün/hizmet eklenemedi: ${error.message}`); return; }
     setPriceListItems((prev) => [...prev, rowToPriceListItem(data)]);
   };
 
-  const updatePriceListItem = async ({ id, name, price, refreshDays, durationMinutes, commissionPercent }) => {
-    const { data, error } = await supabase.from("price_list_items").update({ name, price, refresh_days: refreshDays || null, duration_minutes: durationMinutes || null, commission_percent: commissionPercent ?? null }).eq("id", id).select().single();
+  const updatePriceListItem = async ({ id, name, price, refreshDays, durationMinutes, commissionPercent, resourceId }) => {
+    const { data, error } = await supabase.from("price_list_items").update({ name, price, refresh_days: refreshDays || null, duration_minutes: durationMinutes || null, commission_percent: commissionPercent ?? null, resource_id: resourceId || null }).eq("id", id).select().single();
     if (error) { notify(`Ürün/hizmet güncellenemedi: ${error.message}`); return; }
     setPriceListItems((prev) => prev.map((p) => (p.id === id ? rowToPriceListItem(data) : p)));
   };
@@ -4637,7 +4637,7 @@ export default function App() {
               )}
             </div>
           </div>
-          <PriceListManager items={priceListItems} onAdd={addPriceListItem} onUpdate={updatePriceListItem} onDelete={deletePriceListItem} sector={companySettings?.sector} />
+          <PriceListManager items={priceListItems} onAdd={addPriceListItem} onUpdate={updatePriceListItem} onDelete={deletePriceListItem} sector={companySettings?.sector} resources={resources} />
           {showFreeServiceModal && (
             <FreeServiceModal sector={companySettings?.sector} onAdd={addPriceListItem} onClose={() => setShowFreeServiceModal(false)} />
           )}

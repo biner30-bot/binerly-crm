@@ -1019,6 +1019,15 @@ export function DealForm({
                     if (item) {
                       setTitle(item.name);
                       setValue(String(item.price));
+                      // Kullanıcının zaten elle seçtiği bir kaynağın üzerine yazılmaz -
+                      // sadece alan boşsa ve hizmetin varsayılan kaynağı hâlâ mevcutsa doldurulur.
+                      if (
+                        !resourceId &&
+                        item.resourceId &&
+                        resources.some((r) => r.id === item.resourceId)
+                      ) {
+                        setResourceId(item.resourceId);
+                      }
                     } else {
                       setTitle("");
                       setValue("");
@@ -1230,6 +1239,15 @@ export function DealForm({
                 onChange={(e) => {
                   const item = priceListItems.find((p) => p.id === e.target.value);
                   if (!item) return;
+                  // Kullanıcının zaten elle seçtiği bir kaynağın üzerine yazılmaz -
+                  // sadece alan boşsa ve hizmetin varsayılan kaynağı hâlâ mevcutsa doldurulur.
+                  if (
+                    !resourceId &&
+                    item.resourceId &&
+                    resources.some((r) => r.id === item.resourceId)
+                  ) {
+                    setResourceId(item.resourceId);
+                  }
                   setLineItems((prev) => {
                     const newRow = {
                       localId: uid(),

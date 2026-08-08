@@ -97,7 +97,7 @@ export function FreeServiceModal({ sector, onAdd, onClose }) {
 // açıyor - önceden alttaki "ekle" formu düzenleme moduna geçip yer değiştiriyordu,
 // kullanıcı formun aşağı kaydığını/butonun "Güncelle"ye döndüğünü fark etmeyip
 // kafası karışıyordu (bkz. [[feedback]] - kullanıcı geri bildirimi).
-export function PriceListEditModal({ item, sector, onSave, onClose }) {
+export function PriceListEditModal({ item, sector, resources, onSave, onClose }) {
   const [name, setName] = useState(item.name);
   const [price, setPrice] = useState(String(item.price));
   const [refreshDays, setRefreshDays] = useState(item.refreshDays ? String(item.refreshDays) : "");
@@ -107,6 +107,7 @@ export function PriceListEditModal({ item, sector, onSave, onClose }) {
   const [commissionPercent, setCommissionPercent] = useState(
     item.commissionPercent != null ? String(item.commissionPercent) : "",
   );
+  const [resourceId, setResourceId] = useState(item.resourceId || "");
 
   const submit = (e) => {
     e.preventDefault();
@@ -118,6 +119,7 @@ export function PriceListEditModal({ item, sector, onSave, onClose }) {
       refreshDays: Number(refreshDays) || null,
       durationMinutes: Number(durationMinutes) || null,
       commissionPercent: commissionPercent !== "" ? Number(commissionPercent) : null,
+      resourceId: resourceId || null,
     });
   };
 
@@ -243,6 +245,38 @@ export function PriceListEditModal({ item, sector, onSave, onClose }) {
             />
           </div>
         </div>
+        {bookingModel(sector) === "slot" && resources?.length > 0 && (
+          <div style={{ marginBottom: 10 }}>
+            <label
+              style={{
+                fontSize: 12,
+                color: "var(--text-secondary)",
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
+                marginBottom: 4,
+              }}
+            >
+              Varsayılan Kaynak
+              <InfoTip
+                align="left"
+                text="Opsiyonel - bu hizmet randevuya eklendiğinde Cihaz/Oda alanı otomatik bu kaynağa ayarlanır (yine de değiştirebilirsiniz). Müşteri widget/portaldan bu hizmeti seçtiğinde de müsaitlik ve rezervasyon otomatik bu kaynağa göre hesaplanır."
+              />
+            </label>
+            <select
+              value={resourceId}
+              onChange={(e) => setResourceId(e.target.value)}
+              style={{ width: "100%" }}
+            >
+              <option value="">Seçilmedi</option>
+              {resources.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         {bookingModel(sector) === "slot" && !durationMinutes && (
           <p style={{ fontSize: 11.5, color: "var(--text-warning)", margin: "0 0 10px" }}>
             Süre boş bırakılırsa Müsaitlik Saatleri'ndeki genel slot süresi varsayılır - gerçek süre
@@ -265,11 +299,12 @@ export function PriceListEditModal({ item, sector, onSave, onClose }) {
   );
 }
 
-export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
+export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector, resources }) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [refreshDays, setRefreshDays] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
+  const [resourceId, setResourceId] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
   const [search, setSearch] = useState("");
@@ -287,11 +322,13 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
       price: Number(price),
       refreshDays: Number(refreshDays) || null,
       durationMinutes: Number(durationMinutes) || null,
+      resourceId: resourceId || null,
     });
     setName("");
     setPrice("");
     setRefreshDays("");
     setDurationMinutes("");
+    setResourceId("");
   };
 
   return (
@@ -371,6 +408,13 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
                     {item.commissionPercent != null && (
                       <span title="Bu hizmete özel prim oranı">
                         <Badge tone="default">%{item.commissionPercent} prim</Badge>
+                      </span>
+                    )}
+                    {item.resourceId && (
+                      <span title="Varsayılan kaynak - randevuda otomatik seçilir">
+                        <Badge tone="default">
+                          {resources?.find((r) => r.id === item.resourceId)?.name || "Kaynak"}
+                        </Badge>
                       </span>
                     )}
                     <IconButton
@@ -488,6 +532,38 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
             style={{ width: "100%", fontSize: 13 }}
           />
         </div>
+        {bookingModel(sector) === "slot" && resources?.length > 0 && (
+          <div style={{ width: 160 }}>
+            <label
+              style={{
+                fontSize: 12,
+                color: "var(--text-secondary)",
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
+                marginBottom: 4,
+              }}
+            >
+              Varsayılan Kaynak
+              <InfoTip
+                align="left"
+                text="Opsiyonel - bu hizmet randevuya eklendiğinde Cihaz/Oda alanı otomatik bu kaynağa ayarlanır (yine de değiştirebilirsiniz). Müşteri widget/portaldan bu hizmeti seçtiğinde de müsaitlik ve rezervasyon otomatik bu kaynağa göre hesaplanır."
+              />
+            </label>
+            <select
+              value={resourceId}
+              onChange={(e) => setResourceId(e.target.value)}
+              style={{ width: "100%", fontSize: 13 }}
+            >
+              <option value="">Seçilmedi</option>
+              {resources.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <button
           type="submit"
           style={{
@@ -523,6 +599,7 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
         <PriceListEditModal
           item={editingItem}
           sector={sector}
+          resources={resources}
           onClose={() => setEditingItem(null)}
           onSave={(payload) => {
             onUpdate({ id: editingItem.id, ...payload });
