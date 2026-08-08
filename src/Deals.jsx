@@ -715,6 +715,11 @@ export function DealForm({
           customFields: {
             ...customFields,
             price_item_id: selectedPriceItemId || null,
+            // Müşteri portalı/widget'ın müsaitlik hesabı (api/appointment-availability.js)
+            // sadece bu alana bakıyor, deal_line_items'a hiç erişmiyor - burada
+            // yazılmazsa CRM'den eklenen randevular "1 dakikalık nokta" sanılıp
+            // gerçek süresi boyunca dolu görünmesi gerekirken boş görünürdü.
+            duration_minutes: lineItemsDuration > 0 ? lineItemsDuration : null,
             package_breakdown:
               isPackageDeal && packageBreakdown.length > 0
                 ? packageBreakdown
