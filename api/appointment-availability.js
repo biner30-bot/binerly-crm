@@ -167,6 +167,29 @@ async function handleBooking(req, res, supabaseAdmin) {
     dealValue = Number(value) || 0;
   }
 
+  // Süre hâlâ bilinmiyorsa (serviceIds boş veya seçilen hizmetlerin fiyat
+  // listesinde süresi girilmemiş), computeDaySlots'un bu saati müsait
+  // gösterirken kullandığı AYNI varsayım (dateTime'ın denk geldiği Müsaitlik
+  // Saatleri penceresinin slot adımı) kalıcı olarak kaydedilir. Aksi halde
+  // rezervasyon "step kadar sürer" varsayımıyla yapılırken duration_minutes
+  // hiç yazılmaz, sonraki sorgularda bu randevu "1 dakikalık nokta" sanılıp
+  // hemen ardından gelen dakikalar yanlışlıkla boş görünürdü.
+  if (durationMinutes <= 0) {
+    const bookingMinutes = minutesOfDay(dateTime);
+    const [by, bm, bd] = dateTime.slice(0, 10).split("-").map(Number);
+    const bookingWeekday = (() => {
+      const jsWeekday = new Date(Date.UTC(by, bm - 1, bd)).getUTCDay();
+      return jsWeekday === 0 ? 7 : jsWeekday;
+    })();
+    const { data: hourRows } = await supabaseAdmin.from("business_hours").select("start_time, end_time, slot_duration_minutes").eq("user_id", businessUserId).eq("weekday", bookingWeekday);
+    const matchingWindow = (hourRows || []).find((h) => {
+      const [sh, sm] = h.start_time.slice(0, 5).split(":").map(Number);
+      const [eh, em] = h.end_time.slice(0, 5).split(":").map(Number);
+      return bookingMinutes >= sh * 60 + sm && bookingMinutes < eh * 60 + em;
+    });
+    durationMinutes = Number(matchingWindow?.slot_duration_minutes) || 0;
+  }
+
   // Race condition koruması: iki sekme/iki müşteri aynı saati aynı anda
   // seçebilir — müsaitlik listesinin döndüğü an ile bu istek arasında saat
   // dolmuş olabilir, insert'ten hemen önce tekrar doğrulanır. Süre biliniyorsa
