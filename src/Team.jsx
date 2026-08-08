@@ -62,6 +62,9 @@ export function StaffShiftDayEditor({
 }) {
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("18:00");
+  const [hasBreak, setHasBreak] = useState(false);
+  const [breakStart, setBreakStart] = useState("12:00");
+  const [breakEnd, setBreakEnd] = useState("13:00");
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmOff, setConfirmOff] = useState(false);
 
@@ -73,7 +76,20 @@ export function StaffShiftDayEditor({
   const submit = (e) => {
     e.preventDefault();
     if (!startTime || !endTime || endTime <= startTime) return;
-    onAdd({ weekday, startTime, endTime });
+    if (hasBreak) {
+      if (
+        !breakStart ||
+        !breakEnd ||
+        breakStart <= startTime ||
+        breakEnd >= endTime ||
+        breakEnd <= breakStart
+      )
+        return;
+      onAdd({ weekday, startTime, endTime: breakStart });
+      onAdd({ weekday, startTime: breakEnd, endTime });
+    } else {
+      onAdd({ weekday, startTime, endTime });
+    }
   };
 
   return (
@@ -175,6 +191,73 @@ export function StaffShiftDayEditor({
                 style={{ width: "100%" }}
               />
             </div>
+            <div
+              style={{
+                width: "100%",
+                display: "flex",
+                gap: 8,
+                alignItems: "flex-end",
+                flexWrap: "wrap",
+              }}
+            >
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  marginBottom: 8,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={hasBreak}
+                  onChange={(e) => setHasBreak(e.target.checked)}
+                />
+                Öğle arası / mola var
+              </label>
+              {hasBreak && (
+                <>
+                  <div style={{ width: 110 }}>
+                    <label
+                      style={{
+                        fontSize: 12,
+                        color: "var(--text-secondary)",
+                        display: "block",
+                        marginBottom: 4,
+                      }}
+                    >
+                      Ara başlangıç
+                    </label>
+                    <input
+                      type="time"
+                      value={breakStart}
+                      onChange={(e) => setBreakStart(e.target.value)}
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+                  <div style={{ width: 110 }}>
+                    <label
+                      style={{
+                        fontSize: 12,
+                        color: "var(--text-secondary)",
+                        display: "block",
+                        marginBottom: 4,
+                      }}
+                    >
+                      Ara bitiş
+                    </label>
+                    <input
+                      type="time"
+                      value={breakEnd}
+                      onChange={(e) => setBreakEnd(e.target.value)}
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
             <button
               type="submit"
               style={{
@@ -187,8 +270,8 @@ export function StaffShiftDayEditor({
             </button>
           </form>
           <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "10px 0 0" }}>
-            Öğle arası gibi bir boşluk bırakmak isterseniz iki ayrı aralık ekleyin (ör. 09:00-12:00
-            ve 13:00-18:00).
+            "Öğle arası / mola var" kutusunu işaretleyip ara saatlerini girerseniz gün otomatik iki
+            parçaya bölünür.
           </p>
           <button
             type="button"
@@ -325,22 +408,50 @@ export function StaffShiftGrid({
                     }
                     style={{
                       padding: "8px 4px",
-                      fontSize: 11,
                       textAlign: "center",
                       cursor: readOnly ? "default" : "pointer",
-                      color: isOff
-                        ? "var(--text-warning)"
-                        : dayShifts.length
-                          ? "var(--text-accent)"
-                          : "var(--text-muted)",
-                      fontWeight: isOff ? 600 : 400,
                     }}
                   >
-                    {isOff
-                      ? "Tatil"
-                      : dayShifts.length === 0
-                        ? "-"
-                        : dayShifts.map((s) => `${s.startTime}-${s.endTime}`).join(", ")}
+                    {isOff ? (
+                      <Badge tone="warning">Tatil</Badge>
+                    ) : dayShifts.length === 0 ? (
+                      readOnly ? (
+                        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>-</span>
+                      ) : (
+                        <span
+                          title="Vardiya ekle"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: 22,
+                            height: 22,
+                            borderRadius: "50%",
+                            border: "1px dashed var(--border)",
+                            color: "var(--text-muted)",
+                            fontSize: 13,
+                            fontWeight: 600,
+                          }}
+                        >
+                          +
+                        </span>
+                      )
+                    ) : (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 3,
+                          alignItems: "center",
+                        }}
+                      >
+                        {dayShifts.map((s) => (
+                          <Badge key={s.id} tone="accent">
+                            {s.startTime}-{s.endTime}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </td>
                 );
               })}
