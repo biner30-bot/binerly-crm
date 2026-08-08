@@ -9,7 +9,7 @@ import {
   IconButton,
   SegmentedControl,
 } from "./shared";
-import { dealWordKind } from "./Sectors";
+import { dealWordKind, bookingModel } from "./Sectors";
 
 const STOCK_MANAGER_TABS = [
   { id: "stok", label: "Stok Kalemleri" },
@@ -243,6 +243,12 @@ export function PriceListEditModal({ item, sector, onSave, onClose }) {
             />
           </div>
         </div>
+        {bookingModel(sector) === "slot" && !durationMinutes && (
+          <p style={{ fontSize: 11.5, color: "var(--text-warning)", margin: "0 0 10px" }}>
+            Süre boş bırakılırsa Müsaitlik Saatleri'ndeki genel slot süresi varsayılır - gerçek süre
+            farklıysa randevu takviminde boşluk kalabilir.
+          </p>
+        )}
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <button type="button" onClick={onClose}>
             Vazgeç
@@ -494,6 +500,12 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector }) {
           + Ekle
         </button>
       </form>
+      {bookingModel(sector) === "slot" && !durationMinutes && (
+        <p style={{ fontSize: 11.5, color: "var(--text-warning)", margin: "6px 0 0" }}>
+          Süre boş bırakılırsa Müsaitlik Saatleri'ndeki genel slot süresi varsayılır - gerçek süre
+          farklıysa randevu takviminde boşluk kalabilir.
+        </p>
+      )}
 
       {confirmDelete && (
         <ConfirmDialog
