@@ -1843,14 +1843,21 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
 
   // Önümüzdeki 14 günün boş saat sayısını TEK istekte çeker - AppointmentRequestPage'teki
   // AYNI mantık (bkz. api/appointment-availability.js overview dalı). date state'inden
-  // bağımsız, modal açılınca bir kere çalışır.
+  // bağımsız ama serviceIds'e bağımlı - hizmet seçilmeden önce varsayılan (adım)
+  // süreyle hesaplanan sayı, seçim değişince o hizmetin gerçek süresine göre
+  // yeniden hesaplanmazsa rozet olduğundan iyimser kalabilir.
   useEffect(() => {
     if (!customerRow.userId) return;
-    fetch(`/api/appointment-availability?businessUserId=${customerRow.userId}&overview=14`)
+    const serviceQuery = serviceIds.length
+      ? `&serviceIds=${encodeURIComponent(serviceIds.join(","))}`
+      : "";
+    fetch(
+      `/api/appointment-availability?businessUserId=${customerRow.userId}&overview=14${serviceQuery}`,
+    )
       .then((r) => r.json())
       .then((data) => setDayOverview(data.days || []))
       .catch(() => setDayOverview([]));
-  }, [customerRow.userId]);
+  }, [customerRow.userId, serviceIds]);
 
   // 0 TL'lik bir fiyat kalemi "ücretsiz" demek - AppointmentRequestPage.jsx'teki
   // (widget) AYNI ayrım/deseni (kasıtlı kopya) burada da uyguluyoruz, tutarlı olsun.

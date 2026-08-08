@@ -100,14 +100,18 @@ export default function AppointmentRequestPage() {
 
   // Önümüzdeki 14 günün boş saat sayısını TEK istekte çeker - müşteri hangi
   // günün müsait olduğunu tek tek tarih deneyerek bulmak zorunda kalmasın.
-  // date state'inden bağımsız, işletme yüklenince bir kere çalışır.
+  // date state'inden bağımsız ama serviceIds'e bağımlı - hizmet seçilmeden
+  // önce varsayılan (adım) süreyle hesaplanan sayı, seçim değişince o hizmetin
+  // gerçek süresine göre yeniden hesaplanmazsa rozet olduğundan iyimser kalabilir
+  // (ör. "5 boş" görünür ama 90dk'lık hizmet için gerçekte daha az yer sığar).
   useEffect(() => {
     if (!company?.acceptsAppointments || !company?.businessUserId) return;
-    fetch(`/api/appointment-availability?businessUserId=${company.businessUserId}&overview=14`)
+    const serviceQuery = serviceIds.length ? `&serviceIds=${encodeURIComponent(serviceIds.join(","))}` : "";
+    fetch(`/api/appointment-availability?businessUserId=${company.businessUserId}&overview=14${serviceQuery}`)
       .then((r) => r.json())
       .then((data) => setDayOverview(data.days || []))
       .catch(() => setDayOverview([]));
-  }, [company?.acceptsAppointments, company?.businessUserId]);
+  }, [company?.acceptsAppointments, company?.businessUserId, serviceIds]);
 
   const submit = async (e) => {
     e.preventDefault();
