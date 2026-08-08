@@ -16,11 +16,20 @@ function minutesOfDay(dateTimeStr) {
   return hh * 60 + mm;
 }
 
-// api/appointment-availability.js'teki AYNI iki yardımcı (kasıtlı kopya) -
-// işletmenin belirsiz olmayan (tam 1 aktif) bir kaynağı varsa otomatik atama
-// havuzu olarak kullanır, aksi halde null döner (mevcut kaynaksız davranış
-// korunur).
-async function resolveAutoAssignResource(supabaseAdmin, businessUserId) {
+// api/appointment-availability.js'teki AYNI fonksiyon (kasıtlı kopya) -
+// seçilen hizmetlerin price_list_items.resource_id eşleşmesine göre doğru
+// kaynağı otomatik atar; hiçbir hizmete hiç kaynak atanmamışsa (özellik hiç
+// kullanılmıyor) eski davranışa (tek aktif kaynak varsa onu kullan) düşer.
+async function resolveAutoAssignResource(supabaseAdmin, businessUserId, serviceIds) {
+  const ids = Array.isArray(serviceIds) ? serviceIds.filter(Boolean) : [];
+  if (ids.length > 0) {
+    const { data: mapped } = await supabaseAdmin.from("price_list_items").select("resource_id").eq("user_id", businessUserId).in("id", ids);
+    const distinct = [...new Set((mapped || []).map((m) => m.resource_id).filter(Boolean))];
+    if (distinct.length === 1) return distinct[0];
+    if (distinct.length > 1) return null;
+  }
+  const { data: anyMapped } = await supabaseAdmin.from("price_list_items").select("id").eq("user_id", businessUserId).not("resource_id", "is", null).limit(1);
+  if (anyMapped && anyMapped.length > 0) return null;
   const { data } = await supabaseAdmin.from("resources").select("id").eq("user_id", businessUserId).eq("active", true);
   if (!data || data.length !== 1) return null;
   return data[0].id;
@@ -231,7 +240,7 @@ export default async function handler(req, res) {
     // gelen randevular deals_resource_unit_no_overlap EXCLUDE CONSTRAINT'ini
     // tamamen bypass eder.
     let resourceUnitId = null, appointmentStart = null, appointmentEnd = null;
-    const autoResourceId = await resolveAutoAssignResource(supabaseAdmin, settings.user_id);
+    const autoResourceId = await resolveAutoAssignResource(supabaseAdmin, settings.user_id, cleanServiceIds);
     if (autoResourceId) {
       const bounds = buildAppointmentBounds(dateTime, serviceDurationMinutes || 1);
       if (bounds) {

@@ -61,15 +61,40 @@ function minutesOfDay(dateTimeStr) {
   return hh * 60 + mm;
 }
 
-// resources.length===1 ise (tek, belirsiz olmayan bir havuz) o kaynağı
-// otomatik atama havuzu olarak kullanır; 0 veya 2+ farklı kaynak varsa null
-// döner - hangi hizmetin hangi kaynağı gerektirdiğini bilen bir eşleme
-// (price_list_items<->resources) henüz yok, belirsizlik varsa hiç otomatik
-// atama yapılmaz (mevcut kaynaksız davranış korunur).
-async function resolveAutoAssignResource(supabaseAdmin, businessUserId) {
+// Hangi kaynağın otomatik atanacağını seçilen hizmetlere (price_list_items.
+// resource_id, bkz. sql/2026-08-09_price_list_item_resource_mapping.sql)
+// göre belirler:
+// 1) Seçilen hizmetlerin eşlendiği kaynakların tekil kümesi çıkarılır - tam
+//    1 farklı kaynak varsa o dönülür (doğru cihaz otomatik kilitlenir).
+// 2) Birden fazla farklı kaynak gerekiyorsa (örn. aynı randevuda 2 farklı
+//    cihaz gerektiren 2 hizmet) belirsizdir - yanlış kaynağı kilitlemektense
+//    hiç kilitlenmez, null döner.
+// 3) Hiçbir eşleşme yoksa: işletmede EN AZ BİR hizmete kaynak atanmışsa (KOBİ
+//    bu özelliği benimsemiş) bu hizmetin kaynak gerektirmediği anlamına gelir,
+//    null döner. Hiçbir hizmete hiç kaynak atanmamışsa (özellik hiç
+//    kullanılmıyor) eski davranışa düşülür: işletmenin toplam 1 aktif
+//    kaynağı varsa (tek, belirsiz olmayan bir havuz) otomatik atama havuzu
+//    olarak kullanılır - sıfır-konfigürasyonlu işletmeler için davranış
+//    değişmez.
+async function resolveAutoAssignResource(supabaseAdmin, businessUserId, serviceIds) {
+  const ids = Array.isArray(serviceIds) ? serviceIds.filter(Boolean) : [];
+  if (ids.length > 0) {
+    const { data: mapped } = await supabaseAdmin.from("price_list_items").select("resource_id").eq("user_id", businessUserId).in("id", ids);
+    const distinct = [...new Set((mapped || []).map((m) => m.resource_id).filter(Boolean))];
+    if (distinct.length === 1) return distinct[0];
+    if (distinct.length > 1) return null;
+  }
+  const { data: anyMapped } = await supabaseAdmin.from("price_list_items").select("id").eq("user_id", businessUserId).not("resource_id", "is", null).limit(1);
+  if (anyMapped && anyMapped.length > 0) return null;
   const { data } = await supabaseAdmin.from("resources").select("id").eq("user_id", businessUserId).eq("active", true);
   if (!data || data.length !== 1) return null;
   return data[0].id;
+}
+
+// resolveDurationMinutes'taki AYNI parse deseni (kasıtlı kopya) - GET
+// uçlarında serviceIds virgülle ayrılmış tek bir query string olarak gelir.
+function parseServiceIdsParam(serviceIdsParam) {
+  return (serviceIdsParam || "").split(",").map((s) => s.trim()).filter(Boolean);
 }
 
 // "YYYY-MM-DDTHH:MM" (naive, saat dilimsiz) bir zaman damgasını, projenin
@@ -296,7 +321,7 @@ async function handleBooking(req, res, supabaseAdmin) {
   // eşzamanlı istek aynı birimi seçebilir - insert'in kendisi bunu reddeder
   // (bkz. aşağıdaki 23P01 kontrolü), bu yüzden birkaç kez denenir.
   let resourceUnitId = null, appointmentStart = null, appointmentEnd = null;
-  const autoResourceId = await resolveAutoAssignResource(supabaseAdmin, businessUserId);
+  const autoResourceId = await resolveAutoAssignResource(supabaseAdmin, businessUserId, cleanServiceIds);
   if (autoResourceId) {
     const bounds = buildAppointmentBounds(dateTime, durationMinutes || 1);
     if (bounds) {
@@ -462,7 +487,7 @@ export default async function handler(req, res) {
     // Kaynak (oda/cihaz) tanımlıysa (belirsiz olmayan tek bir havuz), her gün
     // için ek bir müsaitlik kısıtı hesaplanır - bkz. computeDaySlots ve
     // buildResourceUnitRangesByDate yorumları.
-    const autoResourceId = await resolveAutoAssignResource(supabaseAdmin, businessUserId);
+    const autoResourceId = await resolveAutoAssignResource(supabaseAdmin, businessUserId, parseServiceIdsParam(req.query.serviceIds));
     let resourceUnitRangesByDate = null;
     if (autoResourceId) {
       const { data: units } = await supabaseAdmin.from("resource_units").select("id").eq("resource_id", autoResourceId).eq("active", true);
@@ -555,7 +580,7 @@ export default async function handler(req, res) {
   // Kaynak (oda/cihaz) tanımlıysa (belirsiz olmayan tek bir havuz), genel
   // concurrency tavanından bağımsız bir ek kısıt hesaplanır - bkz.
   // computeDaySlots ve buildResourceUnitRangesByDate yorumları.
-  const autoResourceId = await resolveAutoAssignResource(supabaseAdmin, businessUserId);
+  const autoResourceId = await resolveAutoAssignResource(supabaseAdmin, businessUserId, parseServiceIdsParam(req.query.serviceIds));
   let resourceUnitRanges = null;
   if (autoResourceId) {
     const { data: units } = await supabaseAdmin.from("resource_units").select("id").eq("resource_id", autoResourceId).eq("active", true);
