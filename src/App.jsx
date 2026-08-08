@@ -5214,6 +5214,7 @@ export default function App() {
             businessUserId={activeTeamId}
             titleSuggestions={[...new Set(deals.map((d) => d.title).filter(Boolean))]}
             priceListItems={priceListItems}
+            businessHours={businessHours}
             initialLineItems={editingDeal ? dealLineItems.filter((li) => li.dealId === editingDeal.id) : []}
             dealLineItems={dealLineItems}
             hasPaymentConnection={paymentCredentials.length > 0}

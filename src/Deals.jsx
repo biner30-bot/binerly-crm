@@ -190,6 +190,29 @@ export function lineItemsDurationMinutes(lineItemsForDeal, priceListItems) {
   }, 0);
 }
 
+// Kalemlerden süre çıkmıyorsa (fiyat listesinde girilmemiş/elle giriş), o an
+// müsaitlik hesabının (api/appointment-availability.js:computeDaySlots) AYNI
+// varsayımı - dateTime'ın denk geldiği Müsaitlik Saatleri penceresinin slot
+// adımı - kalıcı olarak kaydedilir. Aksi halde randevu "step kadar sürer"
+// varsayılırken duration_minutes hiç yazılmaz, sonraki sorgularda "1 dakikalık
+// nokta" sanılıp hemen ardından gelen dakikalar yanlışlıkla boş görünürdü.
+export function fallbackDurationFromBusinessHours(dateTimeStr, businessHours) {
+  if (!dateTimeStr || dateTimeStr.length < 16) return 0;
+  const [y, m, d] = dateTimeStr.slice(0, 10).split("-").map(Number);
+  const [h, min] = dateTimeStr.slice(11, 16).split(":").map(Number);
+  if (!y || !m || !d || Number.isNaN(h) || Number.isNaN(min)) return 0;
+  const jsWeekday = new Date(y, m - 1, d).getDay();
+  const weekday = jsWeekday === 0 ? 7 : jsWeekday;
+  const minutesOfDay = h * 60 + min;
+  const window = (businessHours || []).find((bh) => {
+    if (bh.weekday !== weekday) return false;
+    const [sh, sm] = bh.startTime.split(":").map(Number);
+    const [eh, em] = bh.endTime.split(":").map(Number);
+    return minutesOfDay >= sh * 60 + sm && minutesOfDay < eh * 60 + em;
+  });
+  return window?.slotDurationMinutes || 0;
+}
+
 // Randevu sektörlerinde müşteri portaldan randevu alırken müsait saatleri
 // gördüğü halde, KOBİ aynı randevuyu elle girerken hiçbir müsaitlik bilgisi
 // görmüyor, tarih/saati kör kör yazıyordu — çakışma ancak kaydetmeye
@@ -310,6 +333,7 @@ export function DealForm({
   businessUserId,
   titleSuggestions = [],
   priceListItems = [],
+  businessHours = [],
   initialLineItems = [],
   dealLineItems = [],
   hasPaymentConnection = false,
@@ -719,7 +743,13 @@ export function DealForm({
             // sadece bu alana bakıyor, deal_line_items'a hiç erişmiyor - burada
             // yazılmazsa CRM'den eklenen randevular "1 dakikalık nokta" sanılıp
             // gerçek süresi boyunca dolu görünmesi gerekirken boş görünürdü.
-            duration_minutes: lineItemsDuration > 0 ? lineItemsDuration : null,
+            duration_minutes:
+              lineItemsDuration > 0
+                ? lineItemsDuration
+                : fallbackDurationFromBusinessHours(
+                    customFields[appointmentDateTimeKey],
+                    businessHours,
+                  ) || null,
             package_breakdown:
               isPackageDeal && packageBreakdown.length > 0
                 ? packageBreakdown
