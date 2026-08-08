@@ -1994,32 +1994,46 @@ export default function App() {
       else delete customFields.portal_randevu_zamani;
     }
 
-    // Bir kaynak (oda/cihaz) seçilmişse, atanan fiziksel birim DB seviyesinde
-    // (deals_resource_unit_no_overlap EXCLUDE CONSTRAINT) garanti altına
-    // alınır - api/appointment-availability.js/api/lead-capture.js ile AYNI
-    // pick_free_resource_unit RPC'si (tek ortak kaynak, anti-join mantığı
-    // burada tekrar yazılmıyor). findAppointmentConflict zaten önden bir
-    // client-side uyarı veriyor - bu RPC son savunma hattı, o kontrolü
-    // atlayan bir TOCTOU penceresini kapatıyor.
+    // appointment_start/end, bu deal gerçekten bir randevuysa (kaynak/personel
+    // seçili olsun olmasın) HER ZAMAN hesaplanır - deals_resource_unit_no_overlap
+    // VE deals_assigned_to_no_overlap EXCLUDE CONSTRAINT'lerinin ikisi de bu
+    // iki kolondan türeyen appointment_range'e bakıyor. Önceden bu hesap sadece
+    // resourceId seçiliyken yapılıyordu - kaynaksız randevularda her düzenlemede
+    // appointment_start/end'i sessizce null'a çekip Aşama 1'in backfill'ini
+    // siliyordu, ayrıca personel kısıtının hiç devreye girmemesine yol açıyordu.
     let resourceUnitId = null, appointmentStart = null, appointmentEnd = null;
     const resourceId = customFields.resource_id || null;
-    if (resourceId && appointmentDateTimeKey && customFields[appointmentDateTimeKey]) {
+    const isAppointment = bookingModel(companySettings?.sector) === "slot" && appointmentDateTimeKey && customFields[appointmentDateTimeKey];
+    if (isAppointment) {
       const start = parseAppointmentDateTime(customFields[appointmentDateTimeKey]);
       if (start) {
         const dur = Math.max(Number(customFields.duration_minutes) || 1, 1);
         const end = new Date(start.getTime() + dur * 60000);
-        for (let attempt = 0; attempt < 3 && !resourceUnitId; attempt++) {
-          const { data: unitId } = await supabase.rpc("pick_free_resource_unit", {
-            p_resource_id: resourceId, p_start: start.toISOString(), p_end: end.toISOString(), p_exclude_deal_id: d.id,
-          });
-          if (!unitId) break;
-          resourceUnitId = unitId;
-          appointmentStart = start.toISOString();
-          appointmentEnd = end.toISOString();
-        }
-        if (!resourceUnitId) {
-          notify("Seçtiğiniz kaynak bu saatte az önce doldu, lütfen farklı bir kaynak/saat seçin.");
-          return;
+        appointmentStart = start.toISOString();
+        appointmentEnd = end.toISOString();
+
+        // Bir kaynak (oda/cihaz) seçilmişse, atanan fiziksel birim DB
+        // seviyesinde (deals_resource_unit_no_overlap EXCLUDE CONSTRAINT)
+        // garanti altına alınır - api/appointment-availability.js/
+        // api/lead-capture.js ile AYNI pick_free_resource_unit RPC'si (tek
+        // ortak kaynak, anti-join mantığı burada tekrar yazılmıyor).
+        // findAppointmentConflict zaten önden bir client-side uyarı veriyor -
+        // bu RPC son savunma hattı, o kontrolü atlayan bir TOCTOU penceresini
+        // kapatıyor. Personel tarafı için ayrı bir RPC gerekmiyor - assigned_to
+        // zaten row'a yazılıyor, deals_assigned_to_no_overlap constraint'i
+        // insert/upsert anında kendiliğinden devreye giriyor.
+        if (resourceId) {
+          for (let attempt = 0; attempt < 3 && !resourceUnitId; attempt++) {
+            const { data: unitId } = await supabase.rpc("pick_free_resource_unit", {
+              p_resource_id: resourceId, p_start: appointmentStart, p_end: appointmentEnd, p_exclude_deal_id: d.id,
+            });
+            if (!unitId) break;
+            resourceUnitId = unitId;
+          }
+          if (!resourceUnitId) {
+            notify("Seçtiğiniz kaynak bu saatte az önce doldu, lütfen farklı bir kaynak/saat seçin.");
+            return;
+          }
         }
       }
     }
@@ -2058,9 +2072,19 @@ export default function App() {
     };
     const { data, error } = await supabase.from("deals").upsert(row).select().single();
     if (error) {
-      // 23P01 = exclusion_violation - resourceUnitId'yi başka bir eşzamanlı
-      // istek, yukarıdaki kontrolden SONRA ama bu upsert'ten ÖNCE kapmış.
-      if (error.code === "23P01") { notify("Bu saat/kaynak az önce doldu, lütfen tekrar deneyin."); return; }
+      // 23P01 = exclusion_violation - ya resourceUnitId'yi başka bir eşzamanlı
+      // istek yukarıdaki kontrolden SONRA ama bu upsert'ten ÖNCE kapmış, ya da
+      // aynı personele aynı saatte başka bir randevu az önce eklenmiş (DB
+      // seviyesinde garanti - client-side findAppointmentConflict'i atlayan
+      // bir TOCTOU penceresi). Hangi constraint patladığına göre farklı mesaj.
+      if (error.code === "23P01") {
+        if (error.message?.includes("deals_assigned_to_no_overlap")) {
+          notify("Seçtiğiniz personel bu saatte başka bir randevuda, lütfen farklı bir personel/saat seçin.");
+        } else {
+          notify("Bu saat/kaynak az önce doldu, lütfen tekrar deneyin.");
+        }
+        return;
+      }
       notify(`${DEAL_TAB_STRINGS[dealWordKind(companySettings?.sector)].columnHeader} kaydedilemedi: ${error.message}`);
       return;
     }

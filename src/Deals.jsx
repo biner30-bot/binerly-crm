@@ -586,8 +586,10 @@ export function DealForm({
   // no_overlap EXCLUDE CONSTRAINT'i (bkz. sql/2026-08-08_deals_resource_
   // booking.sql) - bu form submit anında geçse bile (TOCTOU penceresi), DB
   // reddedebilir, o durumda upsertDeal kendi hata mesajını gösterir. Personel
-  // (assignedTo) için henüz eşdeğer bir DB garantisi YOK - vardiya sistemine
-  // bağlı, ayrı bir aşamaya bırakıldı.
+  // (assignedTo) için de AYNI garanti var - deals_assigned_to_no_overlap
+  // EXCLUDE CONSTRAINT'i (bkz. sql/2026-08-08_deals_assigned_to_conflict.sql),
+  // vardiya (staff_shifts) sistemine bilerek bağlanmadı - müşteri tarafını
+  // (widget/portal) hiç etkilemiyor, sadece CRM içi atamayı DB'de sabitliyor.
   const findAppointmentConflict = (candidateStage, candidateCustomFields) => {
     if (
       !appointmentDateTimeKey ||
