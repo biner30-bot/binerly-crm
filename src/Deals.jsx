@@ -580,6 +580,14 @@ export function DealForm({
   // kapasitesi) tek çakışmada değil, o sayıya ULAŞINCA engellenir — birden
   // fazla uzman/koltuk/cihazı olan işletmeler aynı saate N randevu alabilsin
   // diye (bkz. api/appointment-availability.js'teki AYNI mantık).
+  // Kaynak (oda/cihaz) çakışması için ARTIK bu client-side kontrol tek
+  // savunma hattı DEĞİL - sadece hızlı bir ön-uyarı. Gerçek garanti App.jsx
+  // upsertDeal'daki pick_free_resource_unit RPC'si + deals_resource_unit_
+  // no_overlap EXCLUDE CONSTRAINT'i (bkz. sql/2026-08-08_deals_resource_
+  // booking.sql) - bu form submit anında geçse bile (TOCTOU penceresi), DB
+  // reddedebilir, o durumda upsertDeal kendi hata mesajını gösterir. Personel
+  // (assignedTo) için henüz eşdeğer bir DB garantisi YOK - vardiya sistemine
+  // bağlı, ayrı bir aşamaya bırakıldı.
   const findAppointmentConflict = (candidateStage, candidateCustomFields) => {
     if (
       !appointmentDateTimeKey ||

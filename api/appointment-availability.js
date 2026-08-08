@@ -15,7 +15,12 @@ import crypto from "node:crypto";
 // Önceden bir slot, TEK bir çakışan randevu bile varsa dolu sayılıyordu -
 // tek kaynaklı (1 koltuk/uzman) işletmeler için doğruydu ama birden fazla
 // kaynağı olan işletmelerde yanlışlıkla ikinci/üçüncü randevuyu da engelliyordu.
-function computeDaySlots(windows, isToday, nowMinutes, takenRanges, durationMinutes = 0, concurrency = 1) {
+// resourceUnitRanges: Map<unitId, {start,end}[]> (dakika cinsinden, o kaynağın
+// her fiziksel biriminin dolu olduğu aralıklar) - verilirse, genel concurrency
+// tavanından BAĞIMSIZ bir ek kısıt uygulanır: adayın en az bir birimle hiç
+// çakışmaması gerekir. resources tanımlı değilse (resolveAutoAssignResource
+// null döndüyse) bu parametre hiç geçilmez, davranış değişmez.
+function computeDaySlots(windows, isToday, nowMinutes, takenRanges, durationMinutes = 0, concurrency = 1, resourceUnitRanges = null) {
   const slots = [];
   for (const window of windows) {
     const [startH, startM] = window.start_time.slice(0, 5).split(":").map(Number);
@@ -33,6 +38,12 @@ function computeDaySlots(windows, isToday, nowMinutes, takenRanges, durationMinu
       const candidateEnd = cursor + svcDuration;
       const overlapCount = takenRanges.filter((r) => cursor < r.end && r.start < candidateEnd).length;
       if (overlapCount >= concurrency) continue;
+      if (resourceUnitRanges) {
+        const hasFreeUnit = [...resourceUnitRanges.values()].some(
+          (ranges) => !ranges.some((r) => cursor < r.end && r.start < candidateEnd),
+        );
+        if (!hasFreeUnit) continue;
+      }
       const time = `${String(Math.floor(cursor / 60)).padStart(2, "0")}:${String(cursor % 60).padStart(2, "0")}`;
       slots.push(time);
     }
@@ -48,6 +59,68 @@ function resolveConcurrency(settings) {
 function minutesOfDay(dateTimeStr) {
   const [hh, mm] = dateTimeStr.slice(11, 16).split(":").map(Number);
   return hh * 60 + mm;
+}
+
+// resources.length===1 ise (tek, belirsiz olmayan bir havuz) o kaynağı
+// otomatik atama havuzu olarak kullanır; 0 veya 2+ farklı kaynak varsa null
+// döner - hangi hizmetin hangi kaynağı gerektirdiğini bilen bir eşleme
+// (price_list_items<->resources) henüz yok, belirsizlik varsa hiç otomatik
+// atama yapılmaz (mevcut kaynaksız davranış korunur).
+async function resolveAutoAssignResource(supabaseAdmin, businessUserId) {
+  const { data } = await supabaseAdmin.from("resources").select("id").eq("user_id", businessUserId).eq("active", true);
+  if (!data || data.length !== 1) return null;
+  return data[0].id;
+}
+
+// "YYYY-MM-DDTHH:MM" (naive, saat dilimsiz) bir zaman damgasını, projenin
+// yerleşik +03:00 (Türkiye) konvansiyonuyla (bkz. src/shared.jsx
+// parseAppointmentDateTime, api/send-appointment-reminders.js) gerçek bir
+// zaman aralığına çevirir.
+function buildAppointmentBounds(dateTimeStr, durationMinutes) {
+  const start = new Date(`${dateTimeStr.slice(0, 16)}:00+03:00`);
+  if (Number.isNaN(start.getTime())) return null;
+  const end = new Date(start.getTime() + Math.max(durationMinutes, 1) * 60000);
+  return { startIso: start.toISOString(), endIso: end.toISOString() };
+}
+
+// deals.appointment_start/end gerçek UTC timestamptz olarak dönüyor - bir
+// önceki nowParts hesaplamasındaki AYNI Intl.DateTimeFormat deseni ile
+// Europe/Istanbul yerel tarih+dakikaya çevirir (sunucunun kendi saat dilimine
+// güvenmez).
+function istanbulDateAndMinutes(isoStr) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Istanbul",
+      year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
+    }).formatToParts(new Date(isoStr)).map((p) => [p.type, p.value])
+  );
+  return { dateStr: `${parts.year}-${parts.month}-${parts.day}`, minutes: Number(parts.hour) * 60 + Number(parts.minute) };
+}
+
+// unitIds: bir kaynağın aktif fiziksel birimlerinin id listesi. dealsRows:
+// resource_unit_id + appointment_start/end alanları seçilmiş deals satırları.
+// dateStrs: hesaplanacak günlerin listesi (tek günlük sorguda 1 eleman,
+// önizleme şeridinde N eleman). computeDaySlots'un resourceUnitRanges
+// parametresi için Map<dateStr, Map<unitId, {start,end}[]>> döner - her
+// unitId'nin HER gün için (randevusu olmasa bile boş array ile) bir girdisi
+// garantilenir, aksi halde "hiç randevusu olmayan birim" yanlışlıkla dolu
+// sayılabilirdi.
+function buildResourceUnitRangesByDate(unitIds, dealsRows, dateStrs) {
+  const byDate = new Map();
+  for (const dateStr of dateStrs) {
+    const dayMap = new Map();
+    for (const unitId of unitIds) dayMap.set(unitId, []);
+    byDate.set(dateStr, dayMap);
+  }
+  for (const d of dealsRows) {
+    if (!d.resource_unit_id || !unitIds.has(d.resource_unit_id) || !d.appointment_start || !d.appointment_end) continue;
+    const { dateStr, minutes: startMin } = istanbulDateAndMinutes(d.appointment_start);
+    const { minutes: endMin } = istanbulDateAndMinutes(d.appointment_end);
+    const dayMap = byDate.get(dateStr);
+    if (!dayMap) continue;
+    dayMap.get(d.resource_unit_id)?.push({ start: startMin, end: endMin });
+  }
+  return byDate;
 }
 
 // serviceIds (virgülle ayrılmış price_list_items id listesi) verilirse
@@ -214,9 +287,36 @@ async function handleBooking(req, res, supabaseAdmin) {
 
   const { data: cred } = await supabaseAdmin.from("payment_credentials").select("id").eq("user_id", businessUserId).maybeSingle();
 
+  const dealId = crypto.randomUUID();
+
+  // İşletmenin belirsiz olmayan (tam 1 aktif) bir kaynağı varsa, o kaynağın
+  // fiziksel birimlerinden boş olanı otomatik atanır - müşteriye hiç
+  // gösterilmez. deals_resource_unit_no_overlap EXCLUDE CONSTRAINT'i son
+  // savunma hattı: pick_free_resource_unit burada "boş" bulsa bile, iki
+  // eşzamanlı istek aynı birimi seçebilir - insert'in kendisi bunu reddeder
+  // (bkz. aşağıdaki 23P01 kontrolü), bu yüzden birkaç kez denenir.
+  let resourceUnitId = null, appointmentStart = null, appointmentEnd = null;
+  const autoResourceId = await resolveAutoAssignResource(supabaseAdmin, businessUserId);
+  if (autoResourceId) {
+    const bounds = buildAppointmentBounds(dateTime, durationMinutes || 1);
+    if (bounds) {
+      for (let attempt = 0; attempt < 3 && !resourceUnitId; attempt++) {
+        const { data: unitId } = await supabaseAdmin.rpc("pick_free_resource_unit", {
+          p_resource_id: autoResourceId, p_start: bounds.startIso, p_end: bounds.endIso, p_exclude_deal_id: dealId,
+        });
+        if (!unitId) break;
+        resourceUnitId = unitId;
+        appointmentStart = bounds.startIso;
+        appointmentEnd = bounds.endIso;
+      }
+    }
+    if (!resourceUnitId) return res.status(409).json({ error: "Bu saat az önce doldu, lütfen başka bir saat seçin." });
+  }
+
   const row = {
-    id: crypto.randomUUID(), user_id: businessUserId, customer_id: customerId,
+    id: dealId, user_id: businessUserId, customer_id: customerId,
     title: serviceName || (note || "").trim() || "Randevu talebi", value: dealValue, stage: "ilk_gorusme",
+    resource_unit_id: resourceUnitId, appointment_start: appointmentStart, appointment_end: appointmentEnd,
     custom_fields: {
       [dateTimeKey]: dateTime, portal_randevu_zamani: dateTime, kaynak: "portal",
       ...(cleanServiceIds.length > 0 ? { service_ids: cleanServiceIds } : {}),
@@ -231,7 +331,12 @@ async function handleBooking(req, res, supabaseAdmin) {
   }
 
   const { data, error } = await supabaseAdmin.from("deals").insert(row).select().single();
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) {
+    // 23P01 = exclusion_violation - resourceUnitId'yi başka bir eşzamanlı
+    // istek, yukarıdaki kontrolden SONRA ama bu insert'ten ÖNCE kapmış.
+    if (error.code === "23P01") return res.status(409).json({ error: "Bu saat az önce doldu, lütfen başka bir saat seçin." });
+    return res.status(500).json({ error: error.message });
+  }
   return res.status(200).json({ deal: data });
 }
 
@@ -314,7 +419,7 @@ export default async function handler(req, res) {
     const [{ data: fieldDefs, error: fieldDefsError }, { data: allHours, error: hoursError }, { data: deals, error: dealsError }, { data: cred, error: credError }, { data: concurrencySettings }] = await Promise.all([
       supabaseAdmin.from("custom_field_defs").select("key").eq("user_id", businessUserId).eq("entity", "deal").eq("field_type", "datetime").eq("active", true).limit(1),
       supabaseAdmin.from("business_hours").select("weekday, start_time, end_time, slot_duration_minutes").eq("user_id", businessUserId),
-      supabaseAdmin.from("deals").select("custom_fields").eq("user_id", businessUserId).is("deleted_at", null).neq("stage", "kaybedildi"),
+      supabaseAdmin.from("deals").select("custom_fields, resource_unit_id, appointment_start, appointment_end").eq("user_id", businessUserId).is("deleted_at", null).neq("stage", "kaybedildi"),
       supabaseAdmin.from("payment_credentials").select("id").eq("user_id", businessUserId).maybeSingle(),
       supabaseAdmin.from("company_settings").select("appointment_concurrency").eq("user_id", businessUserId).maybeSingle(),
     ]);
@@ -348,21 +453,37 @@ export default async function handler(req, res) {
     const requestedDuration = await resolveDurationMinutes(supabaseAdmin, businessUserId, req.query.serviceIds);
     const nowMinutes = (Number(nowParts.hour) % 24) * 60 + Number(nowParts.minute);
     const startY = Number(nowParts.year), startM = Number(nowParts.month), startD = Number(nowParts.day);
-    const days = [];
+    const dateStrs = [];
     for (let i = 0; i < overviewDays; i++) {
       const cursorDate = new Date(Date.UTC(startY, startM - 1, startD + i));
-      const dateStr = `${cursorDate.getUTCFullYear()}-${String(cursorDate.getUTCMonth() + 1).padStart(2, "0")}-${String(cursorDate.getUTCDate()).padStart(2, "0")}`;
+      dateStrs.push(`${cursorDate.getUTCFullYear()}-${String(cursorDate.getUTCMonth() + 1).padStart(2, "0")}-${String(cursorDate.getUTCDate()).padStart(2, "0")}`);
+    }
+
+    // Kaynak (oda/cihaz) tanımlıysa (belirsiz olmayan tek bir havuz), her gün
+    // için ek bir müsaitlik kısıtı hesaplanır - bkz. computeDaySlots ve
+    // buildResourceUnitRangesByDate yorumları.
+    const autoResourceId = await resolveAutoAssignResource(supabaseAdmin, businessUserId);
+    let resourceUnitRangesByDate = null;
+    if (autoResourceId) {
+      const { data: units } = await supabaseAdmin.from("resource_units").select("id").eq("resource_id", autoResourceId).eq("active", true);
+      const unitIds = new Set((units || []).map((u) => u.id));
+      resourceUnitRangesByDate = buildResourceUnitRangesByDate(unitIds, deals || [], dateStrs);
+    }
+
+    const days = dateStrs.map((dateStr, i) => {
+      const cursorDate = new Date(Date.UTC(startY, startM - 1, startD + i));
       const jsWeekday = cursorDate.getUTCDay();
       const isoWeekday = jsWeekday === 0 ? 7 : jsWeekday;
       const windows = hoursByWeekday.get(isoWeekday) || [];
       const taken = takenByDate.get(dateStr) || [];
-      const slotCount = computeDaySlots(windows, dateStr === todayIstanbul, nowMinutes, taken, requestedDuration, concurrency).length;
+      const resourceUnitRanges = resourceUnitRangesByDate ? resourceUnitRangesByDate.get(dateStr) : null;
+      const slotCount = computeDaySlots(windows, dateStr === todayIstanbul, nowMinutes, taken, requestedDuration, concurrency, resourceUnitRanges).length;
       // "Kapalı" (o haftagünü için hiç mesai saati tanımlı değil - KOBİ'nin
       // kendi Müsaitlik Saatleri seçimi, ör. Pazar) ile "Dolu" (mesai var ama
       // tüm saatler alınmış) FARKLI şeyler - ikisi de slotCount=0 olduğu için
       // ayrı bir bayrakla işaretlenmezse widget'ta ayırt edilemiyordu.
-      days.push({ date: dateStr, slotCount, closed: windows.length === 0 });
-    }
+      return { date: dateStr, slotCount, closed: windows.length === 0 };
+    });
     return res.status(200).json({ days, dateTimeKey, hasPaymentProvider });
   }
 
@@ -387,7 +508,7 @@ export default async function handler(req, res) {
   const [{ data: fieldDefs, error: fieldDefsError }, { data: hours, error: hoursError }, { data: deals, error: dealsError }, { data: cred, error: credError }, { data: concurrencySettings }] = await Promise.all([
     supabaseAdmin.from("custom_field_defs").select("key").eq("user_id", businessUserId).eq("entity", "deal").eq("field_type", "datetime").eq("active", true).limit(1),
     supabaseAdmin.from("business_hours").select("start_time, end_time, slot_duration_minutes").eq("user_id", businessUserId).eq("weekday", isoWeekday),
-    supabaseAdmin.from("deals").select("custom_fields").eq("user_id", businessUserId).is("deleted_at", null).neq("stage", "kaybedildi"),
+    supabaseAdmin.from("deals").select("custom_fields, resource_unit_id, appointment_start, appointment_end").eq("user_id", businessUserId).is("deleted_at", null).neq("stage", "kaybedildi"),
     supabaseAdmin.from("payment_credentials").select("id").eq("user_id", businessUserId).maybeSingle(),
     supabaseAdmin.from("company_settings").select("appointment_concurrency").eq("user_id", businessUserId).maybeSingle(),
   ]);
@@ -430,7 +551,19 @@ export default async function handler(req, res) {
   // müşteri belirli bir uzman istiyorsa not alanına yazıp işletmeyle
   // konuşuyor. Personel seçimi eklenirse vardiya buraya yeniden bağlanacak.
   const requestedDuration = await resolveDurationMinutes(supabaseAdmin, businessUserId, req.query.serviceIds);
-  const slots = computeDaySlots(hours || [], isToday, nowMinutes, takenRanges, requestedDuration, resolveConcurrency(concurrencySettings));
+
+  // Kaynak (oda/cihaz) tanımlıysa (belirsiz olmayan tek bir havuz), genel
+  // concurrency tavanından bağımsız bir ek kısıt hesaplanır - bkz.
+  // computeDaySlots ve buildResourceUnitRangesByDate yorumları.
+  const autoResourceId = await resolveAutoAssignResource(supabaseAdmin, businessUserId);
+  let resourceUnitRanges = null;
+  if (autoResourceId) {
+    const { data: units } = await supabaseAdmin.from("resource_units").select("id").eq("resource_id", autoResourceId).eq("active", true);
+    const unitIds = new Set((units || []).map((u) => u.id));
+    resourceUnitRanges = buildResourceUnitRangesByDate(unitIds, deals || [], [date]).get(date);
+  }
+
+  const slots = computeDaySlots(hours || [], isToday, nowMinutes, takenRanges, requestedDuration, resolveConcurrency(concurrencySettings), resourceUnitRanges);
 
   return res.status(200).json({ slots, dateTimeKey, hasPaymentProvider });
 }

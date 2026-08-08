@@ -16,6 +16,22 @@ function minutesOfDay(dateTimeStr) {
   return hh * 60 + mm;
 }
 
+// api/appointment-availability.js'teki AYNI iki yardımcı (kasıtlı kopya) -
+// işletmenin belirsiz olmayan (tam 1 aktif) bir kaynağı varsa otomatik atama
+// havuzu olarak kullanır, aksi halde null döner (mevcut kaynaksız davranış
+// korunur).
+async function resolveAutoAssignResource(supabaseAdmin, businessUserId) {
+  const { data } = await supabaseAdmin.from("resources").select("id").eq("user_id", businessUserId).eq("active", true);
+  if (!data || data.length !== 1) return null;
+  return data[0].id;
+}
+function buildAppointmentBounds(dateTimeStr, durationMinutes) {
+  const start = new Date(`${dateTimeStr.slice(0, 16)}:00+03:00`);
+  if (Number.isNaN(start.getTime())) return null;
+  const end = new Date(start.getTime() + Math.max(durationMinutes, 1) * 60000);
+  return { startIso: start.toISOString(), endIso: end.toISOString() };
+}
+
 // İzin verilirken gösterilen TAM metin — istemciden ASLA alınmaz (client
 // kendi metnini uydurup gönderebilirdi, kanıtı değersizleştirirdi). Bu metin
 // AppointmentRequestPage.jsx/LeadCapturePage.jsx'teki checkbox etiketiyle
@@ -208,20 +224,50 @@ export default async function handler(req, res) {
       if (cred) approvalToken = crypto.randomUUID();
     }
 
+    const dealId = crypto.randomUUID();
+
+    // api/appointment-availability.js'teki handleBooking ile AYNI otomatik
+    // kaynak atama mantığı (kasıtlı kopya) - bu güncellenmezse widget üzerinden
+    // gelen randevular deals_resource_unit_no_overlap EXCLUDE CONSTRAINT'ini
+    // tamamen bypass eder.
+    let resourceUnitId = null, appointmentStart = null, appointmentEnd = null;
+    const autoResourceId = await resolveAutoAssignResource(supabaseAdmin, settings.user_id);
+    if (autoResourceId) {
+      const bounds = buildAppointmentBounds(dateTime, serviceDurationMinutes || 1);
+      if (bounds) {
+        for (let attempt = 0; attempt < 3 && !resourceUnitId; attempt++) {
+          const { data: unitId } = await supabaseAdmin.rpc("pick_free_resource_unit", {
+            p_resource_id: autoResourceId, p_start: bounds.startIso, p_end: bounds.endIso, p_exclude_deal_id: dealId,
+          });
+          if (!unitId) break;
+          resourceUnitId = unitId;
+          appointmentStart = bounds.startIso;
+          appointmentEnd = bounds.endIso;
+        }
+      }
+      if (!resourceUnitId) return res.status(409).json({ error: "Bu saat az önce doldu, lütfen başka bir saat seçin." });
+    }
+
     const { error: dealInsertError } = await supabaseAdmin.from("deals").insert({
-      id: crypto.randomUUID(),
+      id: dealId,
       user_id: settings.user_id,
       customer_id: customerId,
       title: serviceName || (note || "").trim() || "Randevu talebi",
       value: servicePrice,
       stage: "ilk_gorusme",
+      resource_unit_id: resourceUnitId, appointment_start: appointmentStart, appointment_end: appointmentEnd,
       custom_fields: {
         [dateTimeKey]: dateTime, portal_randevu_zamani: dateTime, kaynak: "randevu_widget",
         ...(serviceDurationMinutes > 0 ? { duration_minutes: serviceDurationMinutes } : {}),
       },
       ...(approvalToken ? { approval_token: approvalToken, payment_mode: "required" } : {}),
     });
-    if (dealInsertError) return res.status(500).json({ error: dealInsertError.message });
+    if (dealInsertError) {
+      // 23P01 = exclusion_violation - resourceUnitId'yi başka bir eşzamanlı
+      // istek, yukarıdaki kontrolden SONRA ama bu insert'ten ÖNCE kapmış.
+      if (dealInsertError.code === "23P01") return res.status(409).json({ error: "Bu saat az önce doldu, lütfen başka bir saat seçin." });
+      return res.status(500).json({ error: dealInsertError.message });
+    }
 
     if (approvalToken) {
       return res.status(200).json({ ok: true, booked: true, needsDeposit: true, approvalToken, depositAmount: effectiveDepositAmount });

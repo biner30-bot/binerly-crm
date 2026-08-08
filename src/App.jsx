@@ -1993,6 +1993,37 @@ export default function App() {
       if (dt) customFields.portal_randevu_zamani = dt;
       else delete customFields.portal_randevu_zamani;
     }
+
+    // Bir kaynak (oda/cihaz) seçilmişse, atanan fiziksel birim DB seviyesinde
+    // (deals_resource_unit_no_overlap EXCLUDE CONSTRAINT) garanti altına
+    // alınır - api/appointment-availability.js/api/lead-capture.js ile AYNI
+    // pick_free_resource_unit RPC'si (tek ortak kaynak, anti-join mantığı
+    // burada tekrar yazılmıyor). findAppointmentConflict zaten önden bir
+    // client-side uyarı veriyor - bu RPC son savunma hattı, o kontrolü
+    // atlayan bir TOCTOU penceresini kapatıyor.
+    let resourceUnitId = null, appointmentStart = null, appointmentEnd = null;
+    const resourceId = customFields.resource_id || null;
+    if (resourceId && appointmentDateTimeKey && customFields[appointmentDateTimeKey]) {
+      const start = parseAppointmentDateTime(customFields[appointmentDateTimeKey]);
+      if (start) {
+        const dur = Math.max(Number(customFields.duration_minutes) || 1, 1);
+        const end = new Date(start.getTime() + dur * 60000);
+        for (let attempt = 0; attempt < 3 && !resourceUnitId; attempt++) {
+          const { data: unitId } = await supabase.rpc("pick_free_resource_unit", {
+            p_resource_id: resourceId, p_start: start.toISOString(), p_end: end.toISOString(), p_exclude_deal_id: d.id,
+          });
+          if (!unitId) break;
+          resourceUnitId = unitId;
+          appointmentStart = start.toISOString();
+          appointmentEnd = end.toISOString();
+        }
+        if (!resourceUnitId) {
+          notify("Seçtiğiniz kaynak bu saatte az önce doldu, lütfen farklı bir kaynak/saat seçin.");
+          return;
+        }
+      }
+    }
+
     const row = {
       id: d.id,
       user_id: activeTeamId,
@@ -2012,6 +2043,9 @@ export default function App() {
       notify_customer: d.notifyCustomer || false,
       assigned_to: d.assignedTo || null,
       payment_mode: d.paymentMode || "none",
+      resource_unit_id: resourceUnitId,
+      appointment_start: appointmentStart,
+      appointment_end: appointmentEnd,
       // approved_at bu formda hiç düzenlenmiyor — mevcut değeri koru, yoksa
       // normal "Kaydet" onay durumunu sıfırlardı. approval_token yoksa (ödeme
       // modundan bağımsız, HER teklif için) burada otomatik üretiliyor —
@@ -2023,7 +2057,13 @@ export default function App() {
       closed_at: d.closedAt || null,
     };
     const { data, error } = await supabase.from("deals").upsert(row).select().single();
-    if (error) { notify(`${DEAL_TAB_STRINGS[dealWordKind(companySettings?.sector)].columnHeader} kaydedilemedi: ${error.message}`); return; }
+    if (error) {
+      // 23P01 = exclusion_violation - resourceUnitId'yi başka bir eşzamanlı
+      // istek, yukarıdaki kontrolden SONRA ama bu upsert'ten ÖNCE kapmış.
+      if (error.code === "23P01") { notify("Bu saat/kaynak az önce doldu, lütfen tekrar deneyin."); return; }
+      notify(`${DEAL_TAB_STRINGS[dealWordKind(companySettings?.sector)].columnHeader} kaydedilemedi: ${error.message}`);
+      return;
+    }
     const deal = rowToDeal(data);
     setDeals((prev) =>
       prev.some((x) => x.id === deal.id) ? prev.map((x) => (x.id === deal.id ? deal : x)) : [...prev, deal]
