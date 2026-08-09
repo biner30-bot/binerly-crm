@@ -1863,6 +1863,11 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
   // (widget) AYNI ayrım/deseni (kasıtlı kopya) burada da uyguluyoruz, tutarlı olsun.
   const freeServices = (priceListItems || []).filter((s) => Number(s.price) === 0);
   const paidServices = (priceListItems || []).filter((s) => Number(s.price) !== 0);
+  // AppointmentRequestPage.jsx'teki AYNI kısıt (kasıtlı kopya) - hizmet
+  // tanımlıysa müşteri önce en az birini seçmeden gün/saat adımına geçemez,
+  // süre sonradan değişip saat listesi şaşırtıcı şekilde kaymasın.
+  const hasServices = freeServices.length > 0 || paidServices.length > 0;
+  const canPickTime = !hasServices || serviceIds.length > 0;
   const toggleService = (id) => {
     setServiceIds((prev) => {
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
@@ -1921,125 +1926,6 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
       title={`${customerRow.companyName || customerRow.name} - ${reschedule ? "Randevunuzu Erteleyin" : "Randevu Al"}`}
       onClose={onClose}
     >
-      {dayOverview && dayOverview.length > 0 && (
-        <div style={{ marginBottom: 14 }}>
-          <p
-            style={{
-              fontSize: 12.5,
-              fontWeight: 700,
-              color: "var(--text-accent)",
-              letterSpacing: 0.3,
-              textTransform: "uppercase",
-              margin: "0 0 10px",
-            }}
-          >
-            Müsait Günler
-          </p>
-          <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
-            {dayOverview.map((d) => {
-              const { weekday, day } = shortDayLabel(d.date);
-              const selected = d.date === date;
-              const empty = d.slotCount === 0;
-              return (
-                <button
-                  key={d.date}
-                  type="button"
-                  disabled={empty}
-                  onClick={() => setDate(d.date)}
-                  style={{
-                    flex: "0 0 auto",
-                    width: 58,
-                    padding: "10px 4px",
-                    borderRadius: 12,
-                    textAlign: "center",
-                    cursor: empty ? "default" : "pointer",
-                    border: selected
-                      ? "2px solid var(--border-strong)"
-                      : "0.5px solid var(--border)",
-                    background: selected ? "var(--bg-accent)" : "var(--surface-1)",
-                    boxShadow: selected ? "var(--shadow-sm)" : "none",
-                    opacity: empty ? 0.45 : 1,
-                  }}
-                >
-                  <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{weekday}</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
-                    {day}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: empty ? "var(--text-muted)" : "var(--text-success)",
-                    }}
-                  >
-                    {d.closed ? "Kapalı" : empty ? "Dolu" : `${d.slotCount} boş`}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-      <div style={{ marginBottom: 14 }}>
-        <label
-          style={{
-            fontSize: 13,
-            color: "var(--text-secondary)",
-            display: "block",
-            marginBottom: 4,
-          }}
-        >
-          Ya da farklı bir tarih seçin
-        </label>
-        <input
-          type="date"
-          min={todayStr}
-          max={maxDateStr}
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          style={{ width: "100%" }}
-        />
-      </div>
-      <div style={{ marginBottom: 12 }}>
-        <label
-          style={{
-            fontSize: 13,
-            color: "var(--text-secondary)",
-            display: "block",
-            marginBottom: 4,
-          }}
-        >
-          Saat
-        </label>
-        {loadingSlots ? (
-          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Yükleniyor…</p>
-        ) : slotsError ? (
-          <p style={{ fontSize: 13, color: "var(--text-danger)" }}>{slotsError}</p>
-        ) : slots.length === 0 ? (
-          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Bu tarihte müsait saat yok.</p>
-        ) : (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {slots.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setSelectedTime(s)}
-                style={{
-                  background: selectedTime === s ? "var(--fill-accent)" : "var(--surface-1)",
-                  color: selectedTime === s ? "var(--on-accent)" : "var(--text-primary)",
-                  border: "0.5px solid var(--border)",
-                  borderRadius: 10,
-                  fontSize: 13.5,
-                  fontWeight: 600,
-                  padding: "9px 14px",
-                  boxShadow: selectedTime === s ? "var(--shadow-sm)" : "none",
-                }}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
       {priceListItems && priceListItems.length > 0 && (
         <div style={{ marginBottom: 14 }}>
           <p
@@ -2163,6 +2049,142 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
             </p>
           )}
         </div>
+      )}
+      {!canPickTime ? (
+        <p
+          style={{
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            margin: "0 0 16px",
+            textAlign: "center",
+          }}
+        >
+          Gün/saat seçmek için önce yukarıdan bir hizmet seçin.
+        </p>
+      ) : (
+        <>
+          {dayOverview && dayOverview.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <p
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  color: "var(--text-accent)",
+                  letterSpacing: 0.3,
+                  textTransform: "uppercase",
+                  margin: "0 0 10px",
+                }}
+              >
+                Müsait Günler
+              </p>
+              <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+                {dayOverview.map((d) => {
+                  const { weekday, day } = shortDayLabel(d.date);
+                  const selected = d.date === date;
+                  const empty = d.slotCount === 0;
+                  return (
+                    <button
+                      key={d.date}
+                      type="button"
+                      disabled={empty}
+                      onClick={() => setDate(d.date)}
+                      style={{
+                        flex: "0 0 auto",
+                        width: 58,
+                        padding: "10px 4px",
+                        borderRadius: 12,
+                        textAlign: "center",
+                        cursor: empty ? "default" : "pointer",
+                        border: selected
+                          ? "2px solid var(--border-strong)"
+                          : "0.5px solid var(--border)",
+                        background: selected ? "var(--bg-accent)" : "var(--surface-1)",
+                        boxShadow: selected ? "var(--shadow-sm)" : "none",
+                        opacity: empty ? 0.45 : 1,
+                      }}
+                    >
+                      <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{weekday}</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
+                        {day}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 10,
+                          color: empty ? "var(--text-muted)" : "var(--text-success)",
+                        }}
+                      >
+                        {d.closed ? "Kapalı" : empty ? "Dolu" : `${d.slotCount} boş`}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          <div style={{ marginBottom: 14 }}>
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
+              Ya da farklı bir tarih seçin
+            </label>
+            <input
+              type="date"
+              min={todayStr}
+              max={maxDateStr}
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              style={{ width: "100%" }}
+            />
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
+              Saat
+            </label>
+            {loadingSlots ? (
+              <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Yükleniyor…</p>
+            ) : slotsError ? (
+              <p style={{ fontSize: 13, color: "var(--text-danger)" }}>{slotsError}</p>
+            ) : slots.length === 0 ? (
+              <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                Bu tarihte müsait saat yok.
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {slots.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setSelectedTime(s)}
+                    style={{
+                      background: selectedTime === s ? "var(--fill-accent)" : "var(--surface-1)",
+                      color: selectedTime === s ? "var(--on-accent)" : "var(--text-primary)",
+                      border: "0.5px solid var(--border)",
+                      borderRadius: 10,
+                      fontSize: 13.5,
+                      fontWeight: 600,
+                      padding: "9px 14px",
+                      boxShadow: selectedTime === s ? "var(--shadow-sm)" : "none",
+                    }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
       )}
       <div style={{ marginBottom: 16 }}>
         <label
