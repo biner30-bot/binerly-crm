@@ -171,6 +171,9 @@ export function AppointmentDepositBox({ companySettings, hasPaymentConnection, o
             Kapora iste
           </label>
           <input type="number" min="0" step="1" disabled={!depositOn} value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} placeholder="Örn. 100" style={{ width: 150 }} />
+          <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "6px 0 0" }}>
+            Burada tek bir sabit tutar belirlersiniz - hizmet fiyatı bu tutardan düşükse kapora otomatik olarak hizmet fiyatına kadar düşürülür, hiçbir zaman hizmet bedelini aşmaz.
+          </p>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}>
             <button type="button" onClick={() => setOpen(false)}>Vazgeç</button>
             <button type="button" onClick={handleSave} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
