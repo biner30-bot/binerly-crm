@@ -555,7 +555,7 @@ export function LateCancelPolicyBox({ companySettings, onSave }) {
           <InfoTip
             align="left"
             text={
-              "Üçü de opsiyonel, hiç ayarlamazsanız hiçbir şey değişmez (sabit 2 saatlik iptal kilidi geçerli olmaya devam eder).\n\n" +
+              "Üçü de opsiyonel, hiç ayarlamazsanız hiçbir kısıtlama/ceza uygulanmaz - üye dersi istediği an iptal edebilir.\n\n" +
               "Nasıl işler: ders saatine 'Tamamen kilitle' süresinden az kala üye HİÇ iptal edemez. Bunun ile 'Uyarı/seans yakma başlangıcı' süresi arasında iptal ederse 'geç iptal' sayılır - kaçıncı geç iptalde seansın yanacağını 'Kaçıncı geç iptalde' alanı belirler (örn. 3 girerseniz ilk 2 geç iptal sadece uyarı, 3.'den itibaren her geç iptalde 1 seans düşer). Bu iki eşiğin arasındaki sürede DEĞİLSE (yani yeterince erken iptal ediyorsa) hiçbir ceza uygulanmaz."
             }
           />
@@ -569,8 +569,8 @@ export function LateCancelPolicyBox({ companySettings, onSave }) {
       {!open && (
         <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0 0" }}>
           {configured
-            ? `Aktif: dersten ${companySettings.hardBlockHours ?? 2} saat kalana kadar tamamen kilit${companySettings.lateCancelHours != null ? `, ${companySettings.lateCancelHours} saatten itibaren geç iptal sayılır` : ""}${companySettings.lateCancelStrikeLimit ? `, ${companySettings.lateCancelStrikeLimit}. geç iptalde seans yanmaya başlar` : ""}.`
-            : "Kullanılmıyor - üyeler ders saatine 2 saat kalana kadar serbestçe iptal edebiliyor, geç iptal için özel bir kural/ceza yok."}
+            ? `Aktif:${companySettings.hardBlockHours != null ? ` dersten ${companySettings.hardBlockHours} saat kalana kadar tamamen kilit` : " tamamen kilitleme yok"}${companySettings.lateCancelHours != null ? `, ${companySettings.lateCancelHours} saatten itibaren geç iptal sayılır` : ""}${companySettings.lateCancelStrikeLimit ? `, ${companySettings.lateCancelStrikeLimit}. geç iptalde seans yanmaya başlar` : ""}.`
+            : "Kullanılmıyor - üyeler dersi istediği an iptal edebilir, geç iptal/seans yakma için otomatik bir sonuç yok."}
         </p>
       )}
       {open && (
@@ -601,7 +601,7 @@ export function LateCancelPolicyBox({ companySettings, onSave }) {
                 disabled={!hardBlockOn}
                 value={hardBlockHours}
                 onChange={(e) => setHardBlockHours(e.target.value)}
-                placeholder="Varsayılan: 2"
+                placeholder="Örn. 2"
                 style={{ width: 150 }}
               />
             </div>

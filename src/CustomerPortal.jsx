@@ -1603,13 +1603,15 @@ function PortalGroupClasses({
               (nextWeeklyOccurrence(g.weekday, g.startTime).getTime() - Date.now()) / 3600000;
             const ownerRow = customerRows.find((c) => c.userId === g.userId);
             // Üç ayarı da işletme kendi belirler (İşletme Bilgileri'nde), üçü de
-            // opsiyonel: hardBlockHours boşsa varsayılan 2 saat (eski sabit davranış).
+            // opsiyonel: hardBlockHours boşsa hiçbir kısıtlama yok - ana randevu
+            // sistemindeki appointmentCancelDecision ile AYNI "varsayılan yok"
+            // davranışı (eskiden burada sabit 2 saat vardı, ikisi tutarsızdı).
             // lateCancelHours boşsa "geç iptal" kavramı hiç yok, sadece hardBlockHours
             // kadar bir tam kilit kalır. strikeLimit boşsa/1 ise geç iptalde HEMEN yanar.
-            const hardBlockHours = ownerRow?.companyHardBlockHours ?? 2;
+            const hardBlockHours = ownerRow?.companyHardBlockHours ?? null;
             const lateCancelHours = ownerRow?.companyLateCancelHours;
             const strikeLimit = ownerRow?.companyLateCancelStrikeLimit || 1;
-            const canCancel = hoursLeft >= hardBlockHours;
+            const canCancel = hardBlockHours == null || hoursLeft >= hardBlockHours;
             const isLate = canCancel && lateCancelHours != null && hoursLeft < lateCancelHours;
             const membershipDeal = isLate ? getMembershipDeal(myEnrollment.customerId) : null;
             const nextStrikeCount = membershipDeal
