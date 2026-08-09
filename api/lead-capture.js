@@ -247,26 +247,47 @@ export default async function handler(req, res) {
 
     const dealId = crypto.randomUUID();
 
+    // appointmentStart/End artık kaynak seçili olsun olmasın HER ZAMAN
+    // hesaplanır (Aşama 2'de CRM tarafında düzeltilen AYNI sorunun widget
+    // eşdeğeri) - aşağıdaki genel kapasite slotu için gerçek bir
+    // appointment_range şart, sadece kaynak varsa dolması yetmiyordu.
+    const bounds = buildAppointmentBounds(dateTime, serviceDurationMinutes || 1);
+    let appointmentStart = bounds?.startIso || null;
+    let appointmentEnd = bounds?.endIso || null;
+
     // api/appointment-availability.js'teki handleBooking ile AYNI otomatik
     // kaynak atama mantığı (kasıtlı kopya) - bu güncellenmezse widget üzerinden
     // gelen randevular deals_resource_unit_no_overlap EXCLUDE CONSTRAINT'ini
     // tamamen bypass eder.
-    let resourceUnitId = null, appointmentStart = null, appointmentEnd = null;
+    let resourceUnitId = null;
     const autoResourceId = await resolveAutoAssignResource(supabaseAdmin, settings.user_id, cleanServiceIds);
-    if (autoResourceId) {
-      const bounds = buildAppointmentBounds(dateTime, serviceDurationMinutes || 1);
-      if (bounds) {
-        for (let attempt = 0; attempt < 3 && !resourceUnitId; attempt++) {
-          const { data: unitId } = await supabaseAdmin.rpc("pick_free_resource_unit", {
-            p_resource_id: autoResourceId, p_start: bounds.startIso, p_end: bounds.endIso, p_exclude_deal_id: dealId,
-          });
-          if (!unitId) break;
-          resourceUnitId = unitId;
-          appointmentStart = bounds.startIso;
-          appointmentEnd = bounds.endIso;
-        }
+    if (autoResourceId && bounds) {
+      for (let attempt = 0; attempt < 3 && !resourceUnitId; attempt++) {
+        const { data: unitId } = await supabaseAdmin.rpc("pick_free_resource_unit", {
+          p_resource_id: autoResourceId, p_start: bounds.startIso, p_end: bounds.endIso, p_exclude_deal_id: dealId,
+        });
+        if (!unitId) break;
+        resourceUnitId = unitId;
       }
       if (!resourceUnitId) return res.status(409).json({ error: "Bu saat az önce doldu, lütfen başka bir saat seçin." });
+    }
+
+    // Genel "Eş zamanlı randevu kapasitesi" - yukarıdaki overlapCount sayımı
+    // sadece ucuz/erken bir ön-kontrol, atomik değil. concurrency_slots (bkz.
+    // sql/2026-08-09_deals_concurrency_slots.sql) resource_unit_id ile AYNI
+    // desende gerçek/atomik son garanti - kaynak seçili olsun olmasın HER
+    // randevu bir slotu tüketir (api/appointment-availability.js ile AYNI,
+    // kasıtlı kopya).
+    let concurrencySlotId = null;
+    if (bounds) {
+      for (let attempt = 0; attempt < 3 && !concurrencySlotId; attempt++) {
+        const { data: slotId } = await supabaseAdmin.rpc("pick_free_concurrency_slot", {
+          p_user_id: settings.user_id, p_start: bounds.startIso, p_end: bounds.endIso, p_exclude_deal_id: dealId,
+        });
+        if (!slotId) break;
+        concurrencySlotId = slotId;
+      }
+      if (!concurrencySlotId) return res.status(409).json({ error: "Bu saat az önce doldu, lütfen başka bir saat seçin." });
     }
 
     const { error: dealInsertError } = await supabaseAdmin.from("deals").insert({
@@ -276,7 +297,8 @@ export default async function handler(req, res) {
       title: serviceName || (note || "").trim() || "Randevu talebi",
       value: servicePrice,
       stage: "ilk_gorusme",
-      resource_unit_id: resourceUnitId, appointment_start: appointmentStart, appointment_end: appointmentEnd,
+      resource_unit_id: resourceUnitId, concurrency_slot_id: concurrencySlotId,
+      appointment_start: appointmentStart, appointment_end: appointmentEnd,
       custom_fields: {
         [dateTimeKey]: dateTime, portal_randevu_zamani: dateTime, kaynak: "randevu_widget",
         ...(serviceDurationMinutes > 0 ? { duration_minutes: serviceDurationMinutes } : {}),
