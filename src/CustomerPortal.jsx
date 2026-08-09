@@ -1906,7 +1906,10 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
   })();
 
   const confirm = async () => {
-    if (!selectedTime || !note.trim() || !dateTimeKey) return;
+    // Hizmet tanımlıysa (hasServices) yukarıdaki yapılandırılmış seçim zaten
+    // "ne için randevu" sorusunu cevaplıyor - not zorunlu değil, sadece ek
+    // bilgi. Hiç hizmet tanımlı değilse tek bilgi kaynağı bu alan, zorunlu kalır.
+    if (!selectedTime || !dateTimeKey || (!hasServices && !note.trim())) return;
     setBooking(true);
     const ok = await onBook({
       customerId: customerRow.id,
@@ -2195,12 +2198,16 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
             marginBottom: 4,
           }}
         >
-          Ne için randevu almak istiyorsunuz?
+          {hasServices ? "Not (opsiyonel)" : "Ne için randevu almak istiyorsunuz?"}
         </label>
         <input
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder={`Örn. ${appointmentNoteExample(customerRow.companySector)}`}
+          placeholder={
+            hasServices
+              ? "Eklemek istediğiniz bir not varsa yazabilirsiniz"
+              : `Örn. ${appointmentNoteExample(customerRow.companySector)}`
+          }
           style={{ width: "100%" }}
         />
       </div>
@@ -2210,7 +2217,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
         </button>
         <button
           type="button"
-          disabled={!selectedTime || !note.trim() || !dateTimeKey || booking}
+          disabled={!selectedTime || !dateTimeKey || (!hasServices && !note.trim()) || booking}
           onClick={confirm}
           style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
         >
