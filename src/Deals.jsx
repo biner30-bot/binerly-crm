@@ -206,21 +206,54 @@ export function lineItemsDurationMinutes(lineItemsForDeal, priceListItems) {
 // adımı - kalıcı olarak kaydedilir. Aksi halde randevu "step kadar sürer"
 // varsayılırken duration_minutes hiç yazılmaz, sonraki sorgularda "1 dakikalık
 // nokta" sanılıp hemen ardından gelen dakikalar yanlışlıkla boş görünürdü.
-export function fallbackDurationFromBusinessHours(dateTimeStr, businessHours) {
-  if (!dateTimeStr || dateTimeStr.length < 16) return 0;
+// "YYYY-MM-DDTHH:mm" dan haftanın günü (1=Pzt...7=Paz, staff_shifts/business_hours
+// ile aynı ölçek) + gün-içi dakika çıkarır - fallbackDurationFromBusinessHours ve
+// personel vardiyası kontrolü (findAppointmentConflict) aynı ayrıştırmayı paylaşır.
+function weekdayAndMinutesFromDateTimeStr(dateTimeStr) {
+  if (!dateTimeStr || dateTimeStr.length < 16) return null;
   const [y, m, d] = dateTimeStr.slice(0, 10).split("-").map(Number);
   const [h, min] = dateTimeStr.slice(11, 16).split(":").map(Number);
-  if (!y || !m || !d || Number.isNaN(h) || Number.isNaN(min)) return 0;
+  if (!y || !m || !d || Number.isNaN(h) || Number.isNaN(min)) return null;
   const jsWeekday = new Date(y, m - 1, d).getDay();
   const weekday = jsWeekday === 0 ? 7 : jsWeekday;
-  const minutesOfDay = h * 60 + min;
+  return { weekday, minutesOfDay: h * 60 + min };
+}
+
+export function fallbackDurationFromBusinessHours(dateTimeStr, businessHours) {
+  const parsed = weekdayAndMinutesFromDateTimeStr(dateTimeStr);
+  if (!parsed) return 0;
   const window = (businessHours || []).find((bh) => {
-    if (bh.weekday !== weekday) return false;
+    if (bh.weekday !== parsed.weekday) return false;
     const [sh, sm] = bh.startTime.split(":").map(Number);
     const [eh, em] = bh.endTime.split(":").map(Number);
-    return minutesOfDay >= sh * 60 + sm && minutesOfDay < eh * 60 + em;
+    return parsed.minutesOfDay >= sh * 60 + sm && parsed.minutesOfDay < eh * 60 + em;
   });
   return window?.slotDurationMinutes || 0;
+}
+
+// Bir personelin belirli bir haftanın günü için GERÇEKTE çalıştığı saat
+// pencerelerini döner - "personel varsa vardiyaya göre, yoksa müsaitlik
+// saatlerine göre" kuralı: o personel için o gün hiç vardiya girilmemişse
+// (çoğu tek/az personelli KOBİ'de varsayılan durum) genel Müsaitlik
+// Saatleri'ne düşer, ayrıca vardiya doldurmaya gerek kalmaz. Personel o gün
+// izinli/tatil işaretliyse (is_off) hiç pencere döndürmez - randevu verilemez.
+function effectiveStaffWindows(memberId, weekday, staffShifts, businessHours) {
+  const memberShifts = (staffShifts || []).filter(
+    (s) => s.memberId === memberId && s.weekday === weekday && !s.validTo,
+  );
+  if (memberShifts.length === 0) {
+    return (businessHours || []).filter((bh) => bh.weekday === weekday);
+  }
+  if (memberShifts.some((s) => s.isOff)) return [];
+  return memberShifts;
+}
+
+function fitsWithinWindows(startMinutes, endMinutes, windows) {
+  return windows.some((w) => {
+    const [sh, sm] = w.startTime.split(":").map(Number);
+    const [eh, em] = w.endTime.split(":").map(Number);
+    return startMinutes >= sh * 60 + sm && endMinutes <= eh * 60 + em;
+  });
 }
 
 // Randevu sektörlerinde müşteri portaldan randevu alırken müsait saatleri
@@ -345,6 +378,7 @@ export function DealForm({
   titleSuggestions = [],
   priceListItems = [],
   businessHours = [],
+  staffShifts = [],
   initialLineItems = [],
   dealLineItems = [],
   hasPaymentConnection = false,
@@ -611,9 +645,12 @@ export function DealForm({
   // booking.sql) - bu form submit anında geçse bile (TOCTOU penceresi), DB
   // reddedebilir, o durumda upsertDeal kendi hata mesajını gösterir. Personel
   // (assignedTo) için de AYNI garanti var - deals_assigned_to_no_overlap
-  // EXCLUDE CONSTRAINT'i (bkz. sql/2026-08-08_deals_assigned_to_conflict.sql),
-  // vardiya (staff_shifts) sistemine bilerek bağlanmadı - müşteri tarafını
-  // (widget/portal) hiç etkilemiyor, sadece CRM içi atamayı DB'de sabitliyor.
+  // EXCLUDE CONSTRAINT'i (bkz. sql/2026-08-08_deals_assigned_to_conflict.sql).
+  // Vardiya (staff_shifts) kontrolü ise (aşağıda, "personel varsa vardiyaya
+  // göre yoksa Müsaitlik Saatleri'ne göre" kuralı) SADECE burada, client-side -
+  // DB'de bir karşılığı yok, business_hours "öneri"siyle aynı güven seviyesinde.
+  // Müşteri tarafını (widget/portal) hiç etkilemiyor, müşteri zaten personel
+  // seçmiyor - sadece CRM'den personel atanarak girilen randevularda geçerli.
   const findAppointmentConflict = (candidateStage, candidateCustomFields) => {
     if (
       !appointmentDateTimeKey ||
@@ -631,6 +668,27 @@ export function DealForm({
     // süresine göre gerçek aralık çakışmasını da yakalar.
     const candidateDuration = Math.max(lineItemsDuration, 1);
     const candidateEnd = candidateStart + candidateDuration * 60000;
+
+    if (assignedTo) {
+      const parsed = weekdayAndMinutesFromDateTimeStr(dt);
+      if (parsed) {
+        const windows = effectiveStaffWindows(
+          assignedTo,
+          parsed.weekday,
+          staffShifts,
+          businessHours,
+        );
+        if (
+          !fitsWithinWindows(parsed.minutesOfDay, parsed.minutesOfDay + candidateDuration, windows)
+        ) {
+          const staffName =
+            teamMembers.find((m) => m.id === assignedTo)?.name ||
+            (assignedTo === currentUserId ? currentUserEmail : "Bu personel");
+          return `${staffName} bu saatte çalışmıyor - vardiya dışı bir zaman seçtiniz.`;
+        }
+      }
+    }
+
     const concurrency = Math.max(1, Number(appointmentConcurrency) || 1);
     const overlapping = deals.filter((d) => {
       if (d.id === initial?.id || d.stage === "kaybedildi") return false;

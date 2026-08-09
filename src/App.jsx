@@ -608,6 +608,7 @@ function rowToCompanySettings(r) {
     appointmentPrepNote: r.appointment_prep_note || "",
     appointmentDepositAmount: r.appointment_deposit_amount ?? null,
     appointmentConcurrency: r.appointment_concurrency ?? null,
+    appointmentConcurrencyAuto: r.appointment_concurrency_auto === true,
     winbackEnabled: r.winback_enabled === true,
     winbackInactiveDays: r.winback_inactive_days ?? null,
   };
@@ -3148,6 +3149,7 @@ export default function App() {
       appointment_prep_note: s.appointmentPrepNote || null,
       appointment_deposit_amount: s.appointmentDepositAmount || null,
       appointment_concurrency: s.appointmentConcurrency || null,
+      appointment_concurrency_auto: s.appointmentConcurrencyAuto === true,
       winback_enabled: s.winbackEnabled === true,
       winback_inactive_days: s.winbackInactiveDays || null,
       updated_at: new Date().toISOString(),
@@ -5047,7 +5049,7 @@ export default function App() {
           </div>
           {businessHoursTab === "saatler" ? (
             <>
-              <AppointmentConcurrencyBox companySettings={companySettings} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
+              <AppointmentConcurrencyBox companySettings={companySettings} staffCount={1 + teamRoster.length} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
               <BusinessHoursManager items={businessHours} onAdd={addBusinessHours} onDelete={deleteBusinessHours} />
             </>
           ) : businessHoursTab === "politika" ? (
@@ -5287,6 +5289,7 @@ export default function App() {
             titleSuggestions={[...new Set(deals.map((d) => d.title).filter(Boolean))]}
             priceListItems={priceListItems}
             businessHours={businessHours}
+            staffShifts={staffShifts}
             initialLineItems={editingDeal ? dealLineItems.filter((li) => li.dealId === editingDeal.id) : []}
             dealLineItems={dealLineItems}
             hasPaymentConnection={paymentCredentials.length > 0}

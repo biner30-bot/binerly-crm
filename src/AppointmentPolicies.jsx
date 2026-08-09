@@ -184,18 +184,29 @@ export function AppointmentDepositBox({ companySettings, hasPaymentConnection, o
 // Aynı anda kaç randevu karşılanabileceği - Otel'deki oda "quantity"/Spor
 // Merkezi'ndeki ders "capacity" ile AYNI basit desen. Boş/1 = eski davranış
 // (aynı anda tek randevu) - hiç dokunmayan işletmeler etkilenmez.
-export function AppointmentConcurrencyBox({ companySettings, onSave }) {
+// staffCount: team_roster() üzerinden hesaplanan toplam personel sayısı (sahip
+// dahil) - sadece "otomatik" modda güncel değeri göstermek için, gerçek
+// hesaplama DB'deki trigger'da yapılıyor (bkz. sql/2026-08-09_auto_concurrency.sql).
+export function AppointmentConcurrencyBox({ companySettings, staffCount, onSave }) {
+  const auto = companySettings?.appointmentConcurrencyAuto === true;
   const configured = companySettings?.appointmentConcurrency != null;
   const [open, setOpen] = useState(false);
+  const [autoDraft, setAutoDraft] = useState(auto);
   const [value, setValue] = useState(companySettings?.appointmentConcurrency ?? "");
 
   const handleOpen = () => {
+    setAutoDraft(auto);
     setValue(companySettings?.appointmentConcurrency ?? "");
     setOpen(true);
   };
 
   const handleSave = () => {
-    onSave({ appointmentConcurrency: value !== "" ? Math.max(1, Number(value)) : null });
+    onSave({
+      appointmentConcurrencyAuto: autoDraft,
+      // Otomatik modda gönderilen sayı önemli değil - trigger anında gerçek
+      // personel sayısıyla değiştirir, burada sadece null bırakmamak için.
+      appointmentConcurrency: autoDraft ? staffCount : value !== "" ? Math.max(1, Number(value)) : null,
+    });
     setOpen(false);
   };
 
@@ -209,27 +220,36 @@ export function AppointmentConcurrencyBox({ companySettings, onSave }) {
             align="left"
             text={
               "Aynı saate kaç randevu birden alınabileceğini belirler - kaç uzman/koltuk/cihazınız varsa o kadar.\n\n" +
-              "Ayarlamazsanız (varsayılan) aynı saate sadece 1 randevu alınabilir; biri doluyken o saat herkes için kapanır. " +
-              "Örneğin 3 uzmanınız/koltuğunuz varsa buraya 3 yazarsanız aynı saate 3 farklı müşteri randevu alabilir."
+              "\"Personel sayısına göre otomatik\" seçilirse bu sayı siz personel ekledikçe/çıkardıkça kendiliğinden güncellenir, elle takip etmenize gerek kalmaz. " +
+              "Elle sabit bir sayı da girebilirsiniz - örneğin personeliniz daha fazla ama aynı anda sadece 2 müşteri kabul etmek istiyorsanız.\n\n" +
+              "Ayarlamazsanız (varsayılan) aynı saate sadece 1 randevu alınabilir."
             }
           />
         </p>
         {!open && (
           <button type="button" onClick={handleOpen} style={{ fontSize: 12, padding: "4px 10px" }}>
-            {configured ? "Düzenle" : "Ayarla"}
+            {configured || auto ? "Düzenle" : "Ayarla"}
           </button>
         )}
       </div>
       {!open && (
         <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0 0" }}>
-          {configured
-            ? `Aktif: aynı saate en fazla ${companySettings.appointmentConcurrency} randevu birden alınabiliyor.`
-            : "Varsayılan: aynı saate sadece 1 randevu alınabiliyor."}
+          {auto
+            ? `Otomatik: personel sayınıza göre (şu an ${companySettings?.appointmentConcurrency ?? staffCount} kişi) aynı saate en fazla o kadar randevu alınabiliyor.`
+            : configured
+              ? `Aktif: aynı saate en fazla ${companySettings.appointmentConcurrency} randevu birden alınabiliyor.`
+              : "Varsayılan: aynı saate sadece 1 randevu alınabiliyor."}
         </p>
       )}
       {open && (
         <>
-          <input type="number" min="1" step="1" value={value} onChange={(e) => setValue(e.target.value)} placeholder="Örn. 3" style={{ width: 150, marginTop: 8 }} />
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 13, cursor: "pointer" }}>
+            <input type="checkbox" checked={autoDraft} onChange={(e) => setAutoDraft(e.target.checked)} />
+            Personel sayısına göre otomatik hesapla (şu an {staffCount} personel)
+          </label>
+          {!autoDraft && (
+            <input type="number" min="1" step="1" value={value} onChange={(e) => setValue(e.target.value)} placeholder="Örn. 3" style={{ width: 150, marginTop: 8 }} />
+          )}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}>
             <button type="button" onClick={() => setOpen(false)}>Vazgeç</button>
             <button type="button" onClick={handleSave} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
