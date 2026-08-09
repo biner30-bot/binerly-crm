@@ -56,17 +56,24 @@ export default async function handler(req, res) {
     // saati geçince pencere bir daha hiç tutmuyordu). Şimdi "randevu hâlâ gelecekte
     // VE 130dk içinde" bakılıyor — cron ne zaman çalışırsa çalışsın, randevu
     // gerçekleşene kadar her çalışmada tekrar denenir, en az bir kez yakalanır.
-    const windowEnd = now + 130 * 60 * 1000; // ~2sa10dk sonrasına kadar
+    const nearWindowEnd = now + 130 * 60 * 1000; // ~2sa10dk sonrasına kadar
+    // 24 saat öncesi hatırlatma - AYNI güvenilirlik mantığıyla ~4sa'lık geniş bir
+    // pencere (22-26sa sonrası) kullanılıyor, dar bir "tam 24sa" anı değil - cron
+    // ~1.5-3sa aralıklarla çalıştığı için dar bir pencere kolayca atlanabilirdi.
+    const farWindowStart = now + 22 * 60 * 60 * 1000;
+    const farWindowEnd = now + 26 * 60 * 60 * 1000;
 
     const userIds = [...new Set(defs.map((d) => d.user_id))];
     const [{ data: deals, error: dealsError }, { data: settingsRows }] = await Promise.all([
       supabaseAdmin
         .from("deals")
-        .select("id, user_id, customer_id, title, custom_fields, stage, approval_token")
+        .select(
+          "id, user_id, customer_id, title, custom_fields, stage, approval_token, appointment_reminder_sent_at, appointment_reminder_24h_sent_at",
+        )
         .in("user_id", userIds)
         .is("deleted_at", null)
         .not("stage", "in", "(kazanildi,kaybedildi)")
-        .is("appointment_reminder_sent_at", null),
+        .or("appointment_reminder_sent_at.is.null,appointment_reminder_24h_sent_at.is.null"),
       supabaseAdmin.from("company_settings").select("user_id, company_name, logo_url, email, sector, appointment_reminders_enabled, appointment_prep_note").in("user_id", userIds),
     ]);
 
@@ -77,23 +84,31 @@ export default async function handler(req, res) {
     const keysByUser = {};
     for (const d of defs) (keysByUser[d.user_id] ||= []).push(d.key);
 
-    const dueDeals = deals.filter((deal) => {
-      if (settingsByUser[deal.user_id]?.appointment_reminders_enabled === false) return false;
+    // Bir deal için o an hangi hatırlatma (varsa) sırası geldiğini bulur - "near"
+    // (~2sa öncesi, mevcut davranış, Hatırlatma gönderildi aşamasına taşır) ve
+    // "24h" (yeni, sadece bilgilendirme) pencereleri asla çakışmaz, bu yüzden bir
+    // deal aynı anda en fazla birine düşer.
+    const dueDeals = [];
+    for (const deal of deals) {
+      if (settingsByUser[deal.user_id]?.appointment_reminders_enabled === false) continue;
       const keys = keysByUser[deal.user_id] || [];
-      return keys.some((key) => {
-        const raw = deal.custom_fields?.[key];
-        if (!raw) return false;
-        // datetime-local değeri saat dilimi bilgisi taşımaz (örn. "2026-07-11T15:00")
-        // — bu proje sadece Türkiye için, bu yüzden +03:00 olarak yorumluyoruz.
-        // Bu adımı atlamak, sunucunun UTC saatiyle karşılaştırıp saatleri kaydırırdı.
-        const apptTime = new Date(`${raw}:00+03:00`).getTime();
-        return !isNaN(apptTime) && apptTime > now && apptTime <= windowEnd;
-      });
-    });
+      const raw = keys.map((key) => deal.custom_fields?.[key]).find(Boolean);
+      if (!raw) continue;
+      // datetime-local değeri saat dilimi bilgisi taşımaz (örn. "2026-07-11T15:00")
+      // — bu proje sadece Türkiye için, bu yüzden +03:00 olarak yorumluyoruz.
+      // Bu adımı atlamak, sunucunun UTC saatiyle karşılaştırıp saatleri kaydırırdı.
+      const apptTime = new Date(`${raw}:00+03:00`).getTime();
+      if (isNaN(apptTime) || apptTime <= now) continue;
+      if (!deal.appointment_reminder_sent_at && apptTime <= nearWindowEnd) {
+        dueDeals.push({ deal, raw, type: "near" });
+      } else if (!deal.appointment_reminder_24h_sent_at && apptTime >= farWindowStart && apptTime <= farWindowEnd) {
+        dueDeals.push({ deal, raw, type: "24h" });
+      }
+    }
 
     if (dueDeals.length === 0) return res.status(200).json({ remindersSent: 0 });
 
-    const customerIds = [...new Set(dueDeals.map((d) => d.customer_id))];
+    const customerIds = [...new Set(dueDeals.map((d) => d.deal.customer_id))];
     const { data: customers } = await supabaseAdmin.from("customers").select("id, name, email").in("id", customerIds);
     const customerById = Object.fromEntries((customers || []).map((c) => [c.id, c]));
 
@@ -105,17 +120,18 @@ export default async function handler(req, res) {
     // deal'de beklenmeyen bir hata (örn. fetch reddi) atarsa daha önce başarıyla
     // gönderilmiş hatırlatmalar hiç işaretlenmiyor, cron 15dk sonra tekrar
     // çalışınca aynı müşterilere mükerrer hatırlatma mailleri gidiyordu.
-    for (const deal of dueDeals) {
+    for (const { deal, raw, type } of dueDeals) {
+      // "near" (~2sa öncesi) ve "24h" kendi bağımsız damgasını yazar - bir deal
+      // hayatı boyunca ikisini de (sırayla, farklı cron çalışmalarında) alabilir.
+      const sentAtColumn = type === "24h" ? "appointment_reminder_24h_sent_at" : "appointment_reminder_sent_at";
       try {
         const customer = customerById[deal.customer_id];
         if (!customer?.email) {
-          await supabaseAdmin.from("deals").update({ appointment_reminder_sent_at: new Date().toISOString() }).eq("id", deal.id);
+          await supabaseAdmin.from("deals").update({ [sentAtColumn]: new Date().toISOString() }).eq("id", deal.id);
           continue;
         }
 
-        const key = (keysByUser[deal.user_id] || []).find((k) => deal.custom_fields?.[k]);
-        const raw = deal.custom_fields?.[key];
-        const timeLabel = raw ? raw.split("T")[1] : "";
+        const timeLabel = raw.split("T")[1];
         const settings = settingsByUser[deal.user_id] || {};
         const company = settings.company_name || "Binerly";
 
@@ -144,11 +160,12 @@ export default async function handler(req, res) {
         // İşletmenin kendi yazdığı, opsiyonel hazırlık notu ("aç karnına gelin" gibi) -
         // varsa gövde metninin sonuna eklenir, yoksa metin hiç değişmez.
         const prepNote = (settings.appointment_prep_note || "").trim();
+        const dayWord = type === "24h" ? "yarın" : "bugün";
         const bodyText = (isAppointmentSector
           ? `Merhaba ${customer.name || ""},\n\n${company} bünyesindeki "${deal.title}" randevunuz ` +
-            `bugün saat ${timeLabel}'de. Geleceğinizi onaylar mısınız?`
+            `${dayWord} saat ${timeLabel}'de. Geleceğinizi onaylar mısınız?`
           : `Merhaba ${customer.name || ""},\n\n${company} bünyesindeki "${deal.title}" randevunuz ` +
-            `bugün saat ${timeLabel}'de. Sizi görmekten mutluluk duyarız.`) + (prepNote ? `\n\n${prepNote}` : "");
+            `${dayWord} saat ${timeLabel}'de. Sizi görmekten mutluluk duyarız.`) + (prepNote ? `\n\n${prepNote}` : "");
         const footerLines = [`${company} (Binerly ile)`, "Bu e-posta Binerly (binerly.com) altyapısıyla gönderildi."];
         const html = isAppointmentSector
           ? renderEmailHtml({ logoUrl: settings.logo_url, bodyText, ctaLabel: "✓ Evet, geliyorum", ctaUrl: yesUrl, secondaryCtaLabel: "Hayır, gelemeyeceğim", secondaryCtaUrl: noUrl, footerLines })
@@ -163,7 +180,7 @@ export default async function handler(req, res) {
           body: JSON.stringify({
             from: `${company} (Binerly ile) <noreply@binerly.com>`,
             to: customer.email,
-            subject: `Randevu hatırlatması - bugün saat ${timeLabel}`,
+            subject: type === "24h" ? `Yarın randevunuz var - saat ${timeLabel}` : `Randevu hatırlatması - bugün saat ${timeLabel}`,
             html,
             text,
             ...(settings.email ? { reply_to: settings.email } : {}),
@@ -172,17 +189,18 @@ export default async function handler(req, res) {
 
         if (sendRes.ok) {
           remindersSent++;
-          const dealUpdate = { appointment_reminder_sent_at: new Date().toISOString() };
+          const dealUpdate = { [sentAtColumn]: new Date().toISOString() };
           // Güzellik & Bakım'da "Müzakere" aşaması "Hatırlatma gönderildi" anlamına
-          // geliyor (bkz. Sectors.jsx) — hatırlatma başarıyla gidince deal'i otomatik
-          // oraya taşıyoruz. Diğer sektörlerde "Müzakere" farklı bir şey ifade ettiği
+          // geliyor (bkz. Sectors.jsx) - bu SADECE gün-içi (near) hatırlatmayla
+          // tetiklenir, 24 saat öncesi olan sadece bir bilgilendirme, aşama
+          // taşımıyor. Diğer sektörlerde "Müzakere" farklı bir şey ifade ettiği
           // için (örn. gerçek bir pazarlık aşaması) bu otomatik taşıma yapılmıyor.
-          if (settings.sector === "guzellik_bakim" && deal.stage !== "muzakere") dealUpdate.stage = "muzakere";
+          if (type === "near" && settings.sector === "guzellik_bakim" && deal.stage !== "muzakere") dealUpdate.stage = "muzakere";
           await supabaseAdmin.from("deals").update(dealUpdate).eq("id", deal.id);
         } else {
-          console.error("appointment reminder send failed, deal.id:", deal.id, sendRes.status, await sendRes.text().catch(() => ""));
-          // appointment_reminder_sent_at bilinçli olarak YAZILMIYOR — bir sonraki
-          // cron çalışmasında (15dk sonra) tekrar denensin.
+          console.error("appointment reminder send failed, deal.id:", deal.id, type, sendRes.status, await sendRes.text().catch(() => ""));
+          // sentAtColumn bilinçli olarak YAZILMIYOR - bir sonraki cron
+          // çalışmasında (aynı pencere içindeyse) tekrar denensin.
         }
       } catch (dealErr) {
         console.error("appointment reminder error, deal.id:", deal.id, dealErr.message);
