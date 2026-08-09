@@ -1061,7 +1061,7 @@ export default async function handler(req, res) {
 
   const { data: deal, error: dealError } = await supabaseAdmin
     .from("deals")
-    .select("id, user_id, customer_id, title, value, kdv_rate, approved_at, created_at, stage, payment_mode, payment_status, custom_fields, first_viewed_at, view_duration_seconds")
+    .select("id, user_id, customer_id, title, value, kdv_rate, approved_at, created_at, stage, payment_mode, payment_status, custom_fields, first_viewed_at, view_duration_seconds, appointment_start")
     .eq("approval_token", token)
     .is("deleted_at", null)
     .maybeSingle();
@@ -1163,8 +1163,16 @@ export default async function handler(req, res) {
       // ödeyin" gösterebilsin diye. deposit-checkout-init'teki AYNI sınırlama
       // (kapora hizmet fiyatını aşamaz) burada da uygulanır, yoksa gösterilen
       // tutar gerçekte tahsil edilenden farklı olurdu.
+      // Randevu widget'ından VEYA portaldan kendi RANDEVUSUNU (appointment_start
+      // dolu) alan, henüz tam ödenmemiş kayıtlarda anlamlı - sayfa "Öde" yerine
+      // "Kaporayı Öde" gösterebilsin diye. checkout-init'teki AYNI sınırlama
+      // (kapora hizmet fiyatını aşamaz) burada da uygulanır, yoksa gösterilen
+      // tutar gerçekte tahsil edilenden farklı olurdu.
       depositAmount: (() => {
-        if (deal.custom_fields?.kaynak !== "randevu_widget" || deal.payment_mode !== "required") return null;
+        const isSelfBookedAppointment =
+          (deal.custom_fields?.kaynak === "randevu_widget" || deal.custom_fields?.kaynak === "portal") &&
+          !!deal.appointment_start;
+        if (!isSelfBookedAppointment || deal.payment_mode !== "required") return null;
         const raw = settings?.appointment_deposit_amount;
         return (deal.value > 0 ? Math.min(raw || 0, deal.value) : raw) || null;
       })(),
@@ -1192,6 +1200,20 @@ export default async function handler(req, res) {
         .in("id", serviceIds)
         .eq("user_id", deal.user_id);
       if (priceItems?.length) chargeAmount = priceItems.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
+    }
+    // Randevu widget'ından veya portaldan kendi RANDEVUSUNU (appointment_start
+    // dolu) alan müşterilerde ödeme artık kapora bazlı - deposit-checkout-init'teki
+    // AYNI ilke, tam tutar değil KOBİ'nin Ayarlar'dan belirlediği kapora tutarı
+    // (hizmet fiyatını aşmaz) tahsil edilir. Tutar istemciden asla alınmıyor,
+    // taze company_settings'ten okunuyor. CRM'den gönderilen normal tekliflerde
+    // (bu iki kaynak dışında) davranış DEĞİŞMEDİ - hâlâ tam tutar.
+    const isSelfBookedAppointment =
+      (deal.custom_fields?.kaynak === "portal" || deal.custom_fields?.kaynak === "randevu_widget") && !!deal.appointment_start;
+    if (isSelfBookedAppointment) {
+      const rawDepositAmount = settings?.appointment_deposit_amount;
+      const depositAmount = chargeAmount > 0 ? Math.min(rawDepositAmount || 0, chargeAmount) : rawDepositAmount;
+      if (!(depositAmount > 0)) return res.status(400).json({ error: "Kapora tanımlı değil." });
+      chargeAmount = depositAmount;
     }
     const result = await initCheckout(req, supabaseAdmin, deal, customer, token, chargeAmount);
     if (result.error) return res.status(502).json({ error: result.error });

@@ -2041,8 +2041,6 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
               }}
             >
               Toplam: {formatTL(selectedTotal)}
-              {hasPaymentProvider &&
-                " - randevunuzu aldıktan sonra dilerseniz kartla online ödeme yapabilirsiniz."}
             </p>
           )}
           {selectedDuration > 0 && (

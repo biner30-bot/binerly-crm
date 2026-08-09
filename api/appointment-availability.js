@@ -323,7 +323,7 @@ async function handleBooking(req, res, supabaseAdmin) {
   const candidateDateStr = dateTime.slice(0, 10);
   const [{ data: existingDeals, error: conflictError }, { data: concurrencySettings }] = await Promise.all([
     supabaseAdmin.from("deals").select("custom_fields").eq("user_id", businessUserId).is("deleted_at", null).neq("stage", "kaybedildi"),
-    supabaseAdmin.from("company_settings").select("appointment_concurrency").eq("user_id", businessUserId).maybeSingle(),
+    supabaseAdmin.from("company_settings").select("appointment_concurrency, appointment_deposit_amount").eq("user_id", businessUserId).maybeSingle(),
   ]);
   if (conflictError) return res.status(500).json({ error: conflictError.message });
   const overlapCount = (existingDeals || []).filter((d) => {
@@ -395,9 +395,16 @@ async function handleBooking(req, res, supabaseAdmin) {
       ...(durationMinutes > 0 ? { duration_minutes: durationMinutes } : {}),
     },
   };
-  // dealValue > 0 && hasPaymentProvider iken onay linki baştan kurulur — CustomerPortal.jsx'teki
-  // ESKİ client-side mantığın birebir aynısı, sadece artık dealValue sunucuda doğrulanmış.
-  if (dealValue > 0 && cred) {
+  // Randevu Kaporası - api/lead-capture.js'teki (widget) AYNI ilke, artık
+  // portal da tutarlı: SADECE KOBİ Ayarlar'dan kapora tutarı belirlediyse
+  // (appointment_deposit_amount > 0) VE ödeme bağlantısı kuruluysa onay
+  // linki baştan kurulur. Önceden burada "fiyatlı hizmet + bağlantı varsa
+  // TAM tutarı zorunlu kıl" mantığı vardı - kapora ayarına hiç bakmıyordu,
+  // KOBİ bilerek açmasa bile portal randevularını otomatik tam-tutar peşin
+  // ödemeye zorluyordu. Gerçek tahsilat tutarı (kapora, tam değil)
+  // api/deal-approval.js checkout-init'te taze hesaplanır.
+  const depositAmount = Number(concurrencySettings?.appointment_deposit_amount) || 0;
+  if (depositAmount > 0 && cred) {
     row.approval_token = crypto.randomUUID();
     row.payment_mode = "required";
   }
