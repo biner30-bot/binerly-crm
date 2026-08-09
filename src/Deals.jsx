@@ -417,7 +417,15 @@ export function DealForm({
     (sum, li) => sum + (Number(li.quantity) || 0) * (Number(li.unitPrice) || 0),
     0,
   );
-  const lineItemsDuration = lineItemsDurationMinutes(lineItems, priceListItems);
+  // Kalemler boşken (KOBİ sadece üstteki tekli Ürün/Hizmet seçiciyi kullandıysa)
+  // fiyat listesindeki hizmetin KENDİ süresi devreye girsin - aksi halde bu çok
+  // yaygın (Kalemler'i hiç kullanmayan) tek-hizmetlik randevularda süre hep 0
+  // sayılıp hem çakışma kontrolü hem appointment_end 1 dakikalık "nokta"ya
+  // düşüyordu (bkz. findAppointmentConflict ve customFields.duration_minutes).
+  const lineItemsDuration =
+    lineItemsDurationMinutes(lineItems, priceListItems) ||
+    priceListItems.find((p) => p.id === selectedPriceItemId)?.durationMinutes ||
+    0;
   // İndirim - SADECE kalem toplamı üzerinden uygulanır (Kalemler boşsa Tutar zaten
   // elle girilen tek bir sayı, indirim varsa staff onu doğrudan o sayıya yansıtır).
   // Ham tip/değer custom_fields.discount'ta saklanır ki teklif tekrar açıldığında
@@ -621,7 +629,7 @@ export function DealForm({
     // "tam dakika eşitliği" davranışını (fiyat listesi süresi girilmemiş
     // KOBİ'ler için) bozmadan, süre bilinen durumlarda hizmetlerin toplam
     // süresine göre gerçek aralık çakışmasını da yakalar.
-    const candidateDuration = Math.max(lineItemsDurationMinutes(lineItems, priceListItems), 1);
+    const candidateDuration = Math.max(lineItemsDuration, 1);
     const candidateEnd = candidateStart + candidateDuration * 60000;
     const concurrency = Math.max(1, Number(appointmentConcurrency) || 1);
     const overlapping = deals.filter((d) => {
@@ -630,11 +638,15 @@ export function DealForm({
       if (!otherDt) return false;
       const otherStart = new Date(otherDt).getTime();
       if (Number.isNaN(otherStart)) return false;
+      // Diğer randevu da Kalemler'siz (sadece tekli seçici ile) girilmiş
+      // olabilir - bu durumda kalıcı customFields.duration_minutes (kaydedilirken
+      // aynı öncelik sırasıyla hesaplanır) gerçek süre için tek güvenilir kaynak.
       const otherDuration = Math.max(
         lineItemsDurationMinutes(
           dealLineItems.filter((li) => li.dealId === d.id),
           priceListItems,
         ),
+        Number(d.customFields?.duration_minutes) || 0,
         1,
       );
       const otherEnd = otherStart + otherDuration * 60000;
