@@ -397,6 +397,16 @@ export function daysAgo(dateStr) {
   return `${diff} gün önce`;
 }
 
+export function dayAndTime(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  const diff = Math.floor((Date.now() - d.getTime()) / 86400000);
+  const time = d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  if (diff <= 0) return `Bugün, ${time}`;
+  if (diff === 1) return `Dün, ${time}`;
+  return `${d.toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}, ${time}`;
+}
+
 export const TONE_COLORS = {
   // background daha önce var(--surface-1) idi — bu, kart/tablo satırlarının en
   // yaygın arka plan rengiyle birebir aynı olduğu için (örn. Deals.jsx'teki
@@ -1378,7 +1388,7 @@ export function NotificationBell({ userId, supabase, dataTour }) {
                   </p>
                 )}
                 <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--text-muted)" }}>
-                  {daysAgo(n.created_at)}
+                  {dayAndTime(n.created_at)}
                 </p>
               </div>
             ))
