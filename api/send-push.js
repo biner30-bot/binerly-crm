@@ -250,6 +250,9 @@ async function sendToRecipients(supabaseAdmin, res, recipientIds, { title, body,
 
   const payload = JSON.stringify({ title, body, url });
 
+  // urgency: "high" olmadan FCM bunu düşük öncelikli kabul eder — telefon
+  // Doze/App Standby modundaysa (örn. gece, ekran kapalı) teslimatı cihaz
+  // tekrar aktif olana kadar saatlerce erteleyebilir.
   const results = await Promise.allSettled(
     subscriptions.map((sub) =>
       webpush.sendNotification(
@@ -257,7 +260,8 @@ async function sendToRecipients(supabaseAdmin, res, recipientIds, { title, body,
           endpoint: sub.endpoint,
           keys: { p256dh: sub.p256dh, auth: sub.auth_key },
         },
-        payload
+        payload,
+        { urgency: "high" }
       )
     )
   );
