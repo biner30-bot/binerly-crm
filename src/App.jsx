@@ -1327,6 +1327,7 @@ export default function App() {
   const [showDealForm, setShowDealForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [editingDeal, setEditingDeal] = useState(null);
+  const [appointmentPrefillDateTime, setAppointmentPrefillDateTime] = useState(null);
   const [viewingCustomer, setViewingCustomer] = useState(null);
   const [emlakMatches, setEmlakMatches] = useState(null); // { deal, matches } — Gölge Avcı sonuçları
   const [listingTextDeal, setListingTextDeal] = useState(null); // İlan Metni Sihirbazı için seçili teklif
@@ -2143,6 +2144,7 @@ export default function App() {
 
     setShowDealForm(false);
     setEditingDeal(null);
+    setAppointmentPrefillDateTime(null);
     // Gölge Avcı: emlak sektöründe yeni bir teklif (mülk) girildiği an, geçmiş
     // müşteri taleplerine karşı otomatik taranır. Düzenlemede değil sadece
     // İLK kayıtta tetiklenir — aksi halde her küçük güncellemede aynı
@@ -4680,6 +4682,11 @@ export default function App() {
           onEnrollClass={enrollMember}
           onRemoveFromClass={removeMember}
           onSetAttendance={setClassAttendance}
+          onAddAppointment={(dateKey) => {
+            setEditingDeal(null);
+            setAppointmentPrefillDateTime(`${dateKey}T09:00`);
+            setShowDealForm(true);
+          }}
         />
       )}
 
@@ -5258,7 +5265,7 @@ export default function App() {
       )}
 
       {showDealForm && (
-        <Modal wide title={editingDeal?.id ? dealWords.editTitle : dealWords.newTitle} onClose={() => { setShowDealForm(false); setEditingDeal(null); }}>
+        <Modal wide title={editingDeal?.id ? dealWords.editTitle : dealWords.newTitle} onClose={() => { setShowDealForm(false); setEditingDeal(null); setAppointmentPrefillDateTime(null); }}>
           <DealForm
             customers={customers}
             initial={editingDeal}
@@ -5268,6 +5275,7 @@ export default function App() {
             deals={deals}
             payments={payments}
             appointmentDateTimeKey={appointmentDateTimeKey}
+            initialAppointmentDateTime={appointmentPrefillDateTime}
             roomInventory={roomInventory}
             resources={resources}
             customFieldDefs={customFieldDefs}
@@ -5293,7 +5301,7 @@ export default function App() {
             onToggleAttachmentShare={toggleAttachmentShare}
             onRequestPhotoConsent={requestPhotoConsent}
             onSave={upsertDeal}
-            onCancel={() => { setShowDealForm(false); setEditingDeal(null); }}
+            onCancel={() => { setShowDealForm(false); setEditingDeal(null); setAppointmentPrefillDateTime(null); }}
           />
         </Modal>
       )}

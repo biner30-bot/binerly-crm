@@ -10,7 +10,7 @@ import {
   nextWeeklyOccurrence,
   parseAppointmentDateTime,
 } from "./shared";
-import { groupClassWords } from "./Sectors";
+import { groupClassWords, bookingModel } from "./Sectors";
 export function GroupClassForm({ initial, sector, currentEnrollment = 0, onSave, onCancel }) {
   const [name, setName] = useState(initial?.name || "");
   const [instructorName, setInstructorName] = useState(initial?.instructorName || "");
@@ -1007,6 +1007,22 @@ function buildAgendaEvents(
   return eventsByDate;
 }
 
+// Pill'de sadece başlangıç saati (yer dar), gün modalında süre bilgisi
+// olduğunda bitiş saatiyle birlikte aralık gösterilir (ör. "14:00 - 14:45").
+function agendaEventTimeRange(it) {
+  if (!it.time) return null;
+  const start = it.time.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  const durationMinutes =
+    it.type === "appointment"
+      ? Number(it.deal?.customFields?.duration_minutes) || 0
+      : it.type === "class"
+        ? Number(it.groupClass?.durationMinutes) || 0
+        : 0;
+  if (!durationMinutes) return start;
+  const end = new Date(it.time.getTime() + durationMinutes * 60000);
+  return `${start} - ${end.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}`;
+}
+
 const AGENDA_EVENT_COLORS = { reminder: "#b45309", appointment: "#185fa5", class: "#15803d" };
 const AGENDA_EVENT_ICONS = {
   reminder: "ti-bell",
@@ -1074,6 +1090,7 @@ export function AgendaTab({
   onEnrollClass,
   onRemoveFromClass,
   onSetAttendance,
+  onAddAppointment = () => {},
 }) {
   const [rosterClass, setRosterClass] = useState(null);
   const [rosterOccurrenceDate, setRosterOccurrenceDate] = useState(null);
@@ -1386,7 +1403,9 @@ export function AgendaTab({
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {it.label}
+                  {it.time
+                    ? `${it.time.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} ${it.label}`
+                    : it.label}
                 </span>
               ))}
               {items.length > 3 && (
@@ -1409,6 +1428,25 @@ export function AgendaTab({
           })}
           onClose={() => setShowDayModal(false)}
         >
+          {bookingModel(sector) === "slot" && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowDayModal(false);
+                onAddAppointment(selectedDateKey);
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 13,
+                marginBottom: 12,
+              }}
+            >
+              <i className="ti ti-plus" aria-hidden="true"></i>
+              Bu güne randevu ekle
+            </button>
+          )}
           {selectedItemsSorted.length === 0 ? (
             <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)" }}>
               Bu günde bir şey yok.
@@ -1449,7 +1487,7 @@ export function AgendaTab({
                         ? `Hatırlatma · ${customerName(it.deal.customerId)}`
                         : null}
                       {it.type === "appointment"
-                        ? `${it.time.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} · ${customerName(it.deal.customerId)}`
+                        ? `${agendaEventTimeRange(it)} · ${customerName(it.deal.customerId)}`
                         : null}
                       {it.type === "class"
                         ? (() => {
@@ -1466,7 +1504,7 @@ export function AgendaTab({
                               dayAttendance.length > 0
                                 ? `${came} geldi, ${notCame} gelmedi`
                                 : `${it.enrolledCount}/${it.groupClass.capacity} kayıtlı`;
-                            return `${it.time.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} · ${summary}`;
+                            return `${agendaEventTimeRange(it)} · ${summary}`;
                           })()
                         : null}
                     </p>

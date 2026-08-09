@@ -333,6 +333,7 @@ export function DealForm({
   deals = [],
   payments = [],
   appointmentDateTimeKey = null,
+  initialAppointmentDateTime = null,
   roomInventory = [],
   resources = [],
   customFieldDefs = [],
@@ -543,7 +544,12 @@ export function DealForm({
     setPackageBreakdown((prev) => prev.filter((_, idx) => idx !== i));
   const [valueError, setValueError] = useState("");
   const [tags, setTags] = useState(initial?.tags || []);
-  const [customFields, setCustomFields] = useState(initial?.customFields || {});
+  const [customFields, setCustomFields] = useState(
+    initial?.customFields ||
+      (appointmentDateTimeKey && initialAppointmentDateTime
+        ? { [appointmentDateTimeKey]: initialAppointmentDateTime }
+        : {}),
+  );
   const [assignedTo, setAssignedTo] = useState(
     initial ? initial.assignedTo || "" : currentUserId || "",
   );
