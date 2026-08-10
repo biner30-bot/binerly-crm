@@ -343,15 +343,24 @@ export function BusinessHoursManager({ items, onAdd, onDelete }) {
 
   const sorted = [...items].sort((a, b) => a.weekday - b.weekday || a.startTime.localeCompare(b.startTime));
 
+  // Form başarılı eklemeden sonra sıfırlanmıyor (aynı saatleri başka bir güne de
+  // eklemek kolay olsun diye bilerek) - bu yüzden çift tıklama veya "eklenmedi
+  // sandım" tekrar tıklaması AYNI aralığı ikinci kez ekliyordu. Zaten eklenmiş
+  // (gün+başlangıç+bitiş) bir aralık sessizce yok sayılır - fonksiyondaki diğer
+  // geçersiz-girdi kontrolleriyle AYNI "sessiz return" deseni.
   const submit = (e) => {
     e.preventDefault();
     if (!startTime || !endTime || endTime <= startTime || !slotDurationMinutes) return;
+    const wd = Number(weekday);
+    const alreadyExists = (s, en) => items.some((b) => b.weekday === wd && b.startTime === s && b.endTime === en);
     if (hasBreak) {
       if (!breakStart || !breakEnd || breakStart <= startTime || breakEnd >= endTime || breakEnd <= breakStart) return;
-      onAdd({ weekday: Number(weekday), startTime, endTime: breakStart, slotDurationMinutes: Number(slotDurationMinutes) });
-      onAdd({ weekday: Number(weekday), startTime: breakEnd, endTime, slotDurationMinutes: Number(slotDurationMinutes) });
+      if (alreadyExists(startTime, breakStart) || alreadyExists(breakEnd, endTime)) return;
+      onAdd({ weekday: wd, startTime, endTime: breakStart, slotDurationMinutes: Number(slotDurationMinutes) });
+      onAdd({ weekday: wd, startTime: breakEnd, endTime, slotDurationMinutes: Number(slotDurationMinutes) });
     } else {
-      onAdd({ weekday: Number(weekday), startTime, endTime, slotDurationMinutes: Number(slotDurationMinutes) });
+      if (alreadyExists(startTime, endTime)) return;
+      onAdd({ weekday: wd, startTime, endTime, slotDurationMinutes: Number(slotDurationMinutes) });
     }
   };
 

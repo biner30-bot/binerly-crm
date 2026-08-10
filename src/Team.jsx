@@ -73,6 +73,12 @@ export function StaffShiftDayEditor({
     .filter((s) => !s.isOff)
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
+  // BusinessHoursManager'daki (AppointmentPolicies.jsx) AYNI sessiz-tekrar
+  // koruması - form eklemeden sonra sıfırlanmıyor, çift tıklama aynı vardiya
+  // aralığını ikinci kez ekleyebiliyordu.
+  const alreadyExists = (s, en) =>
+    items.some((it) => !it.isOff && it.startTime === s && it.endTime === en);
+
   const submit = (e) => {
     e.preventDefault();
     if (!startTime || !endTime || endTime <= startTime) return;
@@ -85,9 +91,11 @@ export function StaffShiftDayEditor({
         breakEnd <= breakStart
       )
         return;
+      if (alreadyExists(startTime, breakStart) || alreadyExists(breakEnd, endTime)) return;
       onAdd({ weekday, startTime, endTime: breakStart });
       onAdd({ weekday, startTime: breakEnd, endTime });
     } else {
+      if (alreadyExists(startTime, endTime)) return;
       onAdd({ weekday, startTime, endTime });
     }
   };
