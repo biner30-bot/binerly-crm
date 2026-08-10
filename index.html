@@ -6,6 +6,7 @@
     <title>Binerly - CRM | Müşteri Takibi, Satış ve Randevu Yönetimi</title>
     <meta name="theme-color" content="#185fa5" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="description" content="Binerly, KOBİ'ler için müşteri takibi, satış/teklif yönetimi, randevu ve destek sürecini tek ekranda birleştiren CRM yazılımıdır. Şu an erken erişimde ve tamamen ücretsiz." />
     <link rel="canonical" href="https://binerly.com/" />
@@ -166,7 +167,10 @@
       button:active:not(:disabled) { filter: brightness(0.9); transform: translateY(0); box-shadow: var(--shadow-sm); }
       input, select, textarea {
         font-family: inherit;
-        font-size: 14px;
+        /* 16px altı font-size'da iOS Safari input'a odaklanınca sayfayı
+           otomatik yakınlaştırır - dokunmatik kullanımda can sıkıcı bir
+           zoom-in/zoom-out döngüsüne yol açar. */
+        font-size: 16px;
         padding: 8px 10px;
         border-radius: var(--radius);
         border: 0.5px solid var(--border);
@@ -354,11 +358,11 @@
       .compact-form select {
         height: 38px;
         padding: 0 10px;
-        font-size: 14px;
+        font-size: 16px;
       }
       .compact-form textarea {
         padding: 8px 10px;
-        font-size: 14px;
+        font-size: 16px;
       }
       /* Uygulama içi üst başlık çubuğu (logo, şirket adı, bildirim/ayarlar/çıkış)
          sabit tek satır flex idi — dar telefon ekranında sağdaki ikon kümesi
@@ -425,7 +429,11 @@
            kendisi sarmıyordu; !important bu durumda da güvenli, zaten wrap
            olan satırlarda hiçbir şeyi değiştirmiyor. */
         .list-toolbar { gap: 6px !important; flex-wrap: wrap !important; }
-        .list-toolbar > button, .list-toolbar > select { flex: 1 1 auto !important; min-width: 0; font-size: 12px !important; padding: 6px 10px !important; }
+        .list-toolbar > button, .list-toolbar > select { flex: 1 1 auto !important; min-width: 0; padding: 6px 10px !important; }
+        .list-toolbar > button { font-size: 12px !important; }
+        /* select 16px altında kalırsa iOS Safari dokununca sayfayı
+           yakınlaştırır - buton metni bu sorunu yaşamadığı için ondan ayrıldı. */
+        .list-toolbar > select { font-size: 16px !important; }
       }
       /* Finans → Gelir-Gider Defteri "2fr 1fr" grid'i (ana defter + kategori
          özeti) dar ekranda ikisini de sıkıştırıyordu, kategori sütunu

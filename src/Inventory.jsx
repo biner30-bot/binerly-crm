@@ -395,7 +395,7 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector, res
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Ürün/hizmet ara..."
-              style={{ width: "100%", marginBottom: 8, fontSize: 13 }}
+              style={{ width: "100%", marginBottom: 8, fontSize: 16 }}
             />
           )}
           {filteredItems.length === 0 ? (
@@ -495,7 +495,7 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector, res
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={`Örn. ${PRICE_ITEM_NAME_EXAMPLES[sector] || "Danışmanlık"}`}
-            style={{ width: "100%", fontSize: 13 }}
+            style={{ width: "100%", fontSize: 16 }}
           />
         </div>
         <div style={{ width: 120 }}>
@@ -515,7 +515,7 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector, res
             value={price}
             onChange={(e) => setPrice(e.target.value)}
             placeholder="0"
-            style={{ width: "100%", fontSize: 13 }}
+            style={{ width: "100%", fontSize: 16 }}
           />
         </div>
         <div style={{ width: 130 }}>
@@ -541,7 +541,7 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector, res
             value={durationMinutes}
             onChange={(e) => setDurationMinutes(e.target.value)}
             placeholder="Opsiyonel"
-            style={{ width: "100%", fontSize: 13 }}
+            style={{ width: "100%", fontSize: 16 }}
           />
         </div>
         <div style={{ width: 150 }}>
@@ -567,7 +567,7 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector, res
             value={refreshDays}
             onChange={(e) => setRefreshDays(e.target.value)}
             placeholder="Opsiyonel"
-            style={{ width: "100%", fontSize: 13 }}
+            style={{ width: "100%", fontSize: 16 }}
           />
         </div>
         {bookingModel(sector) === "slot" && resources?.length > 0 && (
@@ -591,7 +591,7 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector, res
             <select
               value={resourceId}
               onChange={(e) => setResourceId(e.target.value)}
-              style={{ width: "100%", fontSize: 13 }}
+              style={{ width: "100%", fontSize: 16 }}
             >
               <option value="">Seçilmedi</option>
               {resources.map((r) => (
@@ -625,7 +625,7 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector, res
               value={parallelGroup}
               onChange={(e) => setParallelGroup(e.target.value)}
               placeholder="Örn. Manikür + Kaş Kombinasyonu"
-              style={{ width: "100%", fontSize: 13 }}
+              style={{ width: "100%", fontSize: 16 }}
             />
             <datalist id="parallel-group-options">
               {existingGroups.map((g) => (
@@ -972,7 +972,7 @@ export function StockManager({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={`Örn. ${STOCK_ITEM_NAME_EXAMPLES[sector] || "Sarf Malzemesi"}`}
-                style={{ width: "100%", fontSize: 13 }}
+                style={{ width: "100%", fontSize: 16 }}
               />
             </div>
             <div style={{ width: 90 }}>
@@ -989,7 +989,7 @@ export function StockManager({
               <select
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
-                style={{ width: "100%", fontSize: 13 }}
+                style={{ width: "100%", fontSize: 16 }}
               >
                 {STOCK_UNITS.map((u) => (
                   <option key={u} value={u}>
@@ -1014,7 +1014,7 @@ export function StockManager({
                 value={quantityOnHand}
                 onChange={(e) => setQuantityOnHand(e.target.value)}
                 placeholder="0"
-                style={{ width: "100%", fontSize: 13 }}
+                style={{ width: "100%", fontSize: 16 }}
               />
             </div>
             <div style={{ width: 130 }}>
@@ -1040,7 +1040,7 @@ export function StockManager({
                 value={reorderThreshold}
                 onChange={(e) => setReorderThreshold(e.target.value)}
                 placeholder="Opsiyonel"
-                style={{ width: "100%", fontSize: 13 }}
+                style={{ width: "100%", fontSize: 16 }}
               />
             </div>
             <div style={{ flex: 1, minWidth: 140 }}>
@@ -1058,7 +1058,7 @@ export function StockManager({
                 value={supplierName}
                 onChange={(e) => setSupplierName(e.target.value)}
                 placeholder="Opsiyonel"
-                style={{ width: "100%", fontSize: 13 }}
+                style={{ width: "100%", fontSize: 16 }}
               />
             </div>
             <button
@@ -1121,7 +1121,7 @@ export function StockManager({
                 <select
                   value={recipePriceItemId}
                   onChange={(e) => setRecipePriceItemId(e.target.value)}
-                  style={{ width: "100%", fontSize: 13 }}
+                  style={{ width: "100%", fontSize: 16 }}
                 >
                   {priceListItems.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -1199,7 +1199,7 @@ export function StockManager({
                   <select
                     value={recipeStockItemId}
                     onChange={(e) => setRecipeStockItemId(e.target.value)}
-                    style={{ width: "100%", fontSize: 13 }}
+                    style={{ width: "100%", fontSize: 16 }}
                   >
                     <option value="">Seçin</option>
                     {stockItems.map((s) => (
@@ -1227,7 +1227,7 @@ export function StockManager({
                     value={recipeQuantity}
                     onChange={(e) => setRecipeQuantity(e.target.value)}
                     placeholder="0"
-                    style={{ width: "100%", fontSize: 13 }}
+                    style={{ width: "100%", fontSize: 16 }}
                   />
                 </div>
                 <button

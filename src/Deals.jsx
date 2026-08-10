@@ -4662,7 +4662,7 @@ export function DealsTab({
                         onChange={(e) => attemptMoveDealStage(d.id, e.target.value)}
                         onClick={(e) => e.stopPropagation()}
                         style={{
-                          fontSize: 12.5,
+                          fontSize: 16,
                           fontWeight: 500,
                           border: "none",
                           ...TONE_COLORS[stageTone(d.stage)],

@@ -1226,7 +1226,7 @@ export function AgendaTab({
                   onChange={(e) =>
                     setAnchorDate(new Date(anchorDate.getFullYear(), Number(e.target.value), 1))
                   }
-                  style={{ fontSize: 13 }}
+                  style={{ fontSize: 16 }}
                 >
                   {AGENDA_MONTH_NAMES.map((m, i) => (
                     <option key={m} value={i}>
@@ -1239,7 +1239,7 @@ export function AgendaTab({
                   onChange={(e) =>
                     setAnchorDate(new Date(Number(e.target.value), anchorDate.getMonth(), 1))
                   }
-                  style={{ fontSize: 13 }}
+                  style={{ fontSize: 16 }}
                 >
                   {agendaYearOptions.map((y) => (
                     <option key={y} value={y}>
@@ -1284,7 +1284,7 @@ export function AgendaTab({
             <select
               value={staffFilter}
               onChange={(e) => setStaffFilter(e.target.value)}
-              style={{ fontSize: 13 }}
+              style={{ fontSize: 16 }}
             >
               <option value="">Tüm personel</option>
               {currentUserId && <option value={currentUserId}>Ben ({currentUserEmail})</option>}
@@ -1301,7 +1301,7 @@ export function AgendaTab({
             <select
               value={resourceFilter}
               onChange={(e) => setResourceFilter(e.target.value)}
-              style={{ fontSize: 13 }}
+              style={{ fontSize: 16 }}
             >
               <option value="">Tüm cihaz/oda</option>
               {resources.map((r) => (

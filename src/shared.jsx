@@ -237,7 +237,7 @@ export function DateRangeFilter({ from, to, onFromChange, onToChange }) {
           type="date"
           value={from}
           onChange={(e) => onFromChange(e.target.value)}
-          style={{ fontSize: 12, padding: "6px 8px" }}
+          style={{ fontSize: 16, padding: "6px 8px" }}
         />
       </label>
       <span style={{ fontSize: 12, color: "var(--text-muted)", paddingBottom: 7 }}>-</span>
@@ -247,7 +247,7 @@ export function DateRangeFilter({ from, to, onFromChange, onToChange }) {
           type="date"
           value={to}
           onChange={(e) => onToChange(e.target.value)}
-          style={{ fontSize: 12, padding: "6px 8px" }}
+          style={{ fontSize: 16, padding: "6px 8px" }}
         />
       </label>
       {(from || to) && (

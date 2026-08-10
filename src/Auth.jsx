@@ -237,7 +237,7 @@ export function AuthModal({ initialMode = "login", onClose }) {
                   padding: "10px 12px",
                   border: "1px solid var(--border)",
                   borderRadius: 8,
-                  fontSize: 14,
+                  fontSize: 16,
                   boxSizing: "border-box",
                 }}
               />
@@ -264,7 +264,7 @@ export function AuthModal({ initialMode = "login", onClose }) {
                 padding: "10px 12px",
                 border: "1px solid var(--border)",
                 borderRadius: 8,
-                fontSize: 14,
+                fontSize: 16,
                 boxSizing: "border-box",
               }}
             />
@@ -291,7 +291,7 @@ export function AuthModal({ initialMode = "login", onClose }) {
                 padding: "10px 12px",
                 border: "1px solid var(--border)",
                 borderRadius: 8,
-                fontSize: 14,
+                fontSize: 16,
                 boxSizing: "border-box",
               }}
             />

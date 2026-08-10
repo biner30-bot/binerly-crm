@@ -999,7 +999,7 @@ export default function Finance({
                   value={tahsilatSearch}
                   onChange={(e) => setTahsilatSearch(e.target.value)}
                   placeholder="Müşteri ara..."
-                  style={{ flex: 1, minWidth: 160, fontSize: 13 }}
+                  style={{ flex: 1, minWidth: 160, fontSize: 16 }}
                 />
                 <select
                   value={tahsilatBalanceFilter}
