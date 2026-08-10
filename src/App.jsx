@@ -609,6 +609,7 @@ function rowToCompanySettings(r) {
     appointmentDepositAmount: r.appointment_deposit_amount ?? null,
     appointmentConcurrency: r.appointment_concurrency ?? null,
     appointmentConcurrencyAuto: r.appointment_concurrency_auto === true,
+    appointmentOwnerWorks: r.appointment_owner_works !== false,
     winbackEnabled: r.winback_enabled === true,
     winbackInactiveDays: r.winback_inactive_days ?? null,
   };
@@ -3150,6 +3151,7 @@ export default function App() {
       appointment_deposit_amount: s.appointmentDepositAmount || null,
       appointment_concurrency: s.appointmentConcurrency || null,
       appointment_concurrency_auto: s.appointmentConcurrencyAuto === true,
+      appointment_owner_works: s.appointmentOwnerWorks !== false,
       winback_enabled: s.winbackEnabled === true,
       winback_inactive_days: s.winbackInactiveDays || null,
       updated_at: new Date().toISOString(),
@@ -5049,7 +5051,7 @@ export default function App() {
           </div>
           {businessHoursTab === "saatler" ? (
             <>
-              <AppointmentConcurrencyBox companySettings={companySettings} staffCount={1 + teamRoster.length} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
+              <AppointmentConcurrencyBox companySettings={companySettings} teamMemberCount={teamRoster.length} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
               <BusinessHoursManager items={businessHours} onAdd={addBusinessHours} onDelete={deleteBusinessHours} />
             </>
           ) : businessHoursTab === "politika" ? (

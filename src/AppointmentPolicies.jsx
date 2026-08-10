@@ -187,18 +187,28 @@ export function AppointmentDepositBox({ companySettings, hasPaymentConnection, o
 // Aynı anda kaç randevu karşılanabileceği - Otel'deki oda "quantity"/Spor
 // Merkezi'ndeki ders "capacity" ile AYNI basit desen. Boş/1 = eski davranış
 // (aynı anda tek randevu) - hiç dokunmayan işletmeler etkilenmez.
-// staffCount: team_roster() üzerinden hesaplanan toplam personel sayısı (sahip
-// dahil) - sadece "otomatik" modda güncel değeri göstermek için, gerçek
-// hesaplama DB'deki trigger'da yapılıyor (bkz. sql/2026-08-09_auto_concurrency.sql).
-export function AppointmentConcurrencyBox({ companySettings, staffCount, onSave }) {
+// teamMemberCount: team_roster() üzerinden hesaplanan personel sayısı (sahip
+// HARİÇ) - "otomatik" modda güncel değeri göstermek için, gerçek hesaplama
+// DB'deki trigger'da yapılıyor (bkz. sql/2026-08-09_auto_concurrency.sql,
+// sql/2026-08-10_appointment_owner_works.sql). Sahip bizzat hizmet vermeyip
+// sadece yönetiyorsa "Ben de hizmet veriyorum" kapatılır, formülden 1 düşer
+// - vardiya (staff_shifts) bu hesaba hiç girmiyor, sahibe vardiya yazmamak
+// otomatik sayıyı DEĞİŞTİRMEZ, bu yüzden ayrı bir anahtar gerekti.
+export function AppointmentConcurrencyBox({ companySettings, teamMemberCount, onSave }) {
   const auto = companySettings?.appointmentConcurrencyAuto === true;
+  const ownerWorks = companySettings?.appointmentOwnerWorks !== false;
   const configured = companySettings?.appointmentConcurrency != null;
   const [open, setOpen] = useState(false);
   const [autoDraft, setAutoDraft] = useState(auto);
+  const [ownerWorksDraft, setOwnerWorksDraft] = useState(ownerWorks);
   const [value, setValue] = useState(companySettings?.appointmentConcurrency ?? "");
+
+  const savedEffectiveCount = (ownerWorks ? 1 : 0) + teamMemberCount;
+  const draftEffectiveCount = (ownerWorksDraft ? 1 : 0) + teamMemberCount;
 
   const handleOpen = () => {
     setAutoDraft(auto);
+    setOwnerWorksDraft(ownerWorks);
     setValue(companySettings?.appointmentConcurrency ?? "");
     setOpen(true);
   };
@@ -206,9 +216,10 @@ export function AppointmentConcurrencyBox({ companySettings, staffCount, onSave 
   const handleSave = () => {
     onSave({
       appointmentConcurrencyAuto: autoDraft,
+      appointmentOwnerWorks: ownerWorksDraft,
       // Otomatik modda gönderilen sayı önemli değil - trigger anında gerçek
       // personel sayısıyla değiştirir, burada sadece null bırakmamak için.
-      appointmentConcurrency: autoDraft ? staffCount : value !== "" ? Math.max(1, Number(value)) : null,
+      appointmentConcurrency: autoDraft ? draftEffectiveCount : value !== "" ? Math.max(1, Number(value)) : null,
     });
     setOpen(false);
   };
@@ -223,7 +234,7 @@ export function AppointmentConcurrencyBox({ companySettings, staffCount, onSave 
             align="left"
             text={
               "Aynı saate kaç randevu birden alınabileceğini belirler - kaç uzman/koltuk/cihazınız varsa o kadar.\n\n" +
-              "\"Personel sayısına göre otomatik\" seçilirse bu sayı siz personel ekledikçe/çıkardıkça kendiliğinden güncellenir, elle takip etmenize gerek kalmaz. " +
+              "\"Personel sayısına göre otomatik\" seçilirse bu sayı siz personel ekledikçe/çıkardıkça kendiliğinden güncellenir, elle takip etmenize gerek kalmaz. İşletme sahibi olarak bizzat hizmet vermiyorsanız \"Ben de hizmet veriyorum\" kutusunu kapatın, formülden çıkarılırsınız - vardiyanız olmaması bunu otomatik yapmaz. " +
               "Elle sabit bir sayı da girebilirsiniz - örneğin personeliniz daha fazla ama aynı anda sadece 2 müşteri kabul etmek istiyorsanız.\n\n" +
               "Ayarlamazsanız (varsayılan) aynı saate sadece 1 randevu alınabilir."
             }
@@ -238,7 +249,7 @@ export function AppointmentConcurrencyBox({ companySettings, staffCount, onSave 
       {!open && (
         <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0 0" }}>
           {auto
-            ? `Otomatik: personel sayınıza göre (şu an ${companySettings?.appointmentConcurrency ?? staffCount} kişi) aynı saate en fazla o kadar randevu alınabiliyor.`
+            ? `Otomatik: ${ownerWorks ? "ben dahil " : "ben hariç "}personel sayınıza göre (şu an ${companySettings?.appointmentConcurrency ?? savedEffectiveCount} kişi) aynı saate en fazla o kadar randevu alınabiliyor.`
             : configured
               ? `Aktif: aynı saate en fazla ${companySettings.appointmentConcurrency} randevu birden alınabiliyor.`
               : "Varsayılan: aynı saate sadece 1 randevu alınabiliyor."}
@@ -248,8 +259,14 @@ export function AppointmentConcurrencyBox({ companySettings, staffCount, onSave 
         <>
           <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 13, cursor: "pointer" }}>
             <input type="checkbox" checked={autoDraft} onChange={(e) => setAutoDraft(e.target.checked)} />
-            Personel sayısına göre otomatik hesapla (şu an {staffCount} personel)
+            Personel sayısına göre otomatik hesapla (şu an {draftEffectiveCount} kişi)
           </label>
+          {autoDraft && (
+            <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, marginLeft: 22, fontSize: 12.5, color: "var(--text-secondary)", cursor: "pointer" }}>
+              <input type="checkbox" checked={ownerWorksDraft} onChange={(e) => setOwnerWorksDraft(e.target.checked)} />
+              Ben de hizmet veriyorum
+            </label>
+          )}
           {!autoDraft && (
             <input type="number" min="1" step="1" value={value} onChange={(e) => setValue(e.target.value)} placeholder="Örn. 3" style={{ width: 150, marginTop: 8 }} />
           )}
