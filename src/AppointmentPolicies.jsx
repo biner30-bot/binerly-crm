@@ -267,9 +267,16 @@ export function AppointmentConcurrencyBox({ companySettings, teamMemberCount, on
               Ben de hizmet veriyorum
             </label>
           )}
-          {!autoDraft && (
-            <input type="number" min="1" step="1" value={value} onChange={(e) => setValue(e.target.value)} placeholder="Örn. 3" style={{ width: 150, marginTop: 8 }} />
-          )}
+          <input
+            type="number"
+            min="1"
+            step="1"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="Örn. 3"
+            disabled={autoDraft}
+            style={{ width: 150, marginTop: 8 }}
+          />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}>
             <button type="button" onClick={() => setOpen(false)}>Vazgeç</button>
             <button type="button" onClick={handleSave} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
