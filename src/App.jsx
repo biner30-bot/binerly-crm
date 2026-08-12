@@ -3674,6 +3674,27 @@ export default function App() {
   const lostDealsAll = deals.filter((d) => d.stage === "kaybedildi");
   const dealsWithOutstanding = wonDealsAll.filter((d) => d.value - totalPaidForDeal(d.id) > 0);
   const totalOutstanding = dealsWithOutstanding.reduce((sum, d) => sum + (d.value - totalPaidForDeal(d.id)), 0);
+  // Otomatik VIP tespiti: elle "VIP" işaretlemeye gerek kalmadan, ömür boyu
+  // tahsilata (won deal'lerdeki gerçek ödeme, sadece deal değeri değil) göre
+  // en değerli %10 müşteri otomatik etiketlenir. Tarih aralığı filtresinden
+  // (panoRange) BİLEREK bağımsız - VIP durumu "şu anki dönem" değil ömür boyu
+  // bir statü. En az 5 ödeme yapmış müşteri şartı var, yoksa 2 müşteride biri
+  // "VIP" gibi görünüp anlamsızlaşır.
+  const customerTotalPaid = new Map();
+  for (const d of wonDealsAll) {
+    if (!d.customerId) continue;
+    const paid = totalPaidForDeal(d.id);
+    if (paid > 0) customerTotalPaid.set(d.customerId, (customerTotalPaid.get(d.customerId) || 0) + paid);
+  }
+  const payingCustomers = [...customerTotalPaid.entries()];
+  const vipCustomerIds = new Set(
+    payingCustomers.length >= 5
+      ? payingCustomers
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, Math.max(1, Math.ceil(payingCustomers.length * 0.1)))
+          .map(([id]) => id)
+      : [],
+  );
   const rangeBounds = getRangeBounds(panoRange, { from: panoRangeFrom, to: panoRangeTo });
   const wonDeals = wonDealsAll.filter((d) => inRange(d.closedAt || d.createdAt, rangeBounds));
   const lostDeals = lostDealsAll.filter((d) => inRange(d.closedAt || d.createdAt, rangeBounds));
@@ -4424,6 +4445,7 @@ export default function App() {
           membershipAlerts={membershipAlerts}
           churnAlerts={churnAlerts}
           waitlistFillableAlerts={waitlistFillableAlerts}
+          vipCustomerIds={vipCustomerIds}
           stuckDeals={stuckDeals}
           freedAppointmentAlerts={freedAppointmentAlerts}
           unassignedUpcomingAppointments={unassignedUpcomingAppointments}
@@ -4497,6 +4519,7 @@ export default function App() {
           setConfirmDeleteCustomer={setConfirmDeleteCustomer}
           totalPaidForDeal={totalPaidForDeal}
           requestCustomerConsent={requestCustomerConsent}
+          vipCustomerIds={vipCustomerIds}
           notify={notify}
         />
       )}
@@ -5477,6 +5500,7 @@ export default function App() {
           payments={payments}
           activities={activities}
           sector={companySettings?.sector}
+          isVip={vipCustomerIds.has(viewingCustomer.id)}
           customFieldDefs={customFieldDefs}
           groupClasses={groupClasses}
           groupClassEnrollments={groupClassEnrollments}

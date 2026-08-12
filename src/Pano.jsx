@@ -100,6 +100,7 @@ export default function Pano({
   membershipAlerts,
   churnAlerts,
   waitlistFillableAlerts,
+  vipCustomerIds,
   stuckDeals,
   freedAppointmentAlerts,
   unassignedUpcomingAppointments,
@@ -338,6 +339,7 @@ export default function Pano({
                     }}
                   >
                     {apptTime.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} -{" "}
+                    {vipCustomerIds?.has(deal.customerId) && <span title="VIP müşteri">⭐ </span>}
                     {c?.name || "Bilinmeyen müşteri"} ({deal.title})
                   </span>
                   {reliability.tier === "riskli" && (

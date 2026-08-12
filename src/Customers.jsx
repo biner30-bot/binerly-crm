@@ -424,6 +424,7 @@ export function CustomerDetail({
   payments,
   activities,
   sector,
+  isVip = false,
   customFieldDefs = [],
   groupClasses = [],
   groupClassEnrollments = [],
@@ -540,6 +541,11 @@ export function CustomerDetail({
         <div
           style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}
         >
+          {isVip && (
+            <span title="Ömür boyu tahsilata göre en değerli %10 müşteri arasında">
+              <Badge tone="accent">⭐ VIP müşteri</Badge>
+            </span>
+          )}
           {customer.marketingConsent ? (
             <Badge tone="success">✓ Pazarlama e-postası izni var</Badge>
           ) : (
@@ -1169,6 +1175,7 @@ export function CustomersTab({
   setShowPortalLinkModal,
   setEditingCustomer,
   setShowCustomerForm,
+  vipCustomerIds = new Set(),
   setViewingCustomer,
   setConfirmDeleteCustomer,
   totalPaidForDeal,
@@ -1491,7 +1498,14 @@ export function CustomersTab({
                         cursor: "pointer",
                       }}
                     >
-                      <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>{c.name}</p>
+                      <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>
+                        {vipCustomerIds.has(c.id) && (
+                          <span title="VIP müşteri - ömür boyu tahsilata göre en değerli %10 arasında">
+                            ⭐{" "}
+                          </span>
+                        )}
+                        {c.name}
+                      </p>
                       <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
                         {c.sector} {c.region ? `· ${c.region}` : ""} {c.phone ? `· ${c.phone}` : ""}
                       </p>
