@@ -792,6 +792,33 @@ export function computeAppointmentPenaltyBurn({
   return { packageDealId: activePackage.id, newSessionUsed: (activePackage.sessionUsed || 0) + 1 };
 }
 
+// Müşteri güven puanı: personelin randevu öncesi görebileceği bir görünürlük
+// etiketi - hiçbir işlemi engellemez, sadece bilgi verir (kısıtlama değil
+// görünürlük). "violation" tanımı computeAppointmentPenaltyBurn/computeNoShowRisk
+// (Deals.jsx) ile BİREBİR aynı (Randevuya gelmedi/Geç iptal etti) - proje
+// genelinde tutarlı tek tanım. computeNoShowRisk'ten FARKI: o kobinin
+// appointment_penalty_strike_limit ayarına bağlı ve SADECE yeni randevu
+// oluştururken ödeme önerisi için çalışır; bu fonksiyon o ayar hiç
+// kurulmamış olsa bile HER ZAMAN çalışır, tek amacı bugünün randevusuna
+// hazırlanmak. En az 3 tamamlanmış randevu şartı var: az geçmişi olan
+// müşteri tek bir gelmemeyle "riskli" damgalanmasın.
+export function computeCustomerReliability(customerId, deals) {
+  const finished = deals.filter(
+    (d) => d.customerId === customerId && (d.stage === "kazanildi" || d.stage === "kaybedildi"),
+  );
+  const violations = finished.filter(
+    (d) =>
+      d.stage === "kaybedildi" &&
+      (d.lostReason === "Randevuya gelmedi" || d.lostReason === "Geç iptal etti"),
+  ).length;
+  const total = finished.length;
+  if (total < 3) return { tier: null, total, violations };
+  const rate = violations / total;
+  if (violations >= 2 && rate > 0.3) return { tier: "riskli", total, violations, rate };
+  if (violations === 0) return { tier: "guvenilir", total, violations, rate };
+  return { tier: null, total, violations, rate };
+}
+
 // Bir teklifin o anki aşaması için sektöre özel, salt bilgilendirici bir
 // "yapılacaklar" rehberi — kayıt/işaretleme tutmuyor, sadece Teklif formunda
 // gösterilecek kısa bir metin. Preset'i (veya o aşama için tanımlı rehberi)

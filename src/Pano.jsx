@@ -18,6 +18,7 @@ import {
   dealWordKind,
   supportsGroupClasses,
   groupClassWords,
+  computeCustomerReliability,
 } from "./Sectors";
 import { getSlaStatus, TERMINAL_STATUSES } from "./Support";
 
@@ -306,6 +307,7 @@ export default function Pano({
           >
             {pendingArrivalConfirmations.map(({ deal, apptTime }) => {
               const c = customerById(deal.customerId);
+              const reliability = computeCustomerReliability(deal.customerId, deals);
               return (
                 <div
                   key={`arrival-${deal.id}`}
@@ -338,6 +340,22 @@ export default function Pano({
                     {apptTime.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} -{" "}
                     {c?.name || "Bilinmeyen müşteri"} ({deal.title})
                   </span>
+                  {reliability.tier === "riskli" && (
+                    <span
+                      title={`Son ${reliability.total} randevunun ${reliability.violations}'inde gelmedi/geç iptal etti`}
+                      style={{ fontSize: 11, color: "var(--text-danger)", flexShrink: 0 }}
+                    >
+                      ⚠ Riskli
+                    </span>
+                  )}
+                  {reliability.tier === "guvenilir" && (
+                    <span
+                      title={`Son ${reliability.total} randevuya hep geldi`}
+                      style={{ fontSize: 11, color: "var(--text-success)", flexShrink: 0 }}
+                    >
+                      ✓ Güvenilir
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={() => attemptMoveDealStage(deal.id, "kazanildi")}

@@ -23,6 +23,7 @@ import {
   dealWordKind,
   stageLabel,
   isAppointmentSector,
+  computeCustomerReliability,
   TagBadges,
 } from "./Sectors";
 import { paymentDateLabel, TAGS_INFO_TEXT } from "./Deals";
@@ -444,6 +445,9 @@ export function CustomerDetail({
     .filter(Boolean);
 
   const customerDeals = deals.filter((d) => d.customerId === customer.id);
+  const reliability = isAppointmentSector(sector)
+    ? computeCustomerReliability(customer.id, deals)
+    : null;
   const wonCustomerDeals = customerDeals.filter((d) => d.stage === "kazanildi");
   const wonDealIds = new Set(wonCustomerDeals.map((d) => d.id));
   const customerPayments = payments.filter((p) => wonDealIds.has(p.dealId));
@@ -547,6 +551,18 @@ export function CustomerDetail({
             ) : (
               <Badge tone="warning">Fotoğraf saklama izni yok</Badge>
             ))}
+          {reliability?.tier === "riskli" && (
+            <span
+              title={`Son ${reliability.total} randevunun ${reliability.violations}'inde gelmedi/geç iptal etti`}
+            >
+              <Badge tone="danger">⚠ Riskli - sık gelmiyor</Badge>
+            </span>
+          )}
+          {reliability?.tier === "guvenilir" && (
+            <span title={`Son ${reliability.total} randevuya hep geldi`}>
+              <Badge tone="success">✓ Güvenilir müşteri</Badge>
+            </span>
+          )}
           {!customer.marketingConsent && (
             <button
               type="button"
