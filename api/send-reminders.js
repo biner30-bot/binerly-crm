@@ -102,9 +102,23 @@ export default async function handler(req, res) {
       console.error("send-reminders review query error:", reviewDealsError.message);
     }
 
+    // Bekleme listesi girdileri de erken-çıkış kontrolüne dahil edilmeli -
+    // aksi halde sessiz/bekleyen bir günde (hatırlatma/değerlendirme YOK ama
+    // bekleme listesi VAR) fonksiyon aşağıdaki bloğa hiç ulaşmadan erken
+    // dönerdi (bkz. sql/2026-08-12_appointment_waitlist.sql).
+    const { data: waitlistEntries, error: waitlistQueryError } = await supabaseAdmin
+      .from("appointment_waitlist")
+      .select("id, user_id, customer_id, requested_date")
+      .is("notified_at", null)
+      .gte("requested_date", todayIstanbul);
+    if (waitlistQueryError) {
+      console.error("appointment_waitlist query error:", waitlistQueryError.message);
+    }
+
     const hasReminders = dueDeals && dueDeals.length > 0;
     const hasReviewRequests = reviewDeals && reviewDeals.length > 0;
-    if (!hasReminders && !hasReviewRequests) {
+    const hasWaitlistEntries = waitlistEntries && waitlistEntries.length > 0;
+    if (!hasReminders && !hasReviewRequests && !hasWaitlistEntries) {
       return res.status(200).json({ usersNotified: 0, customersNotified: 0, reviewsRequested: 0, membershipsMoved });
     }
 
@@ -261,6 +275,75 @@ export default async function handler(req, res) {
       }
     }
 
+    // Bekleme listesi bildirimleri (bkz. sql/2026-08-12_appointment_waitlist.sql) —
+    // "boşaldı" sinyali App.jsx'teki freedAppointmentAlerts ile AYNI basit tanım
+    // (o gün için kaybedildi + lostReason != 'Diğer' bir randevu var mı).
+    // appointment-availability.js'teki kaynak/eşzamanlılık-farkında tam slot
+    // hesabı BİLİNÇLİ OLARAK burada tekrarlanmadı - personel bildirimi de zaten
+    // aynı basit sinyali kullanıyor, tutarlılık tercih edildi. Bu yüzden gerçek
+    // saat müsaitliği garanti değildir - müşteri "Randevu Al" linkine tıklayıp
+    // normal akıştan devam eder, otomatik rezervasyon yapılmaz.
+    let waitlistNotified = 0;
+    if (hasWaitlistEntries) {
+      const waitlistUserIds = [...new Set(waitlistEntries.map((w) => w.user_id))];
+      const [{ data: waitlistSettingsRows }, { data: waitlistFieldDefs }, { data: cancelledDeals }] = await Promise.all([
+        supabaseAdmin.from("company_settings").select("user_id, company_name, logo_url, lead_capture_token").in("user_id", waitlistUserIds),
+        supabaseAdmin.from("custom_field_defs").select("user_id, key").eq("entity", "deal").eq("field_type", "datetime").eq("active", true).in("user_id", waitlistUserIds),
+        // .neq("lost_reason", "Diğer") TEK BAŞINA lost_reason NULL olan satırları
+        // dışlardı (Postgres'in üç değerli mantığı, bkz. claimDealPayment yorumu) -
+        // App.jsx'teki freedAppointmentAlerts'ın client-side "!==" karşılaştırması
+        // NULL'ı zaten dahil ediyor, burada da AYNI davranış gerekiyor.
+        supabaseAdmin.from("deals").select("user_id, custom_fields").in("user_id", waitlistUserIds).eq("stage", "kaybedildi").is("deleted_at", null).or("lost_reason.is.null,lost_reason.neq.Diğer"),
+      ]);
+      const waitlistSettingsByUser = Object.fromEntries((waitlistSettingsRows || []).map((s) => [s.user_id, s]));
+      // Randevu tarihi alanının anahtarı işletmeye göre değişir (Güzellik &
+      // Bakım/Sağlık-Klinik'te randevu_tarihi vb.) - appointment-availability.js'teki
+      // AYNI dinamik bulma ilkesi.
+      const dateTimeKeyByUser = Object.fromEntries((waitlistFieldDefs || []).map((d) => [d.user_id, d.key]));
+      const freedDatesByUser = {};
+      for (const d of cancelledDeals || []) {
+        const key = dateTimeKeyByUser[d.user_id];
+        const raw = key ? d.custom_fields?.[key] : null;
+        if (typeof raw !== "string" || raw.length < 10) continue;
+        (freedDatesByUser[d.user_id] ||= new Set()).add(raw.slice(0, 10));
+      }
+
+      const waitlistCustomerIds = [...new Set(waitlistEntries.map((w) => w.customer_id).filter(Boolean))];
+      const { data: waitlistCustomerRows } = await supabaseAdmin.from("customers").select("id, name, email").in("id", waitlistCustomerIds);
+      const waitlistCustomerById = Object.fromEntries((waitlistCustomerRows || []).map((c) => [c.id, c]));
+
+      for (const entry of waitlistEntries) {
+        const freedDates = freedDatesByUser[entry.user_id];
+        if (freedDates && freedDates.has(entry.requested_date)) {
+          const customer = waitlistCustomerById[entry.customer_id];
+          const settings = waitlistSettingsByUser[entry.user_id] || {};
+          if (customer?.email) {
+            const company = settings.company_name || "Binerly";
+            const dateLabel = new Date(`${entry.requested_date}T12:00:00Z`).toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
+            const bookUrl = settings.lead_capture_token ? `https://binerly.com/randevu-al/${settings.lead_capture_token}` : null;
+            const bodyText = `Merhaba ${customer.name || ""},\n\n${company}'de ${dateLabel} günü için bir yer açıldı. Sizin için not almıştık, hemen bir saat seçmek ister misiniz?`;
+            const footerLines = [`${company} (Binerly ile)`, "Bu e-posta Binerly (binerly.com) altyapısıyla gönderildi."];
+            const notifyRes = await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                from: `${company} (Binerly ile) <noreply@binerly.com>`,
+                to: customer.email,
+                subject: `${company} - ${dateLabel} için yer açıldı`,
+                html: renderEmailHtml({ logoUrl: settings.logo_url, bodyText, ctaLabel: bookUrl ? "Randevu Al" : undefined, ctaUrl: bookUrl, footerLines }),
+                text: plainTextFallback(bodyText, bookUrl ? "Randevu Al" : null, bookUrl, footerLines),
+              }),
+            });
+            if (notifyRes.ok) waitlistNotified++;
+          }
+          // E-postası olmayan (sadece telefonlu) bir bekleyen için gönderilecek bir
+          // kanal yok (SMS/WhatsApp henüz entegre değil, bkz. proje notları) -
+          // yine de tekrar tekrar denenmesin diye damgalanır.
+          await supabaseAdmin.from("appointment_waitlist").update({ notified_at: new Date().toISOString() }).eq("id", entry.id);
+        }
+      }
+    }
+
     // Geri kazanım (churn/win-back) — VARSAYILAN KAPALI (bkz. sql/2026-08-03_
     // winback_notifications.sql), sadece winback_enabled=true olan işletmeler
     // için. "Pasif" tanımı customers.last_contact - Pano'daki "Pasif Müşteri
@@ -323,7 +406,7 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(200).json({ usersNotified, failed, customersNotified, reviewsRequested, membershipsMoved, winbackSent });
+    return res.status(200).json({ usersNotified, failed, customersNotified, reviewsRequested, membershipsMoved, winbackSent, waitlistNotified });
   } catch (err) {
     console.error("send-reminders fatal error:", err.message);
     return res.status(500).json({ error: "Gönderim sırasında hata oluştu." });

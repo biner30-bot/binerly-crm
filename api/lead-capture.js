@@ -59,6 +59,46 @@ function buildAppointmentBounds(dateTimeStr, durationMinutes) {
 // birebir aynı tutulmalı (deal-approval.js'te de aynı sabit var, elle senkron).
 const MARKETING_CONSENT_TEXT = "Kampanya ve değerlendirme isteği gibi e-postalar almak istiyorum";
 
+// Aynı işletmede telefon/e-posta eşleşen bir müşteri varsa onu kullanır — her
+// randevu talebinde/bekleme listesi kaydında yinelenen customers satırı
+// oluşmasın (bkz. Gerçek engel istisnaları: mükerrer telefon/e-posta zaten
+// hard-block sayılıyor, burada da aynı ruhla mükerrer kayıt yerine mevcut
+// kayıt kullanılır). deleted_at IS NULL şart — çöp kutusundaki bir müşteriyle
+// eşleşirse deal ona bağlanıyor ama ana ekranın customers listesi
+// (deleted_at IS NULL filtreli) onu hiç göstermiyor: "Bilinmeyen müşteri" +
+// customerType okunamadığı için "kurumsal" sekmesine düşme bugı buradan
+// geliyordu (canlıda görüldü, 2026-07-31). Randevu talebi VE bekleme listesi
+// kaydı AYNI mantığı kullansın diye ortak bir fonksiyona çıkarıldı.
+async function findOrCreateAppointmentCustomer(supabaseAdmin, settings, { trimmedName, trimmedPhone, trimmedEmail, notes, consented, consentedAt, consentIp }) {
+  let customerId = null;
+  if (trimmedPhone) {
+    const { data } = await supabaseAdmin.from("customers").select("id").eq("user_id", settings.user_id).eq("phone", trimmedPhone).is("deleted_at", null).limit(1).maybeSingle();
+    customerId = data?.id || null;
+  }
+  if (!customerId && trimmedEmail) {
+    const { data } = await supabaseAdmin.from("customers").select("id").eq("user_id", settings.user_id).eq("email", trimmedEmail).is("deleted_at", null).limit(1).maybeSingle();
+    customerId = data?.id || null;
+  }
+  if (customerId) return { customerId };
+
+  customerId = crypto.randomUUID();
+  const { error } = await supabaseAdmin.from("customers").insert({
+    id: customerId,
+    user_id: settings.user_id,
+    name: trimmedName,
+    // Lead capture'daki "kurumsal" varsayılanından farklı — randevu alan/
+    // bekleyen gerçek bir bireysel tüketicidir.
+    customer_type: "bireysel",
+    phone: trimmedPhone,
+    email: trimmedEmail,
+    notes,
+    last_contact: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    ...(consented ? { marketing_consent: true, marketing_consent_at: consentedAt, marketing_consent_source: "lead_capture", marketing_consent_ip: consentIp, marketing_consent_text: MARKETING_CONSENT_TEXT } : {}),
+  });
+  return { customerId, error };
+}
+
 // Müşterinin kendi bilgisini bırakabildiği kamuya açık form — Supabase auth
 // gerektirmez, hesaba özel sabit bir token yetki kanıtı. GET sadece şirket
 // adı/logosu döner, POST yeni bir customers satırı oluşturur (hesap sahibinin
@@ -167,7 +207,7 @@ export default async function handler(req, res) {
 
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { name, phone, email, address, note, marketingConsent, dateTime, dateTimeKey, serviceIds } = req.body || {};
+  const { name, phone, email, address, note, marketingConsent, dateTime, dateTimeKey, serviceIds, waitlistDate } = req.body || {};
   const cleanServiceIds = Array.isArray(serviceIds) ? serviceIds.filter((id) => typeof id === "string" && id) : [];
   const trimmedName = (name || "").trim();
   const trimmedPhone = (phone || "").trim();
@@ -175,6 +215,28 @@ export default async function handler(req, res) {
   const trimmedAddress = (address || "").trim();
   if (!trimmedName) return res.status(400).json({ error: "İsim gerekli." });
   if (!trimmedPhone && !trimmedEmail) return res.status(400).json({ error: "Telefon veya e-posta gerekli." });
+
+  // --- Bekleme listesi kaydı (AppointmentRequestPage, dolu bir gün seçilince
+  // "Bu gün için beni haberdar et") --- dateTime/dateTimeKey'den AYRI bir dal:
+  // burada belirli bir SAAT değil sadece bir GÜN seçiliyor (bkz.
+  // sql/2026-08-12_appointment_waitlist.sql). appointment-availability.js'teki
+  // kaynak/eşzamanlılık-farkında tam slot hesabı BİLİNÇLİ OLARAK tekrarlanmadı -
+  // send-reminders.js'teki günlük tarama, freedAppointmentAlerts'ın (Pano)
+  // kullandığı AYNI basit sinyali (o gün için "kaybedildi" bir randevu var mı)
+  // kullanır, tutarlılık için.
+  if (waitlistDate) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(waitlistDate)) return res.status(400).json({ error: "Geçersiz tarih." });
+    const { customerId, error: customerError } = await findOrCreateAppointmentCustomer(supabaseAdmin, settings, {
+      trimmedName, trimmedPhone, trimmedEmail, consented: trimmedEmail && marketingConsent === true, consentedAt: new Date().toISOString(), consentIp: getClientIp(req),
+      notes: `Bekleme listesi: ${waitlistDate} için boş yer talebi.`,
+    });
+    if (customerError) return res.status(500).json({ error: customerError.message });
+    const { error: waitlistError } = await supabaseAdmin.from("appointment_waitlist").insert({
+      user_id: settings.user_id, customer_id: customerId, requested_date: waitlistDate,
+    });
+    if (waitlistError) return res.status(500).json({ error: waitlistError.message });
+    return res.status(200).json({ ok: true, waitlisted: true });
+  }
 
   // Pazarlama izni burada gerçek bir opt-in — potansiyel müşteri kendi bilgisini
   // gönderirken kendi eliyle işaretliyor (e-posta yoksa kutu hiç gösterilmiyor,
@@ -196,42 +258,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Geçmiş bir tarih/saat için randevu alınamaz." });
     }
 
-    // Aynı işletmede telefon/e-posta eşleşen bir müşteri varsa onu kullan — her
-    // randevu talebinde yinelenen customers satırı oluşmasın (bkz. Gerçek engel
-    // istisnaları: mükerrer telefon/e-posta zaten hard-block sayılıyor, burada da
-    // aynı ruhla mükerrer kayıt yerine mevcut kayıt kullanılır). deleted_at IS
-    // NULL şart — çöp kutusundaki bir müşteriyle eşleşirse deal ona bağlanıyor
-    // ama ana ekranın customers listesi (deleted_at IS NULL filtreli) onu hiç
-    // göstermiyor: "Bilinmeyen müşteri" + customerType okunamadığı için "kurumsal"
-    // sekmesine düşme bugı buradan geliyordu (canlıda görüldü, 2026-07-31).
-    let customerId = null;
-    if (trimmedPhone) {
-      const { data } = await supabaseAdmin.from("customers").select("id").eq("user_id", settings.user_id).eq("phone", trimmedPhone).is("deleted_at", null).limit(1).maybeSingle();
-      customerId = data?.id || null;
-    }
-    if (!customerId && trimmedEmail) {
-      const { data } = await supabaseAdmin.from("customers").select("id").eq("user_id", settings.user_id).eq("email", trimmedEmail).is("deleted_at", null).limit(1).maybeSingle();
-      customerId = data?.id || null;
-    }
-
-    if (!customerId) {
-      customerId = crypto.randomUUID();
-      const { error: customerInsertError } = await supabaseAdmin.from("customers").insert({
-        id: customerId,
-        user_id: settings.user_id,
-        name: trimmedName,
-        // Lead capture'daki "kurumsal" varsayılanından farklı — randevu alan
-        // gerçek bir bireysel tüketicidir.
-        customer_type: "bireysel",
-        phone: trimmedPhone,
-        email: trimmedEmail,
-        notes: `Randevu talebi formundan eklendi.${note ? ` Not: ${note.trim()}` : ""}`,
-        last_contact: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        ...(consented ? { marketing_consent: true, marketing_consent_at: consentedAt, marketing_consent_source: "lead_capture", marketing_consent_ip: consentIp, marketing_consent_text: MARKETING_CONSENT_TEXT } : {}),
-      });
-      if (customerInsertError) return res.status(500).json({ error: customerInsertError.message });
-    }
+    const { customerId, error: customerInsertError } = await findOrCreateAppointmentCustomer(supabaseAdmin, settings, {
+      trimmedName, trimmedPhone, trimmedEmail, consented, consentedAt, consentIp,
+      notes: `Randevu talebi formundan eklendi.${note ? ` Not: ${note.trim()}` : ""}`,
+    });
+    if (customerInsertError) return res.status(500).json({ error: customerInsertError.message });
 
     let serviceName = null;
     let servicePrice = 0;

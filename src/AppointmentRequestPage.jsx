@@ -64,6 +64,11 @@ export default function AppointmentRequestPage() {
   const [deposit, setDeposit] = useState(null); // { approvalToken, depositAmount }
   const [payingDeposit, setPayingDeposit] = useState(false);
   const [depositError, setDepositError] = useState("");
+  // Bekleme listesi ("bu gün için beni haberdar et") - hangi tarih için
+  // katıldığını tutar, aynı günde tekrar tıklayınca ikinci kayıt açılmasın diye.
+  const [waitlistedDate, setWaitlistedDate] = useState(null);
+  const [joiningWaitlist, setJoiningWaitlist] = useState(false);
+  const [waitlistError, setWaitlistError] = useState("");
 
   useEffect(() => {
     if (!token) { setLoading(false); setError("Geçersiz bağlantı."); return; }
@@ -147,6 +152,31 @@ export default function AppointmentRequestPage() {
       setSubmitError("Bağlantı hatası, lütfen tekrar deneyin. İnternet bağlantınızı kontrol edin.");
     }
     setSending(false);
+  };
+
+  // Grup dersi Yedek Liste'siyle AYNI ilke: açık rızalı, sadece kendi isteğiyle
+  // katılan bildirim alır (bkz. sql/2026-08-12_appointment_waitlist.sql).
+  // İsim/iletişim alanları formun altında zaten var - burada tekrar sorulmaz.
+  const joinWaitlist = async () => {
+    if (!name.trim() || (!phone.trim() && !email.trim())) {
+      setWaitlistError("Önce aşağıya isim ve telefon veya e-postanızı yazın.");
+      return;
+    }
+    setWaitlistError("");
+    setJoiningWaitlist(true);
+    try {
+      const res = await fetch("/api/lead-capture", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, name, phone, email, marketingConsent, waitlistDate: date }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setWaitlistError(data.error || "Gönderilemedi."); setJoiningWaitlist(false); return; }
+      setWaitlistedDate(date);
+    } catch {
+      setWaitlistError("Bağlantı hatası, lütfen tekrar deneyin.");
+    }
+    setJoiningWaitlist(false);
   };
 
   const payDeposit = async () => {
@@ -373,7 +403,26 @@ export default function AppointmentRequestPage() {
                     ) : slotsError ? (
                       <p style={{ fontSize: 13, color: "#b91c1c" }}>{slotsError}</p>
                     ) : slots.length === 0 ? (
-                      <p style={{ fontSize: 13, color: "#9aa8b8" }}>Bu tarihte müsait saat yok.</p>
+                      <div>
+                        <p style={{ fontSize: 13, color: "#9aa8b8", margin: "0 0 8px" }}>Bu tarihte müsait saat yok.</p>
+                        {waitlistedDate === date ? (
+                          <p style={{ fontSize: 13, color: "#15803d", fontWeight: 600, margin: 0 }}>
+                            ✓ Not edildi, bu günde yer açılırsa size haber vereceğiz.
+                          </p>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={joinWaitlist}
+                              disabled={joiningWaitlist}
+                              style={{ background: "#f5f8fc", color: "#0c2540", border: "1px solid #d5dde6", borderRadius: 10, fontSize: 13, fontWeight: 600, padding: "9px 14px", cursor: "pointer", opacity: joiningWaitlist ? 0.6 : 1 }}
+                            >
+                              {joiningWaitlist ? "Gönderiliyor…" : "🔔 Bu gün için beni haberdar et"}
+                            </button>
+                            {waitlistError && <p style={{ fontSize: 12, color: "#b91c1c", margin: "6px 0 0" }}>{waitlistError}</p>}
+                          </>
+                        )}
+                      </div>
                     ) : (
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                         {slots.map((s) => (
