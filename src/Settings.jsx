@@ -429,7 +429,7 @@ export function CompanySettingsForm({
           Google değerlendirme linki
           <InfoTip
             align="right"
-            text="Google İşletme Profilinizde 'Değerlendirme iste' seçeneğinden aldığınız bağlantıyı buraya yapıştırın. Bu link doluysa ve aşağıdaki seçenek açıksa, tamamlanan her kayıttan bir gün sonra müşteriye bu linkle bir değerlendirme isteği e-postası gider."
+            text="Google İşletme Profilinizde 'Değerlendirme iste' seçeneğinden aldığınız bağlantıyı buraya yapıştırın. Bu link doluysa ve aşağıdaki seçenek açıksa, tamamlanan her kayıttan bir gün sonra müşteriye bir e-posta gider - ama müşteri doğrudan bu linke değil, önce kısa bir 'deneyiminiz nasıldı' sorusuna yönlendirilir. Memnunsa buraya, değilse geri bildirimi sadece size gelir - herkese açık Google'a gitmez."
           />
         </label>
         <input

@@ -92,7 +92,7 @@ export default async function handler(req, res) {
 
     const { data: reviewDeals, error: reviewDealsError } = await supabaseAdmin
       .from("deals")
-      .select("id, user_id, customer_id, title")
+      .select("id, user_id, customer_id, title, approval_token")
       .is("deleted_at", null)
       .eq("stage", "kazanildi")
       .is("review_requested_at", null)
@@ -220,6 +220,20 @@ export default async function handler(req, res) {
           // atlanır (Kampanya Gönder'deki gibi "İzin iste" seçeneği burada yok,
           // çünkü devrede bir KOBİ beyanı da yok).
           if (customer?.email && customer.marketing_consent) {
+            // Müşteri artık DOĞRUDAN Google'a değil, önce kısa bir memnuniyet
+            // sorusuna yönlendiriliyor - mutsuz bir müşteriyi hiç sormadan
+            // herkese açık Google'a göndermek riskliydi (bkz. sql/2026-08-12_
+            // review_satisfaction_gate.sql). confirm-attendance ile AYNI desen:
+            // ayrı bir React sayfası/route DEĞİL, deal-approval.js'in ham HTML
+            // döndüren action=review dalına doğrudan gidiliyor. Token, aynı
+            // dosyanın zaten kullandığı approval_token'ın AYNISI - yoksa burada
+            // üretilir (send-appointment-reminders.js'teki AYNI desen).
+            let token = deal.approval_token;
+            if (!token) {
+              token = crypto.randomUUID();
+              await supabaseAdmin.from("deals").update({ approval_token: token }).eq("id", deal.id);
+            }
+            const gateUrl = `https://binerly.com/api/deal-approval?action=review&token=${token}`;
             const bodyText = `Merhaba ${customer.name || ""},\n\n${company} ile yaşadığınız deneyim hakkında görüşünüzü bizimle paylaşır mısınız? Birkaç dakikanız bizim için çok değerli.`;
             const footerLines = [`${company} (Binerly ile)`, "Bu e-posta Binerly (binerly.com) altyapısıyla gönderildi."];
             const reviewRes = await fetch("https://api.resend.com/emails", {
@@ -232,8 +246,8 @@ export default async function handler(req, res) {
                 from: `${company} (Binerly ile) <noreply@binerly.com>`,
                 to: customer.email,
                 subject: `${company} hakkındaki görüşünüz`,
-                html: renderEmailHtml({ logoUrl: settings.logo_url, bodyText, ctaLabel: "Değerlendirin", ctaUrl: reviewLink, footerLines }),
-                text: plainTextFallback(bodyText, "Değerlendirin", reviewLink, footerLines),
+                html: renderEmailHtml({ logoUrl: settings.logo_url, bodyText, ctaLabel: "Deneyimimi Paylaş", ctaUrl: gateUrl, footerLines }),
+                text: plainTextFallback(bodyText, "Deneyimimi Paylaş", gateUrl, footerLines),
                 ...(settings.email ? { reply_to: settings.email } : {}),
               }),
             });

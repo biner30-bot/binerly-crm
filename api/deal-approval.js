@@ -352,6 +352,134 @@ async function handleConfirmAttendance(req, res, supabaseAdmin, deal, settings, 
   return res.status(200).send(renderAttendancePage({ logoUrl, title: "Randevunuz iptal edildi", message: `Bize haber verdiğiniz için teşekkürler.${burnMessage} - ${company}` }));
 }
 
+// renderAttendancePage'in tek-form kalıbına uymuyor (iki seçenekli soru +
+// olumsuzda ek bir metin alanı) - o yüzden aynı görsel kabuğu tekrar eden
+// ayrı, küçük bir render fonksiyonu (bkz. CLAUDE.md: üç benzer satır, erken
+// soyutlamadan iyidir).
+function renderReviewPage({ logoUrl, bodyHtml }) {
+  const logo = logoUrl || "https://binerly.com/pwa-512x512.png";
+  return `<!doctype html>
+<html lang="tr">
+  <body style="margin:0;padding:32px 16px;background:#f5f8fc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+    <div style="max-width:440px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e1e8f0;text-align:center;">
+      <div style="padding:28px 32px 20px;border-bottom:1px solid #e1e8f0;">
+        <img src="${escapeAttendanceHtml(logo)}" alt="" style="max-height:48px;max-width:200px;" />
+      </div>
+      <div style="padding:28px 32px;color:#0c2540;font-size:15px;line-height:1.7;">
+        ${bodyHtml}
+      </div>
+    </div>
+  </body>
+</html>`;
+}
+
+// Google değerlendirme e-postasındaki linkin hedefi - müşteriyi DOĞRUDAN
+// Google'a göndermeden önce kısa bir memnuniyet sorusu sorar, mutsuz bir
+// müşteriyi hiç sormadan herkese açık Google'a yönlendirmemek için (bkz.
+// sql/2026-08-12_review_satisfaction_gate.sql). confirm-attendance ile AYNI
+// güvenlik önlemi: gerçek kayıt (rating) SADECE POST'ta olur - GET'ler sadece
+// soru/form gösterir, e-posta güvenlik botlarının linki otomatik "tıklayıp"
+// yanlışlıkla bir rating kaydetmesini engeller.
+async function handleReviewGate(req, res, supabaseAdmin, deal, settings, rating, feedbackText, token) {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  const logoUrl = settings?.logo_url;
+  const company = escapeAttendanceHtml(settings?.company_name || "Binerly");
+
+  if (deal.review_submitted_at) {
+    return res.status(200).send(renderReviewPage({
+      logoUrl,
+      bodyHtml: `<p style="margin:0 0 8px;font-size:17px;font-weight:600;">Teşekkürler!</p><p style="margin:0;color:#5b7088;">Görüşünüzü zaten aldık. - ${company}</p>`,
+    }));
+  }
+
+  if (req.method === "GET" && rating !== "negative") {
+    return res.status(200).send(renderReviewPage({
+      logoUrl,
+      bodyHtml: `
+        <p style="margin:0 0 16px;font-size:17px;font-weight:600;">${company} ile deneyiminiz nasıldı?</p>
+        <form method="POST" action="/api/deal-approval" style="margin:0 0 10px;">
+          <input type="hidden" name="action" value="submit-review" />
+          <input type="hidden" name="token" value="${escapeAttendanceHtml(token)}" />
+          <input type="hidden" name="rating" value="positive" />
+          <button type="submit" style="display:block;width:100%;box-sizing:border-box;background:#15803d;color:#ffffff;border:none;cursor:pointer;padding:14px;border-radius:8px;font-weight:600;font-size:15px;margin-bottom:10px;">😊 Memnun kaldım</button>
+        </form>
+        <a href="/api/deal-approval?action=review&token=${encodeURIComponent(token)}&rating=negative" style="display:block;box-sizing:border-box;background:#f5f8fc;color:#0c2540;border:1px solid #d5dde6;padding:14px;border-radius:8px;font-weight:600;font-size:15px;text-decoration:none;">🙁 Memnun kalmadım</a>
+      `,
+    }));
+  }
+
+  if (req.method === "GET" && rating === "negative") {
+    // "Memnun kalmadım" seçildi - rating burada HENÜZ kaydedilmiyor (kullanıcı
+    // sayfayı kapatıp geri dönmeyebilir), sadece form gösterilir.
+    return res.status(200).send(renderReviewPage({
+      logoUrl,
+      bodyHtml: `
+        <p style="margin:0 0 8px;font-size:17px;font-weight:600;">Üzgünüz, daha iyisini yapmalıydık.</p>
+        <p style="margin:0 0 16px;color:#5b7088;">Bize ne oldu anlatır mısınız? Bu not sadece ${company} ile paylaşılır, herkese açık gösterilmez.</p>
+        <form method="POST" action="/api/deal-approval">
+          <input type="hidden" name="action" value="submit-review" />
+          <input type="hidden" name="token" value="${escapeAttendanceHtml(token)}" />
+          <input type="hidden" name="rating" value="negative" />
+          <textarea name="feedback" rows="4" placeholder="(opsiyonel)" style="width:100%;box-sizing:border-box;padding:11px 12px;margin:0 0 12px;border:1px solid #d5dde6;border-radius:8px;font-size:14px;font-family:inherit;"></textarea>
+          <button type="submit" style="display:block;width:100%;box-sizing:border-box;background:#185fa5;color:#ffffff;border:none;cursor:pointer;padding:14px;border-radius:8px;font-weight:600;font-size:15px;">Gönder</button>
+        </form>
+      `,
+    }));
+  }
+
+  // POST submit-review
+  if (rating !== "positive" && rating !== "negative") {
+    return res.status(400).send(renderReviewPage({ logoUrl, bodyHtml: `<p style="margin:0;">Geçersiz bağlantı.</p>` }));
+  }
+  const trimmedFeedback = (feedbackText || "").trim().slice(0, 2000);
+  await supabaseAdmin
+    .from("deals")
+    .update({
+      review_rating: rating,
+      review_feedback_text: rating === "negative" && trimmedFeedback ? trimmedFeedback : null,
+      review_submitted_at: new Date().toISOString(),
+    })
+    .eq("id", deal.id);
+
+  if (rating === "negative") {
+    // İşletme sahibine ÖZEL bildirim - bu not asla müşteri portalında ya da
+    // herkese açık bir yerde görünmez, sadece bu e-postayla iletilir.
+    const resendApiKey = process.env.RESEND_API_KEY;
+    if (resendApiKey) {
+      const { data: ownerData } = await supabaseAdmin.auth.admin.getUserById(deal.user_id);
+      const ownerEmail = settings?.email || ownerData?.user?.email;
+      if (ownerEmail) {
+        const bodyText = `"${deal.title}" için müşteri memnuniyetsizlik bildirdi.${trimmedFeedback ? `\n\nMüşterinin notu:\n"${trimmedFeedback}"` : "\n\nMüşteri ek bir not bırakmadı."}`;
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: "Binerly <noreply@binerly.com>",
+            to: ownerEmail,
+            subject: `Memnuniyetsizlik bildirimi: ${deal.title}`,
+            html: renderEmailHtml({ bodyText, footerLines: ["Binerly Ekibi"] }),
+            text: plainTextFallback(bodyText, null, null, ["Binerly Ekibi"]),
+          }),
+        }).catch((err) => console.error("review feedback owner email error:", err.message));
+      }
+    }
+    return res.status(200).send(renderReviewPage({
+      logoUrl,
+      bodyHtml: `<p style="margin:0 0 8px;font-size:17px;font-weight:600;">Teşekkürler.</p><p style="margin:0;color:#5b7088;">Geri bildiriminiz için teşekkür ederiz, ${company} ile paylaşıldı.</p>`,
+    }));
+  }
+
+  // rating === "positive"
+  const reviewLink = settings?.google_review_link;
+  const cta = reviewLink
+    ? `<a href="${escapeAttendanceHtml(reviewLink)}" target="_blank" rel="noopener noreferrer" style="display:block;box-sizing:border-box;background:#185fa5;color:#ffffff;padding:14px;border-radius:8px;font-weight:600;font-size:15px;text-decoration:none;margin-top:16px;">Bizi Google'da Değerlendirin</a>`
+    : "";
+  return res.status(200).send(renderReviewPage({
+    logoUrl,
+    bodyHtml: `<p style="margin:0 0 8px;font-size:17px;font-weight:600;">Ne mutlu bize!</p><p style="margin:0;color:#5b7088;">Bunu duymak çok güzel.${reviewLink ? " Birkaç saniyenizi ayırıp Google'da da paylaşır mısınız?" : ""}</p>${cta}`,
+  }));
+}
+
 // Müşteri Kayıtları'ndan "İzin e-postası gönder" veya bir müşteri ilk kez
 // e-postalı olarak eklendiğinde otomatik giden e-postadaki linkin hedefi —
 // KOBİ'nin kendi beyanı değil, müşterinin kendisinin tıklayarak verdiği gerçek
@@ -1057,11 +1185,13 @@ export default async function handler(req, res) {
   const action = req.method === "POST" ? (req.body || {}).action || "approve" : null;
   const attendanceAction = req.method === "GET" ? url.searchParams.get("action") : action;
   const attendanceResponse = req.method === "GET" ? url.searchParams.get("response") : (req.body || {}).response;
+  const reviewRating = req.method === "GET" ? url.searchParams.get("rating") : (req.body || {}).rating;
+  const reviewFeedback = req.method === "POST" ? (req.body || {}).feedback : null;
   if (!token) return res.status(400).json({ error: "Eksik token." });
 
   const { data: deal, error: dealError } = await supabaseAdmin
     .from("deals")
-    .select("id, user_id, customer_id, title, value, kdv_rate, approved_at, created_at, stage, payment_mode, payment_status, custom_fields, first_viewed_at, view_duration_seconds, appointment_start")
+    .select("id, user_id, customer_id, title, value, kdv_rate, approved_at, created_at, stage, payment_mode, payment_status, custom_fields, first_viewed_at, view_duration_seconds, appointment_start, review_submitted_at")
     .eq("approval_token", token)
     .is("deleted_at", null)
     .maybeSingle();
@@ -1072,7 +1202,7 @@ export default async function handler(req, res) {
     supabaseAdmin.from("customers").select("name, email, phone, region, address, portal_user_id").eq("id", deal.customer_id).maybeSingle(),
     supabaseAdmin
       .from("company_settings")
-      .select("company_name, logo_url, sector, appointment_cancel_hours, appointment_penalty_hours, appointment_penalty_strike_limit, appointment_penalty_burns_session, appointment_deposit_amount")
+      .select("company_name, logo_url, sector, email, google_review_link, appointment_cancel_hours, appointment_penalty_hours, appointment_penalty_strike_limit, appointment_penalty_burns_session, appointment_deposit_amount")
       .eq("user_id", deal.user_id)
       .maybeSingle(),
   ]);
@@ -1087,6 +1217,13 @@ export default async function handler(req, res) {
   // bir hatırlatmada giriş zorunluluğu sürtünmeyi öldürürdü).
   if (attendanceAction === "confirm-attendance") {
     return handleConfirmAttendance(req, res, supabaseAdmin, deal, settings, attendanceResponse);
+  }
+
+  // Google değerlendirme e-postasındaki linkin hedefi — AYNI ilke (token tek
+  // başına yeterli, isAuthorized kontrolünden ÖNCE). "review" GET'te soru
+  // sayfasını, "submit-review" POST'ta gerçek kaydı yapar (bkz. handleReviewGate).
+  if (attendanceAction === "review" || attendanceAction === "submit-review") {
+    return handleReviewGate(req, res, supabaseAdmin, deal, settings, reviewRating, reviewFeedback, token);
   }
 
   // Randevu widget'ından (misafir, portal hesabı YOK) gelen booking-anı kapora
