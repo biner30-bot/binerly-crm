@@ -97,6 +97,7 @@ const AdminPage = lazy(() => import("./AdminPage.jsx"));
 const DealApprovalPage = lazy(() => import("./DealApprovalPage.jsx"));
 const LeadCapturePage = lazy(() => import("./LeadCapturePage.jsx"));
 const AppointmentRequestPage = lazy(() => import("./AppointmentRequestPage.jsx"));
+const ShowcasePage = lazy(() => import("./ShowcasePage.jsx"));
 
 const path = window.location.pathname;
 // Üretimde müşteri portalı artık ayrı bir alt alan adında (portal.binerly.com) sunuluyor —
@@ -191,6 +192,7 @@ function resolvePage() {
   if (path.startsWith("/onay/")) return <DealApprovalPage />;
   if (path.startsWith("/lead/")) return <LeadCapturePage />;
   if (path.startsWith("/randevu-al/")) return <AppointmentRequestPage />;
+  if (path.startsWith("/vitrin/")) return <ShowcasePage />;
   if (isPortal) return <CustomerPortal />;
   return <App />;
 }
@@ -202,7 +204,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       {!path.startsWith("/panel-4k9x") &&
         !path.startsWith("/onay/") &&
         !path.startsWith("/lead/") &&
-        !path.startsWith("/randevu-al/") && <CookieConsentBanner />}
+        !path.startsWith("/randevu-al/") &&
+        !path.startsWith("/vitrin/") && <CookieConsentBanner />}
     </ErrorBoundary>
   </React.StrictMode>,
 );

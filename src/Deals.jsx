@@ -391,6 +391,7 @@ export function DealForm({
   onDownloadAttachment,
   onDeleteAttachment,
   onToggleAttachmentShare,
+  onToggleShowcase,
   onRequestPhotoConsent,
   onSave,
   onCancel,
@@ -2269,8 +2270,10 @@ export function DealForm({
                 dealId={initial.id}
                 customer={customers.find((c) => c.id === customerId)}
                 attachments={attachments}
+                showcaseFeatured={initial.showcaseFeatured === true}
                 onUpload={onUploadAttachment}
                 onDelete={onDeleteAttachment}
+                onToggleShowcase={onToggleShowcase}
                 onRequestConsent={onRequestPhotoConsent}
               />
             )}
@@ -2408,8 +2411,10 @@ export function BeforeAfterPhotos({
   dealId,
   customer,
   attachments,
+  showcaseFeatured = false,
   onUpload,
   onDelete,
+  onToggleShowcase,
   onRequestConsent,
 }) {
   const [uploadingSlot, setUploadingSlot] = useState(null);
@@ -2517,6 +2522,29 @@ export function BeforeAfterPhotos({
         Fotoğraflar yalnızca ekibinizin erişebildiği güvenli bir alanda saklanır, müşteri portalında
         görünmez.
       </p>
+      {consentGranted && beforePhotos.length > 0 && afterPhotos.length > 0 && (
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 12.5,
+            marginTop: 10,
+            cursor: "pointer",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={showcaseFeatured}
+            onChange={(e) => onToggleShowcase(dealId, e.target.checked)}
+          />
+          ⭐ Vitrin sayfasında göster
+          <InfoTip
+            align="left"
+            text="İşaretlenirse bu öncesi/sonrası çifti, Ayarlar'dan alacağınız Vitrin Linki'ndeki herkese açık sayfada müşteri adı olmadan yayınlanır. Müşteri fotoğraf iznini sonradan geri alırsa, işaret kalsa bile sayfadan otomatik kalkar."
+          />
+        </label>
+      )}
       {confirmDeleteId && (
         <ConfirmDialog
           title="Fotoğraf silinsin mi?"

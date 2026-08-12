@@ -304,6 +304,7 @@ function rowToDeal(r) {
     firstViewedAt: r.first_viewed_at || null,
     viewDurationSeconds: r.view_duration_seconds || 0,
     lateCancelCount: r.late_cancel_count || 0,
+    showcaseFeatured: r.showcase_featured || false,
     notifyCustomer: r.notify_customer || false,
     assignedTo: r.assigned_to || null,
     paymentMode: r.payment_mode || "none",
@@ -1373,6 +1374,7 @@ export default function App() {
   const [leadCaptureLink, setLeadCaptureLink] = useState(null);
   const [leadCaptureShareNumber, setLeadCaptureShareNumber] = useState("");
   const [appointmentLink, setAppointmentLink] = useState(null);
+  const [vitrinLink, setVitrinLink] = useState(null);
   const [showPortalLinkModal, setShowPortalLinkModal] = useState(false);
   const [quickList, setQuickList] = useState(null);
   const [initialViewTicketId, setInitialViewTicketId] = useState(null);
@@ -2488,6 +2490,16 @@ export default function App() {
     const { error } = await supabase.from("attachments").update({ shared_with_customer: shared }).eq("id", id);
     if (error) { notify(`Paylaşım durumu güncellenemedi: ${error.message}`); return; }
     setAttachments((prev) => prev.map((a) => (a.id === id ? { ...a, sharedWithCustomer: shared } : a)));
+  };
+
+  // Bir randevunun Öncesi/Sonrası fotoğraflarını /vitrin/{token} sayfasında
+  // yayınlar - anlık uygulanır, formun "Kaydet"ine bağlı değil (toggleAttachmentShare
+  // ile aynı ilke). Okuma anında photo_consent tekrar kontrol edildiği için
+  // (api/lead-capture.js) burada ayrıca bir izin kontrolü gerekmiyor.
+  const toggleDealShowcase = async (id, featured) => {
+    const { error } = await supabase.from("deals").update({ showcase_featured: featured }).eq("id", id);
+    if (error) { notify(`Vitrin durumu güncellenemedi: ${error.message}`); return; }
+    setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, showcaseFeatured: featured } : d)));
   };
 
   const deleteAttachment = async (id) => {
@@ -3838,6 +3850,9 @@ export default function App() {
     ...(supportsSelfBooking(companySettings?.sector) && bookingModel(companySettings?.sector) === "slot"
       ? [{ label: "Randevu Alma Linki", description: "Müşteri girişsiz kendi randevusunu seçip talep etsin", onOpen: async () => { const link = await generateLeadCaptureLink(); if (link) setAppointmentLink(link.replace("/lead/", "/randevu-al/")); } }]
       : []),
+    ...(isAppointmentSector(companySettings?.sector)
+      ? [{ label: "Vitrin Linki", description: "Öne çıkardığınız öncesi/sonrası çalışmaları herkese açık gösterin", onOpen: async () => { const link = await generateLeadCaptureLink(); if (link) setVitrinLink(link.replace("/lead/", "/vitrin/")); } }]
+      : []),
     { label: "Müşteri Portalı Linki", description: "Mevcut müşterileriniz için - kendi hesaplarıyla giriş yapıp takip etsinler", onOpen: () => setShowPortalLinkModal(true) },
     { label: "Turu Tekrar Başlat", description: "Sistemin nasıl çalıştığını gösteren kısa turu tekrar izleyin", onOpen: () => { setTourStep(0); setShowTour(true); } },
   ];
@@ -4842,6 +4857,18 @@ export default function App() {
                 }}
               />
             )}
+            {isAppointmentSector(companySettings?.sector) && (
+              <MenuRow
+                icon="ti-photo"
+                label="Vitrin Linki"
+                description="Öne çıkardığınız öncesi/sonrası çalışmaları herkese açık gösterin"
+                onClick={async () => {
+                  setShowSettingsHub(false);
+                  const link = await generateLeadCaptureLink();
+                  if (link) setVitrinLink(link.replace("/lead/", "/vitrin/"));
+                }}
+              />
+            )}
             <MenuRow
               icon="ti-users-group"
               label="Müşteri Portalı Linki"
@@ -4989,6 +5016,29 @@ export default function App() {
                 <WhatsAppIcon /> Gönder
               </button>
             </div>
+          </div>
+        </Modal>
+      )}
+
+      {vitrinLink && (
+        <Modal title="Vitrin Linki" onClose={() => setVitrinLink(null)}>
+          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px" }}>
+            Bu linki (veya QR kodu) Instagram bio'nuza, sitenize veya kartvizitinize koyun - öncesi/sonrası fotoğraflarından "Vitrin sayfasında göster" diye işaretlediğiniz çalışmalar burada, müşteri adı olmadan görünür. Öncesi/Sonrası panelinden hiçbir çalışma işaretlemediyseniz sayfa "henüz öne çıkan bir çalışma yayınlanmadı" gösterir.
+          </p>
+          <img
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(vitrinLink)}`}
+            alt="QR kod"
+            style={{ display: "block", margin: "0 auto 16px" }}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <input readOnly value={vitrinLink} style={{ flex: 1, fontSize: 13 }} onFocus={(e) => e.target.select()} />
+            <button
+              type="button"
+              onClick={() => { navigator.clipboard.writeText(vitrinLink); notify("Link kopyalandı.", "success"); }}
+              style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+            >
+              Kopyala
+            </button>
           </div>
         </Modal>
       )}
@@ -5327,6 +5377,7 @@ export default function App() {
             onDownloadAttachment={downloadAttachment}
             onDeleteAttachment={deleteAttachment}
             onToggleAttachmentShare={toggleAttachmentShare}
+            onToggleShowcase={toggleDealShowcase}
             onRequestPhotoConsent={requestPhotoConsent}
             onSave={upsertDeal}
             onCancel={() => { setShowDealForm(false); setEditingDeal(null); setAppointmentPrefillDateTime(null); }}

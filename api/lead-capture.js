@@ -85,6 +85,54 @@ export default async function handler(req, res) {
   if (settingsError || !settings) return res.status(404).json({ error: "Bağlantı geçersiz." });
 
   if (req.method === "GET") {
+    // /vitrin/{token} (ShowcasePage) AYNI token'ı, AYNI endpoint'i kullanıyor
+    // (Vercel Hobby'nin 12 fonksiyon sınırı zaten dolu olduğu için ayrı bir
+    // api/*.js açılmadı) — ?view=vitrin ile ayrı bir dal, diğer sayfaların
+    // (LeadCapturePage/AppointmentRequestPage) her GET'inde gereksiz sorgu
+    // çalışmasın diye SADECE istendiğinde devreye girer.
+    if (url.searchParams.get("view") === "vitrin") {
+      if (settings.sector !== "guzellik_bakim" && settings.sector !== "saglik_klinik") {
+        return res.status(200).json({ companyName: settings.company_name || "Binerly", logoUrl: settings.logo_url || null, showcase: [] });
+      }
+      const { data: featuredDeals } = await supabaseAdmin
+        .from("deals")
+        .select("id, title, customer_id")
+        .eq("user_id", settings.user_id)
+        .eq("showcase_featured", true)
+        .is("deleted_at", null);
+      let showcase = [];
+      if (featuredDeals?.length) {
+        const dealIds = featuredDeals.map((d) => d.id);
+        const customerIds = [...new Set(featuredDeals.map((d) => d.customer_id).filter(Boolean))];
+        const [{ data: consentedCustomers }, { data: photos }] = await Promise.all([
+          supabaseAdmin.from("customers").select("id").in("id", customerIds).eq("photo_consent", true),
+          supabaseAdmin.from("attachments").select("id, entity_id, storage_path, photo_type").eq("entity_type", "deal_photos").in("entity_id", dealIds),
+        ]);
+        // Müşteri iznini sonradan geri almış olabilir - showcase_featured hâlâ
+        // true olsa bile burada tekrar kontrol edilmezse geri çekilmiş bir izin
+        // sessizce ihlal edilirdi (bkz. sql/2026-08-12_showcase_featured.sql).
+        const consentedIds = new Set((consentedCustomers || []).map((c) => c.id));
+        const photosByDeal = {};
+        for (const p of photos || []) {
+          (photosByDeal[p.entity_id] ||= {})[p.photo_type] = p.storage_path;
+        }
+        const entries = featuredDeals
+          .filter((d) => consentedIds.has(d.customer_id))
+          .map((d) => ({ id: d.id, title: d.title, beforePath: photosByDeal[d.id]?.before, afterPath: photosByDeal[d.id]?.after }))
+          .filter((e) => e.beforePath && e.afterPath);
+        const paths = entries.flatMap((e) => [e.beforePath, e.afterPath]);
+        if (paths.length) {
+          const { data: signed } = await supabaseAdmin.storage.from("attachments").createSignedUrls(paths, 3600);
+          const urlByPath = {};
+          (signed || []).forEach((s, i) => { if (s?.signedUrl) urlByPath[paths[i]] = s.signedUrl; });
+          showcase = entries
+            .map((e) => ({ id: e.id, title: e.title, beforeUrl: urlByPath[e.beforePath], afterUrl: urlByPath[e.afterPath] }))
+            .filter((e) => e.beforeUrl && e.afterUrl);
+        }
+      }
+      return res.status(200).json({ companyName: settings.company_name || "Binerly", logoUrl: settings.logo_url || null, showcase });
+    }
+
     // /randevu-al/{token} (AppointmentRequestPage) aynı token'ı, aynı endpoint'i
     // kullanıyor — appointment-availability.js'teki AYNI sorguyla "bu işletmenin
     // aktif bir randevu tarihi alanı var mı" belirlenir (Vercel Hobby'nin 12
