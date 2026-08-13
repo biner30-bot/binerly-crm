@@ -26,7 +26,7 @@ import {
   computeCustomerReliability,
   TagBadges,
 } from "./Sectors";
-import { paymentDateLabel, TAGS_INFO_TEXT } from "./Deals";
+import { paymentDateLabel, TAGS_INFO_TEXT, BeforeAfterPhotoThumb } from "./Deals";
 
 export const ACTIVITY_TYPES = [
   { id: "note", label: "Not", icon: "ti-note" },
@@ -674,6 +674,119 @@ export function CustomerDetail({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {isAppointmentSector(sector) && wonCustomerDeals.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <p
+            style={{
+              fontSize: 13,
+              fontWeight: 500,
+              margin: "0 0 8px",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            İşlem Geçmişi{" "}
+            <InfoTip text="Hangi işlem yapıldığını, kullanılan formül/dozu ve sonucu geçmiş randevulardan otomatik toplar - hiçbir yere ayrıca girmenize gerek yok, teklif/randevu kaydını doldurmanız yeterli." />
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {[...wonCustomerDeals]
+              .sort(
+                (a, b) => new Date(b.closedAt || b.createdAt) - new Date(a.closedAt || a.createdAt),
+              )
+              .map((d) => {
+                const dealPhotos = attachments.filter(
+                  (a) => a.entityType === "deal_photos" && a.entityId === d.id,
+                );
+                const beforePhotos = dealPhotos.filter((a) => a.photoType === "before");
+                const afterPhotos = dealPhotos.filter((a) => a.photoType === "after");
+                const dealFieldDefs = customFieldDefs.filter(
+                  (fd) => fd.entity === "deal" && d.customFields?.[fd.key],
+                );
+                return (
+                  <div
+                    key={d.id}
+                    style={{
+                      border: "0.5px solid var(--border)",
+                      borderRadius: "var(--radius)",
+                      padding: "8px 10px",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                      <strong>{d.title}</strong>
+                      <span style={{ color: "var(--text-muted)" }}>
+                        {paymentDateLabel(d.closedAt || d.createdAt)}
+                      </span>
+                    </div>
+                    {dealFieldDefs.length > 0 && (
+                      <div
+                        style={{ marginTop: 4, display: "flex", flexDirection: "column", gap: 2 }}
+                      >
+                        {dealFieldDefs.map((fd) => (
+                          <p
+                            key={fd.key}
+                            style={{ margin: 0, fontSize: 12.5, color: "var(--text-secondary)" }}
+                          >
+                            <strong>{fd.label}:</strong> {d.customFields[fd.key]}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    {(beforePhotos.length > 0 || afterPhotos.length > 0) && (
+                      <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
+                        {beforePhotos.length > 0 && (
+                          <div>
+                            <p
+                              style={{
+                                fontSize: 11,
+                                color: "var(--text-muted)",
+                                margin: "0 0 4px",
+                              }}
+                            >
+                              Öncesi
+                            </p>
+                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                              {beforePhotos.map((a) => (
+                                <BeforeAfterPhotoThumb
+                                  key={a.id}
+                                  attachment={a}
+                                  onDelete={onDeleteAttachment}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {afterPhotos.length > 0 && (
+                          <div>
+                            <p
+                              style={{
+                                fontSize: 11,
+                                color: "var(--text-muted)",
+                                margin: "0 0 4px",
+                              }}
+                            >
+                              Sonrası
+                            </p>
+                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                              {afterPhotos.map((a) => (
+                                <BeforeAfterPhotoThumb
+                                  key={a.id}
+                                  attachment={a}
+                                  onDelete={onDeleteAttachment}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
         </div>
       )}
 

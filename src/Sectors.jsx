@@ -210,6 +210,8 @@ export const SECTOR_PRESETS = [
       // alanları bilerek KORUNDU (silinmedi), bu ikisi sadece EKLENDİ.
       { entity: "deal", key: "uygulama_bolgesi", label: "Uygulama Bölgesi", type: "text" },
       { entity: "deal", key: "urun_marka", label: "Kullanılan Ürün/Marka", type: "text" },
+      // Güzellik & Bakım'daki "islem_sonucu" ile aynı amaç - bkz. Müşteri Geçmişi.
+      { entity: "deal", key: "tedavi_sonucu", label: "Sonuç / Nasıl Gitti", type: "text" },
     ],
     stageGuides: {
       ilk_gorusme: "Şikayeti/geçmişi not alın, gerekiyorsa tetkik isteyin.",
@@ -404,6 +406,10 @@ export const SECTOR_PRESETS = [
       // bir alan gerekmiyor, teklif kaydındaki mevcut "Ek dosya" yükleme zaten
       // bunu karşılıyor.
       { entity: "deal", key: "kullanilan_formul", label: "Kullanılan Formül/Doz", type: "text" },
+      // Müşteri Geçmişi'nde (Customers.jsx: CustomerDetail) "hangi işlem yapıldı,
+      // nasıl sonuç verdi" takibi için — Formül/Doz "ne kullanıldığını", bu alan
+      // "sonucun nasıl olduğunu" (cilt tepkisi, memnuniyet vb.) ayrı tutuyor.
+      { entity: "deal", key: "islem_sonucu", label: "Sonuç / Nasıl Gitti", type: "text" },
     ],
     stageGuides: {
       ilk_gorusme: "Hizmet türünü ve tahmini süreyi netleştirip randevu saatini onaylayın.",
@@ -411,7 +417,7 @@ export const SECTOR_PRESETS = [
       muzakere:
         "Randevudan bir gün önce hatırlatma mesajı/arama yapın - randevuya gelmeme riskini azaltır.",
       kazanildi:
-        "Kullanılan formül/dozu not düşün, paket hizmetse sonraki seans için hatırlatma ekleyin.",
+        "Kullanılan formül/dozu ve sonucu not düşün - Müşteri Geçmişi'nde birikir. Paket hizmetse sonraki seans için hatırlatma ekleyin.",
       kaybedildi:
         'Müşteri habersiz gelmediyse aşamayı kaydederken kayıp nedeni olarak "Randevuya gelmedi"yi seçin - Pano\'daki gelmeme oranı ve no-show uyarısı bunu kullanıyor.',
     },
