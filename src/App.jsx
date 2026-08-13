@@ -660,6 +660,10 @@ function LandingFaq() {
   );
 }
 
+// Sektörler bölümünde dil değişimi örneği olarak öne çıkarılan 4 sektör - alttaki
+// tam listede (SECTOR_PRESETS) TEKRAR görünmesinler diye oradan filtrelenirler.
+const SECTOR_FEATURED_IDS = new Set(["guzellik_bakim", "spor_merkezi", "uretim_satis", "otel"]);
+
 // Hero'daki sektör sekmeleri gerçek dealWordKind/stageLabel eşlemesini
 // kullanıyor - "her sektöre göre şekillenir" iddiasını soyut laf olarak değil,
 // sekme değişince başlık/aşama adı/ton gerçekten değişerek somut gösteriyor.
@@ -1060,16 +1064,19 @@ function LandingPage() {
           </p>
         </ScrollReveal>
 
-        {/* En derin sektörel özellik yatırımı yapılmış 3 sektörden gerçek terminoloji
-            örneği - Stitch mockup'ındaki "Portföy"/"Proje" gibi etiketler koddaki
-            dealWordKind() eşlemesinde yok, bu yüzden sadece gerçekte üretilen 3
-            terim (randevu/üyelik/teklif) kullanıldı. Üç sektörün rengi (teal/mor/mavi)
-            bilinçli olarak farklılaştırma amaçlı sabit tutuldu, tema token'ı değil. */}
-        <ScrollReveal style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, maxWidth: 720, margin: "0 auto 1.5rem" }}>
+        {/* Sistemde gerçekten var olan 4 farklı dealWordKind() terimi (randevu/
+            üyelik/rezervasyon/teklif) - Stitch mockup'ındaki "Portföy"/"Proje" gibi
+            etiketler koddaki eşlemede yok, bu yüzden sadece gerçekte üretilen 4
+            terim kullanıldı. Dört sektörün rengi (teal/mor/mavi/amber) bilinçli
+            olarak farklılaştırma amaçlı sabit tutuldu, tema token'ı değil. Bu 4
+            sektör alttaki tam listede TEKRARLANMASIN diye SECTOR_FEATURED_IDS ile
+            oradan filtreleniyor. */}
+        <ScrollReveal style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, maxWidth: 880, margin: "0 auto 1.5rem" }}>
           {[
             { sector: "Güzellik & Bakım", icon: "ti-scissors", term: "Randevu", color: "#0d9488", bg: "#ccfbf1" },
             { sector: "Spor Merkezi", icon: "ti-barbell", term: "Üyelik", color: "#7c3aed", bg: "#ede9fe" },
             { sector: "Üretim / Satış", icon: "ti-truck-delivery", term: "Teklif", color: "#185fa5", bg: "#e6f1fb" },
+            { sector: "Otel", icon: "ti-bed", term: "Rezervasyon", color: "#b45309", bg: "#fef3c7" },
           ].map((s) => (
             <div key={s.sector} style={{ background: "var(--surface-1)", border: "1px solid var(--border)", borderRadius: 12, padding: "1.25rem 1rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, textAlign: "center" }}>
               <div style={{ width: 44, height: 44, borderRadius: "50%", background: s.bg, color: s.color, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1084,10 +1091,10 @@ function LandingPage() {
           ))}
         </ScrollReveal>
         <p style={{ textAlign: "center", fontSize: 13, color: "var(--text-muted)", margin: "0 0 2rem", fontWeight: 500 }}>
-          ...ve 8 farklı sektör için daha hazır şablonlar
+          ...ve 7 farklı sektör için daha hazır şablonlar
         </p>
         <ScrollReveal style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
-          {SECTOR_PRESETS.filter((s) => s.id !== "genel").map((s) => (
+          {SECTOR_PRESETS.filter((s) => s.id !== "genel" && !SECTOR_FEATURED_IDS.has(s.id)).map((s) => (
             <div key={s.id} style={{ background: "var(--surface-1)", border: "1px solid var(--border)", borderRadius: 12, padding: "1rem", display: "flex", alignItems: "center", gap: 10 }}>
               <i className={`ti ${s.icon}`} style={{ fontSize: 20, color: "var(--text-accent)", flex: "none" }} />
               <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text-primary)" }}>{s.label}</span>
