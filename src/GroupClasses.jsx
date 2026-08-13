@@ -887,13 +887,17 @@ export function agendaDateKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-// Kayıtlar sekmesindeki "İlgilenilmesi gereken" hızlı filtresi için pencere —
-// randevu/rezervasyon "ileriye dönük" (bugünden pencere sonuna), reminder/
-// üyelik bitişi ise "o tarihe kadar, geçmiş dahil" karşılaştırması yapıyor;
-// ikinci durumda sadece endStr/end kullanılıyor, start hiç kontrol edilmiyor.
+// Kayıtlar sekmesindeki hızlı tarih filtresi (Bugün/Bu Hafta/Bu Ay) için pencere —
+// randevu/rezervasyon TAM takvim haftası/ayı (Pazartesi/1'i - Pazar/son gün) ile
+// karşılaştırılır (start bugüne sabitlenirse "Bu Hafta" bugünden önceki günleri,
+// örn. bu haftanın Pazartesi randevusunu, sessizce dışlar - 2026-08-13'te canlıda
+// fark edildi). Reminder/üyelik bitişi ise "o tarihe kadar, geçmiş dahil"
+// karşılaştırması yapıyor; bu durumda sadece endStr/end kullanılıyor, start hiç
+// kontrol edilmiyor.
 export function quickDateWindow(mode) {
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let start = startOfToday;
   let end;
   if (mode === "today") {
     end = new Date(
@@ -907,18 +911,21 @@ export function quickDateWindow(mode) {
     );
   } else if (mode === "week") {
     const isoWeekday = startOfToday.getDay() === 0 ? 7 : startOfToday.getDay();
+    start = new Date(startOfToday);
+    start.setDate(start.getDate() - (isoWeekday - 1));
     end = new Date(startOfToday);
     end.setDate(end.getDate() + (7 - isoWeekday));
     end.setHours(23, 59, 59, 999);
   } else if (mode === "month") {
+    start = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), 1);
     end = new Date(startOfToday.getFullYear(), startOfToday.getMonth() + 1, 0, 23, 59, 59, 999);
   } else {
     return null;
   }
   return {
-    start: startOfToday,
+    start,
     end,
-    startStr: agendaDateKey(startOfToday),
+    startStr: agendaDateKey(start),
     endStr: agendaDateKey(end),
   };
 }
