@@ -3463,7 +3463,18 @@ export default function App() {
     if (!error) setGroupClassWaitlist((prev) => prev.filter((w) => w.id !== next.id));
     const customer = customers.find((c) => c.id === next.customerId);
     const group = groupClasses.find((g) => g.id === groupClassId);
-    if (customer) notify(`${customer.name}, yedek listeden "${group?.name || "ders"}" dersine otomatik eklendi.`, "success");
+    if (customer) {
+      notify(`${customer.name}, yedek listeden "${group?.name || "ders"}" dersine otomatik eklendi.`, "success");
+      // enrollMember silent:true ile çağrıldığı için normal "kaydedildiniz" maili
+      // gitmedi - burada "son dakika yer açıldı" vurgusuyla ayrı bir mail atılıyor,
+      // müşteri kendi haberi olmadan derse eklenmiş olmasın.
+      const zamanBilgisi = group ? ` (${WEEKDAYS[group.weekday - 1]} ${group.startTime})` : "";
+      notifyCustomerByEmail(
+        customer,
+        `Son dakika yer açıldı: ${group?.name || "Ders"}`,
+        `Merhaba,\n\n${companySettings?.companyName || "Binerly"} - "${group?.name || "ders"}"${zamanBilgisi} dersinde yer açıldı ve yedek listedeki sıranız geldiği için otomatik olarak kaydedildiniz.\n\nGelemeyecekseniz lütfen bize haber verin ki yeriniz başka bir üyeye açılabilsin.`
+      );
+    }
   };
 
   const removeFromWaitlist = async (waitlistId) => {
