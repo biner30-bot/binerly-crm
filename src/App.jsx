@@ -218,7 +218,19 @@ function computeMembershipAlerts(deals, customers) {
 // Hiç ders kaydı (enrollment) veya hiç yoklama geçmişi olmayan üyeler (henüz
 // başlamamış/hiç ders almamış) değerlendirmeye alınmaz — "geri kazanma" ancak
 // bir zamanlar düzenli gelen birine anlamlı.
+//
+// İki ayrı risk seviyesi: "high" (CHURN_INACTIVITY_DAYS'tir hiç gelmedi - kesin
+// sinyal, eski davranışla birebir aynı) ve "medium" (hâlâ geliyor ama son
+// CHURN_LOOKBACK_DAYS içindeki haftalık sıklığı kendi geçmiş ortalamasının çok
+// altına düşmüş - "ayda 12 kez gelen üye son iki haftada 1 kez geldi" gibi daha
+// erken bir düşüşü, sabit bir eşikle değil kişinin KENDİ geçmiş ritmiyle
+// kıyaslayarak yakalar). Güvenilir bir ortalama için en az CHURN_BASELINE_MIN_WEEKS
+// haftalık geçmişi olmayan (yeni başlamış) üyeler "medium" değerlendirmesine hiç
+// girmez - tek bir boş hafta yanlışlıkla düşüş sayılmasın diye.
 const CHURN_INACTIVITY_DAYS = 14;
+const CHURN_LOOKBACK_DAYS = 14;
+const CHURN_BASELINE_MIN_WEEKS = 3;
+const CHURN_DROP_RATIO = 0.5;
 
 function computeAttendanceChurnRisk(customers, deals, groupClassEnrollments, classAttendance) {
   const now = Date.now();
@@ -235,13 +247,39 @@ function computeAttendanceChurnRisk(customers, deals, groupClassEnrollments, cla
 
     const attendedTimestamps = classAttendance
       .filter((a) => a.customerId === customer.id && a.status === "geldi")
-      .map((a) => new Date(a.occurrenceDate).getTime());
+      .map((a) => new Date(a.occurrenceDate).getTime())
+      .sort((a, b) => a - b);
     if (attendedTimestamps.length === 0) continue;
 
-    const daysSince = Math.floor((now - Math.max(...attendedTimestamps)) / 86400000);
-    if (daysSince >= CHURN_INACTIVITY_DAYS) alerts.push({ customer, daysSince });
+    const lastAttended = attendedTimestamps[attendedTimestamps.length - 1];
+    const daysSince = Math.floor((now - lastAttended) / 86400000);
+
+    if (daysSince >= CHURN_INACTIVITY_DAYS) {
+      alerts.push({ customer, daysSince, level: "high" });
+      continue;
+    }
+
+    const lookbackStart = now - CHURN_LOOKBACK_DAYS * 86400000;
+    const firstAttended = attendedTimestamps[0];
+    const baselineSpanWeeks = (lookbackStart - firstAttended) / (7 * 86400000);
+    if (baselineSpanWeeks < CHURN_BASELINE_MIN_WEEKS) continue;
+
+    const baselineCount = attendedTimestamps.filter((t) => t < lookbackStart).length;
+    const baselineWeeklyRate = baselineCount / baselineSpanWeeks;
+    if (baselineWeeklyRate <= 0) continue;
+
+    const recentCount = attendedTimestamps.length - baselineCount;
+    const recentWeeklyRate = recentCount / (CHURN_LOOKBACK_DAYS / 7);
+
+    if (recentWeeklyRate <= baselineWeeklyRate * CHURN_DROP_RATIO) {
+      const dropPercent = Math.round((1 - recentWeeklyRate / baselineWeeklyRate) * 100);
+      alerts.push({ customer, daysSince, level: "medium", dropPercent });
+    }
   }
-  return alerts.sort((a, b) => b.daysSince - a.daysSince);
+  return alerts.sort((a, b) => {
+    if (a.level !== b.level) return a.level === "high" ? -1 : 1;
+    return a.level === "high" ? b.daysSince - a.daysSince : b.dropPercent - a.dropPercent;
+  });
 }
 
 function urlBase64ToUint8Array(base64String) {

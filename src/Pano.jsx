@@ -39,12 +39,16 @@ function buildRenewalMessage(deal, customer, alert, companySettings, approvalLin
   const linkPart = approvalLink ? ` Yenilemek için: ${approvalLink}` : "";
   return `Merhaba ${firstName}, ${firma}${durum}. Devam etmek isterseniz sizi bekleriz!${linkPart}`;
 }
-// "Seni özledik" — derse katılım bazlı hareketsizlik tespit edilen üyeye
-// gönderilecek hazır metin.
-function buildWinBackMessage(customer, daysSince, companySettings) {
+// "Seni özledik" — derse katılım bazlı hareketsizlik/düşüş tespit edilen üyeye
+// gönderilecek hazır metin. "medium" (hâlâ geliyor ama sıklığı azalmış) ve
+// "high" (hiç gelmemiş) risk seviyeleri farklı ton gerektirdiği için ayrı metin.
+function buildWinBackMessage(customer, alert, companySettings) {
   const firstName = (customer.name || "").split(" ")[0] || customer.name;
   const firma = companySettings?.companyName ? `${companySettings.companyName} olarak ` : "";
-  return `Merhaba ${firstName}, sizi ${daysSince} gündür derslerde göremedik, sizi özledik! ${firma}bir sonraki dersinizde görüşmeyi çok isteriz - uygun bir saat için bize yazabilirsiniz.`;
+  if (alert.level === "medium") {
+    return `Merhaba ${firstName}, son zamanlarda derslere eskisi kadar sık gelemediğinizi fark ettik. ${firma}bir sonraki dersinizde sizi görmeyi çok isteriz - uygun bir saat için bize yazabilirsiniz.`;
+  }
+  return `Merhaba ${firstName}, sizi ${alert.daysSince} gündür derslerde göremedik, sizi özledik! ${firma}bir sonraki dersinizde görüşmeyi çok isteriz - uygun bir saat için bize yazabilirsiniz.`;
 }
 // Sipariş ritmi bozulan müşteriye "her şey yolunda mı" kontrolü — renewal/win-back
 // ile aynı desen: hazır metni tek tıkla WhatsApp'a taşır, gönderim yine kullanıcının elinde.
@@ -743,8 +747,8 @@ export default function Pano({
                   gap: 8,
                   fontSize: 13,
                   padding: "8px 10px",
-                  background: "var(--bg-danger)",
-                  borderLeft: "3px solid var(--text-danger)",
+                  background: alert.level === "high" ? "var(--bg-danger)" : "var(--bg-warning)",
+                  borderLeft: `3px solid ${alert.level === "high" ? "var(--text-danger)" : "var(--text-warning)"}`,
                   borderRadius: "var(--radius)",
                 }}
               >
@@ -753,17 +757,15 @@ export default function Pano({
                   style={{ flex: 1, cursor: "pointer" }}
                   onClick={() => setViewingCustomer(alert.customer)}
                 >
-                  {alert.customer.name} - {alert.daysSince} gündür derse gelmedi
+                  {alert.level === "high"
+                    ? `${alert.customer.name} - ${alert.daysSince} gündür derse gelmedi`
+                    : `${alert.customer.name} - ders sıklığı %${alert.dropPercent} azaldı`}
                 </span>
                 {alert.customer.phone && (
                   <button
                     type="button"
                     onClick={() => {
-                      const message = buildWinBackMessage(
-                        alert.customer,
-                        alert.daysSince,
-                        companySettings,
-                      );
+                      const message = buildWinBackMessage(alert.customer, alert, companySettings);
                       window.open(
                         `https://wa.me/${toWhatsAppNumber(alert.customer.phone)}?text=${encodeURIComponent(message)}`,
                         "_blank",
@@ -775,7 +777,9 @@ export default function Pano({
                     WhatsApp
                   </button>
                 )}
-                <Badge tone="danger">Seni özledik</Badge>
+                <Badge tone={alert.level === "high" ? "danger" : "warning"}>
+                  {alert.level === "high" ? "Seni özledik" : "Azalma"}
+                </Badge>
               </div>
             ))}
             {waitlistFillableAlerts.map(({ group, waitCount }) => (
