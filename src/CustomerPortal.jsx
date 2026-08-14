@@ -180,6 +180,83 @@ function rowToWaitlistEntry(r) {
   return { id: r.id, groupClassId: r.group_class_id, customerId: r.customer_id };
 }
 
+function rowToPortalAttendance(r) {
+  return {
+    id: r.id,
+    customerId: r.customer_id,
+    groupClassId: r.group_class_id,
+    occurrenceDate: r.occurrence_date,
+    status: r.status,
+    className: r.class_name,
+    startTime: (r.start_time || "").slice(0, 5),
+    weekday: r.weekday,
+  };
+}
+
+// Ders katılım geçmişinden rozet hesabı — hepsi sadece müşterinin KENDİ
+// yoklama kaydına bakıyor (leaderboard/başkalarıyla kıyaslama YOK, bilerek:
+// başka üyelerin "gelmedi" gibi verisini expose etmemek için ayrı bir
+// gizlilik/RLS kararı gerektirir, bu turda kapsam dışı bırakıldı).
+const BADGE_FIRST_MILESTONE_COUNT = 10;
+const BADGE_NIGHT_OWL_THRESHOLD = "21:00";
+const BADGE_NIGHT_OWL_MIN_COUNT = 5;
+const BADGE_DISCIPLINE_WEEKS = 4;
+const BADGE_DISCIPLINE_MIN_DAYS_PER_WEEK = 3;
+
+function computeMemberBadges(attendanceRows, myCustomerIds) {
+  const attended = attendanceRows.filter(
+    (a) => myCustomerIds.has(a.customerId) && a.status === "geldi",
+  );
+  const badges = [];
+
+  if (attended.length >= BADGE_FIRST_MILESTONE_COUNT) {
+    badges.push({
+      id: "first_ten",
+      icon: "🏅",
+      label: "İlk 10 Antrenman",
+      description: `${attended.length} ders tamamladınız`,
+    });
+  }
+
+  const nightOwlCount = attended.filter((a) => a.startTime >= BADGE_NIGHT_OWL_THRESHOLD).length;
+  if (nightOwlCount >= BADGE_NIGHT_OWL_MIN_COUNT) {
+    badges.push({
+      id: "night_owl",
+      icon: "🦉",
+      label: "Gece Kuşu",
+      description: `21:00 sonrası ${nightOwlCount} kez antrenman yaptınız`,
+    });
+  }
+
+  // Bugünden geriye BADGE_DISCIPLINE_WEEKS hafta, her haftada en az
+  // BADGE_DISCIPLINE_MIN_DAYS_PER_WEEK farklı günde derse gelinmiş olmalı.
+  const now = Date.now();
+  let disciplined = attended.length > 0;
+  for (let w = 0; disciplined && w < BADGE_DISCIPLINE_WEEKS; w++) {
+    const weekStart = now - (w + 1) * 7 * 86400000;
+    const weekEnd = now - w * 7 * 86400000;
+    const daysInWeek = new Set(
+      attended
+        .filter((a) => {
+          const t = new Date(a.occurrenceDate).getTime();
+          return t >= weekStart && t < weekEnd;
+        })
+        .map((a) => a.occurrenceDate),
+    );
+    if (daysInWeek.size < BADGE_DISCIPLINE_MIN_DAYS_PER_WEEK) disciplined = false;
+  }
+  if (disciplined) {
+    badges.push({
+      id: "discipline",
+      icon: "🔥",
+      label: "Sarsılmaz Disiplin",
+      description: `Son ${BADGE_DISCIPLINE_WEEKS} haftadır düzenli geliyorsunuz`,
+    });
+  }
+
+  return badges;
+}
+
 function rowToPriceListItem(r) {
   return {
     id: r.id,
@@ -1554,6 +1631,7 @@ function PortalGroupClasses({
   groupClasses,
   groupClassEnrollments,
   groupClassWaitlist,
+  classAttendance,
   customerRows,
   showCompany,
   hasActiveMembership,
@@ -1575,6 +1653,7 @@ function PortalGroupClasses({
   const joinable = groupClasses.filter((g) => !myEnrolledClassIds.has(g.id));
   const countFor = (classId) =>
     groupClassEnrollments.filter((e) => e.groupClassId === classId).length;
+  const myBadges = computeMemberBadges(classAttendance || [], myCustomerIds);
 
   const rowStyle = {
     background: "var(--surface-1)",
@@ -1590,6 +1669,36 @@ function PortalGroupClasses({
 
   return (
     <div>
+      {myBadges.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 8px" }}>Rozetlerim</p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {myBadges.map((badge) => (
+              <div
+                key={badge.id}
+                title={badge.description}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  background: "var(--surface-1)",
+                  boxShadow: "var(--shadow-sm)",
+                  borderRadius: "var(--radius-lg)",
+                  padding: "0.5rem 0.75rem",
+                }}
+              >
+                <span style={{ fontSize: 18 }}>{badge.icon}</span>
+                <div>
+                  <p style={{ margin: 0, fontSize: 12.5, fontWeight: 500 }}>{badge.label}</p>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--text-secondary)" }}>
+                    {badge.description}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 8px" }}>Kayıtlı olduklarım</p>
       {enrolled.length === 0 ? (
         <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20 }}>
@@ -2971,6 +3080,7 @@ export default function CustomerPortal() {
   const [groupClasses, setGroupClasses] = useState([]);
   const [groupClassEnrollments, setGroupClassEnrollments] = useState([]);
   const [groupClassWaitlist, setGroupClassWaitlist] = useState([]);
+  const [classAttendance, setClassAttendance] = useState([]);
   const [priceListItems, setPriceListItems] = useState([]);
   const [sharedAttachments, setSharedAttachments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -3231,6 +3341,16 @@ export default function CustomerPortal() {
           .select("*")
           .in("customer_id", customerIds);
         setGroupClassWaitlist((gcw || []).map(rowToWaitlistEntry));
+        // Rozet/başarı hesaplaması için - view zaten sadece BENİM customer
+        // kayıtlarımı döndürüyor (bkz. sql/2026-08-15_customer_attendance_view.sql),
+        // henüz migration çalıştırılmamışsa (42P01) sessizce boş kalır, portalın
+        // geri kalanı hataya düşmesin diye payments'takiyle aynı desen.
+        const { data: ca, error: caError } = await supabase
+          .from("customer_attendance_view")
+          .select("*")
+          .in("customer_id", customerIds);
+        if (caError) console.error("customer_attendance_view load error:", caError.message);
+        setClassAttendance((ca || []).map(rowToPortalAttendance));
         setPriceListItems((pli || []).map(rowToPriceListItem));
         setPayments((pay || []).map(rowToPayment));
         const ticketIds = (t || []).map((row) => row.id);
@@ -4382,6 +4502,7 @@ export default function CustomerPortal() {
                     groupClasses={visibleGroupClasses}
                     groupClassEnrollments={groupClassEnrollments}
                     groupClassWaitlist={groupClassWaitlist}
+                    classAttendance={classAttendance}
                     customerRows={visibleCustomerRows}
                     showCompany={false}
                     hasActiveMembership={hasActiveMembership}
