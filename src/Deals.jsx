@@ -97,6 +97,58 @@ const DEAL_QUICK_DATE_OPTIONS = [
   { id: "month", label: "Bu Ay" },
 ];
 
+// Bir fiyat listesi kaleminin reçete maliyeti — reçetesi yoksa veya reçetedeki
+// herhangi bir stok kaleminin birim maliyeti girilmemişse null döner (kısmi/
+// eksik veriyle yanlış-düşük bir maliyet gösterip yanlış güven vermemek için).
+export function computeItemUnitCost(priceItemId, priceItemIngredients, stockItems) {
+  if (!priceItemId) return null;
+  const ings = priceItemIngredients.filter((i) => i.priceItemId === priceItemId);
+  if (ings.length === 0) return null;
+  let total = 0;
+  for (const ing of ings) {
+    const stockItem = stockItems.find((s) => s.id === ing.stockItemId);
+    if (!stockItem || stockItem.unitCost == null) return null;
+    total += ing.quantity * stockItem.unitCost;
+  }
+  return total;
+}
+
+// Kalemlerdeki (priceItemId bağlı) satırların toplam reçete maliyeti. Aynı
+// "eksik veri varsa hiç gösterme" temkinliliği burada da geçerli — kalemlerden
+// biri bile maliyeti bilinmeyen bir ürünse (reçetesi yok veya malzeme
+// maliyeti girilmemiş) toplam null döner, YARIM bir maliyet gösterilmez.
+function computeLineItemsCost(lineItems, priceItemIngredients, stockItems) {
+  const pricedLines = lineItems.filter((li) => li.priceItemId);
+  if (pricedLines.length === 0) return null;
+  let total = 0;
+  for (const li of pricedLines) {
+    const unitCost = computeItemUnitCost(li.priceItemId, priceItemIngredients, stockItems);
+    if (unitCost == null) return null;
+    total += unitCost * (Number(li.quantity) || 0);
+  }
+  return total;
+}
+
+// Maliyet & marj uyarısı (CPQ-light) — company_settings.min_profit_margin_percent
+// boşsa (opt-in, varsayılan kapalı) hiç çalışmaz. ENGEL DEĞİL: computeCustomerCreditRisk
+// ile aynı felsefe, sadece bir uyarı döndürür, kaydetmeyi hiçbir yerde engellemez.
+export function computeMarginRisk(
+  lineItems,
+  priceItemIngredients,
+  stockItems,
+  minProfitMarginPercent,
+  saleValue,
+) {
+  if (!minProfitMarginPercent || minProfitMarginPercent <= 0) return null;
+  const cost = computeLineItemsCost(lineItems, priceItemIngredients, stockItems);
+  if (cost == null || cost <= 0) return null;
+  const minRequiredPrice = cost * (1 + minProfitMarginPercent / 100);
+  if (saleValue >= minRequiredPrice) return null;
+  const currentMarginPercent =
+    saleValue > 0 ? Math.round(((saleValue - cost) / saleValue) * 100) : null;
+  return { cost, minRequiredPrice, currentMarginPercent };
+}
+
 export function computeCustomerCreditRisk(customer, deals, payments) {
   const creditLimit = Number(customer.customFields?.kredi_limiti) || 0;
   const paymentTerm = customer.customFields?.odeme_vadesi;
@@ -377,6 +429,9 @@ export function DealForm({
   businessUserId,
   titleSuggestions = [],
   priceListItems = [],
+  priceItemIngredients = [],
+  stockItems = [],
+  minProfitMarginPercent = null,
   businessHours = [],
   staffShifts = [],
   initialLineItems = [],
@@ -482,6 +537,13 @@ export function DealForm({
             : Number(discountValue),
           lineItemsTotal,
         );
+  const marginRisk = computeMarginRisk(
+    lineItems,
+    priceItemIngredients,
+    stockItems,
+    minProfitMarginPercent,
+    Number(value) || 0,
+  );
   // Basit gümrük/navlun hesaplayıcı — CANLI gümrük/navlun verisi çekmiyor,
   // sadece kullanıcının kendi (localStorage'da hatırlanan) sabit oranını mevcut
   // kalem toplamına uygulayıp yeni bir kalem olarak ekliyor.
@@ -1572,6 +1634,39 @@ export function DealForm({
             </div>
           )}
         </div>
+        {marginRisk && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 8,
+              background: "var(--bg-warning)",
+              border: "0.5px solid var(--text-warning)",
+              borderRadius: "var(--radius)",
+              padding: "10px 12px",
+              marginBottom: 12,
+              fontSize: 13,
+            }}
+          >
+            <i
+              className="ti ti-alert-triangle"
+              style={{ fontSize: 16, color: "var(--text-warning)", flexShrink: 0, marginTop: 1 }}
+              aria-hidden="true"
+            ></i>
+            <div>
+              <p style={{ margin: 0, fontWeight: 500, color: "var(--text-warning)" }}>
+                Düşük kâr marjı
+              </p>
+              <p style={{ margin: "2px 0 0", color: "var(--text-secondary)" }}>
+                Tahmini maliyet {formatTL(marginRisk.cost)}, minimum marj için en az{" "}
+                {formatTL(marginRisk.minRequiredPrice)} teklif edilmesi gerekir
+                {marginRisk.currentMarginPercent != null &&
+                  ` (şu an %${marginRisk.currentMarginPercent} marj)`}
+                . Bu sadece bir uyarı - devam edip etmemek size kalmış.
+              </p>
+            </div>
+          </div>
+        )}
         <div style={{ display: "flex", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
           <div style={{ flex: "1.6 1 200px" }}>
             <label

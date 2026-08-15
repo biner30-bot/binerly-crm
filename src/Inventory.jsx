@@ -707,6 +707,7 @@ export function StockEditModal({ item, sector, onSave, onClose }) {
     item.reorderThreshold != null ? String(item.reorderThreshold) : "",
   );
   const [supplierName, setSupplierName] = useState(item.supplierName || "");
+  const [unitCost, setUnitCost] = useState(item.unitCost != null ? String(item.unitCost) : "");
 
   const submit = (e) => {
     e.preventDefault();
@@ -718,6 +719,7 @@ export function StockEditModal({ item, sector, onSave, onClose }) {
       quantityOnHand: Number(quantityOnHand),
       reorderThreshold: reorderThreshold === "" ? null : Number(reorderThreshold),
       supplierName: supplierName.trim(),
+      unitCost: unitCost === "" ? null : Number(unitCost),
     });
   };
 
@@ -830,6 +832,32 @@ export function StockEditModal({ item, sector, onSave, onClose }) {
             style={{ width: "100%" }}
           />
         </div>
+        <div style={{ marginBottom: 10 }}>
+          <label
+            style={{
+              fontSize: 12,
+              color: "var(--text-secondary)",
+              display: "flex",
+              alignItems: "center",
+              gap: 3,
+              marginBottom: 4,
+            }}
+          >
+            Birim maliyet (TL)
+            <InfoTip
+              placement="bottom"
+              align="right"
+              text="Bu kalemi kullanan ürünlerin reçete maliyetini hesaplamak için kullanılır. Boş bırakırsanız o ürün için maliyet/marj uyarısı hiç gösterilmez."
+            />
+          </label>
+          <input
+            type="number"
+            value={unitCost}
+            onChange={(e) => setUnitCost(e.target.value)}
+            placeholder="Opsiyonel"
+            style={{ width: "100%" }}
+          />
+        </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <button type="button" onClick={onClose}>
             Vazgeç
@@ -846,16 +874,126 @@ export function StockEditModal({ item, sector, onSave, onClose }) {
   );
 }
 
+// Zararına satış uyarısı için minimum kâr marjı — varsayılan KAPALI (opt-in,
+// bkz. feedback_features_opt_in_kobi_choice), tam genişlikte özet satır +
+// "Ayarla"/"Düzenle" ile açılan tek alanlı form (LateCancelPolicyBox ile aynı
+// desen: dar bir modalde değil burada, dar-modal InfoTip taşması hatasını
+// tekrarlamamak için).
+function MinMarginBox({ value, onSave }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value != null ? String(value) : "");
+
+  const submit = (e) => {
+    e.preventDefault();
+    onSave(draft === "" ? null : Number(draft));
+    setEditing(false);
+  };
+
+  return (
+    <div
+      style={{
+        background: "var(--surface-1)",
+        border: "0.5px solid var(--border)",
+        borderRadius: "var(--radius)",
+        padding: "10px 12px",
+        marginBottom: 16,
+      }}
+    >
+      {!editing ? (
+        <div
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}
+        >
+          <div>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 13,
+                fontWeight: 500,
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              Minimum kâr marjı
+              <InfoTip
+                placement="bottom"
+                text="Reçetesi ve birim maliyetleri girilmiş bir ürünü, bu marjın altında bir fiyata teklife eklerseniz form üzerinde bir uyarı gösterilir. Kaydetmeyi engellemez, sadece bilgilendirir."
+              />
+            </p>
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>
+              {value != null
+                ? `%${value} - altına düşen tekliflerde uyarı gösterilir`
+                : "Kullanılmıyor - maliyet/marj uyarısı hiç gösterilmez"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(value != null ? String(value) : "");
+              setEditing(true);
+            }}
+            style={{ fontSize: 12, flexShrink: 0 }}
+          >
+            {value != null ? "Düzenle" : "Ayarla"}
+          </button>
+        </div>
+      ) : (
+        <form
+          onSubmit={submit}
+          style={{ display: "flex", alignItems: "flex-end", gap: 8, flexWrap: "wrap" }}
+        >
+          <div style={{ width: 120 }}>
+            <label
+              style={{
+                fontSize: 12,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
+              Minimum marj (%)
+            </label>
+            <input
+              type="number"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="Örn. 15"
+              autoFocus
+              style={{ width: "100%" }}
+            />
+          </div>
+          <button
+            type="submit"
+            style={{
+              background: "var(--fill-accent)",
+              color: "var(--on-accent)",
+              border: "none",
+              fontSize: 13,
+            }}
+          >
+            Kaydet
+          </button>
+          <button type="button" onClick={() => setEditing(false)} style={{ fontSize: 13 }}>
+            Vazgeç
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
 export function StockManager({
   stockItems,
   priceListItems,
   priceItemIngredients,
   sector,
+  minProfitMarginPercent,
   onAddStock,
   onUpdateStock,
   onDeleteStock,
   onAddIngredient,
   onDeleteIngredient,
+  onUpdateMinMargin,
 }) {
   const [tab, setTab] = useState("stok");
   const [name, setName] = useState("");
@@ -863,6 +1001,7 @@ export function StockManager({
   const [quantityOnHand, setQuantityOnHand] = useState("");
   const [reorderThreshold, setReorderThreshold] = useState("");
   const [supplierName, setSupplierName] = useState("");
+  const [unitCost, setUnitCost] = useState("");
   const [editingItem, setEditingItem] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
@@ -880,18 +1019,21 @@ export function StockManager({
       quantityOnHand: Number(quantityOnHand),
       reorderThreshold: reorderThreshold === "" ? null : Number(reorderThreshold),
       supplierName: supplierName.trim(),
+      unitCost: unitCost === "" ? null : Number(unitCost),
     });
     setName("");
     setUnit("adet");
     setQuantityOnHand("");
     setReorderThreshold("");
     setSupplierName("");
+    setUnitCost("");
   };
 
   const recipeRows = priceItemIngredients.filter((i) => i.priceItemId === recipePriceItemId);
 
   return (
     <div>
+      <MinMarginBox value={minProfitMarginPercent} onSave={onUpdateMinMargin} />
       <div style={{ marginBottom: 16 }}>
         <SegmentedControl value={tab} onChange={setTab} options={STOCK_MANAGER_TABS} />
       </div>
@@ -1057,6 +1199,32 @@ export function StockManager({
               <input
                 value={supplierName}
                 onChange={(e) => setSupplierName(e.target.value)}
+                placeholder="Opsiyonel"
+                style={{ width: "100%", fontSize: 16 }}
+              />
+            </div>
+            <div style={{ width: 130 }}>
+              <label
+                style={{
+                  fontSize: 12,
+                  color: "var(--text-secondary)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                  marginBottom: 4,
+                }}
+              >
+                Birim maliyet (TL)
+                <InfoTip
+                  placement="bottom"
+                  align="right"
+                  text="Bu kalemi kullanan ürünlerin reçete maliyetini hesaplamak için kullanılır. Boş bırakırsanız o ürün için maliyet/marj uyarısı hiç gösterilmez."
+                />
+              </label>
+              <input
+                type="number"
+                value={unitCost}
+                onChange={(e) => setUnitCost(e.target.value)}
                 placeholder="Opsiyonel"
                 style={{ width: "100%", fontSize: 16 }}
               />

@@ -536,6 +536,7 @@ function rowToStockItem(r) {
     quantityOnHand: Number(r.quantity_on_hand) || 0,
     reorderThreshold: r.reorder_threshold != null ? Number(r.reorder_threshold) : null,
     supplierName: r.supplier_name || "",
+    unitCost: r.unit_cost != null ? Number(r.unit_cost) : null,
     deletedAt: r.deleted_at || null,
   };
 }
@@ -651,6 +652,7 @@ function rowToCompanySettings(r) {
     appointmentOwnerWorks: r.appointment_owner_works !== false,
     winbackEnabled: r.winback_enabled === true,
     winbackInactiveDays: r.winback_inactive_days ?? null,
+    minProfitMarginPercent: r.min_profit_margin_percent ?? null,
   };
 }
 
@@ -3211,6 +3213,7 @@ export default function App() {
       appointment_owner_works: s.appointmentOwnerWorks !== false,
       winback_enabled: s.winbackEnabled === true,
       winback_inactive_days: s.winbackInactiveDays || null,
+      min_profit_margin_percent: s.minProfitMarginPercent || null,
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase.from("company_settings").upsert(row).select().single();
@@ -3289,17 +3292,17 @@ export default function App() {
     setPriceListItems((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const addStockItem = async ({ name, unit, quantityOnHand, reorderThreshold, supplierName }) => {
-    const row = { id: uid(), user_id: activeTeamId, name, unit, quantity_on_hand: quantityOnHand || 0, reorder_threshold: reorderThreshold || null, supplier_name: supplierName || null };
+  const addStockItem = async ({ name, unit, quantityOnHand, reorderThreshold, supplierName, unitCost }) => {
+    const row = { id: uid(), user_id: activeTeamId, name, unit, quantity_on_hand: quantityOnHand || 0, reorder_threshold: reorderThreshold || null, supplier_name: supplierName || null, unit_cost: unitCost || null };
     const { data, error } = await supabase.from("stock_items").insert(row).select().single();
     if (error) { notify(`Stok kalemi eklenemedi: ${error.message}`); return; }
     setStockItems((prev) => [...prev, rowToStockItem(data)]);
   };
 
-  const updateStockItem = async ({ id, name, unit, quantityOnHand, reorderThreshold, supplierName }) => {
+  const updateStockItem = async ({ id, name, unit, quantityOnHand, reorderThreshold, supplierName, unitCost }) => {
     const { data, error } = await supabase
       .from("stock_items")
-      .update({ name, unit, quantity_on_hand: quantityOnHand || 0, reorder_threshold: reorderThreshold || null, supplier_name: supplierName || null })
+      .update({ name, unit, quantity_on_hand: quantityOnHand || 0, reorder_threshold: reorderThreshold || null, supplier_name: supplierName || null, unit_cost: unitCost || null })
       .eq("id", id).select().single();
     if (error) { notify(`Stok kalemi güncellenemedi: ${error.message}`); return; }
     setStockItems((prev) => prev.map((s) => (s.id === id ? rowToStockItem(data) : s)));
@@ -4752,11 +4755,13 @@ export default function App() {
             priceListItems={priceListItems}
             priceItemIngredients={priceItemIngredients}
             sector={companySettings?.sector}
+            minProfitMarginPercent={companySettings?.minProfitMarginPercent}
             onAddStock={addStockItem}
             onUpdateStock={updateStockItem}
             onDeleteStock={deleteStockItem}
             onAddIngredient={addPriceItemIngredient}
             onDeleteIngredient={deletePriceItemIngredient}
+            onUpdateMinMargin={(percent) => upsertCompanySettings({ minProfitMarginPercent: percent })}
           />
         </div>
       )}
@@ -5419,6 +5424,9 @@ export default function App() {
             businessUserId={activeTeamId}
             titleSuggestions={[...new Set(deals.map((d) => d.title).filter(Boolean))]}
             priceListItems={priceListItems}
+            priceItemIngredients={priceItemIngredients}
+            stockItems={stockItems}
+            minProfitMarginPercent={companySettings?.minProfitMarginPercent}
             businessHours={businessHours}
             staffShifts={staffShifts}
             initialLineItems={editingDeal ? dealLineItems.filter((li) => li.dealId === editingDeal.id) : []}
