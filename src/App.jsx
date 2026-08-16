@@ -28,6 +28,7 @@ import Support, {
 } from "./Support";
 import { ImportModal } from "./ImportExport";
 import { TrackingScripts } from "./analytics";
+import Tasks from "./Tasks";
 import { PDF_TEMPLATES, buildMergeData, renderTemplateBlocks, TemplateGallery, TABLE_ROW_HEIGHT } from "./PdfTemplates";
 import { TemplateEditor } from "./PdfTemplateEditor";
 import {
@@ -347,6 +348,24 @@ function rowToDeal(r) {
     assignedTo: r.assigned_to || null,
     paymentMode: r.payment_mode || "none",
     paymentStatus: r.payment_status || null,
+  };
+}
+
+function rowToTask(r) {
+  return {
+    id: r.id,
+    userId: r.user_id,
+    title: r.title,
+    type: r.type,
+    description: r.description || "",
+    dueDate: r.due_date || "",
+    assignedTo: r.assigned_to || null,
+    customerId: r.customer_id || null,
+    dealId: r.deal_id || null,
+    completedAt: r.completed_at || null,
+    createdAt: r.created_at,
+    deletedAt: r.deleted_at || null,
+    deletedBatchId: r.deleted_batch_id || null,
   };
 }
 
@@ -1431,6 +1450,7 @@ export default function App() {
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
   const [teamRoster, setTeamRoster] = useState([]);
+  const [tasks, setTasks] = useState([]);
 
   // Ham Postgres/ağ hataları (ör. "violates foreign key constraint") 89+
   // notify() çağrısına ${error.message} olarak sızıyordu - tek merkezi bu
@@ -1478,6 +1498,7 @@ export default function App() {
       setRoomInventory([]);
       setResources([]);
       setDealLineItems([]);
+      setTasks([]);
       setActiveTeamId(undefined);
       setPendingInvites([]);
       setLoading(false);
@@ -1516,7 +1537,8 @@ export default function App() {
       supabase.from("group_class_waitlist").select("*").order("created_at"),
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ss }, { data: slb }, { data: slr }, { data: ri }, { data: res }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: gcw }, { data: myMembership }, { data: invites }]) => {
+      supabase.from("tasks").select("*").is("deleted_at", null).order("due_date"),
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ss }, { data: slb }, { data: slr }, { data: ri }, { data: res }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: gcw }, { data: myMembership }, { data: invites }, { data: tk }]) => {
       // customers/deals/company_settings RLS'i, sahiplik politikasına ek olarak
       // portal kullanıcılarının kendi bağlı oldukları kayıtları görmesine izin
       // veren bir politikayla da "veya" ile birleşiyor (customer_*_view'ların
@@ -1554,6 +1576,7 @@ export default function App() {
       setStockItems((stk || []).filter((row) => row.user_id === ownerId).map(rowToStockItem));
       setPriceItemIngredients((pii || []).filter((row) => row.user_id === ownerId).map(rowToPriceItemIngredient));
       setGroupClassWaitlist((gcw || []).filter((row) => row.user_id === ownerId).map(rowToWaitlistEntry));
+      setTasks((tk || []).filter((row) => row.user_id === ownerId).map(rowToTask));
       setActiveTeamId(ownerId);
       // Sadece BANA gelen davetler (kendi gönderdiklerim değil) — RLS iki SELECT
       // politikasını OR ile birleştirdiği için burada e-postaya göre ek filtre şart.
@@ -1596,6 +1619,17 @@ export default function App() {
       // yenilemeden mesaj yazınca admin tarafında da beklemeden görünsün.
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "ticket_messages", filter: `user_id=eq.${activeTeamId}` }, (payload) => {
         setTicketMessages((prev) => (prev.some((m) => m.id === payload.new.id) ? prev : [...prev, rowToTicketMessage(payload.new)]));
+      })
+      // Başka bir takım üyesinin eklediği/tamamladığı görevler anlık yansısın diye.
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "tasks", filter: `user_id=eq.${activeTeamId}` }, (payload) => {
+        setTasks((prev) => (prev.some((x) => x.id === payload.new.id) ? prev : [...prev, rowToTask(payload.new)]));
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "tasks", filter: `user_id=eq.${activeTeamId}` }, (payload) => {
+        setTasks((prev) =>
+          payload.new.deleted_at
+            ? prev.filter((x) => x.id !== payload.new.id)
+            : prev.map((x) => (x.id === payload.new.id ? rowToTask(payload.new) : x))
+        );
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -2026,6 +2060,47 @@ export default function App() {
       await supabase.from("deals").update({ reminder: reminderUpdate.reminder, reminder_date: reminderUpdate.reminderDate }).eq("id", deal.id);
       setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, reminder: reminderUpdate.reminder, reminderDate: reminderUpdate.reminderDate } : d)));
     }
+  };
+
+  const upsertTask = async (t) => {
+    const isNew = !tasks.some((x) => x.id === t.id);
+    const row = {
+      id: t.id,
+      user_id: activeTeamId,
+      title: t.title,
+      type: t.type,
+      description: t.description || null,
+      due_date: t.dueDate || null,
+      assigned_to: t.assignedTo || null,
+      customer_id: t.customerId || null,
+      deal_id: t.dealId || null,
+    };
+    const { data, error } = await supabase.from("tasks").upsert(row).select().single();
+    if (error) { notify(`Görev kaydedilemedi: ${error.message}`); return; }
+    const task = rowToTask(data);
+    setTasks((prev) => (isNew ? [...prev, task] : prev.map((x) => (x.id === task.id ? task : x))));
+    logAction("tasks", task.id, isNew ? "created" : "updated", `"${task.title}" görevi ${isNew ? "eklendi" : "güncellendi"}`);
+  };
+
+  const deleteTask = async (id) => {
+    const task = tasks.find((x) => x.id === id);
+    const { error } = await supabase
+      .from("tasks")
+      .update({ deleted_at: new Date().toISOString(), deleted_batch_id: uid() })
+      .eq("id", id);
+    if (error) { notify(`Görev silinemedi: ${error.message}`); return; }
+    setTasks((prev) => prev.filter((x) => x.id !== id));
+    logAction("tasks", id, "deleted", `"${task?.title || "Görev"}" çöp kutusuna taşındı`);
+  };
+
+  const toggleTaskComplete = async (id) => {
+    const task = tasks.find((x) => x.id === id);
+    if (!task) return;
+    const completedAt = task.completedAt ? null : new Date().toISOString();
+    const { error } = await supabase.from("tasks").update({ completed_at: completedAt }).eq("id", id);
+    if (error) { notify(`Görev güncellenemedi: ${error.message}`); return; }
+    setTasks((prev) => prev.map((x) => (x.id === id ? { ...x, completedAt } : x)));
+    logAction("tasks", id, "updated", `"${task.title}" görevi ${completedAt ? "tamamlandı" : "yeniden açıldı"}`);
   };
 
   const upsertDeal = async (d) => {
@@ -4386,6 +4461,7 @@ export default function App() {
           ...(canEditCompanySettings ? [{ id: "fiyatlistesi", label: "Fiyat Listesi", icon: "ti-tag" }] : []),
           ...(canEditCompanySettings ? [{ id: "stokmalzeme", label: "Stok & Malzeme", icon: "ti-package" }] : []),
           { id: "ajanda", label: "Ajanda", icon: "ti-calendar-event" },
+          { id: "gorevler", label: "Görevler", icon: "ti-list-check" },
           { id: "finans", label: "Finans", icon: "ti-chart-line" },
           { id: "mesajlar", label: "Mesajlar", icon: "ti-message-2" },
           ...(supportsGroupClasses(companySettings?.sector) ? [{ id: "dersler", label: "Dersler", icon: "ti-calendar-time" }] : []),
@@ -4686,6 +4762,20 @@ export default function App() {
           }}
           selectedConversation={selectedChatConversation}
           onSend={(content) => addTicketMessage({ ticketId: selectedChatConversation.ticket.id, direction: "giden", content, isInternal: false })}
+        />
+      )}
+
+      {tab === "gorevler" && (
+        <Tasks
+          tasks={tasks}
+          customers={customers}
+          deals={deals}
+          teamMembers={teamRoster}
+          currentUserId={session.user.id}
+          currentUserEmail={session.user.email}
+          onSave={upsertTask}
+          onDelete={deleteTask}
+          onToggleComplete={toggleTaskComplete}
         />
       )}
 

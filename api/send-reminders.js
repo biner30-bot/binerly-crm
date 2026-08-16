@@ -39,6 +39,18 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: dealsError.message });
     }
 
+    const { data: dueTasks, error: tasksError } = await supabaseAdmin
+      .from("tasks")
+      .select("id, user_id, title, type, due_date, assigned_to, customer_id")
+      .is("deleted_at", null)
+      .is("completed_at", null)
+      .not("due_date", "is", null)
+      .lte("due_date", today);
+
+    if (tasksError) {
+      return res.status(500).json({ error: tasksError.message });
+    }
+
     // Google değerlendirme isteği: "kazanildi" aşamasına DÜN geçmiş (Europe/Istanbul
     // takvim günü) ve daha önce hiç istek gönderilmemiş kayıtlar. Türkiye 2016'dan beri
     // kalıcı olarak UTC+3'te (DST yok), bu yüzden sabit ofsetle gün sınırını güvenle
@@ -118,12 +130,17 @@ export default async function handler(req, res) {
     const hasReminders = dueDeals && dueDeals.length > 0;
     const hasReviewRequests = reviewDeals && reviewDeals.length > 0;
     const hasWaitlistEntries = waitlistEntries && waitlistEntries.length > 0;
-    if (!hasReminders && !hasReviewRequests && !hasWaitlistEntries) {
+    const hasTasks = dueTasks && dueTasks.length > 0;
+    if (!hasReminders && !hasReviewRequests && !hasWaitlistEntries && !hasTasks) {
       return res.status(200).json({ usersNotified: 0, customersNotified: 0, reviewsRequested: 0, membershipsMoved });
     }
 
     const customerIds = [
-      ...new Set([...(dueDeals || []).map((d) => d.customer_id), ...(reviewDeals || []).map((d) => d.customer_id)]),
+      ...new Set([
+        ...(dueDeals || []).map((d) => d.customer_id),
+        ...(reviewDeals || []).map((d) => d.customer_id),
+        ...(dueTasks || []).map((t) => t.customer_id).filter(Boolean),
+      ]),
     ];
     const { data: customers } = await supabaseAdmin
       .from("customers")
@@ -142,6 +159,13 @@ export default async function handler(req, res) {
     const reviewDealsByUser = {};
     for (const deal of reviewDeals || []) {
       (reviewDealsByUser[deal.user_id] ||= []).push(deal);
+    }
+
+    // Görevler sahibe değil ATANAN kişiye gider (deals hatırlatmasından farklı) -
+    // atanmamışsa görevi oluşturan takımın sahibine düşer.
+    const tasksByAssignee = {};
+    for (const task of dueTasks || []) {
+      (tasksByAssignee[task.assigned_to || task.user_id] ||= []).push(task);
     }
 
     const settingsUserIds = [...new Set([...Object.keys(dealsByUser), ...Object.keys(reviewDealsByUser)])];
@@ -216,6 +240,43 @@ export default async function handler(req, res) {
         });
         if (customerRes.ok) customersNotified++;
       }
+    }
+
+    // Görev hatırlatmaları — "gönderildi" damgası YOK, deals.reminder ile tutarlı
+    // olarak açık/gecikmiş görev tamamlanana kadar her gün tekrar hatırlatılır.
+    const TASK_TYPE_LABELS = { arama: "Arama", toplanti: "Toplantı", eposta: "E-posta", diger: "Diğer" };
+    let tasksNotified = 0;
+    for (const [assigneeId, userTasks] of Object.entries(tasksByAssignee)) {
+      const { data: assigneeData, error: assigneeError } = await supabaseAdmin.auth.admin.getUserById(assigneeId);
+      const assigneeEmail = assigneeData?.user?.email;
+      if (assigneeError || !assigneeEmail) {
+        failed++;
+        continue;
+      }
+
+      const taskLines = userTasks.map(
+        (t) =>
+          `- [${TASK_TYPE_LABELS[t.type] || t.type}] ${t.title}${t.customer_id ? ` (${customerNameById[t.customer_id] || "Bilinmeyen müşteri"})` : ""}`
+      );
+      const taskBodyText = `Bugün için görevleriniz:\n\n${taskLines.join("\n")}\n\nBinerly'ye giriş yaparak görevlerinizi görüntüleyebilirsiniz.`;
+      const taskFooterLines = ["Binerly Ekibi"];
+
+      const taskSendRes = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "Binerly <noreply@binerly.com>",
+          to: assigneeEmail,
+          subject: `Bugünkü görevleriniz (${userTasks.length})`,
+          html: renderEmailHtml({ bodyText: taskBodyText, footerLines: taskFooterLines }),
+          text: plainTextFallback(taskBodyText, null, null, taskFooterLines),
+        }),
+      });
+      if (taskSendRes.ok) tasksNotified++;
+      else failed++;
     }
 
     // Google değerlendirme istekleri — ayrı bir döngü, çünkü hatırlatması olmayan
@@ -406,7 +467,7 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(200).json({ usersNotified, failed, customersNotified, reviewsRequested, membershipsMoved, winbackSent, waitlistNotified });
+    return res.status(200).json({ usersNotified, failed, customersNotified, reviewsRequested, membershipsMoved, winbackSent, waitlistNotified, tasksNotified });
   } catch (err) {
     console.error("send-reminders fatal error:", err.message);
     return res.status(500).json({ error: "Gönderim sırasında hata oluştu." });
