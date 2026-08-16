@@ -3055,6 +3055,7 @@ export default function App() {
       { name: "kb_articles", setter: setKbArticles, map: rowToKbArticle, label: (r) => r.title },
       { name: "group_classes", setter: setGroupClasses, map: rowToGroupClass, label: (r) => r.name },
       { name: "attachments", setter: setAttachments, map: rowToAttachment, label: (r) => r.file_name },
+      { name: "tasks", setter: setTasks, map: rowToTask, label: (r) => r.title },
     ];
     let anyError = null;
     let restoredTicketIds = [];
@@ -3123,7 +3124,7 @@ export default function App() {
       if (error) skipped.push(`Talepler silinemedi: ${error.message}`); else deletedCount += data?.length || 0;
     }
 
-    for (const table of ["kb_articles", "group_classes"]) {
+    for (const table of ["kb_articles", "group_classes", "tasks"]) {
       const { data, error } = await supabase.from(table).delete().eq("deleted_batch_id", batchId).select();
       if (error) skipped.push(`${TRASH_TABLE_LABELS[table]}: ${error.message}`); else deletedCount += data?.length || 0;
     }
@@ -4107,6 +4108,7 @@ export default function App() {
   const dueReminderDeals = deals.filter(
     (d) => d.reminder && d.reminderDate && d.stage !== "kazanildi" && d.stage !== "kaybedildi" && new Date(d.reminderDate) <= todayEnd
   );
+  const dueTasks = tasks.filter((t) => !t.completedAt && t.dueDate && new Date(t.dueDate) <= todayEnd);
   // Müşteri portalından kendi kendine alınan, henüz KOBİ tarafından hiç
   // dokunulmamış (hâlâ "ilk_gorusme" aşamasında) randevu talepleri — gözden
   // kaçmasınlar diye "Bugün ne yapmalıyım" widget'ında en üstte gösterilir.
@@ -4588,6 +4590,7 @@ export default function App() {
           otelArrivalsToday={otelArrivalsToday}
           otelDeparturesToday={otelDeparturesToday}
           dueReminderDeals={dueReminderDeals}
+          dueTasks={dueTasks}
           urgentTickets={urgentTickets}
           newPortalAppointments={newPortalAppointments}
           orderRhythmAlerts={orderRhythmAlerts}
@@ -5533,6 +5536,7 @@ export default function App() {
             onToggleAttachmentShare={toggleAttachmentShare}
             onToggleShowcase={toggleDealShowcase}
             onRequestPhotoConsent={requestPhotoConsent}
+            onSaveTask={upsertTask}
             onSave={upsertDeal}
             onCancel={() => { setShowDealForm(false); setEditingDeal(null); setAppointmentPrefillDateTime(null); }}
           />
@@ -5715,6 +5719,10 @@ export default function App() {
           onDeleteAttachment={deleteAttachment}
           onAddActivity={addActivity}
           onRequestConsent={requestCustomerConsent}
+          teamMembers={teamRoster}
+          currentUserId={session.user.id}
+          currentUserEmail={session.user.email}
+          onSaveTask={upsertTask}
           onClose={() => setViewingCustomer(null)}
         />
       )}

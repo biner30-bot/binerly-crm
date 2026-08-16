@@ -40,6 +40,7 @@ import {
   TagBadges,
 } from "./Sectors";
 import { DEAL_WORD_FORMS } from "./staticData";
+import { TaskForm } from "./Tasks";
 // Vadesi geçmiş bakiye / kredi limiti uyarısı — GERÇEK BİR ENGEL DEĞİL, sadece
 // bilgilendirme (kullanıcının kararı: "riskli müşteriye teklif vermek KOBİ'nin
 // kendi bileceği iş"). "Ödeme Vadesi" (Peşin/30 gün/60 gün/90 gün) zaten var
@@ -448,9 +449,11 @@ export function DealForm({
   onToggleAttachmentShare,
   onToggleShowcase,
   onRequestPhotoConsent,
+  onSaveTask,
   onSave,
   onCancel,
 }) {
+  const [showTaskForm, setShowTaskForm] = useState(false);
   const [customerId, setCustomerId] = useState(
     initial?.customerId ||
       customers.find((c) => c.customerType === preferredCustomerType)?.id ||
@@ -841,570 +844,536 @@ export function DealForm({
   }, [lineItemsTotal, lineItems.length, discountAmount]);
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (!customerId || !title.trim()) {
-          setTitleError(!title.trim() ? "Başlık girin." : "Önce bir müşteri seçin.");
-          return;
-        }
-        setTitleError("");
-        if (totalPaid > 0 && Number(value) < totalPaid) {
-          setValueError(
-            `Tutar, zaten tahsil edilen ${formatTL(totalPaid)}'nin altına düşürülemez.`,
-          );
-          return;
-        }
-        setValueError("");
-        if (isClosingStage && closedDate < dealDate) {
-          setDateError("Bitiş tarihi, başlangıç tarihinden önce olamaz.");
-          return;
-        }
-        setDateError("");
-        if (isPackageDeal && Number(sessionTotal) < 1) {
-          setSessionError("Toplam seans sayısı en az 1 olmalı.");
-          return;
-        }
-        if (isPackageDeal && Number(sessionTotal) < Number(sessionUsed)) {
-          setSessionError(
-            `Toplam seans sayısı, zaten kullanılan ${sessionUsed} seansın altına düşürülemez.`,
-          );
-          return;
-        }
-        setSessionError("");
-        const useAppointmentCredit = hasCredit && applyCredit;
-        const payload = {
-          id: initial?.id || uid(),
-          customerId,
-          title: title.trim(),
-          value: useAppointmentCredit ? 0 : Number(value) || 0,
-          cost: Number(cost) || 0,
-          paymentMode: useAppointmentCredit ? "none" : paymentMode,
-          useAppointmentCredit,
-          kdvRate,
-          stage,
-          reminder: reminder.trim(),
-          reminderDate: reminderDate || null,
-          lostReason: stage === "kaybedildi" ? lostReason : "",
-          isPackageDeal,
-          sessionTotal: isPackageDeal ? Number(sessionTotal) || 0 : null,
-          sessionUsed: isPackageDeal
-            ? Math.min(Number(sessionUsed) || 0, Number(sessionTotal) || 0)
-            : 0,
-          tags,
-          // price_item_id: hangi fiyat listesi kalemi seçildiyse (üst seçici,
-          // Kalemler'den bağımsız tek-hizmetlik durum) — tazeleme hatırlatıcısı
-          // ve stok reçetesi düşümü bunu okuyor (bkz. App.jsx:computeServiceCompletionEffects).
-          customFields: {
-            ...customFields,
-            price_item_id: selectedPriceItemId || null,
-            // Müşteri portalı/widget'ın müsaitlik hesabı (api/appointment-availability.js)
-            // sadece bu alana bakıyor, deal_line_items'a hiç erişmiyor - burada
-            // yazılmazsa CRM'den eklenen randevular "1 dakikalık nokta" sanılıp
-            // gerçek süresi boyunca dolu görünmesi gerekirken boş görünürdü.
-            duration_minutes:
-              lineItemsDuration > 0
-                ? lineItemsDuration
-                : fallbackDurationFromBusinessHours(
-                    customFields[appointmentDateTimeKey],
-                    businessHours,
-                  ) || null,
-            package_breakdown:
-              isPackageDeal && packageBreakdown.length > 0
-                ? packageBreakdown
-                    .filter((b) => b.label.trim() && Number(b.total) >= 1)
-                    .map((b) => ({
-                      label: b.label.trim(),
-                      total: Number(b.total) || 1,
-                      used: Math.min(Number(b.used) || 0, Number(b.total) || 1),
-                    }))
-                : null,
-            discount:
-              lineItems.length > 0 && discountValue !== "" && Number(discountValue) > 0
-                ? { type: discountType, value: Number(discountValue) }
-                : null,
-            resource_id: resourceId || null,
-          },
-          lineItems: lineItems
-            .filter((li) => li.description.trim())
-            .map((li) => ({
-              description: li.description.trim(),
-              quantity: Number(li.quantity) || 1,
-              unitPrice: Number(li.unitPrice) || 0,
-              priceItemId: li.priceItemId || null,
-            })),
-          assignedTo: assignedTo || null,
-          notifyCustomer,
-          approvalToken: initial?.approvalToken || null,
-          approvedAt: initial?.approvedAt || null,
-          // Saat boş bırakılırsa YENİ bir teklifte gerçek "şu an"ın saatini
-          // kullanıyoruz — yoksa aynı gün eklenen tüm teklifler aynı (gece
-          // yarısı) zaman damgasını alıp "en yeni eklenen" sıralamasında
-          // birbirinden ayırt edilemiyordu (ekleme sırası korunuyor, en
-          // yeni en üste çıkmıyordu). Var olan bir teklifi düzenlerken bu
-          // davranış değişmiyor — kaydedilmiş saat neyse o korunuyor.
-          createdAt: new Date(
-            `${dealDate}T${dealTime || (initial ? "00:00" : new Date().toTimeString().slice(0, 5))}`,
-          ).toISOString(),
-          closedAt: isClosingStage ? new Date(`${closedDate}T00:00`).toISOString() : null,
-        };
-        const conflictMessage = findAppointmentConflict(stage, customFields);
-        if (conflictMessage) {
-          setConflictError(conflictMessage);
-          return;
-        }
-        const roomConflictMessage = findRoomConflict(stage, customFields);
-        if (roomConflictMessage) {
-          setConflictError(roomConflictMessage);
-          return;
-        }
-        setConflictError("");
-        onSave(payload);
-      }}
-      className="compact-form"
-      style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
-    >
-      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: 4 }}>
-        <div style={{ marginBottom: 12 }}>
-          <label
-            style={{
-              fontSize: 13,
-              color: "var(--text-secondary)",
-              display: "block",
-              marginBottom: 4,
-            }}
-          >
-            Müşteri
-          </label>
-          {initial ? (
-            <p style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
-              {customers.find((c) => c.id === customerId)?.name || "Bilinmeyen müşteri"}
-            </p>
-          ) : customers.length === 0 ? (
-            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Önce bir müşteri ekleyin.</p>
-          ) : (
-            <select
-              value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
-              style={{ width: "100%" }}
+    <>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!customerId || !title.trim()) {
+            setTitleError(!title.trim() ? "Başlık girin." : "Önce bir müşteri seçin.");
+            return;
+          }
+          setTitleError("");
+          if (totalPaid > 0 && Number(value) < totalPaid) {
+            setValueError(
+              `Tutar, zaten tahsil edilen ${formatTL(totalPaid)}'nin altına düşürülemez.`,
+            );
+            return;
+          }
+          setValueError("");
+          if (isClosingStage && closedDate < dealDate) {
+            setDateError("Bitiş tarihi, başlangıç tarihinden önce olamaz.");
+            return;
+          }
+          setDateError("");
+          if (isPackageDeal && Number(sessionTotal) < 1) {
+            setSessionError("Toplam seans sayısı en az 1 olmalı.");
+            return;
+          }
+          if (isPackageDeal && Number(sessionTotal) < Number(sessionUsed)) {
+            setSessionError(
+              `Toplam seans sayısı, zaten kullanılan ${sessionUsed} seansın altına düşürülemez.`,
+            );
+            return;
+          }
+          setSessionError("");
+          const useAppointmentCredit = hasCredit && applyCredit;
+          const payload = {
+            id: initial?.id || uid(),
+            customerId,
+            title: title.trim(),
+            value: useAppointmentCredit ? 0 : Number(value) || 0,
+            cost: Number(cost) || 0,
+            paymentMode: useAppointmentCredit ? "none" : paymentMode,
+            useAppointmentCredit,
+            kdvRate,
+            stage,
+            reminder: reminder.trim(),
+            reminderDate: reminderDate || null,
+            lostReason: stage === "kaybedildi" ? lostReason : "",
+            isPackageDeal,
+            sessionTotal: isPackageDeal ? Number(sessionTotal) || 0 : null,
+            sessionUsed: isPackageDeal
+              ? Math.min(Number(sessionUsed) || 0, Number(sessionTotal) || 0)
+              : 0,
+            tags,
+            // price_item_id: hangi fiyat listesi kalemi seçildiyse (üst seçici,
+            // Kalemler'den bağımsız tek-hizmetlik durum) — tazeleme hatırlatıcısı
+            // ve stok reçetesi düşümü bunu okuyor (bkz. App.jsx:computeServiceCompletionEffects).
+            customFields: {
+              ...customFields,
+              price_item_id: selectedPriceItemId || null,
+              // Müşteri portalı/widget'ın müsaitlik hesabı (api/appointment-availability.js)
+              // sadece bu alana bakıyor, deal_line_items'a hiç erişmiyor - burada
+              // yazılmazsa CRM'den eklenen randevular "1 dakikalık nokta" sanılıp
+              // gerçek süresi boyunca dolu görünmesi gerekirken boş görünürdü.
+              duration_minutes:
+                lineItemsDuration > 0
+                  ? lineItemsDuration
+                  : fallbackDurationFromBusinessHours(
+                      customFields[appointmentDateTimeKey],
+                      businessHours,
+                    ) || null,
+              package_breakdown:
+                isPackageDeal && packageBreakdown.length > 0
+                  ? packageBreakdown
+                      .filter((b) => b.label.trim() && Number(b.total) >= 1)
+                      .map((b) => ({
+                        label: b.label.trim(),
+                        total: Number(b.total) || 1,
+                        used: Math.min(Number(b.used) || 0, Number(b.total) || 1),
+                      }))
+                  : null,
+              discount:
+                lineItems.length > 0 && discountValue !== "" && Number(discountValue) > 0
+                  ? { type: discountType, value: Number(discountValue) }
+                  : null,
+              resource_id: resourceId || null,
+            },
+            lineItems: lineItems
+              .filter((li) => li.description.trim())
+              .map((li) => ({
+                description: li.description.trim(),
+                quantity: Number(li.quantity) || 1,
+                unitPrice: Number(li.unitPrice) || 0,
+                priceItemId: li.priceItemId || null,
+              })),
+            assignedTo: assignedTo || null,
+            notifyCustomer,
+            approvalToken: initial?.approvalToken || null,
+            approvedAt: initial?.approvedAt || null,
+            // Saat boş bırakılırsa YENİ bir teklifte gerçek "şu an"ın saatini
+            // kullanıyoruz — yoksa aynı gün eklenen tüm teklifler aynı (gece
+            // yarısı) zaman damgasını alıp "en yeni eklenen" sıralamasında
+            // birbirinden ayırt edilemiyordu (ekleme sırası korunuyor, en
+            // yeni en üste çıkmıyordu). Var olan bir teklifi düzenlerken bu
+            // davranış değişmiyor — kaydedilmiş saat neyse o korunuyor.
+            createdAt: new Date(
+              `${dealDate}T${dealTime || (initial ? "00:00" : new Date().toTimeString().slice(0, 5))}`,
+            ).toISOString(),
+            closedAt: isClosingStage ? new Date(`${closedDate}T00:00`).toISOString() : null,
+          };
+          const conflictMessage = findAppointmentConflict(stage, customFields);
+          if (conflictMessage) {
+            setConflictError(conflictMessage);
+            return;
+          }
+          const roomConflictMessage = findRoomConflict(stage, customFields);
+          if (roomConflictMessage) {
+            setConflictError(roomConflictMessage);
+            return;
+          }
+          setConflictError("");
+          onSave(payload);
+        }}
+        className="compact-form"
+        style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
+      >
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: 4 }}>
+          <div style={{ marginBottom: 12 }}>
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
             >
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-        {creditRisk && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 8,
-              background: "var(--bg-warning)",
-              border: "0.5px solid var(--text-warning)",
-              borderRadius: "var(--radius)",
-              padding: "10px 12px",
-              marginBottom: 12,
-              fontSize: 13,
-            }}
-          >
-            <i
-              className="ti ti-alert-triangle"
-              style={{ fontSize: 16, color: "var(--text-warning)", flexShrink: 0, marginTop: 1 }}
-              aria-hidden="true"
-            ></i>
-            <div>
-              <p style={{ margin: 0, fontWeight: 500, color: "var(--text-warning)" }}>
-                {selectedCustomer?.name} için ödeme riski
+              Müşteri
+            </label>
+            {initial ? (
+              <p style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
+                {customers.find((c) => c.id === customerId)?.name || "Bilinmeyen müşteri"}
               </p>
-              <p style={{ margin: "2px 0 0", color: "var(--text-secondary)" }}>
-                {creditRisk.overLimit &&
-                  `Bakiyesi (${formatTL(creditRisk.balance)}) kredi limitini (${formatTL(creditRisk.creditLimit)}) aşıyor. `}
-                {creditRisk.overdueBalance > 0 &&
-                  `${formatTL(creditRisk.overdueBalance)} tutarında vadesi geçmiş bakiyesi var. `}
-                Bu sadece bir uyarı - devam edip etmemek size kalmış.
-              </p>
-            </div>
-          </div>
-        )}
-        {noShowRisk && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 8,
-              background: "var(--bg-warning)",
-              border: "0.5px solid var(--text-warning)",
-              borderRadius: "var(--radius)",
-              padding: "10px 12px",
-              marginBottom: 12,
-              fontSize: 13,
-            }}
-          >
-            <i
-              className="ti ti-calendar-off"
-              style={{ fontSize: 16, color: "var(--text-warning)", flexShrink: 0, marginTop: 1 }}
-              aria-hidden="true"
-            ></i>
-            <div style={{ flex: 1 }}>
-              <p style={{ margin: 0, fontWeight: 500, color: "var(--text-warning)" }}>
-                {selectedCustomer?.name} daha önce
-                {noShowRisk.noShowCount > 0
-                  ? ` ${noShowRisk.noShowCount} kez randevusuna gelmedi`
-                  : ""}
-                {noShowRisk.noShowCount > 0 && noShowRisk.lateCancelCount > 0 ? "," : ""}
-                {noShowRisk.lateCancelCount > 0
-                  ? ` ${noShowRisk.lateCancelCount} kez geç iptal etti`
-                  : ""}
-              </p>
-              <p style={{ margin: "2px 0 0", color: "var(--text-secondary)" }}>
-                {noShowPenaltyBurnsInstead
-                  ? "Bu müşterinin aktif bir paketi var - politikanız gereği ödeme istemek yerine ihlallerinde paketten otomatik seans düşülüyor, ayrıca bir işlem yapmanız gerekmiyor."
-                  : paymentMode === "required"
-                    ? "Müsaitlik Saatleri'ndeki politikanız gereği ödeme otomatik olarak zorunlu yapıldı - Tutar alanına kapora/tutar girin, isterseniz aşağıdan bu tercihi değiştirebilirsiniz."
-                    : 'Politikanız bu müşteri için ödeme zorunlu tutmayı öneriyor - Tutar alanına kapora miktarını girip aşağıdan "Ödeme zorunlu" seçebilirsiniz.'}
-              </p>
-            </div>
-            {!noShowPenaltyBurnsInstead && paymentMode !== "required" && (
-              <button
-                type="button"
-                onClick={() => setPaymentMode("required")}
-                style={{ fontSize: 12, flexShrink: 0, whiteSpace: "nowrap" }}
+            ) : customers.length === 0 ? (
+              <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Önce bir müşteri ekleyin.</p>
+            ) : (
+              <select
+                value={customerId}
+                onChange={(e) => setCustomerId(e.target.value)}
+                style={{ width: "100%" }}
               >
-                Ödemeyi zorunlu yap
-              </button>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
             )}
           </div>
-        )}
-        {hasCredit && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 8,
-              background: "var(--bg-accent)",
-              border: "0.5px solid var(--border-strong)",
-              borderRadius: "var(--radius)",
-              padding: "10px 12px",
-              marginBottom: 12,
-              fontSize: 13,
-            }}
-          >
-            <i
-              className="ti ti-gift"
-              style={{ fontSize: 16, color: "var(--text-accent)", flexShrink: 0, marginTop: 1 }}
-              aria-hidden="true"
-            ></i>
-            <div style={{ flex: 1 }}>
-              <p style={{ margin: 0, fontWeight: 500 }}>
-                {selectedCustomer?.name} için {selectedCustomer?.appointmentCreditCount} ücretsiz
-                telafi hakkı var
-              </p>
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  marginTop: 4,
-                  color: "var(--text-secondary)",
-                  cursor: "pointer",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={applyCredit}
-                  onChange={(e) => setApplyCredit(e.target.checked)}
-                />
-                Bu randevuya uygula (Tutar 0 TL olur, ödeme istenmez)
-              </label>
+          {creditRisk && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 8,
+                background: "var(--bg-warning)",
+                border: "0.5px solid var(--text-warning)",
+                borderRadius: "var(--radius)",
+                padding: "10px 12px",
+                marginBottom: 12,
+                fontSize: 13,
+              }}
+            >
+              <i
+                className="ti ti-alert-triangle"
+                style={{ fontSize: 16, color: "var(--text-warning)", flexShrink: 0, marginTop: 1 }}
+                aria-hidden="true"
+              ></i>
+              <div>
+                <p style={{ margin: 0, fontWeight: 500, color: "var(--text-warning)" }}>
+                  {selectedCustomer?.name} için ödeme riski
+                </p>
+                <p style={{ margin: "2px 0 0", color: "var(--text-secondary)" }}>
+                  {creditRisk.overLimit &&
+                    `Bakiyesi (${formatTL(creditRisk.balance)}) kredi limitini (${formatTL(creditRisk.creditLimit)}) aşıyor. `}
+                  {creditRisk.overdueBalance > 0 &&
+                    `${formatTL(creditRisk.overdueBalance)} tutarında vadesi geçmiş bakiyesi var. `}
+                  Bu sadece bir uyarı - devam edip etmemek size kalmış.
+                </p>
+              </div>
             </div>
-          </div>
-        )}
-        {(initial?.approvedAt || initial?.paymentStatus === "paid") && (
-          <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-            {initial?.approvedAt && <Badge tone="success">✓ Müşteri onayladı</Badge>}
-            {/* payment_status DB'de "paid" olsa bile bu kapora gibi kısmi bir
+          )}
+          {noShowRisk && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 8,
+                background: "var(--bg-warning)",
+                border: "0.5px solid var(--text-warning)",
+                borderRadius: "var(--radius)",
+                padding: "10px 12px",
+                marginBottom: 12,
+                fontSize: 13,
+              }}
+            >
+              <i
+                className="ti ti-calendar-off"
+                style={{ fontSize: 16, color: "var(--text-warning)", flexShrink: 0, marginTop: 1 }}
+                aria-hidden="true"
+              ></i>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontWeight: 500, color: "var(--text-warning)" }}>
+                  {selectedCustomer?.name} daha önce
+                  {noShowRisk.noShowCount > 0
+                    ? ` ${noShowRisk.noShowCount} kez randevusuna gelmedi`
+                    : ""}
+                  {noShowRisk.noShowCount > 0 && noShowRisk.lateCancelCount > 0 ? "," : ""}
+                  {noShowRisk.lateCancelCount > 0
+                    ? ` ${noShowRisk.lateCancelCount} kez geç iptal etti`
+                    : ""}
+                </p>
+                <p style={{ margin: "2px 0 0", color: "var(--text-secondary)" }}>
+                  {noShowPenaltyBurnsInstead
+                    ? "Bu müşterinin aktif bir paketi var - politikanız gereği ödeme istemek yerine ihlallerinde paketten otomatik seans düşülüyor, ayrıca bir işlem yapmanız gerekmiyor."
+                    : paymentMode === "required"
+                      ? "Müsaitlik Saatleri'ndeki politikanız gereği ödeme otomatik olarak zorunlu yapıldı - Tutar alanına kapora/tutar girin, isterseniz aşağıdan bu tercihi değiştirebilirsiniz."
+                      : 'Politikanız bu müşteri için ödeme zorunlu tutmayı öneriyor - Tutar alanına kapora miktarını girip aşağıdan "Ödeme zorunlu" seçebilirsiniz.'}
+                </p>
+              </div>
+              {!noShowPenaltyBurnsInstead && paymentMode !== "required" && (
+                <button
+                  type="button"
+                  onClick={() => setPaymentMode("required")}
+                  style={{ fontSize: 12, flexShrink: 0, whiteSpace: "nowrap" }}
+                >
+                  Ödemeyi zorunlu yap
+                </button>
+              )}
+            </div>
+          )}
+          {hasCredit && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 8,
+                background: "var(--bg-accent)",
+                border: "0.5px solid var(--border-strong)",
+                borderRadius: "var(--radius)",
+                padding: "10px 12px",
+                marginBottom: 12,
+                fontSize: 13,
+              }}
+            >
+              <i
+                className="ti ti-gift"
+                style={{ fontSize: 16, color: "var(--text-accent)", flexShrink: 0, marginTop: 1 }}
+                aria-hidden="true"
+              ></i>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontWeight: 500 }}>
+                  {selectedCustomer?.name} için {selectedCustomer?.appointmentCreditCount} ücretsiz
+                  telafi hakkı var
+                </p>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    marginTop: 4,
+                    color: "var(--text-secondary)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={applyCredit}
+                    onChange={(e) => setApplyCredit(e.target.checked)}
+                  />
+                  Bu randevuya uygula (Tutar 0 TL olur, ödeme istenmez)
+                </label>
+              </div>
+            </div>
+          )}
+          {(initial?.approvedAt || initial?.paymentStatus === "paid") && (
+            <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+              {initial?.approvedAt && <Badge tone="success">✓ Müşteri onayladı</Badge>}
+              {/* payment_status DB'de "paid" olsa bile bu kapora gibi kısmi bir
               tahsilat olabilir (bkz. api/deal-approval.js:recordSuccessfulPayment
               yorumu) - burada gerçekten tam ödendi mi totalPaid/value ile ayrıca
               doğrulanıyor, yoksa kapora "tam ödendi" gibi yanlış görünürdü. */}
-            {initial?.paymentStatus === "paid" && totalPaid >= (initial?.value || 0) && (
-              <Badge tone="success">✓ Online ödendi</Badge>
-            )}
-            {initial?.paymentStatus === "paid" && totalPaid < (initial?.value || 0) && (
-              <Badge tone="warning">✓ Kapora ödendi</Badge>
-            )}
-          </div>
-        )}
-        {(priceListItems.length > 0 ||
-          (bookingModel(sector) === "slot" && appointmentDateTimeKey) ||
-          membershipEndDef) && (
-          <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-            {priceListItems.length > 0 && (
-              <div style={{ flex: 1, minWidth: 200 }}>
-                <label
-                  style={{
-                    fontSize: 13,
-                    color: "var(--text-secondary)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                    marginBottom: 4,
-                  }}
-                >
-                  Ürün/Hizmet
-                  <InfoTip
-                    placement="bottom"
-                    align="left"
-                    text="Listeden seçmek başlığı ve tutarı otomatik doldurur, sonrasında yine de değiştirebilirsiniz. Fiyat Listesi sekmesinden yönetilir."
-                  />
-                </label>
-                <select
-                  value={selectedPriceItemId}
-                  onChange={(e) => {
-                    const item = priceListItems.find((p) => p.id === e.target.value);
-                    setSelectedPriceItemId(e.target.value);
-                    if (item) {
-                      setTitle(item.name);
-                      setValue(String(item.price));
-                      // Kullanıcının zaten elle seçtiği bir kaynağın üzerine yazılmaz -
-                      // sadece alan boşsa ve hizmetin varsayılan kaynağı hâlâ mevcutsa doldurulur.
-                      if (
-                        !resourceId &&
-                        item.resourceId &&
-                        resources.some((r) => r.id === item.resourceId)
-                      ) {
-                        setResourceId(item.resourceId);
-                      }
-                    } else {
-                      setTitle("");
-                      setValue("");
-                    }
-                  }}
-                  style={{ width: "100%" }}
-                >
-                  <option value="">Elle doldur / listeden seç</option>
-                  {priceListItems.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} - {formatTL(p.price)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            {bookingModel(sector) === "slot" && appointmentDateTimeKey && (
-              // Randevu tarihi önemli bir alan — Özel alanlar'ın altında gömülü
-              // kalmasın diye Ürün/Hizmet'in yanına, formun üstüne taşındı. Müsaitlik
-              // önerisi ayrı bir kutu değil, alanın kendisinin bir parçası (aşağıya bkz.).
-              <div style={{ flex: 1.4, minWidth: 240 }}>
-                <AppointmentDateTimeField
-                  businessUserId={businessUserId}
-                  label={
-                    customFieldDefs.find(
-                      (d) => d.entity === "deal" && d.key === appointmentDateTimeKey,
-                    )?.label || "Randevu Tarihi"
-                  }
-                  value={customFields[appointmentDateTimeKey]}
-                  onChange={(v) =>
-                    setCustomFields({ ...customFields, [appointmentDateTimeKey]: v })
-                  }
-                />
-              </div>
-            )}
-            {membershipEndDef && (
-              <div style={{ flex: 1, minWidth: 160 }}>
-                <label
-                  style={{
-                    fontSize: 13,
-                    color: "var(--text-secondary)",
-                    display: "block",
-                    marginBottom: 4,
-                  }}
-                >
-                  {membershipEndDef.label}
-                </label>
-                <input
-                  type="date"
-                  value={customFields[membershipEndDef.key] || ""}
-                  onChange={(e) =>
-                    setCustomFields({ ...customFields, [membershipEndDef.key]: e.target.value })
-                  }
-                  style={{ width: "100%" }}
-                />
-              </div>
-            )}
-          </div>
-        )}
-        <div style={{ marginBottom: 6 }}>
-          <label
-            style={{
-              fontSize: 13,
-              color: "var(--text-secondary)",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              marginBottom: 4,
-            }}
-          >
-            Kalemler (opsiyonel)
-            <InfoTip
-              align="left"
-              text="Birden fazla ürün/hizmet satırı eklerseniz Tutar bunların toplamına otomatik hesaplanır. Hiç kalem eklemezseniz Tutar'ı yine elle girebilirsiniz."
-            />
-            {lineItemsDuration > 0 && (
-              <Badge tone="default">Tahmini süre: {lineItemsDuration} dk</Badge>
-            )}
-          </label>
-          {lineItems.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 6 }}>
-              {lineItems.map((li, i) => (
-                <div
-                  key={li.localId ?? i}
-                  style={{
-                    border: "0.5px solid var(--border)",
-                    borderRadius: "var(--radius)",
-                    padding: 8,
-                  }}
-                >
-                  <div style={{ display: "flex", gap: 6, alignItems: "flex-end", marginBottom: 6 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <label
-                        style={{
-                          fontSize: 11,
-                          color: "var(--text-muted)",
-                          display: "block",
-                          marginBottom: 2,
-                        }}
-                      >
-                        Açıklama
-                      </label>
-                      <input
-                        value={li.description}
-                        onChange={(e) =>
-                          setLineItems((prev) =>
-                            prev.map((x, j) =>
-                              j === i ? { ...x, description: e.target.value } : x,
-                            ),
-                          )
-                        }
-                        placeholder={`Örn. ${PRICE_ITEM_NAME_EXAMPLES[sector] || "Danışmanlık"}`}
-                        style={{ width: "100%", fontSize: 13 }}
-                      />
-                    </div>
-                    <IconButton
-                      icon="ti-trash"
-                      title="Kalemi sil"
-                      size="sm"
-                      onClick={() => setLineItems((prev) => prev.filter((_, j) => j !== i))}
-                    />
-                  </div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <div style={{ width: 70 }}>
-                      <label
-                        style={{
-                          fontSize: 11,
-                          color: "var(--text-muted)",
-                          display: "block",
-                          marginBottom: 2,
-                        }}
-                      >
-                        Adet
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={li.quantity}
-                        onChange={(e) =>
-                          setLineItems((prev) =>
-                            prev.map((x, j) => (j === i ? { ...x, quantity: e.target.value } : x)),
-                          )
-                        }
-                        style={{ width: "100%", minWidth: 0, fontSize: 13 }}
-                      />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <label
-                        style={{
-                          fontSize: 11,
-                          color: "var(--text-muted)",
-                          display: "block",
-                          marginBottom: 2,
-                        }}
-                      >
-                        Birim fiyat (TL)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={li.unitPrice}
-                        onChange={(e) =>
-                          setLineItems((prev) =>
-                            prev.map((x, j) => (j === i ? { ...x, unitPrice: e.target.value } : x)),
-                          )
-                        }
-                        style={{ width: "100%", minWidth: 0, fontSize: 13 }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
+              {initial?.paymentStatus === "paid" && totalPaid >= (initial?.value || 0) && (
+                <Badge tone="success">✓ Online ödendi</Badge>
+              )}
+              {initial?.paymentStatus === "paid" && totalPaid < (initial?.value || 0) && (
+                <Badge tone="warning">✓ Kapora ödendi</Badge>
+              )}
             </div>
           )}
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <button
-              type="button"
-              onClick={() =>
-                setLineItems((prev) => {
-                  const blank = { localId: uid(), description: "", quantity: 1, unitPrice: 0 };
-                  // İlk kalem eklendiğinde, o ana kadar Başlık/Tutar'a elle (veya
-                  // üstteki Ürün/Hizmet seçiciyle) girilmiş olan tutar sessizce
-                  // kaybolmasın diye ilk satır olarak devralınır — AYRICA hemen
-                  // arkasından boş bir satır daha eklenir, yoksa buton "hiçbir şey
-                  // yapmıyormuş" gibi görünüyordu (Tutar aynı kalıyordu çünkü
-                  // devralınan tek kalem zaten mevcut tutara eşit).
-                  if (prev.length === 0 && title.trim() && Number(value) > 0) {
-                    return [
-                      {
-                        localId: uid(),
-                        description: title.trim(),
-                        quantity: 1,
-                        unitPrice: Number(value),
-                      },
-                      blank,
-                    ];
-                  }
-                  return [...prev, blank];
-                })
-              }
-              style={{ fontSize: 12 }}
+          {(priceListItems.length > 0 ||
+            (bookingModel(sector) === "slot" && appointmentDateTimeKey) ||
+            membershipEndDef) && (
+            <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+              {priceListItems.length > 0 && (
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <label
+                    style={{
+                      fontSize: 13,
+                      color: "var(--text-secondary)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      marginBottom: 4,
+                    }}
+                  >
+                    Ürün/Hizmet
+                    <InfoTip
+                      placement="bottom"
+                      align="left"
+                      text="Listeden seçmek başlığı ve tutarı otomatik doldurur, sonrasında yine de değiştirebilirsiniz. Fiyat Listesi sekmesinden yönetilir."
+                    />
+                  </label>
+                  <select
+                    value={selectedPriceItemId}
+                    onChange={(e) => {
+                      const item = priceListItems.find((p) => p.id === e.target.value);
+                      setSelectedPriceItemId(e.target.value);
+                      if (item) {
+                        setTitle(item.name);
+                        setValue(String(item.price));
+                        // Kullanıcının zaten elle seçtiği bir kaynağın üzerine yazılmaz -
+                        // sadece alan boşsa ve hizmetin varsayılan kaynağı hâlâ mevcutsa doldurulur.
+                        if (
+                          !resourceId &&
+                          item.resourceId &&
+                          resources.some((r) => r.id === item.resourceId)
+                        ) {
+                          setResourceId(item.resourceId);
+                        }
+                      } else {
+                        setTitle("");
+                        setValue("");
+                      }
+                    }}
+                    style={{ width: "100%" }}
+                  >
+                    <option value="">Elle doldur / listeden seç</option>
+                    {priceListItems.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} - {formatTL(p.price)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {bookingModel(sector) === "slot" && appointmentDateTimeKey && (
+                // Randevu tarihi önemli bir alan — Özel alanlar'ın altında gömülü
+                // kalmasın diye Ürün/Hizmet'in yanına, formun üstüne taşındı. Müsaitlik
+                // önerisi ayrı bir kutu değil, alanın kendisinin bir parçası (aşağıya bkz.).
+                <div style={{ flex: 1.4, minWidth: 240 }}>
+                  <AppointmentDateTimeField
+                    businessUserId={businessUserId}
+                    label={
+                      customFieldDefs.find(
+                        (d) => d.entity === "deal" && d.key === appointmentDateTimeKey,
+                      )?.label || "Randevu Tarihi"
+                    }
+                    value={customFields[appointmentDateTimeKey]}
+                    onChange={(v) =>
+                      setCustomFields({ ...customFields, [appointmentDateTimeKey]: v })
+                    }
+                  />
+                </div>
+              )}
+              {membershipEndDef && (
+                <div style={{ flex: 1, minWidth: 160 }}>
+                  <label
+                    style={{
+                      fontSize: 13,
+                      color: "var(--text-secondary)",
+                      display: "block",
+                      marginBottom: 4,
+                    }}
+                  >
+                    {membershipEndDef.label}
+                  </label>
+                  <input
+                    type="date"
+                    value={customFields[membershipEndDef.key] || ""}
+                    onChange={(e) =>
+                      setCustomFields({ ...customFields, [membershipEndDef.key]: e.target.value })
+                    }
+                    style={{ width: "100%" }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+          <div style={{ marginBottom: 6 }}>
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                marginBottom: 4,
+              }}
             >
-              + Kalem ekle
-            </button>
-            {priceListItems.length > 0 && (
-              <select
-                value=""
-                onChange={(e) => {
-                  const item = priceListItems.find((p) => p.id === e.target.value);
-                  if (!item) return;
-                  // Kullanıcının zaten elle seçtiği bir kaynağın üzerine yazılmaz -
-                  // sadece alan boşsa ve hizmetin varsayılan kaynağı hâlâ mevcutsa doldurulur.
-                  if (
-                    !resourceId &&
-                    item.resourceId &&
-                    resources.some((r) => r.id === item.resourceId)
-                  ) {
-                    setResourceId(item.resourceId);
-                  }
+              Kalemler (opsiyonel)
+              <InfoTip
+                align="left"
+                text="Birden fazla ürün/hizmet satırı eklerseniz Tutar bunların toplamına otomatik hesaplanır. Hiç kalem eklemezseniz Tutar'ı yine elle girebilirsiniz."
+              />
+              {lineItemsDuration > 0 && (
+                <Badge tone="default">Tahmini süre: {lineItemsDuration} dk</Badge>
+              )}
+            </label>
+            {lineItems.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 6 }}>
+                {lineItems.map((li, i) => (
+                  <div
+                    key={li.localId ?? i}
+                    style={{
+                      border: "0.5px solid var(--border)",
+                      borderRadius: "var(--radius)",
+                      padding: 8,
+                    }}
+                  >
+                    <div
+                      style={{ display: "flex", gap: 6, alignItems: "flex-end", marginBottom: 6 }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <label
+                          style={{
+                            fontSize: 11,
+                            color: "var(--text-muted)",
+                            display: "block",
+                            marginBottom: 2,
+                          }}
+                        >
+                          Açıklama
+                        </label>
+                        <input
+                          value={li.description}
+                          onChange={(e) =>
+                            setLineItems((prev) =>
+                              prev.map((x, j) =>
+                                j === i ? { ...x, description: e.target.value } : x,
+                              ),
+                            )
+                          }
+                          placeholder={`Örn. ${PRICE_ITEM_NAME_EXAMPLES[sector] || "Danışmanlık"}`}
+                          style={{ width: "100%", fontSize: 13 }}
+                        />
+                      </div>
+                      <IconButton
+                        icon="ti-trash"
+                        title="Kalemi sil"
+                        size="sm"
+                        onClick={() => setLineItems((prev) => prev.filter((_, j) => j !== i))}
+                      />
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <div style={{ width: 70 }}>
+                        <label
+                          style={{
+                            fontSize: 11,
+                            color: "var(--text-muted)",
+                            display: "block",
+                            marginBottom: 2,
+                          }}
+                        >
+                          Adet
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={li.quantity}
+                          onChange={(e) =>
+                            setLineItems((prev) =>
+                              prev.map((x, j) =>
+                                j === i ? { ...x, quantity: e.target.value } : x,
+                              ),
+                            )
+                          }
+                          style={{ width: "100%", minWidth: 0, fontSize: 13 }}
+                        />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <label
+                          style={{
+                            fontSize: 11,
+                            color: "var(--text-muted)",
+                            display: "block",
+                            marginBottom: 2,
+                          }}
+                        >
+                          Birim fiyat (TL)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={li.unitPrice}
+                          onChange={(e) =>
+                            setLineItems((prev) =>
+                              prev.map((x, j) =>
+                                j === i ? { ...x, unitPrice: e.target.value } : x,
+                              ),
+                            )
+                          }
+                          style={{ width: "100%", minWidth: 0, fontSize: 13 }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button
+                type="button"
+                onClick={() =>
                   setLineItems((prev) => {
-                    const newRow = {
-                      localId: uid(),
-                      description: item.name,
-                      quantity: 1,
-                      unitPrice: item.price,
-                      priceItemId: item.id,
-                    };
+                    const blank = { localId: uid(), description: "", quantity: 1, unitPrice: 0 };
+                    // İlk kalem eklendiğinde, o ana kadar Başlık/Tutar'a elle (veya
+                    // üstteki Ürün/Hizmet seçiciyle) girilmiş olan tutar sessizce
+                    // kaybolmasın diye ilk satır olarak devralınır — AYRICA hemen
+                    // arkasından boş bir satır daha eklenir, yoksa buton "hiçbir şey
+                    // yapmıyormuş" gibi görünüyordu (Tutar aynı kalıyordu çünkü
+                    // devralınan tek kalem zaten mevcut tutara eşit).
                     if (prev.length === 0 && title.trim() && Number(value) > 0) {
                       return [
                         {
@@ -1412,594 +1381,304 @@ export function DealForm({
                           description: title.trim(),
                           quantity: 1,
                           unitPrice: Number(value),
-                          priceItemId: null,
                         },
-                        newRow,
+                        blank,
                       ];
                     }
-                    return [...prev, newRow];
-                  });
-                }}
+                    return [...prev, blank];
+                  })
+                }
                 style={{ fontSize: 12 }}
               >
-                <option value="">Fiyat listesinden kalem ekle…</option>
-                {priceListItems.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} - {formatTL(p.price)}
-                  </option>
-                ))}
-              </select>
-            )}
-            {sector === "uretim_satis" && (
-              <div style={{ position: "relative" }}>
-                <button
-                  ref={freightBtnRef}
-                  type="button"
-                  onClick={() => setShowFreightCalc((v) => !v)}
+                + Kalem ekle
+              </button>
+              {priceListItems.length > 0 && (
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const item = priceListItems.find((p) => p.id === e.target.value);
+                    if (!item) return;
+                    // Kullanıcının zaten elle seçtiği bir kaynağın üzerine yazılmaz -
+                    // sadece alan boşsa ve hizmetin varsayılan kaynağı hâlâ mevcutsa doldurulur.
+                    if (
+                      !resourceId &&
+                      item.resourceId &&
+                      resources.some((r) => r.id === item.resourceId)
+                    ) {
+                      setResourceId(item.resourceId);
+                    }
+                    setLineItems((prev) => {
+                      const newRow = {
+                        localId: uid(),
+                        description: item.name,
+                        quantity: 1,
+                        unitPrice: item.price,
+                        priceItemId: item.id,
+                      };
+                      if (prev.length === 0 && title.trim() && Number(value) > 0) {
+                        return [
+                          {
+                            localId: uid(),
+                            description: title.trim(),
+                            quantity: 1,
+                            unitPrice: Number(value),
+                            priceItemId: null,
+                          },
+                          newRow,
+                        ];
+                      }
+                      return [...prev, newRow];
+                    });
+                  }}
                   style={{ fontSize: 12 }}
                 >
-                  + Navlun/Gümrük ekle
-                </button>
-                {showFreightCalc &&
-                  createPortal(
-                    <div
-                      style={{
-                        position: "fixed",
-                        top: freightCoords?.top ?? -9999,
-                        left: freightCoords?.left ?? -9999,
-                        zIndex: 2000,
-                        background: "var(--surface-1)",
-                        border: "0.5px solid var(--border)",
-                        borderRadius: "var(--radius)",
-                        padding: 10,
-                        width: 220,
-                        boxShadow: "var(--shadow-md)",
-                      }}
-                    >
-                      <label
-                        style={{
-                          fontSize: 11,
-                          color: "var(--text-muted)",
-                          display: "block",
-                          marginBottom: 2,
-                        }}
-                      >
-                        Teslim Şekli
-                      </label>
-                      <select
-                        value={freightIncoterm}
-                        onChange={(e) => setFreightIncoterm(e.target.value)}
-                        style={{ width: "100%", fontSize: 13, marginBottom: 6 }}
-                      >
-                        <option value="FOB">FOB</option>
-                        <option value="CIF">CIF</option>
-                        <option value="EXW">EXW</option>
-                        <option value="DAP">DAP</option>
-                      </select>
-                      <label
-                        style={{
-                          fontSize: 11,
-                          color: "var(--text-muted)",
-                          display: "block",
-                          marginBottom: 2,
-                        }}
-                      >
-                        Navlun/Gümrük Oranı (%)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        value={freightPercent}
-                        onChange={(e) => setFreightPercent(e.target.value)}
-                        placeholder="Örn. 8"
-                        style={{ width: "100%", fontSize: 13, marginBottom: 6 }}
-                      />
-                      <label
-                        style={{
-                          fontSize: 11,
-                          color: "var(--text-muted)",
-                          display: "block",
-                          marginBottom: 2,
-                        }}
-                      >
-                        Sabit Navlun Ücreti (TL)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={freightFlatFee}
-                        onChange={(e) => setFreightFlatFee(e.target.value)}
-                        placeholder="Opsiyonel"
-                        style={{ width: "100%", fontSize: 13, marginBottom: 8 }}
-                      />
-                      <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 8px" }}>
-                        Oran, mevcut kalem toplamı üzerinden hesaplanır - bu kendi sabit oranınız,
-                        canlı gümrük/navlun verisi değildir.
-                      </p>
-                      <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                        <button
-                          type="button"
-                          onClick={() => setShowFreightCalc(false)}
-                          style={{ fontSize: 12 }}
-                        >
-                          Vazgeç
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const percent = Number(freightPercent) || 0;
-                            const flatFee = Number(freightFlatFee) || 0;
-                            const baseTotal = lineItemsTotal || Number(value) || 0;
-                            const amount = Math.round(baseTotal * (percent / 100) + flatFee);
-                            if (amount <= 0) return;
-                            localStorage.setItem("binerly_freight_incoterm", freightIncoterm);
-                            localStorage.setItem("binerly_freight_percent", freightPercent);
-                            localStorage.setItem("binerly_freight_flat_fee", freightFlatFee);
-                            setLineItems((prev) => {
-                              const newRow = {
-                                localId: uid(),
-                                description: `Navlun/Gümrük (${freightIncoterm}${percent ? `, %${percent}` : ""})`,
-                                quantity: 1,
-                                unitPrice: amount,
-                              };
-                              if (prev.length === 0 && title.trim() && Number(value) > 0) {
-                                return [
-                                  {
-                                    localId: uid(),
-                                    description: title.trim(),
-                                    quantity: 1,
-                                    unitPrice: Number(value),
-                                  },
-                                  newRow,
-                                ];
-                              }
-                              return [...prev, newRow];
-                            });
-                            setShowFreightCalc(false);
-                          }}
-                          style={{
-                            fontSize: 12,
-                            background: "var(--fill-accent)",
-                            color: "var(--on-accent)",
-                            border: "none",
-                          }}
-                        >
-                          Kalem olarak ekle
-                        </button>
-                      </div>
-                    </div>,
-                    document.body,
-                  )}
-              </div>
-            )}
-          </div>
-          {lineItems.length > 0 && (
-            <div
-              style={{
-                marginTop: 8,
-                display: "flex",
-                gap: 8,
-                alignItems: "flex-end",
-                flexWrap: "wrap",
-              }}
-            >
-              <div style={{ width: 100 }}>
-                <label
-                  style={{
-                    fontSize: 11,
-                    color: "var(--text-muted)",
-                    display: "block",
-                    marginBottom: 2,
-                  }}
-                >
-                  İndirim
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={discountValue}
-                  onChange={(e) => setDiscountValue(e.target.value)}
-                  placeholder="0"
-                  style={{ width: "100%", fontSize: 13 }}
-                />
-              </div>
-              <div style={{ width: 70 }}>
-                <label
-                  style={{
-                    fontSize: 11,
-                    color: "var(--text-muted)",
-                    display: "block",
-                    marginBottom: 2,
-                  }}
-                >
-                  &nbsp;
-                </label>
-                <select
-                  value={discountType}
-                  onChange={(e) => setDiscountType(e.target.value)}
-                  style={{ width: "100%", fontSize: 13 }}
-                >
-                  <option value="percent">%</option>
-                  <option value="amount">TL</option>
-                </select>
-              </div>
-              {discountAmount > 0 && (
-                <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 6px" }}>
-                  Kalem toplamı {formatTL(lineItemsTotal)} - indirim {formatTL(discountAmount)} ={" "}
-                  <strong>{formatTL(lineItemsTotal - discountAmount)}</strong>
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-        {marginRisk && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 8,
-              background: "var(--bg-warning)",
-              border: "0.5px solid var(--text-warning)",
-              borderRadius: "var(--radius)",
-              padding: "10px 12px",
-              marginBottom: 12,
-              fontSize: 13,
-            }}
-          >
-            <i
-              className="ti ti-alert-triangle"
-              style={{ fontSize: 16, color: "var(--text-warning)", flexShrink: 0, marginTop: 1 }}
-              aria-hidden="true"
-            ></i>
-            <div>
-              <p style={{ margin: 0, fontWeight: 500, color: "var(--text-warning)" }}>
-                Düşük kâr marjı
-              </p>
-              <p style={{ margin: "2px 0 0", color: "var(--text-secondary)" }}>
-                Tahmini maliyet {formatTL(marginRisk.cost)}, minimum marj için en az{" "}
-                {formatTL(marginRisk.minRequiredPrice)} teklif edilmesi gerekir
-                {marginRisk.currentMarginPercent != null &&
-                  ` (şu an %${marginRisk.currentMarginPercent} marj)`}
-                . Bu sadece bir uyarı - devam edip etmemek size kalmış.
-              </p>
-            </div>
-          </div>
-        )}
-        <div style={{ display: "flex", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
-          <div style={{ flex: "1.6 1 200px" }}>
-            <label
-              style={{
-                fontSize: 13,
-                color: "var(--text-secondary)",
-                display: "block",
-                marginBottom: 4,
-              }}
-            >
-              Başlık
-            </label>
-            <input
-              value={title}
-              onChange={(e) => {
-                setTitle(e.target.value);
-                setTitleError("");
-              }}
-              placeholder={
-                DEAL_TITLE_EXAMPLES[sector] ||
-                (selectedCustomerType === "bireysel"
-                  ? "İlk randevu / danışmanlık"
-                  : "Yıllık tedarik anlaşması")
-              }
-              list="deal-title-suggestions"
-              style={{ width: "100%" }}
-            />
-            <datalist id="deal-title-suggestions">
-              {titleSuggestions.map((t) => (
-                <option key={t} value={t} />
-              ))}
-            </datalist>
-            {titleError && (
-              <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "4px 0 0" }}>
-                {titleError}
-              </p>
-            )}
-          </div>
-          <div style={{ flex: "1 1 140px" }}>
-            <label
-              style={{
-                fontSize: 13,
-                color: "var(--text-secondary)",
-                display: "block",
-                marginBottom: 4,
-              }}
-            >
-              Tutar (TL){" "}
-              <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>
-                - KDV dahil{lineItems.length > 0 ? ", kalemlerden otomatik" : ""}
-              </span>
-            </label>
-            <input
-              type="number"
-              min="0"
-              value={value}
-              disabled={lineItems.length > 0}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder="0"
-              style={{ width: "100%" }}
-            />
-            {totalPaid > 0 && (
-              <p
-                style={{
-                  fontSize: 12,
-                  color: valueError ? "var(--text-danger)" : "var(--text-muted)",
-                  margin: "4px 0 0",
-                }}
-              >
-                {valueError || `Şu ana kadar ${formatTL(totalPaid)} tahsil edildi.`}
-              </p>
-            )}
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-          <div style={{ flex: "1 1 120px" }}>
-            <label
-              style={{
-                fontSize: 13,
-                color: "var(--text-secondary)",
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                marginBottom: 4,
-              }}
-            >
-              KDV oranı <InfoTip align="left" text={kdvRateInfoText(sector)} />
-            </label>
-            <select
-              value={kdvRate}
-              onChange={(e) => setKdvRate(Number(e.target.value))}
-              style={{ width: "100%" }}
-            >
-              <option value={20}>%20</option>
-              <option value={10}>%10</option>
-              <option value={1}>%1</option>
-              <option value={0}>%0</option>
-            </select>
-          </div>
-          <div style={{ flex: "1.4 1 180px" }}>
-            <label
-              style={{
-                fontSize: 13,
-                color: "var(--text-secondary)",
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                marginBottom: 4,
-              }}
-            >
-              Müşteri ödemesi
-              <InfoTip text="Onay linkinden veya müşteri portalından kartla ödeme alınabilir - iyzico veya PayTR bağlantısı Ayarlar'dan kurulmalı." />
-            </label>
-            <select
-              value={paymentMode}
-              onChange={(e) => {
-                setPaymentMode(e.target.value);
-                localStorage.setItem(PAYMENT_MODE_LAST_CHOICE_KEY, e.target.value);
-              }}
-              style={{ width: "100%" }}
-            >
-              {PAYMENT_MODE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            {paymentMode !== "none" && !hasPaymentConnection && (
-              <p
-                style={{ fontSize: 12.5, color: "var(--text-warning, #b45309)", margin: "4px 0 0" }}
-              >
-                Ödeme almak için önce Ayarlar'dan iyzico veya PayTR hesabınızı bağlamanız gerekiyor.
-              </p>
-            )}
-          </div>
-        </div>
-        {initial?.stage === "kazanildi" &&
-          (Number(value) !== initial?.value || Number(kdvRate) !== initial?.kdvRate) && (
-            <p
-              style={{
-                fontSize: 12.5,
-                color: "var(--text-warning, #b45309)",
-                margin: "-4px 0 12px",
-              }}
-            >
-              Bu {DEAL_WORD_FORMS[dealWordKind(sector)].bare} zaten kazanılmış - Tutar/KDV
-              değişikliği, bu döneme ait KDV Özet Raporu'nu da geriye dönük etkiler.
-            </p>
-          )}
-        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          <div style={{ flex: 1 }}>
-            <label
-              style={{
-                fontSize: 13,
-                color: "var(--text-secondary)",
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                marginBottom: 4,
-              }}
-            >
-              {supportsSelfBooking(sector) ? "Kayıt Tarihi" : "Tarih"}
-              {supportsSelfBooking(sector) && (
-                <InfoTip
-                  align="left"
-                  text={`Bu, kaydın oluşturulma/güncellenme tarihidir - ${DEAL_WORD_FORMS[dealWordKind(sector)].bare === "randevu" ? "randevunun" : DEAL_WORD_FORMS[dealWordKind(sector)].bare === "rezervasyon" ? "rezervasyonun" : "görüşmenin"} kendi tarih/saati için ${bookingModel(sector) === "slot" ? "yukarıdaki" : "aşağıdaki özel alanlar bölümündeki"} "${customFieldDefs.find((d) => d.entity === "deal" && d.key === appointmentDateTimeKey)?.label || "Randevu/Görüşme Tarihi"}" alanını kullanın.`}
-                />
-              )}
-            </label>
-            <input
-              type="date"
-              value={dealDate}
-              onChange={(e) => setDealDate(e.target.value)}
-              style={{ width: "100%" }}
-            />
-          </div>
-          <div style={{ flex: 1 }}>
-            <label
-              style={{
-                fontSize: 13,
-                color: "var(--text-secondary)",
-                display: "block",
-                marginBottom: 4,
-              }}
-            >
-              Saat <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span>
-            </label>
-            <input
-              type="time"
-              value={dealTime}
-              onChange={(e) => setDealTime(e.target.value)}
-              style={{ width: "100%" }}
-            />
-          </div>
-          <div style={{ flex: 1 }}>
-            <label
-              style={{
-                fontSize: 13,
-                color: "var(--text-secondary)",
-                display: "block",
-                marginBottom: 4,
-              }}
-            >
-              Aşama
-            </label>
-            <select
-              value={stage}
-              onChange={(e) => setStage(e.target.value)}
-              style={{ width: "100%", fontWeight: 500, ...TONE_COLORS[stageTone(stage)] }}
-            >
-              {STAGES.map((s) => (
-                <option key={s.id} value={s.id} style={TONE_COLORS[stageTone(s.id)]}>
-                  {stageLabel(s.id, selectedCustomerType, sector)}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        {stageGuide(stage, sector) && (
-          <div
-            style={{
-              background: "var(--surface-1)",
-              borderRadius: "var(--radius)",
-              padding: "8px 10px",
-              marginBottom: 12,
-              fontSize: 12.5,
-              color: "var(--text-secondary)",
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 6,
-            }}
-          >
-            <i
-              className="ti ti-bulb"
-              style={{ fontSize: 14, flexShrink: 0, marginTop: 1, color: "var(--text-accent)" }}
-              aria-hidden="true"
-            ></i>
-            <span>{stageGuide(stage, sector)}</span>
-          </div>
-        )}
-        {isClosingStage && (
-          <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-            <div style={{ flex: 1, minWidth: 160 }}>
-              <label
-                style={{
-                  fontSize: 13,
-                  color: "var(--text-secondary)",
-                  display: "block",
-                  marginBottom: 4,
-                }}
-              >
-                {selectedCustomerType === "bireysel"
-                  ? stage === "kazanildi"
-                    ? "Tamamlanma / fatura tarihi"
-                    : "İptal tarihi"
-                  : stage === "kazanildi"
-                    ? "Kapanma / fatura tarihi"
-                    : "Kapanma tarihi"}
-              </label>
-              <input
-                type="date"
-                min={dealDate}
-                value={closedDate}
-                onChange={(e) => setClosedDate(e.target.value)}
-                style={{ width: "100%" }}
-              />
-              {dateError && (
-                <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "4px 0 0" }}>
-                  {dateError}
-                </p>
-              )}
-            </div>
-            {stage === "kaybedildi" && (
-              <div style={{ flex: 1, minWidth: 160 }}>
-                <label
-                  style={{
-                    fontSize: 13,
-                    color: "var(--text-secondary)",
-                    display: "block",
-                    marginBottom: 4,
-                  }}
-                >
-                  {selectedCustomerType === "bireysel" ? "İptal nedeni" : "Kayıp nedeni"}
-                </label>
-                <select
-                  value={lostReason}
-                  onChange={(e) => setLostReason(e.target.value)}
-                  style={{ width: "100%" }}
-                >
-                  {dealLostReasons(sector).map((r) => (
-                    <option key={r} value={r}>
-                      {r}
+                  <option value="">Fiyat listesinden kalem ekle…</option>
+                  {priceListItems.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} - {formatTL(p.price)}
                     </option>
                   ))}
                 </select>
+              )}
+              {sector === "uretim_satis" && (
+                <div style={{ position: "relative" }}>
+                  <button
+                    ref={freightBtnRef}
+                    type="button"
+                    onClick={() => setShowFreightCalc((v) => !v)}
+                    style={{ fontSize: 12 }}
+                  >
+                    + Navlun/Gümrük ekle
+                  </button>
+                  {showFreightCalc &&
+                    createPortal(
+                      <div
+                        style={{
+                          position: "fixed",
+                          top: freightCoords?.top ?? -9999,
+                          left: freightCoords?.left ?? -9999,
+                          zIndex: 2000,
+                          background: "var(--surface-1)",
+                          border: "0.5px solid var(--border)",
+                          borderRadius: "var(--radius)",
+                          padding: 10,
+                          width: 220,
+                          boxShadow: "var(--shadow-md)",
+                        }}
+                      >
+                        <label
+                          style={{
+                            fontSize: 11,
+                            color: "var(--text-muted)",
+                            display: "block",
+                            marginBottom: 2,
+                          }}
+                        >
+                          Teslim Şekli
+                        </label>
+                        <select
+                          value={freightIncoterm}
+                          onChange={(e) => setFreightIncoterm(e.target.value)}
+                          style={{ width: "100%", fontSize: 13, marginBottom: 6 }}
+                        >
+                          <option value="FOB">FOB</option>
+                          <option value="CIF">CIF</option>
+                          <option value="EXW">EXW</option>
+                          <option value="DAP">DAP</option>
+                        </select>
+                        <label
+                          style={{
+                            fontSize: 11,
+                            color: "var(--text-muted)",
+                            display: "block",
+                            marginBottom: 2,
+                          }}
+                        >
+                          Navlun/Gümrük Oranı (%)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value={freightPercent}
+                          onChange={(e) => setFreightPercent(e.target.value)}
+                          placeholder="Örn. 8"
+                          style={{ width: "100%", fontSize: 13, marginBottom: 6 }}
+                        />
+                        <label
+                          style={{
+                            fontSize: 11,
+                            color: "var(--text-muted)",
+                            display: "block",
+                            marginBottom: 2,
+                          }}
+                        >
+                          Sabit Navlun Ücreti (TL)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={freightFlatFee}
+                          onChange={(e) => setFreightFlatFee(e.target.value)}
+                          placeholder="Opsiyonel"
+                          style={{ width: "100%", fontSize: 13, marginBottom: 8 }}
+                        />
+                        <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 8px" }}>
+                          Oran, mevcut kalem toplamı üzerinden hesaplanır - bu kendi sabit oranınız,
+                          canlı gümrük/navlun verisi değildir.
+                        </p>
+                        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                          <button
+                            type="button"
+                            onClick={() => setShowFreightCalc(false)}
+                            style={{ fontSize: 12 }}
+                          >
+                            Vazgeç
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const percent = Number(freightPercent) || 0;
+                              const flatFee = Number(freightFlatFee) || 0;
+                              const baseTotal = lineItemsTotal || Number(value) || 0;
+                              const amount = Math.round(baseTotal * (percent / 100) + flatFee);
+                              if (amount <= 0) return;
+                              localStorage.setItem("binerly_freight_incoterm", freightIncoterm);
+                              localStorage.setItem("binerly_freight_percent", freightPercent);
+                              localStorage.setItem("binerly_freight_flat_fee", freightFlatFee);
+                              setLineItems((prev) => {
+                                const newRow = {
+                                  localId: uid(),
+                                  description: `Navlun/Gümrük (${freightIncoterm}${percent ? `, %${percent}` : ""})`,
+                                  quantity: 1,
+                                  unitPrice: amount,
+                                };
+                                if (prev.length === 0 && title.trim() && Number(value) > 0) {
+                                  return [
+                                    {
+                                      localId: uid(),
+                                      description: title.trim(),
+                                      quantity: 1,
+                                      unitPrice: Number(value),
+                                    },
+                                    newRow,
+                                  ];
+                                }
+                                return [...prev, newRow];
+                              });
+                              setShowFreightCalc(false);
+                            }}
+                            style={{
+                              fontSize: 12,
+                              background: "var(--fill-accent)",
+                              color: "var(--on-accent)",
+                              border: "none",
+                            }}
+                          >
+                            Kalem olarak ekle
+                          </button>
+                        </div>
+                      </div>,
+                      document.body,
+                    )}
+                </div>
+              )}
+            </div>
+            {lineItems.length > 0 && (
+              <div
+                style={{
+                  marginTop: 8,
+                  display: "flex",
+                  gap: 8,
+                  alignItems: "flex-end",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ width: 100 }}>
+                  <label
+                    style={{
+                      fontSize: 11,
+                      color: "var(--text-muted)",
+                      display: "block",
+                      marginBottom: 2,
+                    }}
+                  >
+                    İndirim
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={discountValue}
+                    onChange={(e) => setDiscountValue(e.target.value)}
+                    placeholder="0"
+                    style={{ width: "100%", fontSize: 13 }}
+                  />
+                </div>
+                <div style={{ width: 70 }}>
+                  <label
+                    style={{
+                      fontSize: 11,
+                      color: "var(--text-muted)",
+                      display: "block",
+                      marginBottom: 2,
+                    }}
+                  >
+                    &nbsp;
+                  </label>
+                  <select
+                    value={discountType}
+                    onChange={(e) => setDiscountType(e.target.value)}
+                    style={{ width: "100%", fontSize: 13 }}
+                  >
+                    <option value="percent">%</option>
+                    <option value="amount">TL</option>
+                  </select>
+                </div>
+                {discountAmount > 0 && (
+                  <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 6px" }}>
+                    Kalem toplamı {formatTL(lineItemsTotal)} - indirim {formatTL(discountAmount)} ={" "}
+                    <strong>{formatTL(lineItemsTotal - discountAmount)}</strong>
+                  </p>
+                )}
               </div>
             )}
           </div>
-        )}
-
-        <button
-          type="button"
-          onClick={() => setShowAdvanced((v) => !v)}
-          style={{
-            width: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            background: "var(--surface-1)",
-            border: "0.5px solid var(--border)",
-            borderRadius: "var(--radius)",
-            padding: "8px 12px",
-            marginBottom: showAdvanced ? 10 : 12,
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: "pointer",
-          }}
-        >
-          <span>
-            Ek Bilgiler ve Dosyalar{" "}
-            <span style={{ fontWeight: 400, color: "var(--text-muted)", fontSize: 12 }}>
-              (Gider, seans/paket, not, sorumlu, etiket, özel alan, dosya)
-            </span>
-          </span>
-          <i
-            className={`ti ${showAdvanced ? "ti-chevron-up" : "ti-chevron-down"}`}
-            style={{ fontSize: 16, flexShrink: 0 }}
-            aria-hidden="true"
-          ></i>
-        </button>
-        {showAdvanced && (
-          <div>
-            <div style={{ marginBottom: 12 }}>
+          {marginRisk && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 8,
+                background: "var(--bg-warning)",
+                border: "0.5px solid var(--text-warning)",
+                borderRadius: "var(--radius)",
+                padding: "10px 12px",
+                marginBottom: 12,
+                fontSize: 13,
+              }}
+            >
+              <i
+                className="ti ti-alert-triangle"
+                style={{ fontSize: 16, color: "var(--text-warning)", flexShrink: 0, marginTop: 1 }}
+                aria-hidden="true"
+              ></i>
+              <div>
+                <p style={{ margin: 0, fontWeight: 500, color: "var(--text-warning)" }}>
+                  Düşük kâr marjı
+                </p>
+                <p style={{ margin: "2px 0 0", color: "var(--text-secondary)" }}>
+                  Tahmini maliyet {formatTL(marginRisk.cost)}, minimum marj için en az{" "}
+                  {formatTL(marginRisk.minRequiredPrice)} teklif edilmesi gerekir
+                  {marginRisk.currentMarginPercent != null &&
+                    ` (şu an %${marginRisk.currentMarginPercent} marj)`}
+                  . Bu sadece bir uyarı - devam edip etmemek size kalmış.
+                </p>
+              </div>
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+            <div style={{ flex: "1.6 1 200px" }}>
               <label
                 style={{
                   fontSize: 13,
@@ -2008,339 +1687,72 @@ export function DealForm({
                   marginBottom: 4,
                 }}
               >
-                Gider (TL)
+                Başlık
+              </label>
+              <input
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  setTitleError("");
+                }}
+                placeholder={
+                  DEAL_TITLE_EXAMPLES[sector] ||
+                  (selectedCustomerType === "bireysel"
+                    ? "İlk randevu / danışmanlık"
+                    : "Yıllık tedarik anlaşması")
+                }
+                list="deal-title-suggestions"
+                style={{ width: "100%" }}
+              />
+              <datalist id="deal-title-suggestions">
+                {titleSuggestions.map((t) => (
+                  <option key={t} value={t} />
+                ))}
+              </datalist>
+              {titleError && (
+                <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "4px 0 0" }}>
+                  {titleError}
+                </p>
+              )}
+            </div>
+            <div style={{ flex: "1 1 140px" }}>
+              <label
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  display: "block",
+                  marginBottom: 4,
+                }}
+              >
+                Tutar (TL){" "}
+                <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>
+                  - KDV dahil{lineItems.length > 0 ? ", kalemlerden otomatik" : ""}
+                </span>
               </label>
               <input
                 type="number"
                 min="0"
-                value={cost}
-                onChange={(e) => setCost(e.target.value)}
+                value={value}
+                disabled={lineItems.length > 0}
+                onChange={(e) => setValue(e.target.value)}
                 placeholder="0"
                 style={{ width: "100%" }}
               />
+              {totalPaid > 0 && (
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: valueError ? "var(--text-danger)" : "var(--text-muted)",
+                    margin: "4px 0 0",
+                  }}
+                >
+                  {valueError || `Şu ana kadar ${formatTL(totalPaid)} tahsil edildi.`}
+                </p>
+              )}
             </div>
-            {teamMembers.length > 0 && (
-              <div style={{ marginBottom: 12 }}>
-                <label
-                  style={{
-                    fontSize: 13,
-                    color: "var(--text-secondary)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                    marginBottom: 4,
-                  }}
-                >
-                  Sorumlu <InfoTip text={ASSIGNEE_INFO_TEXT} />
-                </label>
-                <select
-                  value={assignedTo}
-                  onChange={(e) => setAssignedTo(e.target.value)}
-                  style={{ width: "100%" }}
-                >
-                  <option value="">Atanmamış</option>
-                  {currentUserId && <option value={currentUserId}>Ben ({currentUserEmail})</option>}
-                  {teamMembers
-                    .filter((m) => m.id !== currentUserId)
-                    .map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name || m.email}
-                      </option>
-                    ))}
-                  {assignedTo &&
-                    assignedTo !== currentUserId &&
-                    !teamMembers.some((m) => m.id === assignedTo) && (
-                      <option value={assignedTo}>Eski üye (takımdan çıkarılmış)</option>
-                    )}
-                </select>
-              </div>
-            )}
-            {resources.length > 0 && bookingModel(sector) === "slot" && (
-              <div style={{ marginBottom: 12 }}>
-                <label
-                  style={{
-                    fontSize: 13,
-                    color: "var(--text-secondary)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                    marginBottom: 4,
-                  }}
-                >
-                  Cihaz/Oda{" "}
-                  <InfoTip text="Seçtiğiniz kaynağa aynı saatte ikinci bir randevu girilemez - kaynak seçmezseniz bu kontrol uygulanmaz." />
-                </label>
-                <select
-                  value={resourceId}
-                  onChange={(e) => setResourceId(e.target.value)}
-                  style={{ width: "100%" }}
-                >
-                  <option value="">Seçilmedi</option>
-                  {resources.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
-                  ))}
-                  {resourceId && !resources.some((r) => r.id === resourceId) && (
-                    <option value={resourceId}>Eski kaynak (silinmiş)</option>
-                  )}
-                </select>
-              </div>
-            )}
-            {supportsSessionPackages(sector) && (
-              <div style={{ marginBottom: 12 }}>
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    fontSize: 13,
-                    color: "var(--text-secondary)",
-                    cursor: "pointer",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isPackageDeal}
-                    onChange={(e) => setIsPackageDeal(e.target.checked)}
-                  />
-                  Bu bir seans/paket satışı
-                  <InfoTip text={SESSION_PACKAGE_INFO_TEXT} />
-                </label>
-              </div>
-            )}
-            {supportsSessionPackages(sector) && isPackageDeal && (
-              <div style={{ marginBottom: 12 }}>
-                {packageBreakdown.length === 0 ? (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <div style={{ flex: 1 }}>
-                      <label
-                        style={{
-                          fontSize: 13,
-                          color: "var(--text-secondary)",
-                          display: "block",
-                          marginBottom: 4,
-                        }}
-                      >
-                        Toplam seans sayısı
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={sessionTotal}
-                        onChange={(e) => setSessionTotal(e.target.value)}
-                        style={{ width: "100%" }}
-                      />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <label
-                        style={{
-                          fontSize: 13,
-                          color: "var(--text-secondary)",
-                          display: "block",
-                          marginBottom: 4,
-                        }}
-                      >
-                        Kullanılan seans sayısı
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={sessionUsed}
-                        onChange={(e) => setSessionUsed(e.target.value)}
-                        style={{ width: "100%" }}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <label
-                      style={{
-                        fontSize: 13,
-                        color: "var(--text-secondary)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                        marginBottom: 6,
-                      }}
-                    >
-                      Hizmet türleri
-                      <InfoTip
-                        align="left"
-                        text="Örn. '8 seans Lazer + 2 seans Kontrol' gibi karma bir paket - her hizmet türünün kendi seans sayacı olur, toplam/kullanılan otomatik hesaplanır."
-                      />
-                    </label>
-                    {packageBreakdown.map((b, i) => (
-                      <div
-                        key={i}
-                        style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}
-                      >
-                        <input
-                          value={b.label}
-                          onChange={(e) => updateBreakdownRow(i, { label: e.target.value })}
-                          placeholder="Örn. Lazer"
-                          style={{ flex: 2, minWidth: 0 }}
-                        />
-                        <input
-                          type="number"
-                          min="1"
-                          value={b.total}
-                          onChange={(e) =>
-                            updateBreakdownRow(i, { total: Number(e.target.value) || 1 })
-                          }
-                          placeholder="Toplam"
-                          title="Toplam seans"
-                          style={{ width: 64 }}
-                        />
-                        <input
-                          type="number"
-                          min="0"
-                          value={b.used}
-                          onChange={(e) =>
-                            updateBreakdownRow(i, {
-                              used: Math.min(Number(e.target.value) || 0, Number(b.total) || 0),
-                            })
-                          }
-                          placeholder="Kullanılan"
-                          title="Kullanılan seans"
-                          style={{ width: 64 }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeBreakdownRow(i)}
-                          style={{ fontSize: 12, flexShrink: 0 }}
-                        >
-                          Kaldır
-                        </button>
-                      </div>
-                    ))}
-                    <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0" }}>
-                      Toplam: {sessionTotal} seans, {sessionUsed} kullanıldı
-                    </p>
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() =>
-                    packageBreakdown.length === 0 ? convertToBreakdown() : addBreakdownRow()
-                  }
-                  style={{ fontSize: 12, marginTop: 4 }}
-                >
-                  {packageBreakdown.length === 0
-                    ? "+ Karma pakete çevir (birden fazla hizmet türü)"
-                    : "+ Hizmet türü ekle"}
-                </button>
-                {sessionError && (
-                  <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "4px 0 0" }}>
-                    {sessionError}
-                  </p>
-                )}
-              </div>
-            )}
-            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <div style={{ flex: 2 }}>
-                <label
-                  style={{
-                    fontSize: 13,
-                    color: "var(--text-secondary)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                    marginBottom: 4,
-                  }}
-                >
-                  Not
-                  <InfoTip
-                    align="left"
-                    text="İsterseniz sadece bir not olarak kullanın (tarih boş kalabilir), isterseniz sağdaki tarihi de doldurup gerçek bir hatırlatmaya çevirin - tarih girilirse Pano'da ve 'Bugün ne yapmalıyım' listesinde çıkar."
-                  />
-                </label>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <input
-                    value={reminder}
-                    onChange={(e) => setReminder(e.target.value)}
-                    placeholder="Yarın takip araması yap"
-                    style={{ flex: 1 }}
-                  />
-                  <VoiceInputButton
-                    onResult={(text) => setReminder((prev) => (prev ? `${prev} ${text}` : text))}
-                  />
-                </div>
-              </div>
-              <div style={{ flex: 1 }}>
-                <label
-                  style={{
-                    fontSize: 13,
-                    color: "var(--text-secondary)",
-                    display: "block",
-                    marginBottom: 4,
-                  }}
-                >
-                  Hatırlatma tarihi{" "}
-                  <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span>
-                </label>
-                <input
-                  type="date"
-                  value={reminderDate}
-                  onChange={(e) => setReminderDate(e.target.value)}
-                  style={{ width: "100%" }}
-                />
-                <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-                  {[
-                    ["Bugün", 0],
-                    ["Yarın", 1],
-                    ["1 hafta sonra", 7],
-                  ].map(([label, days]) => (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() =>
-                        setReminderDate(
-                          new Date(Date.now() + days * 86400000).toISOString().slice(0, 10),
-                        )
-                      }
-                      style={{
-                        fontSize: 11,
-                        height: 24,
-                        padding: "0 10px",
-                        display: "inline-flex",
-                        alignItems: "center",
-                      }}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            {reminder.trim() && reminderDate && (
-              <div style={{ marginBottom: 12 }}>
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    fontSize: 13,
-                    color: "var(--text-secondary)",
-                    cursor: selectedCustomerEmail ? "pointer" : "not-allowed",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={notifyCustomer}
-                    disabled={!selectedCustomerEmail}
-                    onChange={(e) => setNotifyCustomer(e.target.checked)}
-                  />
-                  Hatırlatma tarihinde müşteriye de e-posta gönder
-                </label>
-                {!selectedCustomerEmail && (
-                  <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0 24px" }}>
-                    Müşterinin e-postası yok, gönderilemez.
-                  </p>
-                )}
-              </div>
-            )}
-            <div style={{ marginBottom: 12 }}>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 120px" }}>
               <label
                 style={{
                   fontSize: 13,
@@ -2351,69 +1763,718 @@ export function DealForm({
                   marginBottom: 4,
                 }}
               >
-                Etiketler <InfoTip align="left" text={TAGS_INFO_TEXT} />
+                KDV oranı <InfoTip align="left" text={kdvRateInfoText(sector)} />
               </label>
-              <TagInput tags={tags} onChange={setTags} suggestions={sectorTags} />
+              <select
+                value={kdvRate}
+                onChange={(e) => setKdvRate(Number(e.target.value))}
+                style={{ width: "100%" }}
+              >
+                <option value={20}>%20</option>
+                <option value={10}>%10</option>
+                <option value={1}>%1</option>
+                <option value={0}>%0</option>
+              </select>
             </div>
-            <CustomFieldsSection
-              defs={otherDefsForEntity}
-              values={customFields}
-              onChange={setCustomFields}
-            />
-            {initial?.id && isAppointmentSector(sector) && (
-              <BeforeAfterPhotos
-                dealId={initial.id}
-                customer={customers.find((c) => c.id === customerId)}
-                attachments={attachments}
-                showcaseFeatured={initial.showcaseFeatured === true}
-                onUpload={onUploadAttachment}
-                onDelete={onDeleteAttachment}
-                onToggleShowcase={onToggleShowcase}
-                onRequestConsent={onRequestPhotoConsent}
-              />
+            <div style={{ flex: "1.4 1 180px" }}>
+              <label
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  marginBottom: 4,
+                }}
+              >
+                Müşteri ödemesi
+                <InfoTip text="Onay linkinden veya müşteri portalından kartla ödeme alınabilir - iyzico veya PayTR bağlantısı Ayarlar'dan kurulmalı." />
+              </label>
+              <select
+                value={paymentMode}
+                onChange={(e) => {
+                  setPaymentMode(e.target.value);
+                  localStorage.setItem(PAYMENT_MODE_LAST_CHOICE_KEY, e.target.value);
+                }}
+                style={{ width: "100%" }}
+              >
+                {PAYMENT_MODE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              {paymentMode !== "none" && !hasPaymentConnection && (
+                <p
+                  style={{
+                    fontSize: 12.5,
+                    color: "var(--text-warning, #b45309)",
+                    margin: "4px 0 0",
+                  }}
+                >
+                  Ödeme almak için önce Ayarlar'dan iyzico veya PayTR hesabınızı bağlamanız
+                  gerekiyor.
+                </p>
+              )}
+            </div>
+          </div>
+          {initial?.stage === "kazanildi" &&
+            (Number(value) !== initial?.value || Number(kdvRate) !== initial?.kdvRate) && (
+              <p
+                style={{
+                  fontSize: 12.5,
+                  color: "var(--text-warning, #b45309)",
+                  margin: "-4px 0 12px",
+                }}
+              >
+                Bu {DEAL_WORD_FORMS[dealWordKind(sector)].bare} zaten kazanılmış - Tutar/KDV
+                değişikliği, bu döneme ait KDV Özet Raporu'nu da geriye dönük etkiler.
+              </p>
             )}
-            {initial?.id && (
-              <AttachmentList
-                entityType="deals"
-                entityId={initial.id}
-                attachments={attachments}
-                onUpload={onUploadAttachment}
-                onDownload={onDownloadAttachment}
-                onDelete={onDeleteAttachment}
-                onToggleShare={onToggleAttachmentShare}
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <div style={{ flex: 1 }}>
+              <label
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  marginBottom: 4,
+                }}
+              >
+                {supportsSelfBooking(sector) ? "Kayıt Tarihi" : "Tarih"}
+                {supportsSelfBooking(sector) && (
+                  <InfoTip
+                    align="left"
+                    text={`Bu, kaydın oluşturulma/güncellenme tarihidir - ${DEAL_WORD_FORMS[dealWordKind(sector)].bare === "randevu" ? "randevunun" : DEAL_WORD_FORMS[dealWordKind(sector)].bare === "rezervasyon" ? "rezervasyonun" : "görüşmenin"} kendi tarih/saati için ${bookingModel(sector) === "slot" ? "yukarıdaki" : "aşağıdaki özel alanlar bölümündeki"} "${customFieldDefs.find((d) => d.entity === "deal" && d.key === appointmentDateTimeKey)?.label || "Randevu/Görüşme Tarihi"}" alanını kullanın.`}
+                  />
+                )}
+              </label>
+              <input
+                type="date"
+                value={dealDate}
+                onChange={(e) => setDealDate(e.target.value)}
+                style={{ width: "100%" }}
               />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  display: "block",
+                  marginBottom: 4,
+                }}
+              >
+                Saat{" "}
+                <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span>
+              </label>
+              <input
+                type="time"
+                value={dealTime}
+                onChange={(e) => setDealTime(e.target.value)}
+                style={{ width: "100%" }}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  display: "block",
+                  marginBottom: 4,
+                }}
+              >
+                Aşama
+              </label>
+              <select
+                value={stage}
+                onChange={(e) => setStage(e.target.value)}
+                style={{ width: "100%", fontWeight: 500, ...TONE_COLORS[stageTone(stage)] }}
+              >
+                {STAGES.map((s) => (
+                  <option key={s.id} value={s.id} style={TONE_COLORS[stageTone(s.id)]}>
+                    {stageLabel(s.id, selectedCustomerType, sector)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {stageGuide(stage, sector) && (
+            <div
+              style={{
+                background: "var(--surface-1)",
+                borderRadius: "var(--radius)",
+                padding: "8px 10px",
+                marginBottom: 12,
+                fontSize: 12.5,
+                color: "var(--text-secondary)",
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 6,
+              }}
+            >
+              <i
+                className="ti ti-bulb"
+                style={{ fontSize: 14, flexShrink: 0, marginTop: 1, color: "var(--text-accent)" }}
+                aria-hidden="true"
+              ></i>
+              <span>{stageGuide(stage, sector)}</span>
+            </div>
+          )}
+          {isClosingStage && (
+            <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <label
+                  style={{
+                    fontSize: 13,
+                    color: "var(--text-secondary)",
+                    display: "block",
+                    marginBottom: 4,
+                  }}
+                >
+                  {selectedCustomerType === "bireysel"
+                    ? stage === "kazanildi"
+                      ? "Tamamlanma / fatura tarihi"
+                      : "İptal tarihi"
+                    : stage === "kazanildi"
+                      ? "Kapanma / fatura tarihi"
+                      : "Kapanma tarihi"}
+                </label>
+                <input
+                  type="date"
+                  min={dealDate}
+                  value={closedDate}
+                  onChange={(e) => setClosedDate(e.target.value)}
+                  style={{ width: "100%" }}
+                />
+                {dateError && (
+                  <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "4px 0 0" }}>
+                    {dateError}
+                  </p>
+                )}
+              </div>
+              {stage === "kaybedildi" && (
+                <div style={{ flex: 1, minWidth: 160 }}>
+                  <label
+                    style={{
+                      fontSize: 13,
+                      color: "var(--text-secondary)",
+                      display: "block",
+                      marginBottom: 4,
+                    }}
+                  >
+                    {selectedCustomerType === "bireysel" ? "İptal nedeni" : "Kayıp nedeni"}
+                  </label>
+                  <select
+                    value={lostReason}
+                    onChange={(e) => setLostReason(e.target.value)}
+                    style={{ width: "100%" }}
+                  >
+                    {dealLostReasons(sector).map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((v) => !v)}
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              background: "var(--surface-1)",
+              border: "0.5px solid var(--border)",
+              borderRadius: "var(--radius)",
+              padding: "8px 12px",
+              marginBottom: showAdvanced ? 10 : 12,
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            <span>
+              Ek Bilgiler ve Dosyalar{" "}
+              <span style={{ fontWeight: 400, color: "var(--text-muted)", fontSize: 12 }}>
+                (Gider, seans/paket, not, sorumlu, etiket, özel alan, dosya)
+              </span>
+            </span>
+            <i
+              className={`ti ${showAdvanced ? "ti-chevron-up" : "ti-chevron-down"}`}
+              style={{ fontSize: 16, flexShrink: 0 }}
+              aria-hidden="true"
+            ></i>
+          </button>
+          {showAdvanced && (
+            <div>
+              <div style={{ marginBottom: 12 }}>
+                <label
+                  style={{
+                    fontSize: 13,
+                    color: "var(--text-secondary)",
+                    display: "block",
+                    marginBottom: 4,
+                  }}
+                >
+                  Gider (TL)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={cost}
+                  onChange={(e) => setCost(e.target.value)}
+                  placeholder="0"
+                  style={{ width: "100%" }}
+                />
+              </div>
+              {teamMembers.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <label
+                    style={{
+                      fontSize: 13,
+                      color: "var(--text-secondary)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      marginBottom: 4,
+                    }}
+                  >
+                    Sorumlu <InfoTip text={ASSIGNEE_INFO_TEXT} />
+                  </label>
+                  <select
+                    value={assignedTo}
+                    onChange={(e) => setAssignedTo(e.target.value)}
+                    style={{ width: "100%" }}
+                  >
+                    <option value="">Atanmamış</option>
+                    {currentUserId && (
+                      <option value={currentUserId}>Ben ({currentUserEmail})</option>
+                    )}
+                    {teamMembers
+                      .filter((m) => m.id !== currentUserId)
+                      .map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name || m.email}
+                        </option>
+                      ))}
+                    {assignedTo &&
+                      assignedTo !== currentUserId &&
+                      !teamMembers.some((m) => m.id === assignedTo) && (
+                        <option value={assignedTo}>Eski üye (takımdan çıkarılmış)</option>
+                      )}
+                  </select>
+                </div>
+              )}
+              {resources.length > 0 && bookingModel(sector) === "slot" && (
+                <div style={{ marginBottom: 12 }}>
+                  <label
+                    style={{
+                      fontSize: 13,
+                      color: "var(--text-secondary)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      marginBottom: 4,
+                    }}
+                  >
+                    Cihaz/Oda{" "}
+                    <InfoTip text="Seçtiğiniz kaynağa aynı saatte ikinci bir randevu girilemez - kaynak seçmezseniz bu kontrol uygulanmaz." />
+                  </label>
+                  <select
+                    value={resourceId}
+                    onChange={(e) => setResourceId(e.target.value)}
+                    style={{ width: "100%" }}
+                  >
+                    <option value="">Seçilmedi</option>
+                    {resources.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                    {resourceId && !resources.some((r) => r.id === resourceId) && (
+                      <option value={resourceId}>Eski kaynak (silinmiş)</option>
+                    )}
+                  </select>
+                </div>
+              )}
+              {supportsSessionPackages(sector) && (
+                <div style={{ marginBottom: 12 }}>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      fontSize: 13,
+                      color: "var(--text-secondary)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isPackageDeal}
+                      onChange={(e) => setIsPackageDeal(e.target.checked)}
+                    />
+                    Bu bir seans/paket satışı
+                    <InfoTip text={SESSION_PACKAGE_INFO_TEXT} />
+                  </label>
+                </div>
+              )}
+              {supportsSessionPackages(sector) && isPackageDeal && (
+                <div style={{ marginBottom: 12 }}>
+                  {packageBreakdown.length === 0 ? (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <div style={{ flex: 1 }}>
+                        <label
+                          style={{
+                            fontSize: 13,
+                            color: "var(--text-secondary)",
+                            display: "block",
+                            marginBottom: 4,
+                          }}
+                        >
+                          Toplam seans sayısı
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={sessionTotal}
+                          onChange={(e) => setSessionTotal(e.target.value)}
+                          style={{ width: "100%" }}
+                        />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label
+                          style={{
+                            fontSize: 13,
+                            color: "var(--text-secondary)",
+                            display: "block",
+                            marginBottom: 4,
+                          }}
+                        >
+                          Kullanılan seans sayısı
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={sessionUsed}
+                          onChange={(e) => setSessionUsed(e.target.value)}
+                          style={{ width: "100%" }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label
+                        style={{
+                          fontSize: 13,
+                          color: "var(--text-secondary)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          marginBottom: 6,
+                        }}
+                      >
+                        Hizmet türleri
+                        <InfoTip
+                          align="left"
+                          text="Örn. '8 seans Lazer + 2 seans Kontrol' gibi karma bir paket - her hizmet türünün kendi seans sayacı olur, toplam/kullanılan otomatik hesaplanır."
+                        />
+                      </label>
+                      {packageBreakdown.map((b, i) => (
+                        <div
+                          key={i}
+                          style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}
+                        >
+                          <input
+                            value={b.label}
+                            onChange={(e) => updateBreakdownRow(i, { label: e.target.value })}
+                            placeholder="Örn. Lazer"
+                            style={{ flex: 2, minWidth: 0 }}
+                          />
+                          <input
+                            type="number"
+                            min="1"
+                            value={b.total}
+                            onChange={(e) =>
+                              updateBreakdownRow(i, { total: Number(e.target.value) || 1 })
+                            }
+                            placeholder="Toplam"
+                            title="Toplam seans"
+                            style={{ width: 64 }}
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            value={b.used}
+                            onChange={(e) =>
+                              updateBreakdownRow(i, {
+                                used: Math.min(Number(e.target.value) || 0, Number(b.total) || 0),
+                              })
+                            }
+                            placeholder="Kullanılan"
+                            title="Kullanılan seans"
+                            style={{ width: 64 }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeBreakdownRow(i)}
+                            style={{ fontSize: 12, flexShrink: 0 }}
+                          >
+                            Kaldır
+                          </button>
+                        </div>
+                      ))}
+                      <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0" }}>
+                        Toplam: {sessionTotal} seans, {sessionUsed} kullanıldı
+                      </p>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      packageBreakdown.length === 0 ? convertToBreakdown() : addBreakdownRow()
+                    }
+                    style={{ fontSize: 12, marginTop: 4 }}
+                  >
+                    {packageBreakdown.length === 0
+                      ? "+ Karma pakete çevir (birden fazla hizmet türü)"
+                      : "+ Hizmet türü ekle"}
+                  </button>
+                  {sessionError && (
+                    <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "4px 0 0" }}>
+                      {sessionError}
+                    </p>
+                  )}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                <div style={{ flex: 2 }}>
+                  <label
+                    style={{
+                      fontSize: 13,
+                      color: "var(--text-secondary)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      marginBottom: 4,
+                    }}
+                  >
+                    Not
+                    <InfoTip
+                      align="left"
+                      text="İsterseniz sadece bir not olarak kullanın (tarih boş kalabilir), isterseniz sağdaki tarihi de doldurup gerçek bir hatırlatmaya çevirin - tarih girilirse Pano'da ve 'Bugün ne yapmalıyım' listesinde çıkar."
+                    />
+                  </label>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input
+                      value={reminder}
+                      onChange={(e) => setReminder(e.target.value)}
+                      placeholder="Yarın takip araması yap"
+                      style={{ flex: 1 }}
+                    />
+                    <VoiceInputButton
+                      onResult={(text) => setReminder((prev) => (prev ? `${prev} ${text}` : text))}
+                    />
+                  </div>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label
+                    style={{
+                      fontSize: 13,
+                      color: "var(--text-secondary)",
+                      display: "block",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Hatırlatma tarihi{" "}
+                    <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(opsiyonel)</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={reminderDate}
+                    onChange={(e) => setReminderDate(e.target.value)}
+                    style={{ width: "100%" }}
+                  />
+                  <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+                    {[
+                      ["Bugün", 0],
+                      ["Yarın", 1],
+                      ["1 hafta sonra", 7],
+                    ].map(([label, days]) => (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() =>
+                          setReminderDate(
+                            new Date(Date.now() + days * 86400000).toISOString().slice(0, 10),
+                          )
+                        }
+                        style={{
+                          fontSize: 11,
+                          height: 24,
+                          padding: "0 10px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {reminder.trim() && reminderDate && (
+                <div style={{ marginBottom: 12 }}>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      fontSize: 13,
+                      color: "var(--text-secondary)",
+                      cursor: selectedCustomerEmail ? "pointer" : "not-allowed",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={notifyCustomer}
+                      disabled={!selectedCustomerEmail}
+                      onChange={(e) => setNotifyCustomer(e.target.checked)}
+                    />
+                    Hatırlatma tarihinde müşteriye de e-posta gönder
+                  </label>
+                  {!selectedCustomerEmail && (
+                    <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0 24px" }}>
+                      Müşterinin e-postası yok, gönderilemez.
+                    </p>
+                  )}
+                </div>
+              )}
+              <div style={{ marginBottom: 12 }}>
+                <label
+                  style={{
+                    fontSize: 13,
+                    color: "var(--text-secondary)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    marginBottom: 4,
+                  }}
+                >
+                  Etiketler <InfoTip align="left" text={TAGS_INFO_TEXT} />
+                </label>
+                <TagInput tags={tags} onChange={setTags} suggestions={sectorTags} />
+              </div>
+              <CustomFieldsSection
+                defs={otherDefsForEntity}
+                values={customFields}
+                onChange={setCustomFields}
+              />
+              {initial?.id && isAppointmentSector(sector) && (
+                <BeforeAfterPhotos
+                  dealId={initial.id}
+                  customer={customers.find((c) => c.id === customerId)}
+                  attachments={attachments}
+                  showcaseFeatured={initial.showcaseFeatured === true}
+                  onUpload={onUploadAttachment}
+                  onDelete={onDeleteAttachment}
+                  onToggleShowcase={onToggleShowcase}
+                  onRequestConsent={onRequestPhotoConsent}
+                />
+              )}
+              {initial?.id && (
+                <AttachmentList
+                  entityType="deals"
+                  entityId={initial.id}
+                  attachments={attachments}
+                  onUpload={onUploadAttachment}
+                  onDownload={onDownloadAttachment}
+                  onDelete={onDeleteAttachment}
+                  onToggleShare={onToggleAttachmentShare}
+                />
+              )}
+            </div>
+          )}
+          {conflictError && (
+            <p style={{ fontSize: 12.5, color: "var(--text-danger)", margin: "0 0 8px" }}>
+              {conflictError}
+            </p>
+          )}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            justifyContent: "space-between",
+            paddingTop: 12,
+            marginTop: 4,
+            borderTop: "1px solid var(--border)",
+            flexShrink: 0,
+          }}
+        >
+          <div>
+            {initial && onSaveTask && (
+              <button
+                type="button"
+                onClick={() => setShowTaskForm(true)}
+                style={{
+                  fontSize: 12,
+                  background: "var(--surface-1)",
+                  border: "0.5px solid var(--border)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                <i className="ti ti-list-check" style={{ fontSize: 13 }} aria-hidden="true"></i>
+                Görev ekle
+              </button>
             )}
           </div>
-        )}
-        {conflictError && (
-          <p style={{ fontSize: 12.5, color: "var(--text-danger)", margin: "0 0 8px" }}>
-            {conflictError}
-          </p>
-        )}
-      </div>
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          justifyContent: "flex-end",
-          paddingTop: 12,
-          marginTop: 4,
-          borderTop: "1px solid var(--border)",
-          flexShrink: 0,
-        }}
-      >
-        <button type="button" onClick={onCancel}>
-          Vazgeç
-        </button>
-        <button
-          type="submit"
-          disabled={customers.length === 0}
-          style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
-        >
-          Kaydet
-        </button>
-      </div>
-    </form>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" onClick={onCancel}>
+              Vazgeç
+            </button>
+            <button
+              type="submit"
+              disabled={customers.length === 0}
+              style={{
+                background: "var(--fill-accent)",
+                color: "var(--on-accent)",
+                border: "none",
+              }}
+            >
+              Kaydet
+            </button>
+          </div>
+        </div>
+      </form>
+      {showTaskForm && (
+        <Modal title="Görev ekle" onClose={() => setShowTaskForm(false)}>
+          <TaskForm
+            customers={customers}
+            deals={deals}
+            teamMembers={teamMembers}
+            currentUserId={currentUserId}
+            currentUserEmail={currentUserEmail}
+            initial={{ customerId: initial.customerId, dealId: initial.id }}
+            onSave={async (t) => {
+              await onSaveTask(t);
+              setShowTaskForm(false);
+            }}
+            onCancel={() => setShowTaskForm(false)}
+          />
+        </Modal>
+      )}
+    </>
   );
 }
 

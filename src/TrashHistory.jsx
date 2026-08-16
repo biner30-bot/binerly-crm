@@ -13,6 +13,7 @@ export const TRASH_TABLE_LABELS = {
   staff_shifts: "Vardiya",
   staff_leave_balances: "İzin bakiyesi",
   staff_leave_records: "İzin kaydı",
+  tasks: "Görev",
 };
 
 export function TrashHistoryModal({
@@ -50,6 +51,7 @@ export function TrashHistoryModal({
       { data: gc },
       { data: log },
       { data: att },
+      { data: tk },
     ] = await Promise.all([
       supabase
         .from("customers")
@@ -84,6 +86,10 @@ export function TrashHistoryModal({
         .from("attachments")
         .select("id,file_name,user_id,deleted_at,deleted_batch_id")
         .not("deleted_at", "is", null),
+      supabase
+        .from("tasks")
+        .select("id,title,user_id,deleted_at,deleted_batch_id")
+        .not("deleted_at", "is", null),
     ]);
 
     // customers/deals RLS'i portal kullanıcıları için de eşleşebildiğinden (bkz.
@@ -109,6 +115,9 @@ export function TrashHistoryModal({
       ...(att || [])
         .filter((r) => r.user_id === activeTeamId)
         .map((r) => ({ table: "attachments", label: r.file_name, ...r })),
+      ...(tk || [])
+        .filter((r) => r.user_id === activeTeamId)
+        .map((r) => ({ table: "tasks", label: r.title, ...r })),
     ];
 
     const groups = {};

@@ -21,6 +21,7 @@ import {
   computeCustomerReliability,
 } from "./Sectors";
 import { getSlaStatus, TERMINAL_STATUSES } from "./Support";
+import { TASK_TYPES } from "./Tasks";
 
 // Paket/üyelik yenileme hatırlatması — approvalLink opsiyonel, çağıran taraf
 // (async generateApprovalLink sonucu) hazırsa geçiyor, hazır değilse linksiz
@@ -97,6 +98,7 @@ export default function Pano({
   otelArrivalsToday,
   otelDeparturesToday,
   dueReminderDeals,
+  dueTasks,
   urgentTickets,
   newPortalAppointments,
   orderRhythmAlerts,
@@ -486,6 +488,7 @@ export default function Pano({
       >
         <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 10px" }}>Bugün ne yapmalıyım</p>
         {dueReminderDeals.length === 0 &&
+        dueTasks.length === 0 &&
         urgentTickets.length === 0 &&
         newPortalAppointments.length === 0 &&
         orderRhythmAlerts.length === 0 &&
@@ -605,6 +608,42 @@ export default function Pano({
                 >
                   <span style={{ flex: 1 }}>
                     {c?.name || "Bilinmeyen müşteri"} - {d.reminder}
+                  </span>
+                  <Badge tone={overdue ? "danger" : "warning"}>
+                    {overdue ? "Gecikti" : "Bugün"}
+                  </Badge>
+                </div>
+              );
+            })}
+            {dueTasks.map((t) => {
+              const c = t.customerId ? customerById(t.customerId) : null;
+              const overdue = new Date(t.dueDate) < new Date(new Date().setHours(0, 0, 0, 0));
+              const typeInfo = TASK_TYPES.find((x) => x.id === t.type) || TASK_TYPES[3];
+              return (
+                <div
+                  key={`task-${t.id}`}
+                  className="pano-alert-row"
+                  onClick={() => setTab("gorevler")}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 13,
+                    cursor: "pointer",
+                    padding: "8px 10px",
+                    background: overdue ? "var(--bg-danger)" : "var(--bg-warning)",
+                    borderLeft: `3px solid ${overdue ? "var(--text-danger)" : "var(--fill-warning)"}`,
+                    borderRadius: "var(--radius)",
+                  }}
+                >
+                  <i
+                    className={`ti ${typeInfo.icon}`}
+                    style={{ fontSize: 14 }}
+                    aria-hidden="true"
+                  ></i>
+                  <span style={{ flex: 1 }}>
+                    {c ? `${c.name} - ` : ""}
+                    {t.title}
                   </span>
                   <Badge tone={overdue ? "danger" : "warning"}>
                     {overdue ? "Gecikti" : "Bugün"}

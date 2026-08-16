@@ -24,7 +24,7 @@ function taskDueInfo(dueDate, completedAt) {
   return { label: dateLabel, tone: "default" };
 }
 
-function TaskForm({
+export function TaskForm({
   customers,
   deals,
   teamMembers,

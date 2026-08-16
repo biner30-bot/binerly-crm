@@ -27,6 +27,7 @@ import {
   TagBadges,
 } from "./Sectors";
 import { paymentDateLabel, TAGS_INFO_TEXT, BeforeAfterPhotoThumb } from "./Deals";
+import { TaskForm } from "./Tasks";
 
 export const ACTIVITY_TYPES = [
   { id: "note", label: "Not", icon: "ti-note" },
@@ -434,11 +435,16 @@ export function CustomerDetail({
   onDeleteAttachment,
   onAddActivity,
   onRequestConsent,
+  teamMembers = [],
+  currentUserId,
+  currentUserEmail,
+  onSaveTask,
   onClose,
 }) {
   const [type, setType] = useState("note");
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showTaskForm, setShowTaskForm] = useState(false);
 
   const myClasses = groupClassEnrollments
     .filter((e) => e.customerId === customer.id)
@@ -870,7 +876,33 @@ export function CustomerDetail({
         </div>
       )}
 
-      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>İletişim geçmişi</p>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          margin: "0 0 8px",
+        }}
+      >
+        <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>İletişim geçmişi</p>
+        {onSaveTask && (
+          <button
+            type="button"
+            onClick={() => setShowTaskForm(true)}
+            style={{
+              fontSize: 12,
+              background: "var(--surface-1)",
+              border: "0.5px solid var(--border)",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <i className="ti ti-list-check" style={{ fontSize: 13 }} aria-hidden="true"></i>
+            Görev ekle
+          </button>
+        )}
+      </div>
       <form onSubmit={submit} style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
           <select value={type} onChange={(e) => setType(e.target.value)} style={{ width: 160 }}>
@@ -940,6 +972,24 @@ export function CustomerDetail({
             );
           })}
         </div>
+      )}
+
+      {showTaskForm && (
+        <Modal title="Görev ekle" onClose={() => setShowTaskForm(false)}>
+          <TaskForm
+            customers={[customer]}
+            deals={deals}
+            teamMembers={teamMembers}
+            currentUserId={currentUserId}
+            currentUserEmail={currentUserEmail}
+            initial={{ customerId: customer.id }}
+            onSave={async (t) => {
+              await onSaveTask(t);
+              setShowTaskForm(false);
+            }}
+            onCancel={() => setShowTaskForm(false)}
+          />
+        </Modal>
       )}
     </Modal>
   );

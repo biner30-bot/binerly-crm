@@ -32,6 +32,7 @@ export default async function handler(req, res) {
     const table = req.body?.table;
     if (table === "deals") return await handleAppointmentPush(req, res, supabaseAdmin);
     if (table === "payments") return await handlePaymentPush(req, res, supabaseAdmin);
+    if (table === "tasks") return await handleTaskAssignedPush(req, res, supabaseAdmin);
     if (table === "deal_approvals") return await handleDealApprovalPush(req, res, supabaseAdmin);
     if (table === "deal_viewed") return await handleDealViewedPush(req, res, supabaseAdmin);
     return await handleTicketMessagePush(req, res, supabaseAdmin);
@@ -174,6 +175,30 @@ async function handlePaymentPush(req, res, supabaseAdmin) {
     title: "Ödeme alındı",
     body: `${deal.title} - ${amountLabel}`,
     url: "/?tab=firsat",
+  });
+}
+
+// Görev bir takım üyesine atandığında (yeni oluşturma veya devretme) - sadece
+// assigned_to gerçekten değiştiğinde tetiklenir, tamamlama/düzenleme gibi assigned_to'yu
+// değiştirmeyen diğer UPDATE'lerde sessizce atlanır. Bu webhook Supabase Dashboard'dan
+// elle kurulmalı (INSERT + UPDATE, public.tasks) - diğer tablolardaki gibi repo içinde
+// SQL/migration olarak görünmüyor.
+async function handleTaskAssignedPush(req, res, supabaseAdmin) {
+  const type = req.body?.type;
+  const record = req.body?.record;
+  const oldRecord = req.body?.old_record;
+  if (!record?.assigned_to) return res.status(200).json({ skipped: true });
+  if (type === "UPDATE" && oldRecord?.assigned_to === record.assigned_to) {
+    return res.status(200).json({ skipped: true });
+  }
+
+  const vapidReady = ensureVapid();
+  if (!vapidReady) return res.status(200).json({ skipped: true, reason: "VAPID keys not configured" });
+
+  return await sendToRecipients(supabaseAdmin, res, [record.assigned_to], {
+    title: "Yeni görev atandı",
+    body: record.title,
+    url: "/?tab=gorevler",
   });
 }
 
