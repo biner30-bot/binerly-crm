@@ -1,5 +1,15 @@
 import React, { useState } from "react";
-import { Badge, Modal, ConfirmDialog, IconButton, InfoTip, formatTL } from "./shared";
+import {
+  Badge,
+  Modal,
+  ConfirmDialog,
+  IconButton,
+  InfoTip,
+  formatTL,
+  moveItem,
+  moveBeforeDrop,
+  ReorderButtons,
+} from "./shared";
 
 export const STAGES = [
   { id: "ilk_gorusme", label: "İlk görüşme" },
@@ -1479,7 +1489,14 @@ function CustomFieldEditModal({ def, dealEntityLabel, onSave, onClose }) {
   );
 }
 
-export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDelete, sector }) {
+export function CustomFieldDefsManager({
+  customFieldDefs,
+  onAdd,
+  onUpdate,
+  onDelete,
+  onReorder,
+  sector,
+}) {
   const dealEntityLabel = DEAL_ENTITY_NAV_LABELS[dealWordKind(sector)];
   const [entity, setEntity] = useState("customer");
   const [label, setLabel] = useState("");
@@ -1489,10 +1506,22 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [editingDef, setEditingDef] = useState(null);
   const [formError, setFormError] = useState("");
+  const [draggedField, setDraggedField] = useState(null);
 
+  const byCustomSort = (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
   const activeDefs = customFieldDefs.filter((d) => d.active);
-  const customerDefs = activeDefs.filter((d) => d.entity === "customer");
-  const dealDefs = activeDefs.filter((d) => d.entity === "deal");
+  const customerDefs = activeDefs.filter((d) => d.entity === "customer").sort(byCustomSort);
+  const dealDefs = activeDefs.filter((d) => d.entity === "deal").sort(byCustomSort);
+
+  const handleFieldDrop = (fieldEntity, defs, targetId) => {
+    if (draggedField && draggedField.entity === fieldEntity && draggedField.id !== targetId) {
+      onReorder(
+        fieldEntity,
+        moveBeforeDrop(defs, draggedField.id, targetId).map((d) => d.id),
+      );
+    }
+    setDraggedField(null);
+  };
 
   const submit = (e) => {
     e.preventDefault();
@@ -1544,16 +1573,18 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
     setAudience("");
   };
 
-  const renderGroup = (title, defs) => (
+  const renderGroup = (title, defs, fieldEntity) => (
     <div style={{ marginBottom: 12 }}>
       <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>{title}</p>
       {defs.length === 0 ? (
         <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>Henüz alan yok.</p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {defs.map((d) => (
+          {defs.map((d, idx) => (
             <div
               key={d.id}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => handleFieldDrop(fieldEntity, defs, d.id)}
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -1565,28 +1596,66 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
                 padding: "8px 12px",
               }}
             >
-              <span
-                style={{
-                  fontSize: 13,
-                  fontWeight: 500,
-                  minWidth: 0,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {d.label}
-                {d.audience ? (
-                  <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>
-                    {" "}
-                    · Sadece {AUDIENCE_LABELS[d.audience]}
-                  </span>
-                ) : (
-                  ""
-                )}
-              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}>
+                <i
+                  className="ti ti-grip-vertical"
+                  draggable
+                  onDragStart={() => setDraggedField({ id: d.id, entity: fieldEntity })}
+                  onDragEnd={() => setDraggedField(null)}
+                  title="Sürükleyerek taşı"
+                  style={{
+                    cursor: "grab",
+                    color: "var(--text-muted)",
+                    fontSize: 16,
+                    flexShrink: 0,
+                  }}
+                  aria-hidden="true"
+                ></i>
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 500,
+                    minWidth: 0,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {d.label}
+                  {d.audience ? (
+                    <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>
+                      {" "}
+                      · Sadece {AUDIENCE_LABELS[d.audience]}
+                    </span>
+                  ) : (
+                    ""
+                  )}
+                </span>
+              </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                 <Badge tone="accent">{FIELD_TYPE_LABELS[d.type] || d.type}</Badge>
+                <ReorderButtons
+                  onMoveTop={() =>
+                    onReorder(
+                      fieldEntity,
+                      moveItem(defs, d.id, "top").map((x) => x.id),
+                    )
+                  }
+                  onMoveUp={() =>
+                    onReorder(
+                      fieldEntity,
+                      moveItem(defs, d.id, "up").map((x) => x.id),
+                    )
+                  }
+                  onMoveDown={() =>
+                    onReorder(
+                      fieldEntity,
+                      moveItem(defs, d.id, "down").map((x) => x.id),
+                    )
+                  }
+                  isFirst={idx === 0}
+                  isLast={idx === defs.length - 1}
+                />
                 <IconButton
                   icon="ti-edit"
                   title="Düzenle"
@@ -1614,8 +1683,8 @@ export function CustomFieldDefsManager({ customFieldDefs, onAdd, onUpdate, onDel
         Sektör değiştirdiğinizde başka sektöre ait alanlar burada gizlenir (silinmez) - daha önce
         kaydedilmiş değerler korunur, aynı sektöre dönerseniz alanlar geri gelir.
       </p>
-      {renderGroup("Müşteri alanları", customerDefs)}
-      {renderGroup(`${dealEntityLabel} alanları`, dealDefs)}
+      {renderGroup("Müşteri alanları", customerDefs, "customer")}
+      {renderGroup(`${dealEntityLabel} alanları`, dealDefs, "deal")}
 
       <p
         style={{

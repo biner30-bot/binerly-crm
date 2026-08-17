@@ -8,6 +8,9 @@ import {
   Badge,
   IconButton,
   SegmentedControl,
+  moveItem,
+  moveBeforeDrop,
+  ReorderButtons,
 } from "./shared";
 import { dealWordKind, bookingModel } from "./Sectors";
 
@@ -328,7 +331,39 @@ export function PriceListEditModal({ item, sector, resources, onSave, onClose })
   );
 }
 
-export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector, resources }) {
+const PRICE_LIST_SORT_OPTIONS = [
+  { id: "custom", label: "Sıra (kendi düzeniniz)" },
+  { id: "name_asc", label: "İsim (A-Z)" },
+  { id: "name_desc", label: "İsim (Z-A)" },
+  { id: "price_asc", label: "Fiyat (düşükten yükseğe)" },
+  { id: "price_desc", label: "Fiyat (yüksekten düşüğe)" },
+  { id: "created_desc", label: "Eklenme tarihi (yeni önce)" },
+  { id: "created_asc", label: "Eklenme tarihi (eski önce)" },
+];
+
+function sortListItems(items, sortMode) {
+  const sorted = [...items];
+  if (sortMode === "custom") sorted.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  else if (sortMode === "name_asc") sorted.sort((a, b) => a.name.localeCompare(b.name, "tr"));
+  else if (sortMode === "name_desc") sorted.sort((a, b) => b.name.localeCompare(a.name, "tr"));
+  else if (sortMode === "price_asc") sorted.sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
+  else if (sortMode === "price_desc") sorted.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
+  else if (sortMode === "created_desc")
+    sorted.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  else if (sortMode === "created_asc")
+    sorted.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+  return sorted;
+}
+
+export function PriceListManager({
+  items,
+  onAdd,
+  onUpdate,
+  onDelete,
+  onReorder,
+  sector,
+  resources,
+}) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [refreshDays, setRefreshDays] = useState("");
@@ -338,11 +373,21 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector, res
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
   const [search, setSearch] = useState("");
+  const [sortMode, setSortMode] = useState("custom");
+  const [draggedId, setDraggedId] = useState(null);
   const query = search.trim().toLowerCase();
   const filteredItems = query
     ? items.filter((item) => item.name.toLowerCase().includes(query))
     : items;
+  const sortedItems = sortListItems(filteredItems, sortMode);
+  const canReorder = sortMode === "custom" && !query;
   const existingGroups = [...new Set(items.map((i) => i.parallelGroup).filter(Boolean))];
+
+  const handleDrop = (targetId) => {
+    if (draggedId && draggedId !== targetId)
+      onReorder(moveBeforeDrop(sortedItems, draggedId, targetId).map((i) => i.id));
+    setDraggedId(null);
+  };
 
   const submit = (e) => {
     e.preventDefault();
@@ -390,23 +435,42 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector, res
         </p>
       ) : (
         <>
-          {items.length > 5 && (
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Ürün/hizmet ara..."
-              style={{ width: "100%", marginBottom: 8, fontSize: 16 }}
-            />
+          {(items.length > 5 || items.length > 1) && (
+            <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+              {items.length > 5 && (
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Ürün/hizmet ara..."
+                  style={{ flex: 1, minWidth: 140, fontSize: 16 }}
+                />
+              )}
+              {items.length > 1 && (
+                <select
+                  value={sortMode}
+                  onChange={(e) => setSortMode(e.target.value)}
+                  style={{ fontSize: 13 }}
+                >
+                  {PRICE_LIST_SORT_OPTIONS.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
           )}
-          {filteredItems.length === 0 ? (
+          {sortedItems.length === 0 ? (
             <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>
               Aramayla eşleşen kayıt yok.
             </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
-              {filteredItems.map((item) => (
+              {sortedItems.map((item, idx) => (
                 <div
                   key={item.id}
+                  onDragOver={(e) => canReorder && e.preventDefault()}
+                  onDrop={() => canReorder && handleDrop(item.id)}
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
@@ -418,18 +482,38 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector, res
                     padding: "8px 12px",
                   }}
                 >
-                  <span
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 500,
-                      minWidth: 0,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}
                   >
-                    {item.name}
-                  </span>
+                    {canReorder && (
+                      <i
+                        className="ti ti-grip-vertical"
+                        draggable
+                        onDragStart={() => setDraggedId(item.id)}
+                        onDragEnd={() => setDraggedId(null)}
+                        title="Sürükleyerek taşı"
+                        style={{
+                          cursor: "grab",
+                          color: "var(--text-muted)",
+                          fontSize: 16,
+                          flexShrink: 0,
+                        }}
+                        aria-hidden="true"
+                      ></i>
+                    )}
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 500,
+                        minWidth: 0,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {item.name}
+                    </span>
+                  </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                     <Badge tone="accent">{formatTL(item.price)}</Badge>
                     {item.durationMinutes > 0 && (
@@ -454,6 +538,21 @@ export function PriceListManager({ items, onAdd, onUpdate, onDelete, sector, res
                       <span title="Paralel Grup - bu gruptaki hizmetler birlikte seçilince eşzamanlı yapılıyor kabul edilir">
                         <Badge tone="default">⇄ {item.parallelGroup}</Badge>
                       </span>
+                    )}
+                    {canReorder && (
+                      <ReorderButtons
+                        onMoveTop={() =>
+                          onReorder(moveItem(sortedItems, item.id, "top").map((i) => i.id))
+                        }
+                        onMoveUp={() =>
+                          onReorder(moveItem(sortedItems, item.id, "up").map((i) => i.id))
+                        }
+                        onMoveDown={() =>
+                          onReorder(moveItem(sortedItems, item.id, "down").map((i) => i.id))
+                        }
+                        isFirst={idx === 0}
+                        isLast={idx === sortedItems.length - 1}
+                      />
                     )}
                     <IconButton
                       icon="ti-edit"
@@ -982,6 +1081,30 @@ function MinMarginBox({ value, onSave }) {
   );
 }
 
+const STOCK_SORT_OPTIONS = [
+  { id: "custom", label: "Sıra (kendi düzeniniz)" },
+  { id: "name_asc", label: "İsim (A-Z)" },
+  { id: "name_desc", label: "İsim (Z-A)" },
+  { id: "quantity_asc", label: "Miktar (azdan çoğa)" },
+  { id: "quantity_desc", label: "Miktar (çoktan aza)" },
+  { id: "created_desc", label: "Eklenme tarihi (yeni önce)" },
+  { id: "created_asc", label: "Eklenme tarihi (eski önce)" },
+];
+
+function sortStockItems(items, sortMode) {
+  const sorted = [...items];
+  if (sortMode === "custom") sorted.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  else if (sortMode === "name_asc") sorted.sort((a, b) => a.name.localeCompare(b.name, "tr"));
+  else if (sortMode === "name_desc") sorted.sort((a, b) => b.name.localeCompare(a.name, "tr"));
+  else if (sortMode === "quantity_asc") sorted.sort((a, b) => a.quantityOnHand - b.quantityOnHand);
+  else if (sortMode === "quantity_desc") sorted.sort((a, b) => b.quantityOnHand - a.quantityOnHand);
+  else if (sortMode === "created_desc")
+    sorted.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  else if (sortMode === "created_asc")
+    sorted.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+  return sorted;
+}
+
 export function StockManager({
   stockItems,
   priceListItems,
@@ -991,6 +1114,7 @@ export function StockManager({
   onAddStock,
   onUpdateStock,
   onDeleteStock,
+  onReorderStock,
   onAddIngredient,
   onDeleteIngredient,
   onUpdateMinMargin,
@@ -1004,10 +1128,20 @@ export function StockManager({
   const [unitCost, setUnitCost] = useState("");
   const [editingItem, setEditingItem] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [stockSortMode, setStockSortMode] = useState("custom");
+  const [draggedStockId, setDraggedStockId] = useState(null);
 
   const [recipePriceItemId, setRecipePriceItemId] = useState(priceListItems[0]?.id || "");
   const [recipeStockItemId, setRecipeStockItemId] = useState("");
   const [recipeQuantity, setRecipeQuantity] = useState("");
+  const sortedStockItems = sortStockItems(stockItems, stockSortMode);
+  const canReorderStock = stockSortMode === "custom";
+
+  const handleStockDrop = (targetId) => {
+    if (draggedStockId && draggedStockId !== targetId)
+      onReorderStock(moveBeforeDrop(sortedStockItems, draggedStockId, targetId).map((i) => i.id));
+    setDraggedStockId(null);
+  };
 
   const submitStock = (e) => {
     e.preventDefault();
@@ -1045,53 +1179,111 @@ export function StockManager({
               Henüz stok kalemi eklenmedi.
             </p>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
-              {stockItems.map((item) => {
-                const low =
-                  item.reorderThreshold != null && item.quantityOnHand <= item.reorderThreshold;
-                return (
-                  <div
-                    key={item.id}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: 8,
-                      background: "var(--surface-1)",
-                      border: "0.5px solid var(--border)",
-                      borderRadius: "var(--radius)",
-                      padding: "8px 12px",
-                    }}
+            <>
+              {stockItems.length > 1 && (
+                <div style={{ marginBottom: 8 }}>
+                  <select
+                    value={stockSortMode}
+                    onChange={(e) => setStockSortMode(e.target.value)}
+                    style={{ fontSize: 13 }}
                   >
-                    <div style={{ minWidth: 0 }}>
-                      <p style={{ margin: 0, fontSize: 13, fontWeight: 500 }}>{item.name}</p>
-                      {item.supplierName && (
-                        <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>
-                          Tedarikçi: {item.supplierName}
-                        </p>
-                      )}
+                    {STOCK_SORT_OPTIONS.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+                {sortedStockItems.map((item, idx) => {
+                  const low =
+                    item.reorderThreshold != null && item.quantityOnHand <= item.reorderThreshold;
+                  return (
+                    <div
+                      key={item.id}
+                      onDragOver={(e) => canReorderStock && e.preventDefault()}
+                      onDrop={() => canReorderStock && handleStockDrop(item.id)}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 8,
+                        background: "var(--surface-1)",
+                        border: "0.5px solid var(--border)",
+                        borderRadius: "var(--radius)",
+                        padding: "8px 12px",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                        {canReorderStock && (
+                          <i
+                            className="ti ti-grip-vertical"
+                            draggable
+                            onDragStart={() => setDraggedStockId(item.id)}
+                            onDragEnd={() => setDraggedStockId(null)}
+                            title="Sürükleyerek taşı"
+                            style={{
+                              cursor: "grab",
+                              color: "var(--text-muted)",
+                              fontSize: 16,
+                              flexShrink: 0,
+                            }}
+                            aria-hidden="true"
+                          ></i>
+                        )}
+                        <div style={{ minWidth: 0 }}>
+                          <p style={{ margin: 0, fontSize: 13, fontWeight: 500 }}>{item.name}</p>
+                          {item.supplierName && (
+                            <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>
+                              Tedarikçi: {item.supplierName}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                        <Badge tone={low ? "danger" : "accent"}>
+                          {item.quantityOnHand} {item.unit}
+                        </Badge>
+                        {canReorderStock && (
+                          <ReorderButtons
+                            onMoveTop={() =>
+                              onReorderStock(
+                                moveItem(sortedStockItems, item.id, "top").map((i) => i.id),
+                              )
+                            }
+                            onMoveUp={() =>
+                              onReorderStock(
+                                moveItem(sortedStockItems, item.id, "up").map((i) => i.id),
+                              )
+                            }
+                            onMoveDown={() =>
+                              onReorderStock(
+                                moveItem(sortedStockItems, item.id, "down").map((i) => i.id),
+                              )
+                            }
+                            isFirst={idx === 0}
+                            isLast={idx === sortedStockItems.length - 1}
+                          />
+                        )}
+                        <IconButton
+                          icon="ti-edit"
+                          title="Düzenle"
+                          size="sm"
+                          onClick={() => setEditingItem(item)}
+                        />
+                        <IconButton
+                          icon="ti-trash"
+                          title="Sil"
+                          size="sm"
+                          onClick={() => setConfirmDelete(item)}
+                        />
+                      </div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                      <Badge tone={low ? "danger" : "accent"}>
-                        {item.quantityOnHand} {item.unit}
-                      </Badge>
-                      <IconButton
-                        icon="ti-edit"
-                        title="Düzenle"
-                        size="sm"
-                        onClick={() => setEditingItem(item)}
-                      />
-                      <IconButton
-                        icon="ti-trash"
-                        title="Sil"
-                        size="sm"
-                        onClick={() => setConfirmDelete(item)}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            </>
           )}
 
           <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Yeni stok kalemi ekle</p>

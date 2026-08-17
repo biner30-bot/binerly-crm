@@ -544,7 +544,7 @@ function rowToDealLineItem(r) {
 }
 
 function rowToPriceListItem(r) {
-  return { id: r.id, name: r.name, price: r.price, refreshDays: r.refresh_days || null, durationMinutes: r.duration_minutes || null, commissionPercent: r.commission_percent ?? null, resourceId: r.resource_id || null, parallelGroup: r.parallel_group || null };
+  return { id: r.id, name: r.name, price: r.price, refreshDays: r.refresh_days || null, durationMinutes: r.duration_minutes || null, commissionPercent: r.commission_percent ?? null, resourceId: r.resource_id || null, parallelGroup: r.parallel_group || null, sortOrder: r.sort_order ?? 0, createdAt: r.created_at || null };
 }
 
 function rowToStockItem(r) {
@@ -557,6 +557,8 @@ function rowToStockItem(r) {
     supplierName: r.supplier_name || "",
     unitCost: r.unit_cost != null ? Number(r.unit_cost) : null,
     deletedAt: r.deleted_at || null,
+    sortOrder: r.sort_order ?? 0,
+    createdAt: r.created_at || null,
   };
 }
 
@@ -1519,8 +1521,8 @@ export default function App() {
       supabase.from("ticket_messages").select("*").order("created_at"),
       supabase.from("kb_articles").select("*").is("deleted_at", null).order("created_at"),
       supabase.from("company_settings").select("*"),
-      supabase.from("custom_field_defs").select("*").order("sort_order"),
-      supabase.from("price_list_items").select("*").order("name"),
+      supabase.from("custom_field_defs").select("*").order("sort_order").order("created_at"),
+      supabase.from("price_list_items").select("*").order("sort_order").order("name"),
       supabase.from("group_classes").select("*").is("deleted_at", null).order("weekday").order("start_time"),
       supabase.from("group_class_enrollments").select("*"),
       supabase.from("class_attendance").select("*"),
@@ -1532,7 +1534,7 @@ export default function App() {
       supabase.from("resources").select("*").order("name"),
       supabase.from("deal_pdf_templates").select("*").order("created_at"),
       supabase.from("deal_line_items").select("*").order("sort_order"),
-      supabase.from("stock_items").select("*").is("deleted_at", null).order("name"),
+      supabase.from("stock_items").select("*").is("deleted_at", null).order("sort_order").order("name"),
       supabase.from("price_item_ingredients").select("*"),
       supabase.from("group_class_waitlist").select("*").order("created_at"),
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
@@ -3183,7 +3185,9 @@ export default function App() {
   };
 
   const bulkImportPriceListItems = async (records, onProgress) => {
-    const rows = records.map((r) => ({ id: uid(), user_id: activeTeamId, name: r.name, price: Number(r.price) || 0 }));
+    const existingSortOrders = priceListItems.map((p) => p.sortOrder ?? 0);
+    const startOrder = existingSortOrders.length ? Math.max(...existingSortOrders) + 1 : 0;
+    const rows = records.map((r, i) => ({ id: uid(), user_id: activeTeamId, name: r.name, price: Number(r.price) || 0, sort_order: startOrder + i }));
     const outcome = await bulkInsertChunked("price_list_items", rows, rowToPriceListItem, setPriceListItems, onProgress);
     if (outcome.insertedCount > 0) logAction("price_list_items", uid(), "created", `${outcome.insertedCount} ürün/hizmet içe aktarıldı`);
     return outcome;
@@ -3305,6 +3309,7 @@ export default function App() {
   };
 
   const addCustomFieldDef = async ({ entity, key, label, type, options, sector = null, audience = null }) => {
+    const entitySortOrders = customFieldDefs.filter((d) => d.entity === entity).map((d) => d.sortOrder ?? 0);
     const row = {
       id: uid(),
       user_id: activeTeamId,
@@ -3315,6 +3320,7 @@ export default function App() {
       options,
       sector,
       audience,
+      sort_order: entitySortOrders.length ? Math.max(...entitySortOrders) + 1 : 0,
     };
     const { data, error } = await supabase.from("custom_field_defs").insert(row).select().single();
     if (error) { notify(`Özel alan eklenemedi: ${error.message}`); return; }
@@ -3349,8 +3355,23 @@ export default function App() {
     setCustomFieldDefs((prev) => prev.map((d) => (d.id === id ? { ...d, active: false } : d)));
   };
 
+  // orderedIds sadece TEK bir entity grubunun (customer ya da deal) yeni sırası -
+  // diğer entity'nin sort_order'larına dokunmaz.
+  const reorderCustomFieldDefs = async (entity, orderedIds) => {
+    const orderById = new Map(orderedIds.map((id, i) => [id, i]));
+    setCustomFieldDefs((prev) =>
+      prev.map((d) => (orderById.has(d.id) ? { ...d, sortOrder: orderById.get(d.id) } : d)),
+    );
+    const results = await Promise.all(
+      orderedIds.map((id, i) => supabase.from("custom_field_defs").update({ sort_order: i }).eq("id", id)),
+    );
+    const failed = results.find((r) => r.error);
+    if (failed) notify(`Sıralama kaydedilemedi: ${failed.error.message}`);
+  };
+
   const addPriceListItem = async ({ name, price, refreshDays, durationMinutes, resourceId, parallelGroup }) => {
-    const row = { id: uid(), user_id: activeTeamId, name, price, refresh_days: refreshDays || null, duration_minutes: durationMinutes || null, resource_id: resourceId || null, parallel_group: parallelGroup || null };
+    const sortOrders = priceListItems.map((p) => p.sortOrder ?? 0);
+    const row = { id: uid(), user_id: activeTeamId, name, price, refresh_days: refreshDays || null, duration_minutes: durationMinutes || null, resource_id: resourceId || null, parallel_group: parallelGroup || null, sort_order: sortOrders.length ? Math.max(...sortOrders) + 1 : 0 };
     const { data, error } = await supabase.from("price_list_items").insert(row).select().single();
     if (error) { notify(`Ürün/hizmet eklenemedi: ${error.message}`); return; }
     setPriceListItems((prev) => [...prev, rowToPriceListItem(data)]);
@@ -3368,8 +3389,21 @@ export default function App() {
     setPriceListItems((prev) => prev.filter((p) => p.id !== id));
   };
 
+  const reorderPriceListItems = async (orderedIds) => {
+    const orderById = new Map(orderedIds.map((id, i) => [id, i]));
+    setPriceListItems((prev) =>
+      prev.map((p) => (orderById.has(p.id) ? { ...p, sortOrder: orderById.get(p.id) } : p)),
+    );
+    const results = await Promise.all(
+      orderedIds.map((id, i) => supabase.from("price_list_items").update({ sort_order: i }).eq("id", id)),
+    );
+    const failed = results.find((r) => r.error);
+    if (failed) notify(`Sıralama kaydedilemedi: ${failed.error.message}`);
+  };
+
   const addStockItem = async ({ name, unit, quantityOnHand, reorderThreshold, supplierName, unitCost }) => {
-    const row = { id: uid(), user_id: activeTeamId, name, unit, quantity_on_hand: quantityOnHand || 0, reorder_threshold: reorderThreshold || null, supplier_name: supplierName || null, unit_cost: unitCost || null };
+    const sortOrders = stockItems.map((s) => s.sortOrder ?? 0);
+    const row = { id: uid(), user_id: activeTeamId, name, unit, quantity_on_hand: quantityOnHand || 0, reorder_threshold: reorderThreshold || null, supplier_name: supplierName || null, unit_cost: unitCost || null, sort_order: sortOrders.length ? Math.max(...sortOrders) + 1 : 0 };
     const { data, error } = await supabase.from("stock_items").insert(row).select().single();
     if (error) { notify(`Stok kalemi eklenemedi: ${error.message}`); return; }
     setStockItems((prev) => [...prev, rowToStockItem(data)]);
@@ -3388,6 +3422,18 @@ export default function App() {
     const { error } = await supabase.from("stock_items").delete().eq("id", id);
     if (error) { notify(`Stok kalemi silinemedi: ${error.message}`); return; }
     setStockItems((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  const reorderStockItems = async (orderedIds) => {
+    const orderById = new Map(orderedIds.map((id, i) => [id, i]));
+    setStockItems((prev) =>
+      prev.map((s) => (orderById.has(s.id) ? { ...s, sortOrder: orderById.get(s.id) } : s)),
+    );
+    const results = await Promise.all(
+      orderedIds.map((id, i) => supabase.from("stock_items").update({ sort_order: i }).eq("id", id)),
+    );
+    const failed = results.find((r) => r.error);
+    if (failed) notify(`Sıralama kaydedilemedi: ${failed.error.message}`);
   };
 
   const addPriceItemIngredient = async ({ priceItemId, stockItemId, quantity }) => {
@@ -4833,7 +4879,7 @@ export default function App() {
               )}
             </div>
           </div>
-          <PriceListManager items={priceListItems} onAdd={addPriceListItem} onUpdate={updatePriceListItem} onDelete={deletePriceListItem} sector={companySettings?.sector} resources={resources} />
+          <PriceListManager items={priceListItems} onAdd={addPriceListItem} onUpdate={updatePriceListItem} onDelete={deletePriceListItem} onReorder={reorderPriceListItems} sector={companySettings?.sector} resources={resources} />
           {showFreeServiceModal && (
             <FreeServiceModal sector={companySettings?.sector} onAdd={addPriceListItem} onClose={() => setShowFreeServiceModal(false)} />
           )}
@@ -4852,6 +4898,7 @@ export default function App() {
             onAddStock={addStockItem}
             onUpdateStock={updateStockItem}
             onDeleteStock={deleteStockItem}
+            onReorderStock={reorderStockItems}
             onAddIngredient={addPriceItemIngredient}
             onDeleteIngredient={deletePriceItemIngredient}
             onUpdateMinMargin={(percent) => upsertCompanySettings({ minProfitMarginPercent: percent })}
@@ -5210,7 +5257,7 @@ export default function App() {
             onSave={(sectorId) => applySectorPreset(sectorId)}
             onFetchFields={async () => { await applySectorCustomFields(companySettings.sector); notify("Sektöre özel yeni alanlar getirildi.", "success"); }}
           />
-          <CustomFieldDefsManager customFieldDefs={customFieldDefs} onAdd={addCustomFieldDef} onUpdate={updateCustomFieldDef} onDelete={deleteCustomFieldDef} sector={companySettings?.sector} />
+          <CustomFieldDefsManager customFieldDefs={customFieldDefs} onAdd={addCustomFieldDef} onUpdate={updateCustomFieldDef} onDelete={deleteCustomFieldDef} onReorder={reorderCustomFieldDefs} sector={companySettings?.sector} />
         </Modal>
       )}
 

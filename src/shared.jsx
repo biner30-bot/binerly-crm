@@ -583,6 +583,61 @@ export function IconButton({
   );
 }
 
+// Elle sıralanabilir listelerde (Fiyat Listesi, Stok & Malzeme, Özel Alanlar) id'li
+// bir öğeyi dizi içinde taşır - yeni bir dizi döner, kaynak diziyi değiştirmez.
+export function moveItem(list, id, direction) {
+  const idx = list.findIndex((item) => item.id === id);
+  if (idx === -1) return list;
+  const next = [...list];
+  const [item] = next.splice(idx, 1);
+  if (direction === "top") next.unshift(item);
+  else if (direction === "up") next.splice(Math.max(0, idx - 1), 0, item);
+  else next.splice(Math.min(next.length, idx + 1), 0, item);
+  return next;
+}
+
+// Sürükle-bırak drop anında: sürüklenen öğeyi, bırakılan öğenin hemen önüne taşır.
+export function moveBeforeDrop(list, draggedId, targetId) {
+  if (draggedId === targetId) return list;
+  const draggedIdx = list.findIndex((item) => item.id === draggedId);
+  if (draggedIdx === -1) return list;
+  const next = [...list];
+  const [item] = next.splice(draggedIdx, 1);
+  const targetIdx = next.findIndex((i) => i.id === targetId);
+  next.splice(targetIdx === -1 ? next.length : targetIdx, 0, item);
+  return next;
+}
+
+// Masaüstünde sürükle tutamacı yeterli ama mobil/dokunmatikte native HTML5 drag
+// çalışmıyor - bu yüzden her satırda ayrıca yukarı/aşağı/en-üste-taşı butonları var.
+export function ReorderButtons({ onMoveTop, onMoveUp, onMoveDown, isFirst, isLast }) {
+  return (
+    <span style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+      <IconButton
+        icon="ti-corner-left-up"
+        title="En üste taşı"
+        size="sm"
+        onClick={onMoveTop}
+        disabled={isFirst}
+      />
+      <IconButton
+        icon="ti-chevron-up"
+        title="Yukarı taşı"
+        size="sm"
+        onClick={onMoveUp}
+        disabled={isFirst}
+      />
+      <IconButton
+        icon="ti-chevron-down"
+        title="Aşağı taşı"
+        size="sm"
+        onClick={onMoveDown}
+        disabled={isLast}
+      />
+    </span>
+  );
+}
+
 // Ayarlar hub'ı gibi men listelerinde kullanılan tam genişlikte, tıklanabilir satır.
 export function MenuRow({ icon, label, description, onClick }) {
   return (
