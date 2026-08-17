@@ -6,12 +6,15 @@ import { CookieConsentBanner } from "./CookieConsent.jsx";
 // aynı "env var yoksa hiç yüklenmez" deseni. Pazarlama izleme değil, sadece
 // operasyonel hata takibi olduğu için çerez onayına bağlanmadı (localStorage'a
 // yazmaz, kullanıcı davranışını izlemez — yalnızca hata/çökme raporlar).
+// Sadece production'da başlatılır — npm run dev sırasında (özellikle
+// Playwright ile canlı test ederken) oluşan geçici/henüz-düzeltilmemiş
+// hatalar gerçek kullanıcı hatasıymış gibi mail/Slack alarmı üretmesin diye.
 const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
-if (SENTRY_DSN) {
+if (SENTRY_DSN && import.meta.env.PROD) {
   import("@sentry/react").then((Sentry) => {
     Sentry.init({
       dsn: SENTRY_DSN,
-      environment: import.meta.env.PROD ? "production" : "development",
+      environment: "production",
       sendDefaultPii: false,
       tracesSampleRate: 0,
     });
