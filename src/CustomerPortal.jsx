@@ -3077,6 +3077,7 @@ export default function CustomerPortal() {
   const [selectedCompanyId, setSelectedCompanyId] = useState(
     () => localStorage.getItem("binerly_portal_company") || null,
   );
+  const [showcaseCampaigns, setShowcaseCampaigns] = useState([]);
   const [groupClasses, setGroupClasses] = useState([]);
   const [groupClassEnrollments, setGroupClassEnrollments] = useState([]);
   const [groupClassWaitlist, setGroupClassWaitlist] = useState([]);
@@ -3898,6 +3899,38 @@ export default function CustomerPortal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portalTab, tickets, selectedCompanyId]);
 
+  // Vitrin'deki AYNI kampanya sorgusu (api/lead-capture.js'in ?view=vitrin
+  // dalıyla aynı filtre mantığı) - mevcut müşteriler de güncel kampanyaları
+  // görsün diye ("portal users can view vendor showcase campaigns" RLS
+  // politikası, bkz. sql/2026-08-19_portal_showcase_campaigns.sql). Seçili
+  // firma değişince yeniden çekilir - başka firmanın kampanyası asla karışmaz.
+  useEffect(() => {
+    const row = customerRows.find((r) => r.id === selectedCompanyId);
+    if (!row) {
+      setShowcaseCampaigns([]);
+      return;
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    supabase
+      .from("showcase_campaigns")
+      .select("id, title, description, starts_at, ends_at")
+      .eq("user_id", row.userId)
+      .eq("active", true)
+      .or(`ends_at.is.null,ends_at.gte.${today}`)
+      .order("sort_order")
+      .then(({ data }) => {
+        setShowcaseCampaigns(
+          (data || []).map((c) => ({
+            id: c.id,
+            title: c.title,
+            description: c.description,
+            startsAt: c.starts_at,
+            endsAt: c.ends_at,
+          })),
+        );
+      });
+  }, [customerRows, selectedCompanyId]);
+
   // Randevu alabilen bir müşteri portala girdiğinde varsayılan "Taleplerim"
   // sekmesi yerine doğrudan "Randevu Al" butonunun olduğu sekmeye düşsün -
   // buton zaten vardı ama Taleplerim'in arkasında kalıp fark edilmiyordu.
@@ -4080,6 +4113,7 @@ export default function CustomerPortal() {
       : [];
   const showDersler =
     supportsGroupClasses(activeCustomerRow?.companySector) && visibleGroupClasses.length > 0;
+  const showKampanyalar = showcaseCampaigns.length > 0;
 
   return (
     <div style={{ padding: "24px 16px 64px" }}>
@@ -4277,6 +4311,9 @@ export default function CustomerPortal() {
                     ? [{ id: "dersler", label: "Derslerim", icon: "ti-calendar-time" }]
                     : []),
                   { id: "odemeler", label: "Ödemelerim", icon: "ti-receipt" },
+                  ...(showKampanyalar
+                    ? [{ id: "kampanyalar", label: "Kampanyalar", icon: "ti-speakerphone" }]
+                    : []),
                 ].map((t) => (
                   <button
                     key={t.id}
@@ -4520,6 +4557,57 @@ export default function CustomerPortal() {
                     showCompany={false}
                     companyNameByCustomerId={companyNameByCustomerId}
                   />
+                )}
+
+                {portalTab === "kampanyalar" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {showcaseCampaigns.map((c) => (
+                      <div
+                        key={c.id}
+                        style={{
+                          background: "var(--surface-1)",
+                          border: "0.5px solid var(--border)",
+                          borderRadius: "var(--radius-lg)",
+                          padding: 16,
+                        }}
+                      >
+                        <p
+                          style={{
+                            margin: 0,
+                            fontSize: 15,
+                            fontWeight: 700,
+                            color: "var(--text-primary)",
+                          }}
+                        >
+                          {c.title}
+                        </p>
+                        {c.description && (
+                          <p
+                            style={{
+                              margin: "6px 0 0",
+                              fontSize: 13.5,
+                              color: "var(--text-secondary)",
+                            }}
+                          >
+                            {c.description}
+                          </p>
+                        )}
+                        {(c.startsAt || c.endsAt) && (
+                          <p
+                            style={{
+                              margin: "8px 0 0",
+                              fontSize: 12,
+                              color: "var(--text-accent)",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {c.startsAt ? new Date(c.startsAt).toLocaleDateString("tr-TR") : "?"} -{" "}
+                            {c.endsAt ? new Date(c.endsAt).toLocaleDateString("tr-TR") : "süresiz"}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 )}
 
                 {portalTab === "profil" && (

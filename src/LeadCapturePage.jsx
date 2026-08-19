@@ -1,9 +1,20 @@
 import { useState, useEffect } from "react";
 
+// shared.jsx'teki getPortalUrl / AppointmentRequestPage.jsx'teki portalUrlFor
+// ile AYNI mantık (kasıtlı kopya - route bazlı kod bölme, bkz. o dosyadaki
+// aynı isimli yorum).
+function portalUrlFor() {
+  const host = window.location.hostname;
+  if (host.split(".")[0] === "portal") return window.location.origin + "/";
+  if (host === "binerly.com" || host === "www.binerly.com") return "https://portal.binerly.com/";
+  return window.location.origin + "/portal";
+}
+
 // Kamuya açık, giriş gerektirmeyen sayfa — /lead/{token}. KOBİ'nin paylaştığı
 // link/QR koddan gelen bir kişi kendi bilgisini bırakır, KOBİ elle girmez.
 export default function LeadCapturePage() {
   const token = window.location.pathname.split("/")[2] || "";
+  const portalUrl = portalUrlFor();
   const [company, setCompany] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -95,9 +106,20 @@ export default function LeadCapturePage() {
         ) : error ? (
           <p style={{ textAlign: "center", color: "#b91c1c" }}>{error}</p>
         ) : done ? (
-          <p style={{ textAlign: "center", color: "#15803d", fontWeight: 600 }}>
-            ✓ Bilgileriniz iletildi, teşekkürler!
-          </p>
+          <>
+            <p style={{ textAlign: "center", color: "#15803d", fontWeight: 600 }}>
+              ✓ Bilgileriniz iletildi, teşekkürler!
+            </p>
+            <p
+              style={{ textAlign: "center", color: "#9aa8b8", fontSize: 12.5, margin: "16px 0 0" }}
+            >
+              Talebinizi buradan takip etmek isterseniz{" "}
+              <a href={portalUrl} style={{ color: "#185fa5" }}>
+                hesap oluşturabilirsiniz
+              </a>{" "}
+              (opsiyonel).
+            </p>
+          </>
         ) : (
           <>
             {company.logoUrl && (

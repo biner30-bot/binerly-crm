@@ -15,6 +15,16 @@ function formatDateRange(startsAt, endsAt) {
   return null;
 }
 
+// shared.jsx'teki getPortalUrl / AppointmentRequestPage.jsx'teki portalUrlFor
+// ile AYNI mantık (kasıtlı kopya - route bazlı kod bölme, bu sayfa
+// CustomerPortal'ın koca paketini hiç indirmesin diye import edilmiyor).
+function portalUrlFor() {
+  const host = window.location.hostname;
+  if (host.split(".")[0] === "portal") return window.location.origin + "/";
+  if (host === "binerly.com" || host === "www.binerly.com") return "https://portal.binerly.com/";
+  return window.location.origin + "/portal";
+}
+
 // Kamuya açık, giriş gerektirmeyen vitrin sayfası - /vitrin/{token}. AYNI
 // token'ı, AYNI /api/lead-capture uç noktasını kullanır (Vercel Hobby'nin 12
 // fonksiyon sınırı zaten dolu olduğu için ayrı bir api/*.js açılmadı) - GET
@@ -120,6 +130,12 @@ export default function ShowcasePage() {
                   {company.ctaLabel}
                 </a>
               )}
+              <p style={{ fontSize: 12, color: "#9aa8b8", margin: "14px 0 0" }}>
+                Zaten müşterimiz misiniz?{" "}
+                <a href={portalUrlFor()} style={{ color: "#185fa5" }}>
+                  Portala giriş yapın
+                </a>
+              </p>
             </div>
 
             {!hasAnyContent && (
