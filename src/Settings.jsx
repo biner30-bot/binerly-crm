@@ -519,6 +519,271 @@ export function CompanySettingsForm({
   );
 }
 
+// Vitrin sekmesi: fiyat listesi aç/kapa + kampanya CRUD. Öncesi/sonrası foto
+// galerisi burada YOK - o hâlâ per-deal, DealForm içindeki BeforeAfterPhotos'ta
+// (müşteri fotoğraf izniyle bağlı, sadece randevu sektörlerinde anlamlı).
+export function ShowcaseManager({
+  companySettings,
+  priceListItems,
+  campaigns,
+  onTogglePriceListVisible,
+  onAddCampaign,
+  onUpdateCampaign,
+  onDeleteCampaign,
+  onReorderCampaigns,
+  onOpenLink,
+}) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [startsAt, setStartsAt] = useState("");
+  const [endsAt, setEndsAt] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+
+  const sorted = [...campaigns].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+
+  const handleAdd = (e) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    onAddCampaign({
+      title: title.trim(),
+      description: description.trim(),
+      startsAt: startsAt || null,
+      endsAt: endsAt || null,
+    });
+    setTitle("");
+    setDescription("");
+    setStartsAt("");
+    setEndsAt("");
+  };
+
+  const move = (index, dir) => {
+    const next = [...sorted];
+    const target = index + dir;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    onReorderCampaigns(next.map((c) => c.id));
+  };
+
+  return (
+    <div>
+      <div
+        style={{
+          background: "var(--surface-1)",
+          border: "0.5px solid var(--border)",
+          borderRadius: "var(--radius)",
+          padding: 16,
+          marginBottom: 20,
+        }}
+      >
+        <label
+          style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, cursor: "pointer" }}
+        >
+          <input
+            type="checkbox"
+            checked={companySettings?.showcasePriceListVisible === true}
+            onChange={(e) => onTogglePriceListVisible(e.target.checked)}
+          />
+          Fiyat listemi vitrinde göster
+          <InfoTip text="Açarsanız, Fiyat Listesi sekmesindeki tüm ürün/hizmetler isim ve fiyatlarıyla herkese açık Vitrin sayfasında görünür. Kapalıyken vitrin fiyat göstermez." />
+        </label>
+        {priceListItems.length === 0 && (
+          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0" }}>
+            Fiyat Listesi sekmesinde henüz ürün/hizmet yok.
+          </p>
+        )}
+      </div>
+
+      <h2 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 8px" }}>Kampanyalar</h2>
+      <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
+        Vitrin sayfasında gösterilecek kısa duyuru/kampanya kartları. Bitiş tarihi geçen kampanyalar
+        otomatik gizlenir.
+      </p>
+
+      <form
+        onSubmit={handleAdd}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+          marginBottom: 20,
+          background: "var(--surface-1)",
+          border: "0.5px solid var(--border)",
+          borderRadius: "var(--radius)",
+          padding: 16,
+        }}
+      >
+        <input
+          placeholder="Başlık (örn. Yaz kampanyası)"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+        />
+        <textarea
+          placeholder="Açıklama (opsiyonel)"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={2}
+        />
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+            Başlangıç
+            <input
+              type="date"
+              value={startsAt}
+              onChange={(e) => setStartsAt(e.target.value)}
+              style={{ display: "block", marginTop: 4 }}
+            />
+          </label>
+          <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+            Bitiş
+            <input
+              type="date"
+              value={endsAt}
+              onChange={(e) => setEndsAt(e.target.value)}
+              style={{ display: "block", marginTop: 4 }}
+            />
+          </label>
+        </div>
+        <button
+          type="submit"
+          style={{
+            alignSelf: "flex-start",
+            background: "var(--fill-accent)",
+            color: "var(--on-accent)",
+            border: "none",
+          }}
+        >
+          Kampanya Ekle
+        </button>
+      </form>
+
+      {sorted.length === 0 ? (
+        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Henüz kampanya eklenmedi.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {sorted.map((c, i) => (
+            <div
+              key={c.id}
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 10,
+                background: "var(--surface-1)",
+                border: "0.5px solid var(--border)",
+                borderRadius: "var(--radius)",
+                padding: 12,
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <button
+                  type="button"
+                  onClick={() => move(i, -1)}
+                  disabled={i === 0}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: i === 0 ? "default" : "pointer",
+                    padding: 2,
+                    opacity: i === 0 ? 0.3 : 1,
+                  }}
+                >
+                  <i className="ti ti-chevron-up" aria-hidden="true"></i>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => move(i, 1)}
+                  disabled={i === sorted.length - 1}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: i === sorted.length - 1 ? "default" : "pointer",
+                    padding: 2,
+                    opacity: i === sorted.length - 1 ? 0.3 : 1,
+                  }}
+                >
+                  <i className="ti ti-chevron-down" aria-hidden="true"></i>
+                </button>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>{c.title}</p>
+                {c.description && (
+                  <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "4px 0 0" }}>
+                    {c.description}
+                  </p>
+                )}
+                {(c.startsAt || c.endsAt) && (
+                  <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>
+                    {c.startsAt ? new Date(c.startsAt).toLocaleDateString("tr-TR") : "?"} -{" "}
+                    {c.endsAt ? new Date(c.endsAt).toLocaleDateString("tr-TR") : "süresiz"}
+                  </p>
+                )}
+              </div>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontSize: 12,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={c.active}
+                  onChange={(e) => onUpdateCampaign({ ...c, active: e.target.checked })}
+                />
+                Aktif
+              </label>
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteId(c.id)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  padding: 4,
+                }}
+              >
+                <i className="ti ti-trash" aria-hidden="true"></i>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {confirmDeleteId && (
+        <ConfirmDialog
+          title="Kampanyayı sil"
+          message="Bu kampanya vitrin sayfasından kaldırılacak. Devam edilsin mi?"
+          onConfirm={() => {
+            onDeleteCampaign(confirmDeleteId);
+            setConfirmDeleteId(null);
+          }}
+          onClose={() => setConfirmDeleteId(null)}
+        />
+      )}
+
+      <button
+        type="button"
+        onClick={onOpenLink}
+        style={{
+          marginTop: 20,
+          background: "var(--surface-1)",
+          border: "0.5px solid var(--border)",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          fontSize: 13,
+        }}
+      >
+        <i className="ti ti-link" aria-hidden="true"></i>
+        Vitrin Linki'ni Görüntüle
+      </button>
+    </div>
+  );
+}
+
 const PAYTR_NOTIFICATION_URL = "https://binerly.com/api/deal-approval?action=paytr-callback";
 const INSTALLMENT_TIERS = [1, 2, 3, 6, 9, 12]; // Türkiye'deki standart taksit kademeleri
 

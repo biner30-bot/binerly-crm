@@ -1,12 +1,29 @@
 import { useState, useEffect } from "react";
 
+// DealApprovalPage.jsx/shared.jsx'teki AYNI biçimlendirme (kasıtlı kopya, bu
+// sayfa da tamamen bağımsız/herkese açık - bkz. api/lead-capture.js'teki
+// "ayrı dosya, ayrı kopya" deseni).
+function formatPrice(n) {
+  return new Intl.NumberFormat("tr-TR").format(Math.round(n || 0)) + " TL";
+}
+
+function formatDateRange(startsAt, endsAt) {
+  const fmt = (d) => new Date(d).toLocaleDateString("tr-TR");
+  if (startsAt && endsAt) return `${fmt(startsAt)} - ${fmt(endsAt)}`;
+  if (endsAt) return `${fmt(endsAt)} tarihine kadar`;
+  if (startsAt) return `${fmt(startsAt)} itibarıyla`;
+  return null;
+}
+
 // Kamuya açık, giriş gerektirmeyen vitrin sayfası - /vitrin/{token}. AYNI
 // token'ı, AYNI /api/lead-capture uç noktasını kullanır (Vercel Hobby'nin 12
 // fonksiyon sınırı zaten dolu olduğu için ayrı bir api/*.js açılmadı) - GET
-// ?view=vitrin ile ayrı bir dal. Sadece KOBİ'nin BeforeAfterPhotos panelinden
-// tek tek "Vitrin sayfasında göster" işaretlediği öncesi/sonrası çiftlerini
-// gösterir - fotoğraf izni verilmiş olması tek başına yeterli değil, herkese
-// açık sergilemek ayrı bir KOBİ kararı (bkz. sql/2026-08-12_showcase_featured.sql).
+// ?view=vitrin ile ayrı bir dal. Üç bağımsız, hepsi opsiyonel bölüm gösterir:
+// kampanyalar, fiyat listesi (KOBİ bilinçli açtıysa) ve öncesi/sonrası foto
+// galerisi (sadece randevu sektörlerinde, KOBİ'nin BeforeAfterPhotos panelinden
+// tek tek "Vitrin sayfasında göster" işaretlediği çiftler - fotoğraf izni tek
+// başına yeterli değil, herkese açık sergilemek ayrı bir KOBİ kararı, bkz.
+// sql/2026-08-12_showcase_featured.sql).
 export default function ShowcasePage() {
   const token = window.location.pathname.split("/")[2] || "";
   const [company, setCompany] = useState(null);
@@ -38,7 +55,19 @@ export default function ShowcasePage() {
   }, [token]);
 
   const showcase = company?.showcase || [];
+  const priceList = company?.priceList || [];
+  const campaigns = company?.campaigns || [];
   const opened = openIndex !== null ? showcase[openIndex] : null;
+  const hasAnyContent = showcase.length > 0 || priceList.length > 0 || campaigns.length > 0;
+
+  const sectionTitleStyle = { fontSize: 17, fontWeight: 800, color: "#0c2540", margin: "0 0 12px" };
+  const cardStyle = {
+    background: "#fff",
+    border: "1px solid #e1e8f0",
+    borderRadius: 14,
+    padding: 16,
+    boxShadow: "0 8px 24px rgba(12,37,64,0.06)",
+  };
 
   return (
     <div
@@ -65,79 +94,165 @@ export default function ShowcasePage() {
                 />
               )}
               <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0c2540", margin: "0 0 6px" }}>
-                {company.companyName} - Çalışmalarımız
+                {company.companyName}
               </h1>
-              <p style={{ fontSize: 13.5, color: "#5b7088", margin: 0 }}>
-                Öncesi ve sonrası - müşteri izniyle paylaşılmıştır
-              </p>
+              {(company.address || company.phone) && (
+                <p style={{ fontSize: 13, color: "#5b7088", margin: 0 }}>
+                  {[company.address, company.phone].filter(Boolean).join(" · ")}
+                </p>
+              )}
             </div>
-            {showcase.length === 0 ? (
-              <p style={{ textAlign: "center", color: "#9aa8b8", padding: "2rem 1rem" }}>
-                Henüz öne çıkan bir çalışma yayınlanmadı.
+
+            {!hasAnyContent && (
+              <p style={{ textAlign: "center", color: "#9aa8b8", padding: "2rem 1rem 3rem" }}>
+                Bu işletme henüz vitrin içeriği yayınlamadı.
               </p>
-            ) : (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-                  gap: 16,
-                  paddingBottom: "2.5rem",
-                }}
-              >
-                {showcase.map((item, i) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setOpenIndex(i)}
-                    style={{
-                      background: "#fff",
-                      border: "1px solid #e1e8f0",
-                      borderRadius: 14,
-                      overflow: "hidden",
-                      padding: 0,
-                      cursor: "pointer",
-                      textAlign: "left",
-                      boxShadow: "0 8px 24px rgba(12,37,64,0.06)",
-                    }}
-                  >
-                    <div style={{ display: "flex" }}>
-                      <img
-                        src={item.beforeUrl}
-                        alt="Öncesi"
-                        style={{
-                          width: "50%",
-                          aspectRatio: "1",
-                          objectFit: "cover",
-                          display: "block",
-                        }}
-                      />
-                      <img
-                        src={item.afterUrl}
-                        alt="Sonrası"
-                        style={{
-                          width: "50%",
-                          aspectRatio: "1",
-                          objectFit: "cover",
-                          display: "block",
-                        }}
-                      />
+            )}
+
+            {campaigns.length > 0 && (
+              <section style={{ marginBottom: "2.5rem" }}>
+                <h2 style={sectionTitleStyle}>Kampanyalar</h2>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {campaigns.map((c) => (
+                    <div key={c.id} style={cardStyle}>
+                      <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#0c2540" }}>
+                        {c.title}
+                      </p>
+                      {c.description && (
+                        <p style={{ margin: "6px 0 0", fontSize: 13.5, color: "#425466" }}>
+                          {c.description}
+                        </p>
+                      )}
+                      {formatDateRange(c.startsAt, c.endsAt) && (
+                        <p
+                          style={{
+                            margin: "8px 0 0",
+                            fontSize: 12,
+                            color: "#185fa5",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {formatDateRange(c.startsAt, c.endsAt)}
+                        </p>
+                      )}
                     </div>
-                    {item.title && (
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {priceList.length > 0 && (
+              <section style={{ marginBottom: "2.5rem" }}>
+                <h2 style={sectionTitleStyle}>Fiyat Listesi</h2>
+                <div style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
+                  {priceList.map((item, i) => (
+                    <div
+                      key={`${item.name}-${i}`}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: "12px 16px",
+                        borderTop: i === 0 ? "none" : "1px solid #eef2f7",
+                      }}
+                    >
+                      <div>
+                        <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0c2540" }}>
+                          {item.name}
+                        </p>
+                        {item.durationMinutes ? (
+                          <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9aa8b8" }}>
+                            {item.durationMinutes} dk
+                          </p>
+                        ) : null}
+                      </div>
                       <p
                         style={{
                           margin: 0,
-                          padding: "10px 12px",
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: "#0c2540",
+                          fontSize: 14,
+                          fontWeight: 700,
+                          color: "#185fa5",
+                          whiteSpace: "nowrap",
                         }}
                       >
-                        {item.title}
+                        {formatPrice(item.price)}
                       </p>
-                    )}
-                  </button>
-                ))}
-              </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {showcase.length > 0 && (
+              <section>
+                <h2 style={sectionTitleStyle}>Çalışmalarımız</h2>
+                <p style={{ fontSize: 13, color: "#5b7088", margin: "0 0 12px" }}>
+                  Öncesi ve sonrası - müşteri izniyle paylaşılmıştır
+                </p>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                    gap: 16,
+                    paddingBottom: "2.5rem",
+                  }}
+                >
+                  {showcase.map((item, i) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setOpenIndex(i)}
+                      style={{
+                        background: "#fff",
+                        border: "1px solid #e1e8f0",
+                        borderRadius: 14,
+                        overflow: "hidden",
+                        padding: 0,
+                        cursor: "pointer",
+                        textAlign: "left",
+                        boxShadow: "0 8px 24px rgba(12,37,64,0.06)",
+                      }}
+                    >
+                      <div style={{ display: "flex" }}>
+                        <img
+                          src={item.beforeUrl}
+                          alt="Öncesi"
+                          style={{
+                            width: "50%",
+                            aspectRatio: "1",
+                            objectFit: "cover",
+                            display: "block",
+                          }}
+                        />
+                        <img
+                          src={item.afterUrl}
+                          alt="Sonrası"
+                          style={{
+                            width: "50%",
+                            aspectRatio: "1",
+                            objectFit: "cover",
+                            display: "block",
+                          }}
+                        />
+                      </div>
+                      {item.title && (
+                        <p
+                          style={{
+                            margin: 0,
+                            padding: "10px 12px",
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: "#0c2540",
+                          }}
+                        >
+                          {item.title}
+                        </p>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </section>
             )}
           </>
         )}

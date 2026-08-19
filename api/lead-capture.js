@@ -118,7 +118,7 @@ export default async function handler(req, res) {
 
   const { data: settings, error: settingsError } = await supabaseAdmin
     .from("company_settings")
-    .select("user_id, company_name, logo_url, sector, appointment_deposit_amount, appointment_concurrency")
+    .select("user_id, company_name, logo_url, sector, appointment_deposit_amount, appointment_concurrency, address, phone, showcase_price_list_visible")
     .eq("lead_capture_token", token)
     .maybeSingle();
   if (settingsError) console.error("lead-capture query error:", settingsError.message);
@@ -131,9 +131,10 @@ export default async function handler(req, res) {
     // (LeadCapturePage/AppointmentRequestPage) her GET'inde gereksiz sorgu
     // çalışmasın diye SADECE istendiğinde devreye girer.
     if (url.searchParams.get("view") === "vitrin") {
-      if (settings.sector !== "guzellik_bakim" && settings.sector !== "saglik_klinik") {
-        return res.status(200).json({ companyName: settings.company_name || "Binerly", logoUrl: settings.logo_url || null, showcase: [] });
-      }
+      // Vitrin artık tüm sektörlerde açık (önceden sadece Güzellik&Bakım/Sağlık-Klinik'te
+      // çalışıyordu) - ayrı bir sektör kontrolüne gerek yok, showcase_featured zaten
+      // sadece randevu sektörlerinde UI'dan (BeforeAfterPhotos) set edilebiliyor, diğer
+      // sektörlerde bu sorgu doğal olarak boş döner.
       const { data: featuredDeals } = await supabaseAdmin
         .from("deals")
         .select("id, title, customer_id")
@@ -170,7 +171,35 @@ export default async function handler(req, res) {
             .filter((e) => e.beforeUrl && e.afterUrl);
         }
       }
-      return res.status(200).json({ companyName: settings.company_name || "Binerly", logoUrl: settings.logo_url || null, showcase });
+      let priceList = [];
+      if (settings.showcase_price_list_visible) {
+        const { data: items } = await supabaseAdmin
+          .from("price_list_items")
+          .select("name, price, duration_minutes")
+          .eq("user_id", settings.user_id)
+          .order("sort_order");
+        priceList = (items || []).map((i) => ({ name: i.name, price: i.price, durationMinutes: i.duration_minutes }));
+      }
+
+      const today = new Date().toISOString().slice(0, 10);
+      const { data: campaignRows } = await supabaseAdmin
+        .from("showcase_campaigns")
+        .select("id, title, description, starts_at, ends_at")
+        .eq("user_id", settings.user_id)
+        .eq("active", true)
+        .or(`ends_at.is.null,ends_at.gte.${today}`)
+        .order("sort_order");
+      const campaigns = (campaignRows || []).map((c) => ({ id: c.id, title: c.title, description: c.description, startsAt: c.starts_at, endsAt: c.ends_at }));
+
+      return res.status(200).json({
+        companyName: settings.company_name || "Binerly",
+        logoUrl: settings.logo_url || null,
+        address: settings.address || null,
+        phone: settings.phone || null,
+        showcase,
+        priceList,
+        campaigns,
+      });
     }
 
     // /randevu-al/{token} (AppointmentRequestPage) aynı token'ı, aynı endpoint'i

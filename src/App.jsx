@@ -4,7 +4,7 @@ import { supabase } from "./supabase";
 import { Badge, TONE_COLORS, Modal, MetricCard, InfoTip, isFullNameValid, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, SegmentedControl, getRangeBounds, inRange, WEEKDAYS, WEEKDAYS_SHORT, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl, translateAuthError, humanizeDbMessage, SELF_BOOKED_SOURCES, formatFileSize, MAX_TEAM_SIZE, parseAppointmentDateTime, RowActionsMenu, AttachmentList, PRICE_ITEM_NAME_EXAMPLES, ExportSelectionModal, SECTORS, InitialsAvatar } from "./shared";
 import { DEAL_WORD_FORMS, DEAL_TAB_STRINGS, SECTOR_DEMO_PRESETS } from "./staticData";
 import { AuthModal, PasswordRecoveryModal } from "./Auth";
-import { SectorPicker, CompanySettingsForm, PaymentCredentialForm, AppSettingsModal } from "./Settings";
+import { SectorPicker, CompanySettingsForm, PaymentCredentialForm, AppSettingsModal, ShowcaseManager } from "./Settings";
 import { FreeServiceModal, PriceListEditModal, PriceListManager, StockEditModal, StockManager } from "./Inventory";
 import { AppointmentCancelPolicyBox, AppointmentDepositBox, AppointmentConcurrencyBox, AppointmentPrepNoteBox, BusinessHoursManager, ResourceManager, RoomInventoryEditModal, RoomInventoryManager } from "./AppointmentPolicies";
 import { staffLeaveDayCount, formatLeaveDateRange, STAFF_LEAVE_TYPE_LABELS, isOpenStaffShift, staffHistoryDateStr, StaffShiftDayEditor, StaffShiftGrid, StaffShiftHistoryModal, StaffLeaveRecordModal, StaffLeaveManager, TeamDailyLoadPanel, TeamModal } from "./Team";
@@ -641,6 +641,18 @@ function rowToResource(r) {
   return { id: r.id, name: r.name, active: r.active !== false, quantity: r.quantity || 1 };
 }
 
+function rowToShowcaseCampaign(r) {
+  return {
+    id: r.id,
+    title: r.title,
+    description: r.description || "",
+    startsAt: r.starts_at || null,
+    endsAt: r.ends_at || null,
+    active: r.active !== false,
+    sortOrder: r.sort_order ?? 0,
+  };
+}
+
 function rowToCompanySettings(r) {
   return {
     companyName: r.company_name || "",
@@ -674,6 +686,7 @@ function rowToCompanySettings(r) {
     winbackEnabled: r.winback_enabled === true,
     winbackInactiveDays: r.winback_inactive_days ?? null,
     minProfitMarginPercent: r.min_profit_margin_percent ?? null,
+    showcasePriceListVisible: r.showcase_price_list_visible === true,
   };
 }
 
@@ -1343,6 +1356,7 @@ export default function App() {
   const [companySettings, setCompanySettings] = useState(null);
   const [customFieldDefs, setCustomFieldDefs] = useState([]);
   const [priceListItems, setPriceListItems] = useState([]);
+  const [showcaseCampaigns, setShowcaseCampaigns] = useState([]);
   const [stockItems, setStockItems] = useState([]);
   const [priceItemIngredients, setPriceItemIngredients] = useState([]);
   const [pdfTemplates, setPdfTemplates] = useState([]);
@@ -1494,6 +1508,7 @@ export default function App() {
       setCompanySettings(null);
       setCustomFieldDefs([]);
       setPriceListItems([]);
+      setShowcaseCampaigns([]);
       setStockItems([]); setPriceItemIngredients([]);
       setGroupClasses([]); setGroupClassEnrollments([]); setClassAttendanceState([]); setGroupClassWaitlist([]);
       setBusinessHours([]);
@@ -1523,6 +1538,7 @@ export default function App() {
       supabase.from("company_settings").select("*"),
       supabase.from("custom_field_defs").select("*").order("sort_order").order("created_at"),
       supabase.from("price_list_items").select("*").order("sort_order").order("name"),
+      supabase.from("showcase_campaigns").select("*").order("sort_order"),
       supabase.from("group_classes").select("*").is("deleted_at", null).order("weekday").order("start_time"),
       supabase.from("group_class_enrollments").select("*"),
       supabase.from("class_attendance").select("*"),
@@ -1540,7 +1556,7 @@ export default function App() {
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
       supabase.from("tasks").select("*").is("deleted_at", null).order("due_date"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ss }, { data: slb }, { data: slr }, { data: ri }, { data: res }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: gcw }, { data: myMembership }, { data: invites }, { data: tk }]) => {
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: sc }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ss }, { data: slb }, { data: slr }, { data: ri }, { data: res }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: gcw }, { data: myMembership }, { data: invites }, { data: tk }]) => {
       // customers/deals/company_settings RLS'i, sahiplik politikasına ek olarak
       // portal kullanıcılarının kendi bağlı oldukları kayıtları görmesine izin
       // veren bir politikayla da "veya" ile birleşiyor (customer_*_view'ların
@@ -1565,6 +1581,7 @@ export default function App() {
       setCompanySettings(ownCompanySettings ? rowToCompanySettings(ownCompanySettings) : null);
       setCustomFieldDefs((cfd || []).map(rowToCustomFieldDef));
       setPriceListItems((pli || []).filter((row) => row.user_id === ownerId).map(rowToPriceListItem));
+      setShowcaseCampaigns((sc || []).filter((row) => row.user_id === ownerId).map(rowToShowcaseCampaign));
       setGroupClasses((gc || []).filter((row) => row.user_id === ownerId).map(rowToGroupClass));
       setGroupClassEnrollments((gce || []).filter((row) => row.user_id === ownerId).map(rowToGroupClassEnrollment));
       setClassAttendanceState((catt || []).filter((row) => row.user_id === ownerId).map(rowToClassAttendance));
@@ -3294,6 +3311,7 @@ export default function App() {
       winback_enabled: s.winbackEnabled === true,
       winback_inactive_days: s.winbackInactiveDays || null,
       min_profit_margin_percent: s.minProfitMarginPercent || null,
+      showcase_price_list_visible: s.showcasePriceListVisible === true,
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase.from("company_settings").upsert(row).select().single();
@@ -3396,6 +3414,38 @@ export default function App() {
     );
     const results = await Promise.all(
       orderedIds.map((id, i) => supabase.from("price_list_items").update({ sort_order: i }).eq("id", id)),
+    );
+    const failed = results.find((r) => r.error);
+    if (failed) notify(`Sıralama kaydedilemedi: ${failed.error.message}`);
+  };
+
+  const addShowcaseCampaign = async ({ title, description, startsAt, endsAt }) => {
+    const sortOrders = showcaseCampaigns.map((c) => c.sortOrder ?? 0);
+    const row = { id: uid(), user_id: activeTeamId, title, description: description || null, starts_at: startsAt || null, ends_at: endsAt || null, sort_order: sortOrders.length ? Math.max(...sortOrders) + 1 : 0 };
+    const { data, error } = await supabase.from("showcase_campaigns").insert(row).select().single();
+    if (error) { notify(`Kampanya eklenemedi: ${error.message}`); return; }
+    setShowcaseCampaigns((prev) => [...prev, rowToShowcaseCampaign(data)]);
+  };
+
+  const updateShowcaseCampaign = async ({ id, title, description, startsAt, endsAt, active }) => {
+    const { data, error } = await supabase.from("showcase_campaigns").update({ title, description: description || null, starts_at: startsAt || null, ends_at: endsAt || null, active }).eq("id", id).select().single();
+    if (error) { notify(`Kampanya güncellenemedi: ${error.message}`); return; }
+    setShowcaseCampaigns((prev) => prev.map((c) => (c.id === id ? rowToShowcaseCampaign(data) : c)));
+  };
+
+  const deleteShowcaseCampaign = async (id) => {
+    const { error } = await supabase.from("showcase_campaigns").delete().eq("id", id);
+    if (error) { notify(`Kampanya silinemedi: ${error.message}`); return; }
+    setShowcaseCampaigns((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  const reorderShowcaseCampaigns = async (orderedIds) => {
+    const orderById = new Map(orderedIds.map((id, i) => [id, i]));
+    setShowcaseCampaigns((prev) =>
+      prev.map((c) => (orderById.has(c.id) ? { ...c, sortOrder: orderById.get(c.id) } : c)),
+    );
+    const results = await Promise.all(
+      orderedIds.map((id, i) => supabase.from("showcase_campaigns").update({ sort_order: i }).eq("id", id)),
     );
     const failed = results.find((r) => r.error);
     if (failed) notify(`Sıralama kaydedilemedi: ${failed.error.message}`);
@@ -4031,9 +4081,7 @@ export default function App() {
     ...(supportsSelfBooking(companySettings?.sector) && bookingModel(companySettings?.sector) === "slot"
       ? [{ label: "Randevu Alma Linki", description: "Müşteri girişsiz kendi randevusunu seçip talep etsin", onOpen: async () => { const link = await generateLeadCaptureLink(); if (link) setAppointmentLink(link.replace("/lead/", "/randevu-al/")); } }]
       : []),
-    ...(isAppointmentSector(companySettings?.sector)
-      ? [{ label: "Vitrin Linki", description: "Öne çıkardığınız öncesi/sonrası çalışmaları herkese açık gösterin", onOpen: async () => { const link = await generateLeadCaptureLink(); if (link) setVitrinLink(link.replace("/lead/", "/vitrin/")); } }]
-      : []),
+    { label: "Vitrin Linki", description: "Ürünlerinizi, fiyat listenizi ve kampanyalarınızı herkese açık gösterin", onOpen: async () => { const link = await generateLeadCaptureLink(); if (link) setVitrinLink(link.replace("/lead/", "/vitrin/")); } },
     { label: "Müşteri Portalı Linki", description: "Mevcut müşterileriniz için - kendi hesaplarıyla giriş yapıp takip etsinler", onOpen: () => setShowPortalLinkModal(true) },
     { label: "Turu Tekrar Başlat", description: "Sistemin nasıl çalıştığını gösteren kısa turu tekrar izleyin", onOpen: () => { setTourStep(0); setShowTour(true); } },
   ];
@@ -4508,6 +4556,7 @@ export default function App() {
           { id: "firsat", label: dealWords.navLabel, icon: "ti-target-arrow" },
           ...(canEditCompanySettings ? [{ id: "fiyatlistesi", label: "Fiyat Listesi", icon: "ti-tag" }] : []),
           ...(canEditCompanySettings ? [{ id: "stokmalzeme", label: "Stok & Malzeme", icon: "ti-package" }] : []),
+          ...(canEditCompanySettings ? [{ id: "vitrin", label: "Vitrin", icon: "ti-building-store" }] : []),
           { id: "ajanda", label: "Ajanda", icon: "ti-calendar-event" },
           { id: "gorevler", label: "Görevler", icon: "ti-list-check" },
           { id: "finans", label: "Finans", icon: "ti-chart-line" },
@@ -4906,6 +4955,30 @@ export default function App() {
         </div>
       )}
 
+      {tab === "vitrin" && canEditCompanySettings && (
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 16px" }}>Vitrin</h1>
+          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 20px" }}>
+            Herkese açık Vitrin sayfanızda ne görüneceğini buradan yönetin. Linki paylaşmak için
+            aşağıdaki "Vitrin Linki'ni Görüntüle" butonunu (veya Ayarlar &gt; Vitrin Linki'ni) kullanın.
+          </p>
+          <ShowcaseManager
+            companySettings={companySettings}
+            priceListItems={priceListItems}
+            campaigns={showcaseCampaigns}
+            onTogglePriceListVisible={(visible) => upsertCompanySettings({ showcasePriceListVisible: visible })}
+            onAddCampaign={addShowcaseCampaign}
+            onUpdateCampaign={updateShowcaseCampaign}
+            onDeleteCampaign={deleteShowcaseCampaign}
+            onReorderCampaigns={reorderShowcaseCampaigns}
+            onOpenLink={async () => {
+              const link = await generateLeadCaptureLink();
+              if (link) setVitrinLink(link.replace("/lead/", "/vitrin/"));
+            }}
+          />
+        </div>
+      )}
+
       {tab === "ajanda" && (
         <AgendaTab
           deals={deals}
@@ -5058,18 +5131,16 @@ export default function App() {
                 }}
               />
             )}
-            {isAppointmentSector(companySettings?.sector) && (
-              <MenuRow
-                icon="ti-photo"
-                label="Vitrin Linki"
-                description="Öne çıkardığınız öncesi/sonrası çalışmaları herkese açık gösterin"
-                onClick={async () => {
-                  setShowSettingsHub(false);
-                  const link = await generateLeadCaptureLink();
-                  if (link) setVitrinLink(link.replace("/lead/", "/vitrin/"));
-                }}
-              />
-            )}
+            <MenuRow
+              icon="ti-building-store"
+              label="Vitrin Linki"
+              description="Ürünlerinizi, fiyat listenizi ve kampanyalarınızı herkese açık gösterin"
+              onClick={async () => {
+                setShowSettingsHub(false);
+                const link = await generateLeadCaptureLink();
+                if (link) setVitrinLink(link.replace("/lead/", "/vitrin/"));
+              }}
+            />
             <MenuRow
               icon="ti-users-group"
               label="Müşteri Portalı Linki"
@@ -5224,7 +5295,7 @@ export default function App() {
       {vitrinLink && (
         <Modal title="Vitrin Linki" onClose={() => setVitrinLink(null)}>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px" }}>
-            Bu linki (veya QR kodu) Instagram bio'nuza, sitenize veya kartvizitinize koyun - öncesi/sonrası fotoğraflarından "Vitrin sayfasında göster" diye işaretlediğiniz çalışmalar burada, müşteri adı olmadan görünür. Öncesi/Sonrası panelinden hiçbir çalışma işaretlemediyseniz sayfa "henüz öne çıkan bir çalışma yayınlanmadı" gösterir.
+            Bu linki (veya QR kodu) Instagram bio'nuza, sitenize veya kartvizitinize koyun - Vitrin sekmesinden açtığınız fiyat listesi ve eklediğiniz kampanyalar burada görünür. Randevu sektörlerinde ayrıca öncesi/sonrası fotoğraflarından "Vitrin sayfasında göster" diye işaretlediğiniz çalışmalar da (müşteri adı olmadan) eklenir. Hiçbir şey yayınlamadıysanız sayfa boş bir karşılama mesajı gösterir.
           </p>
           <img
             src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(vitrinLink)}`}
