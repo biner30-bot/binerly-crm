@@ -687,6 +687,7 @@ function rowToCompanySettings(r) {
     winbackInactiveDays: r.winback_inactive_days ?? null,
     minProfitMarginPercent: r.min_profit_margin_percent ?? null,
     showcasePriceListVisible: r.showcase_price_list_visible === true,
+    showcaseSlug: r.showcase_slug || null,
   };
 }
 
@@ -2365,6 +2366,28 @@ export default function App() {
     if (error) { notify(`Link oluşturulamadı: ${error.message}`); return null; }
     setCompanySettings((prev) => ({ ...(prev || {}), leadCaptureToken: token }));
     return `https://binerly.com/lead/${token}`;
+  };
+
+  // generateLeadCaptureLink'teki AYNI minimal-dokunuşlu upsert deseni - sadece
+  // tek bir sütunu yazar, companySettings'in geri kalanını sessizce null'a
+  // çekme riski yok (bkz. upsertCompanySettings'in kendi merge yorumu).
+  // Unique çakışması (23505) kullanıcı dostu bir mesaja çevrilir.
+  const saveShowcaseSlug = async (slug) => {
+    const { data, error } = await supabase.from("company_settings").upsert({ user_id: activeTeamId, showcase_slug: slug }).select().single();
+    if (error) {
+      if (error.code === "23505") return { error: "Bu adres başka bir işletme tarafından kullanılıyor, farklı bir tane deneyin." };
+      return { error: error.message };
+    }
+    setCompanySettings((prev) => ({ ...(prev || {}), showcaseSlug: data.showcase_slug }));
+    return { success: true };
+  };
+
+  // generateLeadCaptureLink() hep token'lı /lead/{token} döner - vitrin için
+  // slug varsa onu tercih eder (Google/paylaşım önizlemesinde okunabilir
+  // URL), yoksa token'a düşer (eski paylaşılmış linkler kırılmasın).
+  const buildVitrinLink = (leadLink) => {
+    const token = leadLink.split("/lead/")[1];
+    return `https://binerly.com/vitrin/${companySettings?.showcaseSlug || token}`;
   };
 
   // Kurumsal/Bireysel seçimi her yapıldığında burada güncellenir, böylece bir
@@ -4081,7 +4104,7 @@ export default function App() {
     ...(supportsSelfBooking(companySettings?.sector) && bookingModel(companySettings?.sector) === "slot"
       ? [{ label: "Randevu Alma Linki", description: "Müşteri girişsiz kendi randevusunu seçip talep etsin", onOpen: async () => { const link = await generateLeadCaptureLink(); if (link) setAppointmentLink(link.replace("/lead/", "/randevu-al/")); } }]
       : []),
-    { label: "Vitrin Linki", description: "Ürünlerinizi, fiyat listenizi ve kampanyalarınızı herkese açık gösterin", onOpen: async () => { const link = await generateLeadCaptureLink(); if (link) setVitrinLink(link.replace("/lead/", "/vitrin/")); } },
+    { label: "Vitrin Linki", description: "Ürünlerinizi, fiyat listenizi ve kampanyalarınızı herkese açık gösterin", onOpen: async () => { const link = await generateLeadCaptureLink(); if (link) setVitrinLink(buildVitrinLink(link)); } },
     { label: "Müşteri Portalı Linki", description: "Mevcut müşterileriniz için - kendi hesaplarıyla giriş yapıp takip etsinler", onOpen: () => setShowPortalLinkModal(true) },
     { label: "Turu Tekrar Başlat", description: "Sistemin nasıl çalıştığını gösteren kısa turu tekrar izleyin", onOpen: () => { setTourStep(0); setShowTour(true); } },
   ];
@@ -4971,9 +4994,10 @@ export default function App() {
             onUpdateCampaign={updateShowcaseCampaign}
             onDeleteCampaign={deleteShowcaseCampaign}
             onReorderCampaigns={reorderShowcaseCampaigns}
+            onSaveSlug={saveShowcaseSlug}
             onOpenLink={async () => {
               const link = await generateLeadCaptureLink();
-              if (link) setVitrinLink(link.replace("/lead/", "/vitrin/"));
+              if (link) setVitrinLink(buildVitrinLink(link));
             }}
           />
         </div>
@@ -5138,7 +5162,7 @@ export default function App() {
               onClick={async () => {
                 setShowSettingsHub(false);
                 const link = await generateLeadCaptureLink();
-                if (link) setVitrinLink(link.replace("/lead/", "/vitrin/"));
+                if (link) setVitrinLink(buildVitrinLink(link));
               }}
             />
             <MenuRow

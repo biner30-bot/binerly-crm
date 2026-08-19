@@ -21,6 +21,61 @@ function sectorCtaKind(sector) {
 }
 const CTA_LABELS = { randevu: "Randevu Al", teklif: "Teklif Al", rezervasyon: "Rezervasyon Yap", uyelik: "Üye Ol" };
 
+// vercel.json'daki /vitrin/:token rewrite'ı bu uç noktayı ?render=html ile
+// çağırıyor - Google/paylaşım-önizleme botları JS çalıştırmadan/geç çalıştırıp
+// gerçek başlık+meta+JSON-LD görsün diye. ShowcasePage.jsx'in kendi fetch'i
+// bu parametreyi HİÇ göndermez, o yüzden normal JSON akışı etkilenmiyor.
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// O anki deploy'un GERÇEK build çıktısını okur (hashli script/link tag'leri
+// dahil) - index.html'i elle kopyalamak/hardcode etmek her build'de kırılırdı.
+async function fetchIndexHtml(req) {
+  const res = await fetch(`https://${req.headers.host}/index.html`);
+  return res.text();
+}
+
+// index.html'deki varsayılan (Binerly genel) meta/OG/twitter/JSON-LD
+// etiketlerini şirkete özel değerlerle değiştirir. Regex'ler TAG YAPISINA
+// (property/name attribute'una) göre eşleşiyor, tam içerik metnine göre
+// değil - index.html'deki metin ileride değişse bile kırılmaz, sadece
+// eşleşme bulunamazsa o etiket sessizce varsayılan kalır (soft-fail).
+function renderVitrinHtml(baseHtml, payload, vitrinUrl) {
+  const name = payload.companyName;
+  const contactLine = [payload.address, payload.phone].filter(Boolean).join(" · ");
+  const description = `${name}${contactLine ? " - " + contactLine : ""} - fiyat listesi ve kampanyalarını Binerly Vitrin'de görüntüleyin.`;
+  const title = `${name} - Binerly Vitrin`;
+  const image = payload.logoUrl || "https://binerly.com/og-image.png";
+  const titleSafe = escapeHtml(title);
+  const descSafe = escapeHtml(description);
+  const urlSafe = escapeHtml(vitrinUrl);
+  const imageSafe = escapeHtml(image);
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    name,
+    ...(payload.logoUrl ? { image: payload.logoUrl } : {}),
+    ...(payload.phone ? { telephone: payload.phone } : {}),
+    ...(payload.address ? { address: payload.address } : {}),
+    url: vitrinUrl,
+  };
+  const jsonLdSafe = JSON.stringify(jsonLd).replace(/</g, "\\u003c");
+
+  return baseHtml
+    .replace(/<title>.*?<\/title>/s, `<title>${titleSafe}</title>`)
+    .replace(/<meta name="description" content="[^"]*"\s*\/>/, `<meta name="description" content="${descSafe}" />`)
+    .replace(/<link rel="canonical" href="[^"]*"\s*\/>/, `<link rel="canonical" href="${urlSafe}" />`)
+    .replace(/<meta property="og:url" content="[^"]*"\s*\/>/, `<meta property="og:url" content="${urlSafe}" />`)
+    .replace(/<meta property="og:title" content="[^"]*"\s*\/>/, `<meta property="og:title" content="${titleSafe}" />`)
+    .replace(/<meta property="og:description" content="[^"]*"\s*\/>/, `<meta property="og:description" content="${descSafe}" />`)
+    .replace(/<meta property="og:image" content="[^"]*"\s*\/>/, `<meta property="og:image" content="${imageSafe}" />`)
+    .replace(/<meta name="twitter:title" content="[^"]*"\s*\/>/, `<meta name="twitter:title" content="${titleSafe}" />`)
+    .replace(/<meta name="twitter:description" content="[^"]*"\s*\/>/, `<meta name="twitter:description" content="${descSafe}" />`)
+    .replace(/<meta name="twitter:image" content="[^"]*"\s*\/>/, `<meta name="twitter:image" content="${imageSafe}" />`)
+    .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, `<script type="application/ld+json">${jsonLdSafe}</script>`);
+}
+
 // api/appointment-availability.js'teki AYNI yardımcı (kasıtlı kopya, projenin
 // diğer "ayrı dosya, ayrı kopya" desenleriyle tutarlı).
 function minutesOfDay(dateTimeStr) {
@@ -127,14 +182,39 @@ export default async function handler(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
   const token = req.method === "GET" ? url.searchParams.get("token") : (req.body || {}).token;
   if (!token) return res.status(400).json({ error: "Eksik token." });
+  // Aşağıdaki .or() filtresine ham girdi olarak gidiyor - token her zaman ya
+  // bir UUID (crypto.randomUUID()) ya da bir slug (yalnızca [a-z0-9-]) olduğu
+  // için bu karakter kümesi dışına çıkan bir istek zaten geçersizdir; erkenden
+  // reddetmek PostgREST'in OR mini-dilinde filtre enjeksiyonunu (virgül/nokta
+  // vb.) da önler.
+  if (!/^[a-zA-Z0-9-]+$/.test(token)) return res.status(400).json({ error: "Geçersiz bağlantı." });
+  // vercel.json'daki /vitrin/:token rewrite'ı bunu çağırıyor - ShowcasePage.jsx'in
+  // kendi client-side fetch'i bu parametreyi hiç göndermez.
+  const wantsHtml = url.searchParams.get("view") === "vitrin" && url.searchParams.get("render") === "html";
 
+  // showcase_slug'ı da OR ile arıyoruz - Vitrin'in okunabilir adresi
+  // (/vitrin/{slug}) aynı company_settings satırına, eski token'la birlikte
+  // İKİ çözümleme yoluyla erişilebilir olsun diye (bkz. sql/2026-08-19_showcase_slug.sql).
+  // Diğer sayfalar (lead/randevu-al) da aynı sorguyu paylaştığı için slug'ı
+  // orada da kabul eder - zararsız, aynı company_settings satırına düşer.
   const { data: settings, error: settingsError } = await supabaseAdmin
     .from("company_settings")
-    .select("user_id, company_name, logo_url, sector, appointment_deposit_amount, appointment_concurrency, address, phone, showcase_price_list_visible")
-    .eq("lead_capture_token", token)
+    .select("user_id, company_name, logo_url, sector, appointment_deposit_amount, appointment_concurrency, address, phone, showcase_price_list_visible, showcase_slug")
+    .or(`lead_capture_token.eq.${token},showcase_slug.eq.${token}`)
     .maybeSingle();
   if (settingsError) console.error("lead-capture query error:", settingsError.message);
-  if (settingsError || !settings) return res.status(404).json({ error: "Bağlantı geçersiz." });
+  if (settingsError || !settings) {
+    // wantsHtml'de düz JSON dönmek React'in hiç boot olmamasına (raw JSON
+    // metni görünmesine) yol açardı - onun yerine değiştirilmemiş index.html'i
+    // 404 status'uyla döneriz, SPA yine açılır ve ShowcasePage.jsx kendi
+    // client-side fetch'iyle (view=vitrin, render'sız) normal "Bulunamadı."
+    // durumunu gösterir.
+    if (wantsHtml) {
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      return res.status(404).send(await fetchIndexHtml(req));
+    }
+    return res.status(404).json({ error: "Bağlantı geçersiz." });
+  }
 
   if (req.method === "GET") {
     // /vitrin/{token} (ShowcasePage) AYNI token'ı, AYNI endpoint'i kullanıyor
@@ -221,7 +301,7 @@ export default async function handler(req, res) {
       const acceptsAppointments = !!apptFieldDefs?.[0]?.key && settings.sector !== "otel";
       const ctaKind = sectorCtaKind(settings.sector);
 
-      return res.status(200).json({
+      const vitrinPayload = {
         companyName: settings.company_name || "Binerly",
         logoUrl: settings.logo_url || null,
         address: settings.address || null,
@@ -231,7 +311,15 @@ export default async function handler(req, res) {
         campaigns,
         ctaLabel: CTA_LABELS[ctaKind],
         ctaHref: acceptsAppointments ? `/randevu-al/${token}` : `/lead/${token}`,
-      });
+      };
+
+      if (wantsHtml) {
+        const vitrinUrl = `https://binerly.com/vitrin/${settings.showcase_slug || token}`;
+        const base = await fetchIndexHtml(req);
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        return res.status(200).send(renderVitrinHtml(base, vitrinPayload, vitrinUrl));
+      }
+      return res.status(200).json(vitrinPayload);
     }
 
     // /randevu-al/{token} (AppointmentRequestPage) aynı token'ı, aynı endpoint'i

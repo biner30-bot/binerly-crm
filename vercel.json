@@ -1,8 +1,13 @@
 {
-  "crons": [
-    { "path": "/api/send-reminders", "schedule": "0 8 * * *" }
-  ],
+  "crons": [{ "path": "/api/send-reminders", "schedule": "0 8 * * *" }],
   "rewrites": [
-    { "source": "/((?!api/|assets/|favicon.svg|googlef5e0c478299694a1.html|robots\\.txt|sitemap\\.xml|blog).*)", "destination": "/index.html" }
+    {
+      "source": "/vitrin/:token",
+      "destination": "/api/lead-capture?view=vitrin&render=html&token=:token"
+    },
+    {
+      "source": "/((?!api/|assets/|favicon.svg|googlef5e0c478299694a1.html|robots\\.txt|sitemap\\.xml|blog|vitrin).*)",
+      "destination": "/index.html"
+    }
   ]
 }

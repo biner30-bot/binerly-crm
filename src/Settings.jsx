@@ -519,14 +519,45 @@ export function CompanySettingsForm({
   );
 }
 
-// Vitrin sekmesi: fiyat listesi aç/kapa + kampanya CRUD. Öncesi/sonrası foto
-// galerisi burada YOK - o hâlâ per-deal, DealForm içindeki BeforeAfterPhotos'ta
-// (müşteri fotoğraf izniyle bağlı, sadece randevu sektörlerinde anlamlı).
+// Şirket adından Google/paylaşım-önizlemesi için okunabilir bir vitrin adresi
+// üretir - Türkçe karakterler önce ASCII karşılıklarına çevrilir (generic
+// toLowerCase Türkçe İ/I çiftinde tutarsız davranabildiği için önce elle
+// haritalanıyor), sonra küçük harf + tire dönüşümü uygulanır.
+function slugify(text) {
+  const map = {
+    ç: "c",
+    Ç: "c",
+    ğ: "g",
+    Ğ: "g",
+    ı: "i",
+    I: "i",
+    İ: "i",
+    ö: "o",
+    Ö: "o",
+    ş: "s",
+    Ş: "s",
+    ü: "u",
+    Ü: "u",
+  };
+  return (text || "")
+    .split("")
+    .map((ch) => map[ch] || ch)
+    .join("")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+// Vitrin sekmesi: vitrin adresi (slug) + fiyat listesi aç/kapa + kampanya CRUD.
+// Öncesi/sonrası foto galerisi burada YOK - o hâlâ per-deal, DealForm
+// içindeki BeforeAfterPhotos'ta (müşteri fotoğraf izniyle bağlı, sadece
+// randevu sektörlerinde anlamlı).
 export function ShowcaseManager({
   companySettings,
   priceListItems,
   campaigns,
   onTogglePriceListVisible,
+  onSaveSlug,
   onAddCampaign,
   onUpdateCampaign,
   onDeleteCampaign,
@@ -538,8 +569,27 @@ export function ShowcaseManager({
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [slugInput, setSlugInput] = useState(companySettings?.showcaseSlug || "");
+  const [slugError, setSlugError] = useState("");
+  const [savingSlug, setSavingSlug] = useState(false);
 
   const sorted = [...campaigns].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  const suggestedSlug = slugify(companySettings?.companyName || "");
+  const slugDirty = slugInput !== (companySettings?.showcaseSlug || "");
+
+  const handleSaveSlug = async () => {
+    const clean = slugify(slugInput || suggestedSlug);
+    if (!clean) {
+      setSlugError("Geçerli bir adres girin (en az bir harf/rakam).");
+      return;
+    }
+    setSlugInput(clean);
+    setSavingSlug(true);
+    setSlugError("");
+    const result = await onSaveSlug(clean);
+    setSavingSlug(false);
+    if (result?.error) setSlugError(result.error);
+  };
 
   const handleAdd = (e) => {
     e.preventDefault();
@@ -566,6 +616,48 @@ export function ShowcaseManager({
 
   return (
     <div>
+      <div
+        style={{
+          background: "var(--surface-1)",
+          border: "0.5px solid var(--border)",
+          borderRadius: "var(--radius)",
+          padding: 16,
+          marginBottom: 20,
+        }}
+      >
+        <label style={{ fontSize: 14, fontWeight: 600, display: "block", marginBottom: 6 }}>
+          Vitrin adresi
+          <InfoTip text="Google'da ve link paylaşımlarında (Instagram, WhatsApp) daha kolay tanınması için okunabilir bir adres belirleyin - örn. 'elif-guzellik-salonu'. Boş bırakırsanız eski rastgele link çalışmaya devam eder." />
+        </label>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>binerly.com/vitrin/</span>
+          <input
+            value={slugInput}
+            onChange={(e) => {
+              setSlugInput(e.target.value);
+              setSlugError("");
+            }}
+            placeholder={suggestedSlug || "isletme-adiniz"}
+            style={{ flex: 1, minWidth: 160, fontSize: 13 }}
+          />
+          {slugDirty && (
+            <button
+              type="button"
+              onClick={handleSaveSlug}
+              disabled={savingSlug}
+              style={{ fontSize: 12 }}
+            >
+              {savingSlug ? "Kaydediliyor…" : "Kaydet"}
+            </button>
+          )}
+        </div>
+        {slugError && (
+          <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "6px 0 0" }}>
+            {slugError}
+          </p>
+        )}
+      </div>
+
       <div
         style={{
           background: "var(--surface-1)",
