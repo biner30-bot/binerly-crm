@@ -101,6 +101,25 @@ export default function ShowcasePage() {
                   {[company.address, company.phone].filter(Boolean).join(" · ")}
                 </p>
               )}
+              {company.ctaLabel && company.ctaHref && (
+                <a
+                  href={company.ctaHref}
+                  style={{
+                    display: "inline-block",
+                    marginTop: 16,
+                    background: "#185fa5",
+                    color: "#fff",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    borderRadius: 10,
+                    padding: "12px 28px",
+                    boxShadow: "0 8px 20px rgba(24,95,165,0.25)",
+                  }}
+                >
+                  {company.ctaLabel}
+                </a>
+              )}
             </div>
 
             {!hasAnyContent && (

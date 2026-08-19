@@ -9,6 +9,18 @@ function getClientIp(req) {
   return req.socket?.remoteAddress || "203.0.113.1";
 }
 
+// src/Sectors.jsx'teki dealWordKind'ın AYNI mantığı (kasıtlı kopya - api/*.js
+// dosyaları src/*.jsx'ten import etmiyor). Vitrin CTA butonunun etiketini
+// belirler: randevu (Güzellik&Bakım/Sağlık-Klinik), rezervasyon (Otel),
+// üyelik (Spor Merkezi), diğerleri teklif.
+function sectorCtaKind(sector) {
+  if (sector === "spor_merkezi") return "uyelik";
+  if (sector === "guzellik_bakim" || sector === "saglik_klinik") return "randevu";
+  if (sector === "otel") return "rezervasyon";
+  return "teklif";
+}
+const CTA_LABELS = { randevu: "Randevu Al", teklif: "Teklif Al", rezervasyon: "Rezervasyon Yap", uyelik: "Üye Ol" };
+
 // api/appointment-availability.js'teki AYNI yardımcı (kasıtlı kopya, projenin
 // diğer "ayrı dosya, ayrı kopya" desenleriyle tutarlı).
 function minutesOfDay(dateTimeStr) {
@@ -191,6 +203,24 @@ export default async function handler(req, res) {
         .order("sort_order");
       const campaigns = (campaignRows || []).map((c) => ({ id: c.id, title: c.title, description: c.description, startsAt: c.starts_at, endsAt: c.ends_at }));
 
+      // /randevu-al/{token} dalındaki (aşağıda) AYNI kontrol (kasıtlı kopya):
+      // deal'lerde aktif bir datetime özel alanı var mı - varsa gerçek, giriş
+      // gerektirmeyen öz-hizmet randevu widget'ı çalışır. Yoksa (veya Otel'de,
+      // AppointmentRequestPage'in slot modeli oteli desteklemiyor) CTA butonu
+      // Müşteri Kazanma Linki'ndeki (/lead/{token}) genel "bilgi bırak" formuna
+      // düşer - KOBİ elle döner (bkz. plan: Otel/Spor Merkezi'nde gerçek anonim
+      // rezervasyon/üyelik sistemi bilinçli olarak inşa edilmedi).
+      const { data: apptFieldDefs } = await supabaseAdmin
+        .from("custom_field_defs")
+        .select("key")
+        .eq("user_id", settings.user_id)
+        .eq("entity", "deal")
+        .eq("field_type", "datetime")
+        .eq("active", true)
+        .limit(1);
+      const acceptsAppointments = !!apptFieldDefs?.[0]?.key && settings.sector !== "otel";
+      const ctaKind = sectorCtaKind(settings.sector);
+
       return res.status(200).json({
         companyName: settings.company_name || "Binerly",
         logoUrl: settings.logo_url || null,
@@ -199,6 +229,8 @@ export default async function handler(req, res) {
         showcase,
         priceList,
         campaigns,
+        ctaLabel: CTA_LABELS[ctaKind],
+        ctaHref: acceptsAppointments ? `/randevu-al/${token}` : `/lead/${token}`,
       });
     }
 
