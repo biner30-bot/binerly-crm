@@ -61,9 +61,15 @@ export function SectorPicker({ companySettings, onSave, onFetchFields }) {
         günceller.
       </p>
       {currentSector && (
-        <button type="button" onClick={onFetchFields} style={{ fontSize: 12, marginTop: 8 }}>
-          Sektöre özel yeni alanları getir
-        </button>
+        <>
+          <button type="button" onClick={onFetchFields} style={{ fontSize: 12, marginTop: 8 }}>
+            Varsayılan Özel Alanlara Dön
+          </button>
+          <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "4px 0 0" }}>
+            Sildiğiniz veya kapattığınız sektör alanlarını geri getirir; ad/seçenek değişiklikleri
+            de sektör varsayılanına döner.
+          </p>
+        </>
       )}
       {dirty && pendingSector && (
         <button

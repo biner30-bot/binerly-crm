@@ -3889,13 +3889,17 @@ export default function App() {
       const existing = customFieldDefs.find((d) => d.entity === f.entity && d.key === f.key);
       if (!existing) {
         await addCustomFieldDef({ ...f, sector: sectorId });
-      } else if (existing.sector !== sectorId || existing.type !== f.type) {
-        // !existing.active BİLEREK kontrol dışı — burası sadece sektör GERÇEKTEN
-        // değiştiğinde (existing.sector !== sectorId) veya preset tipi güncellendiğinde
-        // devreye girer. Aksi halde kullanıcının bilerek gizlediği (active:false yaptığı)
-        // bir alan, aynı sektörde kalınsa bile bu fonksiyon her tetiklendiğinde
-        // (upsertCompanySettings çağrısı veya "yeni alanlar getir" butonu) sessizce
-        // yeniden aktifleşiyordu.
+      } else {
+        // active:true HER ZAMAN uygulanır — eskiden sadece existing.sector !==
+        // sectorId (sektör gerçekten değiştiğinde) tetikleniyordu, bu da "Varsayılan
+        // Özel Alanlara Dön" butonunu aynı sektörde kalındığında (ki tek çağrı
+        // yolu zaten budur, bkz. onFetchFields) işlevsiz bırakıyordu — kullanıcı
+        // bir alanı (elle veya sektör değişimiyle) kapatınca bir daha hiçbir
+        // zaman bu buton onu geri getiremiyordu (Elif Güzellik Salonu vakası:
+        // "Randevu Tarihi" pasif kaldığı için randevu widget'ı hiç çalışmıyordu).
+        // Bu artık butonun ADINA uygun bir "sıfırla" davranışı: sektörün
+        // preset'indeki her alanı, elle yapılmış ad/seçenek değişiklikleri dahil,
+        // koşulsuz varsayılana döndürür.
         //
         // type de kontrol/düzeltiliyor — aksi halde örn. elle "Randevu Tarihi"
         // adında "Tarih" (date) tipinde bir alan daha önce oluşturulmuşsa, bu
@@ -5367,7 +5371,7 @@ export default function App() {
           <SectorPicker
             companySettings={companySettings}
             onSave={(sectorId) => applySectorPreset(sectorId)}
-            onFetchFields={async () => { await applySectorCustomFields(companySettings.sector); notify("Sektöre özel yeni alanlar getirildi.", "success"); }}
+            onFetchFields={async () => { await applySectorCustomFields(companySettings.sector); notify("Özel alanlar sektör varsayılanlarına döndürüldü.", "success"); }}
           />
           <CustomFieldDefsManager customFieldDefs={customFieldDefs} onAdd={addCustomFieldDef} onUpdate={updateCustomFieldDef} onDelete={deleteCustomFieldDef} onReorder={reorderCustomFieldDefs} sector={companySettings?.sector} />
         </Modal>
