@@ -96,11 +96,144 @@ export function FreeServiceModal({ sector, onAdd, onClose }) {
   );
 }
 
+// Grup adını serbest metinle yazdırmak yerine hizmetleri doğrudan işaretletiyoruz -
+// iki hizmete elle harfi harfine aynı adı yazmak typo'ya açıktı (typo -> sessizce
+// farklı gruba düşer). Grup etiketi artık işaretlenen hizmetlerin isimlerinden
+// otomatik türetiliyor (bkz. buildParallelGroupLabel) - kullanıcının kendisi bir
+// grup adı seçmiyor, sadece "bunlar birlikte yapılır" diye işaretliyor.
+function buildParallelGroupLabel(names) {
+  if (names.length <= 3) return names.join(" + ");
+  return `${names.slice(0, 2).join(" + ")} +${names.length - 2} diğer`;
+}
+
+// Bir hizmetin paralel eşleşmelerini günceller: kendisi + işaretlenen ortaklar
+// aynı (yeniden hesaplanan) grup etiketini alır. Kendi eski grubunda kalıp da
+// artık işaretli olmayan hizmetlerden sadece TEK başına kalan varsa grubu
+// temizlenir (2+ üye kalmışsa birbirleriyle geçerli bir grup olmaya devam eder,
+// dokunulmaz - bu kaydın bakış açısından onların eşleşmesini bozmuyoruz).
+function computeParallelGroupSync({ allItems, selfId, selfName, selfOldGroup, partnerIds }) {
+  const partners = partnerIds.map((id) => allItems.find((i) => i.id === id)).filter(Boolean);
+  const groupValue =
+    partners.length > 0
+      ? buildParallelGroupLabel([selfName, ...partners.map((p) => p.name)])
+      : null;
+
+  const partnerUpdates = new Map();
+  partners.forEach((p) => {
+    if (p.parallelGroup !== groupValue) partnerUpdates.set(p.id, groupValue);
+  });
+
+  if (selfOldGroup && selfOldGroup !== groupValue) {
+    const remainingOldMembers = allItems.filter(
+      (i) => i.id !== selfId && i.parallelGroup === selfOldGroup && !partnerUpdates.has(i.id),
+    );
+    if (remainingOldMembers.length === 1) partnerUpdates.set(remainingOldMembers[0].id, null);
+  }
+
+  return { selfGroupValue: groupValue, partnerUpdates };
+}
+
+function ParallelGroupPicker({ items, excludeId, selectedIds, onChange }) {
+  const candidates = items.filter((i) => i.id !== excludeId);
+  if (candidates.length === 0) return null;
+  const selected = candidates.filter((i) => selectedIds.includes(i.id));
+  const available = candidates.filter((i) => !selectedIds.includes(i.id));
+
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <label
+        style={{
+          fontSize: 12,
+          color: "var(--text-secondary)",
+          display: "flex",
+          alignItems: "center",
+          gap: 3,
+          marginBottom: 4,
+        }}
+      >
+        Paralel Grup
+        <InfoTip
+          align="left"
+          text="Opsiyonel - bu hizmetle birlikte bir randevuda seçildiğinde eşzamanlı (paralel) yapılacak diğer hizmetleri işaretleyin (ör. manikür yapılırken kaş lifting) - randevu süresi toplanmaz, en uzun süren hizmet baz alınır. İşaretlemediğiniz hizmetler her zaman ardışık (art arda, toplanarak) hesaplanır."
+        />
+      </label>
+      {selected.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+          {selected.map((i) => (
+            <span
+              key={i.id}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                background: "var(--surface-1)",
+                color: "var(--text-secondary)",
+                fontSize: 12,
+                fontWeight: 500,
+                padding: "3px 4px 3px 10px",
+                borderRadius: "var(--radius)",
+              }}
+            >
+              {i.name}
+              <button
+                type="button"
+                onClick={() => onChange(selectedIds.filter((id) => id !== i.id))}
+                aria-label={`${i.name} eşleşmesini kaldır`}
+                style={{
+                  width: 16,
+                  height: 16,
+                  padding: 0,
+                  background: "none",
+                  border: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <i className="ti ti-x" style={{ fontSize: 11 }} aria-hidden="true"></i>
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      {available.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {available.map((i) => (
+            <button
+              key={i.id}
+              type="button"
+              onClick={() => onChange([...selectedIds, i.id])}
+              style={{
+                fontSize: 12,
+                padding: "2px 8px",
+                background: "none",
+                border: "1px dashed var(--border)",
+                borderRadius: "var(--radius)",
+                color: "var(--text-secondary)",
+              }}
+            >
+              + {i.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Satır listesindeki "Düzenle" ikonu artık aynı formu değil, ayrı bir Modal
 // açıyor - önceden alttaki "ekle" formu düzenleme moduna geçip yer değiştiriyordu,
 // kullanıcı formun aşağı kaydığını/butonun "Güncelle"ye döndüğünü fark etmeyip
 // kafası karışıyordu (bkz. [[feedback]] - kullanıcı geri bildirimi).
-export function PriceListEditModal({ item, sector, resources, onSave, onClose }) {
+export function PriceListEditModal({
+  item,
+  items,
+  sector,
+  resources,
+  onSave,
+  onSyncPartners,
+  onClose,
+}) {
   const [name, setName] = useState(item.name);
   const [price, setPrice] = useState(String(item.price));
   const [refreshDays, setRefreshDays] = useState(item.refreshDays ? String(item.refreshDays) : "");
@@ -111,12 +244,25 @@ export function PriceListEditModal({ item, sector, resources, onSave, onClose })
     item.commissionPercent != null ? String(item.commissionPercent) : "",
   );
   const [resourceId, setResourceId] = useState(item.resourceId || "");
-  const [parallelGroup, setParallelGroup] = useState(item.parallelGroup || "");
+  const [partnerIds, setPartnerIds] = useState(
+    item.parallelGroup
+      ? items
+          .filter((i) => i.id !== item.id && i.parallelGroup === item.parallelGroup)
+          .map((i) => i.id)
+      : [],
+  );
 
   const submit = (e) => {
     e.preventDefault();
     const trimmedName = name.trim();
     if (!trimmedName || price === "") return;
+    const { selfGroupValue, partnerUpdates } = computeParallelGroupSync({
+      allItems: items,
+      selfId: item.id,
+      selfName: trimmedName,
+      selfOldGroup: item.parallelGroup || null,
+      partnerIds,
+    });
     onSave({
       name: trimmedName,
       price: Number(price),
@@ -124,8 +270,11 @@ export function PriceListEditModal({ item, sector, resources, onSave, onClose })
       durationMinutes: Number(durationMinutes) || null,
       commissionPercent: commissionPercent !== "" ? Number(commissionPercent) : null,
       resourceId: resourceId || null,
-      parallelGroup: parallelGroup.trim() || null,
+      parallelGroup: selfGroupValue,
     });
+    if (partnerUpdates.size > 0) {
+      onSyncPartners([...partnerUpdates].map(([id, parallelGroup]) => ({ id, parallelGroup })));
+    }
   };
 
   return (
@@ -283,31 +432,12 @@ export function PriceListEditModal({ item, sector, resources, onSave, onClose })
           </div>
         )}
         {bookingModel(sector) === "slot" && (
-          <div style={{ marginBottom: 10 }}>
-            <label
-              style={{
-                fontSize: 12,
-                color: "var(--text-secondary)",
-                display: "flex",
-                alignItems: "center",
-                gap: 3,
-                marginBottom: 4,
-              }}
-            >
-              Paralel Grup
-              <InfoTip
-                align="left"
-                text="Opsiyonel - aynı grup adını birden fazla hizmete verirseniz, bu hizmetler bir randevuda birlikte seçildiğinde eşzamanlı yapılıyor kabul edilir (ör. manikür yapılırken kaş lifting) - randevu süresi toplanmaz, en uzun süren hizmet baz alınır. Farklı gruptaki ya da grupsuz hizmetler her zaman ardışık (art arda, toplanarak) hesaplanır."
-              />
-            </label>
-            <input
-              list="parallel-group-options"
-              value={parallelGroup}
-              onChange={(e) => setParallelGroup(e.target.value)}
-              placeholder="Örn. Manikür + Kaş Kombinasyonu"
-              style={{ width: "100%" }}
-            />
-          </div>
+          <ParallelGroupPicker
+            items={items}
+            excludeId={item.id}
+            selectedIds={partnerIds}
+            onChange={setPartnerIds}
+          />
         )}
         {bookingModel(sector) === "slot" && !durationMinutes && (
           <p style={{ fontSize: 11.5, color: "var(--text-warning)", margin: "0 0 10px" }}>
@@ -361,6 +491,7 @@ export function PriceListManager({
   onUpdate,
   onDelete,
   onReorder,
+  onSyncPartners,
   sector,
   resources,
 }) {
@@ -369,7 +500,7 @@ export function PriceListManager({
   const [refreshDays, setRefreshDays] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
   const [resourceId, setResourceId] = useState("");
-  const [parallelGroup, setParallelGroup] = useState("");
+  const [partnerIds, setPartnerIds] = useState([]);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
   const [search, setSearch] = useState("");
@@ -381,7 +512,6 @@ export function PriceListManager({
     : items;
   const sortedItems = sortListItems(filteredItems, sortMode);
   const canReorder = sortMode === "custom" && !query;
-  const existingGroups = [...new Set(items.map((i) => i.parallelGroup).filter(Boolean))];
 
   const handleDrop = (targetId) => {
     if (draggedId && draggedId !== targetId)
@@ -393,20 +523,30 @@ export function PriceListManager({
     e.preventDefault();
     const trimmedName = name.trim();
     if (!trimmedName || price === "") return;
+    const { selfGroupValue, partnerUpdates } = computeParallelGroupSync({
+      allItems: items,
+      selfId: null,
+      selfName: trimmedName,
+      selfOldGroup: null,
+      partnerIds,
+    });
     onAdd({
       name: trimmedName,
       price: Number(price),
       refreshDays: Number(refreshDays) || null,
       durationMinutes: Number(durationMinutes) || null,
       resourceId: resourceId || null,
-      parallelGroup: parallelGroup.trim() || null,
+      parallelGroup: selfGroupValue,
     });
+    if (partnerUpdates.size > 0) {
+      onSyncPartners([...partnerUpdates].map(([id, parallelGroup]) => ({ id, parallelGroup })));
+    }
     setName("");
     setPrice("");
     setRefreshDays("");
     setDurationMinutes("");
     setResourceId("");
-    setParallelGroup("");
+    setPartnerIds([]);
   };
 
   return (
@@ -702,35 +842,13 @@ export function PriceListManager({
           </div>
         )}
         {bookingModel(sector) === "slot" && (
-          <div style={{ width: 190 }}>
-            <label
-              style={{
-                fontSize: 12,
-                color: "var(--text-secondary)",
-                display: "flex",
-                alignItems: "center",
-                gap: 3,
-                marginBottom: 4,
-              }}
-            >
-              Paralel Grup
-              <InfoTip
-                align="left"
-                text="Opsiyonel - aynı grup adını birden fazla hizmete verirseniz, bu hizmetler bir randevuda birlikte seçildiğinde eşzamanlı yapılıyor kabul edilir (ör. manikür yapılırken kaş lifting) - randevu süresi toplanmaz, en uzun süren hizmet baz alınır. Farklı gruptaki ya da grupsuz hizmetler her zaman ardışık (art arda, toplanarak) hesaplanır."
-              />
-            </label>
-            <input
-              list="parallel-group-options"
-              value={parallelGroup}
-              onChange={(e) => setParallelGroup(e.target.value)}
-              placeholder="Örn. Manikür + Kaş Kombinasyonu"
-              style={{ width: "100%", fontSize: 16 }}
+          <div style={{ width: "100%" }}>
+            <ParallelGroupPicker
+              items={items}
+              excludeId={null}
+              selectedIds={partnerIds}
+              onChange={setPartnerIds}
             />
-            <datalist id="parallel-group-options">
-              {existingGroups.map((g) => (
-                <option key={g} value={g} />
-              ))}
-            </datalist>
           </div>
         )}
         <button
@@ -767,8 +885,10 @@ export function PriceListManager({
       {editingItem && (
         <PriceListEditModal
           item={editingItem}
+          items={items}
           sector={sector}
           resources={resources}
+          onSyncPartners={onSyncPartners}
           onClose={() => setEditingItem(null)}
           onSave={(payload) => {
             onUpdate({ id: editingItem.id, ...payload });

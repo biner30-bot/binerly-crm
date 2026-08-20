@@ -3430,6 +3430,23 @@ export default function App() {
     setPriceListItems((prev) => prev.filter((p) => p.id !== id));
   };
 
+  const updateParallelGroupPartners = async (updates) => {
+    if (!updates.length) return;
+    const results = await Promise.all(
+      updates.map(({ id, parallelGroup }) =>
+        supabase.from("price_list_items").update({ parallel_group: parallelGroup }).eq("id", id),
+      ),
+    );
+    const failed = results.find((r) => r.error);
+    if (failed) { notify(`Paralel grup güncellenemedi: ${failed.error.message}`); return; }
+    setPriceListItems((prev) =>
+      prev.map((p) => {
+        const u = updates.find((x) => x.id === p.id);
+        return u ? { ...p, parallelGroup: u.parallelGroup } : p;
+      }),
+    );
+  };
+
   const reorderPriceListItems = async (orderedIds) => {
     const orderById = new Map(orderedIds.map((id, i) => [id, i]));
     setPriceListItems((prev) =>
@@ -4951,7 +4968,7 @@ export default function App() {
               )}
             </div>
           </div>
-          <PriceListManager items={priceListItems} onAdd={addPriceListItem} onUpdate={updatePriceListItem} onDelete={deletePriceListItem} onReorder={reorderPriceListItems} sector={companySettings?.sector} resources={resources} />
+          <PriceListManager items={priceListItems} onAdd={addPriceListItem} onUpdate={updatePriceListItem} onDelete={deletePriceListItem} onReorder={reorderPriceListItems} onSyncPartners={updateParallelGroupPartners} sector={companySettings?.sector} resources={resources} />
           {showFreeServiceModal && (
             <FreeServiceModal sector={companySettings?.sector} onAdd={addPriceListItem} onClose={() => setShowFreeServiceModal(false)} />
           )}
