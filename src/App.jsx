@@ -5393,7 +5393,7 @@ export default function App() {
             onSave={(sectorId) => applySectorPreset(sectorId)}
             onFetchFields={async () => { await applySectorCustomFields(companySettings.sector); notify("Özel alanlar sektör varsayılanlarına döndürüldü.", "success"); }}
           />
-          <CustomFieldDefsManager customFieldDefs={customFieldDefs} onAdd={addCustomFieldDef} onUpdate={updateCustomFieldDef} onDelete={deleteCustomFieldDef} onReorder={reorderCustomFieldDefs} sector={companySettings?.sector} />
+          <CustomFieldDefsManager customFieldDefs={customFieldDefs} onAdd={addCustomFieldDef} onUpdate={updateCustomFieldDef} onDelete={deleteCustomFieldDef} onReorder={reorderCustomFieldDefs} onReactivate={(id) => setCustomFieldDefsActive([id], true)} sector={companySettings?.sector} />
         </Modal>
       )}
 

@@ -1495,6 +1495,7 @@ export function CustomFieldDefsManager({
   onUpdate,
   onDelete,
   onReorder,
+  onReactivate,
   sector,
 }) {
   const dealEntityLabel = DEAL_ENTITY_NAV_LABELS[dealWordKind(sector)];
@@ -1507,11 +1508,25 @@ export function CustomFieldDefsManager({
   const [editingDef, setEditingDef] = useState(null);
   const [formError, setFormError] = useState("");
   const [draggedField, setDraggedField] = useState(null);
+  const [showInactive, setShowInactive] = useState(false);
 
   const byCustomSort = (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
   const activeDefs = customFieldDefs.filter((d) => d.active);
   const customerDefs = activeDefs.filter((d) => d.entity === "customer").sort(byCustomSort);
   const dealDefs = activeDefs.filter((d) => d.entity === "deal").sort(byCustomSort);
+  // "Varsayılan Özel Alanlara Dön" sadece sektörün hazır şablon alanlarını geri
+  // getirir - kullanıcının kendi eklediği bir alanı (preset'te olmayan) sildikten
+  // sonra AYNI adla tekrar eklemesi de engellenir (bkz. submit'teki key çakışma
+  // kontrolü) - yani onu geri getirecek tek yol burası. byLabel ile sıralı,
+  // sortOrder pasif alanlar için anlamlı değil (yeniden aktiflenince zaten en
+  // sona ekleniyor gibi davranmıyor, mevcut sort_order'ı korur).
+  const inactiveDefs = customFieldDefs.filter((d) => !d.active);
+  const inactiveCustomerDefs = inactiveDefs
+    .filter((d) => d.entity === "customer")
+    .sort((a, b) => a.label.localeCompare(b.label, "tr"));
+  const inactiveDealDefs = inactiveDefs
+    .filter((d) => d.entity === "deal")
+    .sort((a, b) => a.label.localeCompare(b.label, "tr"));
 
   const handleFieldDrop = (fieldEntity, defs, targetId) => {
     if (draggedField && draggedField.entity === fieldEntity && draggedField.id !== targetId) {
@@ -1676,6 +1691,50 @@ export function CustomFieldDefsManager({
     </div>
   );
 
+  const renderInactiveGroup = (title, defs) => (
+    <div style={{ marginBottom: 10 }}>
+      <p style={{ fontSize: 12.5, fontWeight: 500, color: "var(--text-muted)", margin: "0 0 6px" }}>
+        {title}
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {defs.map((d) => (
+          <div
+            key={d.id}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 8,
+              background: "var(--surface-1)",
+              border: "0.5px solid var(--border)",
+              borderRadius: "var(--radius)",
+              padding: "6px 12px",
+              opacity: 0.75,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 13,
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {d.label}
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+              <Badge tone="accent">{FIELD_TYPE_LABELS[d.type] || d.type}</Badge>
+              <button type="button" onClick={() => onReactivate(d.id)} style={{ fontSize: 12 }}>
+                Aktif Et
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ marginTop: 24, paddingTop: 20, borderTop: "0.5px solid var(--border)" }}>
       <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 4px" }}>Özel alanlar</p>
@@ -1685,6 +1744,47 @@ export function CustomFieldDefsManager({
       </p>
       {renderGroup("Müşteri alanları", customerDefs, "customer")}
       {renderGroup(`${dealEntityLabel} alanları`, dealDefs, "deal")}
+
+      {inactiveDefs.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <button
+            type="button"
+            onClick={() => setShowInactive((v) => !v)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 13,
+              fontWeight: 500,
+              background: "none",
+              border: "none",
+              padding: 0,
+              color: "var(--text-secondary)",
+              cursor: "pointer",
+            }}
+          >
+            <i
+              className={`ti ${showInactive ? "ti-chevron-down" : "ti-chevron-right"}`}
+              style={{ fontSize: 14 }}
+              aria-hidden="true"
+            ></i>
+            Kapatılan alanlar ({inactiveDefs.length})
+          </button>
+          {showInactive && (
+            <div style={{ marginTop: 8 }}>
+              <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 8px" }}>
+                Sildiğiniz alanlar - önceden girilmiş değerler korunuyor, aktif ettiğinizde geri
+                gelir. Aynı adla yeniden eklemeye çalışırsanız "bu isimde bir alan zaten var" hatası
+                alırsınız - doğrudan buradan aktif edin.
+              </p>
+              {inactiveCustomerDefs.length > 0 &&
+                renderInactiveGroup("Müşteri alanları", inactiveCustomerDefs)}
+              {inactiveDealDefs.length > 0 &&
+                renderInactiveGroup(`${dealEntityLabel} alanları`, inactiveDealDefs)}
+            </div>
+          )}
+        </div>
+      )}
 
       <p
         style={{
