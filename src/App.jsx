@@ -4695,6 +4695,8 @@ export default function App() {
           dismissedInviteIds={dismissedInviteIds}
           activeTeamId={activeTeamId}
           canEditCompanySettings={canEditCompanySettings}
+          appointmentDateTimeKey={appointmentDateTimeKey}
+          onFixAppointmentField={async () => { await applySectorCustomFields(companySettings.sector); notify("Randevu alma linki düzeltildi.", "success"); }}
           dealLineItems={dealLineItems}
           priceListItems={priceListItems}
           panoRange={panoRange}

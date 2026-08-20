@@ -19,6 +19,8 @@ import {
   supportsGroupClasses,
   groupClassWords,
   computeCustomerReliability,
+  supportsSelfBooking,
+  bookingModel,
 } from "./Sectors";
 import { getSlaStatus, TERMINAL_STATUSES } from "./Support";
 import { TASK_TYPES } from "./Tasks";
@@ -69,6 +71,8 @@ export default function Pano({
   dismissedInviteIds,
   activeTeamId,
   canEditCompanySettings,
+  appointmentDateTimeKey,
+  onFixAppointmentField,
   dealLineItems,
   priceListItems,
   panoRange,
@@ -148,6 +152,55 @@ export default function Pano({
 }) {
   return (
     <div>
+      {/* Kuruluma başlayın listesinin aksine bu banner "gizle" ile kalıcı
+          kapanmaz - sorun sürüyor sürece her açılışta görünür. Tek seferlik
+          bir kurulum adımı değil, sürekli bir sağlık kontrolü: alan sektör
+          değişimi/elle silme ile sonradan da pasife düşebilir (bkz. Elif
+          Güzellik Salonu vakası), o an fark edilmesi gerekiyor. */}
+      {canEditCompanySettings &&
+        supportsSelfBooking(companySettings?.sector) &&
+        bookingModel(companySettings?.sector) === "slot" &&
+        !appointmentDateTimeKey && (
+          <div
+            style={{
+              background: "var(--surface-1)",
+              border: "1px solid var(--text-warning, #b45309)",
+              borderRadius: "var(--radius-lg)",
+              boxShadow: "var(--shadow-sm)",
+              padding: "1rem",
+              marginBottom: "1.5rem",
+            }}
+          >
+            <p
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: "var(--text-warning, #b45309)",
+                margin: "0 0 6px",
+              }}
+            >
+              ⚠ Randevu Alma Linki şu anda çalışmıyor
+            </p>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 10px" }}>
+              Müşteriler linke girdiğinde "şu anda online randevu almıyor" mesajı görüyor - randevu
+              tarihi için gereken özel alan pasif kalmış.
+            </p>
+            <button
+              type="button"
+              onClick={onFixAppointmentField}
+              style={{
+                fontSize: 13,
+                background: "var(--text-warning, #b45309)",
+                color: "#fff",
+                border: "none",
+                borderRadius: "var(--radius)",
+                padding: "8px 12px",
+              }}
+            >
+              Otomatik Düzelt
+            </button>
+          </div>
+        )}
       {!(
         activationChecklistDismissedClick ||
         (activeTeamId &&
