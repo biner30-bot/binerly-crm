@@ -613,6 +613,7 @@ export function PriceListManager({
                   onDrop={() => canReorder && handleDrop(item.id)}
                   style={{
                     display: "flex",
+                    flexWrap: "wrap",
                     justifyContent: "space-between",
                     alignItems: "center",
                     gap: 8,
@@ -654,7 +655,17 @@ export function PriceListManager({
                       {item.name}
                     </span>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      justifyContent: "flex-end",
+                      alignItems: "center",
+                      gap: 6,
+                      flex: "0 1 auto",
+                      minWidth: 0,
+                    }}
+                  >
                     <Badge tone="accent">{formatTL(item.price)}</Badge>
                     {item.durationMinutes > 0 && (
                       <Badge tone="default">{item.durationMinutes} dk</Badge>
@@ -1326,6 +1337,7 @@ export function StockManager({
                       onDrop={() => canReorderStock && handleStockDrop(item.id)}
                       style={{
                         display: "flex",
+                        flexWrap: "wrap",
                         justifyContent: "space-between",
                         alignItems: "center",
                         gap: 8,
@@ -1361,7 +1373,17 @@ export function StockManager({
                           )}
                         </div>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          justifyContent: "flex-end",
+                          alignItems: "center",
+                          gap: 6,
+                          flex: "0 1 auto",
+                          minWidth: 0,
+                        }}
+                      >
                         <Badge tone={low ? "danger" : "accent"}>
                           {item.quantityOnHand} {item.unit}
                         </Badge>
