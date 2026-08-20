@@ -596,15 +596,24 @@ export function moveItem(list, id, direction) {
   return next;
 }
 
-// Sürükle-bırak drop anında: sürüklenen öğeyi, bırakılan öğenin hemen önüne taşır.
+// Sürükle-bırak drop anında: sürüklenen öğeyi bırakılan öğenin yanına taşır -
+// yön önemli. Her zaman "hedefin önüne" koysaydı, bir öğeyi aşağı sürükleyip
+// hemen altındaki komşusuna bırakmak no-op oluyordu (öğe zaten o komşunun
+// önündeydi, "önüne koy" onu olduğu yere geri koyuyordu) - kullanıcı "aşağı
+// taşıma çalışmıyor" olarak fark etti. Aşağı sürüklerken hedefin ARDINA,
+// yukarı sürüklerken hedefin ÖNÜNE konur - ikisi de sezgisel "bıraktığım yere
+// otur" davranışını verir.
 export function moveBeforeDrop(list, draggedId, targetId) {
   if (draggedId === targetId) return list;
   const draggedIdx = list.findIndex((item) => item.id === draggedId);
-  if (draggedIdx === -1) return list;
+  const targetIdxBefore = list.findIndex((item) => item.id === targetId);
+  if (draggedIdx === -1 || targetIdxBefore === -1) return list;
+  const movingDown = draggedIdx < targetIdxBefore;
   const next = [...list];
   const [item] = next.splice(draggedIdx, 1);
   const targetIdx = next.findIndex((i) => i.id === targetId);
-  next.splice(targetIdx === -1 ? next.length : targetIdx, 0, item);
+  const insertAt = targetIdx === -1 ? next.length : movingDown ? targetIdx + 1 : targetIdx;
+  next.splice(insertAt, 0, item);
   return next;
 }
 
