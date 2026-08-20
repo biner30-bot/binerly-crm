@@ -4101,6 +4101,11 @@ export default function App() {
         .filter((d) => !d.deletedAt && (d.title || "").toLowerCase().includes(globalSearchQueryNorm))
         .slice(0, 5)
     : [];
+  // "Randevularım" sekmesi için — appointment-availability.js/send-appointment-
+  // reminders.js'in yaptığı gibi, sektöre göre değişen randevu tarihi alanının
+  // gerçek anahtarını aktif "Tarih & Saat" tipindeki tanımdan buluyoruz. Menü
+  // satırlarındaki "çalışmıyor" uyarısı da aynı değeri kullanır (bkz. aşağı).
+  const appointmentDateTimeKey = customFieldDefs.find((d) => d.entity === "deal" && d.type === "datetime" && d.active)?.key || null;
   // Ayarlar hub'ındaki satırlarla birebir aynı liste - kullanıcı "Ayarlar"a
   // girmeden de "kdv", "takım" gibi yazıp doğrudan ilgili paneli açabilsin.
   const settingsSearchItems = [
@@ -4123,7 +4128,7 @@ export default function App() {
     { label: "Çöp Kutusu ve Geçmiş", description: "Silinen kayıtlar, işlem geçmişi", onOpen: () => setShowTrashHistory(true) },
     { label: "Müşteri Kazanma Linki", description: "Müşteri kendi bilgisini bıraksın, elle girmeyin", onOpen: async () => { const link = await generateLeadCaptureLink(); if (link) setLeadCaptureLink(link); } },
     ...(supportsSelfBooking(companySettings?.sector) && bookingModel(companySettings?.sector) === "slot"
-      ? [{ label: "Randevu Alma Linki", description: "Müşteri girişsiz kendi randevusunu seçip talep etsin", onOpen: async () => { const link = await generateLeadCaptureLink(); if (link) setAppointmentLink(link.replace("/lead/", "/randevu-al/")); } }]
+      ? [{ label: "Randevu Alma Linki", description: appointmentDateTimeKey ? "Müşteri girişsiz kendi randevusunu seçip talep etsin" : "⚠ Şu anda çalışmıyor - açıp düzeltin", onOpen: async () => { const link = await generateLeadCaptureLink(); if (link) setAppointmentLink(link.replace("/lead/", "/randevu-al/")); } }]
       : []),
     { label: "Vitrin Linki", description: "Ürünlerinizi, fiyat listenizi ve kampanyalarınızı herkese açık gösterin", onOpen: async () => { const link = await generateLeadCaptureLink(); if (link) setVitrinLink(buildVitrinLink(link)); } },
     { label: "Müşteri Portalı Linki", description: "Mevcut müşterileriniz için - kendi hesaplarıyla giriş yapıp takip etsinler", onOpen: () => setShowPortalLinkModal(true) },
@@ -4135,10 +4140,6 @@ export default function App() {
         .slice(0, 5)
     : [];
   const globalSearchHasResults = globalSearchCustomers.length > 0 || globalSearchDeals.length > 0 || globalSearchSettings.length > 0;
-  // "Randevularım" sekmesi için — appointment-availability.js/send-appointment-
-  // reminders.js'in yaptığı gibi, sektöre göre değişen randevu tarihi alanının
-  // gerçek anahtarını aktif "Tarih & Saat" tipindeki tanımdan buluyoruz.
-  const appointmentDateTimeKey = customFieldDefs.find((d) => d.entity === "deal" && d.type === "datetime" && d.active)?.key || null;
   // "İlgilenilmesi gereken" filtresi sekme adına (dealKind) göre değil, sektörün
   // gerçek yeteneğine göre davranır — bkz. plan notu: Emlak/Dijital Ajans gibi
   // "Teklifler" adlı ama görüşme tarihi olan sektörler appointmentDateTimeKey
@@ -5168,7 +5169,7 @@ export default function App() {
               <MenuRow
                 icon="ti-calendar-event"
                 label="Randevu Alma Linki"
-                description="Müşteri girişsiz kendi randevusunu seçip talep etsin"
+                description={appointmentDateTimeKey ? "Müşteri girişsiz kendi randevusunu seçip talep etsin" : "⚠ Şu anda çalışmıyor - açıp düzeltin"}
                 onClick={async () => {
                   setShowSettingsHub(false);
                   const link = await generateLeadCaptureLink();
@@ -5281,6 +5282,23 @@ export default function App() {
 
       {appointmentLink && (
         <Modal title="Randevu Alma Linki" onClose={() => setAppointmentLink(null)}>
+          {!appointmentDateTimeKey && (
+            <div style={{ background: "var(--surface-1)", border: "1px solid var(--text-warning, #b45309)", borderRadius: "var(--radius)", padding: "10px 12px", margin: "0 0 16px" }}>
+              <p style={{ fontSize: 12.5, color: "var(--text-warning, #b45309)", fontWeight: 600, margin: "0 0 6px" }}>
+                ⚠ Bu link şu anda çalışmıyor
+              </p>
+              <p style={{ fontSize: 12.5, color: "var(--text-secondary)", margin: "0 0 8px" }}>
+                Randevu tarihi için gereken özel alan pasif - müşteriler linke girdiğinde "şu anda online randevu almıyor" mesajı görür.
+              </p>
+              <button
+                type="button"
+                onClick={async () => { await applySectorCustomFields(companySettings.sector); notify("Düzeltildi, link artık çalışıyor.", "success"); }}
+                style={{ fontSize: 12.5, background: "var(--text-warning, #b45309)", color: "#fff", border: "none", borderRadius: "var(--radius)", padding: "6px 10px" }}
+              >
+                Otomatik Düzelt
+              </button>
+            </div>
+          )}
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px" }}>
             Bu linki (veya QR kodu) Instagram bio'nuza, sitenize veya kartvizitinize koyun - hiç kaydı olmayan bir müşteri bile giriş yapmadan uygun bir saat seçip randevu talep edebilir. Link kalıcıdır - fiyat listenizi, hizmetlerinizi veya müsaitlik saatlerinizi güncellediğinizde linki tekrar almanıza gerek yok, değişiklikler otomatik yansır.
           </p>

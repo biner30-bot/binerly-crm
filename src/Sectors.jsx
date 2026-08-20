@@ -1825,7 +1825,13 @@ export function CustomFieldDefsManager({
       {confirmDelete && (
         <ConfirmDialog
           title="Özel alanı sil"
-          message={`"${confirmDelete.label}" alanı formlardan kaldırılacak. Daha önce kaydedilmiş değerler silinmez, sadece görünmez olur.`}
+          message={
+            confirmDelete.entity === "deal" &&
+            confirmDelete.type === "datetime" &&
+            confirmDelete.active
+              ? `"${confirmDelete.label}" alanı formlardan kaldırılacak. Bu alan aynı zamanda randevu alma linkini, müsaitlik şeridini ve randevu hatırlatmalarını besliyor - silerseniz hepsi birden durur. Daha önce kaydedilmiş değerler silinmez; "Sektör & Özel Alanlar" ekranındaki "Varsayılan Özel Alanlara Dön" ile tek tıkla geri getirebilirsiniz.`
+              : `"${confirmDelete.label}" alanı formlardan kaldırılacak. Daha önce kaydedilmiş değerler silinmez, sadece görünmez olur.`
+          }
           onConfirm={() => {
             onDelete(confirmDelete.id);
             setConfirmDelete(null);

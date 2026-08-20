@@ -397,7 +397,7 @@ export function CompanySettingsForm({
           />
         </label>
       </div>
-      {hasDatetimeField && (
+      {hasDatetimeField ? (
         <div style={{ marginBottom: 16 }}>
           <label
             style={{
@@ -420,6 +420,15 @@ export function CompanySettingsForm({
             />
           </label>
         </div>
+      ) : (
+        // "Randevu hatırlatma e-postası gönder" seçeneği burada değil çünkü aktif
+        // "Tarih & Saat" tipinde özel alan yok - daha önce görünüyorduysa (sektör
+        // değişimi/elle kapatma sonucu) bu, sessizce kaybolmuş gibi görünmesin diye.
+        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 16px" }}>
+          Randevu hatırlatma e-postası: aktif bir "Tarih & Saat" özel alanınız olmadığı için bu
+          seçenek şu an gizli - "Sektör & Özel Alanlar" ekranından "Varsayılan Özel Alanlara Dön"e
+          basarsanız geri gelir.
+        </p>
       )}
       <div style={{ marginBottom: 12 }}>
         <label
