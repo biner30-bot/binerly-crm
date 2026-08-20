@@ -3380,21 +3380,22 @@ export default function App() {
 
   const setCustomFieldDefsActive = async (ids, active) => {
     if (ids.length === 0) return;
-    const { error } = await supabase.from("custom_field_defs").update({ active }).in("id", ids);
-    if (error) { notify(`Özel alanlar güncellenemedi: ${error.message}`); return; }
+    // Önce yerel state güncelleniyor (optimistic) — aksi halde "Aktif Et" gibi
+    // tek tık aksiyonlarda kullanıcı ağ isteği tamamlanana kadar hiçbir şey
+    // olmadığını görüyor, sadece başka bir yere tıklayınca (örn. bölümü kapatıp
+    // açınca) değişikliği fark ediyordu. Hata olursa aşağıda geri alınır.
     setCustomFieldDefs((prev) => prev.map((d) => (ids.includes(d.id) ? { ...d, active } : d)));
+    const { error } = await supabase.from("custom_field_defs").update({ active }).in("id", ids);
+    if (error) {
+      notify(`Özel alanlar güncellenemedi: ${error.message}`);
+      setCustomFieldDefs((prev) => prev.map((d) => (ids.includes(d.id) ? { ...d, active: !active } : d)));
+    }
   };
 
-  // Onay diyaloğu ("değerler silinmez, sadece görünmez olur" - Sectors.jsx
-  // CustomFieldDefsManager) kalıcı silmeyle tutarsızdı: applySectorCustomFields
-  // aynı (entity,key) preset alanını bulamayınca sıfırdan yeniden oluşturup eski
-  // JSONB değerlerini sessizce geri getiriyordu. Artık diğer gizleme yoluyla
-  // (setCustomFieldDefsActive) aynı soft-hide davranışını kullanıyor.
-  const deleteCustomFieldDef = async (id) => {
-    const { error } = await supabase.from("custom_field_defs").update({ active: false }).eq("id", id);
-    if (error) { notify(`Özel alan silinemedi: ${error.message}`); return; }
-    setCustomFieldDefs((prev) => prev.map((d) => (d.id === id ? { ...d, active: false } : d)));
-  };
+  // setCustomFieldDefsActive ile aynı soft-hide davranışını kullanıyor -
+  // "Sil" de "Kapatılan alanlar"daki "Aktif Et" de aynı active bayrağını
+  // ters yönde çeviriyor, değerler silinmiyor (bkz. Sectors.jsx onay mesajı).
+  const deleteCustomFieldDef = async (id) => setCustomFieldDefsActive([id], false);
 
   // orderedIds sadece TEK bir entity grubunun (customer ya da deal) yeni sırası -
   // diğer entity'nin sort_order'larına dokunmaz.
