@@ -1566,6 +1566,7 @@ export default function Finance({
         <ConfirmDialog
           title="Gider kaldırılsın mı?"
           message={`${confirmClearDealCost.label.split(" - ")[0]} müşterisinin bu kayıttan kaynaklanan Gider tutarı 0'a çekilecek - bu, ${FINANCE_DEAL_WORDS[dealWordKind(sector)].locativePlural} kayıtta da aynı şekilde yansır.`}
+          confirmLabel="Kaldır"
           onConfirm={() => {
             onUpdateDealCost(confirmClearDealCost.dealCostId, 0);
             setConfirmClearDealCost(null);

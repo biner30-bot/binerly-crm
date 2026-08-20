@@ -1322,6 +1322,7 @@ export function TeamModal({
           <ConfirmDialog
             title="Takımdan ayrılınsın mı?"
             message="Bu takımın müşteri/teklif/destek verilerine erişiminiz kalmaz - tekrar erişmek için yeniden davet edilmeniz gerekir."
+            confirmLabel="Ayrıl"
             onConfirm={() => {
               setConfirmLeave(false);
               leaveTeam();
@@ -1559,6 +1560,7 @@ export function TeamModal({
                 <ConfirmDialog
                   title="Üye kaldırılsın mı?"
                   message={`${confirmRemoveMember.name || confirmRemoveMember.email}, bu takımın müşteri/teklif/destek verilerine erişimini kaybeder.`}
+                  confirmLabel="Kaldır"
                   onConfirm={() => {
                     const id = confirmRemoveMember.member_id;
                     setConfirmRemoveMember(null);

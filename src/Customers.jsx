@@ -1273,6 +1273,7 @@ export function CampaignModal({
         <ConfirmDialog
           title="Kampanya gönderilsin mi?"
           message={`${selected.size} kişiye e-posta gönderilecek - bu işlem geri alınamaz.`}
+          confirmLabel="Gönder"
           onConfirm={() => {
             setConfirmSend(false);
             send();

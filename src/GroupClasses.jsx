@@ -470,6 +470,7 @@ export function GroupClassRoster({
         <ConfirmDialog
           title={words.removeMemberTitle}
           message={`"${customers.find((c) => c.id === confirmRemove.customerId)?.name || "Müşteri"}" bu dersten çıkarılacak. Bu geri alınamaz.`}
+          confirmLabel="Çıkar"
           onConfirm={() => {
             onRemove(confirmRemove.id);
             setConfirmRemove(null);

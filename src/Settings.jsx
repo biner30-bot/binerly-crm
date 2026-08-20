@@ -97,6 +97,7 @@ export function SectorPicker({ companySettings, onSave, onFetchFields }) {
         <ConfirmDialog
           title="Sektörü değiştir"
           message={`"${currentLabel}" sektörüne özel alanlar (form/kayıtlardan) gizlenecek - silinmeyecek, tekrar bu sektöre dönerseniz otomatik geri gelirler. Yeni sektörün kendi alanları/aşama isimleri uygulanacak. Devam edilsin mi?`}
+          confirmLabel="Sektörü Değiştir"
           onConfirm={() => {
             setConfirmSwitch(false);
             onSave(pendingSector);
