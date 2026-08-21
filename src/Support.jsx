@@ -337,6 +337,36 @@ const KB_TEMPLATES_BY_SECTOR = {
         "bilgilerinizi bizimle paylaşmanız yeterli.",
     },
   ],
+  otel: [
+    {
+      title: "Rezervasyonumu nasıl değiştirebilir veya iptal edebilirim?",
+      category: "Rezervasyon & İptal Koşulları",
+      content:
+        "Rezervasyon değişikliği/iptali için en az [X saat/gün] önceden bize bildirmeniz yeterli. " +
+        "Geç iptallerde [varsa iade/ücret politikanızı burada belirtin].",
+    },
+    {
+      title: "Giriş (check-in) ve çıkış (check-out) saatleri nedir?",
+      category: "Konaklama",
+      content:
+        "Giriş saati [XX:00], çıkış saati [XX:00]'dir. Erken giriş/geç çıkış talepleriniz için önceden " +
+        "bizimle iletişime geçebilirsiniz, müsaitliğe göre değerlendiririz.",
+    },
+    {
+      title: "Ödemeyi ne zaman ve nasıl yapıyorum?",
+      category: "Ödeme",
+      content:
+        "Rezervasyon sırasında [kapora/tam ödeme] alınır, kalan tutar [check-in'de/varış tarihinde] tahsil edilir. " +
+        "Kredi kartı veya [diğer kabul ettiğiniz yöntemler] ile ödeme yapabilirsiniz.",
+    },
+    {
+      title: "Odamda ekstra kişi/çocuk için ek ücret var mı?",
+      category: "Fiyatlandırma",
+      content:
+        "Oda kapasitesinin üzerindeki ekstra kişi/çocuk için [ek ücret varsa buraya yazın] uygulanır - rezervasyon " +
+        "öncesi kişi sayısını bildirmeniz doğru fiyatlandırma için önemlidir.",
+    },
+  ],
   genel: [
     {
       title: "Siparişim/talebim ne zaman işleme alınır?",
@@ -1604,19 +1634,22 @@ function KbArticleForm({ initial, onSave, onCancel, sector }) {
   const [title, setTitle] = useState(initial?.title || "");
   const [category, setCategory] = useState(initial?.category || "");
   const [content, setContent] = useState(initial?.content || "");
+  const [saving, setSaving] = useState(false);
 
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        if (!title.trim() || !content.trim()) return;
-        onSave({
+        if (!title.trim() || !content.trim() || saving) return;
+        setSaving(true);
+        await onSave({
           id: initial?.id || uid(),
           title: title.trim(),
           category: category.trim(),
           content: content.trim(),
           createdAt: initial?.createdAt || new Date().toISOString(),
         });
+        setSaving(false);
       }}
     >
       <div style={{ marginBottom: 12 }}>
@@ -1679,9 +1712,10 @@ function KbArticleForm({ initial, onSave, onCancel, sector }) {
         </button>
         <button
           type="submit"
+          disabled={saving}
           style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
         >
-          Kaydet
+          {saving ? "Kaydediliyor…" : "Kaydet"}
         </button>
       </div>
     </form>
