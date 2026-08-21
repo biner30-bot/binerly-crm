@@ -1550,7 +1550,15 @@ function PortalDealList({
 // olarak yazılıyor), formatDateTime'daki saat kısmı burada anlamsız olurdu.
 function formatPaymentDate(dateStr) {
   if (!dateStr) return "";
-  return new Date(`${dateStr}T12:00:00`).toLocaleDateString("tr-TR", {
+  // payments.paid_at bir timestamptz kolonu - Supabase/PostgREST DB'de sadece
+  // tarih (gece yarısı UTC) saklanmış olsa bile HER ZAMAN tam ISO (saat/timezone
+  // dahil, "T" ayraçlı) döndürür. Eskiden dateStr'nin hep saf "YYYY-MM-DD" olacağı
+  // varsayılıp sonuna "T12:00:00" ekleniyordu - dateStr zaten "T" içerdiğinde
+  // ("...+00:00T12:00:00" gibi) bu geçersiz bir string üretip Invalid Date'e yol
+  // açıyordu (örn. Pano'daki "Geldi ✓" hızlı tahsilat kısayolundan gelen kayıtlar).
+  const parsed = dateStr.includes("T") ? new Date(dateStr) : new Date(`${dateStr}T12:00:00`);
+  if (isNaN(parsed)) return "";
+  return parsed.toLocaleDateString("tr-TR", {
     day: "numeric",
     month: "short",
     year: "numeric",
