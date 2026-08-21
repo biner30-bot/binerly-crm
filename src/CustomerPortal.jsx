@@ -137,6 +137,7 @@ const PORTAL_VISIBLE_DEAL_CUSTOM_FIELD_KEYS = [
   "kurs_bitis_tarihi",
   "sevkiyat_durumu",
   "service_ids",
+  "price_item_id",
 ];
 
 function rowToDeal(r) {
@@ -1760,7 +1761,10 @@ function PortalGroupClasses({
                     onClick={() =>
                       onCancel(
                         myEnrollment.id,
-                        isLate
+                        // membershipDeal, uyeligin suresi son andiglinda (ders hala
+                        // "Kayitli olduklarim"da gorunse bile) undefined olabilir -
+                        // bu durumda geç-iptal cezasi uygulanacak bir paket yok.
+                        isLate && membershipDeal
                           ? {
                               dealId: membershipDeal.id,
                               newLateCancelCount: nextStrikeCount,
