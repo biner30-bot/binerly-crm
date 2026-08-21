@@ -51,6 +51,41 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: tasksError.message });
     }
 
+    // "Takip gerekiyor" - Pano'daki computeStuckDeals (App.jsx) ile AYNI tanım/eşik
+    // (STUCK_DEAL_DAYS_THRESHOLD=3 gün, oluşturulmasından bu yana kazanılmamış/
+    // kaybedilmemiş kayıtlar) - farklı bir tanım icat edilmedi, iki yerde de senkron
+    // tutulmalı. Önceden SADECE Pano'yu açan görürdü; artık gönderim damgası olmadan
+    // (deals.reminder ile aynı ilke) kayıt çözülene kadar her gün tekrar bildirilir -
+    // landing page'in kendi vaat ettiği "kaçan takip" sorununu kapatan otomasyon.
+    const STUCK_DEAL_DAYS_THRESHOLD = 3;
+    const stuckThreshold = new Date(Date.now() - STUCK_DEAL_DAYS_THRESHOLD * 86400000).toISOString();
+    const { data: stuckDealRows, error: stuckDealsError } = await supabaseAdmin
+      .from("deals")
+      .select("id, user_id, customer_id, title, created_at")
+      .is("deleted_at", null)
+      .not("stage", "in", "(kazanildi,kaybedildi)")
+      .lte("created_at", stuckThreshold);
+    if (stuckDealsError) {
+      console.error("stuck deals query error:", stuckDealsError.message);
+    }
+
+    // Düşük stok özeti - reorder_threshold ile quantity_on_hand aynı satırda
+    // karşılaştırılması gerektiği için (PostgREST iki kolonu birbiriyle
+    // karşılaştıran bir filtre sunmuyor) eşik tanımlı tüm kalemler çekilip
+    // burada filtreleniyor - KOBİ ölçeği için küçük bir sorgu. Damgasız/tekrar
+    // eden aynı desen: stok yeniden eşiğin üzerine çıkınca kendiliğinden kesilir.
+    const { data: stockCandidateRows, error: stockError } = await supabaseAdmin
+      .from("stock_items")
+      .select("id, user_id, name, unit, quantity_on_hand, reorder_threshold")
+      .is("deleted_at", null)
+      .not("reorder_threshold", "is", null);
+    if (stockError) {
+      console.error("stock_items query error:", stockError.message);
+    }
+    const lowStockRows = (stockCandidateRows || []).filter(
+      (s) => Number(s.quantity_on_hand) <= Number(s.reorder_threshold),
+    );
+
     // Google değerlendirme isteği: "kazanildi" aşamasına DÜN geçmiş (Europe/Istanbul
     // takvim günü) ve daha önce hiç istek gönderilmemiş kayıtlar. Türkiye 2016'dan beri
     // kalıcı olarak UTC+3'te (DST yok), bu yüzden sabit ofsetle gün sınırını güvenle
@@ -131,7 +166,9 @@ export default async function handler(req, res) {
     const hasReviewRequests = reviewDeals && reviewDeals.length > 0;
     const hasWaitlistEntries = waitlistEntries && waitlistEntries.length > 0;
     const hasTasks = dueTasks && dueTasks.length > 0;
-    if (!hasReminders && !hasReviewRequests && !hasWaitlistEntries && !hasTasks) {
+    const hasStuckDeals = stuckDealRows && stuckDealRows.length > 0;
+    const hasLowStock = lowStockRows.length > 0;
+    if (!hasReminders && !hasReviewRequests && !hasWaitlistEntries && !hasTasks && !hasStuckDeals && !hasLowStock) {
       return res.status(200).json({ usersNotified: 0, customersNotified: 0, reviewsRequested: 0, membershipsMoved });
     }
 
@@ -140,6 +177,7 @@ export default async function handler(req, res) {
         ...(dueDeals || []).map((d) => d.customer_id),
         ...(reviewDeals || []).map((d) => d.customer_id),
         ...(dueTasks || []).map((t) => t.customer_id).filter(Boolean),
+        ...(stuckDealRows || []).map((d) => d.customer_id),
       ]),
     ];
     const { data: customers } = await supabaseAdmin
@@ -166,6 +204,17 @@ export default async function handler(req, res) {
     const tasksByAssignee = {};
     for (const task of dueTasks || []) {
       (tasksByAssignee[task.assigned_to || task.user_id] ||= []).push(task);
+    }
+
+    // Takip gerekiyor bildirimi de tasarım gereği (deal.user_id yorumuna bkz.)
+    // sahibe gidiyor, atanan kişiye değil - deal reminder'larıyla aynı desen.
+    const stuckDealsByUser = {};
+    for (const deal of stuckDealRows || []) {
+      (stuckDealsByUser[deal.user_id] ||= []).push(deal);
+    }
+    const lowStockByUser = {};
+    for (const item of lowStockRows) {
+      (lowStockByUser[item.user_id] ||= []).push(item);
     }
 
     const settingsUserIds = [...new Set([...Object.keys(dealsByUser), ...Object.keys(reviewDealsByUser)])];
@@ -276,6 +325,76 @@ export default async function handler(req, res) {
         }),
       });
       if (taskSendRes.ok) tasksNotified++;
+      else failed++;
+    }
+
+    // "Takip gerekiyor" özeti — deals.reminder ile aynı prensip: gönderim damgası
+    // YOK, kayıt kazanılana/kaybedilene ya da 3 günlük eşiğin altına düşene kadar
+    // (yani çözülene kadar) her gün tekrar bildirilir.
+    let stuckDealsNotified = 0;
+    for (const [userId, userStuckDeals] of Object.entries(stuckDealsByUser)) {
+      const { data: ownerData, error: ownerError } = await supabaseAdmin.auth.admin.getUserById(userId);
+      const ownerEmail = ownerData?.user?.email;
+      if (ownerError || !ownerEmail) {
+        failed++;
+        continue;
+      }
+
+      const stuckLines = userStuckDeals.map((d) => {
+        const daysOpen = Math.floor((Date.now() - new Date(d.created_at).getTime()) / 86400000);
+        return `- ${customerNameById[d.customer_id] || "Bilinmeyen müşteri"}: ${d.title} - ${daysOpen} gündür bekliyor`;
+      });
+      const stuckBodyText = `Takip beklediğiniz kayıtlar:\n\n${stuckLines.join("\n")}\n\nBinerly'ye giriş yaparak bu kayıtları görüntüleyebilirsiniz.`;
+      const stuckFooterLines = ["Binerly Ekibi"];
+      const stuckSendRes = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "Binerly <noreply@binerly.com>",
+          to: ownerEmail,
+          subject: `Takip gerekiyor: ${userStuckDeals.length} kayıt`,
+          html: renderEmailHtml({ bodyText: stuckBodyText, footerLines: stuckFooterLines }),
+          text: plainTextFallback(stuckBodyText, null, null, stuckFooterLines),
+        }),
+      });
+      if (stuckSendRes.ok) stuckDealsNotified++;
+      else failed++;
+    }
+
+    // Düşük stok özeti — aynı damgasız/tekrar eden desen: stok yeniden eşiğin
+    // üzerine çıkınca (stok girişi yapılınca) kendiliğinden kesilir.
+    let lowStockNotified = 0;
+    for (const [userId, userLowStock] of Object.entries(lowStockByUser)) {
+      const { data: ownerData, error: ownerError } = await supabaseAdmin.auth.admin.getUserById(userId);
+      const ownerEmail = ownerData?.user?.email;
+      if (ownerError || !ownerEmail) {
+        failed++;
+        continue;
+      }
+
+      const stockLines = userLowStock.map(
+        (s) => `- ${s.name}: ${s.quantity_on_hand} ${s.unit || "adet"} kaldı (eşik: ${s.reorder_threshold})`,
+      );
+      const stockBodyText = `Kritik stok seviyesindeki kalemler:\n\n${stockLines.join("\n")}\n\nBinerly'ye giriş yaparak stok kalemlerinizi görüntüleyebilirsiniz.`;
+      const stockFooterLines = ["Binerly Ekibi"];
+      const stockSendRes = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "Binerly <noreply@binerly.com>",
+          to: ownerEmail,
+          subject: `Düşük stok uyarısı: ${userLowStock.length} kalem`,
+          html: renderEmailHtml({ bodyText: stockBodyText, footerLines: stockFooterLines }),
+          text: plainTextFallback(stockBodyText, null, null, stockFooterLines),
+        }),
+      });
+      if (stockSendRes.ok) lowStockNotified++;
       else failed++;
     }
 
@@ -467,7 +586,7 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(200).json({ usersNotified, failed, customersNotified, reviewsRequested, membershipsMoved, winbackSent, waitlistNotified, tasksNotified });
+    return res.status(200).json({ usersNotified, failed, customersNotified, reviewsRequested, membershipsMoved, winbackSent, waitlistNotified, tasksNotified, stuckDealsNotified, lowStockNotified });
   } catch (err) {
     console.error("send-reminders fatal error:", err.message);
     return res.status(500).json({ error: "Gönderim sırasında hata oluştu." });
