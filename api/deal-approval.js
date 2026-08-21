@@ -90,18 +90,29 @@ function getClientIp(req) {
 
 // Deal'i onaylanmış işaretler + KOBİ'ye bilgi maili atar — hem müşterinin
 // normal "Onaylıyorum" akışından hem de (payment_mode='required' teklifler
-// için) ödeme başarıyla tamamlandığında otomatik onaydan çağrılır.
-async function markApproved(supabaseAdmin, deal, customer, note, contentSuffix) {
+// için) ödeme başarıyla tamamlandığında otomatik onaydan çağrılır. sector
+// parametresi opsiyonel (bazı çağrı yerlerinde henüz elde taze okunmamış
+// olabilir) — eksikse dealWordAcc/formatAppointmentDateTime sessizce "teklif"
+// diline ve tarihsiz metne düşer, hata fırlatmaz.
+async function markApproved(supabaseAdmin, deal, customer, note, contentSuffix, sector) {
   const approvedAt = new Date().toISOString();
   const { error: updateError } = await supabaseAdmin.from("deals").update({ approved_at: approvedAt }).eq("id", deal.id);
   if (updateError) throw new Error(updateError.message);
+
+  const wordAcc = dealWordAcc(sector);
+  // Randevu tarihi/saati SADECE randevu sektörlerinde anlamlı (otel check-in/
+  // check-out'u, üyelikte süre var ama "randevu saati" kavramı yok) - diğer
+  // sektörlerde gereksiz bir DB sorgusu yapmadan atlanır.
+  const appointmentDateTimeLabel = APPOINTMENT_SECTORS.has(sector)
+    ? formatAppointmentDateTime(await resolveAppointmentDateTime(supabaseAdmin, deal))
+    : null;
 
   await supabaseAdmin.from("activities").insert({
     id: crypto.randomUUID(),
     user_id: deal.user_id,
     customer_id: deal.customer_id,
     type: "note",
-    content: `Müşteri "${deal.title}" teklifini ${contentSuffix}.${note ? ` Not: "${note}"` : ""}`,
+    content: `Müşteri "${deal.title}" ${wordAcc} ${contentSuffix}.${note ? ` Not: "${note}"` : ""}`,
   });
 
   const resendApiKey = process.env.RESEND_API_KEY;
@@ -110,7 +121,8 @@ async function markApproved(supabaseAdmin, deal, customer, note, contentSuffix) 
     const ownerEmail = ownerData?.user?.email;
     if (ownerEmail) {
       const bodyText =
-        `${customer?.name || "Müşteriniz"}, "${deal.title}" (${deal.value} TL) teklifini ${contentSuffix}.` +
+        `${customer?.name || "Müşteriniz"}, "${deal.title}" (${deal.value} TL) ${wordAcc} ${contentSuffix}.` +
+        (appointmentDateTimeLabel ? `\n\nRandevu tarihi: ${appointmentDateTimeLabel}` : "") +
         (note ? `\n\nMüşterinin notu: "${note}"` : "") +
         `\n\nBinerly'ye giriş yaparak detayları görebilirsiniz.`;
       const footerLines = ["Binerly Ekibi"];
@@ -120,7 +132,7 @@ async function markApproved(supabaseAdmin, deal, customer, note, contentSuffix) 
         body: JSON.stringify({
           from: "Binerly <noreply@binerly.com>",
           to: ownerEmail,
-          subject: `${customer?.name || "Müşteriniz"} "${deal.title}" teklifini onayladı`,
+          subject: `${customer?.name || "Müşteriniz"} "${deal.title}" ${wordAcc} onayladı`,
           html: renderEmailHtml({ bodyText, footerLines }),
           text: plainTextFallback(bodyText, null, null, footerLines),
         }),
@@ -148,6 +160,35 @@ async function markApproved(supabaseAdmin, deal, customer, note, contentSuffix) 
 // Sectors.jsx'teki isAppointmentSector ile aynı liste — api/*.js JSX içeren
 // Sectors.jsx'i import edemediği için burada küçük bir kopyası tutuluyor.
 const APPOINTMENT_SECTORS = new Set(["guzellik_bakim", "saglik_klinik"]);
+
+// Sectors.jsx'teki dealWordKind ile AYNI sektör->kelime eşlemesi, ama burada
+// doğrudan "Müşteri X'ini onayladı" kalıbında kullanılacak iyelik+belirtme
+// çekimli hali (staticData.js DEAL_WORD_FORMS'taki "acc"/"possYoursAcc"
+// alanları 3. tekil iyelik+belirtme birleşimini karşılamıyor, o yüzden ayrı
+// tutuluyor) — KOBİ'ye giden onay e-postası artık "teklifini" yerine sektöre
+// göre "randevusunu"/"üyeliğini"/"rezervasyonunu" diyebilsin diye.
+function dealWordAcc(sector) {
+  if (sector === "spor_merkezi") return "üyeliğini";
+  if (APPOINTMENT_SECTORS.has(sector)) return "randevusunu";
+  if (sector === "otel") return "rezervasyonunu";
+  return "teklifini";
+}
+
+// DealApprovalPage.jsx/CustomerPortal.jsx/Support.jsx'teki formatDateTime ile
+// AYNI yöntem (timeZone belirtmeden "tr-TR" locale) — dateStr zaten
+// appointment-availability.js'den gelen, timezone'suz/yerel bir string
+// olduğu için hem tarayıcıda hem Vercel'in sunucu saat diliminde (TZ farketmez,
+// parse ve format simetrik) aynı saat/dakika değerini üretir.
+function formatAppointmentDateTime(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d)) return null;
+  return (
+    d.toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" }) +
+    " · " +
+    d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })
+  );
+}
 
 // GET yanıtındaki "Randevu tarihi" alanı eskiden hep deal.created_at (kaydın
 // OLUŞTURULMA zamanı) gösteriyordu — randevu sektörlerinde bu yanlış: müşteri
@@ -990,7 +1031,7 @@ async function recordSuccessfulPayment(supabaseAdmin, deal, { provider, iyzicoPa
   // olsun zaten onaylamış sayılır, o yüzden istisna kaldırıldı.
   if (!deal.approved_at) {
     const { data: customer } = await supabaseAdmin.from("customers").select("name").eq("id", deal.customer_id).maybeSingle();
-    await markApproved(supabaseAdmin, deal, customer, null, "ödeyerek onayladı").catch((e) => console.error("auto-approve error:", e.message));
+    await markApproved(supabaseAdmin, deal, customer, null, "ödeyerek onayladı", sector).catch((e) => console.error("auto-approve error:", e.message));
   }
 }
 
@@ -1666,7 +1707,7 @@ export default async function handler(req, res) {
   let approvedAt = deal.approved_at;
   if (!deal.approved_at) {
     try {
-      approvedAt = await markApproved(supabaseAdmin, deal, customer, note, "onayladı");
+      approvedAt = await markApproved(supabaseAdmin, deal, customer, note, "onayladı", settings?.sector);
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
