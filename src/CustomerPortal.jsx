@@ -12,6 +12,7 @@ import {
   AuthDivider,
   uid,
   isFullNameValid,
+  isValidPhone,
   WEEKDAYS,
   nextWeeklyOccurrence,
   NotificationBell,
@@ -1921,6 +1922,11 @@ function AppointmentBookingModal({ customerRow, priceListItems, onBook, onClose,
 function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, reschedule }) {
   const todayStr = istanbulDateStr(new Date());
   const maxDateStr = istanbulDateStr(new Date(Date.now() + 60 * 24 * 60 * 60 * 1000));
+  // İşletme "Sadece talep al" modundaysa (bkz. AppointmentPolicies.jsx
+  // AppointmentRequestModeBox) portal müşterisi de AppointmentRequestPage.jsx
+  // (anonim widget) ile AYNI davranışı görür - hiçbir doluluk/müsaitlik bilgisi
+  // çekilmez/gösterilmez, sadece gün + sıralı saat tercihi bırakılır.
+  const requestOnlyMode = customerRow.companyWidgetMode === "request_only";
   const [date, setDate] = useState(todayStr);
   const [slots, setSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -1932,10 +1938,14 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
   const [dateTimeKey, setDateTimeKey] = useState(null);
   const [hasPaymentProvider, setHasPaymentProvider] = useState(false);
   const [dayOverview, setDayOverview] = useState(null); // [{ date, slotCount }] - hangi günlerde boşluk olduğunu tek tek denemeden görebilsin diye
+  // requestOnlyMode'da kullanılır - en fazla 3, sıralı ("1. tercih" en yüksek
+  // öncelikli). Boş string'ler gönderilmeden önce submit'te filtrelenir.
+  const [timePrefs, setTimePrefs] = useState([""]);
 
   useEffect(() => {
-    if (!date || !customerRow.userId) {
-      setSlotsError("İşletme bilgisi eksik, müsaitlik sorgulanamadı.");
+    if (requestOnlyMode || !date || !customerRow.userId) {
+      if (!requestOnlyMode && !customerRow.userId)
+        setSlotsError("İşletme bilgisi eksik, müsaitlik sorgulanamadı.");
       return;
     }
     setLoadingSlots(true);
@@ -1963,7 +1973,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
         setSlotsError(err.message || "Müsaitlik alınamadı.");
       })
       .finally(() => setLoadingSlots(false));
-  }, [date, customerRow.userId, serviceIds]);
+  }, [requestOnlyMode, date, customerRow.userId, serviceIds]);
 
   // Önümüzdeki 14 günün boş saat sayısını TEK istekte çeker - AppointmentRequestPage'teki
   // AYNI mantık (bkz. api/appointment-availability.js overview dalı). date state'inden
@@ -1971,7 +1981,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
   // süreyle hesaplanan sayı, seçim değişince o hizmetin gerçek süresine göre
   // yeniden hesaplanmazsa rozet olduğundan iyimser kalabilir.
   useEffect(() => {
-    if (!customerRow.userId) return;
+    if (requestOnlyMode || !customerRow.userId) return;
     const serviceQuery = serviceIds.length
       ? `&serviceIds=${encodeURIComponent(serviceIds.join(","))}`
       : "";
@@ -1981,7 +1991,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
       .then((r) => r.json())
       .then((data) => setDayOverview(data.days || []))
       .catch(() => setDayOverview([]));
-  }, [customerRow.userId, serviceIds]);
+  }, [requestOnlyMode, customerRow.userId, serviceIds]);
 
   // 0 TL'lik bir fiyat kalemi "ücretsiz" demek - AppointmentRequestPage.jsx'teki
   // (widget) AYNI ayrım/deseni (kasıtlı kopya) burada da uyguluyoruz, tutarlı olsun.
@@ -2030,19 +2040,22 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
   })();
 
   const confirm = async () => {
+    const cleanPrefs = timePrefs.filter(Boolean);
     // Hizmet tanımlıysa (hasServices) yukarıdaki yapılandırılmış seçim zaten
     // "ne için randevu" sorusunu cevaplıyor - not zorunlu değil, sadece ek
     // bilgi. Hiç hizmet tanımlı değilse tek bilgi kaynağı bu alan, zorunlu kalır.
-    if (!selectedTime || !dateTimeKey || (!hasServices && !note.trim())) return;
+    if (requestOnlyMode ? cleanPrefs.length === 0 : !selectedTime || !dateTimeKey) return;
+    if (!hasServices && !note.trim()) return;
     setBooking(true);
     const ok = await onBook({
       customerId: customerRow.id,
       businessUserId: customerRow.userId,
-      dateTime: `${date}T${selectedTime}:00`,
-      dateTimeKey,
       note,
       serviceIds,
       hasPaymentProvider,
+      ...(requestOnlyMode
+        ? { requestedDate: date, timePreferences: cleanPrefs }
+        : { dateTime: `${date}T${selectedTime}:00`, dateTimeKey }),
     });
     setBooking(false);
     if (ok) onClose();
@@ -2186,6 +2199,82 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
         >
           Gün/saat seçmek için önce yukarıdan bir hizmet seçin.
         </p>
+      ) : requestOnlyMode ? (
+        <>
+          <div style={{ marginBottom: 14 }}>
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
+              Tercih ettiğiniz gün
+            </label>
+            <input
+              type="date"
+              min={todayStr}
+              max={maxDateStr}
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              style={{ width: "100%" }}
+            />
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
+              Saat tercihleriniz{" "}
+              <span style={{ color: "var(--text-muted)" }}>
+                (sırayla, ilki en çok tercih ettiğiniz)
+              </span>
+            </label>
+            {timePrefs.map((t, i) => (
+              <div
+                key={i}
+                style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}
+              >
+                <span
+                  style={{ fontSize: 12.5, color: "var(--text-muted)", width: 56, flexShrink: 0 }}
+                >
+                  {i + 1}. tercih
+                </span>
+                <input
+                  type="time"
+                  value={t}
+                  onChange={(e) =>
+                    setTimePrefs((prev) => prev.map((x, xi) => (xi === i ? e.target.value : x)))
+                  }
+                  style={{ flex: 1 }}
+                />
+                {i > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setTimePrefs((prev) => prev.filter((_, xi) => xi !== i))}
+                    style={{ fontSize: 12, padding: "6px 10px", flexShrink: 0, borderRadius: 20 }}
+                  >
+                    Kaldır
+                  </button>
+                )}
+              </div>
+            ))}
+            {timePrefs.length < 3 && (
+              <button
+                type="button"
+                onClick={() => setTimePrefs((prev) => [...prev, ""])}
+                style={{ fontSize: 12.5, fontWeight: 600, padding: "8px 12px", borderRadius: 10 }}
+              >
+                + Farklı bir saat de ekle (opsiyonel)
+              </button>
+            )}
+          </div>
+        </>
       ) : (
         <>
           {dayOverview && dayOverview.length > 0 && (
@@ -2339,17 +2428,25 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
         </button>
         <button
           type="button"
-          disabled={!selectedTime || !dateTimeKey || (!hasServices && !note.trim()) || booking}
+          disabled={
+            (requestOnlyMode ? timePrefs.every((t) => !t) : !selectedTime || !dateTimeKey) ||
+            (!hasServices && !note.trim()) ||
+            booking
+          }
           onClick={confirm}
           style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
         >
           {booking
             ? reschedule
               ? "Erteleniyor…"
-              : "Alınıyor…"
+              : "Gönderiliyor…"
             : reschedule
-              ? "Ertele"
-              : "Randevuyu Onayla"}
+              ? requestOnlyMode
+                ? "Yeni Saat Talep Et"
+                : "Ertele"
+              : requestOnlyMode
+                ? "Randevu Talebi Gönder"
+                : "Randevuyu Onayla"}
         </button>
       </div>
     </Modal>
@@ -2787,6 +2884,10 @@ function PortalSettings({
     }
     if (!profilePhone.trim() && !profileEmail.trim()) {
       notify("Telefon veya e-postadan en az biri gerekli.");
+      return;
+    }
+    if (profilePhone.trim() && !isValidPhone(profilePhone)) {
+      notify("Geçerli bir telefon numarası girin.");
       return;
     }
     setSavingProfile(true);
@@ -3278,6 +3379,8 @@ export default function CustomerPortal() {
           companyAppointmentPenaltyBurnsSession:
             r.company_appointment_penalty_burns_session === true,
           companyAppointmentPartialChargeHours: r.company_appointment_partial_charge_hours ?? null,
+          companyWidgetMode:
+            r.company_appointment_widget_mode === "request_only" ? "request_only" : "realtime",
           marketingConsent: r.marketing_consent === true,
           marketingConsentAt: r.marketing_consent_at || null,
           photoConsent: r.photo_consent === true,
@@ -3586,6 +3689,8 @@ export default function CustomerPortal() {
     roomType,
     partySize,
     visitPurpose,
+    requestedDate,
+    timePreferences,
   }) => {
     // Otel gibi oda-stoklu (bookingModel === "inventory") sektörlerde RoomBookingModal
     // dateTime/dateTimeKey yerine checkIn/checkOut/roomType gönderiyor — saat slotu
@@ -3646,15 +3751,28 @@ export default function CustomerPortal() {
         "Content-Type": "application/json",
         Authorization: `Bearer ${currentSession?.access_token || ""}`,
       },
-      body: JSON.stringify({ customerId, businessUserId, dateTime, dateTimeKey, note, serviceIds }),
+      body: JSON.stringify({
+        customerId,
+        businessUserId,
+        note,
+        serviceIds,
+        ...(requestedDate ? { requestedDate, timePreferences } : { dateTime, dateTimeKey }),
+      }),
     });
     const result = await res.json().catch(() => ({}));
     if (!res.ok) {
-      notify(result.error || "Randevu alınamadı.");
+      notify(
+        result.error || (requestedDate ? "Randevu talebi gönderilemedi." : "Randevu alınamadı."),
+      );
       return false;
     }
     setDeals((prev) => [...prev, rowToDeal(result.deal)]);
-    notify("Randevunuz alındı.", "success");
+    notify(
+      result.requested
+        ? "Randevu talebiniz alındı, işletme sizinle iletişime geçecek."
+        : "Randevunuz alındı.",
+      "success",
+    );
     return true;
   };
 
