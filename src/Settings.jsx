@@ -23,6 +23,7 @@ const COMPANY_NAME_EXAMPLES = {
   egitim_kurs: "Akın Eğitim Kurumları",
   sanayi_esnaf: "Akın Oto Servis",
   otel: "Akın Otel",
+  genel: "Akın İşletme",
 };
 
 // Sektör seçimi öncesi anında (onChange'de) uygulanıyordu — yanlışlıkla farklı
@@ -71,7 +72,7 @@ export function SectorPicker({ companySettings, onSave, onFetchFields }) {
           </p>
         </>
       )}
-      {dirty && pendingSector && (
+      {dirty && (
         <button
           type="button"
           // Zaten bir sektör seçiliyken DEĞİŞTİRMEK, eski sektöre özel alanları
