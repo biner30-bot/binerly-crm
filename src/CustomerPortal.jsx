@@ -2882,11 +2882,11 @@ function PortalSettings({
       notify("Ad Soyad boş olamaz.");
       return;
     }
-    if (!profilePhone.trim() && !profileEmail.trim()) {
-      notify("Telefon veya e-postadan en az biri gerekli.");
+    if (!profilePhone.trim()) {
+      notify("Telefon gerekli.");
       return;
     }
-    if (profilePhone.trim() && !isValidPhone(profilePhone)) {
+    if (!isValidPhone(profilePhone)) {
       notify("Geçerli bir telefon numarası girin.");
       return;
     }
@@ -2978,6 +2978,7 @@ function PortalSettings({
                 type="tel"
                 value={profilePhone}
                 onChange={(e) => setProfilePhone(e.target.value)}
+                required
                 style={{ width: "100%" }}
               />
             </div>
@@ -2990,7 +2991,7 @@ function PortalSettings({
                   marginBottom: 4,
                 }}
               >
-                E-posta
+                E-posta (opsiyonel)
               </label>
               <input
                 type="email"

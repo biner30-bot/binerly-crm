@@ -62,11 +62,11 @@ export default function LeadCapturePage() {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!name.trim() || (!phone.trim() && !email.trim())) {
-      setSubmitError("İsim ve telefon veya e-postadan en az biri gerekli.");
+    if (!name.trim() || !phone.trim()) {
+      setSubmitError("İsim ve telefon gerekli.");
       return;
     }
-    if (phone.trim() && !isValidPhone(phone)) {
+    if (!isValidPhone(phone)) {
       setSubmitError("Geçerli bir telefon numarası girin.");
       return;
     }
@@ -169,6 +169,7 @@ export default function LeadCapturePage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="Telefon"
+                  required
                   style={{ width: "100%" }}
                 />
               </div>
@@ -177,7 +178,7 @@ export default function LeadCapturePage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="E-posta"
+                  placeholder="E-posta (opsiyonel)"
                   style={{ width: "100%" }}
                 />
               </div>

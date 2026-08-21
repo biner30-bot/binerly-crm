@@ -137,11 +137,11 @@ export default function AppointmentRequestPage() {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!name.trim() || (!phone.trim() && !email.trim())) {
-      setSubmitError("İsim ve telefon veya e-postadan en az biri gerekli.");
+    if (!name.trim() || !phone.trim()) {
+      setSubmitError("İsim ve telefon gerekli.");
       return;
     }
-    if (phone.trim() && !isValidPhone(phone)) {
+    if (!isValidPhone(phone)) {
       setSubmitError("Geçerli bir telefon numarası girin.");
       return;
     }
@@ -183,11 +183,11 @@ export default function AppointmentRequestPage() {
   // katılan bildirim alır (bkz. sql/2026-08-12_appointment_waitlist.sql).
   // İsim/iletişim alanları formun altında zaten var - burada tekrar sorulmaz.
   const joinWaitlist = async () => {
-    if (!name.trim() || (!phone.trim() && !email.trim())) {
-      setWaitlistError("Önce aşağıya isim ve telefon veya e-postanızı yazın.");
+    if (!name.trim() || !phone.trim()) {
+      setWaitlistError("Önce aşağıya isim ve telefonunuzu yazın.");
       return;
     }
-    if (phone.trim() && !isValidPhone(phone)) {
+    if (!isValidPhone(phone)) {
       setWaitlistError("Geçerli bir telefon numarası girin.");
       return;
     }
@@ -519,10 +519,10 @@ export default function AppointmentRequestPage() {
                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ad Soyad" required style={{ width: "100%", borderRadius: 10, padding: "10px 12px" }} />
               </div>
               <div style={{ marginBottom: 10 }}>
-                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Telefon" style={{ width: "100%", borderRadius: 10, padding: "10px 12px" }} />
+                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Telefon" required style={{ width: "100%", borderRadius: 10, padding: "10px 12px" }} />
               </div>
               <div style={{ marginBottom: 10 }}>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-posta" style={{ width: "100%", borderRadius: 10, padding: "10px 12px" }} />
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-posta (opsiyonel)" style={{ width: "100%", borderRadius: 10, padding: "10px 12px" }} />
               </div>
               <div style={{ marginBottom: 16 }}>
                 <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Not (opsiyonel)" style={{ width: "100%", minHeight: 50, resize: "vertical", borderRadius: 10, padding: "10px 12px" }} />
