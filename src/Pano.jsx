@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Badge,
   MetricCard,
@@ -11,6 +12,7 @@ import {
   InitialsAvatar,
 } from "./shared";
 import { DEAL_WORD_FORMS } from "./staticData";
+import { PAYMENT_METHOD_LABELS } from "./Deals";
 import {
   STAGES,
   stageLabel,
@@ -93,6 +95,8 @@ export default function Pano({
   setShowCustomerForm,
   attemptMoveDealStage,
   handleUseSessionClick,
+  addPayment,
+  totalPaidForDeal,
   customerById,
   promoteFromWaitlistIfAny,
   generateApprovalLink,
@@ -151,6 +155,38 @@ export default function Pano({
   STAGE_PROBABILITY,
   PASSIVE_CUSTOMER_DAYS,
 }) {
+  // "Geldi ✓"/"Seans kullanıldı" hızlı tahsilat kısayolu - KOBİ'ler genelde
+  // ödemeyi elden/kendi yöntemleriyle o anda alıyor (kart POS'u, nakit), Finans
+  // sekmesine ayrıca gidip Tahsilat formunu doldurmak ekstra bir gezinme
+  // adımıydı. Sadece kalan bakiye varsa (online tam ödenmiş değilse) gösterilir.
+  const [payingDealId, setPayingDealId] = useState(null);
+  const [payAmount, setPayAmount] = useState("");
+  const [payMethod, setPayMethod] = useState("nakit");
+  const [paySaving, setPaySaving] = useState(false);
+
+  const startArrivalPayment = (deal) => {
+    const remaining = deal.value - totalPaidForDeal(deal.id);
+    setPayingDealId(deal.id);
+    setPayAmount(remaining > 0 ? String(Math.round(remaining * 100) / 100) : "");
+    setPayMethod("nakit");
+  };
+
+  const completeWithPayment = async (deal, completeAction) => {
+    const amount = Number(payAmount);
+    if (amount > 0) {
+      setPaySaving(true);
+      await addPayment({
+        dealId: deal.id,
+        amount,
+        paidAt: new Date().toISOString(),
+        method: payMethod,
+      });
+      setPaySaving(false);
+    }
+    setPayingDealId(null);
+    completeAction();
+  };
+
   return (
     <div>
       {/* Kuruluma başlayın listesinin aksine bu banner "gizle" ile kalıcı
@@ -374,6 +410,7 @@ export default function Pano({
                   key={`arrival-${deal.id}`}
                   style={{
                     display: "flex",
+                    flexWrap: "wrap",
                     alignItems: "center",
                     gap: 8,
                     fontSize: 13,
@@ -422,14 +459,69 @@ export default function Pano({
                       ✓ Güvenilir
                     </span>
                   )}
-                  {deal.sessionTotal > 0 ? (
+                  {payingDealId === deal.id ? (
+                    // KOBİ genelde ödemeyi elden/kendi yöntemiyle (nakit, kendi POS'u)
+                    // o anda alıyor - "Geldi ✓" sonrası ayrıca Finans'a gidip Tahsilat
+                    // formu doldurmasın diye aynı tık akışına gömülü kısa bir alan.
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={payAmount}
+                        onChange={(e) => setPayAmount(e.target.value)}
+                        placeholder="Tutar"
+                        style={{ width: 80, fontSize: 12 }}
+                      />
+                      <select
+                        value={payMethod}
+                        onChange={(e) => setPayMethod(e.target.value)}
+                        style={{ fontSize: 12 }}
+                      >
+                        {Object.entries(PAYMENT_METHOD_LABELS).map(([v, l]) => (
+                          <option key={v} value={v}>
+                            {l}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        disabled={paySaving}
+                        onClick={() =>
+                          completeWithPayment(deal, () =>
+                            deal.sessionTotal > 0
+                              ? handleUseSessionClick(deal)
+                              : attemptMoveDealStage(deal.id, "kazanildi"),
+                          )
+                        }
+                        style={{ fontSize: 12 }}
+                      >
+                        {paySaving ? "Kaydediliyor…" : "Tahsil Et ve Tamamla"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPayingDealId(null);
+                          if (deal.sessionTotal > 0) handleUseSessionClick(deal);
+                          else attemptMoveDealStage(deal.id, "kazanildi");
+                        }}
+                        style={{ fontSize: 12 }}
+                      >
+                        Ödemesiz Tamamla
+                      </button>
+                    </div>
+                  ) : deal.sessionTotal > 0 ? (
                     // Paket teklifi: "Geldi ✓" burada YANLIŞ olur - stage=kazanıldı
                     // tüm paketi kapatır, tek bir seansın kullanımını değil. Bunun
                     // yerine Deals.jsx'teki (Randevular sekmesi) "Seans kullanıldı"
                     // ile AYNI aksiyon (handleUseSessionClick → incrementSessionUsage).
                     <button
                       type="button"
-                      onClick={() => handleUseSessionClick(deal)}
+                      onClick={() => {
+                        const remaining = deal.value - totalPaidForDeal(deal.id);
+                        if (remaining > 0) startArrivalPayment(deal);
+                        else handleUseSessionClick(deal);
+                      }}
                       style={{ fontSize: 12, flexShrink: 0 }}
                     >
                       Seans kullanıldı
@@ -438,7 +530,11 @@ export default function Pano({
                     <>
                       <button
                         type="button"
-                        onClick={() => attemptMoveDealStage(deal.id, "kazanildi")}
+                        onClick={() => {
+                          const remaining = deal.value - totalPaidForDeal(deal.id);
+                          if (remaining > 0) startArrivalPayment(deal);
+                          else attemptMoveDealStage(deal.id, "kazanildi");
+                        }}
                         style={{ fontSize: 12, flexShrink: 0 }}
                       >
                         Geldi ✓

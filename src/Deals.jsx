@@ -2823,7 +2823,9 @@ const REFUND_REASON_OPTIONS = [
 
 // Sadece elle eklenen tahsilatlarda seçilebilir - online (iyzico/PayTR)
 // ödemelerde yöntem zaten "online" olarak biliniyor, ayrıca sorulmaz.
-const PAYMENT_METHOD_LABELS = {
+// Pano.jsx'teki "Geldi ✓" hızlı tahsilat kısayolu da AYNI sözlüğü kullanıyor -
+// burada dışa açık (export), ayrı bir kopya tutulmuyor.
+export const PAYMENT_METHOD_LABELS = {
   nakit: "Nakit",
   kart: "Kart",
   havale: "Havale/EFT",

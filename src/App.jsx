@@ -4782,6 +4782,8 @@ export default function App() {
           setShowCustomerForm={setShowCustomerForm}
           attemptMoveDealStage={attemptMoveDealStage}
           handleUseSessionClick={handleUseSessionClick}
+          addPayment={addPayment}
+          totalPaidForDeal={totalPaidForDeal}
           customerById={customerById}
           promoteFromWaitlistIfAny={promoteFromWaitlistIfAny}
           generateApprovalLink={generateApprovalLink}
