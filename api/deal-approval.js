@@ -1609,8 +1609,16 @@ export default async function handler(req, res) {
     // (hizmet fiyatını aşmaz) tahsil edilir. Tutar istemciden asla alınmıyor,
     // taze company_settings'ten okunuyor. CRM'den gönderilen normal tekliflerde
     // (bu iki kaynak dışında) davranış DEĞİŞMEDİ - hâlâ tam tutar.
+    // payment_mode === "required" şartı GET'teki (satır ~1577) aynı filtreyle
+    // tutarlı olsun diye eklendi - appointment-availability.js handleBooking
+    // sadece appointment_deposit_amount>0 iken "required" set ediyor, bu yüzden
+    // "optional"/"none" olan (kapora hiç tanımlı olmayan KOBİ'lerin varsayılanı)
+    // randevularda burası zorla kapora moduna girip "Kapora tanımlı değil"
+    // hatasıyla tam tutar ödemesini tamamen kilitliyordu.
     const isSelfBookedAppointment =
-      (deal.custom_fields?.kaynak === "portal" || deal.custom_fields?.kaynak === "randevu_widget") && !!deal.appointment_start;
+      (deal.custom_fields?.kaynak === "portal" || deal.custom_fields?.kaynak === "randevu_widget") &&
+      !!deal.appointment_start &&
+      deal.payment_mode === "required";
     if (isSelfBookedAppointment) {
       const rawDepositAmount = settings?.appointment_deposit_amount;
       const depositAmount = chargeAmount > 0 ? Math.min(rawDepositAmount || 0, chargeAmount) : rawDepositAmount;
