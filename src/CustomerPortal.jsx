@@ -3918,6 +3918,7 @@ export default function CustomerPortal() {
       .eq("user_id", row.userId)
       .eq("active", true)
       .or(`ends_at.is.null,ends_at.gte.${today}`)
+      .or(`starts_at.is.null,starts_at.lte.${today}`)
       .order("sort_order")
       .then(({ data }) => {
         setShowcaseCampaigns(

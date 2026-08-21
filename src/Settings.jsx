@@ -703,8 +703,8 @@ export function ShowcaseManager({
 
       <h2 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 8px" }}>Kampanyalar</h2>
       <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
-        Vitrin sayfasında gösterilecek kısa duyuru/kampanya kartları. Bitiş tarihi geçen kampanyalar
-        otomatik gizlenir.
+        Vitrin sayfasında gösterilecek kısa duyuru/kampanya kartları. Başlangıç tarihi gelmemiş ya
+        da bitiş tarihi geçmiş kampanyalar otomatik gizlenir.
       </p>
 
       <form

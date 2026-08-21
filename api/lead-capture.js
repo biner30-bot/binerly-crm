@@ -280,6 +280,7 @@ export default async function handler(req, res) {
         .eq("user_id", settings.user_id)
         .eq("active", true)
         .or(`ends_at.is.null,ends_at.gte.${today}`)
+        .or(`starts_at.is.null,starts_at.lte.${today}`)
         .order("sort_order");
       const campaigns = (campaignRows || []).map((c) => ({ id: c.id, title: c.title, description: c.description, startsAt: c.starts_at, endsAt: c.ends_at }));
 
