@@ -10,6 +10,15 @@ function portalUrlFor() {
   return window.location.origin + "/portal";
 }
 
+// shared.jsx'teki isValidPhone ile AYNI mantığın kopyası (route bazlı kod
+// bölme, bkz. portalUrlFor'daki aynı gerekçe) — api/lead-capture.js zaten
+// aynı kontrolü sunucu tarafında da uyguluyor, burası sadece hızlı geri
+// bildirim için.
+function isValidPhone(phone) {
+  const digits = (phone || "").replace(/\D/g, "").replace(/^90/, "").replace(/^0/, "");
+  return /^[2-5]\d{9}$/.test(digits);
+}
+
 // Kamuya açık, giriş gerektirmeyen sayfa — /lead/{token}. KOBİ'nin paylaştığı
 // link/QR koddan gelen bir kişi kendi bilgisini bırakır, KOBİ elle girmez.
 export default function LeadCapturePage() {
@@ -55,6 +64,10 @@ export default function LeadCapturePage() {
     e.preventDefault();
     if (!name.trim() || (!phone.trim() && !email.trim())) {
       setSubmitError("İsim ve telefon veya e-postadan en az biri gerekli.");
+      return;
+    }
+    if (phone.trim() && !isValidPhone(phone)) {
+      setSubmitError("Geçerli bir telefon numarası girin.");
       return;
     }
     setSubmitError("");

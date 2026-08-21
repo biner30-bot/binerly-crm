@@ -13,6 +13,17 @@ export function isFullNameValid(name) {
   return name.trim().split(/\s+/).filter(Boolean).length >= 2;
 }
 
+// api/lead-capture.js'te AYNI mantığın kopyası (kasıtlı - api/*.js src/*.jsx'ten
+// import etmiyor). "0"/"+90"/"90" öneki ve boşluk/tire/parantez toleranslı;
+// geriye kalan 10 hanenin TR alan kodu/operatör deseniyle (2xx-5xx) başlaması
+// gerekir - rastgele "12345" gibi girişleri kayıt anında reddetmek için
+// (bkz. proje geneli mükerrer telefon/e-posta engeliyle AYNI "gerçek engel"
+// kararı, feedback_hard_block_exceptions).
+export function isValidPhone(phone) {
+  const digits = (phone || "").replace(/\D/g, "").replace(/^90/, "").replace(/^0/, "");
+  return /^[2-5]\d{9}$/.test(digits);
+}
+
 // Supabase Auth hataları İngilizce ve teknik geliyor ("Invalid login
 // credentials" vb.) — hem KOBİ girişinde hem müşteri portalında bunu olduğu
 // gibi göstermek kafa karıştırıyor/güvensizlik veriyordu. Bilinen mesajlar

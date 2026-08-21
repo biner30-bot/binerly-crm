@@ -9,6 +9,15 @@ function getClientIp(req) {
   return req.socket?.remoteAddress || "203.0.113.1";
 }
 
+// src/shared.jsx'teki isValidPhone ile AYNI mantığın kopyası (kasıtlı -
+// api/*.js src/*.jsx'ten import etmiyor). İstemci tarafı kontrolü atlatılıp
+// doğrudan bu uca istek atılırsa (form spam/bot) diye sunucu tarafında da
+// zorunlu - tek başına client-side kontrol yeterli bir engel değil.
+function isValidPhone(phone) {
+  const digits = (phone || "").replace(/\D/g, "").replace(/^90/, "").replace(/^0/, "");
+  return /^[2-5]\d{9}$/.test(digits);
+}
+
 // src/Sectors.jsx'teki dealWordKind'ın AYNI mantığı (kasıtlı kopya - api/*.js
 // dosyaları src/*.jsx'ten import etmiyor). Vitrin CTA butonunun etiketini
 // belirler: randevu (Güzellik&Bakım/Sağlık-Klinik), rezervasyon (Otel),
@@ -384,6 +393,7 @@ export default async function handler(req, res) {
   const trimmedAddress = (address || "").trim();
   if (!trimmedName) return res.status(400).json({ error: "İsim gerekli." });
   if (!trimmedPhone && !trimmedEmail) return res.status(400).json({ error: "Telefon veya e-posta gerekli." });
+  if (trimmedPhone && !isValidPhone(trimmedPhone)) return res.status(400).json({ error: "Geçerli bir telefon numarası girin." });
 
   // --- Bekleme listesi kaydı (AppointmentRequestPage, dolu bir gün seçilince
   // "Bu gün için beni haberdar et") --- dateTime/dateTimeKey'den AYRI bir dal:

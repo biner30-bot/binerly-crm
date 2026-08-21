@@ -16,6 +16,15 @@ function istanbulDateStr(date) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
 
+// shared.jsx'teki isValidPhone ile AYNI mantığın kopyası (route bazlı kod
+// bölme, bkz. istanbulDateStr'daki aynı gerekçe) — api/lead-capture.js zaten
+// aynı kontrolü sunucu tarafında da uyguluyor, burası sadece hızlı geri
+// bildirim için.
+function isValidPhone(phone) {
+  const digits = (phone || "").replace(/\D/g, "").replace(/^90/, "").replace(/^0/, "");
+  return /^[2-5]\d{9}$/.test(digits);
+}
+
 // "YYYY-MM-DD" -> "Sal", "15" gibi kısa gün/tarih etiketleri - müsaitlik
 // şeridindeki her gün butonu için. Öğlen saatiyle (12:00 UTC) parse edilir,
 // gece yarısı yakınında gün kaymasın diye (bkz. istanbulDateStr'daki AYNI risk).
@@ -132,6 +141,10 @@ export default function AppointmentRequestPage() {
       setSubmitError("İsim ve telefon veya e-postadan en az biri gerekli.");
       return;
     }
+    if (phone.trim() && !isValidPhone(phone)) {
+      setSubmitError("Geçerli bir telefon numarası girin.");
+      return;
+    }
     const cleanPrefs = timePrefs.filter(Boolean);
     if (requestOnlyMode ? cleanPrefs.length === 0 : !selectedTime || !dateTimeKey) {
       setSubmitError("Lütfen en az bir saat girin.");
@@ -172,6 +185,10 @@ export default function AppointmentRequestPage() {
   const joinWaitlist = async () => {
     if (!name.trim() || (!phone.trim() && !email.trim())) {
       setWaitlistError("Önce aşağıya isim ve telefon veya e-postanızı yazın.");
+      return;
+    }
+    if (phone.trim() && !isValidPhone(phone)) {
+      setWaitlistError("Geçerli bir telefon numarası girin.");
       return;
     }
     setWaitlistError("");

@@ -17,6 +17,7 @@ import {
   DateRangeFilter,
   getPortalUrl,
   IconButton,
+  isValidPhone,
 } from "./shared";
 import {
   CustomFieldsSection,
@@ -142,6 +143,10 @@ export function CustomerForm({
         }
         if (!email.trim() && !phone.trim()) {
           setFormError("Telefon veya e-postadan en az biri girilmelidir.");
+          return;
+        }
+        if (phone.trim() && !isValidPhone(phone)) {
+          setFormError("Geçerli bir telefon numarası girin.");
           return;
         }
         const payload = {
