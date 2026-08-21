@@ -394,9 +394,19 @@ async function resolveAutoAssignResource(supabaseAdmin, businessUserId, serviceI
 // Pano.jsx "Randevu Talepleri" widget'ından ("Bu Saati Öner" butonu) çağrılır -
 // handleRefund ile AYNI owner/team_member Bearer-auth ilkesi. Diğer token
 // bazlı action'lardan farklı olarak burada henüz approval_token yok - dealId
-// ile bulunur, token (yoksa) BURADA üretilir. Gerçek saat/kaynak tahsisi
-// BURADA yapılmaz - sadece bir "teklif" kaydedilip müşteriye gönderilir,
-// atomik tahsis müşteri onayladığı an handleConfirmAppointmentOffer'da olur.
+// ile bulunur, token (yoksa) BURADA üretilir.
+//
+// Saat GERÇEKTEN burada tutulur (sadece bir "hatırlatma" değil) - lead-capture.js
+// POST'taki (dateTime dalı) AYNI atomik pick_free_resource_unit/pick_free_
+// concurrency_slot mantığı (kasıtlı kopya). Bunun nedeni: müşteriye "şu kadar
+// süre geçerli" denip o süre içinde AYNI saat başka bir müşteriye de önerilebilseydi
+// (ya da KOBİ CRM'den elle başka birini o saate alabilseydi) verilen süre bir
+// anlam ifade etmezdi - kullanıcı sorusu (2026-08-21) bu tutarsızlığı buldu.
+// custom_fields[randevu tarihi alanı] BİLEREK BURADA YAZILMAZ - o alan
+// send-appointment-reminders.js'nin ana hatırlatma taramasının kullandığı ALAN,
+// erken yazılırsa müşteri henüz onaylamadan "yarın randevunuz var" maili gider.
+// Reddedilirse/süresi dolarsa handleConfirmAppointmentOffer "no" dalı ve
+// send-appointment-reminders.js'teki auto-expire pass'i bu tutuşu serbest bırakır.
 async function handleSendAppointmentOffer(req, res, supabaseAdmin) {
   const { dealId, offerTime } = req.body || {};
   if (!dealId || !offerTime || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(offerTime)) {
@@ -410,7 +420,7 @@ async function handleSendAppointmentOffer(req, res, supabaseAdmin) {
   const authedUserId = userData?.user?.id || null;
   if (!authedUserId) return res.status(401).json({ error: "Yetkisiz." });
 
-  const { data: deal } = await supabaseAdmin.from("deals").select("id, user_id, customer_id, title, approval_token").eq("id", dealId).is("deleted_at", null).maybeSingle();
+  const { data: deal } = await supabaseAdmin.from("deals").select("id, user_id, customer_id, title, approval_token, custom_fields").eq("id", dealId).is("deleted_at", null).maybeSingle();
   if (!deal) return res.status(404).json({ error: "Kayıt bulunamadı." });
 
   let authorized = authedUserId === deal.user_id;
@@ -420,6 +430,34 @@ async function handleSendAppointmentOffer(req, res, supabaseAdmin) {
   }
   if (!authorized) return res.status(403).json({ error: "Bu işlemi yapma yetkiniz yok." });
 
+  const offerDate = new Date(`${offerTime}:00+03:00`);
+  if (isNaN(offerDate.getTime())) return res.status(400).json({ error: "Geçersiz saat." });
+  const offerIso = offerDate.toISOString();
+  const durationMinutes = Math.max(Number(deal.custom_fields?.duration_minutes) || 0, 1);
+  const endIso = new Date(offerDate.getTime() + durationMinutes * 60000).toISOString();
+
+  const serviceIds = Array.isArray(deal.custom_fields?.service_ids) ? deal.custom_fields.service_ids : [];
+  const conflictError = { error: "Bu saat başka bir randevuyla dolu, lütfen farklı bir saat seçin." };
+
+  let resourceUnitId = null;
+  const autoResourceId = await resolveAutoAssignResource(supabaseAdmin, deal.user_id, serviceIds);
+  if (autoResourceId) {
+    for (let attempt = 0; attempt < 3 && !resourceUnitId; attempt++) {
+      const { data: unitId } = await supabaseAdmin.rpc("pick_free_resource_unit", { p_resource_id: autoResourceId, p_start: offerIso, p_end: endIso, p_exclude_deal_id: deal.id });
+      if (!unitId) break;
+      resourceUnitId = unitId;
+    }
+    if (!resourceUnitId) return res.status(409).json(conflictError);
+  }
+
+  let concurrencySlotId = null;
+  for (let attempt = 0; attempt < 3 && !concurrencySlotId; attempt++) {
+    const { data: slotId } = await supabaseAdmin.rpc("pick_free_concurrency_slot", { p_user_id: deal.user_id, p_start: offerIso, p_end: endIso, p_exclude_deal_id: deal.id });
+    if (!slotId) break;
+    concurrencySlotId = slotId;
+  }
+  if (!concurrencySlotId) return res.status(409).json(conflictError);
+
   const [{ data: customer }, { data: settings }] = await Promise.all([
     supabaseAdmin.from("customers").select("name, email, phone").eq("id", deal.customer_id).maybeSingle(),
     supabaseAdmin.from("company_settings").select("company_name, logo_url, email, appointment_offer_validity_hours").eq("user_id", deal.user_id).maybeSingle(),
@@ -427,7 +465,6 @@ async function handleSendAppointmentOffer(req, res, supabaseAdmin) {
 
   const token = deal.approval_token || crypto.randomUUID();
   const validityHours = Math.max(1, Number(settings?.appointment_offer_validity_hours) || 24);
-  const offerIso = new Date(`${offerTime}:00+03:00`).toISOString();
   const expiresAt = new Date(Date.now() + validityHours * 60 * 60 * 1000).toISOString();
 
   const { error: updateError } = await supabaseAdmin.from("deals").update({
@@ -435,8 +472,15 @@ async function handleSendAppointmentOffer(req, res, supabaseAdmin) {
     appointment_offer_time: offerIso,
     appointment_offer_expires_at: expiresAt,
     appointment_offer_status: "sent",
+    resource_unit_id: resourceUnitId,
+    concurrency_slot_id: concurrencySlotId,
+    appointment_start: offerIso,
+    appointment_end: endIso,
   }).eq("id", deal.id);
-  if (updateError) return res.status(500).json({ error: updateError.message });
+  if (updateError) {
+    if (updateError.code === "23P01") return res.status(409).json(conflictError);
+    return res.status(500).json({ error: updateError.message });
+  }
 
   const company = settings?.company_name || "Binerly";
   const dateLabel = formatOfferDateTime(new Date(offerIso));
@@ -475,11 +519,13 @@ async function handleSendAppointmentOffer(req, res, supabaseAdmin) {
 
 // "Randevu Talepleri" teklif e-postasındaki Evet/Hayır linklerinin hedefi -
 // handleConfirmAttendance ile AYNI güvenlik ilkesi (gerçek mutasyon SADECE
-// POST'ta). "Evet"te bu deal'in HENÜZ gerçek bir randevu saati/kaynak/
-// concurrency-slot'u yok - lead-capture.js POST'taki (dateTime dalı) AYNI
-// atomik tahsis mantığı (kasıtlı kopya) burada ÇALIŞTIRILIR, çünkü müşteri
-// onayladığı ana kadar KOBİ CRM'den elle o saate başka bir randevu da almış
-// olabilir - bu son savunma hattı.
+// POST'ta). Saat/kaynak/concurrency-slot ZATEN handleSendAppointmentOffer'da
+// atomik olarak tutulmuş durumda - "Evet" burada sadece bu tutuşu kalıcı
+// (custom_fields'taki randevu tarihi alanına yazarak müşteri/hatırlatma
+// akışlarına görünür) hale getirir, YENİDEN bir tahsis denemesi yapmaz.
+// "Hayır" ve süresi dolma durumları ise tutuşu SERBEST BIRAKIR (resource_unit_id/
+// concurrency_slot_id/appointment_start/end null'lanır) - aksi halde reddedilen/
+// süresi dolan bir teklif o saati sonsuza kadar hayalet gibi işgal ederdi.
 async function handleConfirmAppointmentOffer(req, res, supabaseAdmin, deal, settings, response, token) {
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   if (response !== "yes" && response !== "no") {
@@ -488,10 +534,10 @@ async function handleConfirmAppointmentOffer(req, res, supabaseAdmin, deal, sett
 
   const logoUrl = settings?.logo_url;
   const company = settings?.company_name || "Binerly";
-  const conflictPage = () => res.status(200).send(renderAttendancePage({
-    logoUrl, title: "Bu saat az önce doldu",
-    message: `Üzgünüz, önerilen saat az önce başka bir randevuyla doldu. ${company} sizinle en kısa sürede yeni bir saat için tekrar iletişime geçecek.`,
-  }));
+  const releaseHold = (extra) => supabaseAdmin
+    .from("deals")
+    .update({ resource_unit_id: null, concurrency_slot_id: null, appointment_start: null, appointment_end: null, ...extra })
+    .eq("id", deal.id);
 
   if (!deal.appointment_offer_time || deal.appointment_offer_status !== "sent") {
     return res.status(200).send(renderAttendancePage({
@@ -502,7 +548,7 @@ async function handleConfirmAppointmentOffer(req, res, supabaseAdmin, deal, sett
 
   const expired = deal.appointment_offer_expires_at && new Date(deal.appointment_offer_expires_at).getTime() < Date.now();
   if (expired) {
-    await supabaseAdmin.from("deals").update({ appointment_offer_status: "expired" }).eq("id", deal.id).eq("appointment_offer_status", "sent");
+    await releaseHold({ appointment_offer_status: "expired" }).eq("appointment_offer_status", "sent");
     return res.status(200).send(renderAttendancePage({
       logoUrl, title: "Bu teklifin süresi doldu",
       message: `Önerilen randevu saatinin geçerlilik süresi doldu. Lütfen ${company} ile tekrar iletişime geçin.`,
@@ -535,44 +581,15 @@ async function handleConfirmAppointmentOffer(req, res, supabaseAdmin, deal, sett
       return res.status(200).send(renderAttendancePage({ logoUrl, title: "Bir sorun oluştu", message: `Randevu alanı bulunamadı, lütfen ${company} ile iletişime geçin.` }));
     }
 
-    const serviceIds = Array.isArray(deal.custom_fields?.service_ids) ? deal.custom_fields.service_ids : [];
-    const durationMinutes = Math.max(Number(deal.custom_fields?.duration_minutes) || 0, 1);
-    const startIso = deal.appointment_offer_time;
-    const endIso = new Date(offerDate.getTime() + durationMinutes * 60000).toISOString();
-
-    let resourceUnitId = null;
-    const autoResourceId = await resolveAutoAssignResource(supabaseAdmin, deal.user_id, serviceIds);
-    if (autoResourceId) {
-      for (let attempt = 0; attempt < 3 && !resourceUnitId; attempt++) {
-        const { data: unitId } = await supabaseAdmin.rpc("pick_free_resource_unit", { p_resource_id: autoResourceId, p_start: startIso, p_end: endIso, p_exclude_deal_id: deal.id });
-        if (!unitId) break;
-        resourceUnitId = unitId;
-      }
-      if (!resourceUnitId) return conflictPage();
-    }
-
-    let concurrencySlotId = null;
-    for (let attempt = 0; attempt < 3 && !concurrencySlotId; attempt++) {
-      const { data: slotId } = await supabaseAdmin.rpc("pick_free_concurrency_slot", { p_user_id: deal.user_id, p_start: startIso, p_end: endIso, p_exclude_deal_id: deal.id });
-      if (!slotId) break;
-      concurrencySlotId = slotId;
-    }
-    if (!concurrencySlotId) return conflictPage();
-
     const dateTimeLocalStr = toIstanbulLocalString(offerDate);
     const { error: updateError } = await supabaseAdmin
       .from("deals")
       .update({
-        resource_unit_id: resourceUnitId,
-        concurrency_slot_id: concurrencySlotId,
-        appointment_start: startIso,
-        appointment_end: endIso,
         custom_fields: { ...(deal.custom_fields || {}), [dtKey]: dateTimeLocalStr, portal_randevu_zamani: dateTimeLocalStr },
         appointment_offer_status: "confirmed",
       })
       .eq("id", deal.id);
     if (updateError) {
-      if (updateError.code === "23P01") return conflictPage();
       return res.status(500).send(renderAttendancePage({ logoUrl, title: "Bir sorun oluştu", message: `Lütfen tekrar deneyin veya ${company} ile iletişime geçin.` }));
     }
 
@@ -592,7 +609,7 @@ async function handleConfirmAppointmentOffer(req, res, supabaseAdmin, deal, sett
     }));
   }
 
-  await supabaseAdmin.from("deals").update({ appointment_offer_status: "declined" }).eq("id", deal.id);
+  await releaseHold({ appointment_offer_status: "declined" });
   await supabaseAdmin.from("activities").insert({
     id: crypto.randomUUID(), user_id: deal.user_id, customer_id: deal.customer_id, type: "note",
     content: `Müşteri, önerilen ${dateLabel} randevu saatini e-posta üzerinden reddetti.`,

@@ -40,12 +40,18 @@ export default async function handler(req, res) {
   // KOBİ'ye "başka bir saat önerin" gösterir. Müşteri hiç tıklamazsa
   // (api/deal-approval.js handleConfirmAppointmentOffer'daki expired kontrolü
   // SADECE linke tıklanınca çalışır) bu geçiş olmadan deal sonsuza kadar
-  // "teklif gönderildi" görünürdü. Aşağıdaki asıl hatırlatma mantığından
-  // BAĞIMSIZ, kendi try/catch'i içinde - biri başarısız olursa diğerini engellemesin.
+  // "teklif gönderildi" görünürdü. resource_unit_id/concurrency_slot_id/
+  // appointment_start/end de BURADA serbest bırakılır - handleSendAppointmentOffer
+  // saati gönderdiği anda atomik olarak TUTUYOR (2026-08-21, kullanıcı sorusu
+  // üzerine eklendi: aksi halde geçerlilik süresi verilen bir teklif aslında
+  // hiçbir şeyi garanti etmiyordu), süresi dolan bir teklif bu tutuşu
+  // bırakmazsa o saat hayalet gibi sonsuza kadar işgal edilmiş kalırdı.
+  // Aşağıdaki asıl hatırlatma mantığından BAĞIMSIZ, kendi try/catch'i içinde -
+  // biri başarısız olursa diğerini engellemesin.
   try {
     const { error: expireOffersError } = await supabaseAdmin
       .from("deals")
-      .update({ appointment_offer_status: "expired" })
+      .update({ appointment_offer_status: "expired", resource_unit_id: null, concurrency_slot_id: null, appointment_start: null, appointment_end: null })
       .eq("appointment_offer_status", "sent")
       .lt("appointment_offer_expires_at", new Date().toISOString())
       .is("deleted_at", null);
