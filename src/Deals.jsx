@@ -3485,7 +3485,7 @@ export function TeklifPrint({
             background: "#fff",
           }}
         >
-          {renderTemplateBlocks(template.blocks, mergeData, printLineItems)}
+          {renderTemplateBlocks(template.blocks, mergeData, printLineItems, deal.value)}
         </div>
       </div>
     </div>

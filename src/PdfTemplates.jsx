@@ -69,7 +69,12 @@ export function buildMergeData({
 // hesaplanır.
 export const TABLE_ROW_HEIGHT = 32;
 
-export function renderTemplateBlocks(blocks, mergeData, lineItems = []) {
+// grossTotalOverride: deal.value gibi, indirim uygulanmis GERCEK genel toplam.
+// Verilmezse (orn. sablon onizlemesinde deal yok) tablo kendi kalem toplamini
+// kullanir. Verilirse Ara Toplam/KDV/Genel Toplam bu degerden turetilir - aksi
+// halde tablo bloğu kalemlerden kendi grossSum'ini hesaplayip deal uzerindeki
+// indirimi yok sayar, PDF'te musteriye indirimsiz (daha yuksek) tutar gosterilirdi.
+export function renderTemplateBlocks(blocks, mergeData, lineItems = [], grossTotalOverride) {
   const kdvRate = Number(mergeData.kdv_orani) || 0;
   const items =
     lineItems.length > 0
@@ -167,7 +172,9 @@ export function renderTemplateBlocks(blocks, mergeData, lineItems = []) {
           </tr>
         );
       });
-      const kdvSum = grossSum - netSum;
+      const finalGross = grossTotalOverride ?? grossSum;
+      const finalNet = kdvRate > 0 ? finalGross / (1 + kdvRate / 100) : finalGross;
+      const finalKdv = finalGross - finalNet;
       return (
         // tableLayout:"fixed" + <colgroup> olmadan, bir <table> CSS width'i içerik
         // uzunsa yalnızca bir alt sınır gibi davranıyor — tablo, sağdaki Tutar
@@ -219,13 +226,13 @@ export function renderTemplateBlocks(blocks, mergeData, lineItems = []) {
             <tr>
               <td style={{ padding: "6px 0", fontSize: 13, color: "#5b7088" }}>Ara toplam</td>
               <td style={{ padding: "6px 0", fontSize: 13, color: "#5b7088", textAlign: "right" }}>
-                {formatTL(netSum)}
+                {formatTL(finalNet)}
               </td>
             </tr>
             <tr>
               <td style={{ padding: "6px 0", fontSize: 13, color: "#5b7088" }}>KDV (%{kdvRate})</td>
               <td style={{ padding: "6px 0", fontSize: 13, color: "#5b7088", textAlign: "right" }}>
-                {formatTL(kdvSum)}
+                {formatTL(finalKdv)}
               </td>
             </tr>
             <tr>
@@ -250,7 +257,7 @@ export function renderTemplateBlocks(blocks, mergeData, lineItems = []) {
                   color: accent,
                 }}
               >
-                {formatTL(grossSum)}
+                {formatTL(finalGross)}
               </td>
             </tr>
           </tfoot>
