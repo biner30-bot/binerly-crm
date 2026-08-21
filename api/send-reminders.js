@@ -76,7 +76,7 @@ export default async function handler(req, res) {
     // eden aynı desen: stok yeniden eşiğin üzerine çıkınca kendiliğinden kesilir.
     const { data: stockCandidateRows, error: stockError } = await supabaseAdmin
       .from("stock_items")
-      .select("id, user_id, name, unit, quantity_on_hand, reorder_threshold")
+      .select("id, user_id, name, unit, quantity_on_hand, reorder_threshold, supplier_name")
       .is("deleted_at", null)
       .not("reorder_threshold", "is", null);
     if (stockError) {
@@ -376,7 +376,9 @@ export default async function handler(req, res) {
       }
 
       const stockLines = userLowStock.map(
-        (s) => `- ${s.name}: ${s.quantity_on_hand} ${s.unit || "adet"} kaldı (eşik: ${s.reorder_threshold})`,
+        (s) =>
+          `- ${s.name}: ${s.quantity_on_hand} ${s.unit || "adet"} kaldı (eşik: ${s.reorder_threshold})` +
+          (s.supplier_name ? ` - tedarikçi: ${s.supplier_name}` : ""),
       );
       const stockBodyText = `Kritik stok seviyesindeki kalemler:\n\n${stockLines.join("\n")}\n\nBinerly'ye giriş yaparak stok kalemlerinizi görüntüleyebilirsiniz.`;
       const stockFooterLines = ["Binerly Ekibi"];
