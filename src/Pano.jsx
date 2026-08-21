@@ -92,6 +92,7 @@ export default function Pano({
   setShowSectorFields,
   setShowCustomerForm,
   attemptMoveDealStage,
+  handleUseSessionClick,
   customerById,
   promoteFromWaitlistIfAny,
   generateApprovalLink,
@@ -342,13 +343,13 @@ export default function Pano({
             <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>
               Bugünün Randevuları ({pendingArrivalConfirmations.length})
             </p>
-            {pendingArrivalConfirmations.length > 1 && (
+            {pendingArrivalConfirmations.filter(({ deal }) => !deal.sessionTotal).length > 1 && (
               <button
                 type="button"
                 onClick={() =>
-                  pendingArrivalConfirmations.forEach(({ deal }) =>
-                    attemptMoveDealStage(deal.id, "kazanildi"),
-                  )
+                  pendingArrivalConfirmations
+                    .filter(({ deal }) => !deal.sessionTotal)
+                    .forEach(({ deal }) => attemptMoveDealStage(deal.id, "kazanildi"))
                 }
                 style={{ fontSize: 12 }}
               >
@@ -399,7 +400,11 @@ export default function Pano({
                   >
                     {apptTime.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} -{" "}
                     {vipCustomerIds?.has(deal.customerId) && <span title="VIP müşteri">⭐ </span>}
-                    {c?.name || "Bilinmeyen müşteri"} ({deal.title})
+                    {c?.name || "Bilinmeyen müşteri"} ({deal.title}
+                    {deal.sessionTotal > 0
+                      ? ` · ${deal.sessionUsed}/${deal.sessionTotal} seans`
+                      : ""}
+                    )
                   </span>
                   {reliability.tier === "riskli" && (
                     <span
@@ -417,20 +422,36 @@ export default function Pano({
                       ✓ Güvenilir
                     </span>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => attemptMoveDealStage(deal.id, "kazanildi")}
-                    style={{ fontSize: 12, flexShrink: 0 }}
-                  >
-                    Geldi ✓
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => attemptMoveDealStage(deal.id, "kaybedildi")}
-                    style={{ fontSize: 12, flexShrink: 0 }}
-                  >
-                    Gelmedi/İptal
-                  </button>
+                  {deal.sessionTotal > 0 ? (
+                    // Paket teklifi: "Geldi ✓" burada YANLIŞ olur - stage=kazanıldı
+                    // tüm paketi kapatır, tek bir seansın kullanımını değil. Bunun
+                    // yerine Deals.jsx'teki (Randevular sekmesi) "Seans kullanıldı"
+                    // ile AYNI aksiyon (handleUseSessionClick → incrementSessionUsage).
+                    <button
+                      type="button"
+                      onClick={() => handleUseSessionClick(deal)}
+                      style={{ fontSize: 12, flexShrink: 0 }}
+                    >
+                      Seans kullanıldı
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => attemptMoveDealStage(deal.id, "kazanildi")}
+                        style={{ fontSize: 12, flexShrink: 0 }}
+                      >
+                        Geldi ✓
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => attemptMoveDealStage(deal.id, "kaybedildi")}
+                        style={{ fontSize: 12, flexShrink: 0 }}
+                      >
+                        Gelmedi/İptal
+                      </button>
+                    </>
+                  )}
                 </div>
               );
             })}

@@ -4360,13 +4360,13 @@ export default function App() {
   // Randevu sektörlerinde (anlık işlem yapılıp aynı gün kapanan randevular)
   // aşama değişikliği elle kanban/liste ile uğraşmak yerine tek tık onaya
   // indirgeniyor — saati geçmiş, hâlâ açık randevular burada toplanır. Paket
-  // teklifleri (sessionTotal>0) BİLEREK hariç: bir paketin "kazanıldı"ya
-  // taşınması tüm paketi kapatır, tek bir seansın kullanımını değil — paket
-  // seans sayacı ayrı bir akışla (incrementSessionUsage) yönetilmeye devam
-  // ediyor, bkz. project_binerly_beauty_pipeline_fit_question.
+  // teklifleri (sessionTotal>0) de DAHİL - ama "Geldi ✓" (kazanıldı'ya taşıma,
+  // tüm paketi kapatır) yerine Pano'da incrementSessionUsage ile aynı "Seans
+  // kullanıldı" aksiyonu gösterilir (bkz. handleUseSessionClick). Tükenmiş bir
+  // paket (sessionUsed >= sessionTotal) burada anlamsız olduğu için hariç.
   const pendingArrivalConfirmations = isAppointmentSector(companySettings?.sector) && appointmentDateTimeKey
     ? deals
-        .filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi" && !(d.sessionTotal > 0))
+        .filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi" && !(d.sessionTotal > 0 && d.sessionUsed >= d.sessionTotal))
         .map((d) => {
           const raw = d.customFields?.[appointmentDateTimeKey];
           const apptTime = raw ? new Date(`${raw}:00+03:00`) : null;
@@ -4781,6 +4781,7 @@ export default function App() {
           setShowSectorFields={setShowSectorFields}
           setShowCustomerForm={setShowCustomerForm}
           attemptMoveDealStage={attemptMoveDealStage}
+          handleUseSessionClick={handleUseSessionClick}
           customerById={customerById}
           promoteFromWaitlistIfAny={promoteFromWaitlistIfAny}
           generateApprovalLink={generateApprovalLink}
