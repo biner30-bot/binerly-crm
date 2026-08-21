@@ -3409,6 +3409,9 @@ export default function App() {
   // diğer entity'nin sort_order'larına dokunmaz.
   const reorderCustomFieldDefs = async (entity, orderedIds) => {
     const orderById = new Map(orderedIds.map((id, i) => [id, i]));
+    const prevOrder = new Map(
+      customFieldDefs.filter((d) => orderById.has(d.id)).map((d) => [d.id, d.sortOrder]),
+    );
     setCustomFieldDefs((prev) =>
       prev.map((d) => (orderById.has(d.id) ? { ...d, sortOrder: orderById.get(d.id) } : d)),
     );
@@ -3416,7 +3419,12 @@ export default function App() {
       orderedIds.map((id, i) => supabase.from("custom_field_defs").update({ sort_order: i }).eq("id", id)),
     );
     const failed = results.find((r) => r.error);
-    if (failed) notify(`Sıralama kaydedilemedi: ${failed.error.message}`);
+    if (failed) {
+      notify(`Sıralama kaydedilemedi: ${failed.error.message}`);
+      setCustomFieldDefs((prev) =>
+        prev.map((d) => (prevOrder.has(d.id) ? { ...d, sortOrder: prevOrder.get(d.id) } : d)),
+      );
+    }
   };
 
   const addPriceListItem = async ({ name, price, refreshDays, durationMinutes, resourceId, parallelGroup }) => {
@@ -3458,6 +3466,9 @@ export default function App() {
 
   const reorderPriceListItems = async (orderedIds) => {
     const orderById = new Map(orderedIds.map((id, i) => [id, i]));
+    const prevOrder = new Map(
+      priceListItems.filter((p) => orderById.has(p.id)).map((p) => [p.id, p.sortOrder]),
+    );
     setPriceListItems((prev) =>
       prev.map((p) => (orderById.has(p.id) ? { ...p, sortOrder: orderById.get(p.id) } : p)),
     );
@@ -3465,7 +3476,12 @@ export default function App() {
       orderedIds.map((id, i) => supabase.from("price_list_items").update({ sort_order: i }).eq("id", id)),
     );
     const failed = results.find((r) => r.error);
-    if (failed) notify(`Sıralama kaydedilemedi: ${failed.error.message}`);
+    if (failed) {
+      notify(`Sıralama kaydedilemedi: ${failed.error.message}`);
+      setPriceListItems((prev) =>
+        prev.map((p) => (prevOrder.has(p.id) ? { ...p, sortOrder: prevOrder.get(p.id) } : p)),
+      );
+    }
   };
 
   const addShowcaseCampaign = async ({ title, description, startsAt, endsAt }) => {
@@ -3490,6 +3506,9 @@ export default function App() {
 
   const reorderShowcaseCampaigns = async (orderedIds) => {
     const orderById = new Map(orderedIds.map((id, i) => [id, i]));
+    const prevOrder = new Map(
+      showcaseCampaigns.filter((c) => orderById.has(c.id)).map((c) => [c.id, c.sortOrder]),
+    );
     setShowcaseCampaigns((prev) =>
       prev.map((c) => (orderById.has(c.id) ? { ...c, sortOrder: orderById.get(c.id) } : c)),
     );
@@ -3497,7 +3516,12 @@ export default function App() {
       orderedIds.map((id, i) => supabase.from("showcase_campaigns").update({ sort_order: i }).eq("id", id)),
     );
     const failed = results.find((r) => r.error);
-    if (failed) notify(`Sıralama kaydedilemedi: ${failed.error.message}`);
+    if (failed) {
+      notify(`Sıralama kaydedilemedi: ${failed.error.message}`);
+      setShowcaseCampaigns((prev) =>
+        prev.map((c) => (prevOrder.has(c.id) ? { ...c, sortOrder: prevOrder.get(c.id) } : c)),
+      );
+    }
   };
 
   const addStockItem = async ({ name, unit, quantityOnHand, reorderThreshold, supplierName, unitCost }) => {
@@ -3525,6 +3549,9 @@ export default function App() {
 
   const reorderStockItems = async (orderedIds) => {
     const orderById = new Map(orderedIds.map((id, i) => [id, i]));
+    const prevOrder = new Map(
+      stockItems.filter((s) => orderById.has(s.id)).map((s) => [s.id, s.sortOrder]),
+    );
     setStockItems((prev) =>
       prev.map((s) => (orderById.has(s.id) ? { ...s, sortOrder: orderById.get(s.id) } : s)),
     );
@@ -3532,7 +3559,12 @@ export default function App() {
       orderedIds.map((id, i) => supabase.from("stock_items").update({ sort_order: i }).eq("id", id)),
     );
     const failed = results.find((r) => r.error);
-    if (failed) notify(`Sıralama kaydedilemedi: ${failed.error.message}`);
+    if (failed) {
+      notify(`Sıralama kaydedilemedi: ${failed.error.message}`);
+      setStockItems((prev) =>
+        prev.map((s) => (prevOrder.has(s.id) ? { ...s, sortOrder: prevOrder.get(s.id) } : s)),
+      );
+    }
   };
 
   const addPriceItemIngredient = async ({ priceItemId, stockItemId, quantity }) => {
