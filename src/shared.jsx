@@ -353,6 +353,14 @@ export function formatTL(n) {
   return new Intl.NumberFormat("tr-TR").format(Math.round(n || 0)) + " TL";
 }
 
+// ilike/like sorgularında kullanıcıdan gelen bir değeri (örn. oturum e-postası)
+// desen olarak geçirmeden önce % ve _ karakterlerini kaçırır - aksi halde bu
+// karakterleri içeren bir e-posta adresi (örn. "j_n@x.com") wildcard gibi
+// davranıp başka bir kaydı eşleştirebilir.
+export function escapeIlikePattern(value) {
+  return String(value ?? "").replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
 // portal.binerly.com üretimde ayrı bir alt alan adı; ama binerly.com/portal linki
 // müşterilere zaten gönderilmiş olabileceğinden hâlâ çalışmalı, ve localhost/önizleme
 // dağıtımlarında alt alan adı tanımlı olmadığından eski /portal yoluna düşülür.

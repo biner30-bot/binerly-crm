@@ -23,6 +23,7 @@ import {
   InitialsAvatar,
   SegmentedControl,
   THEME_OPTIONS,
+  escapeIlikePattern,
 } from "./shared";
 import {
   STAGES,
@@ -3231,7 +3232,7 @@ export default function CustomerPortal() {
           .update({ portal_user_id: session.user.id })
           .is("portal_user_id", null)
           .is("deleted_at", null)
-          .ilike("email", session.user.email);
+          .ilike("email", escapeIlikePattern(session.user.email));
 
         // Önce sadece kendi bağlı müşteri kayıtlarımızı öğreniyoruz, sonra tickets/ticket_messages
         // sorgularını bilerek bu customer_id'lerle sınırlıyoruz — RLS'e tek başına güvenmiyoruz,
