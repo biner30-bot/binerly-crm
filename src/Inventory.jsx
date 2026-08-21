@@ -1646,6 +1646,7 @@ export function StockManager({
                         key={row.id}
                         style={{
                           display: "flex",
+                          flexWrap: "wrap",
                           justifyContent: "space-between",
                           alignItems: "center",
                           gap: 8,
@@ -1655,8 +1656,28 @@ export function StockManager({
                           padding: "8px 12px",
                         }}
                       >
-                        <span style={{ fontSize: 13 }}>{stockItem?.name || "Silinmiş kalem"}</span>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span
+                          style={{
+                            fontSize: 13,
+                            flex: 1,
+                            minWidth: 0,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {stockItem?.name || "Silinmiş kalem"}
+                        </span>
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            justifyContent: "flex-end",
+                            alignItems: "center",
+                            gap: 6,
+                            minWidth: 0,
+                          }}
+                        >
                           <Badge tone="accent">
                             {row.quantity} {stockItem?.unit || ""}
                           </Badge>

@@ -1294,10 +1294,13 @@ export function NotificationBell({ userId, supabase, dataTour }) {
 
   const openNotification = async (n) => {
     if (!n.read_at) {
-      await supabase
-        .from("notifications")
-        .update({ read_at: new Date().toISOString() })
-        .eq("id", n.id);
+      const readAt = new Date().toISOString();
+      await supabase.from("notifications").update({ read_at: readAt }).eq("id", n.id);
+      // n.url varsa sayfa zaten degisiyor (state onemsiz olur) ama url'siz bir
+      // bildirimde dropdown acik kalmaya devam ediyor - local state guncellenmezse
+      // rozet/kalin yazi tipi bir sonraki load()'a kadar (dropdown kapanip
+      // acilana dek) yanlislikla "okunmamis" gorunmeye devam ederdi.
+      setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read_at: readAt } : x)));
     }
     if (n.url) window.location.assign(n.url);
     else setOpen(false);
