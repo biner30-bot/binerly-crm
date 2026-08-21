@@ -2882,8 +2882,8 @@ function PortalSettings({
       notify("Ad Soyad boş olamaz.");
       return;
     }
-    if (!profilePhone.trim()) {
-      notify("Telefon gerekli.");
+    if (!profilePhone.trim() || !profileEmail.trim()) {
+      notify("Telefon ve e-posta gerekli.");
       return;
     }
     if (!isValidPhone(profilePhone)) {
@@ -2955,11 +2955,12 @@ function PortalSettings({
                   marginBottom: 4,
                 }}
               >
-                Ad Soyad
+                Ad Soyad *
               </label>
               <input
                 value={profileName}
                 onChange={(e) => setProfileName(e.target.value)}
+                required
                 style={{ width: "100%" }}
               />
             </div>
@@ -2972,7 +2973,7 @@ function PortalSettings({
                   marginBottom: 4,
                 }}
               >
-                Telefon
+                Telefon *
               </label>
               <input
                 type="tel"
@@ -2991,12 +2992,13 @@ function PortalSettings({
                   marginBottom: 4,
                 }}
               >
-                E-posta (opsiyonel)
+                E-posta *
               </label>
               <input
                 type="email"
                 value={profileEmail}
                 onChange={(e) => setProfileEmail(e.target.value)}
+                required
                 style={{ width: "100%" }}
               />
             </div>

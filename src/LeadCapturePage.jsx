@@ -62,8 +62,8 @@ export default function LeadCapturePage() {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!name.trim() || !phone.trim()) {
-      setSubmitError("İsim ve telefon gerekli.");
+    if (!name.trim() || !phone.trim() || !email.trim()) {
+      setSubmitError("İsim, telefon ve e-posta gerekli.");
       return;
     }
     if (!isValidPhone(phone)) {
@@ -158,7 +158,7 @@ export default function LeadCapturePage() {
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Ad Soyad / Firma"
+                  placeholder="Ad Soyad / Firma *"
                   required
                   style={{ width: "100%" }}
                 />
@@ -168,7 +168,7 @@ export default function LeadCapturePage() {
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Telefon"
+                  placeholder="Telefon *"
                   required
                   style={{ width: "100%" }}
                 />
@@ -178,7 +178,8 @@ export default function LeadCapturePage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="E-posta (opsiyonel)"
+                  placeholder="E-posta *"
+                  required
                   style={{ width: "100%" }}
                 />
               </div>

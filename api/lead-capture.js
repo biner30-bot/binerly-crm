@@ -392,13 +392,17 @@ export default async function handler(req, res) {
   const trimmedEmail = (email || "").trim();
   const trimmedAddress = (address || "").trim();
   if (!trimmedName) return res.status(400).json({ error: "İsim gerekli." });
-  // Widget/lead-capture (misafir) kayıtlarında telefon artık zorunlu - e-posta
-  // hâlâ opsiyonel ek bilgi. CRM'deki manuel müşteri formunda (Customers.jsx)
+  // Widget/lead-capture (misafir) kayıtlarında telefon VE e-posta artık ikisi
+  // de zorunlu - notifyCustomerByEmail (App.jsx) e-posta yoksa teklif/randevu
+  // onay linki, ödeme bildirimi gibi TÜM operasyonel bildirimleri sessizce
+  // atlıyor (SMS altyapısı henüz yok), o yüzden e-postasız bir kayıt hiçbir
+  // bildirim alamıyordu. CRM'deki manuel müşteri formunda (Customers.jsx)
   // BİLİNÇLİ OLARAK farklı: orada KOBİ zaten güvenilir bir kullanıcı ve bazı
   // B2B müşterilerin (Emlak, Dijital Ajans vb.) sadece e-postası olabilir, o
   // yüzden orada hâlâ telefon-veya-e-posta yeterli.
   if (!trimmedPhone) return res.status(400).json({ error: "Telefon gerekli." });
   if (!isValidPhone(trimmedPhone)) return res.status(400).json({ error: "Geçerli bir telefon numarası girin." });
+  if (!trimmedEmail) return res.status(400).json({ error: "E-posta gerekli." });
 
   // --- Bekleme listesi kaydı (AppointmentRequestPage, dolu bir gün seçilince
   // "Bu gün için beni haberdar et") --- dateTime/dateTimeKey'den AYRI bir dal:
