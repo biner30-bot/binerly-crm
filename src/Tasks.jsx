@@ -244,9 +244,13 @@ export default function Tasks({
   });
 
   const saveTask = async (t) => {
-    await onSave(t);
-    setShowForm(false);
-    setEditingTask(null);
+    const ok = await onSave(t);
+    // Basarisiz kaydetmede formu kapatmiyoruz - aksi halde kullanicinin
+    // az once yazdigi baslik/not hata toast'iyla birlikte kaybolurdu.
+    if (ok) {
+      setShowForm(false);
+      setEditingTask(null);
+    }
   };
 
   return (

@@ -913,7 +913,7 @@ export function PaymentCredentialForm({ credential, onSave, onDelete, onClose })
     e.preventDefault();
     if (!requiredFilled) return;
     setSaving(true);
-    await onSave({
+    const ok = await onSave({
       provider,
       apiKey: apiKey.trim(),
       secretKey: secretKey.trim(),
@@ -922,7 +922,9 @@ export function PaymentCredentialForm({ credential, onSave, onDelete, onClose })
       maxInstallment,
     });
     setSaving(false);
-    onClose();
+    // Basarisiz kaydetmede formu kapatmiyoruz - aksi halde kullanicinin
+    // az once girdigi API key/secret hata toast'iyla birlikte kaybolurdu.
+    if (ok) onClose();
   };
 
   return (

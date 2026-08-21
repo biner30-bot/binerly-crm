@@ -2096,10 +2096,11 @@ export default function App() {
       deal_id: t.dealId || null,
     };
     const { data, error } = await supabase.from("tasks").upsert(row).select().single();
-    if (error) { notify(`Görev kaydedilemedi: ${error.message}`); return; }
+    if (error) { notify(`Görev kaydedilemedi: ${error.message}`); return false; }
     const task = rowToTask(data);
     setTasks((prev) => (isNew ? [...prev, task] : prev.map((x) => (x.id === task.id ? task : x))));
     logAction("tasks", task.id, isNew ? "created" : "updated", `"${task.title}" görevi ${isNew ? "eklendi" : "güncellendi"}`);
+    return true;
   };
 
   const deleteTask = async (id) => {
@@ -2585,7 +2586,7 @@ export default function App() {
       .delete()
       .eq("user_id", activeTeamId)
       .neq("provider", provider);
-    if (deleteError) { notify(`Bağlantı kaydedilemedi: ${deleteError.message}`); return; }
+    if (deleteError) { notify(`Bağlantı kaydedilemedi: ${deleteError.message}`); return false; }
 
     const row = {
       user_id: activeTeamId, provider, api_key: apiKey, secret_key: secretKey,
@@ -2597,10 +2598,11 @@ export default function App() {
       .upsert(row, { onConflict: "user_id,provider" })
       .select("id, user_id, provider, sandbox, max_installment, connected_at")
       .single();
-    if (error) { notify(`Bağlantı kaydedilemedi: ${error.message}`); return; }
+    if (error) { notify(`Bağlantı kaydedilemedi: ${error.message}`); return false; }
     const credential = rowToPaymentCredential(data);
     setPaymentCredentials([credential]);
     notify(`${provider === "paytr" ? "PayTR" : "iyzico"} bağlandı.`, "success");
+    return true;
   };
 
   const deletePaymentCredential = async (provider) => {
