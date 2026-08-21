@@ -3353,7 +3353,7 @@ export default function App() {
     if (row.sector && row.sector !== companySettings?.sector) await applySectorCustomFields(row.sector);
   };
 
-  const addCustomFieldDef = async ({ entity, key, label, type, options, sector = null, audience = null }) => {
+  const addCustomFieldDef = async ({ entity, key, label, type, options, sector = null, audience = null, sortOrder }) => {
     const entitySortOrders = customFieldDefs.filter((d) => d.entity === entity).map((d) => d.sortOrder ?? 0);
     const row = {
       id: uid(),
@@ -3365,11 +3365,12 @@ export default function App() {
       options,
       sector,
       audience,
-      sort_order: entitySortOrders.length ? Math.max(...entitySortOrders) + 1 : 0,
+      sort_order: sortOrder ?? (entitySortOrders.length ? Math.max(...entitySortOrders) + 1 : 0),
     };
     const { data, error } = await supabase.from("custom_field_defs").insert(row).select().single();
-    if (error) { notify(`Özel alan eklenemedi: ${error.message}`); return; }
+    if (error) { notify(`Özel alan eklenemedi: ${error.message}`); return false; }
     setCustomFieldDefs((prev) => [...prev, rowToCustomFieldDef(data)]);
+    return true;
   };
 
   const updateCustomFieldDef = async ({ id, label, options, audience, sector, active, type }) => {
@@ -3378,12 +3379,13 @@ export default function App() {
     if (active !== undefined) row.active = active;
     if (type !== undefined) row.field_type = type;
     const { data, error } = await supabase.from("custom_field_defs").update(row).eq("id", id).select().single();
-    if (error) { notify(`Özel alan güncellenemedi: ${error.message}`); return; }
+    if (error) { notify(`Özel alan güncellenemedi: ${error.message}`); return false; }
     setCustomFieldDefs((prev) => prev.map((d) => (d.id === id ? rowToCustomFieldDef(data) : d)));
+    return true;
   };
 
   const setCustomFieldDefsActive = async (ids, active) => {
-    if (ids.length === 0) return;
+    if (ids.length === 0) return true;
     // Önce yerel state güncelleniyor (optimistic) — aksi halde "Aktif Et" gibi
     // tek tık aksiyonlarda kullanıcı ağ isteği tamamlanana kadar hiçbir şey
     // olmadığını görüyor, sadece başka bir yere tıklayınca (örn. bölümü kapatıp
@@ -3393,7 +3395,9 @@ export default function App() {
     if (error) {
       notify(`Özel alanlar güncellenemedi: ${error.message}`);
       setCustomFieldDefs((prev) => prev.map((d) => (ids.includes(d.id) ? { ...d, active: !active } : d)));
+      return false;
     }
+    return true;
   };
 
   // setCustomFieldDefsActive ile aynı soft-hide davranışını kullanıyor -
@@ -3888,12 +3892,27 @@ export default function App() {
     const preset = SECTOR_PRESETS.find((p) => p.id === sectorId);
     const presetKeys = new Set((preset?.customFields || []).map((f) => `${f.entity}:${f.key}`));
     const toHide = customFieldDefs.filter((d) => d.active && d.sector && !presetKeys.has(`${d.entity}:${d.key}`)).map((d) => d.id);
-    await setCustomFieldDefsActive(toHide, false);
-    if (!preset) return;
+    // Cagiranlar (Pano/Ayarlar/Sektorler "duzelt" butonlari) donen degeri success
+    // toast'i gostermek icin kullaniyor — asagidaki her adim basarisiz olabilir ve
+    // basarisizlik notify() ile zaten bildiriliyor, o yuzden hicbirini "&&" disinda
+    // birakmiyoruz (aksi halde bir alan basarisiz olsa bile ust cagiran kosulsuz
+    // "duzeltildi" diyip gercek hatayi ustune yazardi).
+    let ok = await setCustomFieldDefsActive(toHide, false);
+    if (!preset) return ok;
+    // customFieldDefs bu fonksiyon boyunca sabit bir closure - dongu icinde eklenen
+    // alanlar bu listeye yansimiyor. addCustomFieldDef'in kendi otomatik sort_order
+    // hesaplamasi da ayni closure'a bakar, bu yuzden ayni entity'ye art arda birden
+    // fazla yeni alan eklenirse hepsi ayni sort_order'i alirdi - kendi sayacimizi
+    // tutup her ekleme icin acikca gonderiyoruz.
+    const nextSortOrder = {};
+    for (const d of customFieldDefs) {
+      nextSortOrder[d.entity] = Math.max(nextSortOrder[d.entity] ?? -1, d.sortOrder ?? 0);
+    }
     for (const f of preset.customFields) {
       const existing = customFieldDefs.find((d) => d.entity === f.entity && d.key === f.key);
       if (!existing) {
-        await addCustomFieldDef({ ...f, sector: sectorId });
+        nextSortOrder[f.entity] = (nextSortOrder[f.entity] ?? -1) + 1;
+        ok = (await addCustomFieldDef({ ...f, sector: sectorId, sortOrder: nextSortOrder[f.entity] })) && ok;
       } else {
         // active:true HER ZAMAN uygulanır — eskiden sadece existing.sector !==
         // sectorId (sektör gerçekten değiştiğinde) tetikleniyordu, bu da "Varsayılan
@@ -3914,9 +3933,10 @@ export default function App() {
         // audience de f'den (yeni sektörün preset'i) alınır, existing'den DEĞİL —
         // aksi halde reklam edilen alan eski sektörün "sadece bireysel/kurumsal"
         // kısıtını yanlışlıkla taşımaya devam ederdi.
-        await updateCustomFieldDef({ id: existing.id, label: f.label, options: f.options, audience: f.audience ?? null, sector: sectorId, active: true, type: f.type });
+        ok = (await updateCustomFieldDef({ id: existing.id, label: f.label, options: f.options, audience: f.audience ?? null, sector: sectorId, active: true, type: f.type })) && ok;
       }
     }
+    return ok;
   };
 
   const maybeStartTour = () => {
@@ -4701,7 +4721,7 @@ export default function App() {
           activeTeamId={activeTeamId}
           canEditCompanySettings={canEditCompanySettings}
           appointmentDateTimeKey={appointmentDateTimeKey}
-          onFixAppointmentField={async () => { await applySectorCustomFields(companySettings.sector); notify("Randevu alma linki düzeltildi.", "success"); }}
+          onFixAppointmentField={async () => { if (await applySectorCustomFields(companySettings.sector)) notify("Randevu alma linki düzeltildi.", "success"); }}
           dealLineItems={dealLineItems}
           priceListItems={priceListItems}
           panoRange={panoRange}
@@ -5299,7 +5319,7 @@ export default function App() {
               </p>
               <button
                 type="button"
-                onClick={async () => { await applySectorCustomFields(companySettings.sector); notify("Düzeltildi, link artık çalışıyor.", "success"); }}
+                onClick={async () => { if (await applySectorCustomFields(companySettings.sector)) notify("Düzeltildi, link artık çalışıyor.", "success"); }}
                 style={{ fontSize: 12.5, background: "var(--text-warning, #b45309)", color: "#fff", border: "none", borderRadius: "var(--radius)", padding: "6px 10px" }}
               >
                 Otomatik Düzelt
@@ -5396,7 +5416,7 @@ export default function App() {
           <SectorPicker
             companySettings={companySettings}
             onSave={(sectorId) => applySectorPreset(sectorId)}
-            onFetchFields={async () => { await applySectorCustomFields(companySettings.sector); notify("Özel alanlar sektör varsayılanlarına döndürüldü.", "success"); }}
+            onFetchFields={async () => { if (await applySectorCustomFields(companySettings.sector)) notify("Özel alanlar sektör varsayılanlarına döndürüldü.", "success"); }}
           />
           <CustomFieldDefsManager customFieldDefs={customFieldDefs} onAdd={addCustomFieldDef} onUpdate={updateCustomFieldDef} onDelete={deleteCustomFieldDef} onReorder={reorderCustomFieldDefs} onReactivate={(id) => setCustomFieldDefsActive([id], true)} sector={companySettings?.sector} />
         </Modal>
