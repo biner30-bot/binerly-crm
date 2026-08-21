@@ -1186,12 +1186,16 @@ export function TeamModal({
   };
 
   const toggleEditSettings = async (memberId, value) => {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("team_members")
       .update({ can_edit_settings: value })
-      .eq("member_id", memberId);
-    if (error) {
-      notify(`Yetki güncellenemedi: ${error.message}`);
+      .eq("member_id", memberId)
+      .select();
+    // .select() ile satirin gercekten guncellendigini dogruluyoruz - RLS/stale
+    // member_id yuzunden 0 satir eslesirse Postgrest hata dondurmez, optimistic
+    // state olmadan sessizce hicbir sey degismemis olur.
+    if (error || !data?.length) {
+      notify(`Yetki güncellenemedi: ${error?.message || "kayıt bulunamadı."}`);
       return;
     }
     setMembers((prev) =>
@@ -1200,12 +1204,13 @@ export function TeamModal({
   };
 
   const updateCommission = async (memberId, { commission_percent, chair_rental_fee }) => {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("team_members")
       .update({ commission_percent, chair_rental_fee })
-      .eq("member_id", memberId);
-    if (error) {
-      notify(`Prim bilgisi güncellenemedi: ${error.message}`);
+      .eq("member_id", memberId)
+      .select();
+    if (error || !data?.length) {
+      notify(`Prim bilgisi güncellenemedi: ${error?.message || "kayıt bulunamadı."}`);
       return;
     }
     setMembers((prev) =>

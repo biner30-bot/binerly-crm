@@ -1349,12 +1349,14 @@ export default function Finance({
                               size="sm"
                               onClick={() => setEditingDealCost(dealById(item.dealCostId))}
                             />
-                            <IconButton
-                              icon="ti-trash"
-                              title="Sil"
-                              size="sm"
-                              onClick={() => setConfirmClearDealCost(item)}
-                            />
+                            {canDelete && (
+                              <IconButton
+                                icon="ti-trash"
+                                title="Sil"
+                                size="sm"
+                                onClick={() => setConfirmClearDealCost(item)}
+                              />
+                            )}
                           </>
                         )}
                       </div>
