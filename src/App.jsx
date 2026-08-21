@@ -3316,19 +3316,23 @@ export default function App() {
       sector: s.sector || null,
       ...(s.preferredCustomerType ? { preferred_customer_type: s.preferredCustomerType } : {}),
       ...(s.pdfTemplateKey ? { pdf_template_key: s.pdfTemplateKey } : {}),
-      late_cancel_hours: s.lateCancelHours || null,
-      hard_block_hours: s.hardBlockHours || null,
+      // Bu saat/tutar alanlarinda 0 gecerli bir deger (orn. "dersten 0 saat kalana
+      // kadar" ya da "0 TL kapora") - || kullanirsak kullanici 0 girdiginde ayar
+      // sessizce null'a (yani "kapali") duser. Sayim (strike_limit) alanlari icin
+      // 0 anlamsiz oldugundan onlar || ile kaliyor.
+      late_cancel_hours: s.lateCancelHours ?? null,
+      hard_block_hours: s.hardBlockHours ?? null,
       late_cancel_strike_limit: s.lateCancelStrikeLimit || null,
-      appointment_cancel_hours: s.appointmentCancelHours || null,
-      appointment_penalty_hours: s.appointmentPenaltyHours || null,
+      appointment_cancel_hours: s.appointmentCancelHours ?? null,
+      appointment_penalty_hours: s.appointmentPenaltyHours ?? null,
       appointment_penalty_strike_limit: s.appointmentPenaltyStrikeLimit || null,
       appointment_penalty_burns_session: s.appointmentPenaltyBurnsSession === true,
-      appointment_partial_charge_hours: s.appointmentPartialChargeHours || null,
+      appointment_partial_charge_hours: s.appointmentPartialChargeHours ?? null,
       google_review_link: s.googleReviewLink || null,
       google_review_requests_enabled: s.googleReviewRequestsEnabled !== false,
       appointment_prep_note: s.appointmentPrepNote || null,
-      appointment_deposit_amount: s.appointmentDepositAmount || null,
-      appointment_concurrency: s.appointmentConcurrency || null,
+      appointment_deposit_amount: s.appointmentDepositAmount ?? null,
+      appointment_concurrency: s.appointmentConcurrency ?? null,
       appointment_concurrency_auto: s.appointmentConcurrencyAuto === true,
       appointment_owner_works: s.appointmentOwnerWorks !== false,
       winback_enabled: s.winbackEnabled === true,
@@ -3494,7 +3498,7 @@ export default function App() {
 
   const addStockItem = async ({ name, unit, quantityOnHand, reorderThreshold, supplierName, unitCost }) => {
     const sortOrders = stockItems.map((s) => s.sortOrder ?? 0);
-    const row = { id: uid(), user_id: activeTeamId, name, unit, quantity_on_hand: quantityOnHand || 0, reorder_threshold: reorderThreshold || null, supplier_name: supplierName || null, unit_cost: unitCost || null, sort_order: sortOrders.length ? Math.max(...sortOrders) + 1 : 0 };
+    const row = { id: uid(), user_id: activeTeamId, name, unit, quantity_on_hand: quantityOnHand || 0, reorder_threshold: reorderThreshold ?? null, supplier_name: supplierName || null, unit_cost: unitCost || null, sort_order: sortOrders.length ? Math.max(...sortOrders) + 1 : 0 };
     const { data, error } = await supabase.from("stock_items").insert(row).select().single();
     if (error) { notify(`Stok kalemi eklenemedi: ${error.message}`); return; }
     setStockItems((prev) => [...prev, rowToStockItem(data)]);
@@ -3503,7 +3507,7 @@ export default function App() {
   const updateStockItem = async ({ id, name, unit, quantityOnHand, reorderThreshold, supplierName, unitCost }) => {
     const { data, error } = await supabase
       .from("stock_items")
-      .update({ name, unit, quantity_on_hand: quantityOnHand || 0, reorder_threshold: reorderThreshold || null, supplier_name: supplierName || null, unit_cost: unitCost || null })
+      .update({ name, unit, quantity_on_hand: quantityOnHand || 0, reorder_threshold: reorderThreshold ?? null, supplier_name: supplierName || null, unit_cost: unitCost || null })
       .eq("id", id).select().single();
     if (error) { notify(`Stok kalemi güncellenemedi: ${error.message}`); return; }
     setStockItems((prev) => prev.map((s) => (s.id === id ? rowToStockItem(data) : s)));
