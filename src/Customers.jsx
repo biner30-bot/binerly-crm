@@ -1262,7 +1262,7 @@ export function CampaignModal({
           </button>
           <button
             type="submit"
-            disabled={sending || selected.size === 0}
+            disabled={sending || selectedConsented.length === 0}
             style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
           >
             {sending ? "Gönderiliyor…" : "Gönder"}
@@ -1272,7 +1272,7 @@ export function CampaignModal({
       {confirmSend && (
         <ConfirmDialog
           title="Kampanya gönderilsin mi?"
-          message={`${selected.size} kişiye e-posta gönderilecek - bu işlem geri alınamaz.`}
+          message={`${selectedConsented.length} kişiye e-posta gönderilecek - bu işlem geri alınamaz.`}
           confirmLabel="Gönder"
           onConfirm={() => {
             setConfirmSend(false);

@@ -1516,7 +1516,7 @@ export default function Finance({
             </button>
             <button
               type="button"
-              disabled={editPaymentSaving || !editPaymentAmount}
+              disabled={editPaymentSaving || !editPaymentAmount || !editPaymentDate}
               onClick={async () => {
                 setEditPaymentSaving(true);
                 await onUpdatePayment({
