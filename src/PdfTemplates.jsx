@@ -138,14 +138,12 @@ export function renderTemplateBlocks(blocks, mergeData, lineItems = [], grossTot
     }
     if (b.type === "table") {
       const accent = b.accentColor || "#0c2540";
-      let netSum = 0;
       let grossSum = 0;
       const rows = items.map((it, idx) => {
         const qty = Number(it.quantity) || 1;
         const unitPrice = Number(it.unitPrice) || 0;
         const gross = qty * unitPrice;
         const net = kdvRate > 0 ? gross / (1 + kdvRate / 100) : gross;
-        netSum += net;
         grossSum += gross;
         const desc = qty !== 1 ? `${it.description} (×${qty})` : it.description;
         return (
