@@ -63,19 +63,19 @@ export function TrashHistoryModal({
         .not("deleted_at", "is", null),
       supabase
         .from("payments")
-        .select("id,amount,deleted_at,deleted_batch_id")
+        .select("id,amount,user_id,deleted_at,deleted_batch_id")
         .not("deleted_at", "is", null),
       supabase
         .from("company_expenses")
-        .select("id,title,deleted_at,deleted_batch_id")
+        .select("id,title,user_id,deleted_at,deleted_batch_id")
         .not("deleted_at", "is", null),
       supabase
         .from("tickets")
-        .select("id,subject,deleted_at,deleted_batch_id")
+        .select("id,subject,user_id,deleted_at,deleted_batch_id")
         .not("deleted_at", "is", null),
       supabase
         .from("kb_articles")
-        .select("id,title,deleted_at,deleted_batch_id")
+        .select("id,title,user_id,deleted_at,deleted_batch_id")
         .not("deleted_at", "is", null),
       supabase
         .from("group_classes")
@@ -92,8 +92,10 @@ export function TrashHistoryModal({
         .not("deleted_at", "is", null),
     ]);
 
-    // customers/deals RLS'i portal kullanıcıları için de eşleşebildiğinden (bkz.
-    // customer_*_view yorumları), burada sadece aktif takıma ait kayıtlarla sınırlıyoruz.
+    // RLS politikaları "(user_id = auth.uid()) OR (user_id IN my_team_ids())" ile
+    // OR birleştiği için (bkz. CLAUDE.md RLS OR-birleşme notu), birden fazla şirkette
+    // rol alan bir hesap başka şirketin kayıtlarını da görebilir - bu yüzden TÜM
+    // tablolarda istemci tarafında aktif takıma ait kayıtlarla sınırlıyoruz.
     const rows = [
       ...(c || [])
         .filter((r) => r.user_id === activeTeamId)
@@ -101,14 +103,18 @@ export function TrashHistoryModal({
       ...(d || [])
         .filter((r) => r.user_id === activeTeamId)
         .map((r) => ({ table: "deals", label: r.title, ...r })),
-      ...(pay || []).map((r) => ({
-        table: "payments",
-        label: `${formatTL(r.amount)} tahsilat`,
-        ...r,
-      })),
-      ...(exp || []).map((r) => ({ table: "company_expenses", label: r.title, ...r })),
-      ...(t || []).map((r) => ({ table: "tickets", label: r.subject, ...r })),
-      ...(kb || []).map((r) => ({ table: "kb_articles", label: r.title, ...r })),
+      ...(pay || [])
+        .filter((r) => r.user_id === activeTeamId)
+        .map((r) => ({ table: "payments", label: `${formatTL(r.amount)} tahsilat`, ...r })),
+      ...(exp || [])
+        .filter((r) => r.user_id === activeTeamId)
+        .map((r) => ({ table: "company_expenses", label: r.title, ...r })),
+      ...(t || [])
+        .filter((r) => r.user_id === activeTeamId)
+        .map((r) => ({ table: "tickets", label: r.subject, ...r })),
+      ...(kb || [])
+        .filter((r) => r.user_id === activeTeamId)
+        .map((r) => ({ table: "kb_articles", label: r.title, ...r })),
       ...(gc || [])
         .filter((r) => r.user_id === activeTeamId)
         .map((r) => ({ table: "group_classes", label: r.name, ...r })),
@@ -144,7 +150,7 @@ export function TrashHistoryModal({
     );
 
     setTrashGroups(groupList);
-    setHistoryRows(log || []);
+    setHistoryRows((log || []).filter((r) => r.user_id === activeTeamId));
     setLoading(false);
   };
 
