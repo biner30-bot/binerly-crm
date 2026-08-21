@@ -206,9 +206,9 @@ async function handleBooking(req, res, supabaseAdmin) {
   const authedUserId = userData?.user?.id || null;
   if (!authedUserId) return res.status(401).json({ error: "Giriş gerekli." });
 
-  const { customerId, businessUserId, dateTime, dateTimeKey, note, value, serviceIds, checkIn, checkOut, roomType, partySize, visitPurpose } = req.body || {};
+  const { customerId, businessUserId, dateTime, dateTimeKey, note, value, serviceIds, checkIn, checkOut, roomType, partySize, visitPurpose, requestedDate, timePreferences } = req.body || {};
   const cleanServiceIds = Array.isArray(serviceIds) ? serviceIds.filter((id) => typeof id === "string" && id) : [];
-  if (!customerId || !businessUserId || !(note || "").trim() || (!checkIn && (!dateTime || !dateTimeKey))) {
+  if (!customerId || !businessUserId || !(note || "").trim() || (!checkIn && !requestedDate && (!dateTime || !dateTimeKey))) {
     return res.status(400).json({ error: "Eksik bilgi." });
   }
 
@@ -265,6 +265,46 @@ async function handleBooking(req, res, supabaseAdmin) {
     const { data, error } = await supabaseAdmin.from("deals").insert(row).select().single();
     if (error) return res.status(500).json({ error: error.message });
     return res.status(200).json({ deal: data });
+  }
+
+  // --- Randevu talebi (Müşteri Portalı, request_only modu) --- Gün + sıralı
+  // saat tercihi (en fazla 3) - api/lead-capture.js'teki (anonim widget) AYNI
+  // dal (kasıtlı kopya, portal auth zaten yukarıda doğrulandı). Gerçek bir
+  // randevu saati/kaynak/concurrency-slot ATANMADAN oluşturulur - KOBİ Pano'daki
+  // "Randevu Talepleri" widget'ından bir saat seçip teklif gönderene kadar bu
+  // deal'in üzerinde çakışma/kaynak garantisi yok, olması da gerekmiyor.
+  if (requestedDate) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) return res.status(400).json({ error: "Geçersiz tarih." });
+    const cleanPrefs = (Array.isArray(timePreferences) ? timePreferences : [])
+      .filter((t) => typeof t === "string" && /^\d{2}:\d{2}$/.test(t))
+      .slice(0, 3);
+    if (cleanPrefs.length === 0) return res.status(400).json({ error: "Lütfen en az bir saat tercihi girin." });
+
+    let serviceName = null;
+    let servicePrice = 0;
+    let serviceDurationMinutes = 0;
+    if (cleanServiceIds.length > 0) {
+      const { data: services } = await supabaseAdmin.from("price_list_items").select("id, name, price, duration_minutes, parallel_group").eq("user_id", businessUserId).in("id", cleanServiceIds);
+      if (services?.length) {
+        serviceName = services.map((s) => s.name).join(", ");
+        servicePrice = services.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
+        serviceDurationMinutes = groupedDurationMinutes(services);
+      }
+    }
+
+    const requestRow = {
+      id: crypto.randomUUID(), user_id: businessUserId, customer_id: customerId,
+      title: serviceName || (note || "").trim() || "Randevu talebi", value: servicePrice, stage: "ilk_gorusme",
+      custom_fields: {
+        kaynak: "portal_talep",
+        appointment_request_prefs: cleanPrefs.map((t) => `${requestedDate}T${t}`),
+        ...(serviceDurationMinutes > 0 ? { duration_minutes: serviceDurationMinutes } : {}),
+        ...(cleanServiceIds.length ? { service_ids: cleanServiceIds } : {}),
+      },
+    };
+    const { data: requestData, error: requestError } = await supabaseAdmin.from("deals").insert(requestRow).select().single();
+    if (requestError) return res.status(500).json({ error: requestError.message });
+    return res.status(200).json({ deal: requestData, requested: true });
   }
 
   if (new Date(dateTime).getTime() < Date.now()) {
@@ -439,6 +479,17 @@ export default async function handler(req, res) {
   const { businessUserId, date, checkIn, checkOut } = req.query;
   if (!businessUserId) return res.status(400).json({ error: "businessUserId gerekli." });
 
+  // Müşteri Portalı'ndaki SlotBookingModal AYNI bu uç noktayı kullanıyor -
+  // "Sadece talep al" modunda (bkz. AppointmentPolicies.jsx AppointmentRequestModeBox)
+  // giriş yapmış bir portal müşterisi de (hatta kötü niyetli biri doğrudan bu
+  // uç noktaya istek atsa bile) gerçek doluluk/müsaitlik sayısını GÖRMEMELİ -
+  // istemci tarafı dalı (SlotBookingModal requestOnlyMode) tek başına yeterli
+  // bir savunma değil, o yüzden SUNUCU TARAFINDA da hesaplama hiç yapılmıyor.
+  // Oda/envanter (checkIn dalı, Otel) bu modun kapsamı dışında - o dal hiç
+  // etkilenmiyor.
+  const { data: modeSettings } = await supabaseAdmin.from("company_settings").select("appointment_widget_mode").eq("user_id", businessUserId).maybeSingle();
+  const widgetMode = modeSettings?.appointment_widget_mode === "request_only" ? "request_only" : "realtime";
+
   // Sunucunun kendi çalışma saat dilimine güvenmeyen, doğrudan Europe/Istanbul
   // için "şu an"ın takvim gününü veren bir yöntem — new Date(...) ile dolaylı
   // çeviri yapan önceki yöntem, çalışma ortamına göre yanlış sonuç verebiliyordu.
@@ -495,6 +546,7 @@ export default async function handler(req, res) {
   // gerektiren bir kopya oluşmasın diye.
   const overviewDays = req.query.overview ? Math.min(Math.max(parseInt(req.query.overview, 10) || 14, 1), 30) : 0;
   if (overviewDays > 0) {
+    if (widgetMode === "request_only") return res.status(200).json({ days: [], dateTimeKey: null, hasPaymentProvider: false, widgetMode });
     const [{ data: fieldDefs, error: fieldDefsError }, { data: allHours, error: hoursError }, { data: deals, error: dealsError }, { data: cred, error: credError }, { data: concurrencySettings }] = await Promise.all([
       supabaseAdmin.from("custom_field_defs").select("key").eq("user_id", businessUserId).eq("entity", "deal").eq("field_type", "datetime").eq("active", true).limit(1),
       supabaseAdmin.from("business_hours").select("weekday, start_time, end_time, slot_duration_minutes").eq("user_id", businessUserId),
@@ -563,12 +615,14 @@ export default async function handler(req, res) {
       // ayrı bir bayrakla işaretlenmezse widget'ta ayırt edilemiyordu.
       return { date: dateStr, slotCount, closed: windows.length === 0 };
     });
-    return res.status(200).json({ days, dateTimeKey, hasPaymentProvider });
+    return res.status(200).json({ days, dateTimeKey, hasPaymentProvider, widgetMode });
   }
 
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return res.status(400).json({ error: "businessUserId ve date (YYYY-MM-DD) gerekli." });
   }
+
+  if (widgetMode === "request_only") return res.status(200).json({ slots: [], dateTimeKey: null, hasPaymentProvider: false, widgetMode });
 
   // Salt takvim günü olarak hesaplanır (saat/saat dilimi karışmasın diye) —
   // date.getDay() burada KULLANILMAZ: "YYYY-MM-DDT00:00:00+03:00" gibi bir
@@ -617,11 +671,11 @@ export default async function handler(req, res) {
   // şekilde bypass edilirse) o günün tüm mesai saatleri "müsait" görünüyordu —
   // sadece "bugün ise geçmiş saat" filtreleniyordu, "tarihin kendisi geçmiş mi"
   // hiç kontrol edilmiyordu. Geçmiş tarihler için her zaman boş liste dön.
-  if (date < todayIstanbul) return res.status(200).json({ slots: [], dateTimeKey: null, hasPaymentProvider });
+  if (date < todayIstanbul) return res.status(200).json({ slots: [], dateTimeKey: null, hasPaymentProvider, widgetMode });
 
   // Aktif randevu tarihi alanı yoksa (işletme devre dışı bırakmış vb.) alınacak
   // randevunun nereye yazılacağı belirsiz olur — güvenli tarafta kalıp boş dönülür.
-  if (!dateTimeKey) return res.status(200).json({ slots: [], dateTimeKey: null, hasPaymentProvider });
+  if (!dateTimeKey) return res.status(200).json({ slots: [], dateTimeKey: null, hasPaymentProvider, widgetMode });
 
   // Vardiya (staff_shifts) müşteri portalındaki müsaitliği ETKİLEMEZ — sadece
   // Takım modalında işletme sahibi/çalışanların gördüğü içe dönük bir planlama
@@ -644,5 +698,5 @@ export default async function handler(req, res) {
 
   const slots = computeDaySlots(hours || [], isToday, nowMinutes, takenRanges, requestedDuration, resolveConcurrency(concurrencySettings), resourceUnitRanges);
 
-  return res.status(200).json({ slots, dateTimeKey, hasPaymentProvider });
+  return res.status(200).json({ slots, dateTimeKey, hasPaymentProvider, widgetMode });
 }

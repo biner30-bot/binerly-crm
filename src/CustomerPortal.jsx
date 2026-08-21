@@ -3786,6 +3786,17 @@ export default function CustomerPortal() {
   const rescheduleAppointment = async (oldDeal, bookingParams) => {
     const ok = await bookAppointment(bookingParams);
     if (!ok) return false;
+    // request_only modunda (bkz. SlotBookingModal requestOnlyMode) yeni kayıt
+    // HENÜZ bir randevu değil, sadece bir talep - KOBİ onaylayana kadar eski
+    // randevu BİLEREK kapatılmıyor, aksi halde müşteri işletme yanıt verene
+    // kadar hiçbir geçerli randevusu olmadan kalırdı.
+    if (bookingParams.requestedDate) {
+      notify(
+        "Yeni saat talebiniz iletildi. İşletme onaylayana kadar mevcut randevunuz geçerliliğini koruyor.",
+        "success",
+      );
+      return true;
+    }
     const { error } = await supabase
       .from("deals")
       .update({ stage: "kaybedildi", lost_reason: "Randevusunu erteledi" })
