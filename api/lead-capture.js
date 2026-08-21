@@ -113,6 +113,21 @@ function groupedDurationMinutes(items) {
   return [...groups.values()].reduce((sum, v) => sum + v, 0);
 }
 
+// dateTime+dateTimeKey (realtime) VE requestedDate+timePreferences
+// (request_only) dallarının ikisi de aynı hizmet-adı/fiyat/süre hesabına
+// ihtiyaç duyuyor - iki dal da bu dosyada olduğu için (diğer "ayrı dosya ayrı
+// kopya" desenlerinden farklı olarak) burada tek bir yerel fonksiyona çıkarıldı.
+async function computeSelectedServiceInfo(supabaseAdmin, userId, serviceIds) {
+  if (!serviceIds.length) return { serviceName: null, servicePrice: 0, serviceDurationMinutes: 0 };
+  const { data: services } = await supabaseAdmin.from("price_list_items").select("id, name, price, duration_minutes, parallel_group").eq("user_id", userId).in("id", serviceIds);
+  if (!services?.length) return { serviceName: null, servicePrice: 0, serviceDurationMinutes: 0 };
+  return {
+    serviceName: services.map((s) => s.name).join(", "),
+    servicePrice: services.reduce((sum, s) => sum + (Number(s.price) || 0), 0),
+    serviceDurationMinutes: groupedDurationMinutes(services),
+  };
+}
+
 function buildAppointmentBounds(dateTimeStr, durationMinutes) {
   const start = new Date(`${dateTimeStr.slice(0, 16)}:00+03:00`);
   if (Number.isNaN(start.getTime())) return null;
@@ -199,7 +214,7 @@ export default async function handler(req, res) {
   // orada da kabul eder - zararsız, aynı company_settings satırına düşer.
   const { data: settings, error: settingsError } = await supabaseAdmin
     .from("company_settings")
-    .select("user_id, company_name, logo_url, sector, appointment_deposit_amount, appointment_concurrency, address, phone, showcase_price_list_visible, showcase_slug")
+    .select("user_id, company_name, logo_url, sector, appointment_deposit_amount, appointment_concurrency, appointment_widget_mode, address, phone, showcase_price_list_visible, showcase_slug")
     .or(`lead_capture_token.eq.${token},showcase_slug.eq.${token}`)
     .maybeSingle();
   if (settingsError) console.error("lead-capture query error:", settingsError.message);
@@ -350,6 +365,10 @@ export default async function handler(req, res) {
       // widget tarafı sector'a bakıp bu durumda formu hiç göstermez.
       sector: settings.sector || null,
       acceptsAppointments: !!fieldDefs?.[0]?.key && settings.sector !== "otel",
+      // "request_only"da widget hiç /api/appointment-availability çağırmaz
+      // (doluluk/müsaitlik bilgisi hiç sızmasın diye, bkz. AppointmentPolicies.jsx
+      // AppointmentRequestModeBox) - gün+sıralı saat tercihi formuna düşer.
+      widgetMode: settings.appointment_widget_mode === "request_only" ? "request_only" : "realtime",
       services: services || [],
       depositAmount,
     });
@@ -357,7 +376,7 @@ export default async function handler(req, res) {
 
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { name, phone, email, address, note, marketingConsent, dateTime, dateTimeKey, serviceIds, waitlistDate } = req.body || {};
+  const { name, phone, email, address, note, marketingConsent, dateTime, dateTimeKey, serviceIds, waitlistDate, requestedDate, timePreferences } = req.body || {};
   const cleanServiceIds = Array.isArray(serviceIds) ? serviceIds.filter((id) => typeof id === "string" && id) : [];
   const trimmedName = (name || "").trim();
   const trimmedPhone = (phone || "").trim();
@@ -414,19 +433,7 @@ export default async function handler(req, res) {
     });
     if (customerInsertError) return res.status(500).json({ error: customerInsertError.message });
 
-    let serviceName = null;
-    let servicePrice = 0;
-    let serviceDurationMinutes = 0;
-    if (cleanServiceIds.length > 0) {
-      const { data: services } = await supabaseAdmin.from("price_list_items").select("id, name, price, duration_minutes, parallel_group").eq("user_id", settings.user_id).in("id", cleanServiceIds);
-      if (services?.length) {
-        serviceName = services.map((s) => s.name).join(", ");
-        servicePrice = services.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
-        // Miktar süreyi katlamıyor, kalem sayısı toplanıyor - App.jsx'teki
-        // lineItemsDurationMinutes ile AYNI ilke (parallel_group dahil).
-        serviceDurationMinutes = groupedDurationMinutes(services);
-      }
-    }
+    const { serviceName, servicePrice, serviceDurationMinutes } = await computeSelectedServiceInfo(supabaseAdmin, settings.user_id, cleanServiceIds);
 
     // Race condition koruması: iki ziyaretçi aynı saati aynı anda seçebilir —
     // availability uç noktasının döndüğü liste bir kaç saniye eski olabilir,
@@ -545,6 +552,46 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, booked: true, needsDeposit: true, approvalToken, depositAmount: effectiveDepositAmount });
     }
     return res.status(200).json({ ok: true, booked: true });
+  }
+
+  // --- Randevu talebi (AppointmentRequestPage, request_only modu) --- Gün +
+  // sıralı saat tercihi (en fazla 3) - HİÇBİR doluluk/müsaitlik hesaplanmaz ya
+  // da müşteriye gösterilmez (bkz. AppointmentPolicies.jsx
+  // AppointmentRequestModeBox). Deal "ilk_gorusme"de, gerçek bir randevu
+  // saati/kaynak/concurrency-slot ATANMADAN oluşturulur - KOBİ Pano'daki
+  // "Randevu Talepleri" widget'ından bu tercihlerden birini (ya da farklı bir
+  // saati) seçip tek bir teklif gönderene kadar (action=send-appointment-offer)
+  // bu deal'in üzerinde çakışma/kaynak garantisi yok, olması da gerekmiyor.
+  if (requestedDate && Array.isArray(timePreferences) && timePreferences.length > 0) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) return res.status(400).json({ error: "Geçersiz tarih." });
+    const cleanPrefs = timePreferences.filter((t) => typeof t === "string" && /^\d{2}:\d{2}$/.test(t)).slice(0, 3);
+    if (cleanPrefs.length === 0) return res.status(400).json({ error: "Lütfen en az bir saat tercihi girin." });
+
+    const { customerId, error: customerInsertError } = await findOrCreateAppointmentCustomer(supabaseAdmin, settings, {
+      trimmedName, trimmedPhone, trimmedEmail, consented, consentedAt, consentIp,
+      notes: `Randevu talebi formundan eklendi (tercih: ${requestedDate} ${cleanPrefs.join(", ")}).${note ? ` Not: ${note.trim()}` : ""}`,
+    });
+    if (customerInsertError) return res.status(500).json({ error: customerInsertError.message });
+
+    const { serviceName, servicePrice, serviceDurationMinutes } = await computeSelectedServiceInfo(supabaseAdmin, settings.user_id, cleanServiceIds);
+
+    const { error: dealInsertError } = await supabaseAdmin.from("deals").insert({
+      id: crypto.randomUUID(),
+      user_id: settings.user_id,
+      customer_id: customerId,
+      title: serviceName || (note || "").trim() || "Randevu talebi",
+      value: servicePrice,
+      stage: "ilk_gorusme",
+      custom_fields: {
+        kaynak: "randevu_widget_talep",
+        appointment_request_prefs: cleanPrefs.map((t) => `${requestedDate}T${t}`),
+        ...(serviceDurationMinutes > 0 ? { duration_minutes: serviceDurationMinutes } : {}),
+        ...(cleanServiceIds.length ? { service_ids: cleanServiceIds } : {}),
+      },
+    });
+    if (dealInsertError) return res.status(500).json({ error: dealInsertError.message });
+
+    return res.status(200).json({ ok: true, requested: true });
   }
 
   const { error: insertError } = await supabaseAdmin.from("customers").insert({

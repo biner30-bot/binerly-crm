@@ -352,6 +352,254 @@ async function handleConfirmAttendance(req, res, supabaseAdmin, deal, settings, 
   return res.status(200).send(renderAttendancePage({ logoUrl, title: "Randevunuz iptal edildi", message: `Bize haber verdiğiniz için teşekkürler.${burnMessage} - ${company}` }));
 }
 
+// "Sadece talep al" widget modunda (bkz. AppointmentPolicies.jsx
+// AppointmentRequestModeBox) KOBİ'nin önerdiği TEK saati okunaklı Türkçeye
+// çevirir - hem giden teklif e-postasında hem onay sayfasında kullanılır.
+function formatOfferDateTime(d) {
+  const dateLabel = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long", weekday: "long", timeZone: "Europe/Istanbul" }).format(d);
+  const timeLabel = new Intl.DateTimeFormat("tr-TR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul", hour12: false }).format(d);
+  return `${dateLabel} saat ${timeLabel}`;
+}
+
+// AppointmentRequestPage.jsx istanbulDateStr'ın AYNI "en-CA" hilesi (kasıtlı
+// kopya) - gerçek bir zaman damgasını (appointment_offer_time, timestamptz)
+// Avrupa/İstanbul takviminde "YYYY-MM-DDTHH:MM" datetime-local string'ine
+// çevirir - deal'in randevu özel alanına yazılacak format bu (bkz.
+// api/send-appointment-reminders.js'teki AYNI +03:00 yorumlama kuralı).
+function toIstanbulLocalString(d) {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(d);
+  const get = (t) => parts.find((p) => p.type === t)?.value;
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+}
+
+// api/lead-capture.js'teki AYNI fonksiyon (kasıtlı kopya, ayrı dosya) -
+// seçilen hizmetlerin price_list_items.resource_id eşleşmesine göre doğru
+// kaynağı otomatik atar; hiçbir hizmete hiç kaynak atanmamışsa (özellik hiç
+// kullanılmıyor) eski davranışa (tek aktif kaynak varsa onu kullan) düşer.
+async function resolveAutoAssignResource(supabaseAdmin, businessUserId, serviceIds) {
+  const ids = Array.isArray(serviceIds) ? serviceIds.filter(Boolean) : [];
+  if (ids.length > 0) {
+    const { data: mapped } = await supabaseAdmin.from("price_list_items").select("resource_id").eq("user_id", businessUserId).in("id", ids);
+    const distinct = [...new Set((mapped || []).map((m) => m.resource_id).filter(Boolean))];
+    if (distinct.length === 1) return distinct[0];
+    if (distinct.length > 1) return null;
+  }
+  const { data: anyMapped } = await supabaseAdmin.from("price_list_items").select("id").eq("user_id", businessUserId).not("resource_id", "is", null).limit(1);
+  if (anyMapped && anyMapped.length > 0) return null;
+  const { data } = await supabaseAdmin.from("resources").select("id").eq("user_id", businessUserId).eq("active", true);
+  if (!data || data.length !== 1) return null;
+  return data[0].id;
+}
+
+// Pano.jsx "Randevu Talepleri" widget'ından ("Bu Saati Öner" butonu) çağrılır -
+// handleRefund ile AYNI owner/team_member Bearer-auth ilkesi. Diğer token
+// bazlı action'lardan farklı olarak burada henüz approval_token yok - dealId
+// ile bulunur, token (yoksa) BURADA üretilir. Gerçek saat/kaynak tahsisi
+// BURADA yapılmaz - sadece bir "teklif" kaydedilip müşteriye gönderilir,
+// atomik tahsis müşteri onayladığı an handleConfirmAppointmentOffer'da olur.
+async function handleSendAppointmentOffer(req, res, supabaseAdmin) {
+  const { dealId, offerTime } = req.body || {};
+  if (!dealId || !offerTime || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(offerTime)) {
+    return res.status(400).json({ error: "Eksik ya da geçersiz bilgi." });
+  }
+
+  const authHeader = req.headers.authorization || "";
+  const accessToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!accessToken) return res.status(401).json({ error: "Yetkisiz." });
+  const { data: userData } = await supabaseAdmin.auth.getUser(accessToken);
+  const authedUserId = userData?.user?.id || null;
+  if (!authedUserId) return res.status(401).json({ error: "Yetkisiz." });
+
+  const { data: deal } = await supabaseAdmin.from("deals").select("id, user_id, customer_id, title, approval_token").eq("id", dealId).is("deleted_at", null).maybeSingle();
+  if (!deal) return res.status(404).json({ error: "Kayıt bulunamadı." });
+
+  let authorized = authedUserId === deal.user_id;
+  if (!authorized) {
+    const { data: tm } = await supabaseAdmin.from("team_members").select("team_id").eq("member_id", authedUserId).eq("team_id", deal.user_id).maybeSingle();
+    authorized = !!tm;
+  }
+  if (!authorized) return res.status(403).json({ error: "Bu işlemi yapma yetkiniz yok." });
+
+  const [{ data: customer }, { data: settings }] = await Promise.all([
+    supabaseAdmin.from("customers").select("name, email, phone").eq("id", deal.customer_id).maybeSingle(),
+    supabaseAdmin.from("company_settings").select("company_name, logo_url, email, appointment_offer_validity_hours").eq("user_id", deal.user_id).maybeSingle(),
+  ]);
+
+  const token = deal.approval_token || crypto.randomUUID();
+  const validityHours = Math.max(1, Number(settings?.appointment_offer_validity_hours) || 24);
+  const offerIso = new Date(`${offerTime}:00+03:00`).toISOString();
+  const expiresAt = new Date(Date.now() + validityHours * 60 * 60 * 1000).toISOString();
+
+  const { error: updateError } = await supabaseAdmin.from("deals").update({
+    approval_token: token,
+    appointment_offer_time: offerIso,
+    appointment_offer_expires_at: expiresAt,
+    appointment_offer_status: "sent",
+  }).eq("id", deal.id);
+  if (updateError) return res.status(500).json({ error: updateError.message });
+
+  const company = settings?.company_name || "Binerly";
+  const dateLabel = formatOfferDateTime(new Date(offerIso));
+  const yesUrl = `https://binerly.com/api/deal-approval?action=confirm-appointment-offer&token=${token}&response=yes`;
+  const noUrl = `https://binerly.com/api/deal-approval?action=confirm-appointment-offer&token=${token}&response=no`;
+
+  let emailSent = false;
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (resendApiKey && customer?.email) {
+    const bodyText = `Merhaba ${customer?.name || ""},\n\n${company} olarak "${deal.title}" randevu talebiniz için ${dateLabel} saatini önerebiliriz. Bu saat size uygun mu?`;
+    const footerLines = [`${company} (Binerly ile)`, "Bu e-posta Binerly (binerly.com) altyapısıyla gönderildi."];
+    const html = renderEmailHtml({ logoUrl: settings?.logo_url, bodyText, ctaLabel: "✓ Bu saat uygun", ctaUrl: yesUrl, secondaryCtaLabel: "Uygun değil", secondaryCtaUrl: noUrl, footerLines });
+    const text = plainTextFallback(bodyText, "✓ Bu saat uygun", yesUrl, footerLines, "Uygun değil", noUrl);
+    const sendRes = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: `${company} (Binerly ile) <noreply@binerly.com>`,
+        to: customer.email,
+        subject: `${company} - randevu saatiniz önerildi`,
+        html,
+        text,
+        ...(settings?.email ? { reply_to: settings.email } : {}),
+      }),
+    });
+    emailSent = sendRes.ok;
+    if (!sendRes.ok) console.error("appointment offer email send failed, deal.id:", deal.id, sendRes.status, await sendRes.text().catch(() => ""));
+  }
+
+  return res.status(200).json({
+    ok: true,
+    emailSent,
+    confirmUrl: `https://binerly.com/api/deal-approval?action=confirm-appointment-offer&token=${token}&response=yes`,
+  });
+}
+
+// "Randevu Talepleri" teklif e-postasındaki Evet/Hayır linklerinin hedefi -
+// handleConfirmAttendance ile AYNI güvenlik ilkesi (gerçek mutasyon SADECE
+// POST'ta). "Evet"te bu deal'in HENÜZ gerçek bir randevu saati/kaynak/
+// concurrency-slot'u yok - lead-capture.js POST'taki (dateTime dalı) AYNI
+// atomik tahsis mantığı (kasıtlı kopya) burada ÇALIŞTIRILIR, çünkü müşteri
+// onayladığı ana kadar KOBİ CRM'den elle o saate başka bir randevu da almış
+// olabilir - bu son savunma hattı.
+async function handleConfirmAppointmentOffer(req, res, supabaseAdmin, deal, settings, response, token) {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  if (response !== "yes" && response !== "no") {
+    return res.status(400).send(renderAttendancePage({ title: "Geçersiz bağlantı", message: "Bu bağlantı eksik ya da hatalı görünüyor." }));
+  }
+
+  const logoUrl = settings?.logo_url;
+  const company = settings?.company_name || "Binerly";
+  const conflictPage = () => res.status(200).send(renderAttendancePage({
+    logoUrl, title: "Bu saat az önce doldu",
+    message: `Üzgünüz, önerilen saat az önce başka bir randevuyla doldu. ${company} sizinle en kısa sürede yeni bir saat için tekrar iletişime geçecek.`,
+  }));
+
+  if (!deal.appointment_offer_time || deal.appointment_offer_status !== "sent") {
+    return res.status(200).send(renderAttendancePage({
+      logoUrl, title: "Bu teklif artık geçerli değil",
+      message: `Bu randevu teklifi için işlem zaten tamamlanmış ya da geçersiz. Bir sorunuz varsa ${company} ile iletişime geçebilirsiniz.`,
+    }));
+  }
+
+  const expired = deal.appointment_offer_expires_at && new Date(deal.appointment_offer_expires_at).getTime() < Date.now();
+  if (expired) {
+    await supabaseAdmin.from("deals").update({ appointment_offer_status: "expired" }).eq("id", deal.id).eq("appointment_offer_status", "sent");
+    return res.status(200).send(renderAttendancePage({
+      logoUrl, title: "Bu teklifin süresi doldu",
+      message: `Önerilen randevu saatinin geçerlilik süresi doldu. Lütfen ${company} ile tekrar iletişime geçin.`,
+    }));
+  }
+
+  const offerDate = new Date(deal.appointment_offer_time);
+  const dateLabel = formatOfferDateTime(offerDate);
+
+  if (response === "yes") {
+    if (req.method === "GET") {
+      return res.status(200).send(renderAttendancePage({
+        logoUrl, title: "Randevunuzu onaylıyor musunuz?",
+        message: `"${deal.title}" için önerilen ${dateLabel} randevusunu onaylamak üzeresiniz.`,
+        formToken: token, formResponse: "yes", submitLabel: "Evet, bu saat uygun",
+        formAction: "confirm-appointment-offer",
+      }));
+    }
+
+    const { data: fieldDefs } = await supabaseAdmin
+      .from("custom_field_defs")
+      .select("key")
+      .eq("user_id", deal.user_id)
+      .eq("entity", "deal")
+      .eq("field_type", "datetime")
+      .eq("active", true)
+      .limit(1);
+    const dtKey = fieldDefs?.[0]?.key;
+    if (!dtKey) {
+      return res.status(200).send(renderAttendancePage({ logoUrl, title: "Bir sorun oluştu", message: `Randevu alanı bulunamadı, lütfen ${company} ile iletişime geçin.` }));
+    }
+
+    const serviceIds = Array.isArray(deal.custom_fields?.service_ids) ? deal.custom_fields.service_ids : [];
+    const durationMinutes = Math.max(Number(deal.custom_fields?.duration_minutes) || 0, 1);
+    const startIso = deal.appointment_offer_time;
+    const endIso = new Date(offerDate.getTime() + durationMinutes * 60000).toISOString();
+
+    let resourceUnitId = null;
+    const autoResourceId = await resolveAutoAssignResource(supabaseAdmin, deal.user_id, serviceIds);
+    if (autoResourceId) {
+      for (let attempt = 0; attempt < 3 && !resourceUnitId; attempt++) {
+        const { data: unitId } = await supabaseAdmin.rpc("pick_free_resource_unit", { p_resource_id: autoResourceId, p_start: startIso, p_end: endIso, p_exclude_deal_id: deal.id });
+        if (!unitId) break;
+        resourceUnitId = unitId;
+      }
+      if (!resourceUnitId) return conflictPage();
+    }
+
+    let concurrencySlotId = null;
+    for (let attempt = 0; attempt < 3 && !concurrencySlotId; attempt++) {
+      const { data: slotId } = await supabaseAdmin.rpc("pick_free_concurrency_slot", { p_user_id: deal.user_id, p_start: startIso, p_end: endIso, p_exclude_deal_id: deal.id });
+      if (!slotId) break;
+      concurrencySlotId = slotId;
+    }
+    if (!concurrencySlotId) return conflictPage();
+
+    const dateTimeLocalStr = toIstanbulLocalString(offerDate);
+    const { error: updateError } = await supabaseAdmin
+      .from("deals")
+      .update({
+        resource_unit_id: resourceUnitId,
+        concurrency_slot_id: concurrencySlotId,
+        appointment_start: startIso,
+        appointment_end: endIso,
+        custom_fields: { ...(deal.custom_fields || {}), [dtKey]: dateTimeLocalStr, portal_randevu_zamani: dateTimeLocalStr },
+        appointment_offer_status: "confirmed",
+      })
+      .eq("id", deal.id);
+    if (updateError) {
+      if (updateError.code === "23P01") return conflictPage();
+      return res.status(500).send(renderAttendancePage({ logoUrl, title: "Bir sorun oluştu", message: `Lütfen tekrar deneyin veya ${company} ile iletişime geçin.` }));
+    }
+
+    await supabaseAdmin.from("activities").insert({
+      id: crypto.randomUUID(), user_id: deal.user_id, customer_id: deal.customer_id, type: "note",
+      content: `Müşteri, önerilen ${dateLabel} randevu saatini e-posta üzerinden onayladı.`,
+    });
+    return res.status(200).send(renderAttendancePage({ logoUrl, title: "Randevunuz onaylandı!", message: `${dateLabel} için randevunuz kesinleşti. Sizi bekliyoruz. - ${company}` }));
+  }
+
+  // response === "no"
+  if (req.method === "GET") {
+    return res.status(200).send(renderAttendancePage({
+      logoUrl, title: "Bu saat size uygun değil mi?",
+      message: `"${deal.title}" için önerilen ${dateLabel} saatini reddetmek üzeresiniz - ${company} size başka bir saat önerecektir.`,
+      formToken: token, formResponse: "no", submitLabel: "Bu saat uygun değil", formAction: "confirm-appointment-offer",
+    }));
+  }
+
+  await supabaseAdmin.from("deals").update({ appointment_offer_status: "declined" }).eq("id", deal.id);
+  await supabaseAdmin.from("activities").insert({
+    id: crypto.randomUUID(), user_id: deal.user_id, customer_id: deal.customer_id, type: "note",
+    content: `Müşteri, önerilen ${dateLabel} randevu saatini e-posta üzerinden reddetti.`,
+  });
+  return res.status(200).send(renderAttendancePage({ logoUrl, title: "Bildiğiniz için teşekkürler", message: `${company} size başka bir saat önerecektir.` }));
+}
+
 // renderAttendancePage'in tek-form kalıbına uymuyor (iki seçenekli soru +
 // olumsuzda ek bir metin alanı) - o yüzden aynı görsel kabuğu tekrar eden
 // ayrı, küçük bir render fonksiyonu (bkz. CLAUDE.md: üç benzer satır, erken
@@ -1160,6 +1408,14 @@ export default async function handler(req, res) {
     return handleRefund(req, res, supabaseAdmin);
   }
 
+  // Pano.jsx "Randevu Talepleri" widget'ından - KOBİ bir talebe uygun bir saat
+  // seçip müşteriye tek bir teklif gönderir. handleRefund ile AYNI ilke:
+  // henüz bir approval_token yok (burada üretiliyor), dealId + owner/team_member
+  // Bearer auth'la çalışır, token bazlı değil.
+  if (req.method === "POST" && (req.body || {}).action === "send-appointment-offer") {
+    return handleSendAppointmentOffer(req, res, supabaseAdmin);
+  }
+
   // Pazarlama izni onay linki — deal/approval_token akışından tamamen bağımsız,
   // kendi token'ı (customers.marketing_consent_token) üzerinden çalışır.
   if (
@@ -1191,7 +1447,7 @@ export default async function handler(req, res) {
 
   const { data: deal, error: dealError } = await supabaseAdmin
     .from("deals")
-    .select("id, user_id, customer_id, title, value, kdv_rate, approved_at, created_at, stage, payment_mode, payment_status, custom_fields, first_viewed_at, view_duration_seconds, appointment_start, review_submitted_at")
+    .select("id, user_id, customer_id, title, value, kdv_rate, approved_at, created_at, stage, payment_mode, payment_status, custom_fields, first_viewed_at, view_duration_seconds, appointment_start, review_submitted_at, appointment_offer_time, appointment_offer_expires_at, appointment_offer_status")
     .eq("approval_token", token)
     .is("deleted_at", null)
     .maybeSingle();
@@ -1217,6 +1473,15 @@ export default async function handler(req, res) {
   // bir hatırlatmada giriş zorunluluğu sürtünmeyi öldürürdü).
   if (attendanceAction === "confirm-attendance") {
     return handleConfirmAttendance(req, res, supabaseAdmin, deal, settings, attendanceResponse);
+  }
+
+  // "Randevu Talepleri" e-postasındaki Evet/Hayır linklerinin hedefi - AYNI
+  // ilke (token tek başına yeterli, isAuthorized kontrolünden ÖNCE). Bu deal
+  // henüz gerçek bir randevu saatine sahip DEĞİL (appointment_offer_time
+  // sadece bir ÖNERİ) - handleConfirmAttendance'tan farklı olarak "yes"
+  // yanıtı burada gerçek atomik saat/kaynak tahsisini TETİKLER.
+  if (attendanceAction === "confirm-appointment-offer") {
+    return handleConfirmAppointmentOffer(req, res, supabaseAdmin, deal, settings, attendanceResponse, token);
   }
 
   // Google değerlendirme e-postasındaki linkin hedefi — AYNI ilke (token tek

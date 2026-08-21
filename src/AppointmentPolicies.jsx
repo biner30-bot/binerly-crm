@@ -287,6 +287,94 @@ export function AppointmentConcurrencyBox({ companySettings, teamMemberCount, on
   );
 }
 
+// Randevu Alma Linki'nin nasıl çalıştığını belirler - "realtime" (varsayılan,
+// AppointmentRequestPage.jsx'in şu anki davranışı: müşteri boş saatleri görüp
+// anında kendi seçer) vs "request_only" (müşteri hiçbir doluluk/müsaitlik
+// bilgisi görmez, sadece gün + sıralı saat tercihi bırakır - rakiplerin ya da
+// herkesin işletmenin ne kadar dolu olduğunu görmesini istemeyen KOBİ'ler
+// için). request_only'de KOBİ, Pano'daki "Randevu Talepleri" widget'ından
+// uygun bir saat seçip önerir - müşteri tek tıkla onaylar/reddeder, teklif
+// burada belirlenen süre sonunda kendiliğinden geçersiz olur (bkz.
+// api/deal-approval.js action=send-appointment-offer/confirm-appointment-offer,
+// api/send-appointment-reminders.js).
+export function AppointmentRequestModeBox({ companySettings, onSave }) {
+  const mode = companySettings?.appointmentWidgetMode || "realtime";
+  const validityHours = companySettings?.appointmentOfferValidityHours ?? 24;
+  const [open, setOpen] = useState(false);
+  const [modeDraft, setModeDraft] = useState(mode);
+  const [validityDraft, setValidityDraft] = useState(validityHours);
+
+  const handleOpen = () => {
+    setModeDraft(mode);
+    setValidityDraft(validityHours);
+    setOpen(true);
+  };
+
+  const handleSave = () => {
+    onSave({
+      appointmentWidgetMode: modeDraft,
+      appointmentOfferValidityHours: Math.max(1, Number(validityDraft) || 24),
+    });
+    setOpen(false);
+  };
+
+  return (
+    <div style={{ marginBottom: 16, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-sm)", padding: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <p style={{ fontSize: 13, fontWeight: 500, margin: 0, display: "flex", alignItems: "center", gap: 4 }}>
+          Randevu Alma Linki modu
+          <InfoTip
+            placement="bottom"
+            align="left"
+            text={
+              "Anlık müsaitlik göster (varsayılan): müşteri boş saatlerinizi görüp anında kendi seçer.\n\n" +
+              "Sadece talep al, ben dönerim: müşteri hiçbir doluluk bilgisi görmez, sadece istediği gün + sıralı saat tercihlerini (1., 2., 3. tercih) bırakır. Siz Pano'dan uygun bir saat seçip müşteriye tek bir teklif gönderirsiniz (e-posta + WhatsApp), müşteri tek tıkla onaylar veya reddeder. Teklif belirlediğiniz süre sonunda kendiliğinden geçersiz olur."
+            }
+          />
+        </p>
+        {!open && (
+          <button type="button" onClick={handleOpen} style={{ fontSize: 12, padding: "4px 10px" }}>
+            Düzenle
+          </button>
+        )}
+      </div>
+      {!open && (
+        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0 0" }}>
+          {mode === "request_only"
+            ? `Aktif: müşteriler boş saatlerinizi görmeden gün + tercih saatleri gönderir, siz uygun saati onaylarsınız. Gönderdiğiniz teklifler ${validityHours} saat geçerli.`
+            : "Varsayılan: müşteriler boş saatlerinizi görüp anında kendileri seçer."}
+        </p>
+      )}
+      {open && (
+        <>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
+            <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <input type="radio" name="appointmentWidgetMode" checked={modeDraft === "realtime"} onChange={() => setModeDraft("realtime")} />
+              Anlık müsaitlik göster
+            </label>
+            <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <input type="radio" name="appointmentWidgetMode" checked={modeDraft === "request_only"} onChange={() => setModeDraft("request_only")} />
+              Sadece talep al, ben dönerim
+            </label>
+          </div>
+          {modeDraft === "request_only" && (
+            <div style={{ marginTop: 10, marginLeft: 26 }}>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
+                Gönderdiğiniz teklif kaç saat geçerli olsun
+              </label>
+              <input type="number" min="1" step="1" value={validityDraft} onChange={(e) => setValidityDraft(e.target.value)} style={{ width: 100 }} />
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}>
+            <button type="button" onClick={() => setOpen(false)}>Vazgeç</button>
+            <button type="button" onClick={handleSave} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // Randevu hatırlatma e-postasının sonuna eklenen, işletmenin kendi yazdığı
 // serbest metin - "aç karnına gelin" gibi. Opsiyonel, boşsa hatırlatma metni
 // hiç değişmez (bkz. api/send-appointment-reminders.js).

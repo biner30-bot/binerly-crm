@@ -33,6 +33,27 @@ export default async function handler(req, res) {
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 
+  // "Sadece talep al" modunda (bkz. AppointmentPolicies.jsx
+  // AppointmentRequestModeBox) KOBİ'nin gönderdiği ama müşterinin ne
+  // onaylamadığı ne reddetmediği teklifler - süresi dolunca kendiliğinden
+  // "expired"e döner, Pano'daki "Randevu Talepleri" widget'ı bunu görüp
+  // KOBİ'ye "başka bir saat önerin" gösterir. Müşteri hiç tıklamazsa
+  // (api/deal-approval.js handleConfirmAppointmentOffer'daki expired kontrolü
+  // SADECE linke tıklanınca çalışır) bu geçiş olmadan deal sonsuza kadar
+  // "teklif gönderildi" görünürdü. Aşağıdaki asıl hatırlatma mantığından
+  // BAĞIMSIZ, kendi try/catch'i içinde - biri başarısız olursa diğerini engellemesin.
+  try {
+    const { error: expireOffersError } = await supabaseAdmin
+      .from("deals")
+      .update({ appointment_offer_status: "expired" })
+      .eq("appointment_offer_status", "sent")
+      .lt("appointment_offer_expires_at", new Date().toISOString())
+      .is("deleted_at", null);
+    if (expireOffersError) console.error("appointment offer auto-expire error:", expireOffersError.message);
+  } catch (expireErr) {
+    console.error("appointment offer auto-expire fatal error:", expireErr.message);
+  }
+
   try {
     // "Tarih & Saat" (datetime) tipindeki aktif özel alanlar — hangi şirketin
     // hangi alan adını (örn. randevu_tarihi) randevu saati olarak kullandığını

@@ -6,7 +6,7 @@ import { DEAL_WORD_FORMS, DEAL_TAB_STRINGS, SECTOR_DEMO_PRESETS } from "./static
 import { AuthModal, PasswordRecoveryModal } from "./Auth";
 import { SectorPicker, CompanySettingsForm, PaymentCredentialForm, AppSettingsModal, ShowcaseManager } from "./Settings";
 import { FreeServiceModal, PriceListEditModal, PriceListManager, StockEditModal, StockManager } from "./Inventory";
-import { AppointmentCancelPolicyBox, AppointmentDepositBox, AppointmentConcurrencyBox, AppointmentPrepNoteBox, BusinessHoursManager, ResourceManager, RoomInventoryEditModal, RoomInventoryManager } from "./AppointmentPolicies";
+import { AppointmentCancelPolicyBox, AppointmentDepositBox, AppointmentConcurrencyBox, AppointmentRequestModeBox, AppointmentPrepNoteBox, BusinessHoursManager, ResourceManager, RoomInventoryEditModal, RoomInventoryManager } from "./AppointmentPolicies";
 import { staffLeaveDayCount, formatLeaveDateRange, STAFF_LEAVE_TYPE_LABELS, isOpenStaffShift, staffHistoryDateStr, StaffShiftDayEditor, StaffShiftGrid, StaffShiftHistoryModal, StaffLeaveRecordModal, StaffLeaveManager, TeamDailyLoadPanel, TeamModal } from "./Team";
 import { TRASH_TABLE_LABELS, TrashHistoryModal } from "./TrashHistory";
 import { GroupClassForm, GroupClassRoster, LateCancelPolicyBox, GroupClassesTab, AgendaTab, agendaDateKey, quickDateWindow } from "./GroupClasses";
@@ -348,6 +348,9 @@ function rowToDeal(r) {
     assignedTo: r.assigned_to || null,
     paymentMode: r.payment_mode || "none",
     paymentStatus: r.payment_status || null,
+    appointmentOfferTime: r.appointment_offer_time || null,
+    appointmentOfferExpiresAt: r.appointment_offer_expires_at || null,
+    appointmentOfferStatus: r.appointment_offer_status || null,
   };
 }
 
@@ -683,6 +686,8 @@ function rowToCompanySettings(r) {
     appointmentConcurrency: r.appointment_concurrency ?? null,
     appointmentConcurrencyAuto: r.appointment_concurrency_auto === true,
     appointmentOwnerWorks: r.appointment_owner_works !== false,
+    appointmentWidgetMode: r.appointment_widget_mode || "realtime",
+    appointmentOfferValidityHours: r.appointment_offer_validity_hours ?? 24,
     winbackEnabled: r.winback_enabled === true,
     winbackInactiveDays: r.winback_inactive_days ?? null,
     minProfitMarginPercent: r.min_profit_margin_percent ?? null,
@@ -3337,6 +3342,8 @@ export default function App() {
       appointment_concurrency: s.appointmentConcurrency ?? null,
       appointment_concurrency_auto: s.appointmentConcurrencyAuto === true,
       appointment_owner_works: s.appointmentOwnerWorks !== false,
+      appointment_widget_mode: s.appointmentWidgetMode || "realtime",
+      appointment_offer_validity_hours: s.appointmentOfferValidityHours ?? 24,
       winback_enabled: s.winbackEnabled === true,
       winback_inactive_days: s.winbackInactiveDays || null,
       min_profit_margin_percent: s.minProfitMarginPercent || null,
@@ -4380,6 +4387,67 @@ export default function App() {
   // kapatılamasın diye Pano'daki "Bugünün Randevuları" widget'ıyla BİREBİR
   // aynı kural (saati geçmiş + henüz kapanmamış + paket değil).
   const pendingArrivalDealIds = new Set(pendingArrivalConfirmations.map((x) => x.deal.id));
+  // "Sadece talep al" widget modunda (bkz. AppointmentPolicies.jsx
+  // AppointmentRequestModeBox) gelen, henüz gerçek bir randevu saatine
+  // dönüşmemiş talepler - appointmentOfferStatus "confirmed" olduğu an deal
+  // normal bir randevuya döner (customFields[appointmentDateTimeKey] set
+  // edilmiş olur, bkz. api/deal-approval.js handleConfirmAppointmentOffer) ve
+  // bu listeden kendiliğinden düşer. Mod sonradan "realtime"a çevrilmiş olsa
+  // bile (appointmentWidgetMode'a değil deal'in kendi verisine bakılıyor)
+  // bekleyen eski bir talep varsa burada görünmeye devam eder - KOBİ'nin
+  // elinde unutulmasın.
+  const pendingAppointmentRequests = deals
+    .filter(
+      (d) =>
+        d.stage !== "kazanildi" &&
+        d.stage !== "kaybedildi" &&
+        d.appointmentOfferStatus !== "confirmed" &&
+        Array.isArray(d.customFields?.appointment_request_prefs) &&
+        d.customFields.appointment_request_prefs.length > 0,
+    )
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  // Bir tercih saatinin dolu olup olmadığına dair hızlı bir ipucu - Deals.jsx
+  // findAppointmentConflict'in AYNI temel örtüşme ilkesi (personel/vardiya
+  // nüansı olmadan basitleştirilmiş, bu sadece bir ipucu). Gerçek garanti
+  // müşteri onayladığı an api/deal-approval.js action=confirm-appointment-offer'daki
+  // atomik RPC tahsisi - burası yanılsa bile veri bütünlüğü bozulmaz.
+  const appointmentSlotHasConflict = (dateTimeStr, durationMinutes, excludeDealId) => {
+    if (!appointmentDateTimeKey) return false;
+    const candidateStart = new Date(`${dateTimeStr}:00+03:00`).getTime();
+    if (isNaN(candidateStart)) return false;
+    const candidateEnd = candidateStart + Math.max(Number(durationMinutes) || 0, 1) * 60000;
+    const concurrency = Math.max(1, Number(companySettings?.appointmentConcurrency) || 1);
+    const overlapping = deals.filter((d) => {
+      if (d.id === excludeDealId || d.stage === "kaybedildi") return false;
+      const otherDt = d.customFields?.[appointmentDateTimeKey];
+      if (!otherDt) return false;
+      const otherStart = new Date(`${otherDt}:00+03:00`).getTime();
+      if (isNaN(otherStart)) return false;
+      const otherEnd = otherStart + Math.max(Number(d.customFields?.duration_minutes) || 0, 1) * 60000;
+      return candidateStart < otherEnd && otherStart < candidateEnd;
+    }).length;
+    return overlapping >= concurrency;
+  };
+  // RESEND_API_KEY sunucu tarafında olduğu için (client'a hiç verilmiyor)
+  // e-posta gönderimi api/deal-approval.js'e (owner Bearer-auth'lu) devredilir -
+  // approval_token/appointment_offer_* yazması da tutarlılık için AYNI
+  // çağrıda orada yapılır, burada ayrıca bir supabase update yok.
+  const sendAppointmentOffer = async (deal, offerTimeStr) => {
+    try {
+      const res = await fetch("/api/deal-approval", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ action: "send-appointment-offer", dealId: deal.id, offerTime: offerTimeStr }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { notify(`Teklif gönderilemedi: ${data.error || "bilinmeyen hata"}`); return null; }
+      notify("Randevu teklifi müşteriye gönderildi.", "success");
+      return data;
+    } catch {
+      notify("Teklif gönderilemedi - bağlantı hatası.");
+      return null;
+    }
+  };
   // Otel'de "kazanıldı" (rezervasyon onaylandı) haftalar önce gerçekleşebilir —
   // asıl operasyonel an giriş/çıkış GÜNÜ, aşama değişikliğiyle ilgisi yok. Bu
   // yüzden randevu sektörlerindeki gibi bir aşama-onayı değil, sadece bugünün
@@ -4791,6 +4859,9 @@ export default function App() {
           openDealOrList={openDealOrList}
           openTicketOrList={openTicketOrList}
           pendingArrivalConfirmations={pendingArrivalConfirmations}
+          pendingAppointmentRequests={pendingAppointmentRequests}
+          appointmentSlotHasConflict={appointmentSlotHasConflict}
+          sendAppointmentOffer={sendAppointmentOffer}
           otelArrivalsToday={otelArrivalsToday}
           otelDeparturesToday={otelDeparturesToday}
           dueReminderDeals={dueReminderDeals}
@@ -5524,6 +5595,7 @@ export default function App() {
           {businessHoursTab === "saatler" ? (
             <>
               <AppointmentConcurrencyBox companySettings={companySettings} teamMemberCount={teamRoster.length} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
+              <AppointmentRequestModeBox companySettings={companySettings} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
               <BusinessHoursManager items={businessHours} onAdd={addBusinessHours} onDelete={deleteBusinessHours} />
             </>
           ) : businessHoursTab === "politika" ? (

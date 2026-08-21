@@ -104,6 +104,9 @@ export default function Pano({
   openDealOrList,
   openTicketOrList,
   pendingArrivalConfirmations,
+  pendingAppointmentRequests,
+  appointmentSlotHasConflict,
+  sendAppointmentOffer,
   otelArrivalsToday,
   otelDeparturesToday,
   dueReminderDeals,
@@ -163,6 +166,11 @@ export default function Pano({
   const [payAmount, setPayAmount] = useState("");
   const [payMethod, setPayMethod] = useState("nakit");
   const [paySaving, setPaySaving] = useState(false);
+  // "Randevu Talepleri" widget'ı - hangi satırın "farklı bir saat" mini-formu
+  // açık, hangi satır o an teklif gönderiliyor (çift tıklamayı engellemek için).
+  const [customOfferDealId, setCustomOfferDealId] = useState(null);
+  const [customOfferDraft, setCustomOfferDraft] = useState("");
+  const [offerSendingDealId, setOfferSendingDealId] = useState(null);
 
   const startArrivalPayment = (deal) => {
     const remaining = deal.value - totalPaidForDeal(deal.id);
@@ -547,6 +555,232 @@ export default function Pano({
                         Gelmedi/İptal
                       </button>
                     </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {pendingAppointmentRequests.length > 0 && (
+        <div
+          style={{
+            background: "var(--surface-1)",
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "var(--shadow-sm)",
+            padding: "1rem",
+            marginBottom: "1.5rem",
+          }}
+        >
+          <p
+            style={{
+              fontSize: 14,
+              fontWeight: 500,
+              margin: "0 0 10px",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            Randevu Talepleri ({pendingAppointmentRequests.length})
+            <InfoTip
+              align="left"
+              text="Sadece talep al modundaki (bkz. Ayarlar → Müsaitlik Saatleri) Randevu Alma Linki'nden gelen, müşterinin sizin doluluğunuzu görmeden bıraktığı gün + saat tercihleri. Bir tercihe (ya da farklı bir saate) tıklayınca müşteriye tek bir teklif gönderilir - e-posta ile otomatik, isterseniz WhatsApp ile de. Müşteri tek tıkla onaylar/reddeder."
+            />
+          </p>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+              maxHeight: 320,
+              overflowY: "auto",
+            }}
+          >
+            {pendingAppointmentRequests.map((deal) => {
+              const c = customerById(deal.customerId);
+              const prefs = deal.customFields?.appointment_request_prefs || [];
+              const durationMinutes = Number(deal.customFields?.duration_minutes) || 30;
+              const offerLabel = (dt) => {
+                const d = new Date(`${dt}:00+03:00`);
+                if (isNaN(d.getTime())) return dt;
+                return d.toLocaleString("tr-TR", {
+                  day: "numeric",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+              };
+              const sendOffer = async (dt) => {
+                setOfferSendingDealId(deal.id);
+                const result = await sendAppointmentOffer(deal, dt);
+                setOfferSendingDealId(null);
+                if (result) {
+                  setCustomOfferDealId(null);
+                  const phone = c?.phone;
+                  if (phone) {
+                    const message = `Merhaba ${c?.name || ""}, "${deal.title}" randevu talebiniz için ${offerLabel(dt)} saatini önerebiliriz. Onaylamak için: ${result.confirmUrl}`;
+                    window.open(
+                      `https://wa.me/${toWhatsAppNumber(phone)}?text=${encodeURIComponent(message)}`,
+                      "_blank",
+                      "noopener,noreferrer",
+                    );
+                  }
+                }
+              };
+              return (
+                <div
+                  key={`req-${deal.id}`}
+                  style={{
+                    fontSize: 13,
+                    padding: "6px 0",
+                    borderBottom: "0.5px solid var(--border)",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        background: "var(--fill-warning)",
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span
+                      className="pano-alert-row"
+                      style={{ flex: 1, cursor: "pointer" }}
+                      onClick={() => {
+                        setTab("firsat");
+                        setEditingDeal(deal);
+                        setShowDealForm(true);
+                      }}
+                    >
+                      {vipCustomerIds?.has(deal.customerId) && <span title="VIP müşteri">⭐ </span>}
+                      {c?.name || "Bilinmeyen müşteri"} ({deal.title})
+                    </span>
+                  </div>
+                  {deal.appointmentOfferStatus === "sent" ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                        gap: 8,
+                        marginLeft: 14,
+                      }}
+                    >
+                      <Badge tone="warning">
+                        Teklif gönderildi:{" "}
+                        {new Date(deal.appointmentOfferTime).toLocaleString("tr-TR", {
+                          day: "numeric",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                        {deal.appointmentOfferExpiresAt
+                          ? ` · ${new Date(deal.appointmentOfferExpiresAt).toLocaleString("tr-TR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}'e kadar geçerli`
+                          : ""}
+                      </Badge>
+                      <button
+                        type="button"
+                        onClick={() => setCustomOfferDealId(deal.id)}
+                        style={{ fontSize: 12 }}
+                      >
+                        Farklı bir saat öner
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ marginLeft: 14 }}>
+                      {deal.appointmentOfferStatus === "declined" && (
+                        <div style={{ marginBottom: 6 }}>
+                          <Badge tone="danger">
+                            Müşteri önerilen saati reddetti - başka bir saat önerin
+                          </Badge>
+                        </div>
+                      )}
+                      {deal.appointmentOfferStatus === "expired" && (
+                        <div style={{ marginBottom: 6 }}>
+                          <Badge tone="danger">
+                            Önceki teklifin süresi doldu - başka bir saat önerin
+                          </Badge>
+                        </div>
+                      )}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {prefs.map((dt, i) => {
+                          const conflict = appointmentSlotHasConflict(dt, durationMinutes, deal.id);
+                          return (
+                            <button
+                              key={dt}
+                              type="button"
+                              disabled={offerSendingDealId === deal.id}
+                              onClick={() => sendOffer(dt)}
+                              title={
+                                conflict
+                                  ? "Bu saat başka bir randevuyla çakışıyor olabilir - yine de önerebilirsiniz"
+                                  : "Bu saati öner"
+                              }
+                              style={{
+                                fontSize: 12,
+                                padding: "4px 10px",
+                                borderRadius: 20,
+                                border: conflict
+                                  ? "1px solid var(--text-danger)"
+                                  : "1px solid var(--border)",
+                                color: conflict ? "var(--text-danger)" : "var(--text-primary)",
+                                background: "var(--surface-2)",
+                              }}
+                            >
+                              {i + 1}. tercih: {offerLabel(dt)}{" "}
+                              {conflict ? "· dolu olabilir" : "· müsait"}
+                            </button>
+                          );
+                        })}
+                        <button
+                          type="button"
+                          onClick={() => setCustomOfferDealId(deal.id)}
+                          style={{ fontSize: 12 }}
+                        >
+                          + Farklı bir saat öner
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {customOfferDealId === deal.id && (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        marginTop: 8,
+                        marginLeft: 14,
+                      }}
+                    >
+                      <input
+                        type="datetime-local"
+                        value={customOfferDraft}
+                        onChange={(e) => setCustomOfferDraft(e.target.value)}
+                        style={{ fontSize: 12 }}
+                      />
+                      <button
+                        type="button"
+                        disabled={!customOfferDraft || offerSendingDealId === deal.id}
+                        onClick={() => sendOffer(customOfferDraft)}
+                        style={{ fontSize: 12 }}
+                      >
+                        {offerSendingDealId === deal.id ? "Gönderiliyor…" : "Öner"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomOfferDealId(null);
+                          setCustomOfferDraft("");
+                        }}
+                        style={{ fontSize: 12 }}
+                      >
+                        Vazgeç
+                      </button>
+                    </div>
                   )}
                 </div>
               );

@@ -44,6 +44,11 @@ export default function AppointmentRequestPage() {
 
   const todayStr = istanbulDateStr(new Date());
   const maxDateStr = istanbulDateStr(new Date(Date.now() + 60 * 24 * 60 * 60 * 1000));
+  // company.widgetMode "request_only" ise (bkz. AppointmentPolicies.jsx
+  // AppointmentRequestModeBox) işletmenin doluluk/müsaitlik bilgisi HİÇ
+  // çekilmez/gösterilmez - müşteri sadece gün + sıralı saat tercihi bırakır,
+  // KOBİ Pano'dan uygun olanı seçip tek bir teklif gönderir.
+  const requestOnlyMode = company?.widgetMode === "request_only";
   const [serviceIds, setServiceIds] = useState([]);
   const [date, setDate] = useState(todayStr);
   const [slots, setSlots] = useState([]);
@@ -52,6 +57,9 @@ export default function AppointmentRequestPage() {
   const [slotsError, setSlotsError] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [dayOverview, setDayOverview] = useState(null); // [{ date, slotCount }] - hangi günlerde boşluk olduğunu tek tek denemeden görebilsinler diye
+  // requestOnlyMode'da kullanılır - en fazla 3, sıralı ("1. tercih" en yüksek
+  // öncelikli). Boş string'ler gönderilmeden önce submit'te filtrelenir.
+  const [timePrefs, setTimePrefs] = useState([""]);
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -83,7 +91,7 @@ export default function AppointmentRequestPage() {
   }, [token]);
 
   useEffect(() => {
-    if (!company?.acceptsAppointments || !company?.businessUserId || !date) return;
+    if (requestOnlyMode || !company?.acceptsAppointments || !company?.businessUserId || !date) return;
     setLoadingSlots(true);
     setSlotsError("");
     setSelectedTime("");
@@ -101,7 +109,7 @@ export default function AppointmentRequestPage() {
       })
       .catch((err) => { setSlots([]); setSlotsError(err.message || "Müsaitlik alınamadı."); })
       .finally(() => setLoadingSlots(false));
-  }, [company?.acceptsAppointments, company?.businessUserId, date, serviceIds]);
+  }, [requestOnlyMode, company?.acceptsAppointments, company?.businessUserId, date, serviceIds]);
 
   // Önümüzdeki 14 günün boş saat sayısını TEK istekte çeker - müşteri hangi
   // günün müsait olduğunu tek tek tarih deneyerek bulmak zorunda kalmasın.
@@ -110,13 +118,13 @@ export default function AppointmentRequestPage() {
   // gerçek süresine göre yeniden hesaplanmazsa rozet olduğundan iyimser kalabilir
   // (ör. "5 boş" görünür ama 90dk'lık hizmet için gerçekte daha az yer sığar).
   useEffect(() => {
-    if (!company?.acceptsAppointments || !company?.businessUserId) return;
+    if (requestOnlyMode || !company?.acceptsAppointments || !company?.businessUserId) return;
     const serviceQuery = serviceIds.length ? `&serviceIds=${encodeURIComponent(serviceIds.join(","))}` : "";
     fetch(`/api/appointment-availability?businessUserId=${company.businessUserId}&overview=14${serviceQuery}`)
       .then((r) => r.json())
       .then((data) => setDayOverview(data.days || []))
       .catch(() => setDayOverview([]));
-  }, [company?.acceptsAppointments, company?.businessUserId, serviceIds]);
+  }, [requestOnlyMode, company?.acceptsAppointments, company?.businessUserId, serviceIds]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -124,8 +132,9 @@ export default function AppointmentRequestPage() {
       setSubmitError("İsim ve telefon veya e-postadan en az biri gerekli.");
       return;
     }
-    if (!selectedTime || !dateTimeKey) {
-      setSubmitError("Lütfen bir saat seçin.");
+    const cleanPrefs = timePrefs.filter(Boolean);
+    if (requestOnlyMode ? cleanPrefs.length === 0 : !selectedTime || !dateTimeKey) {
+      setSubmitError("Lütfen en az bir saat girin.");
       return;
     }
     setSubmitError("");
@@ -136,7 +145,10 @@ export default function AppointmentRequestPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           token, name, phone, email, note, marketingConsent,
-          dateTime: `${date}T${selectedTime}:00`, dateTimeKey, serviceIds: serviceIds.length ? serviceIds : undefined,
+          serviceIds: serviceIds.length ? serviceIds : undefined,
+          ...(requestOnlyMode
+            ? { requestedDate: date, timePreferences: cleanPrefs }
+            : { dateTime: `${date}T${selectedTime}:00`, dateTimeKey }),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -357,6 +369,43 @@ export default function AppointmentRequestPage() {
                 <p style={{ fontSize: 13, color: "#5b7088", margin: "0 0 16px", textAlign: "center" }}>
                   Gün/saat seçmek için önce yukarıdan bir hizmet seçin.
                 </p>
+              ) : requestOnlyMode ? (
+                <>
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 6 }}>Tercih ettiğiniz gün</label>
+                    <input type="date" min={todayStr} max={maxDateStr} value={date} onChange={(e) => setDate(e.target.value)} style={{ width: "100%", borderRadius: 10, padding: "10px 12px" }} />
+                  </div>
+                  <div style={{ marginBottom: 8 }}>
+                    <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 6 }}>
+                      Saat tercihleriniz <span style={{ color: "#9aa8b8" }}>(sırayla, ilki en çok tercih ettiğiniz)</span>
+                    </label>
+                    {timePrefs.map((t, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                        <span style={{ fontSize: 12.5, color: "#9aa8b8", width: 56, flexShrink: 0 }}>{i + 1}. tercih</span>
+                        <input
+                          type="time"
+                          value={t}
+                          onChange={(e) => setTimePrefs((prev) => prev.map((x, xi) => (xi === i ? e.target.value : x)))}
+                          style={{ flex: 1, borderRadius: 10, padding: "10px 12px" }}
+                        />
+                        {i > 0 && (
+                          <button type="button" onClick={() => setTimePrefs((prev) => prev.filter((_, xi) => xi !== i))} style={{ fontSize: 12, padding: "6px 10px", flexShrink: 0, borderRadius: 20 }}>
+                            Kaldır
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {timePrefs.length < 3 && (
+                      <button
+                        type="button"
+                        onClick={() => setTimePrefs((prev) => [...prev, ""])}
+                        style={{ background: "#f5f8fc", color: "#185fa5", border: "1px solid #d5dde6", borderRadius: 10, fontSize: 12.5, fontWeight: 600, padding: "8px 12px", cursor: "pointer" }}
+                      >
+                        + Farklı bir saat de ekle (opsiyonel)
+                      </button>
+                    )}
+                  </div>
+                </>
               ) : (
                 <>
                   {dayOverview && dayOverview.length > 0 && (
@@ -480,8 +529,8 @@ export default function AppointmentRequestPage() {
               {submitError && <p style={{ color: "#b91c1c", fontSize: 13, margin: "0 0 12px" }}>{submitError}</p>}
               <button
                 type="submit"
-                disabled={sending || !selectedTime}
-                style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 10, padding: "14px", fontWeight: 700, fontSize: 15.5, cursor: "pointer", opacity: sending || !selectedTime ? 0.6 : 1, boxShadow: "0 10px 24px rgba(24,95,165,0.25)" }}
+                disabled={sending || (requestOnlyMode ? timePrefs.every((t) => !t) : !selectedTime)}
+                style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 10, padding: "14px", fontWeight: 700, fontSize: 15.5, cursor: "pointer", opacity: sending || (requestOnlyMode ? timePrefs.every((t) => !t) : !selectedTime) ? 0.6 : 1, boxShadow: "0 10px 24px rgba(24,95,165,0.25)" }}
               >
                 {sending ? "Gönderiliyor…" : "Randevu Talebi Gönder"}
               </button>
