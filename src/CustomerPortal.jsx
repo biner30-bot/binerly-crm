@@ -25,6 +25,7 @@ import {
   SegmentedControl,
   THEME_OPTIONS,
   escapeIlikePattern,
+  formatTimeWindowsSummary,
 } from "./shared";
 import {
   STAGES,
@@ -2288,8 +2289,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
               </label>
               {dayWindows.length > 0 && (
                 <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 8px" }}>
-                  Çalışma saatleri:{" "}
-                  {dayWindows.map((w) => `${w.startTime}-${w.endTime}`).join(", ")}
+                  Çalışma saatleri: {formatTimeWindowsSummary(dayWindows)}
                 </p>
               )}
               {timePrefs.map((t, i) => (

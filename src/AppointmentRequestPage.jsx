@@ -52,6 +52,40 @@ function windowsForWeekday(businessHours, dateStr) {
   return (businessHours || []).filter((h) => h.weekday === weekday).sort((a, b) => a.startTime.localeCompare(b.startTime));
 }
 
+function minutesOfDayLocal(t) {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function formatBreakDurationLocal(minutes) {
+  if (minutes % 60 === 0) return `${minutes / 60} saat`;
+  if (minutes < 60) return `${minutes} dk`;
+  return `${Math.floor(minutes / 60)} saat ${minutes % 60} dk`;
+}
+
+// shared.jsx'teki formatTimeWindowsSummary ile AYNI mantık (kasıtlı kopya,
+// aynı gerekçeyle import edilmedi - bkz. istanbulDateStr). Öğle arasıyla
+// ikiye bölünmüş bir günü ("09:00-12:00" + "13:00-18:00") tek bir birleşik
+// aralık + mola notu olarak gösterir; gerçek bir boşluk yoksa mola belirtmez.
+function formatWindowsSummary(windows) {
+  if (!windows || windows.length === 0) return "";
+  const sorted = [...windows].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const outerStart = sorted[0].startTime;
+  const outerEnd = sorted.reduce((max, w) => (w.endTime > max ? w.endTime : max), sorted[0].endTime);
+  const breaks = [];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    if (sorted[i].endTime < sorted[i + 1].startTime) {
+      breaks.push({ start: sorted[i].endTime, end: sorted[i + 1].startTime });
+    }
+  }
+  const rangeLabel = `${outerStart}-${outerEnd}`;
+  if (breaks.length === 0) return rangeLabel;
+  const breakLabels = breaks.map(
+    (b) => `${b.start}-${b.end} arası ${formatBreakDurationLocal(minutesOfDayLocal(b.end) - minutesOfDayLocal(b.start))} mola`,
+  );
+  return `${rangeLabel} (${breakLabels.join(", ")})`;
+}
+
 // shared.jsx'teki getPortalUrl ile AYNI mantık (kasıtlı kopya, aynı gerekçeyle
 // import edilmedi - bkz. istanbulDateStr). Portale davet, randevu alan kişiye
 // zorunlu değil sadece opsiyonel bir bağlantı olarak gösteriliyor.
@@ -429,7 +463,7 @@ export default function AppointmentRequestPage() {
                       </label>
                       {dayWindows.length > 0 && (
                         <p style={{ fontSize: 12, color: "#9aa8b8", margin: "0 0 8px" }}>
-                          Çalışma saatleri: {dayWindows.map((w) => `${w.startTime}-${w.endTime}`).join(", ")}
+                          Çalışma saatleri: {formatWindowsSummary(dayWindows)}
                         </p>
                       )}
                       {timePrefs.map((t, i) => (

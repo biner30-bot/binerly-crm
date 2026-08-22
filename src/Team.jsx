@@ -11,6 +11,8 @@ import {
   WEEKDAYS_SHORT,
   DateRangeFilter,
   SegmentedControl,
+  formatTimeWindowsSummary,
+  summarizeTimeWindows,
 } from "./shared";
 
 export function isOpenStaffShift(s) {
@@ -131,6 +133,11 @@ export function StaffShiftDayEditor({
             </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+              {sorted.length > 1 && (
+                <p style={{ fontSize: 12.5, color: "var(--text-secondary)", margin: "0 0 2px" }}>
+                  Özet: {formatTimeWindowsSummary(sorted)}
+                </p>
+              )}
               {sorted.map((s) => (
                 <div
                   key={s.id}
@@ -445,20 +452,26 @@ export function StaffShiftGrid({
                         </span>
                       )
                     ) : (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 3,
-                          alignItems: "center",
-                        }}
-                      >
-                        {dayShifts.map((s) => (
-                          <Badge key={s.id} tone="accent">
-                            {s.startTime}-{s.endTime}
-                          </Badge>
-                        ))}
-                      </div>
+                      (() => {
+                        const summary = summarizeTimeWindows(dayShifts);
+                        return (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 2,
+                              alignItems: "center",
+                            }}
+                          >
+                            <Badge tone="accent">{summary.rangeLabel}</Badge>
+                            {summary.breaks.length > 0 && (
+                              <span style={{ fontSize: 9.5, color: "var(--text-muted)" }}>
+                                {summary.breaks.map((b) => b.durationLabel).join(", ")} mola
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()
                     )}
                   </td>
                 );
@@ -643,7 +656,7 @@ export function StaffShiftHistoryModal({ people, staffShifts, onClose }) {
                           ? "Tatil"
                           : shifts.length === 0
                             ? "-"
-                            : shifts.map((s) => `${s.startTime}-${s.endTime}`).join(", ")}
+                            : formatTimeWindowsSummary(shifts)}
                       </td>
                     );
                   })}
@@ -1018,7 +1031,7 @@ export function TeamDailyLoadPanel({
                   {isOff
                     ? "Bugün tatil"
                     : dayShifts.length
-                      ? dayShifts.map((s) => `${s.startTime}-${s.endTime}`).join(", ")
+                      ? formatTimeWindowsSummary(dayShifts)
                       : "Bugün vardiyası yok"}
                 </span>
               </div>

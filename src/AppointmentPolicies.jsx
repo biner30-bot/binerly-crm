@@ -1,5 +1,14 @@
 import { useState, useEffect } from "react";
-import { Modal, InfoTip, ConfirmDialog, formatTL, Badge, IconButton, WEEKDAYS } from "./shared";
+import {
+  Modal,
+  InfoTip,
+  ConfirmDialog,
+  formatTL,
+  Badge,
+  IconButton,
+  WEEKDAYS,
+  formatTimeWindowsSummary,
+} from "./shared";
 import { appointmentPrepNoteExample } from "./Sectors";
 export function AppointmentCancelPolicyBox({ companySettings, onSave }) {
   const configured = companySettings?.appointmentCancelHours != null || companySettings?.appointmentPenaltyHours != null || companySettings?.appointmentPenaltyStrikeLimit != null || companySettings?.appointmentPartialChargeHours != null;
@@ -484,15 +493,22 @@ export function BusinessHoursManager({ items, onAdd, onDelete }) {
                   {dayItems.length === 0 ? (
                     <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Kapalı</span>
                   ) : (
-                    dayItems.map((b) => (
+                    <>
+                      {dayItems.length > 1 && (
+                        <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                          {formatTimeWindowsSummary(dayItems)}
+                        </div>
+                      )}
+                      {dayItems.map((b) => (
                       <div key={b.id} style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 4, background: "var(--surface-2)", borderRadius: 6, padding: "4px 6px" }}>
                         <div>
                           <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-accent)" }}>{b.startTime}-{b.endTime}</div>
                           <div style={{ fontSize: 10.5, color: "var(--text-muted)" }}>{b.slotDurationMinutes} dk aralık</div>
                         </div>
-                        <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(b)} />
-                      </div>
-                    ))
+                          <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(b)} />
+                        </div>
+                      ))}
+                    </>
                   )}
                 </div>
               );

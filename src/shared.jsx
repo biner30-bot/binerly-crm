@@ -1695,6 +1695,59 @@ export function parseAppointmentDateTime(raw) {
   return isNaN(d.getTime()) ? null : d;
 }
 
+function minutesOfDay(t) {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function formatBreakDuration(minutes) {
+  if (minutes % 60 === 0) return `${minutes / 60} saat`;
+  if (minutes < 60) return `${minutes} dk`;
+  return `${Math.floor(minutes / 60)} saat ${minutes % 60} dk`;
+}
+
+// Öğle arasıyla ikiye bölünmüş bir günü ("09:00-12:00" + "13:00-18:00") ayrı
+// ayrı satır yerine tek bir birleşik aralık + mola listesi olarak özetler.
+// Pencereler arasında GERÇEK bir boşluk yoksa (art arda bitiş=başlangıç ya da
+// tek pencere) breaks boş döner — her çok-pencereli gün öğle arası anlamına
+// gelmiyor (bkz. gece vardiyası gibi kesintisiz art arda pencereler).
+export function summarizeTimeWindows(windows) {
+  if (!windows || windows.length === 0) return null;
+  const sorted = [...windows].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const outerStart = sorted[0].startTime;
+  const outerEnd = sorted.reduce(
+    (max, w) => (w.endTime > max ? w.endTime : max),
+    sorted[0].endTime,
+  );
+  const breaks = [];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    if (sorted[i].endTime < sorted[i + 1].startTime) {
+      const start = sorted[i].endTime;
+      const end = sorted[i + 1].startTime;
+      breaks.push({
+        start,
+        end,
+        durationLabel: formatBreakDuration(minutesOfDay(end) - minutesOfDay(start)),
+      });
+    }
+  }
+  return { rangeLabel: `${outerStart}-${outerEnd}`, breaks };
+}
+
+// summarizeTimeWindows'un tek satırlık metin hali: "09:00-18:00 (12:00-13:00
+// arası 1 saat mola)". Metin sığdırma kısıtı olmayan yerlerde (liste satırı,
+// ipucu metni) kullanılır; dar ızgara hücrelerinde summarizeTimeWindows'u
+// doğrudan kullanıp aralık/mola'yı ayrı satırlara koymak daha okunur olur.
+export function formatTimeWindowsSummary(windows) {
+  const summary = summarizeTimeWindows(windows);
+  if (!summary) return "";
+  if (summary.breaks.length === 0) return summary.rangeLabel;
+  const breakLabels = summary.breaks.map(
+    (b) => `${b.start}-${b.end} arası ${b.durationLabel} mola`,
+  );
+  return `${summary.rangeLabel} (${breakLabels.join(", ")})`;
+}
+
 // Müşteri Takibi satırındaki tekil ikon butonları (PDF, onay linki, tahsilat,
 // kopyala, düzenle, sil...) sayı arttıkça (seans/paket alanlarıyla 7'ye kadar
 // çıkabiliyordu) sıkışık ve okunaksız hale geliyordu. Tek bir "..." menüsünde
