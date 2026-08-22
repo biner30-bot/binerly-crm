@@ -2808,7 +2808,8 @@ export default function App() {
   const applyAppointmentCreditGrant = async (deal) => {
     const raw = appointmentDateTimeKey ? deal.customFields?.[appointmentDateTimeKey] : null;
     if (!raw || companySettings?.appointmentPenaltyHours == null) return;
-    const hoursLeft = (new Date(`${raw}:00+03:00`).getTime() - Date.now()) / (60 * 60 * 1000);
+    const apptDate = parseAppointmentDateTime(raw);
+    const hoursLeft = apptDate ? (apptDate.getTime() - Date.now()) / (60 * 60 * 1000) : NaN;
     if (isNaN(hoursLeft) || hoursLeft >= companySettings.appointmentPenaltyHours) return;
     const customer = customers.find((c) => c.id === deal.customerId);
     if (!customer) return;
@@ -4331,7 +4332,7 @@ export default function App() {
         .filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi" && !d.assignedTo)
         .map((d) => {
           const raw = d.customFields?.[appointmentDateTimeKey];
-          const apptTime = raw ? new Date(`${raw}:00+03:00`) : null;
+          const apptTime = parseAppointmentDateTime(raw);
           return { deal: d, apptTime };
         })
         .filter((x) => x.apptTime && !isNaN(x.apptTime.getTime()) && x.apptTime.getTime() > Date.now())
@@ -4358,7 +4359,7 @@ export default function App() {
         .filter((d) => d.stage === "kaybedildi" && d.lostReason !== "Diğer")
         .map((d) => {
           const raw = d.customFields?.[appointmentDateTimeKey];
-          const apptTime = raw ? new Date(`${raw}:00+03:00`) : null;
+          const apptTime = parseAppointmentDateTime(raw);
           return { deal: d, apptTime };
         })
         .filter((x) => x.apptTime && !isNaN(x.apptTime.getTime()) && x.apptTime.getTime() > Date.now())
@@ -4376,7 +4377,7 @@ export default function App() {
         .filter((d) => d.stage !== "kazanildi" && d.stage !== "kaybedildi" && !(d.sessionTotal > 0 && d.sessionUsed >= d.sessionTotal))
         .map((d) => {
           const raw = d.customFields?.[appointmentDateTimeKey];
-          const apptTime = raw ? new Date(`${raw}:00+03:00`) : null;
+          const apptTime = parseAppointmentDateTime(raw);
           return { deal: d, apptTime };
         })
         .filter((x) => x.apptTime && !isNaN(x.apptTime.getTime()) && x.apptTime.getTime() <= Date.now())
@@ -4413,16 +4414,17 @@ export default function App() {
   // atomik RPC tahsisi - burası yanılsa bile veri bütünlüğü bozulmaz.
   const appointmentSlotHasConflict = (dateTimeStr, durationMinutes, excludeDealId) => {
     if (!appointmentDateTimeKey) return false;
-    const candidateStart = new Date(`${dateTimeStr}:00+03:00`).getTime();
-    if (isNaN(candidateStart)) return false;
+    const candidateDate = parseAppointmentDateTime(dateTimeStr);
+    if (!candidateDate) return false;
+    const candidateStart = candidateDate.getTime();
     const candidateEnd = candidateStart + Math.max(Number(durationMinutes) || 0, 1) * 60000;
     const concurrency = Math.max(1, Number(companySettings?.appointmentConcurrency) || 1);
     const overlapping = deals.filter((d) => {
       if (d.id === excludeDealId || d.stage === "kaybedildi") return false;
       const otherDt = d.customFields?.[appointmentDateTimeKey];
-      if (!otherDt) return false;
-      const otherStart = new Date(`${otherDt}:00+03:00`).getTime();
-      if (isNaN(otherStart)) return false;
+      const otherDate = parseAppointmentDateTime(otherDt);
+      if (!otherDate) return false;
+      const otherStart = otherDate.getTime();
       const otherEnd = otherStart + Math.max(Number(d.customFields?.duration_minutes) || 0, 1) * 60000;
       return candidateStart < otherEnd && otherStart < candidateEnd;
     }).length;
@@ -5981,7 +5983,8 @@ export default function App() {
       {pendingLostReasonMove && (() => {
         const pendingDeal = deals.find((d) => d.id === pendingLostReasonMove.dealId);
         const rawAppt = appointmentDateTimeKey ? pendingDeal?.customFields?.[appointmentDateTimeKey] : null;
-        const hoursLeft = rawAppt ? (new Date(`${rawAppt}:00+03:00`).getTime() - Date.now()) / (60 * 60 * 1000) : null;
+        const apptDateForCharge = parseAppointmentDateTime(rawAppt);
+        const hoursLeft = apptDateForCharge ? (apptDateForCharge.getTime() - Date.now()) / (60 * 60 * 1000) : null;
         const partialChargeHours = companySettings?.appointmentPartialChargeHours;
         // Sadece bilgi amaçlı — "Geç iptal etti" seçilirse hangi kesinti
         // bölgesine düştüğünü gösterir, otomatik para hareketi yapmaz.

@@ -124,7 +124,12 @@ export default async function handler(req, res) {
       // datetime-local değeri saat dilimi bilgisi taşımaz (örn. "2026-07-11T15:00")
       // — bu proje sadece Türkiye için, bu yüzden +03:00 olarak yorumluyoruz.
       // Bu adımı atlamak, sunucunun UTC saatiyle karşılaştırıp saatleri kaydırırdı.
-      const apptTime = new Date(`${raw}:00+03:00`).getTime();
+      // slice(0,16) ŞART: portal/widget'tan gelen kendi-kendine randevularda bu
+      // alan saniyeli yazılıyor ("...T09:00:00") - slice olmadan "...T09:00:00:00
+      // +03:00" gibi geçersiz bir string oluşup Invalid Date'e düşer, hatırlatma
+      // SESSİZCE hiç gönderilmez (canlı veride keşfedildi, bkz. shared.jsx
+      // parseAppointmentDateTime - burada api/*.js kendi kopyasını kullanıyor).
+      const apptTime = new Date(`${raw.slice(0, 16)}:00+03:00`).getTime();
       if (isNaN(apptTime) || apptTime <= now) continue;
       if (!deal.appointment_reminder_sent_at && apptTime <= nearWindowEnd) {
         dueDeals.push({ deal, raw, type: "near" });

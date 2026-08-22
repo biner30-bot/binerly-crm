@@ -307,7 +307,9 @@ async function handleConfirmAttendance(req, res, supabaseAdmin, deal, settings, 
     .eq("active", true);
   const dtKey = (defs || []).map((d) => d.key).find((k) => deal.custom_fields?.[k]);
   const raw = dtKey ? deal.custom_fields[dtKey] : null;
-  const apptTime = raw ? new Date(`${raw}:00+03:00`).getTime() : NaN;
+  // slice(0,16) ŞART: portal/widget self-booking saniyeli yazıyor
+  // ("...T09:00:00") - bkz. send-appointment-reminders.js'teki aynı fix.
+  const apptTime = raw ? new Date(`${raw.slice(0, 16)}:00+03:00`).getTime() : NaN;
 
   if (response === "yes") {
     if (deal.custom_fields?.attendanceConfirmedAt) {
