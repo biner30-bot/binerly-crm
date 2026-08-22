@@ -34,6 +34,24 @@ function shortDayLabel(dateStr) {
   return { weekday: weekday.charAt(0).toUpperCase() + weekday.slice(1), day: String(d.getUTCDate()) };
 }
 
+// api/appointment-availability.js'teki AYNI ISO haftagünü hesaplama (kasıtlı
+// kopya, Pazartesi=1..Pazar=7) - business_hours.weekday ile AYNI kodlama.
+function isoWeekdayOf(dateStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const jsWeekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return jsWeekday === 0 ? 7 : jsWeekday;
+}
+
+// requestOnlyMode'da gerçek slot/doluluk hiç gösterilmiyor ama işletmenin
+// AÇIK OLDUĞU saatler doluluk bilgisi değil - saat tercihi alanına "gece
+// 03:00" gibi anlamsız girişleri engelleyen bir min/max + görünür bir ipucu
+// için kullanılır (bkz. api/lead-capture.js businessHours alanı).
+function windowsForWeekday(businessHours, dateStr) {
+  if (!dateStr) return [];
+  const weekday = isoWeekdayOf(dateStr);
+  return (businessHours || []).filter((h) => h.weekday === weekday).sort((a, b) => a.startTime.localeCompare(b.startTime));
+}
+
 // shared.jsx'teki getPortalUrl ile AYNI mantık (kasıtlı kopya, aynı gerekçeyle
 // import edilmedi - bkz. istanbulDateStr). Portale davet, randevu alan kişiye
 // zorunlu değil sadece opsiyonel bir bağlantı olarak gösteriliyor.
@@ -146,8 +164,8 @@ export default function AppointmentRequestPage() {
       return;
     }
     const cleanPrefs = timePrefs.filter(Boolean);
-    if (requestOnlyMode ? cleanPrefs.length === 0 : !selectedTime || !dateTimeKey) {
-      setSubmitError("Lütfen en az bir saat girin.");
+    if (requestOnlyMode ? cleanPrefs.length === 0 || closedToday : !selectedTime || !dateTimeKey) {
+      setSubmitError(closedToday ? "İşletme bu gün kapalı, lütfen başka bir gün seçin." : "Lütfen en az bir saat girin.");
       return;
     }
     setSubmitError("");
@@ -245,6 +263,14 @@ export default function AppointmentRequestPage() {
   // anlamsız, eski akış (doğrudan gün/saat) aynen korunur.
   const hasServices = freeServices.length > 0 || paidServices.length > 0;
   const canPickTime = !hasServices || serviceIds.length > 0;
+  // requestOnlyMode'da saat tercihi alanına makul bir min/max + görünür bir
+  // ipucu koymak için - KOBİ hiç Müsaitlik Saatleri tanımlamadıysa (hoursConfigured
+  // false) hiçbir kısıt uygulanmaz, elimizde veri yok demektir.
+  const hoursConfigured = (company?.businessHours || []).length > 0;
+  const dayWindows = windowsForWeekday(company?.businessHours, date);
+  const closedToday = hoursConfigured && dayWindows.length === 0;
+  const dayMinTime = dayWindows.length ? dayWindows[0].startTime : undefined;
+  const dayMaxTime = dayWindows.length ? dayWindows.reduce((max, w) => (w.endTime > max ? w.endTime : max), dayWindows[0].endTime) : undefined;
   // api/lead-capture.js'teki groupedDurationMinutes ile AYNI ilke (kasıtlı
   // kopya) - aynı parallel_group'taki hizmetler MAX (eşzamanlı), farklı
   // gruptaki/grupsuz hizmetler SUM (ardışık) alınır. Sunucunun booking anında
@@ -392,36 +418,49 @@ export default function AppointmentRequestPage() {
                     <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 6 }}>Tercih ettiğiniz gün</label>
                     <input type="date" min={todayStr} max={maxDateStr} value={date} onChange={(e) => setDate(e.target.value)} style={{ width: "100%", borderRadius: 10, padding: "10px 12px" }} />
                   </div>
-                  <div style={{ marginBottom: 8 }}>
-                    <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 6 }}>
-                      Saat tercihleriniz <span style={{ color: "#9aa8b8" }}>(sırayla, ilki en çok tercih ettiğiniz)</span>
-                    </label>
-                    {timePrefs.map((t, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                        <span style={{ fontSize: 12.5, color: "#9aa8b8", width: 56, flexShrink: 0 }}>{i + 1}. tercih</span>
-                        <input
-                          type="time"
-                          value={t}
-                          onChange={(e) => setTimePrefs((prev) => prev.map((x, xi) => (xi === i ? e.target.value : x)))}
-                          style={{ flex: 1, borderRadius: 10, padding: "10px 12px" }}
-                        />
-                        {i > 0 && (
-                          <button type="button" onClick={() => setTimePrefs((prev) => prev.filter((_, xi) => xi !== i))} style={{ fontSize: 12, padding: "6px 10px", flexShrink: 0, borderRadius: 20 }}>
-                            Kaldır
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    {timePrefs.length < 3 && (
-                      <button
-                        type="button"
-                        onClick={() => setTimePrefs((prev) => [...prev, ""])}
-                        style={{ background: "#f5f8fc", color: "#185fa5", border: "1px solid #d5dde6", borderRadius: 10, fontSize: 12.5, fontWeight: 600, padding: "8px 12px", cursor: "pointer" }}
-                      >
-                        + Farklı bir saat de ekle (opsiyonel)
-                      </button>
-                    )}
-                  </div>
+                  {closedToday ? (
+                    <p style={{ fontSize: 13, color: "#b91c1c", margin: "0 0 16px", textAlign: "center" }}>
+                      İşletme bu gün kapalı, lütfen başka bir gün seçin.
+                    </p>
+                  ) : (
+                    <div style={{ marginBottom: 8 }}>
+                      <label style={{ fontSize: 13, color: "#5b7088", display: "block", marginBottom: 6 }}>
+                        Saat tercihleriniz <span style={{ color: "#9aa8b8" }}>(sırayla, ilki en çok tercih ettiğiniz)</span>
+                      </label>
+                      {dayWindows.length > 0 && (
+                        <p style={{ fontSize: 12, color: "#9aa8b8", margin: "0 0 8px" }}>
+                          Çalışma saatleri: {dayWindows.map((w) => `${w.startTime}-${w.endTime}`).join(", ")}
+                        </p>
+                      )}
+                      {timePrefs.map((t, i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                          <span style={{ fontSize: 12.5, color: "#9aa8b8", width: 56, flexShrink: 0 }}>{i + 1}. tercih</span>
+                          <input
+                            type="time"
+                            value={t}
+                            min={dayMinTime}
+                            max={dayMaxTime}
+                            onChange={(e) => setTimePrefs((prev) => prev.map((x, xi) => (xi === i ? e.target.value : x)))}
+                            style={{ flex: 1, borderRadius: 10, padding: "10px 12px" }}
+                          />
+                          {i > 0 && (
+                            <button type="button" onClick={() => setTimePrefs((prev) => prev.filter((_, xi) => xi !== i))} style={{ fontSize: 12, padding: "6px 10px", flexShrink: 0, borderRadius: 20 }}>
+                              Kaldır
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {timePrefs.length < 3 && (
+                        <button
+                          type="button"
+                          onClick={() => setTimePrefs((prev) => [...prev, ""])}
+                          style={{ background: "#f5f8fc", color: "#185fa5", border: "1px solid #d5dde6", borderRadius: 10, fontSize: 12.5, fontWeight: 600, padding: "8px 12px", cursor: "pointer" }}
+                        >
+                          + Farklı bir saat de ekle (opsiyonel)
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
@@ -546,8 +585,8 @@ export default function AppointmentRequestPage() {
               {submitError && <p style={{ color: "#b91c1c", fontSize: 13, margin: "0 0 12px" }}>{submitError}</p>}
               <button
                 type="submit"
-                disabled={sending || (requestOnlyMode ? timePrefs.every((t) => !t) : !selectedTime)}
-                style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 10, padding: "14px", fontWeight: 700, fontSize: 15.5, cursor: "pointer", opacity: sending || (requestOnlyMode ? timePrefs.every((t) => !t) : !selectedTime) ? 0.6 : 1, boxShadow: "0 10px 24px rgba(24,95,165,0.25)" }}
+                disabled={sending || (requestOnlyMode ? timePrefs.every((t) => !t) || closedToday : !selectedTime)}
+                style={{ width: "100%", background: "#185fa5", color: "#fff", border: "none", borderRadius: 10, padding: "14px", fontWeight: 700, fontSize: 15.5, cursor: "pointer", opacity: sending || (requestOnlyMode ? timePrefs.every((t) => !t) || closedToday : !selectedTime) ? 0.6 : 1, boxShadow: "0 10px 24px rgba(24,95,165,0.25)" }}
               >
                 {sending ? "Gönderiliyor…" : "Randevu Talebi Gönder"}
               </button>

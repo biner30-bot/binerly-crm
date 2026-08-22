@@ -1895,6 +1895,22 @@ function shortDayLabel(dateStr) {
   };
 }
 
+// AppointmentRequestPage.jsx'teki AYNI fonksiyonlar (kasıtlı kopya) -
+// business_hours.weekday ile AYNI ISO kodlama (Pazartesi=1..Pazar=7), gün+saat
+// tercihi formunda saat alanına makul bir min/max koymak için kullanılır.
+function isoWeekdayOf(dateStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const jsWeekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return jsWeekday === 0 ? 7 : jsWeekday;
+}
+function windowsForWeekday(businessHours, dateStr) {
+  if (!dateStr) return [];
+  const weekday = isoWeekdayOf(dateStr);
+  return (businessHours || [])
+    .filter((h) => h.weekday === weekday)
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+}
+
 // Otel gibi oda-stoklu (bookingModel === "inventory") sektörlerde müsaitlik bir
 // SAAT SLOTU değil, GİRİŞ/ÇIKIŞ TARİH ARALIĞI + oda tipi stoku bazlıdır — alanların
 // neredeyse tamamı (tarih/saat slotu yerine tarih aralığı, oda tipi seçimi) farklı
@@ -1941,6 +1957,20 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
   // requestOnlyMode'da kullanılır - en fazla 3, sıralı ("1. tercih" en yüksek
   // öncelikli). Boş string'ler gönderilmeden önce submit'te filtrelenir.
   const [timePrefs, setTimePrefs] = useState([""]);
+  // AppointmentRequestPage.jsx'teki AYNI ilke (kasıtlı kopya) - requestOnlyMode'da
+  // gerçek slot/doluluk hiç çekilmez ama İŞLETMENİN AÇIK OLDUĞU SAATLER doluluk
+  // bilgisi değil, saat tercihi alanına makul bir min/max koymak için TEK
+  // seferlik hafif bir istekle çekilir (api/appointment-availability.js
+  // businessHours=1 dalı).
+  const [businessHours, setBusinessHours] = useState([]);
+
+  useEffect(() => {
+    if (!requestOnlyMode || !customerRow.userId) return;
+    fetch(`/api/appointment-availability?businessUserId=${customerRow.userId}&businessHours=1`)
+      .then((r) => r.json())
+      .then((data) => setBusinessHours(data.businessHours || []))
+      .catch(() => setBusinessHours([]));
+  }, [requestOnlyMode, customerRow.userId]);
 
   useEffect(() => {
     if (requestOnlyMode || !date || !customerRow.userId) {
@@ -2002,6 +2032,14 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
   // süre sonradan değişip saat listesi şaşırtıcı şekilde kaymasın.
   const hasServices = freeServices.length > 0 || paidServices.length > 0;
   const canPickTime = !hasServices || serviceIds.length > 0;
+  // AppointmentRequestPage.jsx'teki AYNI ilke (kasıtlı kopya).
+  const hoursConfigured = businessHours.length > 0;
+  const dayWindows = windowsForWeekday(businessHours, date);
+  const closedToday = hoursConfigured && dayWindows.length === 0;
+  const dayMinTime = dayWindows.length ? dayWindows[0].startTime : undefined;
+  const dayMaxTime = dayWindows.length
+    ? dayWindows.reduce((max, w) => (w.endTime > max ? w.endTime : max), dayWindows[0].endTime)
+    : undefined;
   const toggleService = (id) => {
     setServiceIds((prev) => {
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
@@ -2044,7 +2082,8 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
     // Hizmet tanımlıysa (hasServices) yukarıdaki yapılandırılmış seçim zaten
     // "ne için randevu" sorusunu cevaplıyor - not zorunlu değil, sadece ek
     // bilgi. Hiç hizmet tanımlı değilse tek bilgi kaynağı bu alan, zorunlu kalır.
-    if (requestOnlyMode ? cleanPrefs.length === 0 : !selectedTime || !dateTimeKey) return;
+    if (requestOnlyMode ? cleanPrefs.length === 0 || closedToday : !selectedTime || !dateTimeKey)
+      return;
     if (!hasServices && !note.trim()) return;
     setBooking(true);
     const ok = await onBook({
@@ -2221,59 +2260,80 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
               style={{ width: "100%" }}
             />
           </div>
-          <div style={{ marginBottom: 12 }}>
-            <label
+          {closedToday ? (
+            <p
               style={{
                 fontSize: 13,
-                color: "var(--text-secondary)",
-                display: "block",
-                marginBottom: 4,
+                color: "var(--text-danger)",
+                margin: "0 0 16px",
+                textAlign: "center",
               }}
             >
-              Saat tercihleriniz{" "}
-              <span style={{ color: "var(--text-muted)" }}>
-                (sırayla, ilki en çok tercih ettiğiniz)
-              </span>
-            </label>
-            {timePrefs.map((t, i) => (
-              <div
-                key={i}
-                style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}
+              İşletme bu gün kapalı, lütfen başka bir gün seçin.
+            </p>
+          ) : (
+            <div style={{ marginBottom: 12 }}>
+              <label
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  display: "block",
+                  marginBottom: 4,
+                }}
               >
-                <span
-                  style={{ fontSize: 12.5, color: "var(--text-muted)", width: 56, flexShrink: 0 }}
-                >
-                  {i + 1}. tercih
+                Saat tercihleriniz{" "}
+                <span style={{ color: "var(--text-muted)" }}>
+                  (sırayla, ilki en çok tercih ettiğiniz)
                 </span>
-                <input
-                  type="time"
-                  value={t}
-                  onChange={(e) =>
-                    setTimePrefs((prev) => prev.map((x, xi) => (xi === i ? e.target.value : x)))
-                  }
-                  style={{ flex: 1 }}
-                />
-                {i > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setTimePrefs((prev) => prev.filter((_, xi) => xi !== i))}
-                    style={{ fontSize: 12, padding: "6px 10px", flexShrink: 0, borderRadius: 20 }}
+              </label>
+              {dayWindows.length > 0 && (
+                <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 8px" }}>
+                  Çalışma saatleri:{" "}
+                  {dayWindows.map((w) => `${w.startTime}-${w.endTime}`).join(", ")}
+                </p>
+              )}
+              {timePrefs.map((t, i) => (
+                <div
+                  key={i}
+                  style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}
+                >
+                  <span
+                    style={{ fontSize: 12.5, color: "var(--text-muted)", width: 56, flexShrink: 0 }}
                   >
-                    Kaldır
-                  </button>
-                )}
-              </div>
-            ))}
-            {timePrefs.length < 3 && (
-              <button
-                type="button"
-                onClick={() => setTimePrefs((prev) => [...prev, ""])}
-                style={{ fontSize: 12.5, fontWeight: 600, padding: "8px 12px", borderRadius: 10 }}
-              >
-                + Farklı bir saat de ekle (opsiyonel)
-              </button>
-            )}
-          </div>
+                    {i + 1}. tercih
+                  </span>
+                  <input
+                    type="time"
+                    value={t}
+                    min={dayMinTime}
+                    max={dayMaxTime}
+                    onChange={(e) =>
+                      setTimePrefs((prev) => prev.map((x, xi) => (xi === i ? e.target.value : x)))
+                    }
+                    style={{ flex: 1 }}
+                  />
+                  {i > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setTimePrefs((prev) => prev.filter((_, xi) => xi !== i))}
+                      style={{ fontSize: 12, padding: "6px 10px", flexShrink: 0, borderRadius: 20 }}
+                    >
+                      Kaldır
+                    </button>
+                  )}
+                </div>
+              ))}
+              {timePrefs.length < 3 && (
+                <button
+                  type="button"
+                  onClick={() => setTimePrefs((prev) => [...prev, ""])}
+                  style={{ fontSize: 12.5, fontWeight: 600, padding: "8px 12px", borderRadius: 10 }}
+                >
+                  + Farklı bir saat de ekle (opsiyonel)
+                </button>
+              )}
+            </div>
+          )}
         </>
       ) : (
         <>
@@ -2429,7 +2489,9 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
         <button
           type="button"
           disabled={
-            (requestOnlyMode ? timePrefs.every((t) => !t) : !selectedTime || !dateTimeKey) ||
+            (requestOnlyMode
+              ? timePrefs.every((t) => !t) || closedToday
+              : !selectedTime || !dateTimeKey) ||
             (!hasServices && !note.trim()) ||
             booking
           }

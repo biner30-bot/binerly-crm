@@ -351,10 +351,15 @@ export default async function handler(req, res) {
     // kullanıyor — appointment-availability.js'teki AYNI sorguyla "bu işletmenin
     // aktif bir randevu tarihi alanı var mı" belirlenir (Vercel Hobby'nin 12
     // fonksiyon sınırı zaten dolu olduğu için ayrı bir api/*.js açılmadı).
-    const [{ data: fieldDefs }, { data: services }, { data: cred }] = await Promise.all([
+    const [{ data: fieldDefs }, { data: services }, { data: cred }, { data: hours }] = await Promise.all([
       supabaseAdmin.from("custom_field_defs").select("key").eq("user_id", settings.user_id).eq("entity", "deal").eq("field_type", "datetime").eq("active", true).limit(1),
       supabaseAdmin.from("price_list_items").select("id, name, price, duration_minutes, parallel_group").eq("user_id", settings.user_id).order("name"),
       supabaseAdmin.from("payment_credentials").select("id").eq("user_id", settings.user_id).maybeSingle(),
+      // request_only modunda müşteriye gerçek slot/doluluk asla gösterilmiyor
+      // ama İŞLETMENİN AÇIK OLDUĞU SAATLER doluluk bilgisi değil (çoğu işletme
+      // zaten Google/Instagram'da paylaşıyor) - saat tercihi alanına makul bir
+      // min/max koymak için widget'a bilerek gönderiliyor (bkz. AppointmentRequestPage.jsx).
+      supabaseAdmin.from("business_hours").select("weekday, start_time, end_time").eq("user_id", settings.user_id),
     ]);
     // Kapora sadece Ödeme Bağlantısı gerçekten kuruluysa anlamlı - KOBİ tutarı
     // girmiş ama sonradan bağlantıyı kopmuş/kaldırmış olabilir, bu durumda
@@ -380,6 +385,7 @@ export default async function handler(req, res) {
       widgetMode: settings.appointment_widget_mode === "request_only" ? "request_only" : "realtime",
       services: services || [],
       depositAmount,
+      businessHours: (hours || []).map((h) => ({ weekday: h.weekday, startTime: h.start_time.slice(0, 5), endTime: h.end_time.slice(0, 5) })),
     });
   }
 

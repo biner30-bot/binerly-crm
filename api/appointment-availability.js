@@ -490,6 +490,17 @@ export default async function handler(req, res) {
   const { data: modeSettings } = await supabaseAdmin.from("company_settings").select("appointment_widget_mode").eq("user_id", businessUserId).maybeSingle();
   const widgetMode = modeSettings?.appointment_widget_mode === "request_only" ? "request_only" : "realtime";
 
+  // SlotBookingModal (Müşteri Portalı) request_only modunda gerçek slot/gün
+  // hesaplamasını hiç istemez ama İŞLETMENİN AÇIK OLDUĞU SAATLER doluluk
+  // bilgisi değil (bkz. api/lead-capture.js'teki AYNI ilke, widget tarafı) -
+  // saat tercihi alanına makul bir min/max koymak için bu hafif dal kullanılır.
+  if (req.query.businessHours === "1") {
+    const { data: hours } = await supabaseAdmin.from("business_hours").select("weekday, start_time, end_time").eq("user_id", businessUserId);
+    return res.status(200).json({
+      businessHours: (hours || []).map((h) => ({ weekday: h.weekday, startTime: h.start_time.slice(0, 5), endTime: h.end_time.slice(0, 5) })),
+    });
+  }
+
   // Sunucunun kendi çalışma saat dilimine güvenmeyen, doğrudan Europe/Istanbul
   // için "şu an"ın takvim gününü veren bir yöntem — new Date(...) ile dolaylı
   // çeviri yapan önceki yöntem, çalışma ortamına göre yanlış sonuç verebiliyordu.
