@@ -770,8 +770,8 @@ function TicketList({
           >
             <p style={{ fontWeight: 500, margin: "0 0 4px" }}>Henüz talep eklenmedi</p>
             <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px" }}>
-              Müşteri portaldan yazdığında burada görünür, isterseniz kendiniz de bir talep
-              oluşturabilirsiniz.
+              Müşterinizin destek talepleri burada görünür - portaldan kendileri açabilir veya size
+              ilettikleri talepleri siz ekleyebilirsiniz.
             </p>
             <button
               onClick={onCreateNew}
