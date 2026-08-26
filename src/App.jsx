@@ -10,7 +10,6 @@ import { AppointmentCancelPolicyBox, AppointmentDepositBox, AppointmentConcurren
 import { staffLeaveDayCount, formatLeaveDateRange, STAFF_LEAVE_TYPE_LABELS, isOpenStaffShift, staffHistoryDateStr, StaffShiftDayEditor, StaffShiftGrid, StaffShiftHistoryModal, StaffLeaveRecordModal, StaffLeaveManager, TeamDailyLoadPanel, TeamModal } from "./Team";
 import { TRASH_TABLE_LABELS, TrashHistoryModal } from "./TrashHistory";
 import { GroupClassForm, GroupClassRoster, LateCancelPolicyBox, GroupClassesTab, AgendaTab, agendaDateKey, quickDateWindow } from "./GroupClasses";
-import { SessionsTab } from "./Sessions";
 import { DealForm, roomTypeConflict, dealLostReasons, TAGS_INFO_TEXT, DealPayments, TeklifPrint, ParasutExportModal, PaymentModeModal, DealsTab, STUCK_DEAL_DAYS_THRESHOLD } from "./Deals";
 import { CustomerForm, CustomerDetail, CampaignModal, ACTIVITY_TYPES, CustomersTab } from "./Customers";
 import { AskBubble, AskDock } from "./AskWidget";
@@ -4760,7 +4759,6 @@ export default function App() {
           { id: "finans", label: "Finans", icon: "ti-chart-line" },
           { id: "mesajlar", label: "Mesajlar", icon: "ti-message-2" },
           ...(supportsGroupClasses(companySettings?.sector) ? [{ id: "dersler", label: "Dersler", icon: "ti-calendar-time" }] : []),
-          ...(supportsSessionPackages(companySettings?.sector) ? [{ id: "seanslar", label: "Seanslar", icon: "ti-repeat" }] : []),
           { id: "destek", label: "Destek", icon: "ti-headset" },
         ].map((t) => (
           <button
@@ -5025,6 +5023,7 @@ export default function App() {
           setDragDealId={setDragDealId}
           attemptMoveDealStage={attemptMoveDealStage}
           customerById={customerById}
+          appointmentDateTimeKey={appointmentDateTimeKey}
           dealPdfLabel={dealPdfLabel}
           setTeklifDeal={setTeklifDeal}
           setListingTextDeal={setListingTextDeal}
@@ -5230,19 +5229,6 @@ export default function App() {
           onEnroll={enrollMember}
           onRemove={removeMember}
           onSaveCancelPolicy={(patch) => upsertCompanySettings({ ...companySettings, ...patch })}
-        />
-      )}
-
-      {tab === "seanslar" && supportsSessionPackages(companySettings?.sector) && (
-        <SessionsTab
-          deals={deals}
-          customerById={customerById}
-          appointmentDateTimeKey={appointmentDateTimeKey}
-          onUseSession={handleUseSessionClick}
-          onEditDeal={(d) => {
-            setEditingDeal(d);
-            setShowDealForm(true);
-          }}
         />
       )}
 

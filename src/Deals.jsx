@@ -41,6 +41,7 @@ import {
 } from "./Sectors";
 import { DEAL_WORD_FORMS } from "./staticData";
 import { TaskForm } from "./Tasks";
+import { SessionsTab } from "./Sessions";
 // Vadesi geçmiş bakiye / kredi limiti uyarısı — GERÇEK BİR ENGEL DEĞİL, sadece
 // bilgilendirme (kullanıcının kararı: "riskli müşteriye teklif vermek KOBİ'nin
 // kendi bileceği iş"). "Ödeme Vadesi" (Peşin/30 gün/60 gün/90 gün) zaten var
@@ -90,6 +91,19 @@ const DEAL_VIEW_OPTIONS = [
     ),
   },
 ];
+
+// Sadece supportsSessionPackages() sektörlerinde üçüncü görünüm seçeneği olarak
+// eklenir (bkz. DEAL_VIEW_OPTIONS kullanım yeri) - paket satmayan sektörlerde
+// anlamsız bir sekme olarak kalmasın diye DEAL_VIEW_OPTIONS'a sabit eklenmiyor.
+const SESSIONS_VIEW_OPTION = {
+  id: "seanslar",
+  label: (
+    <>
+      <i className="ti ti-repeat" style={{ fontSize: 15 }} aria-hidden="true"></i>
+      Seanslar
+    </>
+  ),
+};
 
 const DEAL_QUICK_DATE_OPTIONS = [
   { id: "all", label: "Tümü" },
@@ -3985,6 +3999,7 @@ export function DealsTab({
   setDragDealId,
   attemptMoveDealStage,
   customerById,
+  appointmentDateTimeKey,
   dealPdfLabel,
   setTeklifDeal,
   setListingTextDeal,
@@ -4017,7 +4032,15 @@ export function DealsTab({
           }}
           options={DEAL_AUDIENCE_OPTIONS}
         />
-        <SegmentedControl value={dealView} onChange={changeDealView} options={DEAL_VIEW_OPTIONS} />
+        <SegmentedControl
+          value={dealView}
+          onChange={changeDealView}
+          options={
+            supportsSessionPackages(companySettings?.sector)
+              ? [...DEAL_VIEW_OPTIONS, SESSIONS_VIEW_OPTION]
+              : DEAL_VIEW_OPTIONS
+          }
+        />
         {isMembershipSector ? (
           <>
             <button
@@ -4140,54 +4163,56 @@ export function DealsTab({
         </button>
       </div>
 
-      <div
-        className="list-toolbar"
-        style={{ display: "flex", marginBottom: 12, gap: 8, flexWrap: "wrap" }}
-      >
-        <input
-          value={dealSearch}
-          onChange={(e) => setDealSearch(e.target.value)}
-          placeholder={dealWords.searchPlaceholder}
-          style={{ flex: 1, minWidth: 160 }}
-        />
-        <select
-          value={dealStageFilter}
-          onChange={(e) => setDealStageFilter(e.target.value)}
-          style={{ fontSize: 13 }}
+      {dealView !== "seanslar" && (
+        <div
+          className="list-toolbar"
+          style={{ display: "flex", marginBottom: 12, gap: 8, flexWrap: "wrap" }}
         >
-          <option value="all">Tüm aşamalar</option>
-          <option value="acik">{dealWords.openFilterLabel}</option>
-          {STAGES.map((s) => (
-            <option key={s.id} value={s.id}>
-              {stageLabel(s.id, dealAudience, companySettings?.sector)}
-            </option>
-          ))}
-        </select>
-        <select
-          value={dealPaymentFilter}
-          onChange={(e) => setDealPaymentFilter(e.target.value)}
-          style={{ fontSize: 13 }}
-        >
-          <option value="all">Tüm ödeme durumları</option>
-          <option value="odendi">Ödendi</option>
-          <option value="kismi">Kısmi ödeme</option>
-          <option value="odenmedi">Ödenmedi</option>
-        </select>
-        <select
-          value={dealSort}
-          onChange={(e) => setDealSort(e.target.value)}
-          style={{ fontSize: 13 }}
-        >
-          <option value="newest">En yeni eklenen</option>
-          <option value="oldest">En eski eklenen</option>
-        </select>
-        <DateRangeFilter
-          from={dealFromDate}
-          to={dealToDate}
-          onFromChange={setDealFromDate}
-          onToChange={setDealToDate}
-        />
-      </div>
+          <input
+            value={dealSearch}
+            onChange={(e) => setDealSearch(e.target.value)}
+            placeholder={dealWords.searchPlaceholder}
+            style={{ flex: 1, minWidth: 160 }}
+          />
+          <select
+            value={dealStageFilter}
+            onChange={(e) => setDealStageFilter(e.target.value)}
+            style={{ fontSize: 13 }}
+          >
+            <option value="all">Tüm aşamalar</option>
+            <option value="acik">{dealWords.openFilterLabel}</option>
+            {STAGES.map((s) => (
+              <option key={s.id} value={s.id}>
+                {stageLabel(s.id, dealAudience, companySettings?.sector)}
+              </option>
+            ))}
+          </select>
+          <select
+            value={dealPaymentFilter}
+            onChange={(e) => setDealPaymentFilter(e.target.value)}
+            style={{ fontSize: 13 }}
+          >
+            <option value="all">Tüm ödeme durumları</option>
+            <option value="odendi">Ödendi</option>
+            <option value="kismi">Kısmi ödeme</option>
+            <option value="odenmedi">Ödenmedi</option>
+          </select>
+          <select
+            value={dealSort}
+            onChange={(e) => setDealSort(e.target.value)}
+            style={{ fontSize: 13 }}
+          >
+            <option value="newest">En yeni eklenen</option>
+            <option value="oldest">En eski eklenen</option>
+          </select>
+          <DateRangeFilter
+            from={dealFromDate}
+            to={dealToDate}
+            onFromChange={setDealFromDate}
+            onToChange={setDealToDate}
+          />
+        </div>
+      )}
 
       {customers.length === 0 && (
         <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>
@@ -4195,7 +4220,18 @@ export function DealsTab({
         </p>
       )}
 
-      {filteredDeals.length === 0 ? (
+      {dealView === "seanslar" ? (
+        <SessionsTab
+          deals={deals}
+          customerById={customerById}
+          appointmentDateTimeKey={appointmentDateTimeKey}
+          onUseSession={handleUseSessionClick}
+          onEditDeal={(d) => {
+            setEditingDeal(d);
+            setShowDealForm(true);
+          }}
+        />
+      ) : filteredDeals.length === 0 ? (
         deals.length === 0 ? (
           <div
             style={{
