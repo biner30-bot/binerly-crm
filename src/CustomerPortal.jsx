@@ -4186,9 +4186,11 @@ export default function CustomerPortal() {
   // portalı), sadece o an seçili olan firma için izin değişir, diğerleri etkilenmez.
   const setMarketingConsent = async (consent) => {
     if (!activeCustomerRow) return;
-    const { error } = await supabase.rpc("set_my_marketing_consent", {
-      p_customer_id: activeCustomerRow.id,
-      p_consent: consent,
+    // KVKK ispat gücü için gerçek IP'nin de kaydedilmesi gerekiyor - PostgREST
+    // üzerinden doğrudan RPC çağrısında bu güvenilir okunamıyor, bu yüzden IP'yi
+    // Deno tarafında yakalayan bir Edge Function üzerinden geçiyoruz (log-client-event).
+    const { error } = await supabase.functions.invoke("log-client-event", {
+      body: { action: "marketing_consent", customerId: activeCustomerRow.id, consent },
     });
     if (error) {
       notify(`Güncellenemedi: ${error.message}`);
@@ -4210,9 +4212,9 @@ export default function CustomerPortal() {
 
   const setPhotoConsent = async (consent) => {
     if (!activeCustomerRow) return;
-    const { error } = await supabase.rpc("set_my_photo_consent", {
-      p_customer_id: activeCustomerRow.id,
-      p_consent: consent,
+    // bkz. setMarketingConsent - aynı gerekçeyle Edge Function üzerinden geçiyor.
+    const { error } = await supabase.functions.invoke("log-client-event", {
+      body: { action: "photo_consent", customerId: activeCustomerRow.id, consent },
     });
     if (error) {
       notify(`Güncellenemedi: ${error.message}`);

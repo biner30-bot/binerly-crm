@@ -1493,8 +1493,16 @@ export default function App() {
 
   const [theme, setTheme] = useTheme();
 
-  useSessionTimeout(session, () => {
+  // 5651 sayılı kanun kapsamında giriş/çıkış logu için - çıkışta oturum silindikten
+  // SONRA loglamaya çalışırsak Edge Function'ın istediği JWT elden gitmiş olur, bu
+  // yüzden signOut() çağrılmadan HEMEN ÖNCE, oturum hâlâ geçerliyken loglanır.
+  const handleSignOut = async () => {
+    await supabase.functions.invoke("log-client-event", { body: { action: "logout" } }).catch(() => {});
     supabase.auth.signOut();
+  };
+
+  useSessionTimeout(session, () => {
+    handleSignOut();
     alert("Oturumunuz uzun süre hareketsiz kaldığı için sona erdi. Lütfen tekrar giriş yapın.");
   });
 
@@ -1503,6 +1511,9 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       if (event === "PASSWORD_RECOVERY") setShowPasswordRecovery(true);
+      if (event === "SIGNED_IN") {
+        supabase.functions.invoke("log-client-event", { body: { action: "login" } }).catch(() => {});
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -4658,7 +4669,7 @@ export default function App() {
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
           <NotificationBell userId={session.user.id} supabase={supabase} dataTour="notification-bell" />
-          <IconButton icon="ti-logout" label="Çıkış" onClick={() => supabase.auth.signOut()} title="Çıkış yap" className="app-header-logout-btn" />
+          <IconButton icon="ti-logout" label="Çıkış" onClick={handleSignOut} title="Çıkış yap" className="app-header-logout-btn" />
           <button
             type="button"
             onClick={() => setShowAppSettings(true)}
