@@ -122,6 +122,8 @@ export default function Pano({
   stuckDeals,
   freedAppointmentAlerts,
   unassignedUpcomingAppointments,
+  reviewConsentMissingAlerts,
+  requestCustomerConsent,
   openDeals,
   totalOpenValue,
   expectedRevenue,
@@ -902,7 +904,8 @@ export default function Pano({
         waitlistFillableAlerts.length === 0 &&
         stuckDeals.length === 0 &&
         freedAppointmentAlerts.length === 0 &&
-        unassignedUpcomingAppointments.length === 0 ? (
+        unassignedUpcomingAppointments.length === 0 &&
+        reviewConsentMissingAlerts.length === 0 ? (
           <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>
             Bugün için acil bir şey yok.
           </p>
@@ -950,6 +953,38 @@ export default function Pano({
                 </div>
               );
             })}
+            {reviewConsentMissingAlerts.map(({ deal, customer }) => (
+              <div
+                key={`review-consent-${deal.id}`}
+                className="pano-alert-row"
+                onClick={() => setViewingCustomer(customer)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  padding: "8px 10px",
+                  background: "var(--bg-warning)",
+                  borderLeft: "3px solid var(--text-warning)",
+                  borderRadius: "var(--radius)",
+                }}
+              >
+                <span style={{ flex: 1 }}>
+                  {customer?.name || "Bilinmeyen müşteri"} - değerlendirme isteği için izin yok
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    requestCustomerConsent(customer);
+                  }}
+                  style={{ fontSize: 12, padding: "4px 8px", flexShrink: 0 }}
+                >
+                  İzin İste
+                </button>
+              </div>
+            ))}
             {urgentTickets
               .slice()
               .sort((a, b) =>

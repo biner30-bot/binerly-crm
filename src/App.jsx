@@ -351,6 +351,7 @@ function rowToDeal(r) {
     appointmentOfferTime: r.appointment_offer_time || null,
     appointmentOfferExpiresAt: r.appointment_offer_expires_at || null,
     appointmentOfferStatus: r.appointment_offer_status || null,
+    reviewRequestedAt: r.review_requested_at || null,
   };
 }
 
@@ -4365,6 +4366,17 @@ export default function App() {
         .filter((x) => x.apptTime && !isNaN(x.apptTime.getTime()) && x.apptTime.getTime() > Date.now())
         .sort((a, b) => a.apptTime - b.apptTime)
     : [];
+  // send-reminders.js'teki Google değerlendirme isteği, müşterinin pazarlama
+  // izni yoksa insan onayı olmadan sessizce atlanıp deal yine de review_requested_at
+  // ile damgalanıyordu - KOBİ bu kaçırılan değerlendirme fırsatını hiç öğrenmiyordu.
+  // Aynı deal'i tekrar tekrar göstermemek için sadece review_requested_at SET
+  // olan (yani cron'un gerçekten denediği) ama izin hâlâ yoksa listelenir.
+  const reviewConsentMissingAlerts = companySettings?.googleReviewLink && companySettings?.googleReviewRequestsEnabled !== false
+    ? deals
+        .filter((d) => !d.deletedAt && d.reviewRequestedAt)
+        .map((d) => ({ deal: d, customer: customerById(d.customerId) }))
+        .filter((x) => x.customer?.email && !x.customer.marketingConsent)
+    : [];
   // Randevu sektörlerinde (anlık işlem yapılıp aynı gün kapanan randevular)
   // aşama değişikliği elle kanban/liste ile uğraşmak yerine tek tık onaya
   // indirgeniyor — saati geçmiş, hâlâ açık randevular burada toplanır. Paket
@@ -4879,6 +4891,8 @@ export default function App() {
           stuckDeals={stuckDeals}
           freedAppointmentAlerts={freedAppointmentAlerts}
           unassignedUpcomingAppointments={unassignedUpcomingAppointments}
+          reviewConsentMissingAlerts={reviewConsentMissingAlerts}
+          requestCustomerConsent={requestCustomerConsent}
           openDeals={openDeals}
           totalOpenValue={totalOpenValue}
           expectedRevenue={expectedRevenue}
