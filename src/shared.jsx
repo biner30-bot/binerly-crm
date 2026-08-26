@@ -13,6 +13,17 @@ export function isFullNameValid(name) {
   return name.trim().split(/\s+/).filter(Boolean).length >= 2;
 }
 
+// KVKK/5651 uyum denetiminde tespit edilen boşluk - eskiden sadece 6 karakter
+// minimum vardı, karmaşıklık kuralı yoktu. Kayıt formu ve şifre sıfırlama
+// modalı (Auth.jsx) bu tek fonksiyonu kullanır, kural iki yerde ayrı ayrı
+// tutulmaz. null döner = geçerli, aksi halde gösterilecek Türkçe hata metni.
+export function validatePassword(password) {
+  if ((password || "").length < 8) return "Şifre en az 8 karakter olmalı.";
+  if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password))
+    return "Şifre en az bir harf ve bir rakam içermeli.";
+  return null;
+}
+
 // api/lead-capture.js'te AYNI mantığın kopyası (kasıtlı - api/*.js src/*.jsx'ten
 // import etmiyor). "0"/"+90"/"90" öneki ve boşluk/tire/parantez toleranslı;
 // geriye kalan 10 hanenin TR alan kodu/operatör deseniyle (2xx-5xx) başlaması
@@ -35,7 +46,7 @@ const AUTH_ERROR_MAP = [
     "E-posta adresiniz henüz doğrulanmadı. Gelen kutunuzu kontrol edip doğrulama linkine tıklayın.",
   ],
   [/user already registered/i, "Bu e-posta adresiyle zaten bir hesap var. Giriş yapmayı deneyin."],
-  [/password should be at least/i, "Şifre en az 6 karakter olmalıdır."],
+  [/password should be at least/i, "Şifre çok kısa, daha uzun bir şifre deneyin."],
   [/unable to validate email address/i, "Geçerli bir e-posta adresi girin."],
   [/valid password/i, "Geçerli bir şifre girin."],
   [/new password should be different/i, "Yeni şifre, eski şifrenizden farklı olmalıdır."],

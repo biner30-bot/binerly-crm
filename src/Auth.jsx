@@ -6,6 +6,7 @@ import {
   GoogleAuthButton,
   isFullNameValid,
   translateAuthError,
+  validatePassword,
 } from "./shared";
 export function PasswordRecoveryModal({ notify, onClose }) {
   const [newPassword, setNewPassword] = useState("");
@@ -14,8 +15,9 @@ export function PasswordRecoveryModal({ notify, onClose }) {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (newPassword.length < 6) {
-      notify("Şifre en az 6 karakter olmalı.");
+    const pwError = validatePassword(newPassword);
+    if (pwError) {
+      notify(pwError);
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -116,6 +118,12 @@ export function AuthModal({ initialMode = "login", onClose }) {
         setMessage(
           "Devam etmek için Kullanım Koşulları ve Gizlilik Politikası'nı kabul etmeniz gerekiyor.",
         );
+        setLoading(false);
+        return;
+      }
+      const pwError = validatePassword(password);
+      if (pwError) {
+        setMessage(pwError);
         setLoading(false);
         return;
       }
@@ -285,7 +293,7 @@ export function AuthModal({ initialMode = "login", onClose }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              minLength={mode === "register" ? 6 : undefined}
+              minLength={mode === "register" ? 8 : undefined}
               style={{
                 width: "100%",
                 padding: "10px 12px",
@@ -297,7 +305,7 @@ export function AuthModal({ initialMode = "login", onClose }) {
             />
             {mode === "register" && (
               <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "4px 0 0" }}>
-                En az 6 karakter olmalı.
+                En az 8 karakter, en az bir harf ve bir rakam içermeli.
               </p>
             )}
           </div>
