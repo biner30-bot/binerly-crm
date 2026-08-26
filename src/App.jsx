@@ -1457,6 +1457,7 @@ export default function App() {
   const [dealQuickDateFilter, setDealQuickDateFilter] = useState("all"); // "all" | "today" | "week" | "month"
   const [dealTodayClassFilter, setDealTodayClassFilter] = useState(false);
   const [dealMembershipExpiryFilter, setDealMembershipExpiryFilter] = useState("all"); // "all" | "1m" | "3m" | "6m"
+  const [dealSessionFilter, setDealSessionFilter] = useState(false);
   const [teklifDeal, setTeklifDeal] = useState(null);
   const [paymentsDeal, setPaymentsDeal] = useState(null);
   const [paymentModeDeal, setPaymentModeDeal] = useState(null);
@@ -4246,6 +4247,7 @@ export default function App() {
     if (!matchesDateRange(d.createdAt, dealFromDate, dealToDate)) return false;
     if (dealStageFilter === "acik" && (d.stage === "kazanildi" || d.stage === "kaybedildi")) return false;
     if (dealStageFilter !== "all" && dealStageFilter !== "acik" && d.stage !== dealStageFilter) return false;
+    if (dealSessionFilter && !(d.sessionTotal > 0 && (d.sessionUsed || 0) < d.sessionTotal)) return false;
     if (dealPaymentFilter !== "all") {
       const paid = totalPaidForDeal(d.id);
       if (dealPaymentFilter === "odendi" && paid < d.value) return false;
@@ -4995,6 +4997,8 @@ export default function App() {
           setDealTodayClassFilter={setDealTodayClassFilter}
           dealMembershipExpiryFilter={dealMembershipExpiryFilter}
           setDealMembershipExpiryFilter={setDealMembershipExpiryFilter}
+          dealSessionFilter={dealSessionFilter}
+          setDealSessionFilter={setDealSessionFilter}
           dealQuickDateFilter={dealQuickDateFilter}
           setDealQuickDateFilter={setDealQuickDateFilter}
           setShowDealExport={setShowDealExport}

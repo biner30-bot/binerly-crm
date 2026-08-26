@@ -3957,6 +3957,8 @@ export function DealsTab({
   setDealTodayClassFilter,
   dealMembershipExpiryFilter,
   setDealMembershipExpiryFilter,
+  dealSessionFilter,
+  setDealSessionFilter,
   dealQuickDateFilter,
   setDealQuickDateFilter,
   setShowDealExport,
@@ -4048,6 +4050,19 @@ export function DealsTab({
             onChange={setDealQuickDateFilter}
             options={DEAL_QUICK_DATE_OPTIONS}
           />
+        )}
+        {supportsSessionPackages(companySettings?.sector) && (
+          <button
+            onClick={() => setDealSessionFilter((v) => !v)}
+            style={{
+              background: dealSessionFilter ? "var(--fill-accent)" : "var(--surface-1)",
+              color: dealSessionFilter ? "var(--on-accent)" : "var(--text-primary)",
+              border: "0.5px solid var(--border)",
+              fontSize: 13,
+            }}
+          >
+            Seansı kalanlar
+          </button>
         )}
       </div>
 
