@@ -1131,18 +1131,18 @@ export default function Finance({
               marginBottom: 20,
             }}
           >
-            <MetricCard label="Toplam Gelir" value={formatTL(totalIncome)} tone="success" />
+            <MetricCard label="Toplam gelir" value={formatTL(totalIncome)} tone="success" />
             <MetricCard
               label={
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  Toplam Gider <InfoTip text={totalExpenseInfoText(sector)} />
+                  Toplam gider <InfoTip text={totalExpenseInfoText(sector)} />
                 </span>
               }
               value={formatTL(totalExpense)}
               tone="danger"
             />
             <MetricCard
-              label="Net Kalan"
+              label="Net kalan"
               value={formatTL(netRemaining)}
               tone={netRemaining >= 0 ? "success" : "danger"}
             />
@@ -1387,7 +1387,7 @@ export default function Finance({
               >
                 Kategoriye göre gider
                 <InfoTip
-                  text={`Sadece elle eklenen işletme giderlerini gösterir, kazanılan ${FINANCE_DEAL_WORDS[dealWordKind(sector)].locativePlural} gider tutarlarını içermez - bu yüzden yukarıdaki Toplam Gider'le tam eşleşmeyebilir.`}
+                  text={`Sadece elle eklenen işletme giderlerini gösterir, kazanılan ${FINANCE_DEAL_WORDS[dealWordKind(sector)].locativePlural} gider tutarlarını içermez - bu yüzden yukarıdaki Toplam gider'le tam eşleşmeyebilir.`}
                 />
               </p>
               {Object.keys(categoryTotals).length === 0 ? (

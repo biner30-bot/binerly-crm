@@ -1457,7 +1457,7 @@ export default function Pano({
         <MetricCard
           label={
             <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-              Beklenen Gelir{" "}
+              Beklenen gelir{" "}
               <InfoTip
                 text={
                   `${dealWords.openGenPluralPhrase} tutarı, aşamalarına göre kapanma olasılığıyla çarpılıp toplanır:\n` +
@@ -1480,7 +1480,7 @@ export default function Pano({
             label={
               <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                 Gelecek ay tahmini{" "}
-                <InfoTip text="Son 3 tam ayda (içinde bulunulan ay hariç) kazanılan ortalama aylık gelir. Beklenen Gelir'den farklı olarak açık pipeline'a değil, geçmiş performansa dayanır." />
+                <InfoTip text="Son 3 tam ayda (içinde bulunulan ay hariç) kazanılan ortalama aylık gelir. Beklenen gelir'den farklı olarak açık pipeline'a değil, geçmiş performansa dayanır." />
               </span>
             }
             value={formatTL(nextMonthForecast)}

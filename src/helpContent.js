@@ -360,8 +360,8 @@ export const HELP_TOPICS = [
   },
   {
     category: "Finans",
-    q: 'Toplam Gider ile "Kategoriye göre gider" listesi neden birbirini tutmuyor?',
-    a: '"Kategoriye göre gider" sadece elle eklediğiniz işletme giderlerini toplar; Toplam Gider\'e ayrıca kazanılan tekliflerin "Gider" tutarları da eklendiği için iki rakam farklı çıkabilir.',
+    q: 'Toplam gider ile "Kategoriye göre gider" listesi neden birbirini tutmuyor?',
+    a: '"Kategoriye göre gider" sadece elle eklediğiniz işletme giderlerini toplar; Toplam gider\'e ayrıca kazanılan tekliflerin "Gider" tutarları da eklendiği için iki rakam farklı çıkabilir.',
   },
   {
     category: "Finans",
