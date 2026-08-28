@@ -7,7 +7,7 @@ import {
   Badge,
   IconButton,
   WEEKDAYS,
-  formatTimeWindowsSummary,
+  summarizeTimeWindows,
 } from "./shared";
 import { appointmentPrepNoteExample } from "./Sectors";
 export function AppointmentCancelPolicyBox({ companySettings, onSave }) {
@@ -483,33 +483,59 @@ export function BusinessHoursManager({ items, onAdd, onDelete }) {
         // listede alt alta sıralanıyordu, haftanın genel görünümünü tek
         // bakışta kavramak zordu (kullanıcı geri bildirimi, 2026-08-01).
         <div style={{ overflowX: "auto", marginBottom: 16 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(122px, 1fr))", gap: 6, minWidth: 780 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(128px, 1fr))", gap: 6, minWidth: 820 }}>
             {WEEKDAYS.map((w, i) => {
               const weekday = i + 1;
               const dayItems = sorted.filter((b) => b.weekday === weekday);
               return (
-                <div key={weekday} style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 8, display: "flex", flexDirection: "column", gap: 6, minHeight: 56 }}>
+                <div key={weekday} style={{ background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: 8, display: "flex", flexDirection: "column", gap: 4, minHeight: 56 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.3 }}>{w}</div>
                   {dayItems.length === 0 ? (
                     <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Kapalı</span>
-                  ) : (
-                    <>
-                      {dayItems.length > 1 && (
-                        <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
-                          {formatTimeWindowsSummary(dayItems)}
+                  ) : (() => {
+                    const summary = summarizeTimeWindows(dayItems);
+                    const slotSet = [...new Set(dayItems.map((b) => b.slotDurationMinutes))];
+                    return (
+                      <>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-accent)", letterSpacing: 0.2 }}>
+                          {summary.rangeLabel}
                         </div>
-                      )}
-                      {dayItems.map((b) => (
-                      <div key={b.id} style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 4, background: "var(--surface-2)", borderRadius: 6, padding: "4px 6px" }}>
-                        <div>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-accent)" }}>{b.startTime}-{b.endTime}</div>
-                          <div style={{ fontSize: 10.5, color: "var(--text-muted)" }}>{b.slotDurationMinutes} dk aralık</div>
+                        {summary.breaks.length > 0 && (
+                          <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                            Mola: {summary.breaks.map((b) => `${b.start}-${b.end}`).join(", ")}
+                          </div>
+                        )}
+                        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                          {slotSet.length === 1 ? `${slotSet[0]} dk slot` : "Slot süreleri karışık"}
                         </div>
-                          <IconButton icon="ti-trash" title="Sil" size="sm" onClick={() => setConfirmDelete(b)} />
-                        </div>
-                      ))}
-                    </>
-                  )}
+                        {dayItems.length === 1 ? (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDelete(dayItems[0])}
+                            style={{ alignSelf: "flex-start", marginTop: 2, padding: 0, background: "none", border: "none", fontSize: 10.5, color: "var(--text-muted)", textDecoration: "underline", cursor: "pointer" }}
+                          >
+                            Kaldır
+                          </button>
+                        ) : (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 2 }}>
+                            {dayItems.map((b) => (
+                              <span key={b.id} style={{ display: "inline-flex", alignItems: "center", gap: 2, fontSize: 10.5, color: "var(--text-secondary)", background: "var(--surface-2)", borderRadius: 5, padding: "2px 3px 2px 7px" }}>
+                                {b.startTime}-{b.endTime}
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDelete(b)}
+                                  aria-label={`${b.startTime}-${b.endTime} müsaitliğini sil`}
+                                  style={{ width: 16, height: 16, padding: 0, background: "none", border: "none", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", cursor: "pointer" }}
+                                >
+                                  <i className="ti ti-x" style={{ fontSize: 11 }} aria-hidden="true"></i>
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               );
             })}
