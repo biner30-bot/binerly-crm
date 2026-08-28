@@ -4261,7 +4261,9 @@ export function DealsTab({
             </button>
           </div>
         ) : (
-          <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>{dealWords.emptySearch}</p>
+          <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
+            {dealSearch.trim() ? dealWords.emptySearch : dealWords.emptyFilter}
+          </p>
         )
       ) : dealView === "kanban" ? (
         <div
@@ -4583,7 +4585,7 @@ export function DealsTab({
                         )}
                         {d.approvedAt && (
                           <div style={{ marginTop: 4 }}>
-                            <Badge tone="success">Onaylandı ✓</Badge>
+                            <Badge tone="success">✓ Onaylandı</Badge>
                           </div>
                         )}
                         {d.customFields?.attendanceConfirmedAt && (
@@ -4766,8 +4768,13 @@ export function DealsTab({
                         {d.createdAt ? new Date(d.createdAt).toLocaleDateString("tr-TR") : ""}
                         {d.createdAt && new Date(d.createdAt).toTimeString().slice(0, 5) !== "00:00"
                           ? ` · ${new Date(d.createdAt).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}`
-                          : ""}{" "}
-                        · {d.reminder ? `Hatırlatma: ${d.reminder}` : "Hatırlatma yok"}
+                          : ""}
+                        {/* "Hatırlatma yok" kapanmış kayıtlarda gereksiz gürültü — sadece açık kayıtlarda göster */}
+                        {d.reminder
+                          ? ` · Hatırlatma: ${d.reminder}`
+                          : d.stage !== "kazanildi" && d.stage !== "kaybedildi"
+                            ? " · Hatırlatma yok"
+                            : ""}
                       </p>
                       {(() => {
                         const daysOpen = dealDaysOpen(d);
@@ -4845,7 +4852,7 @@ export function DealsTab({
                       )}
                       {d.approvedAt && (
                         <div style={{ marginTop: 4 }}>
-                          <Badge tone="success">Onaylandı ✓</Badge>
+                          <Badge tone="success">✓ Onaylandı</Badge>
                         </div>
                       )}
                       {d.customFields?.attendanceConfirmedAt && (
