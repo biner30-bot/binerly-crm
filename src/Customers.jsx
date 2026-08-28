@@ -518,9 +518,9 @@ export function CustomerDetail({
           }}
         >
           <span>
-            {customer.sector} {customer.region ? `· ${customer.region}` : ""}{" "}
-            {customer.phone ? `· ${customer.phone}` : ""}{" "}
-            {customer.email ? `· ${customer.email}` : ""}
+            {[customer.sector, customer.region, customer.phone, customer.email]
+              .filter(Boolean)
+              .join(" · ")}
           </span>
           {customer.phone && (
             <a
@@ -1676,7 +1676,7 @@ export function CustomersTab({
                         {c.name}
                       </p>
                       <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
-                        {c.sector} {c.region ? `· ${c.region}` : ""} {c.phone ? `· ${c.phone}` : ""}
+                        {[c.sector, c.region, c.phone].filter(Boolean).join(" · ")}
                       </p>
                       {c.tags?.length > 0 && (
                         <div style={{ marginTop: 4 }}>

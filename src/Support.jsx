@@ -1241,10 +1241,19 @@ export function ChatInbox({
 
   if (conversations.length === 0) {
     return (
-      <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
-        Henüz müşteriden gelen bir mesaj yok - müşteri portaldaki "Mesajlar" sekmesinden yazınca
-        burada görünecek.
-      </p>
+      <div
+        style={{
+          background: "var(--surface-1)",
+          borderRadius: 12,
+          padding: "2rem 1.5rem",
+          textAlign: "center",
+        }}
+      >
+        <p style={{ fontWeight: 500, margin: "0 0 4px" }}>Henüz mesaj yok</p>
+        <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: 0 }}>
+          Müşteri, portaldaki "Mesajlar" sekmesinden yazınca burada görünecek.
+        </p>
+      </div>
     );
   }
 
