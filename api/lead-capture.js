@@ -64,8 +64,8 @@ async function fetchIndexHtml(req) {
 function renderVitrinHtml(baseHtml, payload, vitrinUrl) {
   const name = payload.companyName;
   const contactLine = [payload.address, payload.phone].filter(Boolean).join(" · ");
-  const description = `${name}${contactLine ? " - " + contactLine : ""} - fiyat listesi ve kampanyalarını Binerly Vitrin'de görüntüleyin.`;
-  const title = `${name} - Binerly Vitrin`;
+  const description = `${name}${contactLine ? " - " + contactLine : ""} - ürünler, fiyat listesi ve güncel kampanyalar.`;
+  const title = `${name} - Vitrin`;
   const image = payload.logoUrl || "https://binerly.com/og-image.png";
   const titleSafe = escapeHtml(title);
   const descSafe = escapeHtml(description);
