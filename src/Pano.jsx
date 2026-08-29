@@ -710,7 +710,17 @@ export default function Pano({
                       )}
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                         {prefs.map((dt, i) => {
-                          const conflict = appointmentSlotHasConflict(dt, durationMinutes, deal.id);
+                          const conflict = appointmentSlotHasConflict(
+                            dt,
+                            durationMinutes,
+                            deal.id,
+                            [
+                              ...(deal.customFields?.service_ids || []),
+                              ...(deal.customFields?.price_item_id
+                                ? [deal.customFields.price_item_id]
+                                : []),
+                            ],
+                          );
                           return (
                             <button
                               key={dt}

@@ -548,7 +548,7 @@ function rowToDealLineItem(r) {
 }
 
 function rowToPriceListItem(r) {
-  return { id: r.id, name: r.name, price: r.price, refreshDays: r.refresh_days || null, durationMinutes: r.duration_minutes || null, commissionPercent: r.commission_percent ?? null, resourceId: r.resource_id || null, parallelGroup: r.parallel_group || null, sortOrder: r.sort_order ?? 0, createdAt: r.created_at || null };
+  return { id: r.id, name: r.name, price: r.price, refreshDays: r.refresh_days || null, durationMinutes: r.duration_minutes || null, commissionPercent: r.commission_percent ?? null, resourceId: r.resource_id || null, parallelGroup: r.parallel_group || null, staffMemberIds: r.staff_member_ids || [], sortOrder: r.sort_order ?? 0, createdAt: r.created_at || null };
 }
 
 function rowToStockItem(r) {
@@ -3501,6 +3501,31 @@ export default function App() {
     setPriceListItems((prev) => prev.filter((p) => p.id !== id));
   };
 
+  // Hizmet <-> personel yetkinligi (Takim modali "Hizmetler" sekmesi). Iliski
+  // price_list_items.staff_member_ids dizisinde; burada personel-odakli tek tik
+  // ekle/cikar yapiliyor. .select() ile satirin gercekten guncellendigini
+  // dogruluyoruz - RLS/stale id yuzunden 0 satir eslesirse Postgrest hata
+  // dondurmez, sessizce hicbir sey degismemis olur (Team.jsx toggleEditSettings
+  // ayni desen).
+  const setPriceItemStaff = async (priceItemId, memberId, canDo) => {
+    const item = priceListItems.find((p) => p.id === priceItemId);
+    if (!item) return;
+    const current = item.staffMemberIds || [];
+    const next = canDo
+      ? (current.includes(memberId) ? current : [...current, memberId])
+      : current.filter((id) => id !== memberId);
+    const { data, error } = await supabase
+      .from("price_list_items")
+      .update({ staff_member_ids: next })
+      .eq("id", priceItemId)
+      .select();
+    if (error || !data?.length) {
+      notify(`Yetkinlik güncellenemedi: ${error?.message || "kayıt bulunamadı."}`);
+      return;
+    }
+    setPriceListItems((prev) => prev.map((p) => (p.id === priceItemId ? rowToPriceListItem(data[0]) : p)));
+  };
+
   const updateParallelGroupPartners = async (updates) => {
     if (!updates.length) return;
     const results = await Promise.all(
@@ -4467,13 +4492,25 @@ export default function App() {
   // nüansı olmadan basitleştirilmiş, bu sadece bir ipucu). Gerçek garanti
   // müşteri onayladığı an api/deal-approval.js action=confirm-appointment-offer'daki
   // atomik RPC tahsisi - burası yanılsa bile veri bütünlüğü bozulmaz.
-  const appointmentSlotHasConflict = (dateTimeStr, durationMinutes, excludeDealId) => {
+  const appointmentSlotHasConflict = (dateTimeStr, durationMinutes, excludeDealId, serviceIds = []) => {
     if (!appointmentDateTimeKey) return false;
     const candidateDate = parseAppointmentDateTime(dateTimeStr);
     if (!candidateDate) return false;
     const candidateStart = candidateDate.getTime();
     const candidateEnd = candidateStart + Math.max(Number(durationMinutes) || 0, 1) * 60000;
-    const concurrency = Math.max(1, Number(companySettings?.appointmentConcurrency) || 1);
+    let concurrency = Math.max(1, Number(companySettings?.appointmentConcurrency) || 1);
+    // Hizmet bazlı personel yetkinliği (Takım > Hizmetler): seçili hizmet(ler)i
+    // sınırlı sayıda personel yapabiliyorsa etkin kapasite düşer. Bu sadece bir
+    // ipucu (buton yine aktif) - Deals.jsx findAppointmentConflict'in
+    // basitleştirilmiş sürümü, kesişim inceliği olmadan.
+    const validStaffIds = new Set([activeTeamId, ...teamRoster.map((m) => m.id)].filter(Boolean));
+    for (const sid of serviceIds || []) {
+      const svc = priceListItems.find((p) => p.id === sid);
+      const ids = (svc?.staffMemberIds || []).filter((id) => validStaffIds.has(id));
+      if ((svc?.staffMemberIds || []).length > 0 && ids.length > 0) {
+        concurrency = Math.min(concurrency, ids.length);
+      }
+    }
     const overlapping = deals.filter((d) => {
       if (d.id === excludeDealId || d.stage === "kaybedildi") return false;
       const otherDt = d.customFields?.[appointmentDateTimeKey];
@@ -5729,6 +5766,8 @@ export default function App() {
           deals={deals}
           customers={customers}
           customFieldDefs={customFieldDefs}
+          priceListItems={priceListItems}
+          onSetServiceStaff={setPriceItemStaff}
           onClose={() => setShowTeamModal(false)}
         />
       )}
