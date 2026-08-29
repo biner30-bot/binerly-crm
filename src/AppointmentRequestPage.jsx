@@ -126,6 +126,9 @@ export default function AppointmentRequestPage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [note, setNote] = useState("");
+  // Bot tuzağı - ekranda görünmez, gerçek kullanıcı doldurmaz (bkz.
+  // api/lead-capture.js HONEYPOT_FIELD).
+  const [website, setWebsite] = useState("");
   const [marketingConsent, setMarketingConsent] = useState(false);
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
@@ -209,7 +212,7 @@ export default function AppointmentRequestPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          token, name, phone, email, note, marketingConsent,
+          token, name, phone, email, note, marketingConsent, website,
           serviceIds: serviceIds.length ? serviceIds : undefined,
           ...(requestOnlyMode
             ? { requestedDate: date, timePreferences: cleanPrefs }
@@ -249,7 +252,7 @@ export default function AppointmentRequestPage() {
       const res = await fetch("/api/lead-capture", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, name, phone, email, marketingConsent, waitlistDate: date }),
+        body: JSON.stringify({ token, name, phone, email, marketingConsent, waitlistDate: date, website }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setWaitlistError(data.error || "Gönderilemedi."); setJoiningWaitlist(false); return; }
@@ -386,6 +389,16 @@ export default function AppointmentRequestPage() {
               {company.companyName} - Randevu Al
             </h1>
             <form onSubmit={submit}>
+              <input
+                type="text"
+                name="website"
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
+              />
               {(freeServices.length > 0 || paidServices.length > 0) && (
                 <p style={{ fontSize: 12.5, fontWeight: 700, color: "#185fa5", letterSpacing: 0.3, textTransform: "uppercase", margin: "0 0 10px" }}>
                   Hizmet Seçin

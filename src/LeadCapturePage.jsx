@@ -32,6 +32,9 @@ export default function LeadCapturePage() {
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [note, setNote] = useState("");
+  // Bot tuzağı - ekranda görünmez, gerçek kullanıcı doldurmaz (bkz.
+  // api/lead-capture.js HONEYPOT_FIELD).
+  const [website, setWebsite] = useState("");
   const [marketingConsent, setMarketingConsent] = useState(false);
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
@@ -76,7 +79,16 @@ export default function LeadCapturePage() {
       const res = await fetch("/api/lead-capture", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, name, phone, email, address, note, marketingConsent }),
+        body: JSON.stringify({
+          token,
+          name,
+          phone,
+          email,
+          address,
+          note,
+          marketingConsent,
+          website,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -154,6 +166,16 @@ export default function LeadCapturePage() {
               {company.companyName} ile iletişime geçin
             </h1>
             <form onSubmit={submit}>
+              <input
+                type="text"
+                name="website"
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
+              />
               <div style={{ marginBottom: 10 }}>
                 <input
                   value={name}

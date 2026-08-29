@@ -9,6 +9,15 @@ function getClientIp(req) {
   return req.socket?.remoteAddress || "203.0.113.1";
 }
 
+// Form spam korumaları (bkz. sql/2026-08-29_lead_capture_rate_limit.sql).
+// HONEYPOT_FIELD: AppointmentRequestPage.jsx / LeadCapturePage.jsx'te ekranda
+// görünmeyen bir input - gerçek kullanıcı boş bırakır, sayfadaki her alanı
+// dolduran botlar doldurur. İki taraf da bu adı bilmeli, elle senkron.
+const HONEYPOT_FIELD = "website";
+// İnsan bir randevu/bilgi formunu en fazla birkaç kez gönderir; paylaşılan
+// NAT'lar (kurumsal/mobil operatör) için bolca pay bırakıldı.
+const RATE_LIMIT_PER_HOUR = 8;
+
 // src/shared.jsx'teki isValidPhone ile AYNI mantığın kopyası (kasıtlı -
 // api/*.js src/*.jsx'ten import etmiyor). İstemci tarafı kontrolü atlatılıp
 // doğrudan bu uca istek atılırsa (form spam/bot) diye sunucu tarafında da
@@ -390,6 +399,30 @@ export default async function handler(req, res) {
   }
 
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  // --- Form spam korumaları --- Honeypot en ucuz kontrol, DB'ye hiç dokunmaz:
+  // dolu geldiyse bot'a sahte "başarılı" dönülür, hiçbir kayıt oluşmaz.
+  if (((req.body || {})[HONEYPOT_FIELD] || "").trim()) return res.status(200).json({ ok: true });
+
+  // IP başına saatlik tavan. Honeypot'u geçen otomatik bir bot bile saatte
+  // RATE_LIMIT_PER_HOUR kayıttan fazlasını basamaz. Geçersiz gönderimler de
+  // sayılır (bozuk istek yağdıran bir bot da yavaşlasın diye).
+  const spamIp = getClientIp(req);
+  const rlSince = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count: recentHits } = await supabaseAdmin
+    .from("lead_capture_rate_limit")
+    .select("id", { count: "exact", head: true })
+    .eq("ip", spamIp)
+    .gte("created_at", rlSince);
+  if ((recentHits || 0) >= RATE_LIMIT_PER_HOUR) {
+    return res.status(429).json({ error: "Çok fazla deneme yapıldı, lütfen bir süre sonra tekrar deneyin." });
+  }
+  await supabaseAdmin.from("lead_capture_rate_limit").insert({ ip: spamIp });
+  // Tabloyu küçük tut - 1 günden eski satırlar bir daha sorgulanmıyor. Her
+  // istekte değil, ~20 istekte bir temizlik yeter (ayrı bir cron gerektirmesin).
+  if (Math.random() < 0.05) {
+    await supabaseAdmin.from("lead_capture_rate_limit").delete().lt("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+  }
 
   const { name, phone, email, address, note, marketingConsent, dateTime, dateTimeKey, serviceIds, waitlistDate, requestedDate, timePreferences } = req.body || {};
   const cleanServiceIds = Array.isArray(serviceIds) ? serviceIds.filter((id) => typeof id === "string" && id) : [];
