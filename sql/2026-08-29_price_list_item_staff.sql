@@ -1,0 +1,21 @@
+-- Hizmet <-> personel yetkinligi. Su ana kadar her takim uyesi her randevuya
+-- Sorumlu secilebiliyordu ve appointment_concurrency (otomatik modda = toplam
+-- personel sayisi) tek bir kuresel sayiydi - hangi hizmeti kimin yapabildigini
+-- bilmiyordu. Ornek: 3 personelli bir guzellik salonunda manikuru sadece 2 kisi
+-- yapiyorsa, o 2 kisi doluyken 3. kisiye manikur randevusu verilmemeli.
+--
+-- Iliski price_list_items uzerinde bir uuid dizisiyle tutulur; Takim modalindaki
+-- "Hizmetler" sekmesi ayni iliskiyi personel-odakli duzenler (her kisiye
+-- yapabildigi hizmetler eklenir). Bos dizi = kisit yok = herkes yapabilir
+-- (opt-in, mevcut tum satirlar bu degeri alir, davranis degismez).
+--
+-- FK YOK (dizi): takimdan cikan uyenin uid'i dizide kalabilir - istemci
+-- teamRoster ile kesiserek yok sayar (Deals.jsx "Eski uye" deseninin aynisi,
+-- ResourceManager'daki "silinirse gecmis kayitlar bozulmaz" felsefesiyle ayni).
+--
+-- GRANT gerekmez: price_list_items RLS tek politika
+-- (user_id = auth.uid()) OR (user_id IN (SELECT my_team_ids())), tabloda
+-- kolon-seviyesi GRANT yok - yeni kolon otomatik kapsanir. service_role zaten
+-- SELECT GRANT'ine sahip (sql/2026-07-31_price_list_items_service_role_grant.sql).
+ALTER TABLE public.price_list_items
+  ADD COLUMN staff_member_ids uuid[] NOT NULL DEFAULT '{}';
