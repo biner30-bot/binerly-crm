@@ -6002,6 +6002,7 @@ export default function App() {
             businessHours={businessHours}
             staffShifts={staffShifts}
             staffLeaveRecords={staffLeaveRecords}
+            draftScopeId={activeTeamId}
             initialLineItems={editingDeal ? dealLineItems.filter((li) => li.dealId === editingDeal.id) : []}
             dealLineItems={dealLineItems}
             hasPaymentConnection={paymentCredentials.length > 0}

@@ -18,6 +18,7 @@ import {
   DateRangeFilter,
   RowActionsMenu,
   SegmentedControl,
+  useFormDraft,
 } from "./shared";
 import {
   PDF_TEMPLATES,
@@ -464,6 +465,7 @@ export function DealForm({
   businessHours = [],
   staffShifts = [],
   staffLeaveRecords = [],
+  draftScopeId,
   initialLineItems = [],
   dealLineItems = [],
   hasPaymentConnection = false,
@@ -484,11 +486,23 @@ export function DealForm({
   onCancel,
 }) {
   const [showTaskForm, setShowTaskForm] = useState(false);
+  // Yalnızca YENİ randevu/teklifte yarım kalan içerik korunur - form X ile
+  // kapatilip tekrar acilinca (mobilde başka sekmeye bakmak için modalı kapatmak
+  // zorunlu) veya sayfa yenilenince kaybolmasın. Düzenlemede devre dışı (bayat
+  // veri riski). Kayıt / Vazgeç'te silinir.
+  const {
+    draft,
+    persist: persistDraft,
+    clear: clearDraft,
+    restored: draftRestored,
+  } = useFormDraft(`deal_new_${draftScopeId || businessUserId}`, !initial?.id);
+  const [showDraftNote, setShowDraftNote] = useState(draftRestored);
   const [customerId, setCustomerId] = useState(
-    initial?.customerId ||
-      customers.find((c) => c.customerType === preferredCustomerType)?.id ||
-      customers[0]?.id ||
-      "",
+    draft.customerId ??
+      (initial?.customerId ||
+        customers.find((c) => c.customerType === preferredCustomerType)?.id ||
+        customers[0]?.id ||
+        ""),
   );
   const selectedCustomer = customers.find((c) => c.id === customerId);
   const selectedCustomerType = selectedCustomer?.customerType || "kurumsal";
@@ -521,20 +535,21 @@ export function DealForm({
   // randevu oluştururken sorulur (var olanı düzenlerken anlamsız).
   const hasCredit =
     !initial && !!selectedCustomer && (selectedCustomer.appointmentCreditCount || 0) > 0;
-  const [applyCredit, setApplyCredit] = useState(false);
-  const [title, setTitle] = useState(initial?.title || "");
-  const [value, setValue] = useState(initial?.value ?? "");
-  const [selectedPriceItemId, setSelectedPriceItemId] = useState("");
+  const [applyCredit, setApplyCredit] = useState(draft.applyCredit ?? false);
+  const [title, setTitle] = useState(draft.title ?? (initial?.title || ""));
+  const [value, setValue] = useState(draft.value ?? initial?.value ?? "");
+  const [selectedPriceItemId, setSelectedPriceItemId] = useState(draft.selectedPriceItemId ?? "");
   // Kalemler tamamen opsiyonel — boşsa Tutar bugünkü gibi elle girilir, hiçbir
   // şey değişmez. Dolu ise Tutar bunların toplamına otomatik kilitlenir.
   const [lineItems, setLineItems] = useState(
-    initialLineItems.map((li) => ({
-      localId: li.id,
-      description: li.description,
-      quantity: li.quantity,
-      unitPrice: li.unitPrice,
-      priceItemId: li.priceItemId || null,
-    })),
+    draft.lineItems ??
+      initialLineItems.map((li) => ({
+        localId: li.id,
+        description: li.description,
+        quantity: li.quantity,
+        unitPrice: li.unitPrice,
+        priceItemId: li.priceItemId || null,
+      })),
   );
   const lineItemsTotal = lineItems.reduce(
     (sum, li) => sum + (Number(li.quantity) || 0) * (Number(li.unitPrice) || 0),
@@ -554,12 +569,13 @@ export function DealForm({
   // Ham tip/değer custom_fields.discount'ta saklanır ki teklif tekrar açıldığında
   // indirim alanı (ve gerekçesi) kaybolmasın - Tutar'a sadece SONUÇ yazılır.
   const [discountType, setDiscountType] = useState(
-    initial?.customFields?.discount?.type || "percent",
+    draft.discountType ?? (initial?.customFields?.discount?.type || "percent"),
   );
   const [discountValue, setDiscountValue] = useState(
-    initial?.customFields?.discount?.value != null
-      ? String(initial.customFields.discount.value)
-      : "",
+    draft.discountValue ??
+      (initial?.customFields?.discount?.value != null
+        ? String(initial.customFields.discount.value)
+        : ""),
   );
   const discountAmount =
     discountValue === "" || Number(discountValue) <= 0
@@ -616,30 +632,34 @@ export function DealForm({
       window.removeEventListener("resize", reposition);
     };
   }, [showFreightCalc]);
-  const [cost, setCost] = useState(initial?.cost ?? "");
+  const [cost, setCost] = useState(draft.cost ?? initial?.cost ?? "");
   // Yeni tekliflerde son seçilen ödeme tercihi hatırlanır (localStorage) —
   // kaydetmeden formu kapatıp tekrar açsa bile "Sadece onaylasın"a sıfırlanmasın.
   // Var olan bir teklifi düzenlerken bu, kaydedilmiş değeri EZMEZ.
   const [paymentMode, setPaymentMode] = useState(
-    initial?.paymentMode ||
-      (noShowRisk && !noShowPenaltyBurnsInstead ? "required" : null) ||
-      localStorage.getItem(PAYMENT_MODE_LAST_CHOICE_KEY) ||
-      "none",
+    draft.paymentMode ??
+      (initial?.paymentMode ||
+        (noShowRisk && !noShowPenaltyBurnsInstead ? "required" : null) ||
+        localStorage.getItem(PAYMENT_MODE_LAST_CHOICE_KEY) ||
+        "none"),
   );
-  const [kdvRate, setKdvRate] = useState(initial?.kdvRate ?? defaultKdvRate ?? 20);
-  const [stage, setStage] = useState(initial?.stage || "ilk_gorusme");
+  const [kdvRate, setKdvRate] = useState(draft.kdvRate ?? initial?.kdvRate ?? defaultKdvRate ?? 20);
+  const [stage, setStage] = useState(draft.stage ?? (initial?.stage || "ilk_gorusme"));
   const [dealDate, setDealDate] = useState(
-    (initial?.createdAt || new Date().toISOString()).slice(0, 10),
+    draft.dealDate ?? (initial?.createdAt || new Date().toISOString()).slice(0, 10),
   );
   const [dealTime, setDealTime] = useState(() => {
+    if (draft.dealTime != null) return draft.dealTime;
     if (!initial?.createdAt) return "";
     const d = new Date(initial.createdAt);
     const hh = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
     return hh === "00" && mm === "00" ? "" : `${hh}:${mm}`;
   });
-  const [reminder, setReminder] = useState(initial?.reminder || "");
-  const [reminderDate, setReminderDate] = useState(initial?.reminderDate || "");
+  const [reminder, setReminder] = useState(draft.reminder ?? (initial?.reminder || ""));
+  const [reminderDate, setReminderDate] = useState(
+    draft.reminderDate ?? (initial?.reminderDate || ""),
+  );
   const [lostReason, setLostReason] = useState(initial?.lostReason || dealLostReasons(sector)[0]);
   const isClosingStage = stage === "kazanildi" || stage === "kaybedildi";
   const wasAlreadyClosed = initial?.stage === "kazanildi" || initial?.stage === "kaybedildi";
@@ -651,9 +671,13 @@ export function DealForm({
   );
   const [dateError, setDateError] = useState("");
   const [titleError, setTitleError] = useState("");
-  const [isPackageDeal, setIsPackageDeal] = useState(!!initial?.sessionTotal);
-  const [sessionTotal, setSessionTotal] = useState(initial?.sessionTotal ?? 10);
-  const [sessionUsed, setSessionUsed] = useState(initial?.sessionUsed ?? 0);
+  const [isPackageDeal, setIsPackageDeal] = useState(
+    draft.isPackageDeal ?? !!initial?.sessionTotal,
+  );
+  const [sessionTotal, setSessionTotal] = useState(
+    draft.sessionTotal ?? initial?.sessionTotal ?? 10,
+  );
+  const [sessionUsed, setSessionUsed] = useState(draft.sessionUsed ?? initial?.sessionUsed ?? 0);
   const [sessionError, setSessionError] = useState("");
   // Karma paket ("8 seans Lazer + 2 seans Kontrol") - opsiyonel, custom_fields.
   // package_breakdown olarak saklanır. Boşsa (varsayılan/eski davranış) tek bir
@@ -681,19 +705,101 @@ export function DealForm({
   const removeBreakdownRow = (i) =>
     setPackageBreakdown((prev) => prev.filter((_, idx) => idx !== i));
   const [valueError, setValueError] = useState("");
-  const [tags, setTags] = useState(initial?.tags || []);
+  const [tags, setTags] = useState(draft.tags ?? (initial?.tags || []));
   const [customFields, setCustomFields] = useState(
-    initial?.customFields ||
-      (appointmentDateTimeKey && initialAppointmentDateTime
-        ? { [appointmentDateTimeKey]: initialAppointmentDateTime }
-        : {}),
+    draft.customFields ??
+      (initial?.customFields ||
+        (appointmentDateTimeKey && initialAppointmentDateTime
+          ? { [appointmentDateTimeKey]: initialAppointmentDateTime }
+          : {})),
   );
   const [assignedTo, setAssignedTo] = useState(
-    initial ? initial.assignedTo || "" : currentUserId || "",
+    draft.assignedTo ?? (initial ? initial.assignedTo || "" : currentUserId || ""),
   );
-  const [resourceId, setResourceId] = useState(initial?.customFields?.resource_id || "");
-  const [notifyCustomer, setNotifyCustomer] = useState(initial?.notifyCustomer || false);
+  const [resourceId, setResourceId] = useState(
+    draft.resourceId ?? (initial?.customFields?.resource_id || ""),
+  );
+  const [notifyCustomer, setNotifyCustomer] = useState(
+    draft.notifyCustomer ?? (initial?.notifyCustomer || false),
+  );
   const [conflictError, setConflictError] = useState("");
+
+  // Yarım kalan içerik taslağı (yalnızca yeni kayıt - useFormDraft enabled).
+  // freight*/packageBreakdown bilinçli dışarıda: nadir + türev / kendi
+  // localStorage'ı var. "Anlamlı içerik var mı" -> boş/pristine formda taslak
+  // kaydedilmez (sonraki açılışta yanıltıcı "geri yüklendi" notu çıkmasın).
+  useEffect(() => {
+    const cfKeys = Object.keys(customFields || {}).filter(
+      (k) => customFields[k] !== null && customFields[k] !== "",
+    );
+    const hasContent = !!(
+      title.trim() ||
+      String(value).trim() ||
+      selectedPriceItemId ||
+      lineItems.some((li) => li.description?.trim()) ||
+      reminder.trim() ||
+      reminderDate ||
+      (tags && tags.length) ||
+      cfKeys.length ||
+      resourceId ||
+      String(cost).trim()
+    );
+    persistDraft(
+      {
+        customerId,
+        applyCredit,
+        title,
+        value,
+        selectedPriceItemId,
+        lineItems,
+        discountType,
+        discountValue,
+        cost,
+        paymentMode,
+        kdvRate,
+        stage,
+        dealDate,
+        dealTime,
+        reminder,
+        reminderDate,
+        isPackageDeal,
+        sessionTotal,
+        sessionUsed,
+        tags,
+        customFields,
+        assignedTo,
+        resourceId,
+        notifyCustomer,
+      },
+      hasContent,
+    );
+  }, [
+    persistDraft,
+    customerId,
+    applyCredit,
+    title,
+    value,
+    selectedPriceItemId,
+    lineItems,
+    discountType,
+    discountValue,
+    cost,
+    paymentMode,
+    kdvRate,
+    stage,
+    dealDate,
+    dealTime,
+    reminder,
+    reminderDate,
+    isPackageDeal,
+    sessionTotal,
+    sessionUsed,
+    tags,
+    customFields,
+    assignedTo,
+    resourceId,
+    notifyCustomer,
+  ]);
 
   // Hizmet bazlı personel yetkinliği (Takım > Hizmetler). Model: bir personel
   // fiyat listesinde hiçbir hizmete işaretli DEĞİLSE tüm hizmetleri yapar; en az
@@ -1137,12 +1243,38 @@ export function DealForm({
             return;
           }
           setConflictError("");
+          clearDraft();
           onSave(payload);
         }}
         className="compact-form"
         style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
       >
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: 4 }}>
+          {showDraftNote && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+                fontSize: 12.5,
+                color: "var(--text-secondary)",
+                background: "var(--bg-accent)",
+                border: "0.5px solid var(--border)",
+                borderRadius: "var(--radius)",
+                padding: "6px 10px",
+                marginBottom: 12,
+              }}
+            >
+              <span>Yarım kalan kayıt geri yüklendi.</span>
+              <IconButton
+                icon="ti-x"
+                title="Bu bildirimi gizle"
+                size="sm"
+                onClick={() => setShowDraftNote(false)}
+              />
+            </div>
+          )}
           <div style={{ marginBottom: 12 }}>
             <label
               style={{
@@ -2638,7 +2770,13 @@ export function DealForm({
             )}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" onClick={onCancel}>
+            <button
+              type="button"
+              onClick={() => {
+                clearDraft();
+                onCancel();
+              }}
+            >
               Vazgeç
             </button>
             <button
