@@ -1,8 +1,73 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 export function uid() {
   return crypto.randomUUID();
+}
+
+// Yeni kayıt formlarında (Yeni müşteri / Yeni randevu) yarım kalan içerik
+// localStorage'a taslak olarak yazılır - form X ile kapatılıp tekrar açılınca
+// (mobilde başka sekmeye bakmak için modalı kapatmak zorunlu olduğundan sık
+// yaşanıyor), sayfa yenilenince ya da oturum düşünce içerik kaybolmasın.
+// Başarılı kayıtta ve "Vazgeç"te silinir; X / sekme değişimi / yenileme korur.
+const DRAFT_PREFIX = "binerly_draft_";
+
+function loadFormDraft(key) {
+  try {
+    const raw = localStorage.getItem(DRAFT_PREFIX + key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+function saveFormDraft(key, obj) {
+  try {
+    localStorage.setItem(DRAFT_PREFIX + key, JSON.stringify(obj));
+  } catch {
+    // kota dolu / storage devre dışı (gizli sekme vb.) - taslak sadece bir kolaylık
+  }
+}
+function clearFormDraft(key) {
+  try {
+    localStorage.removeItem(DRAFT_PREFIX + key);
+  } catch {
+    // yoksay
+  }
+}
+
+// enabled: sadece YENİ kayıt formunda true (düzenlemede bayat veri riski).
+// Dönüş: { draft, persist, clear, restored }
+//   draft    - mount'ta bir kez okunan kayıtlı taslak ({} = yok)
+//   persist  - ~400ms debounce ile mevcut form değerlerini yazar
+//   clear    - taslağı siler (kayıt başarılı olunca / Vazgeç'te çağır)
+//   restored - açılışta dolu bir taslak geri yüklendi mi (bilgi notu için)
+export function useFormDraft(key, enabled) {
+  const draft = useMemo(
+    () => (enabled ? loadFormDraft(key) || {} : {}),
+    // key/enabled form ömrü boyunca sabit - taslak sadece mount'ta okunmalı
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+  const [restored, setRestored] = useState(() => Object.keys(draft).length > 0);
+  const timerRef = useRef(null);
+
+  const persist = useCallback(
+    (obj) => {
+      if (!enabled) return;
+      clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => saveFormDraft(key, obj), 400);
+    },
+    [key, enabled],
+  );
+  const clear = useCallback(() => {
+    clearTimeout(timerRef.current);
+    clearFormDraft(key);
+    setRestored(false);
+  }, [key]);
+
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  return { draft, persist, clear, restored };
 }
 
 // Kayıt formlarında (KOBİ, müşteri portalı, onay sayfası) gerçek kimlik
