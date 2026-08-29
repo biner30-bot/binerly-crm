@@ -483,6 +483,11 @@ async function handleSendAppointmentOffer(req, res, supabaseAdmin) {
   const serviceIds = Array.isArray(deal.custom_fields?.service_ids) ? deal.custom_fields.service_ids : [];
   const conflictError = { error: "Bu saat başka bir randevuyla dolu, lütfen farklı bir saat seçin." };
 
+  const [{ data: customer }, { data: settings }] = await Promise.all([
+    supabaseAdmin.from("customers").select("name, email, phone").eq("id", deal.customer_id).maybeSingle(),
+    supabaseAdmin.from("company_settings").select("company_name, logo_url, email, appointment_offer_validity_hours, appointment_concurrency").eq("user_id", deal.user_id).maybeSingle(),
+  ]);
+
   // Hizmet bazlı personel yetkinliği (Takım > Hizmetler): önerilen hizmeti
   // sınırlı sayıda personel yapabiliyorsa, global concurrency_slot havuzu bunu
   // bilmediği için ek bir ön-kontrol - o saatte hizmeti yapabilen personelin
@@ -491,12 +496,7 @@ async function handleSendAppointmentOffer(req, res, supabaseAdmin) {
   // havuzu hâlâ per-hizmet DEĞİL, bu kontrol kaynak ön-kontrolüyle aynı güven
   // seviyesinde.
   {
-    const { data: cs } = await supabaseAdmin
-      .from("company_settings")
-      .select("appointment_concurrency")
-      .eq("user_id", deal.user_id)
-      .maybeSingle();
-    const baseConcurrency = Math.max(1, Number(cs?.appointment_concurrency) || 1);
+    const baseConcurrency = Math.max(1, Number(settings?.appointment_concurrency) || 1);
     const { effectiveConcurrency, competes } = await applyServiceCapacity(
       supabaseAdmin,
       deal.user_id,
@@ -546,11 +546,6 @@ async function handleSendAppointmentOffer(req, res, supabaseAdmin) {
     concurrencySlotId = slotId;
   }
   if (!concurrencySlotId) return res.status(409).json(conflictError);
-
-  const [{ data: customer }, { data: settings }] = await Promise.all([
-    supabaseAdmin.from("customers").select("name, email, phone").eq("id", deal.customer_id).maybeSingle(),
-    supabaseAdmin.from("company_settings").select("company_name, logo_url, email, appointment_offer_validity_hours").eq("user_id", deal.user_id).maybeSingle(),
-  ]);
 
   const token = deal.approval_token || crypto.randomUUID();
   const validityHours = Math.max(1, Number(settings?.appointment_offer_validity_hours) || 24);

@@ -335,7 +335,13 @@ function fitsWithinWindows(startMinutes, endMinutes, windows) {
 // tarihi var" gibi görünüyordu (2026-07-23). Artık TEK alan: tarih değişince
 // o güne ait müsait saatler otomatik listeleniyor, birine tıklamak saat
 // kutusunu dolduruyor — kısıtlama değil öneri, saat kutusuna elle de yazılabilir.
-export function AppointmentDateTimeField({ businessUserId, label, value, onChange }) {
+export function AppointmentDateTimeField({
+  businessUserId,
+  label,
+  value,
+  onChange,
+  serviceIds = [],
+}) {
   const todayStr = new Date().toISOString().slice(0, 10);
   const date = (value || "").slice(0, 10) || todayStr;
   const time = (value || "").slice(11, 16);
@@ -343,11 +349,18 @@ export function AppointmentDateTimeField({ businessUserId, label, value, onChang
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // serviceIds: seçilen hizmet(ler) - sunucu hem toplam süreyi hem hizmet bazlı
+  // personel kapasitesini (Takım > Hizmetler) buna göre hesaplar, aksi halde
+  // önerilen saat findAppointmentConflict tarafından reddedilebilir.
+  const serviceKey = serviceIds.join(",");
   useEffect(() => {
     if (!businessUserId || !date) return;
     setLoading(true);
     setError("");
-    fetch(`/api/appointment-availability?businessUserId=${businessUserId}&date=${date}`)
+    const serviceQuery = serviceKey ? `&serviceIds=${encodeURIComponent(serviceKey)}` : "";
+    fetch(
+      `/api/appointment-availability?businessUserId=${businessUserId}&date=${date}${serviceQuery}`,
+    )
       .then(async (r) => {
         const data = await r.json();
         if (!r.ok) throw new Error(data?.error || "Müsaitlik alınamadı.");
@@ -358,7 +371,7 @@ export function AppointmentDateTimeField({ businessUserId, label, value, onChang
         setError(err.message || "Müsaitlik alınamadı.");
       })
       .finally(() => setLoading(false));
-  }, [businessUserId, date]);
+  }, [businessUserId, date, serviceKey]);
 
   return (
     <div>
@@ -1298,6 +1311,7 @@ export function DealForm({
                 <div style={{ flex: 1.4, minWidth: 240 }}>
                   <AppointmentDateTimeField
                     businessUserId={businessUserId}
+                    serviceIds={selectedServiceIds}
                     label={
                       customFieldDefs.find(
                         (d) => d.entity === "deal" && d.key === appointmentDateTimeKey,
