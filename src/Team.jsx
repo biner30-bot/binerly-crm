@@ -1077,6 +1077,114 @@ export function TeamDailyLoadPanel({
   );
 }
 
+// Hizmet <-> personel yetkinligi. Her personel her islemi ogrenmemis/yapmaya
+// uygun olmayabilir - isletme sahibi burada her kisiye (kendisi dahil)
+// yapabildigi hizmetleri isaretler. Iliski price_list_items.staff_member_ids
+// dizisinde tutulur (bkz. sql/2026-08-29_price_list_item_staff.sql). Bir hizmet
+// en az bir kisiye isaretlenince "kisitli" olur: randevuda o hizmet secilince
+// Sorumlu listesi bu kisilerle sinirlanir, hepsi o saatte doluysa o saate
+// randevu verilemez (bkz. Deals.jsx findAppointmentConflict). Hic kimseye
+// isaretlenmeyen hizmeti herkes yapabilir (opt-in, mevcut davranis degismez).
+function ServiceCapabilityPanel({ people, priceListItems, onSetServiceStaff }) {
+  const services = [...(priceListItems || [])].sort(
+    (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
+  );
+  const labelById = new Map((people || []).map((p) => [p.id, p.label]));
+  const restricted = services.filter((s) => (s.staffMemberIds || []).length > 0);
+
+  if (services.length === 0) {
+    return (
+      <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+        Önce Fiyat Listesi&apos;ne hizmet ekleyin - sonra her personele yapabildiği hizmetleri
+        buradan işaretleyebilirsiniz.
+      </p>
+    );
+  }
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <label
+        style={{
+          fontSize: 13,
+          color: "var(--text-secondary)",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          marginBottom: 8,
+        }}
+      >
+        Yapabildiği hizmetler
+        <InfoTip
+          placement="bottom"
+          text="Bir hizmeti bir personele işaretlediğinizde o hizmet artık SADECE işaretli personel tarafından yapılabilir - o hizmeti yapan diğer personeli de işaretlemeyi unutmayın. Randevuda o hizmet seçilince Sorumlu listesi bu kişilerle sınırlanır; o saatte hepsi doluysa o saate randevu verilemez. Hiç kimseye işaretlenmeyen hizmeti herkes yapabilir."
+        />
+      </label>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {people.map((p) => {
+          const mine = new Set(
+            services.filter((s) => (s.staffMemberIds || []).includes(p.id)).map((s) => s.id),
+          );
+          return (
+            <div
+              key={p.id}
+              style={{
+                background: "var(--surface-1)",
+                border: "0.5px solid var(--border)",
+                borderRadius: "var(--radius)",
+                padding: "8px 12px",
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 6 }}>{p.label}</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px" }}>
+                {services.map((s) => (
+                  <label
+                    key={s.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      fontSize: 12,
+                      color: "var(--text-secondary)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={mine.has(s.id)}
+                      onChange={(e) => onSetServiceStaff(s.id, p.id, e.target.checked)}
+                    />
+                    {s.name}
+                  </label>
+                ))}
+              </div>
+              {mine.size === 0 && (
+                <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "6px 0 0" }}>
+                  Hiçbiri işaretli değil - kısıtlanan hizmetlerde Sorumlu seçilemez, kısıtsız
+                  hizmetleri yapabilir.
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {restricted.length > 0 && (
+        <p style={{ marginTop: 10, fontSize: 12, color: "var(--text-muted)" }}>
+          <strong style={{ color: "var(--text-secondary)" }}>Kısıtlı hizmetler:</strong>{" "}
+          {restricted
+            .map(
+              (s) =>
+                `${s.name} (${(s.staffMemberIds || [])
+                  .map((id) => labelById.get(id) || "eski üye")
+                  .join(", ")})`,
+            )
+            .join("; ")}
+          . Listede olmayan hizmetleri herkes yapabilir.
+        </p>
+      )}
+    </div>
+  );
+}
+
 // [[project_binerly_business_goal]]: fiyatlandırma "5 kullanıcıya kadar sabit ücret" üzerine
 // kurulu - işletme sahibi + kabul edilmiş üyeler + bekleyen davetler toplamı bu sayıyı geçemez
 // (davet gönderirken koltuk ayrılır, kabul anında sürpriz reddedilme olmasın diye).
@@ -1099,6 +1207,8 @@ export function TeamModal({
   deals,
   customers,
   customFieldDefs,
+  priceListItems,
+  onSetServiceStaff,
 }) {
   const isOwner = activeTeamId === session.user.id;
   const [members, setMembers] = useState([]);
@@ -1371,6 +1481,7 @@ export function TeamModal({
                 { id: "vardiya", label: "Vardiya" },
                 { id: "izinler", label: "İzinler" },
                 { id: "uyeler", label: `Üyeler (${occupiedSeats}/${MAX_TEAM_SIZE})` },
+                { id: "hizmetler", label: "Hizmetler" },
               ]}
             />
           </div>
@@ -1449,6 +1560,12 @@ export function TeamModal({
                 onDeleteRecord={onDeleteStaffLeaveRecord}
               />
             </div>
+          ) : teamTab === "hizmetler" ? (
+            <ServiceCapabilityPanel
+              people={staffPeople}
+              priceListItems={priceListItems}
+              onSetServiceStaff={onSetServiceStaff}
+            />
           ) : (
             <>
               <div style={{ marginBottom: 16 }}>
