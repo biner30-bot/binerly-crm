@@ -257,6 +257,11 @@ export function AppointmentConcurrencyBox({ companySettings, teamMemberCount, on
       </div>
       {!open && (
         <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0 0" }}>
+          {companySettings?.appointmentAvailabilitySource === "shifts" && (
+            <span style={{ display: "block", marginBottom: 4 }}>
+              Not: "Randevu müsaitliği neye göre" = Personel Vardiyaları seçili - bir saatteki gerçek kapasite o an vardiyada olan personel sayısıdır, bu sayı yalnızca üst sınır olarak uygulanır.
+            </span>
+          )}
           {auto
             ? `Otomatik: ${ownerWorks ? "ben dahil " : "ben hariç "}personel sayınıza göre (şu an ${companySettings?.appointmentConcurrency ?? savedEffectiveCount} kişi) aynı saate en fazla o kadar randevu alınabiliyor.`
             : configured
@@ -374,6 +379,75 @@ export function AppointmentRequestModeBox({ companySettings, onSave }) {
               <input type="number" min="1" step="1" value={validityDraft} onChange={(e) => setValidityDraft(e.target.value)} style={{ width: 100 }} />
             </div>
           )}
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}>
+            <button type="button" onClick={() => setOpen(false)}>Vazgeç</button>
+            <button type="button" onClick={handleSave} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Randevu müsaitliği neye göre hesaplansın: Müsaitlik Saatleri (varsayılan,
+// haftalık açık saatler) vs Personel Vardiyaları (Takım > Vardiya). "shifts"
+// modunda slotlar sadece en az bir personelin vardiyada olduğu saatlerde açılır
+// ve o saatteki kapasite = o an vardiyada olan personel sayısı. Vardiya
+// girilmemiş günlerde otomatik Müsaitlik Saatleri'ne düşer (bkz.
+// api/_appointment-shifts.js + Deals.jsx findAppointmentConflict).
+export function AppointmentAvailabilitySourceBox({ companySettings, onSave }) {
+  const source = companySettings?.appointmentAvailabilitySource || "business_hours";
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(source);
+
+  const handleOpen = () => {
+    setDraft(source);
+    setOpen(true);
+  };
+  const handleSave = () => {
+    onSave({ appointmentAvailabilitySource: draft });
+    setOpen(false);
+  };
+
+  return (
+    <div style={{ marginBottom: 16, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-sm)", padding: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <p style={{ fontSize: 13, fontWeight: 500, margin: 0, display: "flex", alignItems: "center", gap: 4 }}>
+          Randevu müsaitliği neye göre
+          <InfoTip
+            placement="bottom"
+            align="left"
+            text={
+              "Müsaitlik Saatleri (varsayılan): randevu slotları aşağıda tanımladığınız haftalık açık saatlere göre açılır, aynı saate \"Eş zamanlı randevu kapasitesi\" kadar randevu alınır.\n\n" +
+              "Personel Vardiyaları: randevu slotları Takım > Vardiya'da girdiğiniz vardiyalara göre açılır. Bir saatte kaç personel vardiyadaysa o saate o kadar randevu alınır - sabah tek kişi varsa sabah o saate tek randevu. Öğle molası ve haftalık tatiller otomatik hariç tutulur, o gün izinli (yıllık/raporlu) personel sayılmaz. Bir günü için hiç vardiya girmediyseniz o gün otomatik Müsaitlik Saatleri'ne göre çalışır."
+            }
+          />
+        </p>
+        {!open && (
+          <button type="button" onClick={handleOpen} style={{ fontSize: 12, padding: "4px 10px" }}>
+            Düzenle
+          </button>
+        )}
+      </div>
+      {!open && (
+        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0 0" }}>
+          {source === "shifts"
+            ? "Aktif: randevu saatleri ve kapasitesi personel vardiyalarına göre hesaplanıyor. Vardiya girilmemiş günler Müsaitlik Saatleri'ne düşer."
+            : "Varsayılan: randevu saatleri Müsaitlik Saatleri'ne, kapasite Eş zamanlı randevu kapasitesi ayarına göre."}
+        </p>
+      )}
+      {open && (
+        <>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
+            <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <input type="radio" name="appointmentAvailabilitySource" checked={draft === "business_hours"} onChange={() => setDraft("business_hours")} />
+              Müsaitlik Saatleri
+            </label>
+            <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <input type="radio" name="appointmentAvailabilitySource" checked={draft === "shifts"} onChange={() => setDraft("shifts")} />
+              Personel Vardiyaları
+            </label>
+          </div>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}>
             <button type="button" onClick={() => setOpen(false)}>Vazgeç</button>
             <button type="button" onClick={handleSave} style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}>Kaydet</button>

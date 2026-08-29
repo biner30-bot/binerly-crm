@@ -6,7 +6,7 @@ import { DEAL_WORD_FORMS, DEAL_TAB_STRINGS, SECTOR_DEMO_PRESETS } from "./static
 import { AuthModal, PasswordRecoveryModal } from "./Auth";
 import { SectorPicker, CompanySettingsForm, PaymentCredentialForm, AppSettingsModal, ShowcaseManager, slugify } from "./Settings";
 import { FreeServiceModal, PriceListEditModal, PriceListManager, StockEditModal, StockManager } from "./Inventory";
-import { AppointmentCancelPolicyBox, AppointmentDepositBox, AppointmentConcurrencyBox, AppointmentRequestModeBox, AppointmentPrepNoteBox, BusinessHoursManager, ResourceManager, RoomInventoryEditModal, RoomInventoryManager } from "./AppointmentPolicies";
+import { AppointmentCancelPolicyBox, AppointmentDepositBox, AppointmentConcurrencyBox, AppointmentRequestModeBox, AppointmentAvailabilitySourceBox, AppointmentPrepNoteBox, BusinessHoursManager, ResourceManager, RoomInventoryEditModal, RoomInventoryManager } from "./AppointmentPolicies";
 import { staffLeaveDayCount, formatLeaveDateRange, STAFF_LEAVE_TYPE_LABELS, isOpenStaffShift, staffHistoryDateStr, staffShiftsEffectiveOnDate, StaffShiftDayEditor, StaffShiftGrid, StaffShiftHistoryModal, StaffLeaveRecordModal, StaffLeaveManager, TeamDailyLoadPanel, TeamModal } from "./Team";
 import { TRASH_TABLE_LABELS, TrashHistoryModal } from "./TrashHistory";
 import { GroupClassForm, GroupClassRoster, LateCancelPolicyBox, GroupClassesTab, AgendaTab, agendaDateKey, quickDateWindow } from "./GroupClasses";
@@ -5752,6 +5752,7 @@ export default function App() {
           </div>
           {businessHoursTab === "saatler" ? (
             <>
+              <AppointmentAvailabilitySourceBox companySettings={companySettings} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
               <AppointmentConcurrencyBox companySettings={companySettings} teamMemberCount={teamRoster.length} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
               <AppointmentRequestModeBox companySettings={companySettings} onSave={(patch) => upsertCompanySettings({ ...companySettings, ...patch })} />
               <BusinessHoursManager items={businessHours} onAdd={addBusinessHours} onDelete={deleteBusinessHours} />
