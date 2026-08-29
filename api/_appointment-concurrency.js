@@ -108,17 +108,22 @@ export async function fetchValidStaff(supabaseAdmin, businessUserId) {
 // rekabet ediyor mu" testini dondurur. serviceIds hem dizi hem virgullu string
 // olabilir. Kisit yoksa davranis tamamen degismez (effectiveConcurrency = base,
 // competes hep true).
+// Donus: { effectiveConcurrency, competes, capablePool, validStaff } -
+//   capablePool (Set<uuid>|null) + validStaff (Set<uuid>) vardiya bazli musaitlik
+//   (api/_appointment-shifts.js) "o an vardiyada + hizmeti yapabilen kac kisi"
+//   sayimini hizmet havuzuyla kesistirmek icin doner.
 export async function applyServiceCapacity(supabaseAdmin, businessUserId, serviceIds, baseConcurrency) {
   const ids = Array.isArray(serviceIds)
     ? serviceIds.filter(Boolean)
     : (serviceIds || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const validStaff = await fetchValidStaff(supabaseAdmin, businessUserId);
   if (ids.length === 0) {
-    return { effectiveConcurrency: baseConcurrency, competes: () => true };
+    return { effectiveConcurrency: baseConcurrency, competes: () => true, capablePool: null, validStaff };
   }
-  const [{ data: priceItems }, validStaff] = await Promise.all([
-    supabaseAdmin.from("price_list_items").select("id, staff_member_ids").eq("user_id", businessUserId),
-    fetchValidStaff(supabaseAdmin, businessUserId),
-  ]);
+  const { data: priceItems } = await supabaseAdmin
+    .from("price_list_items")
+    .select("id, staff_member_ids")
+    .eq("user_id", businessUserId);
   const { capablePool, effectiveConcurrency } = resolveServiceCapacity(
     ids,
     priceItems || [],
@@ -128,5 +133,7 @@ export async function applyServiceCapacity(supabaseAdmin, businessUserId, servic
   return {
     effectiveConcurrency,
     competes: (customFields) => dealCompetesForPool(customFields, capablePool, priceItems || [], validStaff),
+    capablePool,
+    validStaff,
   };
 }
