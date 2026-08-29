@@ -64,6 +64,12 @@ export default function ShowcasePage() {
       });
   }, [token]);
 
+  // Sekme başlığı: /vitrin sunucu tarafında zaten işletme adıyla render ediliyor
+  // (api/lead-capture.js renderVitrinHtml) - React boot sonrası da korunsun diye.
+  useEffect(() => {
+    if (company?.companyName) document.title = company.companyName;
+  }, [company?.companyName]);
+
   const showcase = company?.showcase || [];
   const priceList = company?.priceList || [];
   const campaigns = company?.campaigns || [];

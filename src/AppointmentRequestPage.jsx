@@ -145,6 +145,12 @@ export default function AppointmentRequestPage() {
       .catch(() => { setError("Yüklenemedi."); setLoading(false); });
   }, [token]);
 
+  // Sekme başlığı: müşteri işletmenin adını görmeli - index.html'in varsayılanı
+  // "Binerly - CRM | Müşteri Takibi, Satış..." beyaz-etiket hissini bozar.
+  useEffect(() => {
+    if (company?.companyName) document.title = `${company.companyName} - Randevu`;
+  }, [company?.companyName]);
+
   useEffect(() => {
     if (requestOnlyMode || !company?.acceptsAppointments || !company?.businessUserId || !date) return;
     setLoadingSlots(true);

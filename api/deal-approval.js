@@ -270,8 +270,11 @@ function escapeAttendanceHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function renderAttendancePage({ logoUrl, title, message, note, formToken, formResponse, submitLabel, formAction = "confirm-attendance", collectEmail = false }) {
+function renderAttendancePage({ logoUrl, title, message, note, formToken, formResponse, submitLabel, formAction = "confirm-attendance", collectEmail = false, company }) {
   const logo = logoUrl || "https://binerly.com/pwa-512x512.png";
+  // Sekme başlığı müşteriye işletmenin adını göstermeli - "Binerly - CRM |
+  // Müşteri Takibi, Satış..." (index.html varsayılanı) beyaz-etiket hissini bozar.
+  const pageTitle = escapeAttendanceHtml(company || title || "Randevu");
   const emailInput = collectEmail
     ? `<input type="email" name="email" placeholder="E-posta adresiniz" required style="width:100%;box-sizing:border-box;padding:11px 12px;margin:4px 0 12px;border:1px solid #d5dde6;border-radius:8px;font-size:14px;" />`
     : "";
@@ -286,6 +289,7 @@ function renderAttendancePage({ logoUrl, title, message, note, formToken, formRe
     : "";
   return `<!doctype html>
 <html lang="tr">
+  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>${pageTitle}</title></head>
   <body style="margin:0;padding:32px 16px;background:#f5f8fc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
     <div style="max-width:440px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e1e8f0;text-align:center;">
       <div style="padding:28px 32px 20px;border-bottom:1px solid #e1e8f0;">
@@ -324,6 +328,7 @@ async function handleConfirmAttendance(req, res, supabaseAdmin, deal, settings, 
   if (deal.stage === "kazanildi" || deal.stage === "kaybedildi") {
     return res.status(200).send(renderAttendancePage({
       logoUrl,
+      company,
       title: "Bu randevu için işlem zaten tamamlanmış",
       message: `"${deal.title}" randevusu için ${deal.stage === "kaybedildi" ? "iptal işlenmiş" : "işlem tamamlanmış"} durumda. Bir sorunuz varsa ${company} ile iletişime geçebilirsiniz.`,
     }));
@@ -344,11 +349,12 @@ async function handleConfirmAttendance(req, res, supabaseAdmin, deal, settings, 
 
   if (response === "yes") {
     if (deal.custom_fields?.attendanceConfirmedAt) {
-      return res.status(200).send(renderAttendancePage({ logoUrl, title: "Zaten onaylanmış", message: `Bu randevu için geleceğinizi zaten onaylamıştınız, sizi bekliyoruz. - ${company}` }));
+      return res.status(200).send(renderAttendancePage({ logoUrl, company, title: "Zaten onaylanmış", message: `Bu randevu için geleceğinizi zaten onaylamıştınız, sizi bekliyoruz. - ${company}` }));
     }
     if (req.method === "GET") {
       return res.status(200).send(renderAttendancePage({
         logoUrl,
+        company,
         title: "Randevunuzu onaylıyor musunuz?",
         message: `"${deal.title}" randevunuza geleceğinizi onaylamak için aşağıya tıklayın.`,
         formToken: token, formResponse: "yes", submitLabel: "Evet, geliyorum",
@@ -359,7 +365,7 @@ async function handleConfirmAttendance(req, res, supabaseAdmin, deal, settings, 
       id: crypto.randomUUID(), user_id: deal.user_id, customer_id: deal.customer_id, type: "note",
       content: `Müşteri, "${deal.title}" randevusuna e-posta üzerinden geleceğini onayladı.`,
     });
-    return res.status(200).send(renderAttendancePage({ logoUrl, title: "Teşekkürler!", message: `Randevunuz onaylandı, sizi bekliyoruz. - ${company}` }));
+    return res.status(200).send(renderAttendancePage({ logoUrl, company, title: "Teşekkürler!", message: `Randevunuz onaylandı, sizi bekliyoruz. - ${company}` }));
   }
 
   // response === "no"
@@ -367,6 +373,7 @@ async function handleConfirmAttendance(req, res, supabaseAdmin, deal, settings, 
   if (!canCancel) {
     return res.status(200).send(renderAttendancePage({
       logoUrl,
+      company,
       title: "Bu saate çok yakın kaldı",
       message: `Randevu saatine çok az kaldığı için bu bağlantı üzerinden iptal edilemiyor. Lütfen doğrudan ${company} ile iletişime geçin.`,
     }));
@@ -375,6 +382,7 @@ async function handleConfirmAttendance(req, res, supabaseAdmin, deal, settings, 
   if (req.method === "GET") {
     return res.status(200).send(renderAttendancePage({
       logoUrl,
+      company,
       title: "Randevunuzu iptal etmek istiyor musunuz?",
       message: `"${deal.title}" randevunuzu iptal etmek için aşağıya tıklayın.${isLate ? " Randevu saatine az kaldığı için bu iptal geç iptal olarak kaydedilecek." : ""}`,
       formToken: token, formResponse: "no", submitLabel: "Evet, iptal ediyorum",
@@ -423,7 +431,7 @@ async function handleConfirmAttendance(req, res, supabaseAdmin, deal, settings, 
     }
   }
 
-  return res.status(200).send(renderAttendancePage({ logoUrl, title: "Randevunuz iptal edildi", message: `Bize haber verdiğiniz için teşekkürler.${burnMessage} - ${company}` }));
+  return res.status(200).send(renderAttendancePage({ logoUrl, company, title: "Randevunuz iptal edildi", message: `Bize haber verdiğiniz için teşekkürler.${burnMessage} - ${company}` }));
 }
 
 // "Sadece talep al" widget modunda (bkz. AppointmentPolicies.jsx
@@ -664,7 +672,7 @@ function renderOfferChoicePage({ logoUrl, company, dealTitle, dateLabel, token }
   const hidden = `<input type="hidden" name="action" value="confirm-appointment-offer" /><input type="hidden" name="token" value="${escapeAttendanceHtml(token)}" />`;
   return `<!doctype html>
 <html lang="tr">
-  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Randevu saati</title></head>
+  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>${escapeAttendanceHtml(company || "Randevu saati")}</title></head>
   <body style="margin:0;padding:32px 16px;background:#f5f8fc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
     <div style="max-width:440px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e1e8f0;text-align:center;">
       <div style="padding:28px 32px 20px;border-bottom:1px solid #e1e8f0;">
@@ -709,7 +717,7 @@ async function handleConfirmAppointmentOffer(req, res, supabaseAdmin, deal, sett
 
   if (!deal.appointment_offer_time || deal.appointment_offer_status !== "sent") {
     return res.status(200).send(renderAttendancePage({
-      logoUrl, title: "Bu teklif artık geçerli değil",
+      logoUrl, company, title: "Bu teklif artık geçerli değil",
       message: `Bu randevu teklifi için işlem zaten tamamlanmış ya da geçersiz. Bir sorunuz varsa ${company} ile iletişime geçebilirsiniz.`,
     }));
   }
@@ -718,7 +726,7 @@ async function handleConfirmAppointmentOffer(req, res, supabaseAdmin, deal, sett
   if (expired) {
     await releaseHold({ appointment_offer_status: "expired" }).eq("appointment_offer_status", "sent");
     return res.status(200).send(renderAttendancePage({
-      logoUrl, title: "Bu teklifin süresi doldu",
+      logoUrl, company, title: "Bu teklifin süresi doldu",
       message: `Önerilen randevu saatinin geçerlilik süresi doldu. Lütfen ${company} ile tekrar iletişime geçin.`,
     }));
   }
@@ -730,7 +738,7 @@ async function handleConfirmAppointmentOffer(req, res, supabaseAdmin, deal, sett
   // sayfa göster (WhatsApp/e-posta bu linki kullanıyor). POST'ta response şart.
   if (response !== "yes" && response !== "no") {
     if (req.method !== "GET") {
-      return res.status(400).send(renderAttendancePage({ logoUrl, title: "Geçersiz bağlantı", message: "Bu bağlantı eksik ya da hatalı görünüyor." }));
+      return res.status(400).send(renderAttendancePage({ logoUrl, company, title: "Geçersiz bağlantı", message: "Bu bağlantı eksik ya da hatalı görünüyor." }));
     }
     return res.status(200).send(renderOfferChoicePage({ logoUrl, company, dealTitle: deal.title, dateLabel, token }));
   }
@@ -738,7 +746,7 @@ async function handleConfirmAppointmentOffer(req, res, supabaseAdmin, deal, sett
   if (response === "yes") {
     if (req.method === "GET") {
       return res.status(200).send(renderAttendancePage({
-        logoUrl, title: "Randevunuzu onaylıyor musunuz?",
+        logoUrl, company, title: "Randevunuzu onaylıyor musunuz?",
         message: `"${deal.title}" için önerilen ${dateLabel} randevusunu onaylamak üzeresiniz.`,
         formToken: token, formResponse: "yes", submitLabel: "Evet, bu saat uygun",
         formAction: "confirm-appointment-offer",
@@ -755,7 +763,7 @@ async function handleConfirmAppointmentOffer(req, res, supabaseAdmin, deal, sett
       .limit(1);
     const dtKey = fieldDefs?.[0]?.key;
     if (!dtKey) {
-      return res.status(200).send(renderAttendancePage({ logoUrl, title: "Bir sorun oluştu", message: `Randevu alanı bulunamadı, lütfen ${company} ile iletişime geçin.` }));
+      return res.status(200).send(renderAttendancePage({ logoUrl, company, title: "Bir sorun oluştu", message: `Randevu alanı bulunamadı, lütfen ${company} ile iletişime geçin.` }));
     }
 
     const dateTimeLocalStr = toIstanbulLocalString(offerDate);
@@ -767,20 +775,20 @@ async function handleConfirmAppointmentOffer(req, res, supabaseAdmin, deal, sett
       })
       .eq("id", deal.id);
     if (updateError) {
-      return res.status(500).send(renderAttendancePage({ logoUrl, title: "Bir sorun oluştu", message: `Lütfen tekrar deneyin veya ${company} ile iletişime geçin.` }));
+      return res.status(500).send(renderAttendancePage({ logoUrl, company, title: "Bir sorun oluştu", message: `Lütfen tekrar deneyin veya ${company} ile iletişime geçin.` }));
     }
 
     await supabaseAdmin.from("activities").insert({
       id: crypto.randomUUID(), user_id: deal.user_id, customer_id: deal.customer_id, type: "note",
       content: `Müşteri, önerilen ${dateLabel} randevu saatini e-posta üzerinden onayladı.`,
     });
-    return res.status(200).send(renderAttendancePage({ logoUrl, title: "Randevunuz onaylandı!", message: `${dateLabel} için randevunuz kesinleşti. Sizi bekliyoruz. - ${company}` }));
+    return res.status(200).send(renderAttendancePage({ logoUrl, company, title: "Randevunuz onaylandı!", message: `${dateLabel} için randevunuz kesinleşti. Sizi bekliyoruz. - ${company}` }));
   }
 
   // response === "no"
   if (req.method === "GET") {
     return res.status(200).send(renderAttendancePage({
-      logoUrl, title: "Bu saat size uygun değil mi?",
+      logoUrl, company, title: "Bu saat size uygun değil mi?",
       message: `"${deal.title}" için önerilen ${dateLabel} saatini reddetmek üzeresiniz - ${company} size başka bir saat önerecektir.`,
       formToken: token, formResponse: "no", submitLabel: "Bu saat uygun değil", formAction: "confirm-appointment-offer",
     }));
@@ -791,17 +799,18 @@ async function handleConfirmAppointmentOffer(req, res, supabaseAdmin, deal, sett
     id: crypto.randomUUID(), user_id: deal.user_id, customer_id: deal.customer_id, type: "note",
     content: `Müşteri, önerilen ${dateLabel} randevu saatini e-posta üzerinden reddetti.`,
   });
-  return res.status(200).send(renderAttendancePage({ logoUrl, title: "Bildiğiniz için teşekkürler", message: `${company} size başka bir saat önerecektir.` }));
+  return res.status(200).send(renderAttendancePage({ logoUrl, company, title: "Bildiğiniz için teşekkürler", message: `${company} size başka bir saat önerecektir.` }));
 }
 
 // renderAttendancePage'in tek-form kalıbına uymuyor (iki seçenekli soru +
 // olumsuzda ek bir metin alanı) - o yüzden aynı görsel kabuğu tekrar eden
 // ayrı, küçük bir render fonksiyonu (bkz. CLAUDE.md: üç benzer satır, erken
 // soyutlamadan iyidir).
-function renderReviewPage({ logoUrl, bodyHtml }) {
+function renderReviewPage({ logoUrl, bodyHtml, company }) {
   const logo = logoUrl || "https://binerly.com/pwa-512x512.png";
   return `<!doctype html>
 <html lang="tr">
+  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>${escapeAttendanceHtml(company || "Değerlendirme")}</title></head>
   <body style="margin:0;padding:32px 16px;background:#f5f8fc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
     <div style="max-width:440px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e1e8f0;text-align:center;">
       <div style="padding:28px 32px 20px;border-bottom:1px solid #e1e8f0;">
@@ -956,7 +965,7 @@ async function handleMarketingConsentConfirm(req, res, supabaseAdmin, token) {
   const logoUrl = settings?.logo_url || null;
 
   if (customer.marketing_consent) {
-    return res.status(200).send(renderAttendancePage({ logoUrl, title: "Zaten onaylanmış", message: `İzniniz zaten kayıtlı, teşekkürler. - ${company}` }));
+    return res.status(200).send(renderAttendancePage({ logoUrl, company, title: "Zaten onaylanmış", message: `İzniniz zaten kayıtlı, teşekkürler. - ${company}` }));
   }
 
   // Bu link WhatsApp/panodan paylaşılmış olabilir (customers.email hiç yoksa) —
@@ -967,6 +976,7 @@ async function handleMarketingConsentConfirm(req, res, supabaseAdmin, token) {
   if (req.method === "GET") {
     return res.status(200).send(renderAttendancePage({
       logoUrl,
+      company,
       title: "İzniniz gerekiyor",
       message: needsEmail
         ? `${company}, size kampanya ve değerlendirme isteği gibi e-postalar gönderebilmek için e-posta adresinizi ve izninizi ihtiyaç duyuyor.`
@@ -979,7 +989,7 @@ async function handleMarketingConsentConfirm(req, res, supabaseAdmin, token) {
 
   const providedEmail = ((req.body || {}).email || "").trim();
   if (needsEmail && !providedEmail) {
-    return res.status(400).send(renderAttendancePage({ logoUrl, title: "E-posta gerekli", message: "Devam etmek için bir e-posta adresi girmeniz gerekiyor." }));
+    return res.status(400).send(renderAttendancePage({ logoUrl, company, title: "E-posta gerekli", message: "Devam etmek için bir e-posta adresi girmeniz gerekiyor." }));
   }
 
   const nowIso = new Date().toISOString();
@@ -999,7 +1009,7 @@ async function handleMarketingConsentConfirm(req, res, supabaseAdmin, token) {
     .eq("id", customer.id)
     .eq("marketing_consent_token", token);
 
-  return res.status(200).send(renderAttendancePage({ logoUrl, title: "Teşekkürler!", message: `İzniniz kaydedildi. - ${company}` }));
+  return res.status(200).send(renderAttendancePage({ logoUrl, company, title: "Teşekkürler!", message: `İzniniz kaydedildi. - ${company}` }));
 }
 
 // requestPhotoConsent'in (App.jsx) gönderdiği linkin hedefi — SADECE fotoğraf
@@ -1030,7 +1040,7 @@ async function handlePhotoConsentConfirm(req, res, supabaseAdmin, token) {
   const logoUrl = settings?.logo_url || null;
 
   if (customer.photo_consent) {
-    return res.status(200).send(renderAttendancePage({ logoUrl, title: "Zaten onaylanmış", message: `İzniniz zaten kayıtlı, teşekkürler. - ${company}` }));
+    return res.status(200).send(renderAttendancePage({ logoUrl, company, title: "Zaten onaylanmış", message: `İzniniz zaten kayıtlı, teşekkürler. - ${company}` }));
   }
 
   const needsEmail = !customer.email;
@@ -1038,6 +1048,7 @@ async function handlePhotoConsentConfirm(req, res, supabaseAdmin, token) {
   if (req.method === "GET") {
     return res.status(200).send(renderAttendancePage({
       logoUrl,
+      company,
       title: "Fotoğraf izniniz gerekiyor",
       message: needsEmail
         ? `${company}, hizmet öncesi/sonrası fotoğraflarınızı çekip saklayabilmek için e-posta adresinizi ve izninizi ihtiyaç duyuyor.`
@@ -1050,7 +1061,7 @@ async function handlePhotoConsentConfirm(req, res, supabaseAdmin, token) {
 
   const providedEmail = ((req.body || {}).email || "").trim();
   if (needsEmail && !providedEmail) {
-    return res.status(400).send(renderAttendancePage({ logoUrl, title: "E-posta gerekli", message: "Devam etmek için bir e-posta adresi girmeniz gerekiyor." }));
+    return res.status(400).send(renderAttendancePage({ logoUrl, company, title: "E-posta gerekli", message: "Devam etmek için bir e-posta adresi girmeniz gerekiyor." }));
   }
 
   const nowIso = new Date().toISOString();
@@ -1070,7 +1081,7 @@ async function handlePhotoConsentConfirm(req, res, supabaseAdmin, token) {
     .eq("id", customer.id)
     .eq("marketing_consent_token", token);
 
-  return res.status(200).send(renderAttendancePage({ logoUrl, title: "Teşekkürler!", message: `İzniniz kaydedildi. - ${company}` }));
+  return res.status(200).send(renderAttendancePage({ logoUrl, company, title: "Teşekkürler!", message: `İzniniz kaydedildi. - ${company}` }));
 }
 
 async function fetchSector(supabaseAdmin, userId) {

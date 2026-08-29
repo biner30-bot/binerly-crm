@@ -63,6 +63,12 @@ export default function LeadCapturePage() {
       });
   }, [token]);
 
+  // Sekme başlığı müşteriye işletmenin adını göstermeli (index.html varsayılanı
+  // "Binerly - CRM | ..." beyaz-etiket hissini bozar).
+  useEffect(() => {
+    if (company?.companyName) document.title = company.companyName;
+  }, [company?.companyName]);
+
   const submit = async (e) => {
     e.preventDefault();
     if (!name.trim() || !phone.trim() || !email.trim()) {

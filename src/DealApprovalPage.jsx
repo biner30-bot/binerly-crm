@@ -194,6 +194,13 @@ export default function DealApprovalPage() {
     })();
   }, [token, session]);
 
+  // Sekme başlığı müşteriye işletmenin adını göstermeli (index.html varsayılanı
+  // "Binerly - CRM | ..." beyaz-etiket hissini bozar).
+  const brandingName = (state.branding || state.deal)?.companyName;
+  useEffect(() => {
+    if (brandingName) document.title = brandingName;
+  }, [brandingName]);
+
   const submitAuth = async (e) => {
     e.preventDefault();
     setAuthMessage("");
