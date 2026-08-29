@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import Iyzipay from "iyzipay";
 import { renderEmailHtml, plainTextFallback } from "./_email-template.js";
 import { applyServiceCapacity } from "./_appointment-concurrency.js";
+import { buildShiftAvailability } from "./_appointment-shifts.js";
 
 const IYZICO_BASE_URL = { sandbox: "https://sandbox-api.iyzipay.com", production: "https://api.iyzipay.com" };
 const PAYTR_GET_TOKEN_URL = "https://www.paytr.com/odeme/api/get-token";
@@ -495,25 +496,35 @@ async function handleSendAppointmentOffer(req, res, supabaseAdmin) {
 
   const [{ data: customer }, { data: settings }] = await Promise.all([
     supabaseAdmin.from("customers").select("name, email, phone").eq("id", deal.customer_id).maybeSingle(),
-    supabaseAdmin.from("company_settings").select("company_name, logo_url, email, appointment_offer_validity_hours, appointment_concurrency").eq("user_id", deal.user_id).maybeSingle(),
+    supabaseAdmin.from("company_settings").select("company_name, logo_url, email, appointment_offer_validity_hours, appointment_concurrency, appointment_availability_source").eq("user_id", deal.user_id).maybeSingle(),
   ]);
 
-  // Hizmet bazlı personel yetkinliği (Takım > Hizmetler): önerilen hizmeti
-  // sınırlı sayıda personel yapabiliyorsa, global concurrency_slot havuzu bunu
-  // bilmediği için ek bir ön-kontrol - o saatte hizmeti yapabilen personelin
-  // tamamı doluysa öneri gönderilmez (lead-capture.js / appointment-availability.js
-  // ile AYNI mantık, bkz. _appointment-concurrency.js). concurrency_slots atomik
-  // havuzu hâlâ per-hizmet DEĞİL, bu kontrol kaynak ön-kontrolüyle aynı güven
-  // seviyesinde.
+  // Hizmet bazlı personel yetkinliği (Takım > Hizmetler) + vardiya bazlı
+  // müsaitlik (Ayarlar > Müsaitlik Saatleri): önerilen saatte hizmeti yapabilen
+  // / vardiyada olan personelin tamamı doluysa öneri gönderilmez. global
+  // concurrency_slot havuzu ne per-hizmet ne per-saat - bu ek ön-kontrol
+  // kaynak ön-kontrolüyle aynı güven seviyesinde (lead-capture.js /
+  // appointment-availability.js ile AYNI mantık, bkz. _appointment-concurrency.js
+  // + _appointment-shifts.js).
   {
     const baseConcurrency = Math.max(1, Number(settings?.appointment_concurrency) || 1);
-    const { effectiveConcurrency, competes } = await applyServiceCapacity(
+    const { effectiveConcurrency, competes, capablePool, validStaff } = await applyServiceCapacity(
       supabaseAdmin,
       deal.user_id,
       serviceIds,
       baseConcurrency,
     );
-    if (effectiveConcurrency < baseConcurrency) {
+    const offerDateStr = offerTime.slice(0, 10);
+    const offerStartMin = Number(offerTime.slice(11, 13)) * 60 + Number(offerTime.slice(14, 16));
+    const shiftAvail = await buildShiftAvailability(supabaseAdmin, deal.user_id, settings?.appointment_availability_source);
+    const shiftDay = shiftAvail ? shiftAvail.forDate(offerDateStr, validStaff, capablePool) : null;
+    const ceiling = shiftDay
+      ? Math.min(effectiveConcurrency, shiftDay.capacityAt(offerStartMin, offerStartMin + durationMinutes))
+      : effectiveConcurrency;
+    if (ceiling <= 0) {
+      return res.status(409).json({ error: "Bu saatte bu hizmeti yapabilen personel yok, lütfen farklı bir saat seçin." });
+    }
+    if (ceiling < baseConcurrency) {
       const offerStartMs = offerDate.getTime();
       const offerEndMs = offerStartMs + durationMinutes * 60000;
       const { data: activeAppts } = await supabaseAdmin
@@ -530,7 +541,7 @@ async function handleSendAppointmentOffer(req, res, supabaseAdmin) {
         const e = new Date(d.appointment_end || d.appointment_start).getTime();
         return offerStartMs < e && s < offerEndMs;
       }).length;
-      if (overlap >= effectiveConcurrency) {
+      if (overlap >= ceiling) {
         return res.status(409).json({
           error: "Bu saatte bu hizmeti yapabilen personelin tamamı dolu, lütfen farklı bir saat seçin.",
         });

@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
 import { applyServiceCapacity } from "./_appointment-concurrency.js";
+import { buildShiftAvailability, fetchShiftData, shiftWindowsByWeekday } from "./_appointment-shifts.js";
 
 // KVKK ispat kaydı için — deal-approval.js'teki AYNI fonksiyon, aralarında
 // import olmadığı için kopyalanmış (bkz. sql/2026-07-31_consent_ip_and_text.sql).
@@ -233,7 +234,7 @@ export default async function handler(req, res) {
   // orada da kabul eder - zararsız, aynı company_settings satırına düşer.
   const { data: settings, error: settingsError } = await supabaseAdmin
     .from("company_settings")
-    .select("user_id, company_name, logo_url, sector, appointment_deposit_amount, appointment_concurrency, appointment_widget_mode, address, phone, showcase_price_list_visible, showcase_slug")
+    .select("user_id, company_name, logo_url, sector, appointment_deposit_amount, appointment_concurrency, appointment_widget_mode, appointment_availability_source, address, phone, showcase_price_list_visible, showcase_slug")
     .or(`lead_capture_token.eq.${token},showcase_slug.eq.${token}`)
     .maybeSingle();
   if (settingsError) console.error("lead-capture query error:", settingsError.message);
@@ -377,6 +378,21 @@ export default async function handler(req, res) {
     // akışa girip müşteriyi kilitlemektense sessizce atlanır).
     const hasPaymentProvider = !!cred;
     const depositAmount = hasPaymentProvider && settings.appointment_deposit_amount > 0 ? settings.appointment_deposit_amount : null;
+
+    // Vardiya bazlı müsaitlik modunda widget'a giden "açık saatler" = personel
+    // vardiyalarının haftagünü başına birleşimi (saat tercihi min/max +
+    // "Çalışma saatleri" satırı). Vardiya girilmemiş haftagünleri business_hours'a
+    // düşer - api/appointment-availability.js businessHours=1 dalındaki AYNI mantık.
+    let businessHours = (hours || []).map((h) => ({ weekday: h.weekday, startTime: h.start_time.slice(0, 5), endTime: h.end_time.slice(0, 5) }));
+    if (settings.appointment_availability_source === "shifts") {
+      const { shiftRows } = await fetchShiftData(supabaseAdmin, settings.user_id);
+      const shiftWeekdays = new Set(shiftRows.filter((s) => !s.valid_to).map((s) => s.weekday));
+      businessHours = [
+        ...shiftWindowsByWeekday(shiftRows),
+        ...businessHours.filter((w) => !shiftWeekdays.has(w.weekday)),
+      ];
+    }
+
     return res.status(200).json({
       companyName: settings.company_name || "Binerly",
       logoUrl: settings.logo_url || null,
@@ -395,7 +411,7 @@ export default async function handler(req, res) {
       widgetMode: settings.appointment_widget_mode === "request_only" ? "request_only" : "realtime",
       services: services || [],
       depositAmount,
-      businessHours: (hours || []).map((h) => ({ weekday: h.weekday, startTime: h.start_time.slice(0, 5), endTime: h.end_time.slice(0, 5) })),
+      businessHours,
     });
   }
 
@@ -518,12 +534,21 @@ export default async function handler(req, res) {
     // yapabiliyorsa etkin kapasite düşer, o havuzla rekabet etmeyen doluluklar
     // sayılmaz (bkz. _appointment-concurrency.js - appointment-availability.js
     // ile AYNI mantık, senkron tutulmalı).
-    const { effectiveConcurrency: concurrency, competes } = await applyServiceCapacity(
+    const { effectiveConcurrency: concurrency, competes, capablePool, validStaff } = await applyServiceCapacity(
       supabaseAdmin,
       settings.user_id,
       cleanServiceIds,
       Math.max(1, Number(settings.appointment_concurrency) || 1),
     );
+    // Vardiya bazlı müsaitlik: bu saatteki gerçek tavan = o an vardiyada olan +
+    // hizmeti yapabilen personel sayısı (appointment-availability.js handleBooking
+    // ile AYNI mantık). O haftagünü hiç vardiya yoksa shiftDay null, tavan aynı kalır.
+    const shiftAvail = await buildShiftAvailability(supabaseAdmin, settings.user_id, settings.appointment_availability_source);
+    const shiftDay = shiftAvail ? shiftAvail.forDate(candidateDateStr, validStaff, capablePool) : null;
+    const bookingCeiling = shiftDay
+      ? Math.min(concurrency, shiftDay.capacityAt(candidateStart, candidateEnd))
+      : concurrency;
+    if (bookingCeiling <= 0) return res.status(409).json({ error: "Bu saatte çalışan personel yok, lütfen başka bir saat seçin." });
     const overlapCount = (existingDeals || []).filter((d) => {
       const dt = d.custom_fields?.[dateTimeKey];
       if (typeof dt !== "string" || !dt.startsWith(candidateDateStr)) return false;
@@ -532,7 +557,7 @@ export default async function handler(req, res) {
       const otherEnd = otherStart + Math.max(Number(d.custom_fields?.duration_minutes) || 1, 1);
       return candidateStart < otherEnd && otherStart < candidateEnd;
     }).length;
-    if (overlapCount >= concurrency) return res.status(409).json({ error: "Bu saat az önce doldu, lütfen başka bir saat seçin." });
+    if (overlapCount >= bookingCeiling) return res.status(409).json({ error: "Bu saat az önce doldu, lütfen başka bir saat seçin." });
 
     // Kapora - KOBİ Ayarlar'dan açtıysa VE Ödeme Bağlantısı gerçekten kuruluysa,
     // deal "ödeme bekleniyor" (payment_mode=required) olarak oluşturulur ve
@@ -652,22 +677,32 @@ export default async function handler(req, res) {
     const { serviceName, servicePrice, serviceDurationMinutes } = await computeSelectedServiceInfo(supabaseAdmin, settings.user_id, cleanServiceIds);
 
     // Hizmet süresi o günkü kapanışı aşan bir tercih saati kabul edilmesin -
-    // müşteri UI'da input max ile de engelleniyor, bu bypass'a karşı.
+    // müşteri UI'da input max ile de engelleniyor, bu bypass'a karşı. Vardiya
+    // bazlı müsaitlik modunda "kapanış" = en geç vardiya bitişi; o haftagünü hiç
+    // vardiya yoksa business_hours end_time'ına düşülür (appointment-availability.js
+    // talep dalındaki AYNI mantık).
     if (serviceDurationMinutes > 0) {
-      const [ry, rm, rd] = requestedDate.split("-").map(Number);
-      const isoWd = ((new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay() + 6) % 7) + 1;
-      const { data: bh } = await supabaseAdmin
-        .from("business_hours")
-        .select("end_time")
-        .eq("user_id", settings.user_id)
-        .eq("weekday", isoWd);
-      if (bh && bh.length) {
-        const closeMin = Math.max(
-          ...bh.map((h) => {
-            const [hh, mm] = h.end_time.slice(0, 5).split(":").map(Number);
-            return hh * 60 + mm;
-          }),
-        );
+      const shiftAvail = await buildShiftAvailability(supabaseAdmin, settings.user_id, settings.appointment_availability_source);
+      const shiftDay = shiftAvail ? shiftAvail.forDate(requestedDate) : null;
+      let closeMin = shiftDay && shiftDay.latestEnd != null ? shiftDay.latestEnd : null;
+      if (closeMin == null) {
+        const [ry, rm, rd] = requestedDate.split("-").map(Number);
+        const isoWd = ((new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay() + 6) % 7) + 1;
+        const { data: bh } = await supabaseAdmin
+          .from("business_hours")
+          .select("end_time")
+          .eq("user_id", settings.user_id)
+          .eq("weekday", isoWd);
+        if (bh && bh.length) {
+          closeMin = Math.max(
+            ...bh.map((h) => {
+              const [hh, mm] = h.end_time.slice(0, 5).split(":").map(Number);
+              return hh * 60 + mm;
+            }),
+          );
+        }
+      }
+      if (closeMin != null) {
         const overflows = cleanPrefs.some((t) => {
           const [hh, mm] = t.split(":").map(Number);
           return hh * 60 + mm + serviceDurationMinutes > closeMin;
