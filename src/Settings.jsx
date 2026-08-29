@@ -9,7 +9,7 @@ import {
   SegmentedControl,
   THEME_OPTIONS,
 } from "./shared";
-import { SECTOR_PRESETS, STAGES, stageLabel, dealWordKind } from "./Sectors";
+import { SECTOR_PRESETS, STAGES, stageLabel, dealWordKind, bookingModel } from "./Sectors";
 import { DEAL_WORD_FORMS } from "./staticData";
 const COMPANY_NAME_EXAMPLES = {
   emlak: "Akın Emlak",
@@ -536,11 +536,12 @@ export function CompanySettingsForm({
   );
 }
 
-// Şirket adından Google/paylaşım-önizlemesi için okunabilir bir vitrin adresi
+// Şirket adından Google/paylaşım-önizlemesi için okunabilir bir işletme adresi
 // üretir - Türkçe karakterler önce ASCII karşılıklarına çevrilir (generic
 // toLowerCase Türkçe İ/I çiftinde tutarsız davranabildiği için önce elle
-// haritalanıyor), sonra küçük harf + tire dönüşümü uygulanır.
-function slugify(text) {
+// haritalanıyor), sonra küçük harf + tire dönüşümü uygulanır. App.jsx da
+// randevu linki önizlemesi için import ediyor.
+export function slugify(text) {
   const map = {
     ç: "c",
     Ç: "c",
@@ -586,13 +587,27 @@ export function ShowcaseManager({
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-  const [slugInput, setSlugInput] = useState(companySettings?.showcaseSlug || "");
+  // showcase_slug "<isim>-<kod>" biçiminde saklanıyor; <kod> lead_capture_token'ın
+  // ilk 6 hanesi ve sabit (bkz. App.jsx buildAndSaveShowcaseSlug). Düzenleme
+  // kutusunda sadece isim kısmı gösteriliyor.
+  const slugSuffix = (companySettings?.leadCaptureToken || "").replace(/-/g, "").slice(0, 6);
+  const currentNamePart =
+    companySettings?.showcaseSlug &&
+    slugSuffix &&
+    companySettings.showcaseSlug.endsWith(`-${slugSuffix}`)
+      ? companySettings.showcaseSlug.slice(0, -(slugSuffix.length + 1))
+      : companySettings?.showcaseSlug || "";
+  const [slugInput, setSlugInput] = useState(currentNamePart);
   const [slugError, setSlugError] = useState("");
   const [savingSlug, setSavingSlug] = useState(false);
 
   const sorted = [...campaigns].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   const suggestedSlug = slugify(companySettings?.companyName || "");
-  const slugDirty = slugInput !== (companySettings?.showcaseSlug || "");
+  const slugDirty = slugInput !== currentNamePart;
+  const bookingKind =
+    bookingModel(companySettings?.sector) === "slot"
+      ? { label: "Randevu linki", path: "randevu-al" }
+      : { label: "Müşteri kazanma linki", path: "lead" };
 
   const handleSaveSlug = async () => {
     const clean = slugify(slugInput || suggestedSlug);
@@ -643,10 +658,10 @@ export function ShowcaseManager({
         }}
       >
         <label style={{ fontSize: 14, fontWeight: 600, display: "block", marginBottom: 6 }}>
-          Vitrin adresi
-          <InfoTip text="Google'da ve link paylaşımlarında (Instagram, WhatsApp) daha kolay tanınması için okunabilir bir adres belirleyin - örn. 'elif-guzellik-salonu'. Boş bırakırsanız eski rastgele link çalışmaya devam eder." />
+          İşletme adresi
+          <InfoTip text="Vitrin, Randevu Alma ve Müşteri Kazanma linklerinizin hepsinde bu okunabilir adres kullanılır - örn. 'elif-guzellik-salonu-a4f2b1'. Sondaki kısa kod otomatik eklenir ve aynı isimli başka işletmelerle karışmayı önler; siz sadece isim kısmını belirlersiniz. Google'da ve link paylaşımlarında (Instagram, WhatsApp) daha kolay tanınır. İsim kısmını sonradan değiştirirseniz önceki adres çalışmaz; rastgele kodlu eski link her zaman çalışır." />
         </label>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
           <span style={{ fontSize: 13, color: "var(--text-muted)" }}>binerly.com/vitrin/</span>
           <input
             value={slugInput}
@@ -655,8 +670,11 @@ export function ShowcaseManager({
               setSlugError("");
             }}
             placeholder={suggestedSlug || "isletme-adiniz"}
-            style={{ flex: 1, minWidth: 160, fontSize: 13 }}
+            style={{ flex: 1, minWidth: 140, fontSize: 13 }}
           />
+          {slugSuffix && (
+            <span style={{ fontSize: 13, color: "var(--text-muted)" }}>-{slugSuffix}</span>
+          )}
           {slugDirty && (
             <button
               type="button"
@@ -671,6 +689,12 @@ export function ShowcaseManager({
         {slugError && (
           <p style={{ fontSize: 12, color: "var(--text-danger)", margin: "6px 0 0" }}>
             {slugError}
+          </p>
+        )}
+        {slugSuffix && (slugInput || suggestedSlug) && !slugError && (
+          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0" }}>
+            {bookingKind.label}: binerly.com/{bookingKind.path}/
+            {slugify(slugInput || suggestedSlug)}-{slugSuffix}
           </p>
         )}
       </div>

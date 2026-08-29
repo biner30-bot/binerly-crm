@@ -4128,8 +4128,8 @@ export function DealsTab({
           bookingModel(companySettings?.sector) === "slot" && (
             <button
               onClick={async () => {
-                const link = await generateLeadCaptureLink();
-                if (link) setAppointmentLink(link.replace("/lead/", "/randevu-al/"));
+                const link = await generateLeadCaptureLink("randevu-al");
+                if (link) setAppointmentLink(link);
               }}
               style={{
                 background: "var(--surface-1)",

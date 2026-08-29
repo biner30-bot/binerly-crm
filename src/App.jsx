@@ -4,7 +4,7 @@ import { supabase } from "./supabase";
 import { Badge, TONE_COLORS, Modal, MetricCard, InfoTip, isFullNameValid, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, SegmentedControl, getRangeBounds, inRange, WEEKDAYS, WEEKDAYS_SHORT, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl, translateAuthError, humanizeDbMessage, SELF_BOOKED_SOURCES, formatFileSize, MAX_TEAM_SIZE, parseAppointmentDateTime, RowActionsMenu, AttachmentList, PRICE_ITEM_NAME_EXAMPLES, ExportSelectionModal, SECTORS, InitialsAvatar } from "./shared";
 import { DEAL_WORD_FORMS, DEAL_TAB_STRINGS, SECTOR_DEMO_PRESETS } from "./staticData";
 import { AuthModal, PasswordRecoveryModal } from "./Auth";
-import { SectorPicker, CompanySettingsForm, PaymentCredentialForm, AppSettingsModal, ShowcaseManager } from "./Settings";
+import { SectorPicker, CompanySettingsForm, PaymentCredentialForm, AppSettingsModal, ShowcaseManager, slugify } from "./Settings";
 import { FreeServiceModal, PriceListEditModal, PriceListManager, StockEditModal, StockManager } from "./Inventory";
 import { AppointmentCancelPolicyBox, AppointmentDepositBox, AppointmentConcurrencyBox, AppointmentRequestModeBox, AppointmentPrepNoteBox, BusinessHoursManager, ResourceManager, RoomInventoryEditModal, RoomInventoryManager } from "./AppointmentPolicies";
 import { staffLeaveDayCount, formatLeaveDateRange, STAFF_LEAVE_TYPE_LABELS, isOpenStaffShift, staffHistoryDateStr, StaffShiftDayEditor, StaffShiftGrid, StaffShiftHistoryModal, StaffLeaveRecordModal, StaffLeaveManager, TeamDailyLoadPanel, TeamModal } from "./Team";
@@ -2373,39 +2373,71 @@ export default function App() {
     logAction("deals", dealId, "updated", `${deal?.title || ""}: Gider ${formatTL(cost)} olarak güncellendi`);
   };
 
+  // showcase_slug "<işletme-adı>-<kod>" biçiminde tutulur: <kod>, hesabın zaten
+  // sahip olduğu lead_capture_token'ın ilk 6 hanesi. Böylece aynı isimli iki
+  // işletme çakışmadan ikisi de linkinde adını taşır; KOBİ ismi kısaltsa/
+  // değiştirse bile <kod> sabit kalır (eski isimli link kırılır ama rastgele
+  // token linki hep çalışır).
+  // namePart boşsa (şirket adı henüz girilmemiş) null döner - link rastgele
+  // token'a düşer. Yazamıyorsa (ekip üyesi / RLS) da sessizce null döner.
+  const buildAndSaveShowcaseSlug = async (token, namePartOverride) => {
+    const namePart = namePartOverride ?? slugify(companySettings?.companyName || "");
+    const hex = (token || "").replace(/-/g, "");
+    if (!namePart || !hex) return null;
+    // 6 hane çakışırsa (aynı isim + aynı ilk 6 hane, neredeyse imkansız) tüm
+    // token'ı kod olarak kullan - kesin benzersiz.
+    for (const len of [6, hex.length]) {
+      const candidate = `${namePart}-${hex.slice(0, len)}`;
+      const { data, error } = await supabase
+        .from("company_settings")
+        .upsert({ user_id: activeTeamId, showcase_slug: candidate })
+        .select("showcase_slug")
+        .single();
+      if (!error) {
+        setCompanySettings((prev) => ({ ...(prev || {}), showcaseSlug: data.showcase_slug }));
+        return data.showcase_slug;
+      }
+      if (error.code !== "23505") return null;
+    }
+    return null;
+  };
+
   // Şirket başına sabit link/QR — müşteri kendi bilgisini bırakır, KOBİ elle
   // girmez. approval_token'dan farklı olarak deal'e değil company_settings'e bağlı.
-  const generateLeadCaptureLink = async () => {
-    if (companySettings?.leadCaptureToken) return `https://binerly.com/lead/${companySettings.leadCaptureToken}`;
-    const token = uid();
-    // upsert (update değil) — company_settings satırı henüz hiç oluşmamış olabilir
-    // (ilk kez Şirket Bilgileri kaydedilmeden), sadece bu iki sütunu dokunarak yazar.
-    const { error } = await supabase.from("company_settings").upsert({ user_id: activeTeamId, lead_capture_token: token });
-    if (error) { notify(`Link oluşturulamadı: ${error.message}`); return null; }
-    setCompanySettings((prev) => ({ ...(prev || {}), leadCaptureToken: token }));
-    return `https://binerly.com/lead/${token}`;
-  };
-
-  // generateLeadCaptureLink'teki AYNI minimal-dokunuşlu upsert deseni - sadece
-  // tek bir sütunu yazar, companySettings'in geri kalanını sessizce null'a
-  // çekme riski yok (bkz. upsertCompanySettings'in kendi merge yorumu).
-  // Unique çakışması (23505) kullanıcı dostu bir mesaja çevrilir.
-  const saveShowcaseSlug = async (slug) => {
-    const { data, error } = await supabase.from("company_settings").upsert({ user_id: activeTeamId, showcase_slug: slug }).select().single();
-    if (error) {
-      if (error.code === "23505") return { error: "Bu adres başka bir işletme tarafından kullanılıyor, farklı bir tane deneyin." };
-      return { error: error.message };
+  // pathPrefix üç herkese açık rotadan birini seçer (lead / randevu-al / vitrin);
+  // üçü de api/lead-capture.js'te aynı company_settings satırına çözülür.
+  // showcase_slug varsa (şirket adı belliyse ilk link açılışında otomatik
+  // üretilir) rastgele UUID token yerine işletme adını taşıyan okunabilir adres
+  // kullanılır - token her hâlükârda saklanır, geri dönüş yolu (bkz.
+  // sql/2026-08-19_showcase_slug.sql).
+  const generateLeadCaptureLink = async (pathPrefix = "lead") => {
+    let token = companySettings?.leadCaptureToken;
+    if (!token) {
+      token = uid();
+      // upsert (update değil) — company_settings satırı henüz hiç oluşmamış olabilir
+      // (ilk kez Şirket Bilgileri kaydedilmeden), sadece bu sütunu dokunarak yazar.
+      const { error } = await supabase.from("company_settings").upsert({ user_id: activeTeamId, lead_capture_token: token });
+      if (error) { notify(`Link oluşturulamadı: ${error.message}`); return null; }
+      setCompanySettings((prev) => ({ ...(prev || {}), leadCaptureToken: token }));
     }
-    setCompanySettings((prev) => ({ ...(prev || {}), showcaseSlug: data.showcase_slug }));
-    return { success: true };
+    let slug = companySettings?.showcaseSlug;
+    if (!slug) slug = await buildAndSaveShowcaseSlug(token);
+    return `https://binerly.com/${pathPrefix}/${slug || token}`;
   };
 
-  // generateLeadCaptureLink() hep token'lı /lead/{token} döner - vitrin için
-  // slug varsa onu tercih eder (Google/paylaşım önizlemesinde okunabilir
-  // URL), yoksa token'a düşer (eski paylaşılmış linkler kırılmasın).
-  const buildVitrinLink = (leadLink) => {
-    const token = leadLink.split("/lead/")[1];
-    return `https://binerly.com/vitrin/${companySettings?.showcaseSlug || token}`;
+  // Ayarlar → İşletme adresi: KOBİ sadece isim kısmını düzenler, "-<kod>" eki
+  // otomatik eklenir. lead_capture_token yoksa önce o üretilir.
+  const saveShowcaseSlug = async (namePart) => {
+    let token = companySettings?.leadCaptureToken;
+    if (!token) {
+      token = uid();
+      const { error } = await supabase.from("company_settings").upsert({ user_id: activeTeamId, lead_capture_token: token });
+      if (error) return { error: error.message };
+      setCompanySettings((prev) => ({ ...(prev || {}), leadCaptureToken: token }));
+    }
+    const slug = await buildAndSaveShowcaseSlug(token, namePart);
+    if (!slug) return { error: "Bu adres kullanılamıyor, ismi biraz değiştirip tekrar deneyin." };
+    return { success: true };
   };
 
   // Kurumsal/Bireysel seçimi her yapıldığında burada güncellenir, böylece bir
@@ -4207,9 +4239,9 @@ export default function App() {
     { label: "Çöp Kutusu ve Geçmiş", description: "Silinen kayıtlar, işlem geçmişi", onOpen: () => setShowTrashHistory(true) },
     { label: "Müşteri Kazanma Linki", description: "Müşteri kendi bilgisini bıraksın, elle girmeyin", onOpen: async () => { const link = await generateLeadCaptureLink(); if (link) setLeadCaptureLink(link); } },
     ...(supportsSelfBooking(companySettings?.sector) && bookingModel(companySettings?.sector) === "slot"
-      ? [{ label: "Randevu Alma Linki", description: appointmentDateTimeKey ? "Müşteri girişsiz kendi randevusunu seçip talep etsin" : "⚠ Şu anda çalışmıyor - açıp düzeltin", onOpen: async () => { const link = await generateLeadCaptureLink(); if (link) setAppointmentLink(link.replace("/lead/", "/randevu-al/")); } }]
+      ? [{ label: "Randevu Alma Linki", description: appointmentDateTimeKey ? "Müşteri girişsiz kendi randevusunu seçip talep etsin" : "⚠ Şu anda çalışmıyor - açıp düzeltin", onOpen: async () => { const link = await generateLeadCaptureLink("randevu-al"); if (link) setAppointmentLink(link); } }]
       : []),
-    { label: "Vitrin Linki", description: "Ürünlerinizi, fiyat listenizi ve kampanyalarınızı herkese açık gösterin", onOpen: async () => { const link = await generateLeadCaptureLink(); if (link) setVitrinLink(buildVitrinLink(link)); } },
+    { label: "Vitrin Linki", description: "Ürünlerinizi, fiyat listenizi ve kampanyalarınızı herkese açık gösterin", onOpen: async () => { const link = await generateLeadCaptureLink("vitrin"); if (link) setVitrinLink(link); } },
     { label: "Müşteri Portalı Linki", description: "Mevcut müşterileriniz için - kendi hesaplarıyla giriş yapıp takip etsinler", onOpen: () => setShowPortalLinkModal(true) },
     { label: "Turu Tekrar Başlat", description: "Sistemin nasıl çalıştığını gösteren kısa turu tekrar izleyin", onOpen: () => { setTourStep(0); setShowTour(true); } },
   ];
@@ -5181,8 +5213,8 @@ export default function App() {
             onReorderCampaigns={reorderShowcaseCampaigns}
             onSaveSlug={saveShowcaseSlug}
             onOpenLink={async () => {
-              const link = await generateLeadCaptureLink();
-              if (link) setVitrinLink(buildVitrinLink(link));
+              const link = await generateLeadCaptureLink("vitrin");
+              if (link) setVitrinLink(link);
             }}
           />
         </div>
@@ -5335,8 +5367,8 @@ export default function App() {
                 description={appointmentDateTimeKey ? "Müşteri girişsiz kendi randevusunu seçip talep etsin" : "⚠ Şu anda çalışmıyor - açıp düzeltin"}
                 onClick={async () => {
                   setShowSettingsHub(false);
-                  const link = await generateLeadCaptureLink();
-                  if (link) setAppointmentLink(link.replace("/lead/", "/randevu-al/"));
+                  const link = await generateLeadCaptureLink("randevu-al");
+                  if (link) setAppointmentLink(link);
                 }}
               />
             )}
@@ -5346,8 +5378,8 @@ export default function App() {
               description="Ürünlerinizi, fiyat listenizi ve kampanyalarınızı herkese açık gösterin"
               onClick={async () => {
                 setShowSettingsHub(false);
-                const link = await generateLeadCaptureLink();
-                if (link) setVitrinLink(buildVitrinLink(link));
+                const link = await generateLeadCaptureLink("vitrin");
+                if (link) setVitrinLink(link);
               }}
             />
             <MenuRow
@@ -5409,6 +5441,11 @@ export default function App() {
               Kopyala
             </button>
           </div>
+          {!companySettings?.showcaseSlug && (
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "8px 0 0" }}>
+              💡 Bu linkte rastgele bir kod var. İşletme Bilgileri'nden şirket adınızı girerseniz link otomatik olarak adınızı taşır (örn. binerly.com/lead/{slugify(companySettings?.companyName || "isletme-adiniz")}-a4f2b1). Adresi Ayarlar &gt; Vitrin'den kısaltabilirsiniz.
+            </p>
+          )}
 
           <div style={{ marginTop: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
             <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
@@ -5489,6 +5526,11 @@ export default function App() {
               Kopyala
             </button>
           </div>
+          {!companySettings?.showcaseSlug && (
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "8px 0 0" }}>
+              💡 Bu linkte rastgele bir kod var. İşletme Bilgileri'nden şirket adınızı girerseniz link otomatik olarak adınızı taşır (örn. binerly.com/randevu-al/{slugify(companySettings?.companyName || "isletme-adiniz")}-a4f2b1). Adresi Ayarlar &gt; Vitrin'den kısaltabilirsiniz.
+            </p>
+          )}
 
           <div style={{ marginTop: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
             <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
