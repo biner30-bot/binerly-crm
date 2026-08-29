@@ -678,6 +678,35 @@ export function DealForm({
   const [resourceId, setResourceId] = useState(initial?.customFields?.resource_id || "");
   const [notifyCustomer, setNotifyCustomer] = useState(initial?.notifyCustomer || false);
   const [conflictError, setConflictError] = useState("");
+
+  // Hizmet bazlı personel yetkinliği (Takım > Hizmetler). Randevuda seçili
+  // hizmet(ler)i kimlerin yapabildiği: her KISITLI hizmetin izinli personel
+  // kümesinin kesişimi. Kısıtsız hizmetler (staffMemberIds boş) veya izinli
+  // personeli tamamen takımdan çıkmış hizmetler yok sayılır. Hiçbir kısıtlı
+  // hizmet yoksa null = "kısıt yok, herkes yapabilir".
+  const validStaffIds = new Set([businessUserId, ...teamMembers.map((m) => m.id)].filter(Boolean));
+  const selectedServiceIds = [
+    ...new Set(
+      [
+        selectedPriceItemId,
+        customFields?.price_item_id,
+        ...lineItems.map((li) => li.priceItemId),
+      ].filter(Boolean),
+    ),
+  ];
+  const capableStaffIds = (() => {
+    let result = null;
+    for (const sid of selectedServiceIds) {
+      const svc = priceListItems.find((p) => p.id === sid);
+      if (!svc || (svc.staffMemberIds || []).length === 0) continue;
+      const ids = (svc.staffMemberIds || []).filter((id) => validStaffIds.has(id));
+      if (ids.length === 0) continue; // izinli personelin tamamı takımdan çıkmış - kısıt düşer
+      const set = new Set(ids);
+      result = result === null ? set : new Set([...result].filter((id) => set.has(id)));
+    }
+    return result;
+  })();
+  const staffCanDoServices = (id) => !capableStaffIds || capableStaffIds.has(id);
   // Var olan bir kaydı düzenlerken (Sorumlu/Etiket/Özel Alan/Dosya gibi zaten
   // doldurulmuş olabilecek alanlar sessizce gizli kalmasın diye) akordeon
   // açık başlar; yeni kayıtta (henüz hiçbir "ek" alan dolu olamayacağı için)
@@ -826,8 +855,47 @@ export function DealForm({
     // sayısı ARTIK devreye girmemeli - o sayı sadece kimseye özel
     // atanmamış randevular için bir tavan, spesifik olarak atanmış bir
     // randevuyu, o personel/kaynağın kendi kontrolü geçmesine rağmen,
-    // ilgisiz bir genel sayıyla bloke etmemeli.
-    if (assignedTo || resourceId) return null;
+    // ilgisiz bir genel sayıyla bloke etmemeli. AMA atanan kişi seçili hizmeti
+    // yapamıyorsa (Takım > Hizmetler kısıtı) bu muafiyet geçerli değil -
+    // aşağıdaki yetkinlik kapasitesi kontrolüne düşülür.
+    const assigneeCanDoService = !assignedTo || !capableStaffIds || capableStaffIds.has(assignedTo);
+    if ((assignedTo && assigneeCanDoService) || resourceId) return null;
+
+    // Hizmet bazlı personel yetkinliği: seçili hizmet(ler)i sınırlı sayıda
+    // personel yapabiliyorsa (Takım > Hizmetler), o saatteki genel kapasite
+    // yerine "bu hizmeti yapabilen kaç kişi bosta" geçerli olur. Sorumlu
+    // atanmamış randevular için — atanmışlar zaten yukarıdaki personel
+    // kontrolü + DB deals_assigned_to_no_overlap ile garantili.
+    if (capableStaffIds) {
+      const effectiveConcurrency = Math.max(1, Math.min(concurrency, capableStaffIds.size));
+      // Yalnızca yetkin havuzu bu randevunun havuzuyla KESİŞEN diğer
+      // randevular sayılır - hizmeti bilinemeyen / kısıtsız randevu tüm
+      // havuzla kesişir (temkinli taraf, fazladan engelleyebilir ama güvenli).
+      const competing = overlapping.filter((d) => {
+        const otherServiceIds = [
+          d.customFields?.price_item_id,
+          ...(d.customFields?.service_ids || []),
+          ...dealLineItems.filter((li) => li.dealId === d.id).map((li) => li.priceItemId),
+        ].filter(Boolean);
+        let otherPool = null;
+        for (const sid of otherServiceIds) {
+          const svc = priceListItems.find((p) => p.id === sid);
+          const ids = (svc?.staffMemberIds || []).filter(Boolean);
+          if (ids.length === 0) return true; // kısıtsız/bilinmeyen hizmet -> her zaman rekabet eder
+          otherPool = otherPool === null ? new Set(ids) : new Set([...otherPool, ...ids]);
+        }
+        if (otherPool === null) return true;
+        return [...otherPool].some((id) => capableStaffIds.has(id));
+      });
+      if (competing.length < effectiveConcurrency) return null;
+      const svcName =
+        selectedServiceIds
+          .map((sid) => priceListItems.find((p) => p.id === sid)?.name)
+          .filter(Boolean)
+          .join(", ") || "bu hizmet";
+      return `Bu tarih/saatte ${svcName} yapabilen personelin tamamı dolu - başka bir saat seçin.`;
+    }
+
     if (overlapping.length < concurrency) return null;
     const conflict = overlapping[0];
     const name = customers.find((c) => c.id === conflict.customerId)?.name || "başka bir kayıt";
@@ -856,6 +924,18 @@ export function DealForm({
     if (lineItems.length > 0)
       setValue(String(Math.round((lineItemsTotal - discountAmount) * 100) / 100));
   }, [lineItemsTotal, lineItems.length, discountAmount]);
+
+  // Yeni randevuda Sorumlu varsayılan olarak "Ben" gelir - seçilen hizmeti bu
+  // kişi yapamıyorsa (Takım > Hizmetler kısıtı) sessizce Atanmamış'a çekilir ki
+  // yetkin olmayan biri sessizce atanıp kapasite kontrolü atlanmasın. Var olan
+  // bir kaydı düzenlerken dokunulmaz (KOBİ bilerek atamış olabilir; alanın
+  // altındaki uyarı yine gösterilir).
+  const selectedServiceKey = selectedServiceIds.join(",");
+  useEffect(() => {
+    if (initial) return;
+    setAssignedTo((cur) => (cur && capableStaffIds && !capableStaffIds.has(cur) ? "" : cur));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedServiceKey]);
 
   return (
     <>
@@ -2069,11 +2149,16 @@ export function DealForm({
                     style={{ width: "100%" }}
                   >
                     <option value="">Atanmamış</option>
-                    {currentUserId && (
-                      <option value={currentUserId}>Ben ({currentUserEmail})</option>
-                    )}
+                    {currentUserId &&
+                      (staffCanDoServices(currentUserId) || assignedTo === currentUserId) && (
+                        <option value={currentUserId}>Ben ({currentUserEmail})</option>
+                      )}
                     {teamMembers
-                      .filter((m) => m.id !== currentUserId)
+                      .filter(
+                        (m) =>
+                          m.id !== currentUserId &&
+                          (staffCanDoServices(m.id) || m.id === assignedTo),
+                      )
                       .map((m) => (
                         <option key={m.id} value={m.id}>
                           {m.name || m.email}
@@ -2085,6 +2170,24 @@ export function DealForm({
                         <option value={assignedTo}>Eski üye (takımdan çıkarılmış)</option>
                       )}
                   </select>
+                  {capableStaffIds && capableStaffIds.size === 0 && (
+                    <p style={{ fontSize: 12, color: "var(--text-warning)", margin: "4px 0 0" }}>
+                      Seçilen hizmetleri yapabilen personel tanımlı değil - Takım &gt;
+                      Hizmetler&apos;den kontrol edin.
+                    </p>
+                  )}
+                  {assignedTo &&
+                    capableStaffIds &&
+                    capableStaffIds.size > 0 &&
+                    !capableStaffIds.has(assignedTo) && (
+                      <p style={{ fontSize: 12, color: "var(--text-warning)", margin: "4px 0 0" }}>
+                        {teamMembers.find((m) => m.id === assignedTo)?.name ||
+                          (assignedTo === currentUserId
+                            ? currentUserEmail
+                            : "Seçili personel")}{" "}
+                        seçili hizmet(ler)i yapmıyor.
+                      </p>
+                    )}
                 </div>
               )}
               {resources.length > 0 && bookingModel(sector) === "slot" && (

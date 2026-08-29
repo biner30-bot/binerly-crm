@@ -174,7 +174,12 @@ export const HELP_TOPICS = [
   {
     category: "Takım",
     q: "Takım üyesinin yetkilerini sınırlayabilir miyim?",
-    a: "Şu an tek ayrım var: bir üyeye İşletme Bilgileri/Sektör gibi ayarları düzenleme izni verip vermeyeceğinizi Takım ekranından belirleyebilirsiniz. Müşteri/teklif verisi tüm üyelere paylaşılı görünür.",
+    a: "İki ayar var: (1) bir üyeye İşletme Bilgileri/Sektör gibi ayarları düzenleme izni verip vermeyeceğinizi, (2) Takım → Hizmetler sekmesinden her personelin hangi hizmetleri yapabildiğini belirleyebilirsiniz. Müşteri/teklif verisi tüm üyelere paylaşılı görünür.",
+  },
+  {
+    category: "Takım",
+    q: "Bir personel sadece bazı hizmetleri yapıyorsa ne yapmalıyım?",
+    a: "Takım → Hizmetler sekmesinde her kişiye (kendiniz dahil) yapabildiği hizmetleri işaretleyin. Bir hizmeti en az bir kişiye işaretlediğinizde o hizmet artık sadece işaretli personel tarafından yapılabilir - randevuda o hizmet seçilince Sorumlu listesi bu kişilerle sınırlanır, o saatte hepsi doluysa o saate randevu verilemez. Hiç kimseye işaretlenmeyen hizmeti herkes yapabilir.",
   },
 
   // Bildirimler & İletişim
