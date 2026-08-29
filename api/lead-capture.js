@@ -633,6 +633,13 @@ export default async function handler(req, res) {
   // bu deal'in üzerinde çakışma/kaynak garantisi yok, olması da gerekmiyor.
   if (requestedDate && Array.isArray(timePreferences) && timePreferences.length > 0) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) return res.status(400).json({ error: "Geçersiz tarih." });
+    // Geçmiş bir güne talep oluşturulmasın - realtime dalındaki kontrolün talep
+    // eşdeğeri (o dal new Date(dateTime) < now bakıyor). Europe/Istanbul takvim
+    // günü, sunucunun kendi saat dilimine güvenmeden (bkz. appointment-availability.js).
+    const todayIstanbul = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(new Date());
+    if (requestedDate < todayIstanbul) return res.status(400).json({ error: "Geçmiş bir tarih için randevu talebi oluşturulamaz." });
     const cleanPrefs = timePreferences.filter((t) => typeof t === "string" && /^\d{2}:\d{2}$/.test(t)).slice(0, 3);
     if (cleanPrefs.length === 0) return res.status(400).json({ error: "Lütfen en az bir saat tercihi girin." });
 

@@ -11,6 +11,7 @@ import { staffLeaveDayCount, formatLeaveDateRange, STAFF_LEAVE_TYPE_LABELS, isOp
 import { TRASH_TABLE_LABELS, TrashHistoryModal } from "./TrashHistory";
 import { GroupClassForm, GroupClassRoster, LateCancelPolicyBox, GroupClassesTab, AgendaTab, agendaDateKey, quickDateWindow } from "./GroupClasses";
 import { DealForm, roomTypeConflict, dealLostReasons, TAGS_INFO_TEXT, DealPayments, TeklifPrint, ParasutExportModal, PaymentModeModal, DealsTab, STUCK_DEAL_DAYS_THRESHOLD } from "./Deals";
+import { AppointmentRequestsPanel } from "./AppointmentRequests";
 import { CustomerForm, CustomerDetail, CampaignModal, ACTIVITY_TYPES, CustomersTab } from "./Customers";
 import { AskBubble, AskDock } from "./AskWidget";
 import Pano from "./Pano";
@@ -5055,6 +5056,15 @@ export default function App() {
       )}
 
       {tab === "firsat" && (
+        <>
+        <AppointmentRequestsPanel
+          requests={pendingAppointmentRequests}
+          customerById={customerById}
+          vipCustomerIds={vipCustomerIds}
+          appointmentSlotHasConflict={appointmentSlotHasConflict}
+          sendAppointmentOffer={sendAppointmentOffer}
+          onOpenDeal={(deal) => { setEditingDeal(deal); setShowDealForm(true); }}
+        />
         <DealsTab
           customers={customers}
           deals={deals}
@@ -5111,6 +5121,7 @@ export default function App() {
           totalPaidForDeal={totalPaidForDeal}
           pendingArrivalDealIds={pendingArrivalDealIds}
         />
+        </>
       )}
 
       {tab === "finans" && (
