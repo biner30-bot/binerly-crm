@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
+import { applyServiceCapacity } from "./_appointment-concurrency.js";
 
 // KVKK ispat kaydı için — deal-approval.js'teki AYNI fonksiyon, aralarında
 // import olmadığı için kopyalanmış (bkz. sql/2026-07-31_consent_ip_and_text.sql).
@@ -513,10 +514,20 @@ export default async function handler(req, res) {
     // kapasitesi) - varsayılan 1, birden fazla uzman/koltuk/cihazı olan
     // işletmeler aynı saate N randevu alabilsin diye (api/appointment-
     // availability.js'teki AYNI mantık, bkz. sql/2026-08-03_appointment_concurrency.sql).
-    const concurrency = Math.max(1, Number(settings.appointment_concurrency) || 1);
+    // Hizmet bazlı personel yetkinliği: seçilen hizmeti sınırlı sayıda personel
+    // yapabiliyorsa etkin kapasite düşer, o havuzla rekabet etmeyen doluluklar
+    // sayılmaz (bkz. _appointment-concurrency.js - appointment-availability.js
+    // ile AYNI mantık, senkron tutulmalı).
+    const { effectiveConcurrency: concurrency, competes } = await applyServiceCapacity(
+      supabaseAdmin,
+      settings.user_id,
+      cleanServiceIds,
+      Math.max(1, Number(settings.appointment_concurrency) || 1),
+    );
     const overlapCount = (existingDeals || []).filter((d) => {
       const dt = d.custom_fields?.[dateTimeKey];
       if (typeof dt !== "string" || !dt.startsWith(candidateDateStr)) return false;
+      if (!competes(d.custom_fields)) return false;
       const otherStart = minutesOfDay(dt);
       const otherEnd = otherStart + Math.max(Number(d.custom_fields?.duration_minutes) || 1, 1);
       return candidateStart < otherEnd && otherStart < candidateEnd;

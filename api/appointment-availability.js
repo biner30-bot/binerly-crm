@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
+import { applyServiceCapacity } from "./_appointment-concurrency.js";
 
 // Bir günün (weekday'e karşılık gelen mesai pencereleri) boş saatlerini
 // hesaplar - hem tek-günlük sorguda hem çok-günlük önizleme şeridinde AYNI
@@ -366,14 +367,24 @@ async function handleBooking(req, res, supabaseAdmin) {
     supabaseAdmin.from("company_settings").select("appointment_concurrency, appointment_deposit_amount").eq("user_id", businessUserId).maybeSingle(),
   ]);
   if (conflictError) return res.status(500).json({ error: conflictError.message });
+  // Hizmet bazlı personel yetkinliği - GET dalındaki AYNI mantık (bkz.
+  // _appointment-concurrency.js). Müşteri personel seçmiyor ama seçtiği
+  // hizmeti yapabilen personel sayısı etkin kapasiteyi belirler.
+  const { effectiveConcurrency, competes } = await applyServiceCapacity(
+    supabaseAdmin,
+    businessUserId,
+    cleanServiceIds,
+    resolveConcurrency(concurrencySettings),
+  );
   const overlapCount = (existingDeals || []).filter((d) => {
     const dt = d.custom_fields?.[dateTimeKey];
     if (typeof dt !== "string" || !dt.startsWith(candidateDateStr)) return false;
+    if (!competes(d.custom_fields)) return false;
     const otherStart = minutesOfDay(dt);
     const otherEnd = otherStart + Math.max(Number(d.custom_fields?.duration_minutes) || 1, 1);
     return candidateStart < otherEnd && otherStart < candidateEnd;
   }).length;
-  if (overlapCount >= resolveConcurrency(concurrencySettings)) return res.status(409).json({ error: "Bu saat az önce doldu, lütfen başka bir saat seçin." });
+  if (overlapCount >= effectiveConcurrency) return res.status(409).json({ error: "Bu saat az önce doldu, lütfen başka bir saat seçin." });
 
   const { data: cred } = await supabaseAdmin.from("payment_credentials").select("id").eq("user_id", businessUserId).maybeSingle();
 
@@ -566,7 +577,13 @@ export default async function handler(req, res) {
       supabaseAdmin.from("company_settings").select("appointment_concurrency").eq("user_id", businessUserId).maybeSingle(),
     ]);
     if (fieldDefsError || hoursError || dealsError || credError) return res.status(500).json({ error: (fieldDefsError || hoursError || dealsError || credError).message });
-    const concurrency = resolveConcurrency(concurrencySettings);
+    // Hizmet bazlı personel yetkinliği - tek-günlük daldaki AYNI mantık.
+    const { effectiveConcurrency: concurrency, competes } = await applyServiceCapacity(
+      supabaseAdmin,
+      businessUserId,
+      req.query.serviceIds,
+      resolveConcurrency(concurrencySettings),
+    );
 
     const dateTimeKey = fieldDefs?.[0]?.key || null;
     const hasPaymentProvider = !!cred;
@@ -583,6 +600,7 @@ export default async function handler(req, res) {
     // gerçek aralık çakışmasını da yakalar (bkz. computeDaySlots yorumu).
     const takenByDate = new Map();
     for (const dl of deals || []) {
+      if (!competes(dl.custom_fields)) continue;
       const dt = dl.custom_fields?.[dateTimeKey];
       if (typeof dt !== "string" || dt.length < 16) continue;
       const dateStr = dt.slice(0, 10);
@@ -660,11 +678,22 @@ export default async function handler(req, res) {
   if (fieldDefsError || hoursError || dealsError || credError) return res.status(500).json({ error: (fieldDefsError || hoursError || dealsError || credError).message });
   const hasPaymentProvider = !!cred;
 
+  // Hizmet bazlı personel yetkinliği: seçilen hizmeti sınırlı sayıda personel
+  // yapabiliyorsa (Takım > Hizmetler), etkin kapasite düşer ve o hizmetin
+  // personel havuzuyla rekabet etmeyen doluluklar sayıma girmez.
+  const { effectiveConcurrency, competes } = await applyServiceCapacity(
+    supabaseAdmin,
+    businessUserId,
+    req.query.serviceIds,
+    resolveConcurrency(concurrencySettings),
+  );
+
   const dateTimeKey = fieldDefs?.[0]?.key || null;
   // Süresi bilinmeyen mevcut randevular "1 dakikalık nokta" kabul edilir -
   // bkz. computeDaySlots ve overview dalındaki AYNI yorum.
   const takenRanges = dateTimeKey
     ? (deals || [])
+        .filter((d) => competes(d.custom_fields))
         .map((d) => {
           const dt = d.custom_fields?.[dateTimeKey];
           if (typeof dt !== "string" || !dt.startsWith(date)) return null;
@@ -707,7 +736,7 @@ export default async function handler(req, res) {
     resourceUnitRanges = buildResourceUnitRangesByDate(unitIds, deals || [], [date]).get(date);
   }
 
-  const slots = computeDaySlots(hours || [], isToday, nowMinutes, takenRanges, requestedDuration, resolveConcurrency(concurrencySettings), resourceUnitRanges);
+  const slots = computeDaySlots(hours || [], isToday, nowMinutes, takenRanges, requestedDuration, effectiveConcurrency, resourceUnitRanges);
 
   return res.status(200).json({ slots, dateTimeKey, hasPaymentProvider, widgetMode });
 }
