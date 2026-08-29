@@ -96,6 +96,31 @@ function renderVitrinHtml(baseHtml, payload, vitrinUrl) {
     .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, `<script type="application/ld+json">${jsonLdSafe}</script>`);
 }
 
+// /randevu-al/:token rewrite'ı için - vitrin ile AYNI meta değiştirme deseni,
+// randevu sayfasına özel başlık/açıklama. Müşteri linki WhatsApp/Instagram'da
+// paylaşınca "Binerly - CRM | ..." değil işletmenin adı görünsün.
+function renderAppointmentHtml(baseHtml, payload, pageUrl) {
+  const name = payload.companyName;
+  const title = `${name} - Randevu Al`;
+  const description = `${name} - online randevu talebinizi buradan iletin.`;
+  const image = payload.logoUrl || "https://binerly.com/og-image.png";
+  const t = escapeHtml(title);
+  const d = escapeHtml(description);
+  const u = escapeHtml(pageUrl);
+  const img = escapeHtml(image);
+  return baseHtml
+    .replace(/<title>.*?<\/title>/s, `<title>${t}</title>`)
+    .replace(/<meta name="description" content="[^"]*"\s*\/>/, `<meta name="description" content="${d}" />`)
+    .replace(/<link rel="canonical" href="[^"]*"\s*\/>/, `<link rel="canonical" href="${u}" />`)
+    .replace(/<meta property="og:url" content="[^"]*"\s*\/>/, `<meta property="og:url" content="${u}" />`)
+    .replace(/<meta property="og:title" content="[^"]*"\s*\/>/, `<meta property="og:title" content="${t}" />`)
+    .replace(/<meta property="og:description" content="[^"]*"\s*\/>/, `<meta property="og:description" content="${d}" />`)
+    .replace(/<meta property="og:image" content="[^"]*"\s*\/>/, `<meta property="og:image" content="${img}" />`)
+    .replace(/<meta name="twitter:title" content="[^"]*"\s*\/>/, `<meta name="twitter:title" content="${t}" />`)
+    .replace(/<meta name="twitter:description" content="[^"]*"\s*\/>/, `<meta name="twitter:description" content="${d}" />`)
+    .replace(/<meta name="twitter:image" content="[^"]*"\s*\/>/, `<meta name="twitter:image" content="${img}" />`);
+}
+
 // api/appointment-availability.js'teki AYNI yardımcı (kasıtlı kopya, projenin
 // diğer "ayrı dosya, ayrı kopya" desenleriyle tutarlı).
 function minutesOfDay(dateTimeStr) {
@@ -223,9 +248,13 @@ export default async function handler(req, res) {
   // reddetmek PostgREST'in OR mini-dilinde filtre enjeksiyonunu (virgül/nokta
   // vb.) da önler.
   if (!/^[a-zA-Z0-9-]+$/.test(token)) return res.status(400).json({ error: "Geçersiz bağlantı." });
-  // vercel.json'daki /vitrin/:token rewrite'ı bunu çağırıyor - ShowcasePage.jsx'in
-  // kendi client-side fetch'i bu parametreyi hiç göndermez.
-  const wantsHtml = url.searchParams.get("view") === "vitrin" && url.searchParams.get("render") === "html";
+  // vercel.json'daki /vitrin/:token ve /randevu-al/:token rewrite'ları bunu
+  // ?render=html ile çağırıyor - paylaşım/Google önizleme botları işletmenin
+  // adını+logosunu görsün diye (React boot'unu beklemeden). İlgili sayfaların
+  // kendi client-side fetch'i bu parametreyi hiç göndermez, JSON akışı aynı kalır.
+  const renderHtml = url.searchParams.get("render") === "html";
+  const wantsHtml = url.searchParams.get("view") === "vitrin" && renderHtml;
+  const wantsAppointmentHtml = url.searchParams.get("view") === "randevu-al" && renderHtml;
 
   // showcase_slug'ı da OR ile arıyoruz - Vitrin'in okunabilir adresi
   // (/vitrin/{slug}) aynı company_settings satırına, eski token'la birlikte
@@ -244,7 +273,7 @@ export default async function handler(req, res) {
     // 404 status'uyla döneriz, SPA yine açılır ve ShowcasePage.jsx kendi
     // client-side fetch'iyle (view=vitrin, render'sız) normal "Bulunamadı."
     // durumunu gösterir.
-    if (wantsHtml) {
+    if (wantsHtml || wantsAppointmentHtml) {
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       return res.status(404).send(await fetchIndexHtml(req));
     }
@@ -391,6 +420,17 @@ export default async function handler(req, res) {
         ...shiftWindowsByWeekday(shiftRows),
         ...businessHours.filter((w) => !shiftWeekdays.has(w.weekday)),
       ];
+    }
+
+    // /randevu-al/:token rewrite'ından (render=html) gelen istek: React boot'unu
+    // beklemeden işletmenin adı+logosuyla önizleme/başlık için HTML dön.
+    if (wantsAppointmentHtml) {
+      const base = await fetchIndexHtml(req);
+      const pageUrl = `https://binerly.com/randevu-al/${settings.showcase_slug || token}`;
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      return res.status(200).send(
+        renderAppointmentHtml(base, { companyName: settings.company_name || "Binerly", logoUrl: settings.logo_url || null }, pageUrl),
+      );
     }
 
     return res.status(200).json({

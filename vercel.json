@@ -10,7 +10,11 @@
       "destination": "/api/deal-approval?action=confirm-appointment-offer&token=:token"
     },
     {
-      "source": "/((?!api/|assets/|favicon.svg|googlef5e0c478299694a1.html|robots\\.txt|sitemap\\.xml|blog|vitrin|randevu-onay).*)",
+      "source": "/randevu-al/:token",
+      "destination": "/api/lead-capture?view=randevu-al&render=html&token=:token"
+    },
+    {
+      "source": "/((?!api/|assets/|favicon.svg|googlef5e0c478299694a1.html|robots\\.txt|sitemap\\.xml|blog|vitrin|randevu-onay|randevu-al).*)",
       "destination": "/index.html"
     }
   ]
