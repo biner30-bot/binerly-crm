@@ -589,16 +589,19 @@ async function handleSendAppointmentOffer(req, res, supabaseAdmin) {
 
   const company = settings?.company_name || "Binerly";
   const dateLabel = formatOfferDateTime(new Date(offerIso));
-  const yesUrl = `https://binerly.com/api/deal-approval?action=confirm-appointment-offer&token=${token}&response=yes`;
-  const noUrl = `https://binerly.com/api/deal-approval?action=confirm-appointment-offer&token=${token}&response=no`;
+  // Kısa, temiz adres (vercel.json rewrite -> /api/deal-approval?action=
+  // confirm-appointment-offer). response taşımadığı için açılan sayfa iki
+  // seçenek (uygun / değil) gösterir. Uzun /api/... URL'si WhatsApp/e-postada
+  // phishing gibi görünüyordu (kullanıcı geri bildirimi).
+  const offerUrl = `https://binerly.com/randevu-onay/${token}`;
 
   let emailSent = false;
   const resendApiKey = process.env.RESEND_API_KEY;
   if (resendApiKey && customer?.email) {
     const bodyText = `Merhaba ${customer?.name || ""},\n\n${company} olarak "${deal.title}" randevu talebiniz için ${dateLabel} saatini önerebiliriz. Bu saat size uygun mu?`;
     const footerLines = [`${company} (Binerly ile)`, "Bu e-posta Binerly (binerly.com) altyapısıyla gönderildi."];
-    const html = renderEmailHtml({ logoUrl: settings?.logo_url, bodyText, ctaLabel: "✓ Bu saat uygun", ctaUrl: yesUrl, secondaryCtaLabel: "Uygun değil", secondaryCtaUrl: noUrl, footerLines });
-    const text = plainTextFallback(bodyText, "✓ Bu saat uygun", yesUrl, footerLines, "Uygun değil", noUrl);
+    const html = renderEmailHtml({ logoUrl: settings?.logo_url, bodyText, ctaLabel: "Randevu saatini yanıtla", ctaUrl: offerUrl, footerLines });
+    const text = plainTextFallback(bodyText, "Randevu saatini yanıtla", offerUrl, footerLines);
     const sendRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
@@ -618,11 +621,45 @@ async function handleSendAppointmentOffer(req, res, supabaseAdmin) {
   return res.status(200).json({
     ok: true,
     emailSent,
-    confirmUrl: `https://binerly.com/api/deal-approval?action=confirm-appointment-offer&token=${token}&response=yes`,
+    confirmUrl: offerUrl,
   });
 }
 
-// "Randevu Talepleri" teklif e-postasındaki Evet/Hayır linklerinin hedefi -
+// Temiz /randevu-onay/{token} linkinin açtığı iki-seçenekli sayfa (uygun /
+// değil). renderAttendancePage tek-buton kalıbına uymadığı için ayrı, küçük
+// bir render (renderReviewPage ile aynı gerekçe). Her buton /api/deal-approval'a
+// response=yes|no ile POST atar - gerçek mutasyon orada, GET sadece bu sayfayı
+// gösterir (e-posta güvenlik botları yanlışlıkla onaylamasın).
+function renderOfferChoicePage({ logoUrl, company, dealTitle, dateLabel, token }) {
+  const logo = logoUrl || "https://binerly.com/pwa-512x512.png";
+  const hidden = `<input type="hidden" name="action" value="confirm-appointment-offer" /><input type="hidden" name="token" value="${escapeAttendanceHtml(token)}" />`;
+  return `<!doctype html>
+<html lang="tr">
+  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Randevu saati</title></head>
+  <body style="margin:0;padding:32px 16px;background:#f5f8fc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+    <div style="max-width:440px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e1e8f0;text-align:center;">
+      <div style="padding:28px 32px 20px;border-bottom:1px solid #e1e8f0;">
+        <img src="${escapeAttendanceHtml(logo)}" alt="" style="max-height:48px;max-width:200px;" />
+      </div>
+      <div style="padding:28px 32px;color:#0c2540;font-size:15px;line-height:1.7;">
+        <p style="margin:0 0 8px;font-size:17px;font-weight:600;">Önerilen randevu saati</p>
+        <p style="margin:0 0 4px;">"${escapeAttendanceHtml(dealTitle)}" için ${escapeAttendanceHtml(company)} size şu saati öneriyor:</p>
+        <p style="margin:0 0 18px;font-size:16px;font-weight:600;">${escapeAttendanceHtml(dateLabel)}</p>
+        <form method="POST" action="/api/deal-approval" style="margin:0 0 10px;">
+          ${hidden}<input type="hidden" name="response" value="yes" />
+          <button type="submit" style="width:100%;box-sizing:border-box;background:#185fa5;color:#ffffff;border:none;cursor:pointer;padding:13px;border-radius:8px;font-weight:600;font-size:15px;">Bu saat uygun</button>
+        </form>
+        <form method="POST" action="/api/deal-approval" style="margin:0;">
+          ${hidden}<input type="hidden" name="response" value="no" />
+          <button type="submit" style="width:100%;box-sizing:border-box;background:#ffffff;color:#4a5b6e;border:1px solid #d5dde6;cursor:pointer;padding:13px;border-radius:8px;font-weight:600;font-size:15px;">Bu saat uygun değil</button>
+        </form>
+      </div>
+    </div>
+  </body>
+</html>`;
+}
+
+// "Randevu Talepleri" teklif e-postasındaki linkin hedefi -
 // handleConfirmAttendance ile AYNI güvenlik ilkesi (gerçek mutasyon SADECE
 // POST'ta). Saat/kaynak/concurrency-slot ZATEN handleSendAppointmentOffer'da
 // atomik olarak tutulmuş durumda - "Evet" burada sadece bu tutuşu kalıcı
@@ -633,9 +670,6 @@ async function handleSendAppointmentOffer(req, res, supabaseAdmin) {
 // süresi dolan bir teklif o saati sonsuza kadar hayalet gibi işgal ederdi.
 async function handleConfirmAppointmentOffer(req, res, supabaseAdmin, deal, settings, response, token) {
   res.setHeader("Content-Type", "text/html; charset=utf-8");
-  if (response !== "yes" && response !== "no") {
-    return res.status(400).send(renderAttendancePage({ title: "Geçersiz bağlantı", message: "Bu bağlantı eksik ya da hatalı görünüyor." }));
-  }
 
   const logoUrl = settings?.logo_url;
   const company = settings?.company_name || "Binerly";
@@ -662,6 +696,15 @@ async function handleConfirmAppointmentOffer(req, res, supabaseAdmin, deal, sett
 
   const offerDate = new Date(deal.appointment_offer_time);
   const dateLabel = formatOfferDateTime(offerDate);
+
+  // Temiz /randevu-onay/{token} linki response taşımaz - GET'te iki seçenekli
+  // sayfa göster (WhatsApp/e-posta bu linki kullanıyor). POST'ta response şart.
+  if (response !== "yes" && response !== "no") {
+    if (req.method !== "GET") {
+      return res.status(400).send(renderAttendancePage({ logoUrl, title: "Geçersiz bağlantı", message: "Bu bağlantı eksik ya da hatalı görünüyor." }));
+    }
+    return res.status(200).send(renderOfferChoicePage({ logoUrl, company, dealTitle: deal.title, dateLabel, token }));
+  }
 
   if (response === "yes") {
     if (req.method === "GET") {

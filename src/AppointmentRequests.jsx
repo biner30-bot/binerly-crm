@@ -95,7 +95,7 @@ export function AppointmentRequestsPanel({
               setCustomOfferDraft("");
               const phone = c?.phone;
               if (phone) {
-                const message = `Merhaba ${c?.name || ""}, "${deal.title}" randevu talebiniz için ${offerLabel(dt)} saatini önerebiliriz. Onaylamak için: ${result.confirmUrl}`;
+                const message = `Merhaba ${c?.name || ""}, "${deal.title}" randevu talebiniz için ${offerLabel(dt)} saatini önerebiliriz. Yanıtlamak için: ${result.confirmUrl}`;
                 window.open(
                   `https://wa.me/${toWhatsAppNumber(phone)}?text=${encodeURIComponent(message)}`,
                   "_blank",
