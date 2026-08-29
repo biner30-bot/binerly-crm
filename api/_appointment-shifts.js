@@ -123,6 +123,31 @@ export function toSlotWindows(unionWins, stepMinutes) {
   }));
 }
 
+// Portal/widget'in "Calisma saatleri" bilgi satiri + saat tercihi min/max'i
+// icin: haftagunu basina vardiya-birlesim pencereleri ({ weekday, startTime,
+// endTime }[]). Sadece o an gecerli (valid_to null) satirlar - gercek slot
+// listesi tek-gun GET'te izin/temporal dahil hesaplaniyor, bu sadece bilgi.
+// is_off olan personel o haftagununden cikarilir.
+export function shiftWindowsByWeekday(shiftRows) {
+  const out = [];
+  for (let wd = 1; wd <= 7; wd++) {
+    const rows = (shiftRows || []).filter((s) => s.weekday === wd && !s.valid_to);
+    if (rows.length === 0) continue;
+    const offMembers = new Set(rows.filter((r) => r.is_off).map((r) => r.member_id));
+    const byMember = new Map();
+    for (const r of rows) {
+      if (offMembers.has(r.member_id)) continue;
+      if (r.start_time == null || r.end_time == null) continue;
+      if (!byMember.has(r.member_id)) byMember.set(r.member_id, []);
+      byMember.get(r.member_id).push({ start: timeToMinutes(r.start_time), end: timeToMinutes(r.end_time) });
+    }
+    for (const w of unionWindows(byMember)) {
+      out.push({ weekday: wd, startTime: minutesToTime(w.start), endTime: minutesToTime(w.end) });
+    }
+  }
+  return out;
+}
+
 // Bir isletmenin tum vardiya + izin satirlari (service_role). staff_shifts
 // service_role SELECT'e zaten sahip (sql/2026-07-28_staff_shifts.sql);
 // staff_leave_records'a sql/2026-08-29_appointment_availability_source.sql ile eklendi.

@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
 import { applyServiceCapacity } from "./_appointment-concurrency.js";
+import { buildShiftAvailability, fetchShiftData, shiftWindowsByWeekday } from "./_appointment-shifts.js";
 
 // Bir günün (weekday'e karşılık gelen mesai pencereleri) boş saatlerini
 // hesaplar - hem tek-günlük sorguda hem çok-günlük önizleme şeridinde AYNI
@@ -21,7 +22,11 @@ import { applyServiceCapacity } from "./_appointment-concurrency.js";
 // tavanından BAĞIMSIZ bir ek kısıt uygulanır: adayın en az bir birimle hiç
 // çakışmaması gerekir. resources tanımlı değilse (resolveAutoAssignResource
 // null döndüyse) bu parametre hiç geçilmez, davranış değişmez.
-function computeDaySlots(windows, isToday, nowMinutes, takenRanges, durationMinutes = 0, concurrency = 1, resourceUnitRanges = null) {
+// capacityFn: (startMin, endMin) => number - vardiya bazlı müsaitlik modunda
+// (bkz. api/_appointment-shifts.js) her adayın tavanı düz concurrency değil,
+// "o an vardiyada olan + hizmeti yapabilen personel sayısı" olur. Verilmezse
+// (business_hours modu) davranış tamamen aynı.
+function computeDaySlots(windows, isToday, nowMinutes, takenRanges, durationMinutes = 0, concurrency = 1, resourceUnitRanges = null, capacityFn = null) {
   const slots = [];
   for (const window of windows) {
     const [startH, startM] = window.start_time.slice(0, 5).split(":").map(Number);
@@ -50,8 +55,10 @@ function computeDaySlots(windows, isToday, nowMinutes, takenRanges, durationMinu
       if (cursor < windowStart || cursor + svcDuration > windowEnd) continue;
       if (isToday && cursor <= nowMinutes) continue;
       const candidateEnd = cursor + svcDuration;
+      const ceiling = capacityFn ? Math.min(concurrency, capacityFn(cursor, candidateEnd)) : concurrency;
+      if (ceiling <= 0) continue;
       const overlapCount = takenRanges.filter((r) => cursor < r.end && r.start < candidateEnd).length;
-      if (overlapCount >= concurrency) continue;
+      if (overlapCount >= ceiling) continue;
       if (resourceUnitRanges) {
         const hasFreeUnit = [...resourceUnitRanges.values()].some(
           (ranges) => !ranges.some((r) => cursor < r.end && r.start < candidateEnd),
@@ -300,16 +307,26 @@ async function handleBooking(req, res, supabaseAdmin) {
     }
 
     // Hizmet süresi o günkü kapanışı aşan bir tercih saati kabul edilmesin
-    // (lead-capture.js talep dalındaki AYNI kontrol).
+    // (lead-capture.js talep dalındaki AYNI kontrol). Vardiya bazlı müsaitlik
+    // modunda "kapanış" = en geç vardiya bitişi; o haftagünü hiç vardiya yoksa
+    // business_hours end_time'ına düşülür.
     if (serviceDurationMinutes > 0) {
-      const [ry, rm, rd] = requestedDate.split("-").map(Number);
-      const isoWd = ((new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay() + 6) % 7) + 1;
-      const { data: bh } = await supabaseAdmin.from("business_hours").select("end_time").eq("user_id", businessUserId).eq("weekday", isoWd);
-      if (bh && bh.length) {
-        const closeMin = Math.max(...bh.map((h) => {
-          const [hh, mm] = h.end_time.slice(0, 5).split(":").map(Number);
-          return hh * 60 + mm;
-        }));
+      const { data: srcSettings } = await supabaseAdmin.from("company_settings").select("appointment_availability_source").eq("user_id", businessUserId).maybeSingle();
+      const shiftAvail = await buildShiftAvailability(supabaseAdmin, businessUserId, srcSettings?.appointment_availability_source);
+      const shiftDay = shiftAvail ? shiftAvail.forDate(requestedDate) : null;
+      let closeMin = shiftDay && shiftDay.latestEnd != null ? shiftDay.latestEnd : null;
+      if (closeMin == null) {
+        const [ry, rm, rd] = requestedDate.split("-").map(Number);
+        const isoWd = ((new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay() + 6) % 7) + 1;
+        const { data: bh } = await supabaseAdmin.from("business_hours").select("end_time").eq("user_id", businessUserId).eq("weekday", isoWd);
+        if (bh && bh.length) {
+          closeMin = Math.max(...bh.map((h) => {
+            const [hh, mm] = h.end_time.slice(0, 5).split(":").map(Number);
+            return hh * 60 + mm;
+          }));
+        }
+      }
+      if (closeMin != null) {
         const overflows = cleanPrefs.some((t) => {
           const [hh, mm] = t.split(":").map(Number);
           return hh * 60 + mm + serviceDurationMinutes > closeMin;
@@ -389,18 +406,27 @@ async function handleBooking(req, res, supabaseAdmin) {
   const candidateDateStr = dateTime.slice(0, 10);
   const [{ data: existingDeals, error: conflictError }, { data: concurrencySettings }] = await Promise.all([
     supabaseAdmin.from("deals").select("custom_fields").eq("user_id", businessUserId).is("deleted_at", null).neq("stage", "kaybedildi"),
-    supabaseAdmin.from("company_settings").select("appointment_concurrency, appointment_deposit_amount").eq("user_id", businessUserId).maybeSingle(),
+    supabaseAdmin.from("company_settings").select("appointment_concurrency, appointment_deposit_amount, appointment_availability_source").eq("user_id", businessUserId).maybeSingle(),
   ]);
   if (conflictError) return res.status(500).json({ error: conflictError.message });
   // Hizmet bazlı personel yetkinliği - GET dalındaki AYNI mantık (bkz.
   // _appointment-concurrency.js). Müşteri personel seçmiyor ama seçtiği
   // hizmeti yapabilen personel sayısı etkin kapasiteyi belirler.
-  const { effectiveConcurrency, competes } = await applyServiceCapacity(
+  const { effectiveConcurrency, competes, capablePool, validStaff } = await applyServiceCapacity(
     supabaseAdmin,
     businessUserId,
     cleanServiceIds,
     resolveConcurrency(concurrencySettings),
   );
+  // Vardiya bazlı müsaitlik: bu saatteki gerçek tavan = o an vardiyada olan +
+  // hizmeti yapabilen personel sayısı (GET dalındaki AYNI mantık). O haftagünü
+  // hiç vardiya yoksa shiftDay null döner, effectiveConcurrency aynen kalır.
+  const shiftAvail = await buildShiftAvailability(supabaseAdmin, businessUserId, concurrencySettings?.appointment_availability_source);
+  const shiftDay = shiftAvail ? shiftAvail.forDate(candidateDateStr, validStaff, capablePool) : null;
+  const bookingCeiling = shiftDay
+    ? Math.min(effectiveConcurrency, shiftDay.capacityAt(candidateStart, candidateEnd))
+    : effectiveConcurrency;
+  if (bookingCeiling <= 0) return res.status(409).json({ error: "Bu saatte çalışan personel yok, lütfen başka bir saat seçin." });
   const overlapCount = (existingDeals || []).filter((d) => {
     const dt = d.custom_fields?.[dateTimeKey];
     if (typeof dt !== "string" || !dt.startsWith(candidateDateStr)) return false;
@@ -409,7 +435,7 @@ async function handleBooking(req, res, supabaseAdmin) {
     const otherEnd = otherStart + Math.max(Number(d.custom_fields?.duration_minutes) || 1, 1);
     return candidateStart < otherEnd && otherStart < candidateEnd;
   }).length;
-  if (overlapCount >= effectiveConcurrency) return res.status(409).json({ error: "Bu saat az önce doldu, lütfen başka bir saat seçin." });
+  if (overlapCount >= bookingCeiling) return res.status(409).json({ error: "Bu saat az önce doldu, lütfen başka bir saat seçin." });
 
   const { data: cred } = await supabaseAdmin.from("payment_credentials").select("id").eq("user_id", businessUserId).maybeSingle();
 
@@ -531,10 +557,23 @@ export default async function handler(req, res) {
   // bilgisi değil (bkz. api/lead-capture.js'teki AYNI ilke, widget tarafı) -
   // saat tercihi alanına makul bir min/max koymak için bu hafif dal kullanılır.
   if (req.query.businessHours === "1") {
+    // Vardiya bazlı müsaitlik modunda "açık saatler" = personel vardiyalarının
+    // haftagünü başına birleşimi (portal saat tercihi min/max + "Çalışma
+    // saatleri" satırı). Vardiya girilmemiş haftagünleri için business_hours'a
+    // düşülür - tek-günlük GET'teki AYNI fallback.
+    const { data: srcSettings } = await supabaseAdmin.from("company_settings").select("appointment_availability_source").eq("user_id", businessUserId).maybeSingle();
     const { data: hours } = await supabaseAdmin.from("business_hours").select("weekday, start_time, end_time").eq("user_id", businessUserId);
-    return res.status(200).json({
-      businessHours: (hours || []).map((h) => ({ weekday: h.weekday, startTime: h.start_time.slice(0, 5), endTime: h.end_time.slice(0, 5) })),
-    });
+    const bhWindows = (hours || []).map((h) => ({ weekday: h.weekday, startTime: h.start_time.slice(0, 5), endTime: h.end_time.slice(0, 5) }));
+    if (srcSettings?.appointment_availability_source === "shifts") {
+      const { shiftRows } = await fetchShiftData(supabaseAdmin, businessUserId);
+      const shiftWeekdays = new Set(shiftRows.filter((s) => !s.valid_to).map((s) => s.weekday));
+      const merged = [
+        ...shiftWindowsByWeekday(shiftRows),
+        ...bhWindows.filter((w) => !shiftWeekdays.has(w.weekday)),
+      ];
+      return res.status(200).json({ businessHours: merged });
+    }
+    return res.status(200).json({ businessHours: bhWindows });
   }
 
   // Sunucunun kendi çalışma saat dilimine güvenmeyen, doğrudan Europe/Istanbul
@@ -599,16 +638,18 @@ export default async function handler(req, res) {
       supabaseAdmin.from("business_hours").select("weekday, start_time, end_time, slot_duration_minutes").eq("user_id", businessUserId),
       supabaseAdmin.from("deals").select("custom_fields, resource_unit_id, appointment_start, appointment_end").eq("user_id", businessUserId).is("deleted_at", null).neq("stage", "kaybedildi"),
       supabaseAdmin.from("payment_credentials").select("id").eq("user_id", businessUserId).maybeSingle(),
-      supabaseAdmin.from("company_settings").select("appointment_concurrency").eq("user_id", businessUserId).maybeSingle(),
+      supabaseAdmin.from("company_settings").select("appointment_concurrency, appointment_availability_source").eq("user_id", businessUserId).maybeSingle(),
     ]);
     if (fieldDefsError || hoursError || dealsError || credError) return res.status(500).json({ error: (fieldDefsError || hoursError || dealsError || credError).message });
     // Hizmet bazlı personel yetkinliği - tek-günlük daldaki AYNI mantık.
-    const { effectiveConcurrency: concurrency, competes } = await applyServiceCapacity(
+    const { effectiveConcurrency: concurrency, competes, capablePool, validStaff } = await applyServiceCapacity(
       supabaseAdmin,
       businessUserId,
       req.query.serviceIds,
       resolveConcurrency(concurrencySettings),
     );
+    // Vardiya bazlı müsaitlik - tek-günlük daldaki AYNI mantık (bkz. o yorum).
+    const shiftAvail = await buildShiftAvailability(supabaseAdmin, businessUserId, concurrencySettings?.appointment_availability_source);
 
     const dateTimeKey = fieldDefs?.[0]?.key || null;
     const hasPaymentProvider = !!cred;
@@ -659,14 +700,19 @@ export default async function handler(req, res) {
       const cursorDate = new Date(Date.UTC(startY, startM - 1, startD + i));
       const jsWeekday = cursorDate.getUTCDay();
       const isoWeekday = jsWeekday === 0 ? 7 : jsWeekday;
-      const windows = hoursByWeekday.get(isoWeekday) || [];
+      const bhWindows = hoursByWeekday.get(isoWeekday) || [];
+      const fallbackStep = bhWindows[0]?.slot_duration_minutes || 30;
+      const shiftDay = shiftAvail ? shiftAvail.forDate(dateStr, validStaff, capablePool, fallbackStep) : null;
+      const windows = shiftDay ? shiftDay.slotWindows : bhWindows;
+      const capacityFn = shiftDay ? shiftDay.capacityAt : null;
       const taken = takenByDate.get(dateStr) || [];
       const resourceUnitRanges = resourceUnitRangesByDate ? resourceUnitRangesByDate.get(dateStr) : null;
-      const slotCount = computeDaySlots(windows, dateStr === todayIstanbul, nowMinutes, taken, requestedDuration, concurrency, resourceUnitRanges).length;
+      const slotCount = computeDaySlots(windows, dateStr === todayIstanbul, nowMinutes, taken, requestedDuration, concurrency, resourceUnitRanges, capacityFn).length;
       // "Kapalı" (o haftagünü için hiç mesai saati tanımlı değil - KOBİ'nin
-      // kendi Müsaitlik Saatleri seçimi, ör. Pazar) ile "Dolu" (mesai var ama
-      // tüm saatler alınmış) FARKLI şeyler - ikisi de slotCount=0 olduğu için
-      // ayrı bir bayrakla işaretlenmezse widget'ta ayırt edilemiyordu.
+      // kendi Müsaitlik Saatleri seçimi, ör. Pazar; vardiya modunda o gün
+      // herkes izinli/tatil) ile "Dolu" (mesai var ama tüm saatler alınmış)
+      // FARKLI şeyler - ikisi de slotCount=0 olduğu için ayrı bir bayrakla
+      // işaretlenmezse widget'ta ayırt edilemiyordu.
       return { date: dateStr, slotCount, closed: windows.length === 0 };
     });
     return res.status(200).json({ days, dateTimeKey, hasPaymentProvider, widgetMode });
@@ -697,7 +743,7 @@ export default async function handler(req, res) {
     supabaseAdmin.from("business_hours").select("start_time, end_time, slot_duration_minutes").eq("user_id", businessUserId).eq("weekday", isoWeekday),
     supabaseAdmin.from("deals").select("custom_fields, resource_unit_id, appointment_start, appointment_end").eq("user_id", businessUserId).is("deleted_at", null).neq("stage", "kaybedildi"),
     supabaseAdmin.from("payment_credentials").select("id").eq("user_id", businessUserId).maybeSingle(),
-    supabaseAdmin.from("company_settings").select("appointment_concurrency").eq("user_id", businessUserId).maybeSingle(),
+    supabaseAdmin.from("company_settings").select("appointment_concurrency, appointment_availability_source").eq("user_id", businessUserId).maybeSingle(),
   ]);
 
   if (fieldDefsError || hoursError || dealsError || credError) return res.status(500).json({ error: (fieldDefsError || hoursError || dealsError || credError).message });
@@ -706,7 +752,7 @@ export default async function handler(req, res) {
   // Hizmet bazlı personel yetkinliği: seçilen hizmeti sınırlı sayıda personel
   // yapabiliyorsa (Takım > Hizmetler), etkin kapasite düşer ve o hizmetin
   // personel havuzuyla rekabet etmeyen doluluklar sayıma girmez.
-  const { effectiveConcurrency, competes } = await applyServiceCapacity(
+  const { effectiveConcurrency, competes, capablePool, validStaff } = await applyServiceCapacity(
     supabaseAdmin,
     businessUserId,
     req.query.serviceIds,
@@ -742,13 +788,20 @@ export default async function handler(req, res) {
   // randevunun nereye yazılacağı belirsiz olur — güvenli tarafta kalıp boş dönülür.
   if (!dateTimeKey) return res.status(200).json({ slots: [], dateTimeKey: null, hasPaymentProvider, widgetMode });
 
-  // Vardiya (staff_shifts) müşteri portalındaki müsaitliği ETKİLEMEZ — sadece
-  // Takım modalında işletme sahibi/çalışanların gördüğü içe dönük bir planlama
-  // aracı. Müşteri hangi personelle randevu aldığını seçmiyor (bkz.
-  // SlotBookingModal), bu yüzden burada tek referans Müsaitlik Saatleri'dir;
-  // müşteri belirli bir uzman istiyorsa not alanına yazıp işletmeyle
-  // konuşuyor. Personel seçimi eklenirse vardiya buraya yeniden bağlanacak.
   const requestedDuration = await resolveDurationMinutes(supabaseAdmin, businessUserId, req.query.serviceIds);
+
+  // Vardiya bazlı müsaitlik (company_settings.appointment_availability_source =
+  // 'shifts'): slot penceresi = personel vardiyalarının birleşimi, her adayın
+  // tavanı = o an vardiyada olan + hizmeti yapabilen personel sayısı. O
+  // haftagünü hiç vardiya yoksa (buildShiftAvailability.forDate null döner)
+  // Müsaitlik Saatleri'ne düşülür - Deals.jsx effectiveStaffWindows'taki AYNI
+  // "personel yoksa müsaitlik saatleri" kuralı. business_hours modunda
+  // shiftAvail null'dur, davranış hiç değişmez.
+  const shiftAvail = await buildShiftAvailability(supabaseAdmin, businessUserId, concurrencySettings?.appointment_availability_source);
+  const fallbackStep = hours?.[0]?.slot_duration_minutes || 30;
+  const shiftDay = shiftAvail ? shiftAvail.forDate(date, validStaff, capablePool, fallbackStep) : null;
+  const slotWindows = shiftDay ? shiftDay.slotWindows : hours || [];
+  const capacityFn = shiftDay ? shiftDay.capacityAt : null;
 
   // Kaynak (oda/cihaz) tanımlıysa (belirsiz olmayan tek bir havuz), genel
   // concurrency tavanından bağımsız bir ek kısıt hesaplanır - bkz.
@@ -761,7 +814,7 @@ export default async function handler(req, res) {
     resourceUnitRanges = buildResourceUnitRangesByDate(unitIds, deals || [], [date]).get(date);
   }
 
-  const slots = computeDaySlots(hours || [], isToday, nowMinutes, takenRanges, requestedDuration, effectiveConcurrency, resourceUnitRanges);
+  const slots = computeDaySlots(slotWindows, isToday, nowMinutes, takenRanges, requestedDuration, effectiveConcurrency, resourceUnitRanges, capacityFn);
 
   return res.status(200).json({ slots, dateTimeKey, hasPaymentProvider, widgetMode });
 }
