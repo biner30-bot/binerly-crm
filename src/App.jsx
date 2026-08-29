@@ -5489,24 +5489,35 @@ export default function App() {
 
       {showPortalLinkModal && (
         <Modal title="Müşteri Portalı Linki" onClose={() => setShowPortalLinkModal(false)}>
-          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px" }}>
-            Bu linki (veya QR kodu) mevcut müşterilerinizle paylaşın - kayıtlı e-postalarıyla kendi hesaplarını oluşturup {dealWords.columnHeader.toLowerCase()} durumlarını görebilir, destek talebi açabilirler. Belirli bir müşteriye özel paylaşmak isterseniz Müşteriler listesindeki "Linki paylaş" butonunu da kullanabilirsiniz.
-          </p>
-          <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(getPortalUrl())}`}
-            alt="QR kod"
-            style={{ display: "block", margin: "0 auto 16px" }}
-          />
-          <div style={{ display: "flex", gap: 8 }}>
-            <input readOnly value={getPortalUrl()} style={{ flex: 1, fontSize: 13 }} onFocus={(e) => e.target.select()} />
-            <button
-              type="button"
-              onClick={() => { navigator.clipboard.writeText(getPortalUrl()); notify("Link kopyalandı.", "success"); }}
-              style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
-            >
-              Kopyala
-            </button>
-          </div>
+          {(() => {
+            // Portal linkine ?c= ekliyoruz - müşteri linki açınca giriş ekranında
+            // "Binerly" yerine bu işletmenin adı/logosu görünür (bkz. CustomerPortal.jsx
+            // CustomerPortalEntry). Slug varsa okunabilir, yoksa lead_capture_token.
+            const portalScope = companySettings?.showcaseSlug || companySettings?.leadCaptureToken;
+            const portalLink = getPortalUrl(portalScope ? `/?c=${portalScope}` : "");
+            return (
+              <>
+                <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px" }}>
+                  Bu linki (veya QR kodu) mevcut müşterilerinizle paylaşın - kayıtlı e-postalarıyla kendi hesaplarını oluşturup {dealWords.columnHeader.toLowerCase()} durumlarını görebilir, destek talebi açabilirler. Belirli bir müşteriye özel paylaşmak isterseniz Müşteriler listesindeki "Linki paylaş" butonunu da kullanabilirsiniz.
+                </p>
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(portalLink)}`}
+                  alt="QR kod"
+                  style={{ display: "block", margin: "0 auto 16px" }}
+                />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input readOnly value={portalLink} style={{ flex: 1, fontSize: 13 }} onFocus={(e) => e.target.select()} />
+                  <button
+                    type="button"
+                    onClick={() => { navigator.clipboard.writeText(portalLink); notify("Link kopyalandı.", "success"); }}
+                    style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+                  >
+                    Kopyala
+                  </button>
+                </div>
+              </>
+            );
+          })()}
         </Modal>
       )}
 

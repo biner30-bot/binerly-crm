@@ -1796,7 +1796,12 @@ export function CustomersTab({
                           type="button"
                           title="Müşteriye portal linkini paylaş"
                           onClick={() => {
-                            const message = `Merhaba, ${companySettings?.companyName || "işletmemiz"} Müşteri Portalımızdan taleplerinizi/randevularınızı bu kayıtlı e-postanızla takip edebilirsiniz: ${getPortalUrl()}`;
+                            // ?c= -> müşteri portal linkini açınca giriş ekranında
+                            // işletmenin adı/logosu görünür (bkz. CustomerPortal.jsx).
+                            const scope =
+                              companySettings?.showcaseSlug || companySettings?.leadCaptureToken;
+                            const portalLink = getPortalUrl(scope ? `/?c=${scope}` : "");
+                            const message = `Merhaba, ${companySettings?.companyName || "işletmemiz"} Müşteri Portalımızdan taleplerinizi/randevularınızı bu kayıtlı e-postanızla takip edebilirsiniz: ${portalLink}`;
                             if (c.phone) {
                               window.open(
                                 `https://wa.me/${toWhatsAppNumber(c.phone)}?text=${encodeURIComponent(message)}`,
@@ -1804,7 +1809,7 @@ export function CustomersTab({
                                 "noopener,noreferrer",
                               );
                             } else {
-                              navigator.clipboard.writeText(getPortalUrl());
+                              navigator.clipboard.writeText(portalLink);
                               notify("Portal linki kopyalandı.", "success");
                             }
                           }}

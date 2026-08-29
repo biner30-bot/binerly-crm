@@ -325,7 +325,7 @@ function appointmentCancelDecision(randevuTarihi, hardBlockHours, penaltyHours) 
   return { canCancel, isLate, hoursLeft };
 }
 
-function CustomerPortalLanding({ onEnter }) {
+function CustomerPortalLanding({ onEnter, entryCompany }) {
   const features = [
     { icon: "ti-list-check", text: "Teklif, randevu, üyelik veya rezervasyon durumunuzu görün" },
     { icon: "ti-message-circle", text: "İşletmeyle mesajlaşın, destek talebi açın" },
@@ -346,9 +346,15 @@ function CustomerPortalLanding({ onEnter }) {
       <div style={{ maxWidth: 440, width: "100%" }}>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <img
-            src="/favicon.svg"
-            alt="Binerly"
-            style={{ width: 52, height: 52, marginBottom: 14 }}
+            src={entryCompany?.logoUrl || "/favicon.svg"}
+            alt=""
+            style={{
+              width: entryCompany?.logoUrl ? "auto" : 52,
+              height: 52,
+              maxWidth: 200,
+              marginBottom: 14,
+              objectFit: "contain",
+            }}
           />
           <h1
             style={{
@@ -358,10 +364,14 @@ function CustomerPortalLanding({ onEnter }) {
               margin: "0 0 8px",
             }}
           >
-            Binerly Müşteri Portalı
+            {entryCompany?.name
+              ? `${entryCompany.name} - Müşteri Portalı`
+              : "Binerly Müşteri Portalı"}
           </h1>
           <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6, margin: 0 }}>
-            Hizmet aldığınız işletmeyle ilgili her şeyi tek yerden takip edin.
+            {entryCompany?.name
+              ? `${entryCompany.name} ile ilgili teklif, randevu ve mesajlarınızı tek yerden takip edin.`
+              : "Hizmet aldığınız işletmeyle ilgili her şeyi tek yerden takip edin."}
           </p>
         </div>
         <div
@@ -447,11 +457,32 @@ function CustomerPortalEntry() {
   const [mode, setMode] = useState(
     params.get("register") ? "register" : params.get("login") ? "login" : null,
   );
-  if (!mode) return <CustomerPortalLanding onEnter={setMode} />;
-  return <CustomerAuthForm initialMode={mode} onBack={() => setMode(null)} />;
+  // ?c=<slug|token>: KOBİ'nin paylaştığı portal linki hangi işletmeden geldiğini
+  // taşır - giriş öncesi ekranda "Binerly" yerine o işletmenin adı/logosu görünsün
+  // ("kendi sitesi gibi"). Yoksa (jenerik link) eski Binerly markası kalır.
+  const [entryCompany, setEntryCompany] = useState(null);
+  useEffect(() => {
+    const c = params.get("c");
+    if (!c || !/^[a-zA-Z0-9-]+$/.test(c)) return;
+    fetch(`/api/lead-capture?token=${encodeURIComponent(c)}&view=vitrin`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.companyName) setEntryCompany({ name: d.companyName, logoUrl: d.logoUrl || null });
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (entryCompany?.name) document.title = `${entryCompany.name} - Müşteri Portalı`;
+  }, [entryCompany?.name]);
+
+  if (!mode) return <CustomerPortalLanding onEnter={setMode} entryCompany={entryCompany} />;
+  return (
+    <CustomerAuthForm initialMode={mode} onBack={() => setMode(null)} entryCompany={entryCompany} />
+  );
 }
 
-function CustomerAuthForm({ initialMode = "login", onBack }) {
+function CustomerAuthForm({ initialMode = "login", onBack, entryCompany }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -546,9 +577,13 @@ function CustomerAuthForm({ initialMode = "login", onBack }) {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-          <img src="/favicon.svg" alt="Binerly" style={{ width: 39, height: 39 }} />
+          <img
+            src={entryCompany?.logoUrl || "/favicon.svg"}
+            alt=""
+            style={{ width: "auto", height: 39, maxWidth: 150, objectFit: "contain" }}
+          />
           <span style={{ fontWeight: 700, fontSize: 16, color: "var(--text-primary)" }}>
-            Binerly Müşteri Bilgi Sistemi
+            {entryCompany?.name || "Binerly Müşteri Portalı"}
           </span>
         </div>
         <h2
