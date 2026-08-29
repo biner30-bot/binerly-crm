@@ -4,10 +4,13 @@
 -- bilmiyordu. Ornek: 3 personelli bir guzellik salonunda manikuru sadece 2 kisi
 -- yapiyorsa, o 2 kisi doluyken 3. kisiye manikur randevusu verilmemeli.
 --
--- Iliski price_list_items uzerinde bir uuid dizisiyle tutulur; Takim modalindaki
--- "Hizmetler" sekmesi ayni iliskiyi personel-odakli duzenler (her kisiye
--- yapabildigi hizmetler eklenir). Bos dizi = kisit yok = herkes yapabilir
--- (opt-in, mevcut tum satirlar bu degeri alir, davranis degismez).
+-- Iliski price_list_items.staff_member_ids uuid dizisinde tutulur; Takim
+-- modalindaki "Hizmetler" sekmesi personel-odakli duzenler. MODEL (KOBI-dostu):
+-- bir personel hicbir hizmete isaretli DEGILSE tum hizmetleri yapar; en az
+-- birine isaretliyse SADECE isaretli hizmetleri yapar. Yani staff_member_ids
+-- = "bu hizmete OZELLIKLE atanmis (kisitli) personel". Hicbir dizide gecmeyen
+-- personel = kisitsiz = her hizmeti yapar. Tum diziler bosken davranis
+-- degismez (opt-in).
 --
 -- FK YOK (dizi): takimdan cikan uyenin uid'i dizide kalabilir - istemci
 -- teamRoster ile kesiserek yok sayar (Deals.jsx "Eski uye" deseninin aynisi,

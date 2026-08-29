@@ -4502,14 +4502,20 @@ export default function App() {
     // Hizmet bazlı personel yetkinliği (Takım > Hizmetler): seçili hizmet(ler)i
     // sınırlı sayıda personel yapabiliyorsa etkin kapasite düşer. Bu sadece bir
     // ipucu (buton yine aktif) - Deals.jsx findAppointmentConflict'in
-    // basitleştirilmiş sürümü, kesişim inceliği olmadan.
+    // basitleştirilmiş sürümü, kesişim inceliği olmadan. Model: bir personel hiç
+    // hizmete işaretli değilse tümünü yapar, işaretliyse sadece işaretlileri.
     const validStaffIds = new Set([activeTeamId, ...teamRoster.map((m) => m.id)].filter(Boolean));
+    const restrictedStaffIds = new Set(
+      priceListItems.flatMap((p) => p.staffMemberIds || []).filter((id) => validStaffIds.has(id)),
+    );
     for (const sid of serviceIds || []) {
       const svc = priceListItems.find((p) => p.id === sid);
-      const ids = (svc?.staffMemberIds || []).filter((id) => validStaffIds.has(id));
-      if ((svc?.staffMemberIds || []).length > 0 && ids.length > 0) {
-        concurrency = Math.min(concurrency, ids.length);
-      }
+      if (!svc) continue;
+      const allowed = new Set(svc.staffMemberIds || []);
+      const capableCount = [...validStaffIds].filter(
+        (id) => !restrictedStaffIds.has(id) || allowed.has(id),
+      ).length;
+      if (capableCount < validStaffIds.size) concurrency = Math.min(concurrency, capableCount || 1);
     }
     const overlapping = deals.filter((d) => {
       if (d.id === excludeDealId || d.stage === "kaybedildi") return false;

@@ -4,11 +4,18 @@
 // sadece 2 kisi yapiyorsa, o 2 kisi o saatte doluyken 3. musteriye manikur
 // slotu gosterilmez.
 //
+// MODEL (KOBI-dostu, "ters model"): bir personel fiyat listesinde hic hizmete
+// isaretli DEGILSE tum hizmetleri yapar; en az bir hizmete isaretliyse SADECE
+// isaretli hizmetleri yapar. price_list_items.staff_member_ids = "bu hizmeti
+// yapabilen KISITLI personel" listesi. Bir hizmet ancak onu yapamayan (kisitli
+// ve o listede olmayan) bir personel varsa "kisit"tir.
+//
 // Bu, src/Deals.jsx findAppointmentConflict'in SUNUCU esdegeri - CLAUDE.md'de
-// isaretlendigi gibi 4 nokta (findAppointmentConflict, appointmentSlotHasConflict,
-// bu dosyayi kullanan appointment-availability.js + lead-capture.js) AYNI mantik,
-// senkron tutulmali. concurrency_slots atomik havuzu per-hizmet DEGIL - bu
-// kontrol kaynak on-kontroluyle ayni guven seviyesinde (istemci/sunucu on-kontrol).
+// isaretlendigi gibi noktalarin hepsi AYNI mantik, senkron tutulmali
+// (findAppointmentConflict, appointmentSlotHasConflict, appointment-availability.js,
+// lead-capture.js, deal-approval.js handleSendAppointmentOffer). concurrency_slots
+// atomik havuzu per-hizmet DEGIL - bu kontrol kaynak on-kontroluyle ayni guven
+// seviyesinde (istemci/sunucu on-kontrol).
 //
 // _ ile basladigi icin Vercel fonksiyon sayilmaz (paylasilan yardimci).
 
@@ -23,6 +30,28 @@ export function dealServiceIds(customFields) {
   return [...new Set(ids.filter(Boolean))];
 }
 
+// Tum fiyat listesinden "kisitli" personel kumesi: herhangi bir hizmetin
+// staff_member_ids dizisinde gecen (ve hala takimda olan) her personel kisitlidir
+// = SADECE gectigi hizmetleri yapar.
+export function restrictedStaffSet(priceItems, validStaff) {
+  const s = new Set();
+  for (const p of priceItems || []) {
+    for (const id of p.staff_member_ids || []) if (validStaff.has(id)) s.add(id);
+  }
+  return s;
+}
+
+// Bir hizmeti yapabilen gecerli personel kumesi. Herkes yapabiliyorsa (kisit yok)
+// null doner. restricted = restrictedStaffSet ciktisi.
+export function capableStaffForService(item, restricted, validStaff) {
+  const allowed = new Set(item?.staff_member_ids || []);
+  const capable = new Set();
+  for (const id of validStaff) {
+    if (!restricted.has(id) || allowed.has(id)) capable.add(id);
+  }
+  return capable.size === validStaff.size ? null : capable;
+}
+
 // Istenen hizmet(ler)i yapabilen personel havuzu + etkin kapasite.
 // - requestedServiceIds: musterinin sectigi price_list_items id listesi
 // - priceItems: [{ id, staff_member_ids }] - bu isletmenin TUM fiyat listesi
@@ -32,14 +61,12 @@ export function dealServiceIds(customFields) {
 //   capablePool null => kisit yok (herkes), davranis degismez.
 export function resolveServiceCapacity(requestedServiceIds, priceItems, validStaff, baseConcurrency) {
   const byId = new Map((priceItems || []).map((p) => [p.id, p]));
+  const restricted = restrictedStaffSet(priceItems, validStaff);
   let pool = null;
   for (const sid of requestedServiceIds || []) {
-    const item = byId.get(sid);
-    if (!item || (item.staff_member_ids || []).length === 0) continue; // kisitsiz hizmet
-    const raw = (item.staff_member_ids || []).filter((id) => validStaff.has(id));
-    if (raw.length === 0) continue; // izinli personelin tamami takimdan cikmis - kisit duser
-    const set = new Set(raw);
-    pool = pool === null ? set : new Set([...pool].filter((id) => set.has(id)));
+    const cap = capableStaffForService(byId.get(sid), restricted, validStaff);
+    if (cap === null) continue; // bu hizmeti herkes yapabiliyor - kisit degil
+    pool = pool === null ? cap : new Set([...pool].filter((id) => cap.has(id)));
   }
   if (pool === null) return { capablePool: null, effectiveConcurrency: baseConcurrency };
   return {
@@ -51,18 +78,18 @@ export function resolveServiceCapacity(requestedServiceIds, priceItems, validSta
 // Var olan bir randevu, istenen hizmetin personel havuzuyla kapasite acisindan
 // rekabet ediyor mu? Havuzu kesisiyorsa VEYA hizmeti bilinmiyorsa/kisitsizsa evet.
 // capablePool null ise (istenen hizmet kisitsiz) her randevu genel tavana sayilir.
-export function dealCompetesForPool(customFields, capablePool, priceItems) {
+export function dealCompetesForPool(customFields, capablePool, priceItems, validStaff) {
   if (!capablePool) return true;
   const byId = new Map((priceItems || []).map((p) => [p.id, p]));
+  const restricted = restrictedStaffSet(priceItems, validStaff);
   const sids = dealServiceIds(customFields);
   let otherPool = null;
   for (const sid of sids) {
-    const item = byId.get(sid);
-    const ids = (item?.staff_member_ids || []).filter(Boolean);
-    if (ids.length === 0) return true; // kisitsiz/bilinmeyen hizmet
-    otherPool = otherPool === null ? new Set(ids) : new Set([...otherPool, ...ids]);
+    const cap = capableStaffForService(byId.get(sid), restricted, validStaff);
+    if (cap === null) return true; // rakip randevunun hizmeti kisitsiz
+    otherPool = otherPool === null ? cap : new Set([...otherPool, ...cap]);
   }
-  if (otherPool === null) return true; // hic hizmet bilgisi yok
+  if (otherPool === null) return true; // hic hizmet bilgisi yok - temkinli
   for (const id of otherPool) if (capablePool.has(id)) return true;
   return false;
 }
@@ -100,6 +127,6 @@ export async function applyServiceCapacity(supabaseAdmin, businessUserId, servic
   );
   return {
     effectiveConcurrency,
-    competes: (customFields) => dealCompetesForPool(customFields, capablePool, priceItems || []),
+    competes: (customFields) => dealCompetesForPool(customFields, capablePool, priceItems || [], validStaff),
   };
 }

@@ -692,12 +692,24 @@ export function DealForm({
   const [notifyCustomer, setNotifyCustomer] = useState(initial?.notifyCustomer || false);
   const [conflictError, setConflictError] = useState("");
 
-  // Hizmet bazlı personel yetkinliği (Takım > Hizmetler). Randevuda seçili
-  // hizmet(ler)i kimlerin yapabildiği: her KISITLI hizmetin izinli personel
-  // kümesinin kesişimi. Kısıtsız hizmetler (staffMemberIds boş) veya izinli
-  // personeli tamamen takımdan çıkmış hizmetler yok sayılır. Hiçbir kısıtlı
-  // hizmet yoksa null = "kısıt yok, herkes yapabilir".
+  // Hizmet bazlı personel yetkinliği (Takım > Hizmetler). Model: bir personel
+  // fiyat listesinde hiçbir hizmete işaretli DEĞİLSE tüm hizmetleri yapar; en az
+  // bir hizmete işaretliyse SADECE işaretli hizmetleri yapar. Bir hizmet ancak
+  // onu yapamayan bir personel varsa "kısıt"tır. Hiçbir kısıt yoksa capableStaffIds
+  // null = "herkes yapabilir".
   const validStaffIds = new Set([businessUserId, ...teamMembers.map((m) => m.id)].filter(Boolean));
+  const restrictedStaffIds = new Set(
+    priceListItems.flatMap((p) => p.staffMemberIds || []).filter((id) => validStaffIds.has(id)),
+  );
+  // Bir hizmeti yapabilen geçerli personel kümesi - herkes yapabiliyorsa null.
+  const capableForService = (svc) => {
+    if (!svc) return null;
+    const allowed = new Set(svc.staffMemberIds || []);
+    const capable = new Set(
+      [...validStaffIds].filter((id) => !restrictedStaffIds.has(id) || allowed.has(id)),
+    );
+    return capable.size === validStaffIds.size ? null : capable;
+  };
   const selectedServiceIds = [
     ...new Set(
       [
@@ -710,12 +722,9 @@ export function DealForm({
   const capableStaffIds = (() => {
     let result = null;
     for (const sid of selectedServiceIds) {
-      const svc = priceListItems.find((p) => p.id === sid);
-      if (!svc || (svc.staffMemberIds || []).length === 0) continue;
-      const ids = (svc.staffMemberIds || []).filter((id) => validStaffIds.has(id));
-      if (ids.length === 0) continue; // izinli personelin tamamı takımdan çıkmış - kısıt düşer
-      const set = new Set(ids);
-      result = result === null ? set : new Set([...result].filter((id) => set.has(id)));
+      const capable = capableForService(priceListItems.find((p) => p.id === sid));
+      if (capable === null) continue; // bu hizmeti herkes yapabiliyor - kısıt değil
+      result = result === null ? capable : new Set([...result].filter((id) => capable.has(id)));
     }
     return result;
   })();
@@ -892,10 +901,9 @@ export function DealForm({
         ].filter(Boolean);
         let otherPool = null;
         for (const sid of otherServiceIds) {
-          const svc = priceListItems.find((p) => p.id === sid);
-          const ids = (svc?.staffMemberIds || []).filter(Boolean);
-          if (ids.length === 0) return true; // kısıtsız/bilinmeyen hizmet -> her zaman rekabet eder
-          otherPool = otherPool === null ? new Set(ids) : new Set([...otherPool, ...ids]);
+          const capable = capableForService(priceListItems.find((p) => p.id === sid));
+          if (capable === null) return true; // kısıtsız/bilinmeyen hizmet -> her zaman rekabet eder
+          otherPool = otherPool === null ? capable : new Set([...otherPool, ...capable]);
         }
         if (otherPool === null) return true;
         return [...otherPool].some((id) => capableStaffIds.has(id));

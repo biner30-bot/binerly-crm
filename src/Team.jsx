@@ -1077,25 +1077,22 @@ export function TeamDailyLoadPanel({
   );
 }
 
-// Hizmet <-> personel yetkinligi. Her personel her islemi ogrenmemis/yapmaya
-// uygun olmayabilir - isletme sahibi burada her kisiye (kendisi dahil)
-// yapabildigi hizmetleri isaretler. Iliski price_list_items.staff_member_ids
-// dizisinde tutulur (bkz. sql/2026-08-29_price_list_item_staff.sql). Bir hizmet
-// en az bir kisiye isaretlenince "kisitli" olur: randevuda o hizmet secilince
-// Sorumlu listesi bu kisilerle sinirlanir, hepsi o saatte doluysa o saate
-// randevu verilemez (bkz. Deals.jsx findAppointmentConflict). Hic kimseye
-// isaretlenmeyen hizmeti herkes yapabilir (opt-in, mevcut davranis degismez).
+// Hizmet <-> personel yetkinligi. Model (KOBI-dostu): bir personelin hicbir
+// hizmeti isaretli DEGILSE tum hizmetleri yapar; en az biri isaretliyse SADECE
+// isaretli hizmetleri yapar. Iliski price_list_items.staff_member_ids dizisinde
+// tutulur (bkz. sql/2026-08-29_price_list_item_staff.sql). Bir hizmet, onu
+// yapamayan bir personel varsa "kisitli" olur: randevuda o hizmet secilince
+// Sorumlu listesi yapabilen kisilerle sinirlanir, hepsi o saatte doluysa o saate
+// randevu verilemez (bkz. Deals.jsx findAppointmentConflict).
 function ServiceCapabilityPanel({ people, priceListItems, onSetServiceStaff }) {
   const services = [...(priceListItems || [])].sort(
     (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
   );
-  const labelById = new Map((people || []).map((p) => [p.id, p.label]));
-  const restricted = services.filter((s) => (s.staffMemberIds || []).length > 0);
 
   if (services.length === 0) {
     return (
       <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-        Önce Fiyat Listesi&apos;ne hizmet ekleyin - sonra her personele yapabildiği hizmetleri
+        Önce Fiyat Listesi&apos;ne hizmet ekleyin - sonra her personelin sınırlı olduğu hizmetleri
         buradan işaretleyebilirsiniz.
       </p>
     );
@@ -1113,10 +1110,10 @@ function ServiceCapabilityPanel({ people, priceListItems, onSetServiceStaff }) {
           marginBottom: 8,
         }}
       >
-        Yapabildiği hizmetler
+        Hangi personel hangi hizmeti yapar
         <InfoTip
           placement="bottom"
-          text="Bir hizmeti bir personele işaretlediğinizde o hizmet artık SADECE işaretli personel tarafından yapılabilir - o hizmeti yapan diğer personeli de işaretlemeyi unutmayın. Randevuda o hizmet seçilince Sorumlu listesi bu kişilerle sınırlanır; o saatte hepsi doluysa o saate randevu verilemez. Hiç kimseye işaretlenmeyen hizmeti herkes yapabilir."
+          text="Bir personelin kutularını hiç işaretlemezseniz o kişi TÜM hizmetleri yapar. Bir kişiyi belirli hizmetlerle sınırlamak isterseniz sadece o hizmetleri işaretleyin - o andan itibaren o kişi yalnızca işaretli hizmetleri yapar. Randevuda bir hizmet seçilince Sorumlu listesi o hizmeti yapabilen kişilerle sınırlanır; o saatte hepsi doluysa o saate randevu verilemez."
         />
       </label>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -1157,30 +1154,15 @@ function ServiceCapabilityPanel({ people, priceListItems, onSetServiceStaff }) {
                   </label>
                 ))}
               </div>
-              {mine.size === 0 && (
-                <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "6px 0 0" }}>
-                  Hiçbiri işaretli değil - kısıtlanan hizmetlerde Sorumlu seçilemez, kısıtsız
-                  hizmetleri yapabilir.
-                </p>
-              )}
+              <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "6px 0 0" }}>
+                {mine.size === 0
+                  ? "Tüm hizmetleri yapabilir. Sınırlamak için yaptığı hizmetleri işaretleyin."
+                  : `Yalnızca işaretli ${mine.size} hizmeti yapar - diğerlerine Sorumlu seçilemez.`}
+              </p>
             </div>
           );
         })}
       </div>
-      {restricted.length > 0 && (
-        <p style={{ marginTop: 10, fontSize: 12, color: "var(--text-muted)" }}>
-          <strong style={{ color: "var(--text-secondary)" }}>Kısıtlı hizmetler:</strong>{" "}
-          {restricted
-            .map(
-              (s) =>
-                `${s.name} (${(s.staffMemberIds || [])
-                  .map((id) => labelById.get(id) || "eski üye")
-                  .join(", ")})`,
-            )
-            .join("; ")}
-          . Listede olmayan hizmetleri herkes yapabilir.
-        </p>
-      )}
     </div>
   );
 }

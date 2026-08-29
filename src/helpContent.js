@@ -179,7 +179,7 @@ export const HELP_TOPICS = [
   {
     category: "Takım",
     q: "Bir personel sadece bazı hizmetleri yapıyorsa ne yapmalıyım?",
-    a: "Takım → Hizmetler sekmesinde her kişiye (kendiniz dahil) yapabildiği hizmetleri işaretleyin. Bir hizmeti en az bir kişiye işaretlediğinizde o hizmet artık sadece işaretli personel tarafından yapılabilir - randevuda o hizmet seçilince Sorumlu listesi bu kişilerle sınırlanır, o saatte hepsi doluysa o saate randevu verilemez. Hiç kimseye işaretlenmeyen hizmeti herkes yapabilir.",
+    a: "Takım → Hizmetler sekmesinde o kişinin yaptığı hizmetleri işaretleyin - o andan itibaren o kişi yalnızca işaretli hizmetleri yapar. Hiçbir kutusu işaretli olmayan personel tüm hizmetleri yapabilir (varsayılan). Örnek: Mehmet sadece saç kesiyorsa Mehmet'in kartında 'Saç Kesimi'ni işaretlersiniz; böylece manikür randevularında Sorumlu listesinde Mehmet çıkmaz, o saatte manikür yapabilen herkes doluysa o saate manikür randevusu verilemez.",
   },
 
   // Bildirimler & İletişim
