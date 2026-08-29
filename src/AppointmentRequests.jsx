@@ -23,8 +23,19 @@ export function AppointmentRequestsPanel({
   const [offerSendingDealId, setOfferSendingDealId] = useState(null);
   const [customOfferDealId, setCustomOfferDealId] = useState(null);
   const [customOfferDraft, setCustomOfferDraft] = useState("");
+  const [copiedDealId, setCopiedDealId] = useState(null);
 
   if (!requests || requests.length === 0) return null;
+
+  // Musterinin telefonu yoksa WhatsApp acilmiyor - KOBI linki baska kanaldan
+  // (Instagram DM vb.) iletebilsin diye panoya kopyalar. Link deterministik:
+  // approval_token'dan turer (bkz. api/deal-approval.js handleSendAppointmentOffer).
+  const copyOfferLink = (deal) => {
+    if (!deal.approvalToken) return;
+    navigator.clipboard?.writeText(`https://binerly.com/randevu-onay/${deal.approvalToken}`);
+    setCopiedDealId(deal.id);
+    setTimeout(() => setCopiedDealId((cur) => (cur === deal.id ? null : cur)), 2000);
+  };
 
   const wrapStyle = framed
     ? {
@@ -161,6 +172,15 @@ export function AppointmentRequestsPanel({
                   >
                     Farklı bir saat öner
                   </button>
+                  {deal.approvalToken && (
+                    <button
+                      type="button"
+                      onClick={() => copyOfferLink(deal)}
+                      style={{ fontSize: 12 }}
+                    >
+                      {copiedDealId === deal.id ? "Kopyalandı ✓" : "Onay linkini kopyala"}
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div style={{ marginLeft: 14 }}>
