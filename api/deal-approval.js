@@ -464,7 +464,7 @@ async function handleSendAppointmentOffer(req, res, supabaseAdmin) {
   const authedUserId = userData?.user?.id || null;
   if (!authedUserId) return res.status(401).json({ error: "Yetkisiz." });
 
-  const { data: deal } = await supabaseAdmin.from("deals").select("id, user_id, customer_id, title, approval_token, custom_fields").eq("id", dealId).is("deleted_at", null).maybeSingle();
+  const { data: deal } = await supabaseAdmin.from("deals").select("id, user_id, customer_id, title, approval_token, custom_fields, appointment_offer_status").eq("id", dealId).is("deleted_at", null).maybeSingle();
   if (!deal) return res.status(404).json({ error: "Kayıt bulunamadı." });
 
   let authorized = authedUserId === deal.user_id;
@@ -473,6 +473,16 @@ async function handleSendAppointmentOffer(req, res, supabaseAdmin) {
     authorized = !!tm;
   }
   if (!authorized) return res.status(403).json({ error: "Bu işlemi yapma yetkiniz yok." });
+
+  // Müşteri teklifi onayladıysa "Randevu Talepleri" kartı Pano/Randevular'dan
+  // realtime ile düşer - ama KOBİ'nin sekmesi senkron değilse eski "sent"
+  // durumu + aktif "Farklı bir saat öner" butonunu görüp yeni teklif
+  // gönderebilir; bu, custom_fields'taki onaylı saati olduğu yerde bırakıp
+  // appointment_start/end'i ve slot tutuşunu ezerek dağınık bir duruma yol
+  // açardı. Onaylanmış randevunun saati randevu düzenlemeden değiştirilmeli.
+  if (deal.appointment_offer_status === "confirmed") {
+    return res.status(409).json({ error: "Bu randevu zaten onaylandı - saatini değiştirmek için randevuyu doğrudan düzenleyin." });
+  }
 
   const offerDate = new Date(`${offerTime}:00+03:00`);
   if (isNaN(offerDate.getTime())) return res.status(400).json({ error: "Geçersiz saat." });
