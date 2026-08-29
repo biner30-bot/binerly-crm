@@ -2172,7 +2172,7 @@ export function DealForm({
                   </select>
                   {capableStaffIds && capableStaffIds.size === 0 && (
                     <p style={{ fontSize: 12, color: "var(--text-warning)", margin: "4px 0 0" }}>
-                      Seçilen hizmetleri yapabilen personel tanımlı değil - Takım &gt;
+                      Seçilen hizmetleri birlikte yapabilen bir personel yok - Takım &gt;
                       Hizmetler&apos;den kontrol edin.
                     </p>
                   )}
