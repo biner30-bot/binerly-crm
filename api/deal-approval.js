@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
 import Iyzipay from "iyzipay";
 import { renderEmailHtml, plainTextFallback } from "./_email-template.js";
+import { applyServiceCapacity } from "./_appointment-concurrency.js";
 
 const IYZICO_BASE_URL = { sandbox: "https://sandbox-api.iyzipay.com", production: "https://api.iyzipay.com" };
 const PAYTR_GET_TOKEN_URL = "https://www.paytr.com/odeme/api/get-token";
@@ -481,6 +482,51 @@ async function handleSendAppointmentOffer(req, res, supabaseAdmin) {
 
   const serviceIds = Array.isArray(deal.custom_fields?.service_ids) ? deal.custom_fields.service_ids : [];
   const conflictError = { error: "Bu saat başka bir randevuyla dolu, lütfen farklı bir saat seçin." };
+
+  // Hizmet bazlı personel yetkinliği (Takım > Hizmetler): önerilen hizmeti
+  // sınırlı sayıda personel yapabiliyorsa, global concurrency_slot havuzu bunu
+  // bilmediği için ek bir ön-kontrol - o saatte hizmeti yapabilen personelin
+  // tamamı doluysa öneri gönderilmez (lead-capture.js / appointment-availability.js
+  // ile AYNI mantık, bkz. _appointment-concurrency.js). concurrency_slots atomik
+  // havuzu hâlâ per-hizmet DEĞİL, bu kontrol kaynak ön-kontrolüyle aynı güven
+  // seviyesinde.
+  {
+    const { data: cs } = await supabaseAdmin
+      .from("company_settings")
+      .select("appointment_concurrency")
+      .eq("user_id", deal.user_id)
+      .maybeSingle();
+    const baseConcurrency = Math.max(1, Number(cs?.appointment_concurrency) || 1);
+    const { effectiveConcurrency, competes } = await applyServiceCapacity(
+      supabaseAdmin,
+      deal.user_id,
+      serviceIds,
+      baseConcurrency,
+    );
+    if (effectiveConcurrency < baseConcurrency) {
+      const offerStartMs = offerDate.getTime();
+      const offerEndMs = offerStartMs + durationMinutes * 60000;
+      const { data: activeAppts } = await supabaseAdmin
+        .from("deals")
+        .select("custom_fields, appointment_start, appointment_end")
+        .eq("user_id", deal.user_id)
+        .is("deleted_at", null)
+        .neq("stage", "kaybedildi")
+        .neq("id", deal.id)
+        .not("appointment_start", "is", null);
+      const overlap = (activeAppts || []).filter((d) => {
+        if (!competes(d.custom_fields)) return false;
+        const s = new Date(d.appointment_start).getTime();
+        const e = new Date(d.appointment_end || d.appointment_start).getTime();
+        return offerStartMs < e && s < offerEndMs;
+      }).length;
+      if (overlap >= effectiveConcurrency) {
+        return res.status(409).json({
+          error: "Bu saatte bu hizmeti yapabilen personelin tamamı dolu, lütfen farklı bir saat seçin.",
+        });
+      }
+    }
+  }
 
   let resourceUnitId = null;
   const autoResourceId = await resolveAutoAssignResource(supabaseAdmin, deal.user_id, serviceIds);
