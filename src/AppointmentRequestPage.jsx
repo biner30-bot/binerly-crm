@@ -148,7 +148,7 @@ export default function AppointmentRequestPage() {
   // Sekme başlığı: müşteri işletmenin adını görmeli - index.html'in varsayılanı
   // "Binerly - CRM | Müşteri Takibi, Satış..." beyaz-etiket hissini bozar.
   useEffect(() => {
-    if (company?.companyName) document.title = `${company.companyName} - Randevu`;
+    if (company?.companyName) document.title = `${company.companyName} - Randevu Al`;
   }, [company?.companyName]);
 
   useEffect(() => {
