@@ -241,9 +241,21 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
     });
     let reloaded = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (reloaded) return;
-      reloaded = true;
-      window.location.reload();
+      // Yeni sürüm hazır. Bir form/modal AÇIKKEN otomatik yeniden yüklemek
+      // kullanıcının yarım kalan işini böler (içerik useFormDraft ile korunsa
+      // da modal kapanır, kaydırma konumu gider). Modal açıksa bekle; modal
+      // kapanınca ya da sekme arka plana alınınca yükle. Sekme gizlenince
+      // useFormDraft de taslağı zaten anında yazar.
+      const reloadWhenSafe = () => {
+        if (reloaded) return;
+        if (document.querySelector(".modal-overlay") && document.visibilityState === "visible")
+          return;
+        reloaded = true;
+        document.removeEventListener("visibilitychange", reloadWhenSafe);
+        window.location.reload();
+      };
+      reloadWhenSafe();
+      if (!reloaded) document.addEventListener("visibilitychange", reloadWhenSafe);
     });
   });
 }

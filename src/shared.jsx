@@ -43,6 +43,10 @@ function clearFormDraft(key) {
 //              kaydedilip sonraki açılışta yanıltıcı "geri yüklendi" notu çıkmasın
 //   clear    - taslağı siler (kayıt başarılı olunca / Vazgeç'te çağır)
 //   restored - açılışta dolu bir taslak geri yüklendi mi (bilgi notu için)
+//
+// Sekme arka plana alınınca / kapanınca (özellikle SW güncellemesindeki otomatik
+// window.location.reload, bkz. src/main.jsx) debounce'u BEKLEMEDEN hemen yazar -
+// son yazılan birkaç karakter de kaybolmasın.
 export function useFormDraft(key, enabled) {
   const draft = useMemo(
     () => (enabled ? loadFormDraft(key) || {} : {}),
@@ -52,23 +56,45 @@ export function useFormDraft(key, enabled) {
   );
   const [restored, setRestored] = useState(() => Object.keys(draft).length > 0);
   const timerRef = useRef(null);
+  // persist'e en son verilen değer - flush (hemen yaz) bunu kullanır
+  const pendingRef = useRef(null);
+
+  const flush = useCallback(() => {
+    clearTimeout(timerRef.current);
+    const p = pendingRef.current;
+    if (!p) return;
+    if (p.hasContent) saveFormDraft(key, p.obj);
+    else clearFormDraft(key);
+  }, [key]);
 
   const persist = useCallback(
     (obj, hasContent = true) => {
       if (!enabled) return;
+      pendingRef.current = { obj, hasContent };
       clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(
-        () => (hasContent ? saveFormDraft(key, obj) : clearFormDraft(key)),
-        400,
-      );
+      timerRef.current = setTimeout(flush, 400);
     },
-    [key, enabled],
+    [enabled, flush],
   );
   const clear = useCallback(() => {
     clearTimeout(timerRef.current);
+    pendingRef.current = null;
     clearFormDraft(key);
     setRestored(false);
   }, [key]);
+
+  useEffect(() => {
+    if (!enabled) return undefined;
+    const onHide = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", flush);
+    };
+  }, [enabled, flush]);
 
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
