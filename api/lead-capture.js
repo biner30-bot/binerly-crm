@@ -651,6 +651,35 @@ export default async function handler(req, res) {
 
     const { serviceName, servicePrice, serviceDurationMinutes } = await computeSelectedServiceInfo(supabaseAdmin, settings.user_id, cleanServiceIds);
 
+    // Hizmet süresi o günkü kapanışı aşan bir tercih saati kabul edilmesin -
+    // müşteri UI'da input max ile de engelleniyor, bu bypass'a karşı.
+    if (serviceDurationMinutes > 0) {
+      const [ry, rm, rd] = requestedDate.split("-").map(Number);
+      const isoWd = ((new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay() + 6) % 7) + 1;
+      const { data: bh } = await supabaseAdmin
+        .from("business_hours")
+        .select("end_time")
+        .eq("user_id", settings.user_id)
+        .eq("weekday", isoWd);
+      if (bh && bh.length) {
+        const closeMin = Math.max(
+          ...bh.map((h) => {
+            const [hh, mm] = h.end_time.slice(0, 5).split(":").map(Number);
+            return hh * 60 + mm;
+          }),
+        );
+        const overflows = cleanPrefs.some((t) => {
+          const [hh, mm] = t.split(":").map(Number);
+          return hh * 60 + mm + serviceDurationMinutes > closeMin;
+        });
+        if (overflows) {
+          return res.status(400).json({
+            error: "Seçtiğiniz saat, hizmet süresiyle birlikte kapanış saatini aşıyor - lütfen daha erken bir saat seçin.",
+          });
+        }
+      }
+    }
+
     const { error: dealInsertError } = await supabaseAdmin.from("deals").insert({
       id: crypto.randomUUID(),
       user_id: settings.user_id,

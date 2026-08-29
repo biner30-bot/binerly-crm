@@ -276,6 +276,12 @@ async function handleBooking(req, res, supabaseAdmin) {
   // deal'in üzerinde çakışma/kaynak garantisi yok, olması da gerekmiyor.
   if (requestedDate) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) return res.status(400).json({ error: "Geçersiz tarih." });
+    // Geçmiş bir güne talep oluşturulmasın (lead-capture.js talep dalındaki AYNI
+    // kontrol - portal bu uçtan geçtiği için burada da gerekli).
+    const todayIstanbul = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(new Date());
+    if (requestedDate < todayIstanbul) return res.status(400).json({ error: "Geçmiş bir tarih için randevu talebi oluşturulamaz." });
     const cleanPrefs = (Array.isArray(timePreferences) ? timePreferences : [])
       .filter((t) => typeof t === "string" && /^\d{2}:\d{2}$/.test(t))
       .slice(0, 3);
@@ -290,6 +296,25 @@ async function handleBooking(req, res, supabaseAdmin) {
         serviceName = services.map((s) => s.name).join(", ");
         servicePrice = services.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
         serviceDurationMinutes = groupedDurationMinutes(services);
+      }
+    }
+
+    // Hizmet süresi o günkü kapanışı aşan bir tercih saati kabul edilmesin
+    // (lead-capture.js talep dalındaki AYNI kontrol).
+    if (serviceDurationMinutes > 0) {
+      const [ry, rm, rd] = requestedDate.split("-").map(Number);
+      const isoWd = ((new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay() + 6) % 7) + 1;
+      const { data: bh } = await supabaseAdmin.from("business_hours").select("end_time").eq("user_id", businessUserId).eq("weekday", isoWd);
+      if (bh && bh.length) {
+        const closeMin = Math.max(...bh.map((h) => {
+          const [hh, mm] = h.end_time.slice(0, 5).split(":").map(Number);
+          return hh * 60 + mm;
+        }));
+        const overflows = cleanPrefs.some((t) => {
+          const [hh, mm] = t.split(":").map(Number);
+          return hh * 60 + mm + serviceDurationMinutes > closeMin;
+        });
+        if (overflows) return res.status(400).json({ error: "Seçtiğiniz saat, hizmet süresiyle birlikte kapanış saatini aşıyor - lütfen daha erken bir saat seçin." });
       }
     }
 

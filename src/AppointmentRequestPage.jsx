@@ -57,33 +57,24 @@ function minutesOfDayLocal(t) {
   return h * 60 + m;
 }
 
-function formatBreakDurationLocal(minutes) {
-  if (minutes % 60 === 0) return `${minutes / 60} saat`;
-  if (minutes < 60) return `${minutes} dk`;
-  return `${Math.floor(minutes / 60)} saat ${minutes % 60} dk`;
+// "HH:MM" + dakika kayması -> "HH:MM" (shared.jsx shiftTimeStr kopyası, aynı
+// gerekçeyle import edilmedi - bkz. istanbulDateStr).
+function shiftTimeLocal(hhmm, deltaMinutes) {
+  if (!hhmm) return hhmm;
+  const total = minutesOfDayLocal(hhmm) + deltaMinutes;
+  if (total < 0) return "00:00";
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
-// shared.jsx'teki formatTimeWindowsSummary ile AYNI mantık (kasıtlı kopya,
-// aynı gerekçeyle import edilmedi - bkz. istanbulDateStr). Öğle arasıyla
-// ikiye bölünmüş bir günü ("09:00-12:00" + "13:00-18:00") tek bir birleşik
-// aralık + mola notu olarak gösterir; gerçek bir boşluk yoksa mola belirtmez.
+// Müşteriye gösterilen çalışma saatleri - mola/öğle arası KOBİ'yi ilgilendirir,
+// müşteriye göstermeyiz; sadece açık pencereleri listeleriz
+// ("09:00-12:00, 13:00-18:00"). shared.jsx formatWorkingHoursPlain kopyası.
 function formatWindowsSummary(windows) {
   if (!windows || windows.length === 0) return "";
-  const sorted = [...windows].sort((a, b) => a.startTime.localeCompare(b.startTime));
-  const outerStart = sorted[0].startTime;
-  const outerEnd = sorted.reduce((max, w) => (w.endTime > max ? w.endTime : max), sorted[0].endTime);
-  const breaks = [];
-  for (let i = 0; i < sorted.length - 1; i++) {
-    if (sorted[i].endTime < sorted[i + 1].startTime) {
-      breaks.push({ start: sorted[i].endTime, end: sorted[i + 1].startTime });
-    }
-  }
-  const rangeLabel = `${outerStart}-${outerEnd}`;
-  if (breaks.length === 0) return rangeLabel;
-  const breakLabels = breaks.map(
-    (b) => `${b.start}-${b.end} arası ${formatBreakDurationLocal(minutesOfDayLocal(b.end) - minutesOfDayLocal(b.start))} mola`,
-  );
-  return `${rangeLabel} (${breakLabels.join(", ")})`;
+  return [...windows]
+    .sort((a, b) => a.startTime.localeCompare(b.startTime))
+    .map((w) => `${w.startTime}-${w.endTime}`)
+    .join(", ");
 }
 
 // shared.jsx'teki getPortalUrl ile AYNI mantık (kasıtlı kopya, aynı gerekçeyle
@@ -205,6 +196,10 @@ export default function AppointmentRequestPage() {
       setSubmitError(closedToday ? "İşletme bu gün kapalı, lütfen başka bir gün seçin." : "Lütfen en az bir saat girin.");
       return;
     }
+    if (requestOnlyMode && dayMinTime && dayClose && cleanPrefs.some((t) => t < dayMinTime || (selectedDuration > 0 && minutesOfDayLocal(t) + selectedDuration > minutesOfDayLocal(dayClose)))) {
+      setSubmitError(`Lütfen çalışma saatleri içinde ve kapanışa hizmet süresi kadar kala bir saat seçin (${formatWindowsSummary(dayWindows)}).`);
+      return;
+    }
     setSubmitError("");
     setSending(true);
     try {
@@ -307,7 +302,7 @@ export default function AppointmentRequestPage() {
   const dayWindows = windowsForWeekday(company?.businessHours, date);
   const closedToday = hoursConfigured && dayWindows.length === 0;
   const dayMinTime = dayWindows.length ? dayWindows[0].startTime : undefined;
-  const dayMaxTime = dayWindows.length ? dayWindows.reduce((max, w) => (w.endTime > max ? w.endTime : max), dayWindows[0].endTime) : undefined;
+  const dayClose = dayWindows.length ? dayWindows.reduce((max, w) => (w.endTime > max ? w.endTime : max), dayWindows[0].endTime) : undefined;
   // api/lead-capture.js'teki groupedDurationMinutes ile AYNI ilke (kasıtlı
   // kopya) - aynı parallel_group'taki hizmetler MAX (eşzamanlı), farklı
   // gruptaki/grupsuz hizmetler SUM (ardışık) alınır. Sunucunun booking anında
@@ -322,6 +317,10 @@ export default function AppointmentRequestPage() {
       });
     return [...groups.values()].reduce((sum, v) => sum + v, 0);
   })();
+  // Hizmet süresi kapanışı aşan bir başlangıç saati seçilemesin (kapanış 18:00,
+  // süre 60 dk ise en geç 17:00).
+  const dayMaxTime =
+    dayClose && selectedDuration > 0 ? shiftTimeLocal(dayClose, -selectedDuration) : dayClose;
 
   const toggleService = (id) => {
     setServiceIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));

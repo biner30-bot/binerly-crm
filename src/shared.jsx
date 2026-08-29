@@ -1759,6 +1759,28 @@ export function formatTimeWindowsSummary(windows) {
   return `${summary.rangeLabel} (${breakLabels.join(", ")})`;
 }
 
+// Müşteriye (portal/widget) gösterilen çalışma saatleri - mola/öğle arası KOBİ'yi
+// ilgilendirir, müşteriye göstermeyiz; sadece açık pencereleri listeleriz
+// ("09:00-12:00, 13:00-18:00").
+export function formatWorkingHoursPlain(windows) {
+  if (!windows || windows.length === 0) return "";
+  return [...windows]
+    .sort((a, b) => a.startTime.localeCompare(b.startTime))
+    .map((w) => `${w.startTime}-${w.endTime}`)
+    .join(", ");
+}
+
+// "HH:MM" + dakika kayması -> "HH:MM". Randevu alma ekranlarında "kapanışa
+// hizmet süresi kadar kala" son başlangıç saatini hesaplamak için.
+export function shiftTimeStr(hhmm, deltaMinutes) {
+  if (!hhmm) return hhmm;
+  const total = minutesOfDay(hhmm) + deltaMinutes;
+  if (total < 0) return "00:00";
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 // Müşteri Takibi satırındaki tekil ikon butonları (PDF, onay linki, tahsilat,
 // kopyala, düzenle, sil...) sayı arttıkça (seans/paket alanlarıyla 7'ye kadar
 // çıkabiliyordu) sıkışık ve okunaksız hale geliyordu. Tek bir "..." menüsünde

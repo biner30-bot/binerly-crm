@@ -25,7 +25,8 @@ import {
   SegmentedControl,
   THEME_OPTIONS,
   escapeIlikePattern,
-  formatTimeWindowsSummary,
+  formatWorkingHoursPlain,
+  shiftTimeStr,
 } from "./shared";
 import {
   STAGES,
@@ -2038,7 +2039,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
   const dayWindows = windowsForWeekday(businessHours, date);
   const closedToday = hoursConfigured && dayWindows.length === 0;
   const dayMinTime = dayWindows.length ? dayWindows[0].startTime : undefined;
-  const dayMaxTime = dayWindows.length
+  const dayClose = dayWindows.length
     ? dayWindows.reduce((max, w) => (w.endTime > max ? w.endTime : max), dayWindows[0].endTime)
     : undefined;
   const toggleService = (id) => {
@@ -2077,6 +2078,10 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
       });
     return [...groups.values()].reduce((sum, v) => sum + v, 0);
   })();
+  // Hizmet süresi kapanışı aşan bir başlangıç saati seçilemesin (kapanış 18:00,
+  // süre 60 dk ise en geç 17:00) - sadece talep modu saat tercihi alanı için.
+  const dayMaxTime =
+    dayClose && selectedDuration > 0 ? shiftTimeStr(dayClose, -selectedDuration) : dayClose;
 
   const confirm = async () => {
     const cleanPrefs = timePrefs.filter(Boolean);
@@ -2289,7 +2294,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
               </label>
               {dayWindows.length > 0 && (
                 <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 8px" }}>
-                  Çalışma saatleri: {formatTimeWindowsSummary(dayWindows)}
+                  Çalışma saatleri: {formatWorkingHoursPlain(dayWindows)}
                 </p>
               )}
               {timePrefs.map((t, i) => (
