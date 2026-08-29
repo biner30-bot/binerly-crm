@@ -114,6 +114,12 @@ export const HELP_TOPICS = [
   },
   {
     category: "Randevu & Program",
+    q: "Randevu saatleri Müsaitlik Saatleri'ne mi personel vardiyalarına mı göre olsun?",
+    a: 'Ayarlar → Müsaitlik Saatleri → "Randevu müsaitliği neye göre" seçeneğinden belirlersiniz. Varsayılan "Müsaitlik Saatleri": slotlar tanımladığınız haftalık açık saatlere göre açılır, aynı saate "Eş zamanlı randevu kapasitesi" kadar randevu alınır. "Personel Vardiyaları" seçilirse: slotlar Takım → Vardiya\'daki vardiyalara göre açılır ve bir saatte kaç personel vardiyadaysa o saate o kadar randevu alınır - sabah tek kişi vardiyadaysa sabah o saate tek randevu verilir. Öğle molası ve haftalık tatiller otomatik hariç tutulur, o gün izinli (yıllık/raporlu) personel sayılmaz. Bir gün için hiç vardiya girmediyseniz o gün otomatik Müsaitlik Saatleri\'ne göre çalışır, yani az personelli işletmeler vardiya doldurmak zorunda kalmaz.',
+    visibleIf: (sector) => bookingModel(sector) === "slot",
+  },
+  {
+    category: "Randevu & Program",
     q: "Randevu hatırlatması otomatik mi gidiyor?",
     a: "Evet, randevu saatinden yaklaşık 2 saat önce müşteriye otomatik hatırlatma e-postası gider. Ayarlar → İşletme Bilgileri'nden bu özelliği kapatabilirsiniz.",
     visibleIf: (sector) => supportsSelfBooking(sector),
