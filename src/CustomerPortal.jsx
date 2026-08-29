@@ -162,6 +162,8 @@ function rowToDeal(r) {
     sessionTotal: r.session_total ?? null,
     sessionUsed: r.session_used ?? 0,
     lateCancelCount: r.late_cancel_count || 0,
+    appointmentOfferStatus: r.appointment_offer_status || null,
+    appointmentOfferTime: r.appointment_offer_time || null,
   };
 }
 
@@ -1222,6 +1224,19 @@ function PortalDealList({
                     : "accent";
             const randevuTarihi = d.customFields?.portal_randevu_zamani;
             const cancellable = d.stage === "ilk_gorusme" && randevuTarihi;
+            // "Sadece talep al" modu: müşteri gün + saat tercihi bıraktı, henüz
+            // gerçek bir randevu saati yok. İşletme bir saat önerdiyse
+            // (appointmentOfferStatus="sent") müşteri onu /randevu-onay/{token}'dan
+            // onaylar - generic "Onayla" (/onay/{token}) DEĞİL, çünkü müşteri
+            // önerilen SAATİ görmeden onaylamamalı. Öneri henüz yoksa buton hiç
+            // gösterilmez, "talebiniz değerlendiriliyor" durumu yeter.
+            const isAppointmentRequest =
+              (d.customFields?.kaynak === "portal_talep" ||
+                d.customFields?.kaynak === "randevu_widget_talep") &&
+              d.appointmentOfferStatus !== "confirmed" &&
+              !d.approvedAt &&
+              !randevuTarihi;
+            const offerSent = isAppointmentRequest && d.appointmentOfferStatus === "sent";
             const hardBlockHours = hardBlockHoursByCustomerId[d.customerId];
             const penaltyHours = appointmentPenaltyHoursByCustomerId[d.customerId];
             const partialChargeHours = appointmentPartialChargeHoursByCustomerId[d.customerId];
@@ -1264,8 +1279,9 @@ function PortalDealList({
             // Portaldan kendi alınan randevu/üyelik/rezervasyonlarda (kaynak: "portal")
             // onay diye bir kavram yok — müşteri zaten kendi almış, tek eylem ödeme.
             const isSelfBooked = SELF_BOOKED_SOURCES.has(d.customFields?.kaynak);
-            const actionLabel =
-              isCompleted || isSelfBooked
+            const actionLabel = offerSent
+              ? "Randevu saatini yanıtla"
+              : isCompleted || isSelfBooked
                 ? "Öde"
                 : !isApproved
                   ? d.paymentMode === "required"
@@ -1274,6 +1290,11 @@ function PortalDealList({
                       ? "Onayla / Öde"
                       : "Onayla"
                   : "Öde";
+            // "Sadece talep al": öneri gelene kadar hiç eylem yok; öneri gelince
+            // önerilen saati gösteren /randevu-onay/{token} sayfasına yönlendirir.
+            const actionHref = offerSent
+              ? `/randevu-onay/${d.approvalToken}`
+              : `/onay/${d.approvalToken}`;
             // Ödeyen müşteri artık kaynağı ne olursa olsun approved_at alıyor
             // (api/deal-approval.js) — self-booked+ödenmiş bir kayıtta bile
             // isApproved true olabilir. actionLabel/showAction bunu isCompleted
@@ -1283,7 +1304,13 @@ function PortalDealList({
             // "onaylamadı", sadece ödedi, o zaten ayrı bir rozetle belli oluyor.
             const showAction =
               d.approvalToken &&
-              (isCompleted || isSelfBooked ? needsPayment : !isApproved || needsPayment);
+              (offerSent
+                ? true
+                : isAppointmentRequest
+                  ? false
+                  : isCompleted || isSelfBooked
+                    ? needsPayment
+                    : !isApproved || needsPayment);
             const dealDocs = sharedAttachments.filter((a) => a.dealId === d.id);
             const sectorIcon =
               SECTOR_PRESETS.find((s) => s.id === sectorByCustomerId[d.customerId])?.icon ||
@@ -1355,6 +1382,28 @@ function PortalDealList({
                     >
                       <i className="ti ti-clock" style={{ fontSize: 13 }} aria-hidden="true"></i>
                       {formatDateTime(randevuTarihi)}
+                    </p>
+                  )}
+                  {offerSent && d.appointmentOfferTime && (
+                    <p
+                      style={{
+                        margin: "4px 0 0",
+                        fontSize: 12.5,
+                        color: "var(--text-accent)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 5,
+                      }}
+                    >
+                      <i className="ti ti-clock" style={{ fontSize: 13 }} aria-hidden="true"></i>
+                      Önerilen saat: {formatDateTime(d.appointmentOfferTime)}
+                    </p>
+                  )}
+                  {isAppointmentRequest && !offerSent && (
+                    <p
+                      style={{ margin: "4px 0 0", fontSize: 12.5, color: "var(--text-secondary)" }}
+                    >
+                      Randevu talebiniz alındı - en kısa sürede size bir saat önereceğiz.
                     </p>
                   )}
                   {showCompany && (
@@ -1445,7 +1494,7 @@ function PortalDealList({
                   >
                     {showAction && (
                       <a
-                        href={`/onay/${d.approvalToken}`}
+                        href={actionHref}
                         style={{
                           display: "inline-flex",
                           alignItems: "center",
