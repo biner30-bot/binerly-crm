@@ -70,7 +70,7 @@ function Section({ title, children }) {
 
 export function PrivacyPolicyPage() {
   return (
-    <LegalLayout title="Gizlilik Politikası" updatedAt="29 Temmuz 2026">
+    <LegalLayout title="Gizlilik Politikası" updatedAt="29 Ağustos 2026">
       <Section title="1. Genel">
         <p>
           Bu Gizlilik Politikası, Binerly ("biz", "Binerly") tarafından işletilen KOBİ CRM
@@ -90,12 +90,17 @@ export function PrivacyPolicyPage() {
           özellik, hesap sahibinin kendi müşterisinden ayrıca açık rıza almasını gerektirecek
           şekilde tasarlanmıştır (bkz. KVKK Aydınlatma Metni m.2).
         </p>
+        <p>
+          Hesap güvenliği ve herkese açık formların (randevu/iletişim) kötüye kullanımının önlenmesi
+          amacıyla giriş kayıtları ile form gönderimi sırasındaki IP adresi işlenir. Form spam'ini
+          engellemek için tutulan IP kaydı en fazla 24 saat sonra otomatik olarak silinir.
+        </p>
       </Section>
       <Section title="3. Verilerin Kullanım Amacı">
         <p>
           Toplanan veriler yalnızca hizmetin sunulması (müşteri/satış/destek yönetimi, e-posta
-          bildirimleri, teklif oluşturma), hesap güvenliğinin sağlanması ve yasal yükümlülüklerin
-          yerine getirilmesi amacıyla kullanılır.
+          bildirimleri, teklif oluşturma), hesap güvenliğinin sağlanması, hizmetin kötüye kullanıma
+          karşı korunması ve yasal yükümlülüklerin yerine getirilmesi amacıyla kullanılır.
         </p>
       </Section>
       <Section title="4. Üçüncü Taraf Hizmet Sağlayıcılar">
@@ -151,7 +156,7 @@ export function PrivacyPolicyPage() {
 
 export function KvkkPage() {
   return (
-    <LegalLayout title="KVKK Aydınlatma Metni" updatedAt="29 Temmuz 2026">
+    <LegalLayout title="KVKK Aydınlatma Metni" updatedAt="29 Ağustos 2026">
       <Section title="1. Veri Sorumlusu">
         <p>
           6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") uyarınca, Binerly markası altında
@@ -163,17 +168,21 @@ export function KvkkPage() {
         <p>
           Kimlik bilgileri (ad-soyad), iletişim bilgileri (e-posta, telefon), müşteri ilişkisi
           kapsamında hesap sahibi tarafından sisteme girilen veriler (satış/teklif/destek
-          kayıtları), işlem güvenliği bilgileri (giriş kayıtları). Hesap sahibinin tercihine bağlı
-          olarak, bazı sektörlerde (örn. Sağlık/Klinik, Güzellik & Bakım) tedavi öncesi/sonrası
-          fotoğraflar gibi görsel veriler de işlenebilir; bu veriler KVKK m.6 kapsamında özel
-          nitelikli kişisel veri sayılabilir.
+          kayıtları), işlem güvenliği bilgileri (giriş kayıtları; herkese açık randevu/iletişim
+          formlarının gönderildiği andaki IP adresi). Hesap sahibinin tercihine bağlı olarak, bazı
+          sektörlerde (örn. Sağlık/Klinik, Güzellik & Bakım) tedavi öncesi/sonrası fotoğraflar gibi
+          görsel veriler de işlenebilir; bu veriler KVKK m.6 kapsamında özel nitelikli kişisel veri
+          sayılabilir.
         </p>
       </Section>
       <Section title="3. İşleme Amacı ve Hukuki Sebep">
         <p>
           Kişisel verileriniz, KVKK m.5/2(c) sözleşmenin kurulması/ifası ve m.5/2(f) meşru menfaat
-          hukuki sebeplerine dayanarak; CRM hizmetinin sunulması, destek taleplerinin yönetilmesi ve
-          yasal yükümlülüklerin yerine getirilmesi amacıyla işlenmektedir. Özel nitelikli kişisel
+          hukuki sebeplerine dayanarak; CRM hizmetinin sunulması, destek taleplerinin yönetilmesi,
+          hizmetin güvenliğinin ve otomatik/bot kaynaklı kötüye kullanıma (form spam'i) karşı
+          korunmasının sağlanması ve yasal yükümlülüklerin yerine getirilmesi amacıyla
+          işlenmektedir. Herkese açık formların kötüye kullanımını engellemek amacıyla tutulan IP
+          kayıtları en fazla 24 saat içinde otomatik olarak silinir. Özel nitelikli kişisel
           verileriniz (örn. tedavi öncesi/sonrası fotoğraflar) yalnızca KVKK m.6/2 uyarınca açık
           rızanıza dayanılarak işlenir.
         </p>
