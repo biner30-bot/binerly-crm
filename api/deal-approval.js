@@ -10,6 +10,14 @@ const PAYTR_GET_TOKEN_URL = "https://www.paytr.com/odeme/api/get-token";
 const PAYTR_REFUND_URL = "https://www.paytr.com/odeme/iade";
 const INSTALLMENT_TIERS = [1, 2, 3, 6, 9, 12]; // Türkiye'deki standart taksit kademeleri
 
+// Token bazlı, girişsiz açılan tüm müşteri sayfalarının (onay/hatırlatma/
+// değerlendirme/teklif) altındaki ince güven satırı - müşteri e-postadan gelen
+// linkin meşru bir altyapı olduğunu görsün, ama işletmenin markası (logo +
+// üstteki metin) öne çıkmaya devam etsin. Client sayfalardaki (AppointmentRequestPage
+// vb.) "Binerly ile güvenle yönetiliyor" ile aynı.
+const BINERLY_TRUST_FOOTER =
+  '<p style="max-width:440px;margin:14px auto 0;text-align:center;font-size:11px;color:#94a7bb;">Binerly ile güvenle yönetiliyor</p>';
+
 // api/whatsapp-webhook.js / api/instagram-webhook.js'teki AYNI ilke (kasıtlı
 // kopya, projenin diğer "ayrı dosya, ayrı kopya" desenleriyle tutarlı) —
 // düz === karşılaştırması bir zamanlama yan kanalı (timing side-channel)
@@ -302,6 +310,7 @@ function renderAttendancePage({ logoUrl, title, message, note, formToken, formRe
         ${form}
       </div>
     </div>
+    ${BINERLY_TRUST_FOOTER}
   </body>
 </html>`;
 }
@@ -692,6 +701,7 @@ function renderOfferChoicePage({ logoUrl, company, dealTitle, dateLabel, token }
         </form>
       </div>
     </div>
+    ${BINERLY_TRUST_FOOTER}
   </body>
 </html>`;
 }
@@ -820,6 +830,7 @@ function renderReviewPage({ logoUrl, bodyHtml, company }) {
         ${bodyHtml}
       </div>
     </div>
+    ${BINERLY_TRUST_FOOTER}
   </body>
 </html>`;
 }
