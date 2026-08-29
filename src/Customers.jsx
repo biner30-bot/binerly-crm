@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Modal,
   InfoTip,
@@ -6,6 +6,7 @@ import {
   Badge,
   formatTL,
   uid,
+  useFormDraft,
   TagInput,
   VoiceInputButton,
   AttachmentList,
@@ -89,26 +90,81 @@ export function CustomerForm({
   sectorTags = [],
   preferredCustomerType,
   companySector,
+  draftScopeId,
   onSave,
   onCancel,
 }) {
   const initialIsCustomSector = initial?.sector && !SECTORS.includes(initial.sector);
+  // Yalnızca yeni müşteride yarım kalan içerik korunur (düzenlemede bayat veri riski).
+  const {
+    draft,
+    persist: persistDraft,
+    clear: clearDraft,
+    restored: draftRestored,
+  } = useFormDraft(`customer_new_${draftScopeId}`, !initial?.id);
+  const [showDraftNote, setShowDraftNote] = useState(draftRestored);
   const [customerType, setCustomerType] = useState(
-    initial?.customerType || preferredCustomerType || "kurumsal",
+    draft.customerType ?? (initial?.customerType || preferredCustomerType || "kurumsal"),
   );
-  const [name, setName] = useState(initial?.name || "");
+  const [name, setName] = useState(draft.name ?? (initial?.name || ""));
   const [sector, setSector] = useState(
-    initialIsCustomSector ? "Diğer" : initial?.sector || SECTORS[0],
+    draft.sector ?? (initialIsCustomSector ? "Diğer" : initial?.sector || SECTORS[0]),
   );
-  const [customSector, setCustomSector] = useState(initialIsCustomSector ? initial.sector : "");
-  const [region, setRegion] = useState(initial?.region || "");
-  const [address, setAddress] = useState(initial?.address || "");
-  const [phone, setPhone] = useState(initial?.phone || "");
-  const [email, setEmail] = useState(initial?.email || "");
-  const [notes, setNotes] = useState(initial?.notes || "");
-  const [tags, setTags] = useState(initial?.tags || []);
-  const [customFields, setCustomFields] = useState(initial?.customFields || {});
+  const [customSector, setCustomSector] = useState(
+    draft.customSector ?? (initialIsCustomSector ? initial.sector : ""),
+  );
+  const [region, setRegion] = useState(draft.region ?? (initial?.region || ""));
+  const [address, setAddress] = useState(draft.address ?? (initial?.address || ""));
+  const [phone, setPhone] = useState(draft.phone ?? (initial?.phone || ""));
+  const [email, setEmail] = useState(draft.email ?? (initial?.email || ""));
+  const [notes, setNotes] = useState(draft.notes ?? (initial?.notes || ""));
+  const [tags, setTags] = useState(draft.tags ?? (initial?.tags || []));
+  const [customFields, setCustomFields] = useState(
+    draft.customFields ?? (initial?.customFields || {}),
+  );
   const [formError, setFormError] = useState("");
+
+  useEffect(() => {
+    const hasContent = !!(
+      name.trim() ||
+      phone.trim() ||
+      email.trim() ||
+      address.trim() ||
+      region.trim() ||
+      notes.trim() ||
+      (tags && tags.length) ||
+      Object.keys(customFields || {}).length
+    );
+    persistDraft(
+      {
+        customerType,
+        name,
+        sector,
+        customSector,
+        region,
+        address,
+        phone,
+        email,
+        notes,
+        tags,
+        customFields,
+      },
+      hasContent,
+    );
+  }, [
+    persistDraft,
+    customerType,
+    name,
+    sector,
+    customSector,
+    region,
+    address,
+    phone,
+    email,
+    notes,
+    tags,
+    customFields,
+  ]);
   const isKurumsal = customerType === "kurumsal";
   const defsForEntity = customFieldDefs.filter(
     (d) => d.entity === "customer" && (!d.audience || d.audience === customerType),
@@ -172,9 +228,35 @@ export function CustomerForm({
           return;
         }
         setFormError("");
+        clearDraft();
         onSave(payload);
       }}
     >
+      {showDraftNote && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+            fontSize: 12.5,
+            color: "var(--text-secondary)",
+            background: "var(--bg-accent)",
+            border: "0.5px solid var(--border)",
+            borderRadius: "var(--radius)",
+            padding: "6px 10px",
+            marginBottom: 12,
+          }}
+        >
+          <span>Yarım kalan kayıt geri yüklendi.</span>
+          <IconButton
+            icon="ti-x"
+            title="Bu bildirimi gizle"
+            size="sm"
+            onClick={() => setShowDraftNote(false)}
+          />
+        </div>
+      )}
       <div style={{ marginBottom: 12 }}>
         <label
           style={{
@@ -401,7 +483,13 @@ export function CustomerForm({
         </p>
       )}
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-        <button type="button" onClick={onCancel}>
+        <button
+          type="button"
+          onClick={() => {
+            clearDraft();
+            onCancel();
+          }}
+        >
           Vazgeç
         </button>
         <button

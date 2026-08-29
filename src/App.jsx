@@ -5364,6 +5364,7 @@ export default function App() {
             sectorTags={sectorCustomerTags(companySettings?.sector)}
             preferredCustomerType={companySettings?.preferredCustomerType}
             companySector={companySettings?.sector}
+            draftScopeId={activeTeamId}
             onSave={upsertCustomer}
             onCancel={() => { setShowCustomerForm(false); setEditingCustomer(null); }}
           />

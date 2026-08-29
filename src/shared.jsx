@@ -38,7 +38,9 @@ function clearFormDraft(key) {
 // enabled: sadece YENİ kayıt formunda true (düzenlemede bayat veri riski).
 // Dönüş: { draft, persist, clear, restored }
 //   draft    - mount'ta bir kez okunan kayıtlı taslak ({} = yok)
-//   persist  - ~400ms debounce ile mevcut form değerlerini yazar
+//   persist(obj, hasContent) - ~400ms debounce ile yazar; hasContent false ise
+//              (form boş/pristine) mevcut taslağı SİLER - boş bir taslak
+//              kaydedilip sonraki açılışta yanıltıcı "geri yüklendi" notu çıkmasın
 //   clear    - taslağı siler (kayıt başarılı olunca / Vazgeç'te çağır)
 //   restored - açılışta dolu bir taslak geri yüklendi mi (bilgi notu için)
 export function useFormDraft(key, enabled) {
@@ -52,10 +54,13 @@ export function useFormDraft(key, enabled) {
   const timerRef = useRef(null);
 
   const persist = useCallback(
-    (obj) => {
+    (obj, hasContent = true) => {
       if (!enabled) return;
       clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => saveFormDraft(key, obj), 400);
+      timerRef.current = setTimeout(
+        () => (hasContent ? saveFormDraft(key, obj) : clearFormDraft(key)),
+        400,
+      );
     },
     [key, enabled],
   );
