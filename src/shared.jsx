@@ -173,42 +173,54 @@ export function getRangeBounds(range, custom) {
   return { start: null, end };
 }
 
+// Sekme şeridi (segmented control). "Track"i modal/kart zemininden ayırmak için
+// --bg zeminli + kenarlıklı bir kap; seçili segment dolgulu accent "thumb",
+// diğerleri sönük metin. Buton başına gölge/hover-kalkma index.html'de
+// .segmented-control kuralıyla bastırılır - yoksa her segment ayrı bir buton
+// gibi görünüp "sekme" hissi kayboluyordu.
 export function SegmentedControl({ value, onChange, options }) {
   return (
     <div
+      className="segmented-control"
       style={{
-        display: "flex",
-        gap: 4,
-        background: "var(--surface-1)",
-        boxShadow: "var(--shadow-sm)",
+        display: "inline-flex",
+        gap: 2,
+        background: "var(--bg)",
+        border: "0.5px solid var(--border)",
         borderRadius: "var(--radius)",
         padding: 3,
-        width: "fit-content",
+        maxWidth: "100%",
         flexWrap: "wrap",
       }}
     >
-      {options.map((o) => (
-        <button
-          key={o.id}
-          onClick={() => onChange(o.id)}
-          style={{
-            border: "none",
-            borderRadius: "calc(var(--radius) - 3px)",
-            padding: "6px 12px",
-            background: value === o.id ? "var(--fill-accent)" : "transparent",
-            color: value === o.id ? "var(--on-accent)" : "var(--text-primary)",
-            fontWeight: value === o.id ? 600 : 500,
-            fontSize: 13,
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          {o.label}
-        </button>
-      ))}
+      {options.map((o) => {
+        const active = value === o.id;
+        return (
+          <button
+            key={o.id}
+            type="button"
+            data-active={active ? "true" : "false"}
+            onClick={() => onChange(o.id)}
+            style={{
+              border: "none",
+              boxShadow: active ? "var(--shadow-sm)" : "none",
+              borderRadius: "calc(var(--radius) - 3px)",
+              padding: "6px 12px",
+              background: active ? "var(--fill-accent)" : "transparent",
+              color: active ? "var(--on-accent)" : "var(--text-secondary)",
+              fontWeight: active ? 600 : 500,
+              fontSize: 13,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            {o.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

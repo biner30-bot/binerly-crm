@@ -165,6 +165,14 @@
          translateY ile hafif kalkma + basınca geri oturma dokunsal his katıyor. */
       button:hover:not(:disabled) { filter: brightness(0.96); transform: translateY(-1px); box-shadow: var(--shadow-md); }
       button:active:not(:disabled) { filter: brightness(0.9); transform: translateY(0); box-shadow: var(--shadow-sm); }
+      /* Sekme şeridi (shared.jsx SegmentedControl): segmentler tek tek buton
+         gibi görünmesin - genel button hover/active "kalkma"sı ve gölgesi
+         bastırılır, seçili olmayan segmentte sadece hafif bir zemin belirir. */
+      .segmented-control button:hover:not(:disabled) { transform: none; box-shadow: none; filter: none; }
+      .segmented-control button:active:not(:disabled) { transform: none; box-shadow: none; }
+      .segmented-control button[data-active="false"]:hover:not(:disabled) { background: var(--surface-1); }
+      .segmented-control button[data-active="true"] { box-shadow: var(--shadow-sm); }
+      .segmented-control button[data-active="true"]:hover:not(:disabled) { filter: brightness(0.97); box-shadow: var(--shadow-sm); }
       input, select, textarea {
         font-family: inherit;
         /* 16px altı font-size'da iOS Safari input'a odaklanınca sayfayı
