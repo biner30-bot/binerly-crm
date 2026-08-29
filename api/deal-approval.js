@@ -98,7 +98,36 @@ function getClientIp(req) {
 // diline ve tarihsiz metne düşer, hata fırlatmaz.
 async function markApproved(supabaseAdmin, deal, customer, note, contentSuffix, sector) {
   const approvedAt = new Date().toISOString();
-  const { error: updateError } = await supabaseAdmin.from("deals").update({ approved_at: approvedAt }).eq("id", deal.id);
+  const dealUpdate = { approved_at: approvedAt };
+
+  // "Sadece talep al" modunda gönderilmiş, henüz onaylanmamış bir randevu
+  // teklifi deal ile AYNI approval_token'ı paylaşır - müşteri portaldan ya da
+  // /onay/{token} linkinden "Onaylıyorum" ile de onaylayabiliyor. Bu durumda
+  // teklifi de KESİNLEŞTİR (randevu tarihi alanını yaz + offer_status=confirmed),
+  // yoksa müşteri onayladığını sanır ama randevu "sent"te asılı kalır, KOBİ
+  // Pano'da "Teklif gönderildi" görmeye devam eder (kullanıcı bulmuş bug).
+  const offerPending =
+    deal.appointment_offer_status === "sent" &&
+    deal.appointment_offer_time &&
+    !(deal.appointment_offer_expires_at && new Date(deal.appointment_offer_expires_at).getTime() < Date.now());
+  if (offerPending) {
+    const { data: dtDefs } = await supabaseAdmin
+      .from("custom_field_defs")
+      .select("key")
+      .eq("user_id", deal.user_id)
+      .eq("entity", "deal")
+      .eq("field_type", "datetime")
+      .eq("active", true)
+      .limit(1);
+    const dtKey = dtDefs?.[0]?.key;
+    if (dtKey) {
+      const localStr = toIstanbulLocalString(new Date(deal.appointment_offer_time));
+      dealUpdate.custom_fields = { ...(deal.custom_fields || {}), [dtKey]: localStr, portal_randevu_zamani: localStr };
+      dealUpdate.appointment_offer_status = "confirmed";
+    }
+  }
+
+  const { error: updateError } = await supabaseAdmin.from("deals").update(dealUpdate).eq("id", deal.id);
   if (updateError) throw new Error(updateError.message);
 
   const wordAcc = dealWordAcc(sector);
