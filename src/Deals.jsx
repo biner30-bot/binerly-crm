@@ -42,6 +42,7 @@ import {
 import { DEAL_WORD_FORMS } from "./staticData";
 import { TaskForm } from "./Tasks";
 import { SessionsTab } from "./Sessions";
+import { staffShiftsEffectiveOnDate } from "./Team";
 // Vadesi geçmiş bakiye / kredi limiti uyarısı — GERÇEK BİR ENGEL DEĞİL, sadece
 // bilgilendirme (kullanıcının kararı: "riskli müşteriye teklif vermek KOBİ'nin
 // kendi bileceği iş"). "Ödeme Vadesi" (Peşin/30 gün/60 gün/90 gün) zaten var
@@ -462,6 +463,7 @@ export function DealForm({
   minProfitMarginPercent = null,
   businessHours = [],
   staffShifts = [],
+  staffLeaveRecords = [],
   initialLineItems = [],
   dealLineItems = [],
   hasPaymentConnection = false,
@@ -470,6 +472,7 @@ export function DealForm({
   appointmentPenaltyStrikeLimit = null,
   appointmentPenaltyBurnsSession = false,
   appointmentConcurrency = null,
+  appointmentAvailabilitySource = "business_hours",
   onUploadAttachment,
   onDownloadAttachment,
   onDeleteAttachment,
@@ -729,6 +732,32 @@ export function DealForm({
     return result;
   })();
   const staffCanDoServices = (id) => !capableStaffIds || capableStaffIds.has(id);
+
+  // Vardiya bazlı müsaitlik (Ayarlar > Müsaitlik Saatleri = "Personel
+  // Vardiyaları"): atanmamış randevunun o saatteki tavanı, düz eş zamanlı
+  // kapasite yerine "o an vardiyada olan + hizmeti yapabilen personel sayısı"
+  // olur. api/_appointment-shifts.js'in istemci eşdeğeri - o haftagünü hiç
+  // vardiya yoksa (weekdayHasAnyShiftOn false) Müsaitlik Saatleri'ne düşülür.
+  const shiftAvailabilityMode = appointmentAvailabilitySource === "shifts";
+  const memberOnLeaveOn = (memberId, dateStr) =>
+    staffLeaveRecords.some(
+      (r) => r.memberId === memberId && r.startDate <= dateStr && dateStr <= r.endDate,
+    );
+  const memberOnShiftAt = (memberId, dateStr, startMin, endMin) => {
+    if (memberOnLeaveOn(memberId, dateStr)) return false;
+    const rows = staffShiftsEffectiveOnDate(staffShifts, memberId, dateStr);
+    if (rows.length === 0 || rows.some((r) => r.isOff)) return false;
+    return rows.some((r) => {
+      if (!r.startTime || !r.endTime) return false;
+      const [sh, sm] = r.startTime.split(":").map(Number);
+      const [eh, em] = r.endTime.split(":").map(Number);
+      return startMin >= sh * 60 + sm && endMin <= eh * 60 + em;
+    });
+  };
+  const weekdayHasAnyShiftOn = (dateStr) =>
+    [...validStaffIds].some(
+      (id) => staffShiftsEffectiveOnDate(staffShifts, id, dateStr).length > 0,
+    );
   // Var olan bir kaydı düzenlerken (Sorumlu/Etiket/Özel Alan/Dosya gibi zaten
   // doldurulmuş olabilecek alanlar sessizce gizli kalmasın diye) akordeon
   // açık başlar; yeni kayıtta (henüz hiçbir "ek" alan dolu olamayacağı için)
@@ -883,44 +912,74 @@ export function DealForm({
     const assigneeCanDoService = !assignedTo || !capableStaffIds || capableStaffIds.has(assignedTo);
     if ((assignedTo && assigneeCanDoService) || resourceId) return null;
 
-    // Hizmet bazlı personel yetkinliği: seçili hizmet(ler)i sınırlı sayıda
-    // personel yapabiliyorsa (Takım > Hizmetler), o saatteki genel kapasite
-    // yerine "bu hizmeti yapabilen kaç kişi bosta" geçerli olur. Sorumlu
-    // atanmamış randevular için — atanmışlar zaten yukarıdaki personel
-    // kontrolü + DB deals_assigned_to_no_overlap ile garantili.
+    // Etkin kapasite tavanı - Sorumlu atanmamış randevular için (atanmışlar
+    // yukarıdaki personel kontrolü + DB deals_assigned_to_no_overlap ile
+    // garantili). Üç katman: (a) eş zamanlı randevu kapasitesi ayarı,
+    // (b) hizmet kısıtlıysa (Takım > Hizmetler) o hizmeti yapabilen kişi sayısı,
+    // (c) vardiya bazlı müsaitlik modunda o an vardiyada olan kişi sayısı.
+    const svcLabel = () =>
+      selectedServiceIds
+        .map((sid) => priceListItems.find((p) => p.id === sid)?.name)
+        .filter(Boolean)
+        .join(", ") || "bu hizmet";
+    let ceiling = concurrency;
+    let capacityCapped = false;
     if (capableStaffIds) {
-      const effectiveConcurrency = Math.max(1, Math.min(concurrency, capableStaffIds.size));
-      // Yalnızca yetkin havuzu bu randevunun havuzuyla KESİŞEN diğer
-      // randevular sayılır - hizmeti bilinemeyen / kısıtsız randevu tüm
-      // havuzla kesişir (temkinli taraf, fazladan engelleyebilir ama güvenli).
-      const competing = overlapping.filter((d) => {
-        const otherServiceIds = [
-          d.customFields?.price_item_id,
-          ...(d.customFields?.service_ids || []),
-          ...dealLineItems.filter((li) => li.dealId === d.id).map((li) => li.priceItemId),
-        ].filter(Boolean);
-        let otherPool = null;
-        for (const sid of otherServiceIds) {
-          const capable = capableForService(priceListItems.find((p) => p.id === sid));
-          if (capable === null) return true; // kısıtsız/bilinmeyen hizmet -> her zaman rekabet eder
-          otherPool = otherPool === null ? capable : new Set([...otherPool, ...capable]);
-        }
-        if (otherPool === null) return true;
-        return [...otherPool].some((id) => capableStaffIds.has(id));
-      });
-      if (competing.length < effectiveConcurrency) return null;
-      const svcName =
-        selectedServiceIds
-          .map((sid) => priceListItems.find((p) => p.id === sid)?.name)
-          .filter(Boolean)
-          .join(", ") || "bu hizmet";
-      return `Bu tarih/saatte ${svcName} yapabilen personelin tamamı dolu - başka bir saat seçin.`;
+      ceiling = Math.min(ceiling, capableStaffIds.size);
+      capacityCapped = true;
+    }
+    let noStaffOnShift = false;
+    if (shiftAvailabilityMode) {
+      const dateStr = dt.slice(0, 10);
+      const parsed = weekdayAndMinutesFromDateTimeStr(dt);
+      if (parsed && weekdayHasAnyShiftOn(dateStr)) {
+        const pool = capableStaffIds ? [...capableStaffIds] : [...validStaffIds];
+        const onShift = pool.filter((id) =>
+          memberOnShiftAt(
+            id,
+            dateStr,
+            parsed.minutesOfDay,
+            parsed.minutesOfDay + candidateDuration,
+          ),
+        ).length;
+        ceiling = Math.min(ceiling, onShift);
+        capacityCapped = true;
+        noStaffOnShift = onShift === 0;
+      }
     }
 
-    if (overlapping.length < concurrency) return null;
-    const conflict = overlapping[0];
-    const name = customers.find((c) => c.id === conflict.customerId)?.name || "başka bir kayıt";
-    return `Bu tarih/saatte ${name} için de aktif bir randevu var - aynı saate iki randevu girilemez.`;
+    if (!capacityCapped) {
+      if (overlapping.length < concurrency) return null;
+      const conflict = overlapping[0];
+      const name = customers.find((c) => c.id === conflict.customerId)?.name || "başka bir kayıt";
+      return `Bu tarih/saatte ${name} için de aktif bir randevu var - aynı saate iki randevu girilemez.`;
+    }
+
+    if (noStaffOnShift) {
+      return `Bu tarih/saatte ${svcLabel()} yapabilen vardiyada personel yok - başka bir saat seçin.`;
+    }
+    // Yalnızca yetkin havuzu bu randevunun havuzuyla KESİŞEN diğer randevular
+    // sayılır - hizmeti bilinemeyen / kısıtsız randevu tüm havuzla kesişir
+    // (temkinli taraf, fazladan engelleyebilir ama güvenli).
+    const competing = capableStaffIds
+      ? overlapping.filter((d) => {
+          const otherServiceIds = [
+            d.customFields?.price_item_id,
+            ...(d.customFields?.service_ids || []),
+            ...dealLineItems.filter((li) => li.dealId === d.id).map((li) => li.priceItemId),
+          ].filter(Boolean);
+          let otherPool = null;
+          for (const sid of otherServiceIds) {
+            const capable = capableForService(priceListItems.find((p) => p.id === sid));
+            if (capable === null) return true; // kısıtsız/bilinmeyen hizmet -> her zaman rekabet eder
+            otherPool = otherPool === null ? capable : new Set([...otherPool, ...capable]);
+          }
+          if (otherPool === null) return true;
+          return [...otherPool].some((id) => capableStaffIds.has(id));
+        })
+      : overlapping;
+    if (competing.length < Math.max(1, ceiling)) return null;
+    return `Bu tarih/saatte ${svcLabel()} yapabilen personelin tamamı dolu - başka bir saat seçin.`;
   };
 
   // Otel'de (bookingModel === "inventory") tek bir randevu saati yerine oda

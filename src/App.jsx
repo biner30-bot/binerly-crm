@@ -7,7 +7,7 @@ import { AuthModal, PasswordRecoveryModal } from "./Auth";
 import { SectorPicker, CompanySettingsForm, PaymentCredentialForm, AppSettingsModal, ShowcaseManager, slugify } from "./Settings";
 import { FreeServiceModal, PriceListEditModal, PriceListManager, StockEditModal, StockManager } from "./Inventory";
 import { AppointmentCancelPolicyBox, AppointmentDepositBox, AppointmentConcurrencyBox, AppointmentRequestModeBox, AppointmentPrepNoteBox, BusinessHoursManager, ResourceManager, RoomInventoryEditModal, RoomInventoryManager } from "./AppointmentPolicies";
-import { staffLeaveDayCount, formatLeaveDateRange, STAFF_LEAVE_TYPE_LABELS, isOpenStaffShift, staffHistoryDateStr, StaffShiftDayEditor, StaffShiftGrid, StaffShiftHistoryModal, StaffLeaveRecordModal, StaffLeaveManager, TeamDailyLoadPanel, TeamModal } from "./Team";
+import { staffLeaveDayCount, formatLeaveDateRange, STAFF_LEAVE_TYPE_LABELS, isOpenStaffShift, staffHistoryDateStr, staffShiftsEffectiveOnDate, StaffShiftDayEditor, StaffShiftGrid, StaffShiftHistoryModal, StaffLeaveRecordModal, StaffLeaveManager, TeamDailyLoadPanel, TeamModal } from "./Team";
 import { TRASH_TABLE_LABELS, TrashHistoryModal } from "./TrashHistory";
 import { GroupClassForm, GroupClassRoster, LateCancelPolicyBox, GroupClassesTab, AgendaTab, agendaDateKey, quickDateWindow } from "./GroupClasses";
 import { DealForm, roomTypeConflict, dealLostReasons, TAGS_INFO_TEXT, DealPayments, TeklifPrint, ParasutExportModal, PaymentModeModal, DealsTab, STUCK_DEAL_DAYS_THRESHOLD } from "./Deals";
@@ -689,6 +689,7 @@ function rowToCompanySettings(r) {
     appointmentConcurrencyAuto: r.appointment_concurrency_auto === true,
     appointmentOwnerWorks: r.appointment_owner_works !== false,
     appointmentWidgetMode: r.appointment_widget_mode || "realtime",
+    appointmentAvailabilitySource: r.appointment_availability_source || "business_hours",
     appointmentOfferValidityHours: r.appointment_offer_validity_hours ?? 24,
     winbackEnabled: r.winback_enabled === true,
     winbackInactiveDays: r.winback_inactive_days ?? null,
@@ -3389,6 +3390,7 @@ export default function App() {
       appointment_concurrency_auto: s.appointmentConcurrencyAuto === true,
       appointment_owner_works: s.appointmentOwnerWorks !== false,
       appointment_widget_mode: s.appointmentWidgetMode || "realtime",
+      appointment_availability_source: s.appointmentAvailabilitySource || "business_hours",
       appointment_offer_validity_hours: s.appointmentOfferValidityHours ?? 24,
       winback_enabled: s.winbackEnabled === true,
       winback_inactive_days: s.winbackInactiveDays || null,
@@ -4517,6 +4519,38 @@ export default function App() {
         (id) => !restrictedStaffIds.has(id) || allowed.has(id),
       ).length;
       if (capableCount < validStaffIds.size) concurrency = Math.min(concurrency, capableCount || 1);
+    }
+    // Vardiya bazlı müsaitlik modu (Ayarlar > Müsaitlik Saatleri): o an vardiyada
+    // olan personel sayısı da tavanı düşürür - Deals.jsx findAppointmentConflict'in
+    // basitleştirilmiş sürümü (yetkinlik havuzuyla kesiştirmeden). O haftagünü hiç
+    // vardiya yoksa Müsaitlik Saatleri'ne düşülür.
+    if (companySettings?.appointmentAvailabilitySource === "shifts") {
+      const dateStr = (dateTimeStr || "").slice(0, 10);
+      const [chh = 0, cmm = 0] = (dateTimeStr || "").slice(11, 16).split(":").map(Number);
+      const startMin = chh * 60 + cmm;
+      const endMin = startMin + Math.max(Number(durationMinutes) || 0, 1);
+      const anyShift = [...validStaffIds].some(
+        (id) => staffShiftsEffectiveOnDate(staffShifts, id, dateStr).length > 0,
+      );
+      if (anyShift) {
+        const onShift = [...validStaffIds].filter((id) => {
+          if (
+            staffLeaveRecords.some(
+              (r) => r.memberId === id && r.startDate <= dateStr && dateStr <= r.endDate,
+            )
+          )
+            return false;
+          const rows = staffShiftsEffectiveOnDate(staffShifts, id, dateStr);
+          if (rows.length === 0 || rows.some((r) => r.isOff)) return false;
+          return rows.some((r) => {
+            if (!r.startTime || !r.endTime) return false;
+            const [sh, sm] = r.startTime.split(":").map(Number);
+            const [eh, em] = r.endTime.split(":").map(Number);
+            return startMin >= sh * 60 + sm && endMin <= eh * 60 + em;
+          });
+        }).length;
+        concurrency = Math.min(concurrency, onShift);
+      }
     }
     const overlapping = deals.filter((d) => {
       if (d.id === excludeDealId || d.stage === "kaybedildi") return false;
@@ -5965,6 +5999,7 @@ export default function App() {
             minProfitMarginPercent={companySettings?.minProfitMarginPercent}
             businessHours={businessHours}
             staffShifts={staffShifts}
+            staffLeaveRecords={staffLeaveRecords}
             initialLineItems={editingDeal ? dealLineItems.filter((li) => li.dealId === editingDeal.id) : []}
             dealLineItems={dealLineItems}
             hasPaymentConnection={paymentCredentials.length > 0}
@@ -5973,6 +6008,7 @@ export default function App() {
             appointmentPenaltyStrikeLimit={companySettings?.appointmentPenaltyStrikeLimit}
             appointmentPenaltyBurnsSession={companySettings?.appointmentPenaltyBurnsSession === true}
             appointmentConcurrency={companySettings?.appointmentConcurrency}
+            appointmentAvailabilitySource={companySettings?.appointmentAvailabilitySource || "business_hours"}
             onUploadAttachment={uploadAttachment}
             onDownloadAttachment={downloadAttachment}
             onDeleteAttachment={deleteAttachment}
