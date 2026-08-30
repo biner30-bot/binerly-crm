@@ -671,7 +671,12 @@ function rowToCompanySettings(r) {
     appointmentRemindersEnabled: r.appointment_reminders_enabled !== false,
     sector: r.sector || null,
     leadCaptureToken: r.lead_capture_token || null,
-    preferredCustomerType: r.preferred_customer_type || "kurumsal",
+    // Kolon NULL ise (sektör değiştirilmeden kalmış / eski hesap) sektöre göre
+    // türet - randevu sektörlerinde müşteri neredeyse hep bireyseldir, aksi
+    // halde randevu hesabı "Randevular"ı boş "Kurumsal" sekmesinde açar.
+    preferredCustomerType:
+      r.preferred_customer_type ||
+      (isIndividualFocusedSector(r.sector) ? "bireysel" : "kurumsal"),
     pdfTemplateKey: r.pdf_template_key || null,
     lateCancelHours: r.late_cancel_hours ?? null,
     hardBlockHours: r.hard_block_hours ?? null,
