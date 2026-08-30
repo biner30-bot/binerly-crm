@@ -132,6 +132,10 @@ async function markApproved(supabaseAdmin, deal, customer, note, contentSuffix, 
       const localStr = toIstanbulLocalString(new Date(deal.appointment_offer_time));
       dealUpdate.custom_fields = { ...(deal.custom_fields || {}), [dtKey]: localStr, portal_randevu_zamani: localStr };
       dealUpdate.appointment_offer_status = "confirmed";
+      // handleConfirmAppointmentOffer ile AYNI: kesinleşen randevu teklifi
+      // "Randevu talebi"nde (ilk_gorusme) asılı kalmasın, "Randevu planlandı"ya
+      // (teklif) ilerlesin. Daha ileri aşamadaysa dokunma.
+      if (deal.stage === "ilk_gorusme") dealUpdate.stage = "teklif";
     }
   }
 
@@ -788,6 +792,10 @@ async function handleConfirmAppointmentOffer(req, res, supabaseAdmin, deal, sett
       .update({
         custom_fields: { ...(deal.custom_fields || {}), [dtKey]: dateTimeLocalStr, portal_randevu_zamani: dateTimeLocalStr },
         appointment_offer_status: "confirmed",
+        // Müşteri kesin bir saati onayladı - "Randevu talebi"nde (ilk_gorusme)
+        // asılı kalmasın, "Randevu planlandı"ya (teklif) ilerlet. Daha ileri bir
+        // aşamadaysa (KOBİ elle taşımış) dokunma.
+        ...(deal.stage === "ilk_gorusme" ? { stage: "teklif" } : {}),
       })
       .eq("id", deal.id);
     if (updateError) {
