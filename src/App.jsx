@@ -4608,7 +4608,15 @@ export default function App() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { notify(`Teklif gönderilemedi: ${data.error || "bilinmeyen hata"}`); return null; }
-      notify("Randevu teklifi müşteriye gönderildi.", "success");
+      // E-posta gidemedi VE müşterinin telefonu da yoksa (panel WhatsApp
+      // açamaz) teklif oluştu ama müşteriye hiçbir şey ulaşmadı - KOBİ'yi
+      // "Onay linkini kopyala"ya yönlendir, sessizce "gönderildi" deme.
+      const custPhone = (customers.find((c) => c.id === deal.customerId)?.phone || "").trim();
+      if (data.emailSent === false && !custPhone) {
+        notify("Teklif oluşturuldu - müşteriye e-posta gidemedi. 'Onay linkini kopyala' ile iletin.");
+      } else {
+        notify("Randevu teklifi müşteriye gönderildi.", "success");
+      }
       return data;
     } catch {
       notify("Teklif gönderilemedi - bağlantı hatası.");
