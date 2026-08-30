@@ -67,7 +67,7 @@ export function AppointmentRequestsPanel({
         Randevu Talepleri ({requests.length})
         <InfoTip
           align="left"
-          text="Sadece talep al modundaki (bkz. Ayarlar → Müsaitlik Saatleri) Randevu Alma Linki'nden gelen, müşterinin sizin doluluğunuzu görmeden bıraktığı gün + saat tercihleri. Bir tercihe (ya da farklı bir saate) tıklayınca müşteriye tek bir teklif gönderilir - e-posta ile otomatik, isterseniz WhatsApp ile de. Müşteri tek tıkla onaylar/reddeder."
+          text="Sadece talep al modundaki (bkz. Ayarlar → Müsaitlik Saatleri) Randevu Alma Linki'nden veya Müşteri Portalı'ndan gelen, müşterinin sizin doluluğunuzu görmeden bıraktığı gün + saat tercihleri. Bir tercihe (ya da farklı bir saate) tıklayınca müşteriye tek bir teklif gönderilir - e-posta ile otomatik, isterseniz WhatsApp ile de. Müşteri tek tıkla onaylar/reddeder."
         />
       </p>
       <div

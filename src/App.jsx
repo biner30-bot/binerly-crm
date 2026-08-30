@@ -4260,7 +4260,7 @@ export default function App() {
           { label: "Teklif Şablonları", description: "PDF teklifinizin tasarımını seçin", onOpen: () => setShowPdfTemplates(true) },
           { label: "Ödeme Bağlantısı", description: "Onay linkinden kartla tahsilat almak için iyzico veya PayTR bağlayın", onOpen: () => setShowPaymentSettings(true) },
           ...(bookingModel(companySettings?.sector) === "slot"
-            ? [{ label: "Müsaitlik Saatleri", description: "Müşteri portalından randevu alınabilecek gün/saatleri belirleyin", onOpen: () => setShowBusinessHours(true) }]
+            ? [{ label: "Müsaitlik Saatleri", description: "Randevu Alma Linki ve portaldan randevu alınabilecek gün/saatleri belirleyin", onOpen: () => setShowBusinessHours(true) }]
             : []),
           ...(bookingModel(companySettings?.sector) === "inventory"
             ? [{ label: "Oda Stoku", description: "Her oda tipinden kaç adet olduğunu belirleyin", onOpen: () => setShowRoomInventory(true) }]
@@ -5447,7 +5447,7 @@ export default function App() {
                   <MenuRow
                     icon="ti-clock"
                     label="Müsaitlik Saatleri"
-                    description="Müşteri portalından randevu alınabilecek gün/saatleri belirleyin"
+                    description="Randevu Alma Linki ve portaldan randevu alınabilecek gün/saatleri belirleyin"
                     onClick={() => { setShowSettingsHub(false); setShowBusinessHours(true); }}
                   />
                 )}

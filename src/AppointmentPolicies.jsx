@@ -301,16 +301,18 @@ export function AppointmentConcurrencyBox({ companySettings, teamMemberCount, on
   );
 }
 
-// Randevu Alma Linki'nin nasıl çalıştığını belirler - "realtime" (varsayılan,
-// AppointmentRequestPage.jsx'in şu anki davranışı: müşteri boş saatleri görüp
-// anında kendi seçer) vs "request_only" (müşteri hiçbir doluluk/müsaitlik
-// bilgisi görmez, sadece gün + sıralı saat tercihi bırakır - rakiplerin ya da
-// herkesin işletmenin ne kadar dolu olduğunu görmesini istemeyen KOBİ'ler
-// için). request_only'de KOBİ, Pano'daki "Randevu Talepleri" widget'ından
-// uygun bir saat seçip önerir - müşteri tek tıkla onaylar/reddeder, teklif
-// burada belirlenen süre sonunda kendiliğinden geçersiz olur (bkz.
-// api/deal-approval.js action=send-appointment-offer/confirm-appointment-offer,
-// api/send-appointment-reminders.js).
+// Müşterinin randevuyu nasıl aldığını belirler - HEM herkese açık Randevu Alma
+// Linki'nde (AppointmentRequestPage.jsx) HEM Müşteri Portalı'nda (CustomerPortal
+// SlotBookingModal). "realtime" (varsayılan: müşteri boş saatleri görüp anında
+// kendi seçer) vs "request_only" (müşteri hiçbir doluluk/müsaitlik bilgisi
+// görmez, sadece gün + sıralı saat tercihi bırakır - rakiplerin ya da herkesin
+// işletmenin ne kadar dolu olduğunu görmesini istemeyen KOBİ'ler için).
+// request_only'de KOBİ, Pano'daki "Randevu Talepleri" widget'ından uygun bir
+// saat seçip önerir - müşteri tek tıkla onaylar/reddeder, teklif burada
+// belirlenen süre sonunda kendiliğinden geçersiz olur (bkz. api/deal-approval.js
+// action=send-appointment-offer/confirm-appointment-offer,
+// api/send-appointment-reminders.js). Sunucu tarafında da uygulanır -
+// api/appointment-availability.js request_only'de hiç slot hesaplamaz.
 export function AppointmentRequestModeBox({ companySettings, onSave }) {
   const mode = companySettings?.appointmentWidgetMode || "realtime";
   const validityHours = companySettings?.appointmentOfferValidityHours ?? 24;
@@ -336,11 +338,12 @@ export function AppointmentRequestModeBox({ companySettings, onSave }) {
     <div style={{ marginBottom: 16, background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-sm)", padding: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <p style={{ fontSize: 13, fontWeight: 500, margin: 0, display: "flex", alignItems: "center", gap: 4 }}>
-          Randevu Alma Linki modu
+          Randevu alma modu
           <InfoTip
             placement="bottom"
             align="left"
             text={
+              "Hem herkese açık Randevu Alma Linki'nde hem Müşteri Portalı'nda geçerlidir.\n\n" +
               "Anlık müsaitlik göster (varsayılan): müşteri boş saatlerinizi görüp anında kendi seçer.\n\n" +
               "Sadece talep al, ben dönerim: müşteri hiçbir doluluk bilgisi görmez, sadece istediği gün + sıralı saat tercihlerini (1., 2., 3. tercih) bırakır. Siz Pano'dan uygun bir saat seçip müşteriye tek bir teklif gönderirsiniz (e-posta + WhatsApp), müşteri tek tıkla onaylar veya reddeder. Teklif belirlediğiniz süre sonunda kendiliğinden geçersiz olur."
             }
@@ -355,8 +358,8 @@ export function AppointmentRequestModeBox({ companySettings, onSave }) {
       {!open && (
         <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0 0" }}>
           {mode === "request_only"
-            ? `Aktif: müşteriler boş saatlerinizi görmeden gün + tercih saatleri gönderir, siz uygun saati onaylarsınız. Gönderdiğiniz teklifler ${validityHours} saat geçerli.`
-            : "Varsayılan: müşteriler boş saatlerinizi görüp anında kendileri seçer."}
+            ? `Aktif (link + portal): müşteriler boş saatlerinizi görmeden gün + tercih saatleri gönderir, siz uygun saati onaylarsınız. Gönderdiğiniz teklifler ${validityHours} saat geçerli.`
+            : "Varsayılan (link + portal): müşteriler boş saatlerinizi görüp anında kendileri seçer."}
         </p>
       )}
       {open && (
@@ -545,8 +548,8 @@ export function BusinessHoursManager({ items, onAdd, onDelete }) {
   return (
     <div>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px", display: "flex", alignItems: "center", gap: 4 }}>
-        Müşterilerinizin portaldan randevu alabileceği çalışma saatleriniz
-        <InfoTip placement="bottom" align="right" text={'Burada tanımladığınız gün/saat pencereleri, belirlediğiniz süre aralıklarla bölünüp müşteri portalında müsait randevu saatleri olarak gösterilir. Öğle arası varsa "Öğle arası var" kutusunu işaretleyip ara saatlerini girin - sistem günü otomatik olarak iki parçaya böler.'} />
+        Müşterilerinizin Randevu Alma Linki ve portaldan randevu alabileceği çalışma saatleriniz
+        <InfoTip placement="bottom" align="right" text={'Burada tanımladığınız gün/saat pencereleri, belirlediğiniz süre aralıklarla bölünüp herkese açık Randevu Alma Linki\'nde ve Müşteri Portalı\'nda müsait randevu saatleri olarak gösterilir. Öğle arası varsa "Öğle arası var" kutusunu işaretleyip ara saatlerini girin - sistem günü otomatik olarak iki parçaya böler.'} />
       </p>
 
       {sorted.length === 0 ? (
