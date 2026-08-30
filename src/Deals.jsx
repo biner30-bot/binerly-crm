@@ -912,11 +912,17 @@ export function DealForm({
   // reddedebilir, o durumda upsertDeal kendi hata mesajını gösterir. Personel
   // (assignedTo) için de AYNI garanti var - deals_assigned_to_no_overlap
   // EXCLUDE CONSTRAINT'i (bkz. sql/2026-08-08_deals_assigned_to_conflict.sql).
-  // Vardiya (staff_shifts) kontrolü ise (aşağıda, "personel varsa vardiyaya
-  // göre yoksa Müsaitlik Saatleri'ne göre" kuralı) SADECE burada, client-side -
-  // DB'de bir karşılığı yok, business_hours "öneri"siyle aynı güven seviyesinde.
-  // Müşteri tarafını (widget/portal) hiç etkilemiyor, müşteri zaten personel
-  // seçmiyor - sadece CRM'den personel atanarak girilen randevularda geçerli.
+  // Vardiya / çalışma saati (staff_shifts + business_hours) kontrolü ise ARTIK
+  // sert engel DEĞİL - sadece bir uyarı ({ block: false }). 2026-08-09'da
+  // "personel atanmışsa vardiya gerçek engel" diye eklenmişti, kullanıcı 30 Ağu'da
+  // geri aldı: KOBİ bir müşteri için mesai yapmak / kapalı saatte açmak isteyebilir,
+  // bu onun kararı. Gerçek engel yalnızca fiziksel olan: aynı personele/kaynağa
+  // çakışan randevu, eş zamanlı kapasite dolması. Dönen değer:
+  //   null                         -> sorun yok
+  //   { block: true,  message }     -> kayıt engellenir (çift rezervasyon vb.)
+  //   { block: false, message }     -> sadece uyarı, kayıt yine yapılır
+  // (Müşteri widget/portal tarafı ayrı: orada vardiya modu seçiliyse müşteri saat
+  // dışını zaten hiç göremiyor - mesai kararı KOBİ'nin işi, müşterinin değil.)
   const findAppointmentConflict = (candidateStage, candidateCustomFields) => {
     if (
       !appointmentDateTimeKey ||
@@ -935,6 +941,10 @@ export function DealForm({
     const candidateDuration = Math.max(lineItemsDuration, 1);
     const candidateEnd = candidateStart + candidateDuration * 60000;
 
+    // Sorumlu'nun vardiyası / (vardiyası yoksa) genel çalışma saatleri dışı bir
+    // saat: engel değil, sadece uyarı - fiziksel çakışma kontrolleri aşağıda
+    // devam eder (bu saatte ayrıca çift rezervasyon varsa o gerçek engel kazanır).
+    let scheduleWarning = null;
     if (assignedTo) {
       const parsed = weekdayAndMinutesFromDateTimeStr(dt);
       if (parsed) {
@@ -950,7 +960,7 @@ export function DealForm({
           const staffName =
             teamMembers.find((m) => m.id === assignedTo)?.name ||
             (assignedTo === currentUserId ? currentUserEmail : "Bu personel");
-          return `${staffName} bu saatte çalışmıyor - vardiya dışı bir zaman seçtiniz.`;
+          scheduleWarning = `${staffName} bu tarih/saatte vardiyada / çalışma saatleri içinde görünmüyor - randevu yine de oluşturulur.`;
         }
       }
     }
@@ -987,7 +997,10 @@ export function DealForm({
       const staffName =
         teamMembers.find((m) => m.id === assignedTo)?.name ||
         (assignedTo === currentUserId ? currentUserEmail : "");
-      return `Bu tarih/saatte ${staffName || "bu personelin"} zaten ${name} ile aktif bir randevusu var - aynı personele aynı saate iki randevu girilemez.`;
+      return {
+        block: true,
+        message: `Bu tarih/saatte ${staffName || "bu personelin"} zaten ${name} ile aktif bir randevusu var - aynı personele aynı saate iki randevu girilemez.`,
+      };
     }
     // Kaynağın adedi (varsayılan 1) dolana kadar aynı isimdeki kaynağa paralel
     // randevu verilebilir - hangi fiziksel birimin kullanıldığı ayrıca takip
@@ -1005,7 +1018,10 @@ export function DealForm({
         customers.find((c) => c.id === sameResourceOverlap[0].customerId)?.name ||
         "başka bir kayıt";
       const resourceName = resources.find((r) => r.id === resourceId)?.name || "bu kaynak";
-      return `${resourceName}, bu tarih/saatte ${name} için zaten kullanımda (adet doldu) - aynı kaynağa aynı saate ikinci bir randevu girilemez.`;
+      return {
+        block: true,
+        message: `${resourceName}, bu tarih/saatte ${name} için zaten kullanımda (adet doldu) - aynı kaynağa aynı saate ikinci bir randevu girilemez.`,
+      };
     }
     // Personel veya kaynak seçiliyse ve yukarıdaki kendi kontrolünü geçtiyse
     // (yeterli adet/uygunluk var), genel "eş zamanlı randevu kapasitesi"
@@ -1016,7 +1032,8 @@ export function DealForm({
     // yapamıyorsa (Takım > Hizmetler kısıtı) bu muafiyet geçerli değil -
     // aşağıdaki yetkinlik kapasitesi kontrolüne düşülür.
     const assigneeCanDoService = !assignedTo || !capableStaffIds || capableStaffIds.has(assignedTo);
-    if ((assignedTo && assigneeCanDoService) || resourceId) return null;
+    if ((assignedTo && assigneeCanDoService) || resourceId)
+      return scheduleWarning ? { block: false, message: scheduleWarning } : null;
 
     // Etkin kapasite tavanı - Sorumlu atanmamış randevular için (atanmışlar
     // yukarıdaki personel kontrolü + DB deals_assigned_to_no_overlap ile
@@ -1055,14 +1072,23 @@ export function DealForm({
     }
 
     if (!capacityCapped) {
-      if (overlapping.length < concurrency) return null;
+      if (overlapping.length < concurrency)
+        return scheduleWarning ? { block: false, message: scheduleWarning } : null;
       const conflict = overlapping[0];
       const name = customers.find((c) => c.id === conflict.customerId)?.name || "başka bir kayıt";
-      return `Bu tarih/saatte ${name} için de aktif bir randevu var - aynı saate iki randevu girilemez.`;
+      return {
+        block: true,
+        message: `Bu tarih/saatte ${name} için de aktif bir randevu var - aynı saate iki randevu girilemez.`,
+      };
     }
 
     if (noStaffOnShift) {
-      return `Bu tarih/saatte ${svcLabel()} yapabilen vardiyada personel yok - başka bir saat seçin.`;
+      // Vardiya modunda o saatte kimse vardiyada değil - engel değil, uyarı
+      // (KOBİ o gün/saatte özel olarak açmak isteyebilir).
+      return {
+        block: false,
+        message: `Bu tarih/saatte ${svcLabel()} yapabilen vardiyada personel görünmüyor - randevu yine de oluşturulur.`,
+      };
     }
     // Yalnızca yetkin havuzu bu randevunun havuzuyla KESİŞEN diğer randevular
     // sayılır - hizmeti bilinemeyen / kısıtsız randevu tüm havuzla kesişir
@@ -1084,8 +1110,12 @@ export function DealForm({
           return [...otherPool].some((id) => capableStaffIds.has(id));
         })
       : overlapping;
-    if (competing.length < Math.max(1, ceiling)) return null;
-    return `Bu tarih/saatte ${svcLabel()} yapabilen personelin tamamı dolu - başka bir saat seçin.`;
+    if (competing.length < Math.max(1, ceiling))
+      return scheduleWarning ? { block: false, message: scheduleWarning } : null;
+    return {
+      block: true,
+      message: `Bu tarih/saatte ${svcLabel()} yapabilen personelin tamamı dolu - başka bir saat seçin.`,
+    };
   };
 
   // Otel'de (bookingModel === "inventory") tek bir randevu saati yerine oda
@@ -1122,6 +1152,15 @@ export function DealForm({
     setAssignedTo((cur) => (cur && capableStaffIds && !capableStaffIds.has(cur) ? "" : cur));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedServiceKey]);
+
+  // Vardiya / çalışma saati dışı uyarısı - form doldurulurken canlı gösterilir
+  // (kayıt anını beklemez), engel değildir. Gerçek engeller (çift rezervasyon
+  // vb.) submit'te ayrıca setConflictError ile kırmızı gösterilir.
+  const liveConflict =
+    bookingModel(sector) === "slot" && customFields[appointmentDateTimeKey]
+      ? findAppointmentConflict(stage, customFields)
+      : null;
+  const scheduleWarning = liveConflict && !liveConflict.block ? liveConflict.message : "";
 
   return (
     <>
@@ -1232,9 +1271,12 @@ export function DealForm({
             ).toISOString(),
             closedAt: isClosingStage ? new Date(`${closedDate}T00:00`).toISOString() : null,
           };
-          const conflictMessage = findAppointmentConflict(stage, customFields);
-          if (conflictMessage) {
-            setConflictError(conflictMessage);
+          // { block: true } gerçek engel (çift rezervasyon/kapasite) - kayıt
+          // durur. { block: false } sadece uyarı (vardiya/çalışma saati dışı) -
+          // form altında canlı gösterilir, kayıt engellenmez.
+          const conflict = findAppointmentConflict(stage, customFields);
+          if (conflict?.block) {
+            setConflictError(conflict.message);
             return;
           }
           const roomConflictMessage = findRoomConflict(stage, customFields);
@@ -2736,6 +2778,11 @@ export function DealForm({
           {conflictError && (
             <p style={{ fontSize: 12.5, color: "var(--text-danger)", margin: "0 0 8px" }}>
               {conflictError}
+            </p>
+          )}
+          {scheduleWarning && !conflictError && (
+            <p style={{ fontSize: 12.5, color: "var(--text-warning)", margin: "0 0 8px" }}>
+              {scheduleWarning}
             </p>
           )}
         </div>
