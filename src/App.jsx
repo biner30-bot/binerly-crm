@@ -4493,12 +4493,11 @@ export default function App() {
   // Bir tercih (ya da KOBİ'nin elle önerdiği) saatin uygun olup olmadığına dair
   // hızlı bir ipucu - Deals.jsx findAppointmentConflict'in AYNI örtüşme ilkesi +
   // aktif müsaitlik kaynağına (Ayarlar > Müsaitlik Saatleri: vardiya mı çalışma
-  // saatleri mi) göre saat penceresi kontrolü. Çakışma/kapasite kısmının gerçek
-  // garantisi api/deal-approval.js send-appointment-offer + confirm-appointment-
-  // offer'daki atomik RPC tahsisi. Çalışma saati penceresi ise BİLEREK sadece
-  // burada bir uyarı - business_hours modunda saat dışı öneriyi engellemiyoruz
-  // (KOBİ'nin kararı, ör. bir müşteri için geç saat); vardiya modunda ise sunucu
-  // yine 409 döner (o saatte fiilen personel yok).
+  // saatleri mi) göre saat penceresi kontrolü. "Takvim = uyarı, çakışma = engel"
+  // ilkesi (bkz. Deals.jsx findAppointmentConflict): vardiya / çalışma saati dışı
+  // saat sunucuda ENGELLENMEZ (KOBİ mesai yapabilir), sadece burada uyarılır.
+  // Gerçek doluluk garantisi api/deal-approval.js send-appointment-offer +
+  // confirm-appointment-offer'daki atomik concurrency-slot / kaynak tahsisi.
   const appointmentSlotHasConflict = (dateTimeStr, durationMinutes, excludeDealId, serviceIds = []) => {
     if (!appointmentDateTimeKey) return false;
     const candidateDate = parseAppointmentDateTime(dateTimeStr);

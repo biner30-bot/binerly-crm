@@ -1563,6 +1563,19 @@ export function DealForm({
                       setCustomFields({ ...customFields, [appointmentDateTimeKey]: v })
                     }
                   />
+                  {/* Vardiya / çalışma saati dışı uyarısı - sebep tarih/saat
+                      alanı olduğu için doğrudan onun altında (engel değil). */}
+                  {scheduleWarning && !conflictError && (
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: "var(--text-warning)",
+                        margin: "4px 0 0",
+                      }}
+                    >
+                      {scheduleWarning}
+                    </p>
+                  )}
                 </div>
               )}
               {membershipEndDef && (
@@ -2778,11 +2791,6 @@ export function DealForm({
           {conflictError && (
             <p style={{ fontSize: 12.5, color: "var(--text-danger)", margin: "0 0 8px" }}>
               {conflictError}
-            </p>
-          )}
-          {scheduleWarning && !conflictError && (
-            <p style={{ fontSize: 12.5, color: "var(--text-warning)", margin: "0 0 8px" }}>
-              {scheduleWarning}
             </p>
           )}
         </div>

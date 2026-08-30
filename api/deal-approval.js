@@ -567,16 +567,16 @@ async function handleSendAppointmentOffer(req, res, supabaseAdmin) {
     const ceiling = shiftDay
       ? Math.min(effectiveConcurrency, shiftDay.capacityAt(offerStartMin, offerStartMin + durationMinutes))
       : effectiveConcurrency;
-    if (ceiling <= 0) {
-      return res.status(409).json({ error: "Bu saatte bu hizmeti yapabilen personel yok, lütfen farklı bir saat seçin." });
-    }
-    // NOT: Müsaitlik Saatleri modunda önerilen saatin açık saatler içinde olup
-    // olmadığı BİLEREK sunucuda engellenmiyor - bu KOBİ'nin kararı (ör. "bu
-    // müşteri için 1 saat fazla açık kalırım"). Uyarı yalnızca istemci ipucu
-    // olarak gösterilir (src/App.jsx appointmentSlotHasConflict). Vardiya modu
-    // farklı: yukarıdaki ceiling<=0 gerçek bir "o saatte kimse yok" olgusu,
-    // bu yüzden orada 409 kalıyor.
-    if (ceiling < baseConcurrency) {
+    // ceiling <= 0: önerilen saatte hizmeti yapabilen / vardiyada personel yok -
+    // ama bu bir TAKVİM durumu (kimse programlanmamış), fiziksel çakışma değil.
+    // KOBİ bir müşteri için mesai yapmak / kapalı saatte açmak isteyebilir, bu
+    // onun kararı - ENGELLEMİYORUZ, istemci ipucu zaten uyarıyor (src/App.jsx
+    // appointmentSlotHasConflict + Deals.jsx findAppointmentConflict ile AYNI
+    // "takvim = uyarı, çakışma = engel" ilkesi). Gerçek doluluk garantisi
+    // aşağıdaki pick_free_concurrency_slot + slot havuzu. ceiling > 0 iken
+    // "hizmeti yapabilen / vardiyada olanların TAMAMI başka randevuda" hâlâ
+    // gerçek bir çakışma - o 409 kalıyor.
+    if (ceiling > 0 && ceiling < baseConcurrency) {
       const offerStartMs = offerDate.getTime();
       const offerEndMs = offerStartMs + durationMinutes * 60000;
       const { data: activeAppts } = await supabaseAdmin
