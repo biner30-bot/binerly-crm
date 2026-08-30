@@ -364,13 +364,21 @@ export function AppointmentDateTimeField({
       `/api/appointment-availability?businessUserId=${businessUserId}&date=${date}${serviceQuery}`,
     )
       .then(async (r) => {
-        const data = await r.json();
-        if (!r.ok) throw new Error(data?.error || "Müsaitlik alınamadı.");
-        setSlots(data.slots || []);
+        // r.json() gövde JSON değilse (500 HTML sayfası, dev'de ham kaynak) ham
+        // SyntaxError fırlatıyordu ve o metin ("Unexpected token 'i'...") alanın
+        // altında kullanıcıya aynen görünüyordu. Sadece sunucunun kontrollü
+        // { error } mesajını gösteriyoruz; ağ/parse hatası sabit metne düşer.
+        const data = await r.json().catch(() => null);
+        if (!r.ok) {
+          setSlots([]);
+          setError(data?.error || "Müsait saatler alınamadı.");
+          return;
+        }
+        setSlots(data?.slots || []);
       })
-      .catch((err) => {
+      .catch(() => {
         setSlots([]);
-        setError(err.message || "Müsaitlik alınamadı.");
+        setError("Müsait saatler şu an alınamadı, birazdan tekrar deneyin.");
       })
       .finally(() => setLoading(false));
   }, [businessUserId, date, serviceKey]);

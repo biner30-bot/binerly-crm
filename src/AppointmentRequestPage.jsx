@@ -163,12 +163,15 @@ export default function AppointmentRequestPage() {
     const serviceQuery = serviceIds.length ? `&serviceIds=${encodeURIComponent(serviceIds.join(","))}` : "";
     fetch(`/api/appointment-availability?businessUserId=${company.businessUserId}&date=${date}${serviceQuery}`)
       .then(async (r) => {
-        const data = await r.json();
-        if (!r.ok) throw new Error(data?.error || "Müsaitlik alınamadı.");
-        setSlots(data.slots || []);
-        setDateTimeKey(data.dateTimeKey || null);
+        // Gövde JSON değilse (502/504 HTML sayfası) r.json() ham SyntaxError
+        // fırlatır ve o metin müşteriye aynen görünürdü - sabit metne düşür,
+        // sadece sunucunun kontrollü { error } mesajını göster.
+        const data = await r.json().catch(() => null);
+        if (!r.ok) { setSlots([]); setSlotsError(data?.error || "Müsait saatler alınamadı."); return; }
+        setSlots(data?.slots || []);
+        setDateTimeKey(data?.dateTimeKey || null);
       })
-      .catch((err) => { setSlots([]); setSlotsError(err.message || "Müsaitlik alınamadı."); })
+      .catch(() => { setSlots([]); setSlotsError("Müsait saatler şu an alınamadı, lütfen birazdan tekrar deneyin."); })
       .finally(() => setLoadingSlots(false));
   }, [requestOnlyMode, company?.acceptsAppointments, company?.businessUserId, date, serviceIds]);
 
