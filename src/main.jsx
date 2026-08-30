@@ -114,6 +114,21 @@ const isPortal = path.startsWith("/portal") || isPortalHost;
 // olması gerekiyor — vite-plugin-pwa varsayılan olarak sadece "/" için birini enjekte
 // ediyor, portaldaysak onu portale özel olanla değiştiriyoruz. Alt alan adında scope
 // çakışması olmadığından kök ("/") scope'lu ayrı bir manifest kullanılır.
+// Herkese açık, tek seferlik müşteri sayfaları (randevu formu, vitrin, lead
+// formu) - buradan "Ana Ekrana Ekle" yapılırsa index.html'in varsayılan KOBİ
+// manifest'i ("Binerly", start_url "/") kurulup binerly.com kökündeki KOBİ
+// giriş ekranına açan bir kısayol bırakıyordu (müşteri için yanlış uygulama).
+// binerly.com origin'inde müşteriye kurulacak doğru bir uygulama yok (portal
+// ayrı alt alan adında), o yüzden bu sayfalarda manifest'i tamamen kaldırıyoruz -
+// kurulabilir bir "uygulama" gibi görünmesin. Portal'ın kendi PWA'sı
+// portal.binerly.com'da (aşağıdaki isPortal dalı).
+const isPublicOneShot =
+  path.startsWith("/randevu-al/") || path.startsWith("/lead/") || path.startsWith("/vitrin/");
+
+if (isPublicOneShot && !isPortalHost) {
+  document.querySelector('link[rel="manifest"]')?.remove();
+}
+
 if (isPortal) {
   const existing = document.querySelector('link[rel="manifest"]');
   const manifestHref = isPortalHost
