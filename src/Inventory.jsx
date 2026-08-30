@@ -1602,6 +1602,30 @@ export function StockManager({
         </div>
       ) : (
         <div>
+          <p
+            style={{
+              fontSize: 12.5,
+              color: "var(--text-secondary)",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              margin: "0 0 12px",
+            }}
+          >
+            Bir hizmet/ürün için tek seferde ne kadar malzeme harcandığını tanımlayın
+            <InfoTip
+              placement="bottom"
+              align="left"
+              text={
+                "Bir fiyat listesi kaleminin (hizmet/ürün) bir kez yapıldığında hangi stok malzemesinden ne kadar tükettiğini yazarsınız (ör. bir saç boyası = 1 tüp boya + 100 ml oksidan).\n\n" +
+                "Ne işe yarar:\n" +
+                "• Randevu/teklif 'tamamlandı'ya geçince bu malzemeler stoktan otomatik düşülür - elle takip etmezsiniz.\n" +
+                "• Stok kalemine birim maliyet girdiyseniz, o hizmetin gerçek maliyeti ve kâr marjı hesaplanır; belirlediğiniz asgari marjın altında fiyat verirseniz teklif ekranında uyarı çıkar.\n" +
+                "• Bir malzeme yeniden sipariş eşiğinin altına inince düşük stok uyarısı alırsınız.\n\n" +
+                "Tamamen opsiyoneldir - reçete girmezseniz stok otomatik düşülmez, sadece elle güncellersiniz."
+              }
+            />
+          </p>
           {priceListItems.length === 0 || stockItems.length === 0 ? (
             <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
               Reçete tanımlamak için önce Fiyat Listesi sekmesinde en az bir kalem ve burada en az
