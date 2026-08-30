@@ -4490,11 +4490,15 @@ export default function App() {
         d.customFields.appointment_request_prefs.length > 0,
     )
     .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-  // Bir tercih saatinin dolu olup olmadığına dair hızlı bir ipucu - Deals.jsx
-  // findAppointmentConflict'in AYNI temel örtüşme ilkesi (personel/vardiya
-  // nüansı olmadan basitleştirilmiş, bu sadece bir ipucu). Gerçek garanti
-  // müşteri onayladığı an api/deal-approval.js action=confirm-appointment-offer'daki
-  // atomik RPC tahsisi - burası yanılsa bile veri bütünlüğü bozulmaz.
+  // Bir tercih (ya da KOBİ'nin elle önerdiği) saatin uygun olup olmadığına dair
+  // hızlı bir ipucu - Deals.jsx findAppointmentConflict'in AYNI örtüşme ilkesi +
+  // aktif müsaitlik kaynağına (Ayarlar > Müsaitlik Saatleri: vardiya mı çalışma
+  // saatleri mi) göre saat penceresi kontrolü. Çakışma/kapasite kısmının gerçek
+  // garantisi api/deal-approval.js send-appointment-offer + confirm-appointment-
+  // offer'daki atomik RPC tahsisi. Çalışma saati penceresi ise BİLEREK sadece
+  // burada bir uyarı - business_hours modunda saat dışı öneriyi engellemiyoruz
+  // (KOBİ'nin kararı, ör. bir müşteri için geç saat); vardiya modunda ise sunucu
+  // yine 409 döner (o saatte fiilen personel yok).
   const appointmentSlotHasConflict = (dateTimeStr, durationMinutes, excludeDealId, serviceIds = []) => {
     if (!appointmentDateTimeKey) return false;
     const candidateDate = parseAppointmentDateTime(dateTimeStr);
@@ -4551,6 +4555,30 @@ export default function App() {
         }).length;
         concurrency = Math.min(concurrency, onShift);
       }
+    }
+    // Müsaitlik Saatleri modunda - veya vardiya modunda o haftagünü hiç vardiya
+    // girilmemişse (her yerdeki AYNI "vardiyasız gün Müsaitlik Saatleri'ne düşer"
+    // kuralı) - önerilen saat işletmenin açık saatleri içinde mi. Bu SADECE bir
+    // istemci uyarısı (sunucu business_hours modunda saat dışı öneriyi geçirir);
+    // işletme hiç Müsaitlik Saati tanımlamamışsa (sadece talep al modundaki
+    // KOBİ'ler) kıyaslanacak bir şey yok, atlanır.
+    const bhDateStr = (dateTimeStr || "").slice(0, 10);
+    const shiftsCoverDate =
+      companySettings?.appointmentAvailabilitySource === "shifts" &&
+      [...validStaffIds].some((id) => staffShiftsEffectiveOnDate(staffShifts, id, bhDateStr).length > 0);
+    if (!shiftsCoverDate && businessHours.length > 0) {
+      const jsWeekday = new Date(`${bhDateStr}T00:00:00`).getDay();
+      const weekday = jsWeekday === 0 ? 7 : jsWeekday;
+      const [bhh = 0, bmm = 0] = (dateTimeStr || "").slice(11, 16).split(":").map(Number);
+      const bhStart = bhh * 60 + bmm;
+      const bhEnd = bhStart + Math.max(Number(durationMinutes) || 0, 1);
+      const dayWindows = businessHours.filter((h) => h.weekday === weekday);
+      const fitsHours = dayWindows.some((h) => {
+        const [sh, sm] = h.startTime.split(":").map(Number);
+        const [eh, em] = h.endTime.split(":").map(Number);
+        return bhStart >= sh * 60 + sm && bhEnd <= eh * 60 + em;
+      });
+      if (!fitsHours) return true;
     }
     const overlapping = deals.filter((d) => {
       if (d.id === excludeDealId || d.stage === "kaybedildi") return false;

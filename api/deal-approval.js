@@ -570,6 +570,12 @@ async function handleSendAppointmentOffer(req, res, supabaseAdmin) {
     if (ceiling <= 0) {
       return res.status(409).json({ error: "Bu saatte bu hizmeti yapabilen personel yok, lütfen farklı bir saat seçin." });
     }
+    // NOT: Müsaitlik Saatleri modunda önerilen saatin açık saatler içinde olup
+    // olmadığı BİLEREK sunucuda engellenmiyor - bu KOBİ'nin kararı (ör. "bu
+    // müşteri için 1 saat fazla açık kalırım"). Uyarı yalnızca istemci ipucu
+    // olarak gösterilir (src/App.jsx appointmentSlotHasConflict). Vardiya modu
+    // farklı: yukarıdaki ceiling<=0 gerçek bir "o saatte kimse yok" olgusu,
+    // bu yüzden orada 409 kalıyor.
     if (ceiling < baseConcurrency) {
       const offerStartMs = offerDate.getTime();
       const offerEndMs = offerStartMs + durationMinutes * 60000;

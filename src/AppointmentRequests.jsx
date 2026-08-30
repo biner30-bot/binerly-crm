@@ -87,6 +87,10 @@ export function AppointmentRequestsPanel({
             ...(deal.customFields?.service_ids || []),
             ...(deal.customFields?.price_item_id ? [deal.customFields.price_item_id] : []),
           ];
+          const customConflict =
+            customOfferDealId === deal.id &&
+            customOfferDraft &&
+            appointmentSlotHasConflict(customOfferDraft, durationMinutes, deal.id, serviceIds);
           const offerLabel = (dt) => {
             const d = new Date(`${dt}:00+03:00`);
             if (isNaN(d.getTime())) return dt;
@@ -238,6 +242,7 @@ export function AppointmentRequestsPanel({
                   style={{
                     display: "flex",
                     alignItems: "center",
+                    flexWrap: "wrap",
                     gap: 6,
                     marginTop: 8,
                     marginLeft: 14,
@@ -267,6 +272,11 @@ export function AppointmentRequestsPanel({
                   >
                     Vazgeç
                   </button>
+                  {customConflict && (
+                    <span style={{ fontSize: 11, color: "var(--text-danger)", flexBasis: "100%" }}>
+                      Bu saat dolu ya da çalışma saatleri dışında olabilir - yine de önerebilirsiniz
+                    </span>
+                  )}
                 </div>
               )}
             </div>
