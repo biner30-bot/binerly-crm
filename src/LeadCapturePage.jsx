@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import BackgroundScatter from "./BackgroundScatter.jsx";
 
 // shared.jsx'teki getPortalUrl / AppointmentRequestPage.jsx'teki portalUrlFor
 // ile AYNI mantık (kasıtlı kopya - route bazlı kod bölme, bkz. o dosyadaki
@@ -124,6 +125,7 @@ export default function LeadCapturePage() {
         padding: "1rem",
       }}
     >
+      <BackgroundScatter />
       <div
         style={{
           background: "#fff",

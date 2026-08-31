@@ -42,6 +42,7 @@ import {
   SECTOR_PRESETS,
   computeAppointmentPenaltyBurn,
 } from "./Sectors";
+import BackgroundScatter from "./BackgroundScatter.jsx";
 
 const PORTAL_DEAL_WORDS = {
   teklif: {
@@ -325,28 +326,12 @@ function appointmentCancelDecision(randevuTarihi, hardBlockHours, penaltyHours) 
   return { canCancel, isLate, hoursLeft };
 }
 
-// Sektöre göre çok soluk fon filigranı - sağ üstte sabit, dikkat dağıtmaz,
-// sayfaya "hangi tür işletme" hissi katar. sector yoksa hiç render etmez.
+// Sektöre göre çok soluk, dağınık ikon fonu (BackgroundScatter) - sektör
+// ikonu büyük slotu doldurur, gerisi genel randevu/CRM ikonları. sector yoksa
+// da genel dağılım gösterilir.
 function SectorWatermark({ sector }) {
   const icon = SECTOR_PRESETS.find((s) => s.id === sector)?.icon;
-  if (!icon) return null;
-  return (
-    <i
-      className={`ti ${icon}`}
-      aria-hidden="true"
-      style={{
-        position: "fixed",
-        top: 76,
-        right: 24,
-        fontSize: "clamp(130px, 22vw, 210px)",
-        color: "var(--fill-accent)",
-        opacity: 0.055,
-        lineHeight: 1,
-        pointerEvents: "none",
-        zIndex: 0,
-      }}
-    />
-  );
+  return <BackgroundScatter sectorIcon={icon} />;
 }
 
 function CustomerPortalLanding({ onEnter, entryCompany }) {

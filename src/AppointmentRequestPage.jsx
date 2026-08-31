@@ -1,23 +1,5 @@
 import { useState, useEffect } from "react";
-
-// Sektöre göre Tabler ikonu - src/Sectors.jsx SECTOR_PRESETS[].icon ile ayni.
-// Buraya kopyalandi cunku bu public sayfa Sectors.jsx'i (buyuk) import etmiyor
-// (route bazli kod bolme, bkz. istanbulDateStr yorumu). Cok soluk bir fon
-// filigrani + logosuz isletmeler icin baslik ikonu olarak kullanilir.
-const SECTOR_ICON = {
-  guzellik_bakim: "ti-scissors",
-  saglik_klinik: "ti-stethoscope",
-  spor_merkezi: "ti-barbell",
-  otel: "ti-bed",
-  egitim_kurs: "ti-school",
-  emlak: "ti-home",
-  dijital_ajans: "ti-device-desktop-analytics",
-  uretim_satis: "ti-truck-delivery",
-  hizmet_danismanlik: "ti-briefcase",
-  perakende: "ti-shopping-cart",
-  sanayi_esnaf: "ti-tool",
-  genel: "ti-building-store",
-};
+import BackgroundScatter, { SECTOR_ICON } from "./BackgroundScatter.jsx";
 
 // Kamuya açık, giriş gerektirmeyen randevu talebi sayfası — /randevu-al/{token}.
 // LeadCapturePage ile AYNI token'ı, AYNI /api/lead-capture uç noktasını kullanır
@@ -368,22 +350,7 @@ export default function AppointmentRequestPage() {
 
   return (
     <div style={{ position: "relative", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "radial-gradient(130% 520px at 50% -60px, rgba(79, 148, 217, 0.2), rgba(79, 148, 217, 0) 70%)", backgroundRepeat: "no-repeat", fontFamily: "system-ui, -apple-system, sans-serif", padding: "1rem" }}>
-      {SECTOR_ICON[company?.sector] && (
-        <i
-          className={`ti ${SECTOR_ICON[company.sector]}`}
-          aria-hidden="true"
-          style={{
-            position: "fixed",
-            top: 12,
-            right: 20,
-            fontSize: "clamp(130px, 24vw, 220px)",
-            color: "rgba(24, 95, 165, 0.07)",
-            lineHeight: 1,
-            pointerEvents: "none",
-            zIndex: 0,
-          }}
-        />
-      )}
+      <BackgroundScatter sectorIcon={SECTOR_ICON[company?.sector]} />
       <div style={{ background: "#fff", borderRadius: 16, padding: "2.25rem 2rem", width: "100%", maxWidth: 420, border: "1px solid #e1e8f0", boxShadow: "0 20px 60px rgba(12,37,64,0.08)" }}>
         {loading ? (
           <p style={{ textAlign: "center", color: "#5b7088" }}>Yükleniyor…</p>

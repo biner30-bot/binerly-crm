@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
+import BackgroundScatter from "./BackgroundScatter.jsx";
 import {
   GoogleAuthButton,
   AuthDivider,
@@ -313,6 +314,7 @@ export default function DealApprovalPage() {
         padding: "1rem",
       }}
     >
+      <BackgroundScatter />
       <div
         style={{
           background: "#fff",

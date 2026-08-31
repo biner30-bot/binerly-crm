@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import BackgroundScatter, { SECTOR_ICON } from "./BackgroundScatter.jsx";
 
 // DealApprovalPage.jsx/shared.jsx'teki AYNI biçimlendirme (kasıtlı kopya, bu
 // sayfa da tamamen bağımsız/herkese açık - bkz. api/lead-capture.js'teki
@@ -96,6 +97,7 @@ export default function ShowcasePage() {
         padding: "1rem",
       }}
     >
+      <BackgroundScatter sectorIcon={SECTOR_ICON[company?.sector]} />
       <div style={{ maxWidth: 860, margin: "0 auto" }}>
         {loading ? (
           <p style={{ textAlign: "center", color: "#5b7088", marginTop: "3rem" }}>Yükleniyor…</p>
