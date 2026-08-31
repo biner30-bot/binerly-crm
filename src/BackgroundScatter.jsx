@@ -59,7 +59,7 @@ for (let r = 0; r < ROWS; r++) {
       idx: r * COLS + c,
       left: ((c + 0.5) / COLS) * 100 + jx,
       top: ((r + 0.5) / ROWS) * 100 + jy,
-      size: 34 + ((r * 5 + c * 3) % 4) * 9, // 34..61
+      size: 38 + ((r * 5 + c * 3) % 4) * 10, // 38..68
       rot: (((r + c) % 5) - 2) * 13, // -26..26
     });
   }
@@ -93,7 +93,7 @@ export default function BackgroundScatter({ sector }) {
             lineHeight: 1,
             color: "#185fa5",
             // Büyük olanlar biraz daha soluk, hepsi görünür ama dikkat dağıtmaz.
-            opacity: it.size > 50 ? 0.06 : 0.085,
+            opacity: it.size > 54 ? 0.09 : 0.12,
             transform: `translate(-50%, -50%) rotate(${it.rot}deg)`,
           }}
         />
