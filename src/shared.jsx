@@ -1247,6 +1247,24 @@ export function InitialsAvatar({ name, size = 28 }) {
   );
 }
 
+// Profil fotoğrafı - yüklenemezse (Google CDN rate-limit'i, süresi dolmuş URL,
+// ağ hatası) tarayıcının kırık-resim ikonu yerine baş harflere düşer. Önceden
+// düz <img> vardı, dark modda kırık ikon çok göze batıyordu (kullanıcı bulmuş).
+export function UserAvatar({ url, name, size = 30 }) {
+  const [failed, setFailed] = useState(false);
+  // URL değişince (yeni fotoğraf yüklendi vb.) hata durumunu sıfırla.
+  useEffect(() => setFailed(false), [url]);
+  if (!url || failed) return <InitialsAvatar name={name} size={size} />;
+  return (
+    <img
+      src={url}
+      alt=""
+      onError={() => setFailed(true)}
+      style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+    />
+  );
+}
+
 export function Toast({ message, tone = "danger", onClose }) {
   const isSuccess = tone === "success";
   return (

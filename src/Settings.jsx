@@ -5,7 +5,7 @@ import {
   InfoTip,
   ConfirmDialog,
   translateAuthError,
-  InitialsAvatar,
+  UserAvatar,
   SegmentedControl,
   THEME_OPTIONS,
 } from "./shared";
@@ -1295,15 +1295,7 @@ export function AppSettingsModal({
       <div style={{ marginBottom: 20 }}>
         <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Profil</p>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-          {photoUrl ? (
-            <img
-              src={photoUrl}
-              alt=""
-              style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover" }}
-            />
-          ) : (
-            <InitialsAvatar name={name || session.user.email} size={56} />
-          )}
+          <UserAvatar url={photoUrl} name={name || session.user.email} size={56} />
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label
               style={{
