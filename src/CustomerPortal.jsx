@@ -3333,6 +3333,142 @@ function PortalSettings({
   );
 }
 
+// Portal'ın kendi PWA'sı var (portal.binerly.com → "Binerly Portal", bkz.
+// src/main.jsx manifest swap + public/manifest-portal-root.webmanifest), ama
+// müşteri tarayıcının kendi "yükle" düğmesini kendi başına bulmak zorundaydı.
+// Bu şerit, zaten uygulama gibi açılmıyorsa (standalone değil) ve müşteri
+// kapatmadıysa gösterilir: Android/masaüstü Chrome'da beforeinstallprompt'u
+// yakalayıp tek dokunuşla kurar; iOS Safari'de (o olay yok) elle ekleme
+// adımlarını gösterir.
+function PortalInstallNudge() {
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showIosSteps, setShowIosSteps] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return localStorage.getItem("binerly_portal_install_dismissed") === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const onPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    return () => window.removeEventListener("beforeinstallprompt", onPrompt);
+  }, []);
+
+  const isStandalone =
+    window.matchMedia?.("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true;
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+
+  // Zaten kurulu/standalone, kapatılmış, ya da ne kurulum olayı var ne de iOS
+  // (tarayıcı zaten kuramaz) → hiç gösterme.
+  if (isStandalone || dismissed || (!deferredPrompt && !isIos)) return null;
+
+  const close = () => {
+    setDismissed(true);
+    try {
+      localStorage.setItem("binerly_portal_install_dismissed", "1");
+    } catch {
+      /* özel sekme / depolama kapalı - sadece bu oturumda gizli kalır */
+    }
+  };
+
+  const install = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      setDeferredPrompt(null);
+      if (outcome === "accepted") close();
+    } else if (showIosSteps) {
+      // Adımları gördü - şeridi kapat (bir daha gösterme).
+      close();
+    } else {
+      setShowIosSteps(true);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 10,
+        background: "var(--surface-1)",
+        border: "0.5px solid var(--border)",
+        borderLeft: "3px solid var(--fill-accent)",
+        borderRadius: "var(--radius-lg)",
+        boxShadow: "var(--shadow-sm)",
+        padding: "10px 12px",
+        marginBottom: "1.25rem",
+        fontSize: 13,
+      }}
+    >
+      <i
+        className="ti ti-device-mobile-plus"
+        style={{ fontSize: 20, color: "var(--fill-accent)", flex: "none", marginTop: 1 }}
+        aria-hidden="true"
+      ></i>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ margin: 0, fontWeight: 600, color: "var(--text-primary)" }}>
+          Uygulama gibi ekleyin
+        </p>
+        <p style={{ margin: "2px 0 0", color: "var(--text-secondary)", lineHeight: 1.4 }}>
+          Ana ekranınızdan tek dokunuşla açın, yeni gelişmelerde bildirim alın.
+        </p>
+        {showIosSteps && (
+          <p
+            style={{
+              margin: "8px 0 0",
+              color: "var(--text-secondary)",
+              background: "var(--bg-accent)",
+              borderRadius: "var(--radius)",
+              padding: "8px 10px",
+              lineHeight: 1.5,
+            }}
+          >
+            Safari'de alttaki <strong>Paylaş</strong> düğmesine (kutudan yukarı ok) dokunun, açılan
+            menüde <strong>"Ana Ekrana Ekle"</strong>yi seçin.
+          </p>
+        )}
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <button
+            type="button"
+            onClick={install}
+            style={{
+              background: "var(--fill-accent)",
+              color: "var(--on-accent)",
+              border: "none",
+              fontSize: 12.5,
+              fontWeight: 600,
+              padding: "5px 12px",
+            }}
+          >
+            {deferredPrompt ? "Ekle" : showIosSteps ? "Tamam" : "Nasıl eklerim?"}
+          </button>
+          <button
+            type="button"
+            onClick={close}
+            style={{
+              background: "none",
+              border: "0.5px solid var(--border)",
+              color: "var(--text-secondary)",
+              fontSize: 12.5,
+              padding: "5px 12px",
+            }}
+          >
+            Şimdi değil
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CustomerPortal() {
   const [session, setSession] = useState(undefined);
   const [portalTab, setPortalTab] = useState("talepler");
@@ -4482,6 +4618,7 @@ export default function CustomerPortal() {
       </div>
 
       <div style={{ maxWidth: 1300 }}>
+        <PortalInstallNudge />
         {loadError ? (
           <p style={{ fontSize: 14, color: "var(--text-danger)" }}>
             Verileriniz yüklenirken bir hata oluştu. Lütfen sayfayı yenileyip tekrar deneyin.
