@@ -326,12 +326,10 @@ function appointmentCancelDecision(randevuTarihi, hardBlockHours, penaltyHours) 
   return { canCancel, isLate, hoursLeft };
 }
 
-// Sektöre göre çok soluk, dağınık ikon fonu (BackgroundScatter) - sektör
-// ikonu büyük slotu doldurur, gerisi genel randevu/CRM ikonları. sector yoksa
-// da genel dağılım gösterilir.
+// Sektöre özgü, çok soluk dağıtılmış ikon fonu (bkz. BackgroundScatter -
+// ikon havuzu orada, sektöre göre). sector yoksa nötr randevu ikonları.
 function SectorWatermark({ sector }) {
-  const icon = SECTOR_PRESETS.find((s) => s.id === sector)?.icon;
-  return <BackgroundScatter sectorIcon={icon} />;
+  return <BackgroundScatter sector={sector} />;
 }
 
 function CustomerPortalLanding({ onEnter, entryCompany }) {

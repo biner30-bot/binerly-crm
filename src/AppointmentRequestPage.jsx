@@ -350,7 +350,7 @@ export default function AppointmentRequestPage() {
 
   return (
     <div style={{ position: "relative", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "radial-gradient(130% 520px at 50% -60px, rgba(79, 148, 217, 0.2), rgba(79, 148, 217, 0) 70%)", backgroundRepeat: "no-repeat", fontFamily: "system-ui, -apple-system, sans-serif", padding: "1rem" }}>
-      <BackgroundScatter sectorIcon={SECTOR_ICON[company?.sector]} />
+      <BackgroundScatter sector={company?.sector} />
       <div style={{ background: "#fff", borderRadius: 16, padding: "2.25rem 2rem", width: "100%", maxWidth: 420, border: "1px solid #e1e8f0", boxShadow: "0 20px 60px rgba(12,37,64,0.08)" }}>
         {loading ? (
           <p style={{ textAlign: "center", color: "#5b7088" }}>Yükleniyor…</p>
