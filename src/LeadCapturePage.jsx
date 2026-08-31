@@ -117,7 +117,9 @@ export default function LeadCapturePage() {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background: "transparent",
+        background:
+          "radial-gradient(130% 520px at 50% -60px, rgba(79, 148, 217, 0.2), rgba(79, 148, 217, 0) 70%)",
+        backgroundRepeat: "no-repeat",
         fontFamily: "system-ui, -apple-system, sans-serif",
         padding: "1rem",
       }}

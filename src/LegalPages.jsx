@@ -16,7 +16,14 @@ function LegalLayout({ title, updatedAt, children }) {
   }, [title, updatedAt]);
 
   return (
-    <div style={{ minHeight: "100vh", background: "transparent" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background:
+          "radial-gradient(130% 520px at 50% -60px, rgba(79, 148, 217, 0.2), rgba(79, 148, 217, 0) 70%)",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
       <TrackingScripts />
       <nav
         style={{

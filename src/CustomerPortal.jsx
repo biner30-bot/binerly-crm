@@ -325,6 +325,30 @@ function appointmentCancelDecision(randevuTarihi, hardBlockHours, penaltyHours) 
   return { canCancel, isLate, hoursLeft };
 }
 
+// Sektöre göre çok soluk fon filigranı - sağ üstte sabit, dikkat dağıtmaz,
+// sayfaya "hangi tür işletme" hissi katar. sector yoksa hiç render etmez.
+function SectorWatermark({ sector }) {
+  const icon = SECTOR_PRESETS.find((s) => s.id === sector)?.icon;
+  if (!icon) return null;
+  return (
+    <i
+      className={`ti ${icon}`}
+      aria-hidden="true"
+      style={{
+        position: "fixed",
+        top: 76,
+        right: 24,
+        fontSize: "clamp(130px, 22vw, 210px)",
+        color: "var(--fill-accent)",
+        opacity: 0.055,
+        lineHeight: 1,
+        pointerEvents: "none",
+        zIndex: 0,
+      }}
+    />
+  );
+}
+
 function CustomerPortalLanding({ onEnter, entryCompany }) {
   const features = [
     { icon: "ti-list-check", text: "Teklif, randevu, üyelik veya rezervasyon durumunuzu görün" },
@@ -336,14 +360,19 @@ function CustomerPortalLanding({ onEnter, entryCompany }) {
     <div
       style={{
         minHeight: "100vh",
-        background: "transparent",
+        // Üstten yumuşak mavi ışıma - yarı saydam, body'nin nokta ızgarası
+        // altından geçer (ana landing/KOBİ ekranıyla aynı dil).
+        background:
+          "radial-gradient(130% 520px at 50% -60px, rgba(79, 148, 217, 0.2), rgba(79, 148, 217, 0) 70%)",
+        backgroundRepeat: "no-repeat",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         padding: "1rem",
       }}
     >
-      <div style={{ maxWidth: 440, width: "100%" }}>
+      <SectorWatermark sector={entryCompany?.sector} />
+      <div style={{ maxWidth: 440, width: "100%", position: "relative", zIndex: 1 }}>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <img
             src={entryCompany?.logoUrl || "/favicon.svg"}
@@ -467,7 +496,12 @@ function CustomerPortalEntry() {
     fetch(`/api/lead-capture?token=${encodeURIComponent(c)}&view=vitrin`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d?.companyName) setEntryCompany({ name: d.companyName, logoUrl: d.logoUrl || null });
+        if (d?.companyName)
+          setEntryCompany({
+            name: d.companyName,
+            logoUrl: d.logoUrl || null,
+            sector: d.sector || null,
+          });
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -562,12 +596,18 @@ function CustomerAuthForm({ initialMode = "login", onBack, entryCompany }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "transparent",
+        // CustomerPortalLanding ile aynı üstten mavi ışıma.
+        background:
+          "radial-gradient(130% 520px at 50% -60px, rgba(79, 148, 217, 0.2), rgba(79, 148, 217, 0) 70%)",
+        backgroundRepeat: "no-repeat",
         padding: "1rem",
       }}
     >
+      <SectorWatermark sector={entryCompany?.sector} />
       <div
         style={{
+          position: "relative",
+          zIndex: 1,
           background: "var(--surface-1)",
           borderRadius: "var(--radius-lg)",
           boxShadow: "var(--shadow-sm)",
@@ -4552,6 +4592,7 @@ export default function CustomerPortal() {
 
   return (
     <div style={{ padding: "24px 16px 64px" }}>
+      <SectorWatermark sector={activeCustomerRow?.companySector} />
       <div
         className="app-header-row"
         style={{

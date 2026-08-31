@@ -369,6 +369,7 @@ export default async function handler(req, res) {
       const vitrinPayload = {
         companyName: settings.company_name || "Binerly",
         logoUrl: settings.logo_url || null,
+        sector: settings.sector || null,
         address: settings.address || null,
         phone: settings.phone || null,
         showcase,
