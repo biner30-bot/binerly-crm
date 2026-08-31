@@ -16,7 +16,7 @@ function LegalLayout({ title, updatedAt, children }) {
   }, [title, updatedAt]);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f5f8fc" }}>
+    <div style={{ minHeight: "100vh", background: "transparent" }}>
       <TrackingScripts />
       <nav
         style={{

@@ -348,7 +348,7 @@ export default function AppointmentRequestPage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#f5f8fc", fontFamily: "system-ui, -apple-system, sans-serif", padding: "1rem" }}>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "transparent", fontFamily: "system-ui, -apple-system, sans-serif", padding: "1rem" }}>
       <div style={{ background: "#fff", borderRadius: 16, padding: "2.25rem 2rem", width: "100%", maxWidth: 420, border: "1px solid #e1e8f0", boxShadow: "0 20px 60px rgba(12,37,64,0.08)" }}>
         {loading ? (
           <p style={{ textAlign: "center", color: "#5b7088" }}>Yükleniyor…</p>

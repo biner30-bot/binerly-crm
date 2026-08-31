@@ -89,7 +89,7 @@ export default function ShowcasePage() {
     <div
       style={{
         minHeight: "100vh",
-        background: "#f5f8fc",
+        background: "transparent",
         fontFamily: "system-ui, -apple-system, sans-serif",
         padding: "1rem",
       }}

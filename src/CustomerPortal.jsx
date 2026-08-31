@@ -336,7 +336,7 @@ function CustomerPortalLanding({ onEnter, entryCompany }) {
     <div
       style={{
         minHeight: "100vh",
-        background: "var(--bg)",
+        background: "transparent",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -562,7 +562,7 @@ function CustomerAuthForm({ initialMode = "login", onBack, entryCompany }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "var(--bg)",
+        background: "transparent",
         padding: "1rem",
       }}
     >

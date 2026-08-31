@@ -302,7 +302,7 @@ function renderAttendancePage({ logoUrl, title, message, note, formToken, formRe
   return `<!doctype html>
 <html lang="tr">
   <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>${pageTitle}</title></head>
-  <body style="margin:0;padding:32px 16px;background:#f5f8fc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+  <body style="margin:0;padding:32px 16px;background-color:#f5f8fc;background-image:radial-gradient(rgba(12,37,64,0.05) 1px,transparent 1px);background-size:22px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
     <div style="max-width:440px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e1e8f0;text-align:center;">
       <div style="padding:28px 32px 20px;border-bottom:1px solid #e1e8f0;">
         <img src="${escapeAttendanceHtml(logo)}" alt="" style="max-height:48px;max-width:200px;" />
@@ -692,7 +692,7 @@ function renderOfferChoicePage({ logoUrl, company, dealTitle, dateLabel, token }
   return `<!doctype html>
 <html lang="tr">
   <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>${escapeAttendanceHtml(company || "Randevu saati")}</title></head>
-  <body style="margin:0;padding:32px 16px;background:#f5f8fc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+  <body style="margin:0;padding:32px 16px;background-color:#f5f8fc;background-image:radial-gradient(rgba(12,37,64,0.05) 1px,transparent 1px);background-size:22px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
     <div style="max-width:440px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e1e8f0;text-align:center;">
       <div style="padding:28px 32px 20px;border-bottom:1px solid #e1e8f0;">
         <img src="${escapeAttendanceHtml(logo)}" alt="" style="max-height:48px;max-width:200px;" />
@@ -835,7 +835,7 @@ function renderReviewPage({ logoUrl, bodyHtml, company }) {
   return `<!doctype html>
 <html lang="tr">
   <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>${escapeAttendanceHtml(company || "Değerlendirme")}</title></head>
-  <body style="margin:0;padding:32px 16px;background:#f5f8fc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+  <body style="margin:0;padding:32px 16px;background-color:#f5f8fc;background-image:radial-gradient(rgba(12,37,64,0.05) 1px,transparent 1px);background-size:22px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
     <div style="max-width:440px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e1e8f0;text-align:center;">
       <div style="padding:28px 32px 20px;border-bottom:1px solid #e1e8f0;">
         <img src="${escapeAttendanceHtml(logo)}" alt="" style="max-height:48px;max-width:200px;" />
