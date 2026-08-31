@@ -1,10 +1,10 @@
 // Herkese açık müşteri sayfalarının (randevu widget'ı, portal, onay/vitrin
 // sayfaları) fon deseni: çok soluk mavi, tekrar eden sektöre özgü Tabler
-// ikonları. Güzellik salonu müşterisi makas/kıvılcım/fırça deseni görür,
-// spor merkezi üyesi halter/koşu/yoga; alakasız ikon çıkmaz. Az sayıda
-// (3) ikon sık tekrarlanarak dağınık bir desen oluşturur. Sektör bilinmeyen
-// sayfalarda (genel portal, /lead, /onay) yalnızca nötr randevu/iletişim
-// ikonları kullanılır.
+// ikonları. Güzellik salonu müşterisi makas/tırnak/elmas/fırça deseni görür,
+// spor merkezi üyesi halter/koşu/yoga; alakasız ikon çıkmaz. Sektör başına
+// ~5 ikon dağınık ızgarada sık tekrarlanarak bir desen oluşturur. Sektör
+// bilinmeyen sayfalarda (genel portal, /lead, /onay) yalnızca nötr randevu/
+// iletişim ikonları kullanılır.
 //
 // Ayrı, bağımsız modül (shared.jsx / Sectors.jsx büyük olduğu için bu public
 // sayfalar onları import etmiyor - route bazlı kod bölme). Bağımlılıksız.
@@ -25,25 +25,39 @@ export const SECTOR_ICON = {
   genel: "ti-building-store",
 };
 
-// Desende tekrarlanan ikonlar - sektör başına 3 (en ikonik olanlar). Hepsi o
-// sektörle doğrudan alakalı, Tabler webfont'ta var olduğu doğrulandı.
+// Desende tekrarlanan ikonlar - sektör başına ~5, hepsi o sektörle doğrudan
+// alakalı (Tabler webfont'ta var olduğu doğrulandı). Grid ~28 hücre olduğu
+// için her ikon ~5-6 kez tekrar eder - hem çeşit hem desen hissi.
 const SECTOR_SET = {
-  // saç (makas) + tırnak/el/manikür (parmak) + bakım/parlaklık (kıvılcım)
-  guzellik_bakim: ["ti-scissors", "ti-hand-finger", "ti-sparkles"],
-  saglik_klinik: ["ti-stethoscope", "ti-heartbeat", "ti-medical-cross"],
-  spor_merkezi: ["ti-barbell", "ti-run", "ti-yoga"],
-  otel: ["ti-bed", "ti-key", "ti-luggage"],
-  egitim_kurs: ["ti-school", "ti-book", "ti-pencil"],
-  emlak: ["ti-home", "ti-key", "ti-map-2"],
-  dijital_ajans: ["ti-device-desktop-analytics", "ti-chart-line", "ti-speakerphone"],
-  uretim_satis: ["ti-truck-delivery", "ti-package", "ti-box"],
-  hizmet_danismanlik: ["ti-briefcase", "ti-presentation", "ti-chart-line"],
-  perakende: ["ti-shopping-bag", "ti-tag", "ti-receipt"],
-  sanayi_esnaf: ["ti-tool", "ti-hammer", "ti-settings"],
+  // saç (makas) + manikür/tırnak (yüzük parmağı = tırnak gösterme + elmas =
+  // nail art / protez tırnak süsü) + makyaj (fırça) + bakım (kıvılcım)
+  guzellik_bakim: ["ti-scissors", "ti-hand-ring-finger", "ti-diamond", "ti-brush", "ti-sparkles"],
+  saglik_klinik: ["ti-stethoscope", "ti-heartbeat", "ti-pill", "ti-vaccine", "ti-medical-cross"],
+  spor_merkezi: ["ti-barbell", "ti-run", "ti-yoga", "ti-jump-rope", "ti-bottle"],
+  otel: ["ti-bed", "ti-key", "ti-luggage", "ti-pool", "ti-coffee"],
+  egitim_kurs: ["ti-school", "ti-book", "ti-pencil", "ti-certificate", "ti-backpack"],
+  emlak: ["ti-home", "ti-building-estate", "ti-key", "ti-map-2", "ti-ruler-measure"],
+  dijital_ajans: [
+    "ti-device-desktop-analytics",
+    "ti-chart-line",
+    "ti-speakerphone",
+    "ti-palette",
+    "ti-code",
+  ],
+  uretim_satis: ["ti-truck-delivery", "ti-package", "ti-box", "ti-forklift", "ti-barcode"],
+  hizmet_danismanlik: [
+    "ti-briefcase",
+    "ti-presentation",
+    "ti-chart-line",
+    "ti-clipboard-list",
+    "ti-report-analytics",
+  ],
+  perakende: ["ti-shopping-bag", "ti-shopping-cart", "ti-tag", "ti-receipt", "ti-barcode"],
+  sanayi_esnaf: ["ti-tool", "ti-hammer", "ti-settings", "ti-box", "ti-truck-delivery"],
 };
 
 // Sektör yoksa: sadece randevu/iletişim temelleri (bu sayfaların yaptığı iş).
-const NEUTRAL_SET = ["ti-calendar-event", "ti-circle-check", "ti-bell"];
+const NEUTRAL_SET = ["ti-calendar-event", "ti-circle-check", "ti-bell", "ti-message-circle"];
 
 // Deterministik "dağınık ızgara": 5x7 hücre, her hücrede sabit jitter +
 // rotasyon, birkaç hücre atlanır (düzenli görünmesin). Her render aynı.
