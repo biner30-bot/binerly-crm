@@ -130,32 +130,21 @@ const NEUTRAL_SET = [
   "ti-clock",
 ];
 
-// i -> [0, mod) arası iyi dağılmış deterministik indeks (splitmix benzeri
-// tamsayı hash). set[i % len] deseydik dikey şeritler oluşuyordu (kolon başına
-// aynı ikon); bu hash her hücreye karışık ikon verir.
-function pick(i, mod) {
-  let h = ((i + 1) * 2246822519) >>> 0;
-  h = ((h ^ (h >>> 13)) * 3266489917) >>> 0;
-  h = (h ^ (h >>> 16)) >>> 0;
-  return h % mod;
-}
-
-// Deterministik "dağınık ızgara": 6x9 hücre, her hücrede sabit jitter +
-// rotasyon, ~%25 hücre atlanır (düzenli görünmesin). Her render aynı.
-const COLS = 6;
-const ROWS = 9;
+// Homojen "duvar kağıdı" ızgarası: tek boyut, sabit hafif eğim, jitter yok,
+// tek satır atlamalı (staggered) - klasik monogram deseni gibi düzgün dağılır.
+// Tek satırlar yarım hücre kaydırılır. İkonlar (r*3+c) ile atanır -> her ikon
+// düzenli çapraz bantlar halinde tekrarlar.
+const COLS = 7;
+const ROWS = 6;
 const CELLS = [];
 for (let r = 0; r < ROWS; r++) {
   for (let c = 0; c < COLS; c++) {
-    if (pick(r * COLS + c, 100) < 25) continue; // ~%25 boş
-    const jx = (((r * 13 + c * 29) % 13) - 6) * 1.1;
-    const jy = (((r * 17 + c * 7) % 13) - 6) * 0.8;
+    const offset = r % 2 ? (0.5 / COLS) * 100 : 0; // tek satır yarım hücre sağa
     CELLS.push({
       idx: r * COLS + c,
-      left: ((c + 0.5) / COLS) * 100 + jx,
-      top: ((r + 0.5) / ROWS) * 100 + jy,
-      size: 34 + pick(r * COLS + c + 500, 4) * 11, // 34..67
-      rot: (pick(r * COLS + c + 900, 5) - 2) * 13, // -26..26
+      seq: r * 3 + c,
+      left: ((c + 0.5) / COLS) * 100 + offset,
+      top: ((r + 0.5) / ROWS) * 100,
     });
   }
 }
@@ -179,17 +168,16 @@ export default function BackgroundScatter({ sector }) {
       {CELLS.map((it) => (
         <i
           key={it.idx}
-          className={`ti ${set[pick(it.idx, set.length)]}`}
+          className={`ti ${set[it.seq % set.length]}`}
           style={{
             position: "absolute",
             top: `${it.top}%`,
             left: `${it.left}%`,
-            fontSize: it.size,
+            fontSize: 42,
             lineHeight: 1,
             color: "#185fa5",
-            // Büyük olanlar biraz daha soluk, hepsi görünür ama dikkat dağıtmaz.
-            opacity: it.size > 54 ? 0.09 : 0.12,
-            transform: `translate(-50%, -50%) rotate(${it.rot}deg)`,
+            opacity: 0.09,
+            transform: "translate(-50%, -50%) rotate(-8deg)",
           }}
         />
       ))}
