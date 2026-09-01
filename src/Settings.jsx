@@ -591,12 +591,16 @@ export function ShowcaseManager({
   // ilk 6 hanesi ve sabit (bkz. App.jsx buildAndSaveShowcaseSlug). Düzenleme
   // kutusunda sadece isim kısmı gösteriliyor.
   const slugSuffix = (companySettings?.leadCaptureToken || "").replace(/-/g, "").slice(0, 6);
-  const currentNamePart =
-    companySettings?.showcaseSlug &&
-    slugSuffix &&
-    companySettings.showcaseSlug.endsWith(`-${slugSuffix}`)
-      ? companySettings.showcaseSlug.slice(0, -(slugSuffix.length + 1))
-      : companySettings?.showcaseSlug || "";
+  const storedSlug = companySettings?.showcaseSlug || "";
+  // Kod eki özelliğinden ÖNCE oluşmuş eski slug'lar kodsuz kaydedilmiş olabilir
+  // (örn. "elif-guzellik-salonu"). O durumda çözümlenen gerçek adres de kodsuz -
+  // burada uydurma bir "-<kod>" eklersek gösterilen link çalışmayan bir adres
+  // olur (kullanıcı fark etti). Sadece kayıtlı slug gerçekten kodu taşıyorsa
+  // isim/kod diye ayırırız.
+  const storedSlugHasCode = !!slugSuffix && storedSlug.endsWith(`-${slugSuffix}`);
+  const currentNamePart = storedSlugHasCode
+    ? storedSlug.slice(0, -(slugSuffix.length + 1))
+    : storedSlug;
   const [slugInput, setSlugInput] = useState(currentNamePart);
   const [slugError, setSlugError] = useState("");
   const [savingSlug, setSavingSlug] = useState(false);
@@ -604,6 +608,11 @@ export function ShowcaseManager({
   const sorted = [...campaigns].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   const suggestedSlug = slugify(companySettings?.companyName || "");
   const slugDirty = slugInput !== currentNamePart;
+  // "-<kod>" ekini yalnızca Kaydet gerçekten onu üretecekse göster: yeni bir
+  // adres kaydedilirken (slugDirty), hiç slug yokken (ilk üretim kod ekler) ya
+  // da kayıtlı slug zaten kodu taşıyorsa. Eski kodsuz slug'da çalışan adres
+  // kodsuzdur - onu olduğu gibi gösteririz.
+  const showSlugCode = !!slugSuffix && (slugDirty || !storedSlug || storedSlugHasCode);
   const bookingKind =
     bookingModel(companySettings?.sector) === "slot"
       ? { label: "Randevu linki", path: "randevu-al" }
@@ -672,7 +681,7 @@ export function ShowcaseManager({
             placeholder={suggestedSlug || "isletme-adiniz"}
             style={{ flex: 1, minWidth: 140, fontSize: 13 }}
           />
-          {slugSuffix && (
+          {showSlugCode && (
             <span style={{ fontSize: 13, color: "var(--text-muted)" }}>-{slugSuffix}</span>
           )}
           {slugDirty && (
@@ -694,7 +703,8 @@ export function ShowcaseManager({
         {slugSuffix && (slugInput || suggestedSlug) && !slugError && (
           <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0" }}>
             {bookingKind.label}: binerly.com/{bookingKind.path}/
-            {slugify(slugInput || suggestedSlug)}-{slugSuffix}
+            {slugify(slugInput || suggestedSlug)}
+            {showSlugCode ? `-${slugSuffix}` : ""}
           </p>
         )}
       </div>
