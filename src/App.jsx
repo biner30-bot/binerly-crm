@@ -5356,6 +5356,7 @@ export default function App() {
           sector={companySettings?.sector}
           initialViewTicketId={initialViewTicketId}
           onConsumeInitialViewTicket={() => setInitialViewTicketId(null)}
+          onOpenHelp={() => setShowAskDock(true)}
         />
       )}
 

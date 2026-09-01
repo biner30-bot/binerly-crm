@@ -1747,6 +1747,7 @@ export default function Support({
   initialViewTicketId,
   onConsumeInitialViewTicket,
   sector,
+  onOpenHelp,
 }) {
   const [supportView, setSupportView] = useState("talepler");
   const [showImportTickets, setShowImportTickets] = useState(false);
@@ -1841,6 +1842,67 @@ export default function Support({
 
   return (
     <div>
+      {/* "Destek" adı yeni KOBİ'lerde "Binerly'den yardım alma" ekranı gibi
+          algılanabiliyor - aslında MÜŞTERİLERİN size talep açtığı ekran. Kısa
+          bir açıklama + Binerly desteği için yönlendirme. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 8,
+          background: "var(--bg-accent)",
+          border: "0.5px solid var(--border)",
+          borderRadius: "var(--radius)",
+          padding: "10px 12px",
+          marginBottom: 12,
+          fontSize: 12.5,
+          color: "var(--text-secondary)",
+          lineHeight: 1.55,
+        }}
+      >
+        <i
+          className="ti ti-info-circle"
+          style={{ fontSize: 16, color: "var(--text-accent)", flexShrink: 0, marginTop: 1 }}
+          aria-hidden="true"
+        ></i>
+        <span>
+          Bu ekran <strong>müşterileriniz</strong> içindir - onlar Müşteri Portalı'ndan size destek
+          talebi açar, siz buradan yanıtlarsınız (telefon/e-postayla geleni elle de
+          ekleyebilirsiniz).{" "}
+          <span style={{ color: "var(--text-primary)" }}>
+            Binerly ile ilgili yardıma mı ihtiyacınız var?
+          </span>{" "}
+          {onOpenHelp && (
+            <>
+              <button
+                type="button"
+                onClick={onOpenHelp}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  boxShadow: "none",
+                  color: "var(--text-accent)",
+                  fontWeight: 600,
+                  fontSize: 12.5,
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                }}
+              >
+                Yardım'ı açın
+              </button>{" "}
+              ya da{" "}
+            </>
+          )}
+          <a
+            href="mailto:info@binerly.com"
+            style={{ color: "var(--text-accent)", fontWeight: 600 }}
+          >
+            info@binerly.com
+          </a>
+          .
+        </span>
+      </div>
       <div
         style={{
           display: "flex",
