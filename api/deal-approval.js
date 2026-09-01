@@ -735,6 +735,30 @@ async function handleConfirmAppointmentOffer(req, res, supabaseAdmin, deal, sett
     .update({ resource_unit_id: null, concurrency_slot_id: null, appointment_start: null, appointment_end: null, ...extra })
     .eq("id", deal.id);
 
+  // Link tekrar açıldığında (müşteri e-postaya/WhatsApp'a geri dönüp tıklarsa)
+  // duruma göre NET bir mesaj göster - "zaten tamamlanmış ya da geçersiz" gibi
+  // muğlak değil (kullanıcı isteği: "tekrar onay vermeye girince onaylanmış densin").
+  if (deal.appointment_offer_status === "confirmed") {
+    const label = deal.appointment_offer_time ? formatOfferDateTime(new Date(deal.appointment_offer_time)) : null;
+    return res.status(200).send(renderAttendancePage({
+      logoUrl, company, title: "Randevunuz zaten onaylandı",
+      message: label
+        ? `"${deal.title}" randevunuz ${label} için onaylandı. Sizi bekliyoruz. - ${company}`
+        : `Bu randevu daha önce onaylandı. Sizi bekliyoruz. - ${company}`,
+    }));
+  }
+  if (deal.appointment_offer_status === "declined") {
+    return res.status(200).send(renderAttendancePage({
+      logoUrl, company, title: "Bu saati daha önce uygun bulmadınız",
+      message: `${company} size yeni bir saat önerdiğinde tekrar bir bağlantı alacaksınız.`,
+    }));
+  }
+  if (deal.appointment_offer_status === "expired") {
+    return res.status(200).send(renderAttendancePage({
+      logoUrl, company, title: "Bu teklifin süresi doldu",
+      message: `Lütfen ${company} ile iletişime geçin, size yeni bir saat önersinler.`,
+    }));
+  }
   if (!deal.appointment_offer_time || deal.appointment_offer_status !== "sent") {
     return res.status(200).send(renderAttendancePage({
       logoUrl, company, title: "Bu teklif artık geçerli değil",
@@ -792,6 +816,12 @@ async function handleConfirmAppointmentOffer(req, res, supabaseAdmin, deal, sett
       .update({
         custom_fields: { ...(deal.custom_fields || {}), [dtKey]: dateTimeLocalStr, portal_randevu_zamani: dateTimeLocalStr },
         appointment_offer_status: "confirmed",
+        // Önerilen saati onaylamak = kaydı onaylamak. approved_at'i de set
+        // ediyoruz ki portal / CRM / "/onay/" sayfası AYRICA bir "Onayla" adımı
+        // beklemesin (kullanıcı bulmuş: onaylanmış randevuda portal hâlâ generic
+        // "Onayla" gösteriyordu). Ters yön markApproved'daki offerPending ile
+        // zaten çözülmüştü - bu iki akış artık tam simetrik.
+        ...(deal.approved_at ? {} : { approved_at: new Date().toISOString() }),
         // Müşteri kesin bir saati onayladı - "Randevu talebi"nde (ilk_gorusme)
         // asılı kalmasın, "Randevu planlandı"ya (teklif) ilerlet. Daha ileri bir
         // aşamadaysa (KOBİ elle taşımış) dokunma.
@@ -806,6 +836,16 @@ async function handleConfirmAppointmentOffer(req, res, supabaseAdmin, deal, sett
       id: crypto.randomUUID(), user_id: deal.user_id, customer_id: deal.customer_id, type: "note",
       content: `Müşteri, önerilen ${dateLabel} randevu saatini e-posta üzerinden onayladı.`,
     });
+    // KOBİ ekranda olmayabilir - telefon bildirimi (markApproved'ın "/onay/"
+    // akışında attığı AYNI bildirim, iki akış tutarlı olsun diye).
+    if (!deal.approved_at) {
+      const { data: cust } = await supabaseAdmin.from("customers").select("name").eq("id", deal.customer_id).maybeSingle();
+      fetch("https://binerly.com/api/send-push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-push-secret": (process.env.PUSH_WEBHOOK_SECRET || "").trim() },
+        body: JSON.stringify({ table: "deal_approvals", record: { deal_id: deal.id, user_id: deal.user_id, title: deal.title, customer_name: cust?.name || null } }),
+      }).catch(() => {});
+    }
     return res.status(200).send(renderAttendancePage({ logoUrl, company, title: "Randevunuz onaylandı!", message: `${dateLabel} için randevunuz kesinleşti. Sizi bekliyoruz. - ${company}` }));
   }
 
