@@ -231,6 +231,17 @@ async function handleBooking(req, res, supabaseAdmin) {
     return res.status(403).json({ error: "Yetkisiz işlem." });
   }
 
+  // deals.kdv_rate DB varsayılanı 20 - KOBİ'nin Ayarlar'daki "Varsayılan KDV
+  // oranı"nı yok sayardı. Aşağıdaki 3 dalın (oda rezervasyonu / talep / anlık
+  // randevu) hepsi bunu kullansın diye tek seferde çekilir; CRM'deki addDeal
+  // ile tutarlı.
+  const { data: bizSettings } = await supabaseAdmin
+    .from("company_settings")
+    .select("default_kdv_rate")
+    .eq("user_id", businessUserId)
+    .maybeSingle();
+  const defaultKdvRate = bizSettings?.default_kdv_rate ?? 20;
+
   // Otel gibi oda-stoklu (bookingModel === "inventory") sektörler — saat slotu
   // değil GİRİŞ/ÇIKIŞ tarih aralığı + oda tipi stoku. Önceden bu dal
   // CustomerPortal.jsx'ten doğrudan istemciden insert ediliyordu, oda kapasitesi
@@ -263,7 +274,7 @@ async function handleBooking(req, res, supabaseAdmin) {
 
     const row = {
       id: crypto.randomUUID(), user_id: businessUserId, customer_id: customerId,
-      title: (note || "").trim() || "Rezervasyon talebi", value: 0, stage: "ilk_gorusme",
+      title: (note || "").trim() || "Rezervasyon talebi", value: 0, kdv_rate: defaultKdvRate, stage: "ilk_gorusme",
       custom_fields: {
         giris_tarihi: checkIn, cikis_tarihi: checkOut, oda_tipi: roomType, kisi_sayisi: partySize,
         ...(visitPurpose ? { ziyaret_amaci: visitPurpose } : {}),
@@ -337,7 +348,7 @@ async function handleBooking(req, res, supabaseAdmin) {
 
     const requestRow = {
       id: crypto.randomUUID(), user_id: businessUserId, customer_id: customerId,
-      title: serviceName || (note || "").trim() || "Randevu talebi", value: servicePrice, stage: "ilk_gorusme",
+      title: serviceName || (note || "").trim() || "Randevu talebi", value: servicePrice, kdv_rate: defaultKdvRate, stage: "ilk_gorusme",
       custom_fields: {
         kaynak: "portal_talep",
         appointment_request_prefs: cleanPrefs.map((t) => `${requestedDate}T${t}`),
@@ -488,7 +499,7 @@ async function handleBooking(req, res, supabaseAdmin) {
 
   const row = {
     id: dealId, user_id: businessUserId, customer_id: customerId,
-    title: serviceName || (note || "").trim() || "Randevu talebi", value: dealValue, stage: "ilk_gorusme",
+    title: serviceName || (note || "").trim() || "Randevu talebi", value: dealValue, kdv_rate: defaultKdvRate, stage: "ilk_gorusme",
     resource_unit_id: resourceUnitId, concurrency_slot_id: concurrencySlotId,
     appointment_start: appointmentStart, appointment_end: appointmentEnd,
     custom_fields: {

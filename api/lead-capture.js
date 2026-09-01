@@ -263,7 +263,7 @@ export default async function handler(req, res) {
   // orada da kabul eder - zararsız, aynı company_settings satırına düşer.
   const { data: settings, error: settingsError } = await supabaseAdmin
     .from("company_settings")
-    .select("user_id, company_name, logo_url, sector, appointment_deposit_amount, appointment_concurrency, appointment_widget_mode, appointment_availability_source, address, phone, showcase_price_list_visible, showcase_slug")
+    .select("user_id, company_name, logo_url, sector, appointment_deposit_amount, appointment_concurrency, appointment_widget_mode, appointment_availability_source, address, phone, showcase_price_list_visible, showcase_slug, default_kdv_rate")
     .or(`lead_capture_token.eq.${token},showcase_slug.eq.${token}`)
     .maybeSingle();
   if (settingsError) console.error("lead-capture query error:", settingsError.message);
@@ -667,6 +667,9 @@ export default async function handler(req, res) {
       customer_id: customerId,
       title: serviceName || (note || "").trim() || "Randevu talebi",
       value: servicePrice,
+      // deals.kdv_rate DB varsayılanı 20 - KOBİ'nin Ayarlar'daki "Varsayılan KDV
+      // oranı"nı (default_kdv_rate) yok sayardı; CRM'deki addDeal ile tutarlı olsun.
+      kdv_rate: settings.default_kdv_rate ?? 20,
       stage: "ilk_gorusme",
       resource_unit_id: resourceUnitId, concurrency_slot_id: concurrencySlotId,
       appointment_start: appointmentStart, appointment_end: appointmentEnd,
@@ -762,6 +765,7 @@ export default async function handler(req, res) {
       customer_id: customerId,
       title: serviceName || (note || "").trim() || "Randevu talebi",
       value: servicePrice,
+      kdv_rate: settings.default_kdv_rate ?? 20,
       stage: "ilk_gorusme",
       custom_fields: {
         kaynak: "randevu_widget_talep",
