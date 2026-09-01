@@ -3242,14 +3242,17 @@ function PortalSettings({
                   disabled={uploadingAvatar}
                   style={{ fontSize: 12.5, padding: "5px 12px" }}
                 >
-                  {uploadingAvatar ? "Yükleniyor…" : "Fotoğraf yükle"}
+                  {uploadingAvatar
+                    ? "Yükleniyor…"
+                    : session.user.user_metadata?.custom_avatar_url
+                      ? "Fotoğrafı değiştir"
+                      : "Fotoğraf yükle"}
                 </button>
-                {session.user.user_metadata?.custom_avatar_url && (
+                {session.user.user_metadata?.custom_avatar_url && !uploadingAvatar && (
                   <button
                     type="button"
                     onClick={removeAvatar}
-                    disabled={uploadingAvatar}
-                    style={{ fontSize: 12.5, padding: "5px 12px" }}
+                    style={{ fontSize: 12.5, padding: "5px 12px", color: "var(--text-danger)" }}
                   >
                     Kaldır
                   </button>

@@ -1304,18 +1304,17 @@ export function AppSettingsModal({
     <Modal title="Ayarlar" onClose={onClose}>
       <div style={{ marginBottom: 20 }}>
         <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>Profil</p>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
           <UserAvatar url={photoUrl} name={name || session.user.email} size={56} />
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <label
               style={{
                 background: "var(--surface-1)",
                 border: "0.5px solid var(--border)",
                 borderRadius: "var(--radius)",
                 padding: "6px 12px",
-                fontSize: 13,
+                fontSize: 12.5,
                 cursor: uploadingPhoto ? "default" : "pointer",
-                width: "fit-content",
               }}
             >
               {uploadingPhoto ? "Yükleniyor…" : photoUrl ? "Fotoğrafı değiştir" : "Fotoğraf yükle"}
@@ -1332,13 +1331,13 @@ export function AppSettingsModal({
                 type="button"
                 onClick={removePhoto}
                 style={{
-                  background: "none",
-                  border: "none",
+                  background: "var(--surface-1)",
+                  border: "0.5px solid var(--border)",
+                  borderRadius: "var(--radius)",
+                  padding: "6px 12px",
+                  fontSize: 12.5,
                   color: "var(--text-danger)",
-                  fontSize: 12,
-                  padding: 0,
                   cursor: "pointer",
-                  textAlign: "left",
                 }}
               >
                 Kaldır
