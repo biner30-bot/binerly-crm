@@ -21,7 +21,7 @@ import {
   IconButton,
   translateAuthError,
   humanizeDbMessage,
-  InitialsAvatar,
+  UserAvatar,
   SegmentedControl,
   THEME_OPTIONS,
   escapeIlikePattern,
@@ -3141,7 +3141,11 @@ function PortalSettings({
       {section === "profile" && (
         <div style={{ marginBottom: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-            <InitialsAvatar name={customerName || session.user.email} size={48} />
+            <UserAvatar
+              url={session.user.user_metadata?.avatar_url}
+              name={customerName || session.user.email}
+              size={48}
+            />
             <div>
               <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
                 {customerName || session.user.email}
@@ -3718,6 +3722,7 @@ export default function CustomerPortal() {
           email: r.email,
           companyName: r.company_name,
           companySector: r.company_sector,
+          companyLogoUrl: r.company_logo_url || null,
           companyLateCancelHours: r.company_late_cancel_hours ?? null,
           companyHardBlockHours: r.company_hard_block_hours ?? null,
           companyLateCancelStrikeLimit: r.company_late_cancel_strike_limit ?? null,
@@ -4671,7 +4676,11 @@ export default function CustomerPortal() {
               lineHeight: 0,
             }}
           >
-            <InitialsAvatar name={activeCustomerRow?.name || session.user.email} size={30} />
+            <UserAvatar
+              url={session.user.user_metadata?.avatar_url}
+              name={activeCustomerRow?.name || session.user.email}
+              size={30}
+            />
           </button>
         </div>
       </div>
@@ -4773,7 +4782,8 @@ export default function CustomerPortal() {
                       padding: "6px 10px 14px",
                     }}
                   >
-                    <InitialsAvatar
+                    <UserAvatar
+                      url={activeCustomerRow.companyLogoUrl}
                       name={activeCustomerRow.companyName || activeCustomerRow.name}
                       size={38}
                     />
