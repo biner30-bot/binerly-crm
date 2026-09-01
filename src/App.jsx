@@ -5737,7 +5737,7 @@ export default function App() {
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px" }}>
             Bu linki (veya QR kodu) Instagram bio'nuza, sitenize veya kartvizitinize koyun - hiç kaydı olmayan bir müşteri bile giriş yapmadan uygun bir saat seçip randevu talep edebilir. Link kalıcıdır - fiyat listenizi, hizmetlerinizi veya müsaitlik saatlerinizi güncellediğinizde linki tekrar almanıza gerek yok, değişiklikler otomatik yansır.
           </p>
-          {priceListItems.some((item) => Number(item.price) === 0) ? (
+          {priceListItems.some((item) => item.price != null && Number(item.price) === 0) ? (
             <p style={{ fontSize: 12, color: "var(--text-secondary)", background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 10px", margin: "0 0 16px" }}>
               🎁 Fiyat listenizde 0 TL'lik bir hizmet olduğu için bu widget'ta ayrı, vurgulu bir "ücretsiz" butonu olarak öne çıkıyor.
             </p>

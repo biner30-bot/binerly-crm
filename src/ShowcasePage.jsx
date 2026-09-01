@@ -215,13 +215,15 @@ export default function ShowcasePage() {
                       <p
                         style={{
                           margin: 0,
-                          fontSize: 14,
-                          fontWeight: 700,
-                          color: "#185fa5",
+                          fontSize: item.price == null ? 12 : 14,
+                          fontWeight: item.price == null ? 500 : 700,
+                          color: item.price == null ? "#9aa8b8" : "#185fa5",
                           whiteSpace: "nowrap",
                         }}
                       >
-                        {formatPrice(item.price)}
+                        {item.price == null
+                          ? "Bilgi için iletişime geçin"
+                          : formatPrice(item.price)}
                       </p>
                     </div>
                   ))}

@@ -235,7 +235,7 @@ export function PriceListEditModal({
   onClose,
 }) {
   const [name, setName] = useState(item.name);
-  const [price, setPrice] = useState(String(item.price));
+  const [price, setPrice] = useState(item.price == null ? "" : String(item.price));
   const [refreshDays, setRefreshDays] = useState(item.refreshDays ? String(item.refreshDays) : "");
   const [durationMinutes, setDurationMinutes] = useState(
     item.durationMinutes ? String(item.durationMinutes) : "",
@@ -255,7 +255,7 @@ export function PriceListEditModal({
   const submit = (e) => {
     e.preventDefault();
     const trimmedName = name.trim();
-    if (!trimmedName || price === "") return;
+    if (!trimmedName) return;
     const { selfGroupValue, partnerUpdates } = computeParallelGroupSync({
       allItems: items,
       selfId: item.id,
@@ -265,7 +265,7 @@ export function PriceListEditModal({
     });
     onSave({
       name: trimmedName,
-      price: Number(price),
+      price: price === "" ? null : Number(price),
       refreshDays: Number(refreshDays) || null,
       durationMinutes: Number(durationMinutes) || null,
       commissionPercent: commissionPercent !== "" ? Number(commissionPercent) : null,
@@ -304,18 +304,24 @@ export function PriceListEditModal({
               style={{
                 fontSize: 12,
                 color: "var(--text-secondary)",
-                display: "block",
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
                 marginBottom: 4,
               }}
             >
               Fiyat (TL)
+              <InfoTip
+                align="left"
+                text="Opsiyonel - boş bırakırsanız randevu alma ekranlarında ve vitrinde müşteriye fiyat gösterilmez ('fiyat için iletişime geçin' mantığı). 0 yazarsanız hizmet 'Ücretsiz' olarak öne çıkar."
+              />
             </label>
             <input
               type="number"
               min="0"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
-              placeholder="0"
+              placeholder="Opsiyonel"
               style={{ width: "100%" }}
             />
           </div>
@@ -522,7 +528,7 @@ export function PriceListManager({
   const submit = (e) => {
     e.preventDefault();
     const trimmedName = name.trim();
-    if (!trimmedName || price === "") return;
+    if (!trimmedName) return;
     const { selfGroupValue, partnerUpdates } = computeParallelGroupSync({
       allItems: items,
       selfId: null,
@@ -532,7 +538,7 @@ export function PriceListManager({
     });
     onAdd({
       name: trimmedName,
-      price: Number(price),
+      price: price === "" ? null : Number(price),
       refreshDays: Number(refreshDays) || null,
       durationMinutes: Number(durationMinutes) || null,
       resourceId: resourceId || null,
@@ -666,7 +672,11 @@ export function PriceListManager({
                       minWidth: 0,
                     }}
                   >
-                    <Badge tone="accent">{formatTL(item.price)}</Badge>
+                    {item.price == null ? (
+                      <Badge tone="default">Fiyat belirtilmedi</Badge>
+                    ) : (
+                      <Badge tone="accent">{formatTL(item.price)}</Badge>
+                    )}
                     {item.durationMinutes > 0 && (
                       <Badge tone="default">{item.durationMinutes} dk</Badge>
                     )}
@@ -753,18 +763,24 @@ export function PriceListManager({
             style={{
               fontSize: 12,
               color: "var(--text-secondary)",
-              display: "block",
+              display: "flex",
+              alignItems: "center",
+              gap: 3,
               marginBottom: 4,
             }}
           >
             Fiyat (TL)
+            <InfoTip
+              align="left"
+              text="Opsiyonel - boş bırakırsanız randevu alma ekranlarında ve vitrinde müşteriye fiyat gösterilmez ('fiyat için iletişime geçin' mantığı). 0 yazarsanız hizmet 'Ücretsiz' olarak öne çıkar."
+            />
           </label>
           <input
             type="number"
             min="0"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
-            placeholder="0"
+            placeholder="Opsiyonel"
             style={{ width: "100%", fontSize: 16 }}
           />
         </div>

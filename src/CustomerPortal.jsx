@@ -2059,6 +2059,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
   const [selectedTime, setSelectedTime] = useState("");
   const [note, setNote] = useState(reschedule?.initialNote || "");
   const [serviceIds, setServiceIds] = useState(reschedule?.initialServiceIds || []);
+  const [otherService, setOtherService] = useState(false);
   const [booking, setBooking] = useState(false);
   const [dateTimeKey, setDateTimeKey] = useState(null);
   const [hasPaymentProvider, setHasPaymentProvider] = useState(false);
@@ -2132,15 +2133,21 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
       .catch(() => setDayOverview([]));
   }, [requestOnlyMode, customerRow.userId, serviceIds]);
 
-  // 0 TL'lik bir fiyat kalemi "ücretsiz" demek - AppointmentRequestPage.jsx'teki
-  // (widget) AYNI ayrım/deseni (kasıtlı kopya) burada da uyguluyoruz, tutarlı olsun.
-  const freeServices = (priceListItems || []).filter((s) => Number(s.price) === 0);
-  const paidServices = (priceListItems || []).filter((s) => Number(s.price) !== 0);
+  // Üç fiyat durumu (bkz. sql/2026-09-01_price_list_price_nullable.sql) -
+  // AppointmentRequestPage.jsx'teki (widget) AYNI ayrım (kasıtlı kopya):
+  // price=0 -> "Ücretsiz", price>0 -> fiyatıyla, price=null -> fiyatsız (ama
+  // "Ücretsiz" DE değil). null'ı Number() 0'a çevirdiği için katı kontrol şart.
+  const freeServices = (priceListItems || []).filter(
+    (s) => s.price != null && Number(s.price) === 0,
+  );
+  const paidServices = (priceListItems || []).filter((s) => s.price == null || Number(s.price) > 0);
   // AppointmentRequestPage.jsx'teki AYNI kısıt (kasıtlı kopya) - hizmet
   // tanımlıysa müşteri önce en az birini seçmeden gün/saat adımına geçemez,
   // süre sonradan değişip saat listesi şaşırtıcı şekilde kaymasın.
   const hasServices = freeServices.length > 0 || paidServices.length > 0;
-  const canPickTime = !hasServices || serviceIds.length > 0;
+  // "Aradığım hizmet listede yok" - tanımlı hizmetlerden hiçbirini seçmeden
+  // ne istediğini nota yazıp devam edebilsin (widget'taki AYNI davranış).
+  const canPickTime = !hasServices || serviceIds.length > 0 || otherService;
   // AppointmentRequestPage.jsx'teki AYNI ilke (kasıtlı kopya).
   const hoursConfigured = businessHours.length > 0;
   const dayWindows = windowsForWeekday(businessHours, date);
@@ -2150,6 +2157,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
     ? dayWindows.reduce((max, w) => (w.endTime > max ? w.endTime : max), dayWindows[0].endTime)
     : undefined;
   const toggleService = (id) => {
+    setOtherService(false);
     setServiceIds((prev) => {
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
       // Not alanı hâlâ boşsa (kullanıcı henüz kendi notunu yazmadıysa) seçilen
@@ -2197,7 +2205,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
     // bilgi. Hiç hizmet tanımlı değilse tek bilgi kaynağı bu alan, zorunlu kalır.
     if (requestOnlyMode ? cleanPrefs.length === 0 || closedToday : !selectedTime || !dateTimeKey)
       return;
-    if (!hasServices && !note.trim()) return;
+    if ((!hasServices || otherService) && !note.trim()) return;
     setBooking(true);
     const ok = await onBook({
       customerId: customerRow.id,
@@ -2280,7 +2288,8 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
                 .filter((s) => !serviceIds.includes(s.id))
                 .map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name} - {formatTL(s.price)}
+                    {s.name}
+                    {s.price == null ? "" : ` - ${formatTL(s.price)}`}
                     {s.durationMinutes ? ` · ${s.durationMinutes} dk` : ""}
                   </option>
                 ))}
@@ -2306,7 +2315,8 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
                     }}
                   >
                     <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
-                      {s.name} - {formatTL(s.price)}
+                      {s.name}
+                      {s.price == null ? "" : ` - ${formatTL(s.price)}`}
                       {s.durationMinutes ? ` · ${s.durationMinutes} dk` : ""}
                     </span>
                     <button
@@ -2340,6 +2350,30 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
           )}
         </div>
       )}
+      {hasServices && (
+        <label
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 8,
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            margin: "0 0 14px",
+            cursor: "pointer",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={otherService}
+            onChange={(e) => {
+              setOtherService(e.target.checked);
+              if (e.target.checked) setServiceIds([]);
+            }}
+            style={{ marginTop: 2 }}
+          />
+          Aradığım hizmet listede yok - ne için randevu istediğimi aşağıya yazacağım
+        </label>
+      )}
       {!canPickTime ? (
         <p
           style={{
@@ -2349,7 +2383,8 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
             textAlign: "center",
           }}
         >
-          Gün/saat seçmek için önce yukarıdan bir hizmet seçin.
+          Gün/saat seçmek için önce yukarıdan bir hizmet seçin ya da "Aradığım hizmet listede yok"u
+          işaretleyin.
         </p>
       ) : requestOnlyMode ? (
         <>
@@ -2581,13 +2616,13 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
             marginBottom: 4,
           }}
         >
-          {hasServices ? "Not (opsiyonel)" : "Ne için randevu almak istiyorsunuz?"}
+          {hasServices && !otherService ? "Not (opsiyonel)" : "Ne için randevu almak istiyorsunuz?"}
         </label>
         <input
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder={
-            hasServices
+            hasServices && !otherService
               ? "Eklemek istediğiniz bir not varsa yazabilirsiniz"
               : `Örn. ${appointmentNoteExample(customerRow.companySector)}`
           }
@@ -2604,7 +2639,7 @@ function SlotBookingModal({ customerRow, priceListItems, onBook, onClose, resche
             (requestOnlyMode
               ? timePrefs.every((t) => !t) || closedToday
               : !selectedTime || !dateTimeKey) ||
-            (!hasServices && !note.trim()) ||
+            ((!hasServices || otherService) && !note.trim()) ||
             booking
           }
           onClick={confirm}

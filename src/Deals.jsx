@@ -1527,7 +1527,7 @@ export function DealForm({
                       setSelectedPriceItemId(e.target.value);
                       if (item) {
                         setTitle(item.name);
-                        setValue(String(item.price));
+                        setValue(item.price == null ? "" : String(item.price));
                         // Kullanıcının zaten elle seçtiği bir kaynağın üzerine yazılmaz -
                         // sadece alan boşsa ve hizmetin varsayılan kaynağı hâlâ mevcutsa doldurulur.
                         if (
@@ -1547,7 +1547,8 @@ export function DealForm({
                     <option value="">Elle doldur / listeden seç</option>
                     {priceListItems.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.name} - {formatTL(p.price)}
+                        {p.name}
+                        {p.price == null ? "" : ` - ${formatTL(p.price)}`}
                       </option>
                     ))}
                   </select>
@@ -1782,7 +1783,7 @@ export function DealForm({
                         localId: uid(),
                         description: item.name,
                         quantity: 1,
-                        unitPrice: item.price,
+                        unitPrice: item.price == null ? "" : item.price,
                         priceItemId: item.id,
                       };
                       if (prev.length === 0 && title.trim() && Number(value) > 0) {
@@ -1805,7 +1806,8 @@ export function DealForm({
                   <option value="">Fiyat listesinden kalem ekle…</option>
                   {priceListItems.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name} - {formatTL(p.price)}
+                      {p.name}
+                      {p.price == null ? "" : ` - ${formatTL(p.price)}`}
                     </option>
                   ))}
                 </select>

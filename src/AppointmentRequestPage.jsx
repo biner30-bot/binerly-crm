@@ -103,6 +103,7 @@ export default function AppointmentRequestPage() {
   // KOBİ Pano'dan uygun olanı seçip tek bir teklif gönderir.
   const requestOnlyMode = company?.widgetMode === "request_only";
   const [serviceIds, setServiceIds] = useState([]);
+  const [otherService, setOtherService] = useState(false);
   const [date, setDate] = useState(todayStr);
   const [slots, setSlots] = useState([]);
   const [dateTimeKey, setDateTimeKey] = useState(null);
@@ -201,6 +202,10 @@ export default function AppointmentRequestPage() {
       setSubmitError("Geçerli bir telefon numarası girin.");
       return;
     }
+    if (otherService && !note.trim()) {
+      setSubmitError("Lütfen ne için randevu almak istediğinizi not kısmına yazın.");
+      return;
+    }
     const cleanPrefs = timePrefs.filter(Boolean);
     if (requestOnlyMode ? cleanPrefs.length === 0 || closedToday : !selectedTime || !dateTimeKey) {
       setSubmitError(closedToday ? "İşletme bu gün kapalı, lütfen başka bir gün seçin." : "Lütfen en az bir saat girin.");
@@ -291,12 +296,14 @@ export default function AppointmentRequestPage() {
     }
   };
 
-  // 0 TL'lik bir fiyat kalemi zaten "ücretsiz" demek - ayrı bir "deneme" alanı
-  // eklemek yerine bu sinyali widget'ta öne çıkarıyoruz (yeni kolon yok).
-  // Ücretsiz kalemler kendi buton bölümünde ayrıca gösterildiği için normal
-  // listeden çıkarılır - aksi halde aynı hizmet iki yerde birden görünür.
-  const freeServices = (company?.services || []).filter((s) => Number(s.price) === 0);
-  const paidServices = (company?.services || []).filter((s) => Number(s.price) !== 0);
+  // Üç fiyat durumu (bkz. sql/2026-09-01_price_list_price_nullable.sql):
+  //   price = 0    -> "Ücretsiz" (ayrı, vurgulu yeşil buton bölümü)
+  //   price > 0    -> normal listede fiyatıyla
+  //   price = null -> normal listede AMA fiyat gösterilmeden ("ücretsiz" DE denmez)
+  // null'ı Number() 0'a çevirdiği için katı kontrol şart - aksi halde fiyatı
+  // yazılmamış hizmet yanlışlıkla "Ücretsiz" görünürdü.
+  const freeServices = (company?.services || []).filter((s) => s.price != null && Number(s.price) === 0);
+  const paidServices = (company?.services || []).filter((s) => s.price == null || Number(s.price) > 0);
   // Hizmet seçilmeden gün/saat seçilirse süre varsayılan adıma göre hesaplanır,
   // sonradan hizmet seçilince (gerçek süresi farklıysa) saat listesi sessizce
   // değişip müşteriyi şaşırtabiliyordu. Tanımlı hizmet varsa müşteri önce en az
@@ -304,7 +311,11 @@ export default function AppointmentRequestPage() {
   // Hiç hizmet tanımlı değilse (KOBİ fiyat listesi hiç kullanmıyor) bu kısıt
   // anlamsız, eski akış (doğrudan gün/saat) aynen korunur.
   const hasServices = freeServices.length > 0 || paidServices.length > 0;
-  const canPickTime = !hasServices || serviceIds.length > 0;
+  // "Aradığım hizmet listede yok" - müşteri tanımlı hizmetlerden hiçbirini
+  // seçmeden, ne istediğini nota yazıp devam edebilsin (KOBİ hizmetlerini
+  // listelemiş ama müşterinin istediği kalem yoksa). Seçili hizmet varken
+  // anlamsız, seçim yapılınca otomatik kapanır (toggleService).
+  const canPickTime = !hasServices || serviceIds.length > 0 || otherService;
   // requestOnlyMode'da saat tercihi alanına makul bir min/max + görünür bir
   // ipucu koymak için - KOBİ hiç Müsaitlik Saatleri tanımlamadıysa (hoursConfigured
   // false) hiçbir kısıt uygulanmaz, elimizde veri yok demektir.
@@ -334,6 +345,7 @@ export default function AppointmentRequestPage() {
 
   const toggleService = (id) => {
     setServiceIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setOtherService(false);
   };
 
   // KOBİ'nin fiyat listesinde ücretsiz kalemi zaten "Ücretsiz ..." diye
@@ -470,10 +482,21 @@ export default function AppointmentRequestPage() {
                   Tahmini süre: {selectedDuration} dk. Süreler tahminidir, hizmetin seyrine göre değişebilir.
                 </p>
               )}
+              {hasServices && (
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, color: "#5b7088", margin: "0 0 14px", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={otherService}
+                    onChange={(e) => { setOtherService(e.target.checked); if (e.target.checked) setServiceIds([]); }}
+                    style={{ marginTop: 2 }}
+                  />
+                  Aradığım hizmet listede yok - ne için randevu istediğimi aşağıya not olarak yazacağım
+                </label>
+              )}
               <div style={{ borderTop: "1px solid #eef2f6", margin: "4px 0 16px" }} />
               {!canPickTime ? (
                 <p style={{ fontSize: 13, color: "#5b7088", margin: "0 0 16px", textAlign: "center" }}>
-                  Gün/saat seçmek için önce yukarıdan bir hizmet seçin.
+                  Gün/saat seçmek için önce yukarıdan bir hizmet seçin ya da "Aradığım hizmet listede yok"u işaretleyin.
                 </p>
               ) : requestOnlyMode ? (
                 <>
@@ -627,7 +650,13 @@ export default function AppointmentRequestPage() {
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-posta *" required style={{ width: "100%", borderRadius: 10, padding: "10px 12px" }} />
               </div>
               <div style={{ marginBottom: 16 }}>
-                <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Not (opsiyonel)" style={{ width: "100%", minHeight: 50, resize: "vertical", borderRadius: 10, padding: "10px 12px" }} />
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder={otherService ? "Ne için randevu almak istiyorsunuz? *" : "Not (opsiyonel)"}
+                  required={otherService}
+                  style={{ width: "100%", minHeight: 50, resize: "vertical", borderRadius: 10, padding: "10px 12px" }}
+                />
               </div>
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12.5, color: email.trim() ? "#5b7088" : "#9aa8b8", cursor: email.trim() ? "pointer" : "default" }}>
