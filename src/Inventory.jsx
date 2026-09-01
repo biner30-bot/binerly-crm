@@ -96,6 +96,58 @@ export function FreeServiceModal({ sector, onAdd, onClose }) {
   );
 }
 
+// Fiyat alanı: eskiden "0 yaz = ücretsiz", "boş bırak = belirtme" gizli
+// kurallarıyla çalışıyordu (KOBİ bunu bilmiyordu). Artık açık bir seçim -
+// kullanıcı isteği (1 Eyl). amount -> tutarı kendisi girer; free -> price 0
+// (müşteriye vurgulu "Ücretsiz" butonu); hidden -> price null (müşteriye fiyat
+// HİÇ gösterilmez, "Ücretsiz" de denmez).
+const PRICE_MODE_OPTIONS = [
+  { id: "amount", label: "Fiyat gir" },
+  { id: "free", label: "Ücretsiz" },
+  { id: "hidden", label: "Fiyat belirtme" },
+];
+
+function priceModeOf(price) {
+  if (price == null) return "hidden";
+  if (Number(price) === 0) return "free";
+  return "amount";
+}
+
+function resolvePriceFromMode(mode, price) {
+  if (mode === "free") return 0;
+  if (mode === "hidden") return null;
+  return price === "" ? null : Number(price);
+}
+
+function PriceModeField({ mode, onModeChange, price, onPriceChange, big }) {
+  const fs = big ? { fontSize: 16 } : undefined;
+  return (
+    <>
+      <select
+        value={mode}
+        onChange={(e) => onModeChange(e.target.value)}
+        style={{ width: "100%", ...fs }}
+      >
+        {PRICE_MODE_OPTIONS.map((o) => (
+          <option key={o.id} value={o.id}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      {mode === "amount" && (
+        <input
+          type="number"
+          min="0"
+          value={price}
+          onChange={(e) => onPriceChange(e.target.value)}
+          placeholder="0"
+          style={{ width: "100%", marginTop: 4, ...fs }}
+        />
+      )}
+    </>
+  );
+}
+
 // Grup adını serbest metinle yazdırmak yerine hizmetleri doğrudan işaretletiyoruz -
 // iki hizmete elle harfi harfine aynı adı yazmak typo'ya açıktı (typo -> sessizce
 // farklı gruba düşer). Grup etiketi artık işaretlenen hizmetlerin isimlerinden
@@ -235,7 +287,10 @@ export function PriceListEditModal({
   onClose,
 }) {
   const [name, setName] = useState(item.name);
-  const [price, setPrice] = useState(item.price == null ? "" : String(item.price));
+  const [priceMode, setPriceMode] = useState(priceModeOf(item.price));
+  const [price, setPrice] = useState(
+    item.price != null && Number(item.price) !== 0 ? String(item.price) : "",
+  );
   const [refreshDays, setRefreshDays] = useState(item.refreshDays ? String(item.refreshDays) : "");
   const [durationMinutes, setDurationMinutes] = useState(
     item.durationMinutes ? String(item.durationMinutes) : "",
@@ -265,7 +320,7 @@ export function PriceListEditModal({
     });
     onSave({
       name: trimmedName,
-      price: price === "" ? null : Number(price),
+      price: resolvePriceFromMode(priceMode, price),
       refreshDays: Number(refreshDays) || null,
       durationMinutes: Number(durationMinutes) || null,
       commissionPercent: commissionPercent !== "" ? Number(commissionPercent) : null,
@@ -310,19 +365,17 @@ export function PriceListEditModal({
                 marginBottom: 4,
               }}
             >
-              Fiyat (TL)
+              Fiyat
               <InfoTip
                 align="left"
-                text="Opsiyonel - boş bırakırsanız randevu alma ekranlarında ve vitrinde müşteriye fiyat gösterilmez ('fiyat için iletişime geçin' mantığı). 0 yazarsanız hizmet 'Ücretsiz' olarak öne çıkar."
+                text="'Fiyat gir': tutarı siz belirlersiniz. 'Ücretsiz': randevu alma ekranlarında vurgulu bir 'Ücretsiz' butonu olarak görünür. 'Fiyat belirtme': müşteriye fiyat hiç gösterilmez, 'Ücretsiz' de denmez ('fiyat için iletişime geçin' mantığı)."
               />
             </label>
-            <input
-              type="number"
-              min="0"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              placeholder="Opsiyonel"
-              style={{ width: "100%" }}
+            <PriceModeField
+              mode={priceMode}
+              onModeChange={setPriceMode}
+              price={price}
+              onPriceChange={setPrice}
             />
           </div>
           <div style={{ flex: 1, minWidth: 100 }}>
@@ -502,6 +555,7 @@ export function PriceListManager({
   resources,
 }) {
   const [name, setName] = useState("");
+  const [priceMode, setPriceMode] = useState("amount");
   const [price, setPrice] = useState("");
   const [refreshDays, setRefreshDays] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
@@ -538,7 +592,7 @@ export function PriceListManager({
     });
     onAdd({
       name: trimmedName,
-      price: price === "" ? null : Number(price),
+      price: resolvePriceFromMode(priceMode, price),
       refreshDays: Number(refreshDays) || null,
       durationMinutes: Number(durationMinutes) || null,
       resourceId: resourceId || null,
@@ -548,6 +602,7 @@ export function PriceListManager({
       onSyncPartners([...partnerUpdates].map(([id, parallelGroup]) => ({ id, parallelGroup })));
     }
     setName("");
+    setPriceMode("amount");
     setPrice("");
     setRefreshDays("");
     setDurationMinutes("");
@@ -674,6 +729,8 @@ export function PriceListManager({
                   >
                     {item.price == null ? (
                       <Badge tone="default">Fiyat belirtilmedi</Badge>
+                    ) : Number(item.price) === 0 ? (
+                      <Badge tone="success">Ücretsiz</Badge>
                     ) : (
                       <Badge tone="accent">{formatTL(item.price)}</Badge>
                     )}
@@ -758,7 +815,7 @@ export function PriceListManager({
             style={{ width: "100%", fontSize: 16 }}
           />
         </div>
-        <div style={{ width: 120 }}>
+        <div style={{ width: 140 }}>
           <label
             style={{
               fontSize: 12,
@@ -769,19 +826,18 @@ export function PriceListManager({
               marginBottom: 4,
             }}
           >
-            Fiyat (TL)
+            Fiyat
             <InfoTip
               align="left"
-              text="Opsiyonel - boş bırakırsanız randevu alma ekranlarında ve vitrinde müşteriye fiyat gösterilmez ('fiyat için iletişime geçin' mantığı). 0 yazarsanız hizmet 'Ücretsiz' olarak öne çıkar."
+              text="'Fiyat gir': tutarı siz belirlersiniz. 'Ücretsiz': randevu alma ekranlarında vurgulu bir 'Ücretsiz' butonu olarak görünür. 'Fiyat belirtme': müşteriye fiyat hiç gösterilmez, 'Ücretsiz' de denmez ('fiyat için iletişime geçin' mantığı)."
             />
           </label>
-          <input
-            type="number"
-            min="0"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            placeholder="Opsiyonel"
-            style={{ width: "100%", fontSize: 16 }}
+          <PriceModeField
+            mode={priceMode}
+            onModeChange={setPriceMode}
+            price={price}
+            onPriceChange={setPrice}
+            big
           />
         </div>
         <div style={{ width: 130 }}>

@@ -1548,7 +1548,11 @@ export function DealForm({
                     {priceListItems.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name}
-                        {p.price == null ? "" : ` - ${formatTL(p.price)}`}
+                        {p.price == null
+                          ? ""
+                          : Number(p.price) === 0
+                            ? " - Ücretsiz"
+                            : ` - ${formatTL(p.price)}`}
                       </option>
                     ))}
                   </select>
@@ -1807,7 +1811,11 @@ export function DealForm({
                   {priceListItems.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}
-                      {p.price == null ? "" : ` - ${formatTL(p.price)}`}
+                      {p.price == null
+                        ? ""
+                        : Number(p.price) === 0
+                          ? " - Ücretsiz"
+                          : ` - ${formatTL(p.price)}`}
                     </option>
                   ))}
                 </select>
