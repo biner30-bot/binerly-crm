@@ -453,7 +453,7 @@ export const HELP_TOPICS = [
   {
     category: "Randevu & Program",
     q: "Ücretsiz ilk görüşme/deneme randevusunu nasıl vurgularım?",
-    a: 'Fiyat Listesi sekmesine fiyatı 0 TL olan bir kalem ekleyin (örn. "Ücretsiz İlk Görüşme") - Ayarlar → Randevu Alma Linki ile paylaştığınız widget\'ta bu otomatik olarak ayrı, vurgulu bir buton olarak öne çıkar, ekstra bir ayar gerekmez.',
+    a: 'Fiyat Listesi sekmesine bir kalem ekleyip Fiyat alanından "Ücretsiz"i seçin (örn. "Ücretsiz İlk Görüşme") - Ayarlar → Randevu Alma Linki ile paylaştığınız widget\'ta bu otomatik olarak ayrı, vurgulu bir buton olarak öne çıkar, ekstra bir ayar gerekmez.',
     visibleIf: (sector) => supportsSelfBooking(sector) && bookingModel(sector) === "slot",
   },
   {

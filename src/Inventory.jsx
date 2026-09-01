@@ -57,7 +57,8 @@ export function FreeServiceModal({ sector, onAdd, onClose }) {
         Randevu almadan önce sizinle tanışmak isteyen tereddütlü müşterileri ilk adımı atmaya teşvik
         edin - tanımladığınız ücretsiz hizmet (örn. "Ücretsiz İlk Görüşme", "Deneme Seansı") Randevu
         Alma Linki'nde müşterilerinize ayrı, vurgulu bir buton olarak gösterilir. Fiyat listenize
-        otomatik olarak 0 TL ile eklenir.
+        "Ücretsiz" olarak eklenir; bu kısa yol yerine ürün/hizmet ekleme formunda Fiyat alanından
+        "Ücretsiz"i de seçebilirsiniz.
       </p>
       <form onSubmit={submit}>
         <div style={{ marginBottom: 16 }}>

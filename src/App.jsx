@@ -5739,11 +5739,11 @@ export default function App() {
           </p>
           {priceListItems.some((item) => item.price != null && Number(item.price) === 0) ? (
             <p style={{ fontSize: 12, color: "var(--text-secondary)", background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 10px", margin: "0 0 16px" }}>
-              🎁 Fiyat listenizde 0 TL'lik bir hizmet olduğu için bu widget'ta ayrı, vurgulu bir "ücretsiz" butonu olarak öne çıkıyor.
+              🎁 Fiyat listenizde "Ücretsiz" bir hizmet olduğu için bu widget'ta ayrı, vurgulu bir "ücretsiz" butonu olarak öne çıkıyor.
             </p>
           ) : (
             <p style={{ fontSize: 12, color: "var(--text-secondary)", background: "var(--surface-1)", border: "0.5px solid var(--border)", borderRadius: "var(--radius)", padding: "8px 10px", margin: "0 0 16px" }}>
-              💡 İpucu: Fiyat Listesi sekmesine 0 TL'lik bir hizmet eklerseniz (örn. "Ücretsiz İlk Görüşme"), bu widget'ta ayrı, vurgulu bir "ücretsiz" butonu olarak öne çıkar.
+              💡 İpucu: Fiyat Listesi'ne bir hizmet ekleyip Fiyat alanından "Ücretsiz"i seçerseniz (örn. "Ücretsiz İlk Görüşme"), bu widget'ta ayrı, vurgulu bir "ücretsiz" butonu olarak öne çıkar.
             </p>
           )}
           <img
