@@ -4,6 +4,7 @@ import {
   MetricCard,
   InfoTip,
   formatTL,
+  formatAmountOrDash,
   downloadXlsx,
   toWhatsAppNumber,
   RangeFilter,
@@ -161,10 +162,11 @@ export default function Pano({
   STAGE_PROBABILITY,
   PASSIVE_CUSTOMER_DAYS,
 }) {
-  // "Geldi ✓"/"Seans kullanıldı" hızlı tahsilat kısayolu - KOBİ'ler genelde
-  // ödemeyi elden/kendi yöntemleriyle o anda alıyor (kart POS'u, nakit), Finans
-  // sekmesine ayrıca gidip Tahsilat formunu doldurmak ekstra bir gezinme
-  // adımıydı. Sadece kalan bakiye varsa (online tam ödenmiş değilse) gösterilir.
+  // "Geldi ✓"/"Seans kullanıldı" DOĞRUDAN tamamlar - tamamlamayı ödeme girmeye
+  // asla zorlamıyoruz (kullanıcı isteği: finansal kısmı kullanmayan KOBİ her
+  // randevuda ödeme formuyla uğraşmasın). Elden ödeme alan KOBİ için ayrı,
+  // isteğe bağlı "Geldi + tahsilat" butonu - sadece kalan bakiye varsa görünür,
+  // Finans sekmesine gitmeden aynı akışta hızlı tahsilat girer.
   const [payingDealId, setPayingDealId] = useState(null);
   const [payAmount, setPayAmount] = useState("");
   const [payMethod, setPayMethod] = useState("nakit");
@@ -411,6 +413,7 @@ export default function Pano({
             {pendingArrivalConfirmations.map(({ deal, apptTime }) => {
               const c = customerById(deal.customerId);
               const reliability = computeCustomerReliability(deal.customerId, deals);
+              const arrivalRemaining = (deal.value || 0) - totalPaidForDeal(deal.id);
               return (
                 <div
                   key={`arrival-${deal.id}`}
@@ -466,9 +469,9 @@ export default function Pano({
                     </span>
                   )}
                   {payingDealId === deal.id ? (
-                    // KOBİ genelde ödemeyi elden/kendi yöntemiyle (nakit, kendi POS'u)
-                    // o anda alıyor - "Geldi ✓" sonrası ayrıca Finans'a gidip Tahsilat
-                    // formu doldurmasın diye aynı tık akışına gömülü kısa bir alan.
+                    // "Geldi + tahsilat" butonuyla açılır - elden/kendi yöntemiyle
+                    // (nakit, kendi POS'u) alınan ödemeyi Finans'a gitmeden aynı
+                    // akışta kaydeder. Vazgeçilirse "Ödemesiz Tamamla" ile yine kapatır.
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                       <input
                         type="number"
@@ -521,30 +524,46 @@ export default function Pano({
                     // tüm paketi kapatır, tek bir seansın kullanımını değil. Bunun
                     // yerine Deals.jsx'teki (Randevular sekmesi) "Seans kullanıldı"
                     // ile AYNI aksiyon (handleUseSessionClick → incrementSessionUsage).
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const remaining = deal.value - totalPaidForDeal(deal.id);
-                        if (remaining > 0) startArrivalPayment(deal);
-                        else handleUseSessionClick(deal);
-                      }}
-                      style={{ fontSize: 12, flexShrink: 0 }}
-                    >
-                      Seans kullanıldı
-                    </button>
+                    // Tahsilat isteğe bağlı ayrı bir buton - tamamlamayı ödeme
+                    // girmeye zorlamıyoruz (kullanıcı isteği, 2026-09-02).
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleUseSessionClick(deal)}
+                        style={{ fontSize: 12, flexShrink: 0 }}
+                      >
+                        Seans kullanıldı
+                      </button>
+                      {arrivalRemaining > 0 && (
+                        <button
+                          type="button"
+                          title="Seansı kullanıldı işaretle ve elden aldığınız ödemeyi de kaydedin"
+                          onClick={() => startArrivalPayment(deal)}
+                          style={{ fontSize: 12, flexShrink: 0 }}
+                        >
+                          Seans + tahsilat
+                        </button>
+                      )}
+                    </>
                   ) : (
                     <>
                       <button
                         type="button"
-                        onClick={() => {
-                          const remaining = deal.value - totalPaidForDeal(deal.id);
-                          if (remaining > 0) startArrivalPayment(deal);
-                          else attemptMoveDealStage(deal.id, "kazanildi");
-                        }}
+                        onClick={() => attemptMoveDealStage(deal.id, "kazanildi")}
                         style={{ fontSize: 12, flexShrink: 0 }}
                       >
                         Geldi ✓
                       </button>
+                      {arrivalRemaining > 0 && (
+                        <button
+                          type="button"
+                          title="Geldi olarak işaretle ve elden aldığınız ödemeyi de kaydedin"
+                          onClick={() => startArrivalPayment(deal)}
+                          style={{ fontSize: 12, flexShrink: 0 }}
+                        >
+                          Geldi + tahsilat
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => attemptMoveDealStage(deal.id, "kaybedildi")}
@@ -1687,7 +1706,9 @@ export default function Pano({
                       >
                         {c?.name || "Bilinmeyen müşteri"}
                         <br />
-                        <span style={{ fontSize: 12, opacity: 0.85 }}>{formatTL(d.value)}</span>
+                        <span style={{ fontSize: 12, opacity: 0.85 }}>
+                          {formatAmountOrDash(d.value)}
+                        </span>
                       </div>
                     );
                   })}

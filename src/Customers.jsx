@@ -5,6 +5,7 @@ import {
   ConfirmDialog,
   Badge,
   formatTL,
+  formatAmountOrDash,
   uid,
   useFormDraft,
   TagInput,
@@ -768,7 +769,7 @@ export function CustomerDetail({
                 </span>
                 <span style={{ color: "var(--text-secondary)" }}>
                   {stageLabel(d.stage, customer.customerType || "kurumsal", sector)} ·{" "}
-                  {formatTL(d.value)}
+                  {formatAmountOrDash(d.value)}
                 </span>
               </div>
             );

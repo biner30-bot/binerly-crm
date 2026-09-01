@@ -8,6 +8,7 @@ import {
   Badge,
   IconButton,
   formatTL,
+  formatAmountOrDash,
   uid,
   TagInput,
   VoiceInputButton,
@@ -4790,10 +4791,10 @@ export function DealsTab({
                               margin: 0,
                               fontSize: 13,
                               fontWeight: 600,
-                              color: "var(--text-accent)",
+                              color: d.value ? "var(--text-accent)" : "var(--text-muted)",
                             }}
                           >
-                            {formatTL(d.value)}
+                            {formatAmountOrDash(d.value)}
                           </p>
                           {/* Liste görünümündeki RowActionsMenu ile birebir aynı öğeler —
                                   eskiden burada sadece PDF ikonu vardı, Sil/Kopyala/Onay Linki/
@@ -5324,9 +5325,10 @@ export function DealsTab({
                         textAlign: "right",
                         fontSize: 13,
                         fontWeight: 500,
+                        color: d.value ? undefined : "var(--text-muted)",
                       }}
                     >
-                      {formatTL(d.value)}
+                      {formatAmountOrDash(d.value)}
                     </td>
                     <td
                       style={{

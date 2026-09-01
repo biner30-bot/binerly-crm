@@ -1,5 +1,13 @@
 import React, { useState } from "react";
-import { Badge, Modal, InfoTip, ConfirmDialog, IconButton, uid, formatTL } from "./shared";
+import {
+  Badge,
+  Modal,
+  InfoTip,
+  ConfirmDialog,
+  IconButton,
+  uid,
+  formatAmountOrDash,
+} from "./shared";
 
 export const TASK_TYPES = [
   { id: "arama", label: "Arama", icon: "ti-phone" },
@@ -133,7 +141,7 @@ export function TaskForm({
             <option value="">Bağlantısız</option>
             {dealsForCustomer.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.title} · {formatTL(d.value)}
+                {d.title} · {formatAmountOrDash(d.value)}
                 {d.createdAt ? ` · ${new Date(d.createdAt).toLocaleDateString("tr-TR")}` : ""}
               </option>
             ))}

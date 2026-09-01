@@ -483,6 +483,14 @@ export function formatTL(n) {
   return new Intl.NumberFormat("tr-TR").format(Math.round(n || 0)) + " TL";
 }
 
+// Tutar 0/boşsa "0 TL" yerine nötr "—". Fiyat/tahsilat takibi kullanmayan
+// KOBİ'de listeler/Pano her randevuyu "0 TL" göstermesin diye - gerçek finansal
+// ekranlar (KDV raporu, Paraşüt, teklif PDF'i, tahsilat) formatTL kullanmaya
+// devam eder, orada 0 anlamlı bir değerdir.
+export function formatAmountOrDash(n) {
+  return n ? formatTL(n) : "—";
+}
+
 // ilike/like sorgularında kullanıcıdan gelen bir değeri (örn. oturum e-postası)
 // desen olarak geçirmeden önce % ve _ karakterlerini kaçırır - aksi halde bu
 // karakterleri içeren bir e-posta adresi (örn. "j_n@x.com") wildcard gibi

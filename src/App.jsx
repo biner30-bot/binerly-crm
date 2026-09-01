@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
-import { Badge, TONE_COLORS, Modal, MetricCard, InfoTip, isFullNameValid, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, SegmentedControl, getRangeBounds, inRange, WEEKDAYS, WEEKDAYS_SHORT, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl, translateAuthError, humanizeDbMessage, SELF_BOOKED_SOURCES, formatFileSize, MAX_TEAM_SIZE, parseAppointmentDateTime, RowActionsMenu, AttachmentList, PRICE_ITEM_NAME_EXAMPLES, ExportSelectionModal, SECTORS, InitialsAvatar, UserAvatar } from "./shared";
+import { Badge, TONE_COLORS, Modal, MetricCard, InfoTip, isFullNameValid, Toast, ConfirmDialog, TagInput, IconButton, MenuRow, VoiceInputButton, GoogleAuthButton, AuthDivider, uid, formatTL, formatAmountOrDash, toWhatsAppNumber, WhatsAppIcon, useSessionTimeout, useTheme, matchesDateRange, DateRangeFilter, PANO_RANGES, SegmentedControl, getRangeBounds, inRange, WEEKDAYS, WEEKDAYS_SHORT, nextWeeklyOccurrence, NotificationBell, OnboardingTour, getPortalUrl, translateAuthError, humanizeDbMessage, SELF_BOOKED_SOURCES, formatFileSize, MAX_TEAM_SIZE, parseAppointmentDateTime, RowActionsMenu, AttachmentList, PRICE_ITEM_NAME_EXAMPLES, ExportSelectionModal, SECTORS, InitialsAvatar, UserAvatar } from "./shared";
 import { DEAL_WORD_FORMS, DEAL_TAB_STRINGS, SECTOR_DEMO_PRESETS } from "./staticData";
 import { AuthModal, PasswordRecoveryModal } from "./Auth";
 import { SectorPicker, CompanySettingsForm, PaymentCredentialForm, AppSettingsModal, ShowcaseManager, slugify } from "./Settings";
@@ -6104,7 +6104,7 @@ export default function App() {
                   style={{ background: "var(--surface-1)", borderRadius: "var(--radius)", padding: "0.6rem 0.9rem", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}
                 >
                   <span style={{ fontSize: 14 }}>{customerById(item.customerId)?.name || "Bilinmeyen müşteri"} - {item.title}</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-accent)", whiteSpace: "nowrap" }}>{formatTL(item.value)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: item.value ? "var(--text-accent)" : "var(--text-muted)", whiteSpace: "nowrap" }}>{formatAmountOrDash(item.value)}</span>
                 </div>
               ) : (
                 <div
