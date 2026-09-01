@@ -44,6 +44,15 @@ import {
 } from "./Sectors";
 import BackgroundScatter from "./BackgroundScatter.jsx";
 
+// Müşterinin Profilim'den yüklediği özel fotoğraf (custom_avatar_url) VEYA
+// Google ile girmişse Google fotoğrafı (avatar_url). Özel olan önce gelir -
+// Google tekrar giriş yapınca avatar_url tazelenebilir ama custom_avatar_url'e
+// dokunulmaz (bkz. sql/2026-09-01_avatars_bucket.sql).
+function customerAvatarUrl(session) {
+  const m = session?.user?.user_metadata;
+  return m?.custom_avatar_url || m?.avatar_url || null;
+}
+
 const PORTAL_DEAL_WORDS = {
   teklif: {
     emptyList: "Henüz bir teklifiniz yok.",
@@ -3072,6 +3081,8 @@ function PortalSettings({
   const [profilePhone, setProfilePhone] = useState(customerPhone || "");
   const [profileEmail, setProfileEmail] = useState(customerEmail || "");
   const [savingProfile, setSavingProfile] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef(null);
   // Firma değişince (çoklu işletmeli portalda) alanlar o firmanın kendi
   // bilgileriyle yeniden doldurulmalı — yoksa önceki firmanın taslak
   // değerleri yanlışlıkla yeni firmaya kaydedilebilir.
@@ -3102,6 +3113,70 @@ function PortalSettings({
     setSavingProfile(true);
     await onUpdateProfile({ name: profileName, phone: profilePhone, email: profileEmail });
     setSavingProfile(false);
+  };
+
+  // Her kullanıcı kendi <uid>/ klasöründe tek fotoğraf tutsun - yeni yükleme
+  // veya kaldırma sonrası eski dosyalar silinir (yoksa her değişiklikte
+  // klasörde bir orphan birikirdi). Hata verirse yutulur, kritik değil.
+  const cleanupOldAvatars = async (keepPath) => {
+    const { data: existing } = await supabase.storage.from("avatars").list(session.user.id);
+    const stale = (existing || [])
+      .map((f) => `${session.user.id}/${f.name}`)
+      .filter((p) => p !== keepPath);
+    if (stale.length) await supabase.storage.from("avatars").remove(stale);
+  };
+
+  // Yüklenen fotoğrafın public URL'i user_metadata.custom_avatar_url'e yazılır;
+  // updateUser bir USER_UPDATED olayı tetikler, portal session'ı tazelenip
+  // üst başlıktaki avatar da anında güncellenir (bkz. onAuthStateChange).
+  const handleAvatarFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      notify("Sadece resim dosyası yükleyebilirsiniz.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      notify("Fotoğraf en fazla 2 MB olabilir.");
+      return;
+    }
+    setUploadingAvatar(true);
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    const path = `${session.user.id}/avatar-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from("avatars")
+      .upload(path, file, { contentType: file.type });
+    if (upErr) {
+      setUploadingAvatar(false);
+      notify(`Fotoğraf yüklenemedi: ${upErr.message}`);
+      return;
+    }
+    const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
+    const { error: updErr } = await supabase.auth.updateUser({
+      data: { custom_avatar_url: pub.publicUrl },
+    });
+    if (updErr) {
+      setUploadingAvatar(false);
+      notify(`Fotoğraf kaydedilemedi: ${updErr.message}`);
+      return;
+    }
+    await cleanupOldAvatars(path);
+    setUploadingAvatar(false);
+    notify("Profil fotoğrafınız güncellendi.", "success");
+  };
+
+  const removeAvatar = async () => {
+    setUploadingAvatar(true);
+    const { error } = await supabase.auth.updateUser({ data: { custom_avatar_url: null } });
+    if (error) {
+      setUploadingAvatar(false);
+      notify(`Fotoğraf kaldırılamadı: ${error.message}`);
+      return;
+    }
+    await cleanupOldAvatars(null);
+    setUploadingAvatar(false);
+    notify("Profil fotoğrafınız kaldırıldı.", "success");
   };
 
   const changePassword = async (e) => {
@@ -3140,19 +3215,46 @@ function PortalSettings({
     <div>
       {section === "profile" && (
         <div style={{ marginBottom: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
             <UserAvatar
-              url={session.user.user_metadata?.avatar_url}
+              url={customerAvatarUrl(session)}
               name={customerName || session.user.email}
-              size={48}
+              size={64}
             />
-            <div>
+            <div style={{ minWidth: 0 }}>
               <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
                 {customerName || session.user.email}
               </p>
-              <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
+              <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--text-secondary)" }}>
                 {companyName ? `${companyName} müşterisi` : "Profil"}
               </p>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarFile}
+                  style={{ display: "none" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  style={{ fontSize: 12.5, padding: "5px 12px" }}
+                >
+                  {uploadingAvatar ? "Yükleniyor…" : "Fotoğraf yükle"}
+                </button>
+                {session.user.user_metadata?.custom_avatar_url && (
+                  <button
+                    type="button"
+                    onClick={removeAvatar}
+                    disabled={uploadingAvatar}
+                    style={{ fontSize: 12.5, padding: "5px 12px" }}
+                  >
+                    Kaldır
+                  </button>
+                )}
+              </div>
             </div>
           </div>
           <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 8px" }}>
@@ -4677,7 +4779,7 @@ export default function CustomerPortal() {
             }}
           >
             <UserAvatar
-              url={session.user.user_metadata?.avatar_url}
+              url={customerAvatarUrl(session)}
               name={activeCustomerRow?.name || session.user.email}
               size={30}
             />
