@@ -241,19 +241,26 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 // "unsupported MIME type" konsol hatası veriyordu, sadece prod build'de dener.
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js", { scope: "/" }).then((registration) => {
-      registration.addEventListener("updatefound", () => {
-        const newWorker = registration.installing;
-        if (!newWorker) return;
-        newWorker.addEventListener("statechange", () => {
-          // navigator.serviceWorker.controller varsa bu ilk kurulum değil,
-          // gerçek bir güncelleme — ilk kurulumda zaten skipWaiting'e gerek yok.
-          if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-            newWorker.postMessage({ type: "SKIP_WAITING" });
-          }
+    navigator.serviceWorker
+      .register("/sw.js", { scope: "/" })
+      .then((registration) => {
+        registration.addEventListener("updatefound", () => {
+          const newWorker = registration.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener("statechange", () => {
+            // navigator.serviceWorker.controller varsa bu ilk kurulum değil,
+            // gerçek bir güncelleme — ilk kurulumda zaten skipWaiting'e gerek yok.
+            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+              newWorker.postMessage({ type: "SKIP_WAITING" });
+            }
+          });
         });
-      });
-    });
+      })
+      // PWA ilerlemeci bir katman — kayıt başarısız olursa (tarayıcı eklentisi
+      // register'ı sarmalayıp reddediyor, gizli sekme, kurumsal politika, /sw.js
+      // ağ hatası) uygulama yine çalışır. .catch olmadan bu reddi Sentry
+      // "Error: Rejected" olarak logluyordu (yakalanmamış promise, 0 kullanıcı etkisi).
+      .catch(() => {});
     let reloaded = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       // Yeni sürüm hazır. Bir form/modal AÇIKKEN otomatik yeniden yüklemek
