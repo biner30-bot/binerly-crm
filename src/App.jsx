@@ -438,6 +438,7 @@ function rowToAttachment(r) {
     photoType: r.photo_type || null,
     consentConfirmed: r.consent_confirmed === true,
     sharedWithCustomer: r.shared_with_customer === true,
+    sortOrder: r.sort_order ?? null,
     createdAt: r.created_at,
     deletedAt: r.deleted_at || null,
     deletedBatchId: r.deleted_batch_id || null,
@@ -2344,7 +2345,7 @@ export default function App() {
     } else {
       logAction("properties", saved.id, isNew ? "created" : "updated", `"${saved.title}" portföyü ${isNew ? "eklendi" : "güncellendi"}`);
     }
-    return true;
+    return saved;
   };
 
   const deleteProperty = async (id) => {
@@ -2915,6 +2916,7 @@ export default function App() {
       uploaded_by: session?.user?.email || "",
       photo_type: extra.photoType || null,
       consent_confirmed: extra.consentConfirmed === true,
+      sort_order: extra.sortOrder ?? null,
     };
     const { data, error } = await supabase.from("attachments").insert(row).select().single();
     if (error) { notify(`Dosya kaydedilemedi: ${error.message}`); return; }
@@ -2925,6 +2927,34 @@ export default function App() {
       "updated",
       extra.photoType ? `"${file.name}" (${extra.photoType === "before" ? "öncesi" : "sonrası"} fotoğrafı) eklendi` : `"${file.name}" dosyası eklendi`
     );
+  };
+
+  // files zaten tarayıcıda küçültülmüş geliyor (Portfolio.jsx) - sıra, mevcut
+  // en büyük sort_order'dan devam eder ki yeni fotoğraflar sona eklensin.
+  const uploadPropertyPhotos = async (propertyId, files) => {
+    const existing = attachments.filter((a) => a.entityType === "property_photos" && a.entityId === propertyId);
+    let next = existing.reduce((max, a) => Math.max(max, a.sortOrder ?? 0), -1) + 1;
+    for (const file of files) {
+      await uploadAttachment("property_photos", propertyId, file, { sortOrder: next });
+      next += 1;
+    }
+  };
+
+  const reorderPropertyPhotos = async (orderedIds) => {
+    const orderById = new Map(orderedIds.map((id, i) => [id, i]));
+    setAttachments((prev) => prev.map((a) => (orderById.has(a.id) ? { ...a, sortOrder: orderById.get(a.id) } : a)));
+    const results = await Promise.all(
+      orderedIds.map((id, i) => supabase.from("attachments").update({ sort_order: i }).eq("id", id)),
+    );
+    const failed = results.find((r) => r.error);
+    if (failed) notify(`Fotoğraf sırası kaydedilemedi: ${failed.error.message}`);
+  };
+
+  const getSignedUrls = async (paths) => {
+    if (!paths.length) return {};
+    const { data, error } = await supabase.storage.from("attachments").createSignedUrls(paths, 3600);
+    if (error) return {};
+    return Object.fromEntries((data || []).filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl]));
   };
 
   const downloadAttachment = async (attachment) => {
@@ -5482,6 +5512,14 @@ export default function App() {
           isOwner={isOwner}
           onSave={saveProperty}
           onDelete={deleteProperty}
+          attachments={attachments}
+          onUploadPhotos={uploadPropertyPhotos}
+          onReorderPhotos={reorderPropertyPhotos}
+          onUploadDoc={uploadAttachment}
+          onDownloadAttachment={downloadAttachment}
+          onDeleteAttachment={deleteAttachment}
+          getSignedUrls={getSignedUrls}
+          notify={notify}
         />
       )}
 

@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { Badge, Modal, ConfirmDialog, InfoTip, formatTL, uid } from "./shared";
+import React, { useEffect, useMemo, useState } from "react";
+import { Badge, Modal, ConfirmDialog, InfoTip, AttachmentList, formatTL, uid } from "./shared";
 import {
   TRANSACTION_TYPES,
   PROPERTY_STATUSES,
@@ -71,8 +71,42 @@ export function Portfolio({
   isOwner,
   onSave,
   onDelete,
+  attachments,
+  onUploadPhotos,
+  onReorderPhotos,
+  onUploadDoc,
+  onDownloadAttachment,
+  onDeleteAttachment,
+  getSignedUrls,
+  notify,
 }) {
   const [editing, setEditing] = useState(null);
+  const [coverUrls, setCoverUrls] = useState({});
+
+  const photosByProperty = useMemo(() => {
+    const map = {};
+    for (const a of attachments) {
+      if (a.entityType !== "property_photos") continue;
+      (map[a.entityId] ||= []).push(a);
+    }
+    for (const list of Object.values(map)) list.sort(comparePhotos);
+    return map;
+  }, [attachments]);
+
+  const coverPaths = Object.values(photosByProperty)
+    .map((list) => list[0]?.storagePath)
+    .filter(Boolean);
+  const coverKey = coverPaths.join("|");
+  useEffect(() => {
+    let cancelled = false;
+    getSignedUrls(coverPaths).then((urls) => {
+      if (!cancelled) setCoverUrls(urls);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coverKey]);
   const [query, setQuery] = useState("");
   const [txFilter, setTxFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("open");
@@ -210,6 +244,8 @@ export function Portfolio({
               key={p.id}
               property={p}
               owner={customerById.get(p.ownerCustomerId)}
+              coverUrl={coverUrls[photosByProperty[p.id]?.[0]?.storagePath]}
+              photoCount={photosByProperty[p.id]?.length || 0}
               onClick={() => setEditing(p)}
             />
           ))}
@@ -223,6 +259,7 @@ export function Portfolio({
           wide
         >
           <PropertyForm
+            key={editing.id || "new"}
             initial={editing.id ? editing : null}
             initialPrivate={editing.id ? propertyPrivate[editing.id] : null}
             canSeePrivate={canSeePrivate(editing.id ? editing : null)}
@@ -231,9 +268,37 @@ export function Portfolio({
             currentUserId={currentUserId}
             currentUserEmail={currentUserEmail}
             onSave={async (p, priv) => {
-              const ok = await onSave(p, priv);
-              if (ok) setEditing(null);
+              const saved = await onSave(p, priv);
+              if (!saved) return;
+              // Yeni portföyde fotoğraf/belge yüklemek için kaydın var olması
+              // gerekiyor - kapatmak yerine düzenleme moduna geçilir.
+              if (editing.id) {
+                setEditing(null);
+              } else {
+                setEditing(saved);
+                notify("Portföy kaydedildi. Şimdi fotoğraf ve belge ekleyebilirsiniz.", "success");
+              }
             }}
+            media={
+              editing.id ? (
+                <PropertyMedia
+                  propertyId={editing.id}
+                  photos={photosByProperty[editing.id] || []}
+                  attachments={attachments}
+                  onUploadPhotos={onUploadPhotos}
+                  onReorderPhotos={onReorderPhotos}
+                  onUploadDoc={onUploadDoc}
+                  onDownloadAttachment={onDownloadAttachment}
+                  onDeleteAttachment={onDeleteAttachment}
+                  getSignedUrls={getSignedUrls}
+                  notify={notify}
+                />
+              ) : (
+                <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 12px" }}>
+                  Fotoğraf ve belgeleri ilk kayıttan sonra ekleyebilirsiniz.
+                </p>
+              )
+            }
             onDelete={
               editing.id
                 ? async () => {
@@ -250,7 +315,7 @@ export function Portfolio({
   );
 }
 
-function PropertyCard({ property: p, owner, onClick }) {
+function PropertyCard({ property: p, owner, coverUrl, photoCount, onClick }) {
   const status = propertyStatusMeta(p.status);
   const warnings = propertyWarnings(p);
   const location = [p.neighborhood, p.district, p.city].filter(Boolean).join(", ");
@@ -278,6 +343,50 @@ function PropertyCard({ property: p, owner, onClick }) {
         width: "100%",
       }}
     >
+      <div
+        style={{
+          position: "relative",
+          margin: "-14px -14px 4px",
+          aspectRatio: "4 / 3",
+          background: "var(--surface-1)",
+          borderRadius: "var(--radius-lg) var(--radius-lg) 0 0",
+          overflow: "hidden",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {coverUrl ? (
+          <img
+            src={coverUrl}
+            alt=""
+            loading="lazy"
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          <i
+            className="ti ti-photo"
+            style={{ fontSize: 28, color: "var(--text-muted)" }}
+            aria-hidden="true"
+          />
+        )}
+        {photoCount > 0 && (
+          <span
+            style={{
+              position: "absolute",
+              right: 8,
+              bottom: 8,
+              background: "rgba(0,0,0,0.6)",
+              color: "#fff",
+              fontSize: 11,
+              padding: "2px 6px",
+              borderRadius: 6,
+            }}
+          >
+            <i className="ti ti-photo" aria-hidden="true" /> {photoCount}
+          </span>
+        )}
+      </div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         <Badge tone="accent">{transactionLabel(p.transactionType)}</Badge>
         <Badge tone={status.tone}>{status.label}</Badge>
@@ -380,6 +489,7 @@ export function PropertyForm({
   onSave,
   onDelete,
   onCancel,
+  media,
 }) {
   const [f, setF] = useState(() => ({
     transactionType: initial?.transactionType || "satilik",
@@ -750,6 +860,8 @@ export function PropertyForm({
         style={{ width: "100%", resize: "vertical", marginBottom: 12 }}
       />
 
+      {media}
+
       {canSeePrivate && (
         <div
           style={{
@@ -838,5 +950,252 @@ export function PropertyForm({
         />
       )}
     </form>
+  );
+}
+
+function comparePhotos(a, b) {
+  return (
+    (a.sortOrder ?? 1e9) - (b.sortOrder ?? 1e9) || new Date(a.createdAt) - new Date(b.createdAt)
+  );
+}
+
+const PHOTO_MAX_SIDE = 1920;
+
+// İlan fotoğrafları yüklenmeden önce tarayıcıda küçültülür: telefon/fotoğraf
+// makinesi çıktıları 5-15 MB, Supabase ücretsiz planda depolama 1 GB. Uzun
+// kenar 1920 px + WebP ile fotoğraf başına ~200-300 KB'a iner - portallar da
+// zaten bu boyutun üstünü küçültüyor. WebP kodlayamayan eski tarayıcılarda
+// toBlob sessizce PNG döner (daha büyük), o durumda JPEG'e düşülür.
+async function compressImage(file) {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, PHOTO_MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close?.();
+  const toBlob = (type, quality) => new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+  let blob = await toBlob("image/webp", 0.82);
+  let ext = "webp";
+  if (!blob || blob.type !== "image/webp") {
+    blob = await toBlob("image/jpeg", 0.85);
+    ext = "jpg";
+  }
+  const baseName = file.name.replace(/\.[^.]+$/, "");
+  return new File([blob], `${baseName}.${ext}`, { type: blob.type });
+}
+
+function PropertyMedia({
+  propertyId,
+  photos,
+  attachments,
+  onUploadPhotos,
+  onReorderPhotos,
+  onUploadDoc,
+  onDownloadAttachment,
+  onDeleteAttachment,
+  getSignedUrls,
+  notify,
+}) {
+  const [urls, setUrls] = useState({});
+  const [uploading, setUploading] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [dragId, setDragId] = useState(null);
+
+  const pathKey = photos.map((p) => p.storagePath).join("|");
+  useEffect(() => {
+    let cancelled = false;
+    getSignedUrls(photos.map((p) => p.storagePath)).then((u) => {
+      if (!cancelled) setUrls(u);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathKey]);
+
+  const handleFiles = async (e) => {
+    const files = [...(e.target.files || [])];
+    e.target.value = "";
+    if (files.length === 0) return;
+    const images = files.filter((f) => f.type.startsWith("image/"));
+    if (images.length < files.length)
+      notify("Sadece fotoğraf dosyaları yüklenebilir, diğerleri atlandı.");
+    const compressed = [];
+    for (let i = 0; i < images.length; i++) {
+      setUploading(`Hazırlanıyor ${i + 1}/${images.length}`);
+      try {
+        compressed.push(await compressImage(images[i]));
+      } catch {
+        notify(
+          `"${images[i].name}" okunamadı (desteklenmeyen format olabilir, JPEG olarak deneyin).`,
+        );
+      }
+    }
+    setUploading(`Yükleniyor (${compressed.length} fotoğraf)`);
+    await onUploadPhotos(propertyId, compressed);
+    setUploading(null);
+  };
+
+  const ordered = photos.map((p) => p.id);
+  const move = (id, toIndex) => {
+    const rest = ordered.filter((x) => x !== id);
+    rest.splice(Math.max(0, Math.min(toIndex, rest.length)), 0, id);
+    onReorderPhotos(rest);
+  };
+
+  const smallButton = { fontSize: 11, padding: "2px 6px" };
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <p style={sectionTitleStyle}>İlan fotoğrafları</p>
+      {photos.length > 0 && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+            gap: 8,
+            marginBottom: 8,
+          }}
+        >
+          {photos.map((p, i) => (
+            <div
+              key={p.id}
+              draggable
+              onDragStart={() => setDragId(p.id)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (dragId && dragId !== p.id) move(dragId, ordered.indexOf(p.id));
+                setDragId(null);
+              }}
+              style={{
+                border: i === 0 ? "2px solid var(--fill-accent)" : "0.5px solid var(--border)",
+                borderRadius: 8,
+                overflow: "hidden",
+                background: "var(--surface-1)",
+                opacity: dragId === p.id ? 0.5 : 1,
+                cursor: "grab",
+              }}
+            >
+              <div style={{ aspectRatio: "4 / 3", position: "relative" }}>
+                {urls[p.storagePath] ? (
+                  <img
+                    src={urls[p.storagePath]}
+                    alt={p.fileName}
+                    draggable={false}
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  />
+                ) : null}
+                {i === 0 && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      left: 4,
+                      top: 4,
+                      background: "var(--fill-accent)",
+                      color: "var(--on-accent)",
+                      fontSize: 10,
+                      padding: "1px 5px",
+                      borderRadius: 4,
+                    }}
+                  >
+                    Kapak
+                  </span>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 4, padding: 4, justifyContent: "space-between" }}>
+                <span style={{ display: "flex", gap: 2 }}>
+                  <button
+                    type="button"
+                    style={smallButton}
+                    disabled={i === 0}
+                    onClick={() => move(p.id, i - 1)}
+                    aria-label="Sola taşı"
+                  >
+                    <i className="ti ti-chevron-left" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    style={smallButton}
+                    disabled={i === photos.length - 1}
+                    onClick={() => move(p.id, i + 1)}
+                    aria-label="Sağa taşı"
+                  >
+                    <i className="ti ti-chevron-right" aria-hidden="true" />
+                  </button>
+                </span>
+                <span style={{ display: "flex", gap: 2 }}>
+                  {i !== 0 && (
+                    <button type="button" style={smallButton} onClick={() => move(p.id, 0)}>
+                      Kapak yap
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    style={{ ...smallButton, color: "var(--text-danger)" }}
+                    onClick={() => setConfirmDeleteId(p.id)}
+                    aria-label="Fotoğrafı sil"
+                  >
+                    <i className="ti ti-trash" aria-hidden="true" />
+                  </button>
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <label
+        style={{
+          background: "var(--surface-1)",
+          border: "0.5px solid var(--border)",
+          borderRadius: "var(--radius)",
+          padding: "6px 12px",
+          fontSize: 12.5,
+          cursor: uploading ? "default" : "pointer",
+          display: "inline-block",
+        }}
+      >
+        {uploading || "+ Fotoğraf ekle"}
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleFiles}
+          disabled={!!uploading}
+          style={{ display: "none" }}
+        />
+      </label>
+      <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "4px 0 0" }}>
+        Birden fazla seçebilirsiniz. Fotoğraflar yüklenmeden önce otomatik küçültülür (uzun kenar
+        1920 px). Sırayı sürükleyerek veya oklarla değiştirin, ilk fotoğraf kapaktır.
+      </p>
+
+      <p style={sectionTitleStyle}>Mülk belgeleri</p>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 8px" }}>
+        Tapu, takyidat, iskan, imzalı yetki sözleşmesi gibi belgeler. Orijinal kalitede saklanır,
+        sadece ofis içinde görünür - kişisel veri içerdiği için hiçbir yerde yayınlanmaz.
+      </p>
+      <AttachmentList
+        entityType="property_docs"
+        entityId={propertyId}
+        attachments={attachments}
+        onUpload={onUploadDoc}
+        onDownload={onDownloadAttachment}
+        onDelete={onDeleteAttachment}
+      />
+
+      {confirmDeleteId && (
+        <ConfirmDialog
+          title="Fotoğraf silinsin mi?"
+          message="Bu fotoğraf çöp kutusuna taşınır."
+          onConfirm={() => {
+            onDeleteAttachment(confirmDeleteId);
+            setConfirmDeleteId(null);
+          }}
+          onClose={() => setConfirmDeleteId(null)}
+        />
+      )}
+    </div>
   );
 }
