@@ -11,6 +11,7 @@ import {
 } from "./shared";
 import { SECTOR_PRESETS, STAGES, stageLabel, dealWordKind, bookingModel } from "./Sectors";
 import { DEAL_WORD_FORMS } from "./staticData";
+import { REAL_ESTATE_SETTING_DEFAULTS, resolveRealEstateSettings } from "./realEstate";
 const COMPANY_NAME_EXAMPLES = {
   emlak: "Akın Emlak",
   dijital_ajans: "Akın Dijital Ajans",
@@ -143,6 +144,10 @@ export function CompanySettingsForm({
   const [winbackInactiveDays, setWinbackInactiveDays] = useState(
     initial?.winbackInactiveDays ?? 60,
   );
+  const isRealEstate = initial?.sector === "emlak";
+  const [realEstateSettings, setRealEstateSettings] = useState(() =>
+    resolveRealEstateSettings(initial?.realEstateSettings),
+  );
 
   const handleLogoFile = async (e) => {
     const file = e.target.files?.[0];
@@ -192,6 +197,9 @@ export function CompanySettingsForm({
           hardBlockHours: initial?.hardBlockHours ?? null,
           lateCancelStrikeLimit: initial?.lateCancelStrikeLimit ?? null,
           appointmentCancelHours: initial?.appointmentCancelHours ?? null,
+          ...(isRealEstate
+            ? { realEstateSettings: normalizeRealEstateSettings(realEstateSettings) }
+            : {}),
         });
       }}
     >
@@ -521,6 +529,9 @@ export function CompanySettingsForm({
           </div>
         )}
       </div>
+      {isRealEstate && (
+        <RealEstateSettingsSection value={realEstateSettings} onChange={setRealEstateSettings} />
+      )}
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button type="button" onClick={onCancel}>
           Vazgeç
@@ -533,6 +544,100 @@ export function CompanySettingsForm({
         </button>
       </div>
     </form>
+  );
+}
+
+// Input'lar string tutuyor (boş bırakılabilsin diye) - kaydederken sayıya
+// çevrilir; boş bırakılan oran varsayılana döner, döner sermaye ise boş kalabilir.
+function normalizeRealEstateSettings(s) {
+  const num = (v, fallback) =>
+    v === "" || v == null || Number.isNaN(Number(v)) ? fallback : Number(v);
+  return {
+    saleBuyerPercent: num(s.saleBuyerPercent, REAL_ESTATE_SETTING_DEFAULTS.saleBuyerPercent),
+    saleSellerPercent: num(s.saleSellerPercent, REAL_ESTATE_SETTING_DEFAULTS.saleSellerPercent),
+    rentMonths: num(s.rentMonths, REAL_ESTATE_SETTING_DEFAULTS.rentMonths),
+    transferPercent: num(s.transferPercent, REAL_ESTATE_SETTING_DEFAULTS.transferPercent),
+    licenseNo: (s.licenseNo || "").trim(),
+    titleDeedServiceFee: num(s.titleDeedServiceFee, null),
+  };
+}
+
+function RealEstateSettingsSection({ value, onChange }) {
+  const set = (key) => (e) => onChange({ ...value, [key]: e.target.value });
+  const labelStyle = {
+    fontSize: 12,
+    color: "var(--text-secondary)",
+    display: "block",
+    marginBottom: 4,
+  };
+  const numberField = (key, label, suffix) => (
+    <div style={{ flex: "1 1 140px" }}>
+      <label style={labelStyle}>{label}</label>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <input
+          type="number"
+          min="0"
+          step="0.1"
+          value={value[key] ?? ""}
+          onChange={set(key)}
+          style={{ width: "100%" }}
+        />
+        <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{suffix}</span>
+      </div>
+    </div>
+  );
+  return (
+    <div
+      style={{
+        border: "0.5px solid var(--border)",
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 16,
+      }}
+    >
+      <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 4px" }}>Emlak ayarları</p>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 12px" }}>
+        Hizmet bedeli hesaplarında ve belgelerde kullanılır. Oranlara KDV ayrıca eklenir.
+      </p>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
+        {numberField("saleBuyerPercent", "Satış - alıcıdan", "%")}
+        {numberField("saleSellerPercent", "Satış - satıcıdan", "%")}
+        {numberField("rentMonths", "Kiralama - kiracıdan", "aylık kira")}
+        {numberField("transferPercent", "Devir - devredenden", "%")}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ flex: "1 1 200px" }}>
+          <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: 6 }}>
+            Yetki belgesi no
+            <InfoTip
+              align="right"
+              text="Taşınmaz Ticareti Hakkında Yönetmelik kapsamında Ticaret Bakanlığı'ndan aldığınız yetki belgesinin numarası. Belgelerde ve ilan metinlerinde gösterilir."
+            />
+          </label>
+          <input
+            value={value.licenseNo ?? ""}
+            onChange={set("licenseNo")}
+            style={{ width: "100%" }}
+          />
+        </div>
+        <div style={{ flex: "1 1 200px" }}>
+          <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: 6 }}>
+            Tapu döner sermaye ücreti (TL)
+            <InfoTip
+              align="right"
+              text="Tapu müdürlüğünün işlem başına aldığı döner sermaye ücreti. Müdürlükten müdürlüğe değişir ve her yıl başında artar - işlem yaptığınız müdürlüğün güncel tutarını girin. Tapu masrafı hesabında kullanılır."
+            />
+          </label>
+          <input
+            type="number"
+            min="0"
+            value={value.titleDeedServiceFee ?? ""}
+            onChange={set("titleDeedServiceFee")}
+            style={{ width: "100%" }}
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 

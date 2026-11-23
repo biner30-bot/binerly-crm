@@ -10,6 +10,11 @@ import {
   moveBeforeDrop,
   ReorderButtons,
 } from "./shared";
+import {
+  ROOM_COUNT_OPTIONS,
+  PROPERTY_TYPE_OPTIONS,
+  SEEKING_TRANSACTION_OPTIONS,
+} from "./realEstate";
 
 export const STAGES = [
   { id: "ilk_gorusme", label: "İlk görüşme" },
@@ -26,12 +31,6 @@ export const STAGE_LABELS_BIREYSEL = {
   kazanildi: "Tamamlandı",
   kaybedildi: "İptal",
 };
-
-// Emlak'ta hem mülkün ("Oda Sayısı") hem müşterinin aradığının ("Aranan Oda
-// Sayısı") aynı seçenek listesini kullanması gerekiyor — matchEmlakListing bu
-// iki alanı birebir string eşitliğiyle karşılaştırıyor, listeler ayrışırsa
-// (örn. biri "2+1" diğeri "2 + 1" yazarsa) hiç eşleşme bulunmaz.
-const ROOM_COUNT_OPTIONS = ["1+0", "1+1", "2+1", "3+1", "4+1", "4+2", "5+1"];
 
 // Şirketin sektörüne göre satış hunisi aşama isimlerini, önerilen etiketleri ve
 // sektöre özel alanları hazır getiren şablonlar. "Genel" bilinçli olarak boş
@@ -65,14 +64,14 @@ export const SECTOR_PRESETS = [
         key: "mulk_tipi",
         label: "Mülk Tipi",
         type: "select",
-        options: ["Daire", "Villa", "Arsa", "İşyeri"],
+        options: PROPERTY_TYPE_OPTIONS,
       },
       {
         entity: "deal",
         key: "islem_turu",
         label: "İşlem Türü",
         type: "select",
-        options: ["Satış", "Kiralama"],
+        options: SEEKING_TRANSACTION_OPTIONS,
       },
       { entity: "deal", key: "metrekare", label: "Metrekare (m²)", type: "number" },
       { entity: "deal", key: "bolge", label: "Bölge / İlçe", type: "text" },
@@ -90,7 +89,7 @@ export const SECTOR_PRESETS = [
         key: "aranan_islem",
         label: "Aranan İşlem",
         type: "select",
-        options: ["Satış", "Kiralama"],
+        options: SEEKING_TRANSACTION_OPTIONS,
       },
       { entity: "customer", key: "aranan_bolge", label: "Aradığı Bölge / İlçe", type: "text" },
       { entity: "customer", key: "min_butce", label: "Min. Bütçe (TL)", type: "number" },
@@ -107,7 +106,7 @@ export const SECTOR_PRESETS = [
         key: "aranan_mulk_tipi",
         label: "Aranan Mülk Tipi",
         type: "select",
-        options: ["Daire", "Villa", "Arsa", "İşyeri", "Farketmez"],
+        options: [...PROPERTY_TYPE_OPTIONS, "Farketmez"],
       },
     ],
     stageGuides: {
@@ -965,7 +964,12 @@ export function matchEmlakListing(deal, customers) {
 // eklenmiyor); bunun yerine zaten formda dolu olan alanlar üç kalıba dökülüyor.
 export function buildEmlakListingTexts(deal) {
   const cf = deal.customFields || {};
-  const islemLabel = cf.islem_turu === "Kiralama" ? "Kiralık" : "Satılık";
+  const islemLabel =
+    cf.islem_turu === "Kiralama"
+      ? "Kiralık"
+      : cf.islem_turu === "Devren Kiralama"
+        ? "Devren Kiralık"
+        : "Satılık";
   const fiyat = deal.value ? formatTL(deal.value) : "Fiyat için iletişime geçin";
   const satirBaslik = [islemLabel, cf.mulk_tipi, cf.bolge].filter(Boolean).join(" ");
   const olcu = [cf.oda_sayisi, cf.metrekare ? `${cf.metrekare} m²` : null]
@@ -998,7 +1002,11 @@ export function buildEmlakListingTexts(deal) {
       hashtagBolge && `#${hashtagBolge}Emlak`,
       hashtagMulk && `#${hashtagMulk}`,
       "#emlak",
-      islemLabel === "Kiralık" ? "#kiralik" : "#satilik",
+      islemLabel === "Kiralık"
+        ? "#kiralik"
+        : islemLabel === "Devren Kiralık"
+          ? "#devren"
+          : "#satilik",
     ]
       .filter(Boolean)
       .join(" "),

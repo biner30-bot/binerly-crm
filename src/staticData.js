@@ -277,7 +277,7 @@ export const SECTOR_DEMO_PRESETS = {
         stage: "teklif",
         reminderToday: true,
         reminder: "Mülk fotoğraflarını gönder",
-        customFields: { mulk_tipi: "İşyeri", islem_turu: "Kiralama", metrekare: 200 },
+        customFields: { mulk_tipi: "Ofis", islem_turu: "Kiralama", metrekare: 200 },
       },
       {
         customerIndex: 0,

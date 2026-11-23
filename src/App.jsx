@@ -72,7 +72,7 @@ function buildEmlakMatchMessage(deal, customer, companySettings) {
   const cf = deal.customFields || {};
   const details = [cf.mulk_tipi, cf.bolge, cf.oda_sayisi, cf.metrekare ? `${cf.metrekare} m²` : null].filter(Boolean).join(" · ");
   const fiyat = deal.value ? formatTL(deal.value) : "";
-  const islem = cf.islem_turu === "Kiralama" ? "kiralık" : "satılık";
+  const islem = cf.islem_turu === "Kiralama" ? "kiralık" : cf.islem_turu === "Devren Kiralama" ? "devren kiralık" : "satılık";
   const firstName = (customer.name || "").split(" ")[0] || customer.name;
   const firma = companySettings?.companyName ? `${companySettings.companyName} olarak ` : "";
   return `Merhaba ${firstName}, ${firma}aradığınız kriterlere uygun yeni bir ${islem} ilanımız var: ${details}${fiyat ? ` - ${fiyat}` : ""}. İlgilenirseniz detaylarını ve fotoğrafları hemen paylaşabilirim.`;
@@ -701,6 +701,7 @@ function rowToCompanySettings(r) {
     minProfitMarginPercent: r.min_profit_margin_percent ?? null,
     showcasePriceListVisible: r.showcase_price_list_visible === true,
     showcaseSlug: r.showcase_slug || null,
+    realEstateSettings: r.real_estate_settings || {},
   };
 }
 
@@ -3485,6 +3486,9 @@ export default function App() {
       winback_inactive_days: s.winbackInactiveDays || null,
       min_profit_margin_percent: s.minProfitMarginPercent || null,
       showcase_price_list_visible: s.showcasePriceListVisible === true,
+      // Sadece emlak ayarları formu gönderdiyse yazılır - diğer çağıranlar (sektör
+      // değişimi, onboarding) bu alanı taşımıyor ve boş {} ile ezerdi.
+      ...(s.realEstateSettings ? { real_estate_settings: s.realEstateSettings } : {}),
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase.from("company_settings").upsert(row).select().single();
