@@ -19,6 +19,9 @@ import {
   checklistProgress,
   isChecklistItemDone,
   parseListingText,
+  closingStepsFor,
+  CLOSING_STATUSES,
+  RENT_REVIEW_LEAD_DAYS,
 } from "./realEstate";
 
 const IMPORT_FIELD_LABELS = [
@@ -762,6 +765,8 @@ export function PropertyForm({
   const checklistDone = checklistItems.filter((i) =>
     isChecklistItemDone(i, checklistSubject, photoCount),
   ).length;
+  const closingSteps = closingStepsFor(f.transactionType);
+  const closingDone = closingSteps.filter((i) => f.checklist[i.key]).length;
 
   const renderDetailGroup = (group) => {
     const fields = visibleDetailFields.filter((d) => d.group === group);
@@ -1118,6 +1123,57 @@ export function PropertyForm({
           );
         })}
       </div>
+
+      {CLOSING_STATUSES.includes(f.status) && (
+        <>
+          <p style={sectionTitleStyle}>
+            Kapanış kontrol listesi ({closingDone}/{closingSteps.length})
+          </p>
+          {f.transactionType !== "satilik" && (
+            <div style={{ marginBottom: 10, maxWidth: 260 }}>
+              <label style={labelStyle}>
+                Kira sözleşmesi başlangıcı
+                <InfoTip
+                  text={`Portföy "Kiralandı" olunca, her yıl dönümünden ${RENT_REVIEW_LEAD_DAYS} gün önce kira artışını (TÜFE) mal sahibi ve kiracıyla konuşmanız için görev oluşturulur.`}
+                />
+              </label>
+              <input
+                type="date"
+                value={f.details.lease_start || ""}
+                onChange={(e) => setDetail("lease_start", e.target.value)}
+                style={{ width: "100%" }}
+              />
+            </div>
+          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+            {closingSteps.map((item) => (
+              <label
+                key={item.key}
+                style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}
+              >
+                <input
+                  type="checkbox"
+                  checked={!!f.checklist[item.key]}
+                  onChange={(e) =>
+                    setF((prev) => {
+                      const next = { ...prev.checklist };
+                      if (e.target.checked) next[item.key] = new Date().toISOString().slice(0, 10);
+                      else delete next[item.key];
+                      return { ...prev, checklist: next };
+                    })
+                  }
+                />
+                <span style={{ flex: 1 }}>{item.label}</span>
+                {f.checklist[item.key] && (
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                    {new Date(`${f.checklist[item.key]}T00:00:00`).toLocaleDateString("tr-TR")}
+                  </span>
+                )}
+              </label>
+            ))}
+          </div>
+        </>
+      )}
 
       <p style={sectionTitleStyle}>Açıklama</p>
       <textarea

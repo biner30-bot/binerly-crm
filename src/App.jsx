@@ -31,7 +31,7 @@ import { ImportModal } from "./ImportExport";
 import { TrackingScripts } from "./analytics";
 import Tasks from "./Tasks";
 import { Portfolio } from "./Portfolio";
-import { authorizationStatus, propertyAsListingDeal } from "./realEstate";
+import { authorizationStatus, propertyAsListingDeal, CLOSED_STATUSES, nextRentReviewDate } from "./realEstate";
 import { PDF_TEMPLATES, buildMergeData, renderTemplateBlocks, TemplateGallery, TABLE_ROW_HEIGHT } from "./PdfTemplates";
 import { TemplateEditor } from "./PdfTemplateEditor";
 import {
@@ -2376,6 +2376,7 @@ export default function App() {
     if (saved.status === "aktif" && (isNew || previous.status !== "aktif")) {
       findPropertyMatches(saved, { silentIfNone: true });
     }
+    await createPostSaleTasks(saved, previous);
     return saved;
   };
 
@@ -2439,6 +2440,52 @@ export default function App() {
     if (error) { notify(`Onay linki oluşturulamadı: ${error.message}`); return null; }
     setShowings((prev) => prev.map((x) => (x.id === showing.id ? rowToShowing(data) : x)));
     return token;
+  };
+
+  // Satış sonrası takip mevcut Görevler sistemine bağlanır (Pano + son tarih
+  // e-postası zaten var). Sadece GEÇİŞ anında oluşur - her kayıtta değil, yoksa
+  // portföy her düzenlendiğinde aynı görev çoğalırdı.
+  const createPostSaleTasks = async (p, previous) => {
+    const justClosed = CLOSED_STATUSES.includes(p.status) && !CLOSED_STATUSES.includes(previous?.status);
+    const leaseStart = p.details?.lease_start;
+    const leaseStartChanged = leaseStart && leaseStart !== previous?.details?.lease_start;
+    const isRental = p.transactionType !== "satilik";
+    const created = [];
+    const client = deals.find((d) => d.propertyId === p.id && d.stage === "kazanildi" && d.customerId !== p.ownerCustomerId);
+    const addDays = (n) => {
+      const d = new Date();
+      d.setDate(d.getDate() + n);
+      return d.toISOString().slice(0, 10);
+    };
+    if (justClosed) {
+      const ok = await upsertTask({
+        id: uid(),
+        title: `Memnuniyet araması - ${p.title}`,
+        type: "arama",
+        description: isRental ? "Kiracıyı arayıp taşınma sonrası bir ihtiyacı olup olmadığını sorun." : "Alıcıyı arayıp teslim sonrası bir ihtiyacı olup olmadığını sorun.",
+        dueDate: addDays(7),
+        assignedTo: p.assignedTo,
+        customerId: client?.customerId || null,
+        dealId: client?.id || null,
+      });
+      if (ok) created.push("1 hafta sonra memnuniyet araması");
+    }
+    if (isRental && CLOSED_STATUSES.includes(p.status) && leaseStart && (justClosed || leaseStartChanged)) {
+      const review = nextRentReviewDate(leaseStart);
+      const ok = await upsertTask({
+        id: uid(),
+        title: `Kira artışı (TÜFE) - ${p.title}`,
+        type: "arama",
+        description: "Sözleşme yıl dönümü yaklaşıyor. Sözleşmedeki artış oranına göre (konut kiralarında üst sınır son 12 aylık TÜFE ortalaması) yeni kirayı mal sahibiyle netleştirip kiracıya bildirin.",
+        dueDate: review.toISOString().slice(0, 10),
+        assignedTo: p.assignedTo,
+        customerId: p.ownerCustomerId || null,
+        dealId: null,
+      });
+      if (ok) created.push(`${review.toLocaleDateString("tr-TR")} tarihinde kira artışı hatırlatması`);
+    }
+    if (created.length > 0) notify(`Görev oluşturuldu: ${created.join(", ")}.`, "success");
+    else if (justClosed && isRental && !leaseStart) notify("Kapanış bölümüne kira başlangıç tarihini girerseniz kira artışı hatırlatması da oluşturulur.", "success");
   };
 
   const findPropertyMatches = (p, { silentIfNone = false } = {}) => {

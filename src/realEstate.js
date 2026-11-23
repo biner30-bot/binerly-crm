@@ -731,3 +731,68 @@ export function computeTransactionCosts(input, rawSettings) {
     settings: s,
   };
 }
+
+// Kapanış kontrol listesi - portföy alım listesiyle aynı checklist jsonb'de,
+// "close_" önekiyle (iki liste birbirinin ilerlemesini bozmasın).
+const CLOSING_STEPS = {
+  satilik: [
+    {
+      key: "close_title_deed_appointment",
+      label: "Tapu randevusu alındı, taraflara ve bankaya bildirildi",
+    },
+    { key: "close_mortgage", label: "İpotek varsa bankadan kapama ve fek yazısı alındı" },
+    { key: "close_documents", label: "Kimlikler, DASK ve belediye rayiç bedel belgesi hazır" },
+    { key: "close_fee_collected", label: "Hizmet bedeli tapudan önce tahsil edildi" },
+    { key: "close_deed_transfer", label: "Tapu devri tamamlandı, yeni tapunun kopyası alındı" },
+    {
+      key: "close_handover",
+      label: "Anahtar, abonelik numaraları ve borcu yoktur yazıları teslim edildi",
+    },
+    { key: "close_invoice", label: "Hizmet bedeli faturası kesildi" },
+    { key: "close_listings", label: "İlanlar kapatıldı, afiş toplandı" },
+    { key: "close_archive", label: "Arşiv dosyası tamamlandı" },
+  ],
+  kiralik: [
+    { key: "close_contract", label: "Kira sözleşmesi imzalandı (kiracı, mal sahibi, varsa kefil)" },
+    { key: "close_spouse_consent", label: "Evliyse kiracı/kefil için eş muvafakati alındı" },
+    { key: "close_ids", label: "Kiracı ve kefilin kimlik fotokopileri alındı" },
+    { key: "close_deposit", label: "Depozito mal sahibine teslim edildi" },
+    { key: "close_fee_collected", label: "Hizmet bedeli tahsil edildi" },
+    { key: "close_handover", label: "Anahtar teslim edildi, teslim öncesi fotoğraf/video çekildi" },
+    { key: "close_invoice", label: "Hizmet bedeli faturası kesildi" },
+    { key: "close_listings", label: "İlanlar kapatıldı, afiş toplandı" },
+  ],
+  devren_kiralik: [
+    { key: "close_transfer_contract", label: "Devir sözleşmesi imzalandı" },
+    { key: "close_contract", label: "Yeni kira sözleşmesi mal sahibiyle imzalandı" },
+    { key: "close_fixtures", label: "Demirbaşlar listeye göre teslim edildi" },
+    { key: "close_fee_collected", label: "Her iki taraftan hizmet bedeli tahsil edildi" },
+    { key: "close_invoice", label: "Hizmet bedeli faturaları kesildi" },
+    { key: "close_listings", label: "İlanlar kapatıldı, afiş toplandı" },
+  ],
+};
+
+export function closingStepsFor(transactionType) {
+  return CLOSING_STEPS[transactionType] || [];
+}
+
+export const CLOSING_STATUSES = ["opsiyonlu", "satildi", "kiralandi"];
+export const CLOSED_STATUSES = ["satildi", "kiralandi"];
+
+// Kira artış dönemi: sözleşme yıl dönümünden ~25 gün önce mal sahibi ve
+// kiracıyla TÜFE (12 aylık ortalama) artışının konuşulması için.
+export const RENT_REVIEW_LEAD_DAYS = 25;
+
+export function nextRentReviewDate(leaseStart, today = new Date()) {
+  if (!leaseStart) return null;
+  const start = new Date(`${leaseStart}T00:00:00`);
+  let years = 1;
+  let anniversary = addMonths(start, 12);
+  const now = new Date(today);
+  now.setHours(0, 0, 0, 0);
+  while (anniversary - RENT_REVIEW_LEAD_DAYS * 86400000 < now) {
+    years += 1;
+    anniversary = addMonths(start, 12 * years);
+  }
+  return new Date(anniversary.getTime() - RENT_REVIEW_LEAD_DAYS * 86400000);
+}
