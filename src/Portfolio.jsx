@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { PropertyShowings } from "./Showings";
 import { Badge, Modal, ConfirmDialog, InfoTip, AttachmentList, formatTL, uid } from "./shared";
 import {
   TRANSACTION_TYPES,
@@ -222,6 +223,11 @@ export function Portfolio({
   notify,
   onFindMatches,
   onShowListingText,
+  showings = [],
+  companySettings,
+  onSaveShowing,
+  onDeleteShowing,
+  onCreateConsentLink,
 }) {
   const [editing, setEditing] = useState(null);
   const [importing, setImporting] = useState(false);
@@ -445,21 +451,35 @@ export function Portfolio({
             }}
             media={
               editing.id ? (
-                <PropertyMedia
-                  propertyId={editing.id}
-                  photos={photosByProperty[editing.id] || []}
-                  attachments={attachments}
-                  onUploadPhotos={onUploadPhotos}
-                  onReorderPhotos={onReorderPhotos}
-                  onUploadDoc={onUploadDoc}
-                  onDownloadAttachment={onDownloadAttachment}
-                  onDeleteAttachment={onDeleteAttachment}
-                  getSignedUrls={getSignedUrls}
-                  notify={notify}
-                />
+                <>
+                  <PropertyMedia
+                    propertyId={editing.id}
+                    photos={photosByProperty[editing.id] || []}
+                    attachments={attachments}
+                    onUploadPhotos={onUploadPhotos}
+                    onReorderPhotos={onReorderPhotos}
+                    onUploadDoc={onUploadDoc}
+                    onDownloadAttachment={onDownloadAttachment}
+                    onDeleteAttachment={onDeleteAttachment}
+                    getSignedUrls={getSignedUrls}
+                    notify={notify}
+                  />
+                  <PropertyShowings
+                    property={latestEditing}
+                    showings={showings}
+                    customers={customers}
+                    teamMembers={teamMembers}
+                    currentUserId={currentUserId}
+                    companySettings={companySettings}
+                    onSave={onSaveShowing}
+                    onDelete={onDeleteShowing}
+                    onCreateConsentLink={onCreateConsentLink}
+                    notify={notify}
+                  />
+                </>
               ) : (
                 <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 12px" }}>
-                  Fotoğraf ve belgeleri ilk kayıttan sonra ekleyebilirsiniz.
+                  Fotoğraf, belge ve gösterimleri ilk kayıttan sonra ekleyebilirsiniz.
                 </p>
               )
             }

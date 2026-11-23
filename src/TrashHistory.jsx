@@ -15,6 +15,7 @@ export const TRASH_TABLE_LABELS = {
   staff_leave_records: "İzin kaydı",
   tasks: "Görev",
   properties: "Portföy",
+  property_showings: "Gösterim",
 };
 
 export function TrashHistoryModal({
@@ -54,6 +55,7 @@ export function TrashHistoryModal({
       { data: att },
       { data: tk },
       { data: props },
+      { data: shw },
     ] = await Promise.all([
       supabase
         .from("customers")
@@ -96,6 +98,10 @@ export function TrashHistoryModal({
         .from("properties")
         .select("id,title,user_id,deleted_at,deleted_batch_id")
         .not("deleted_at", "is", null),
+      supabase
+        .from("property_showings")
+        .select("id,user_id,shown_at,deleted_at,deleted_batch_id")
+        .not("deleted_at", "is", null),
     ]);
 
     // RLS politikaları "(user_id = auth.uid()) OR (user_id IN my_team_ids())" ile
@@ -133,6 +139,13 @@ export function TrashHistoryModal({
       ...(props || [])
         .filter((r) => r.user_id === activeTeamId)
         .map((r) => ({ table: "properties", label: r.title, ...r })),
+      ...(shw || [])
+        .filter((r) => r.user_id === activeTeamId)
+        .map((r) => ({
+          table: "property_showings",
+          label: `${new Date(r.shown_at).toLocaleDateString("tr-TR")} tarihli gösterim`,
+          ...r,
+        })),
     ];
 
     const groups = {};

@@ -414,6 +414,25 @@ function rowToProperty(r) {
   };
 }
 
+function rowToShowing(r) {
+  return {
+    id: r.id,
+    propertyId: r.property_id,
+    customerId: r.customer_id,
+    shownAt: r.shown_at,
+    shownBy: r.shown_by || null,
+    method: r.method,
+    interest: r.interest || "",
+    feedback: r.feedback || "",
+    consentToken: r.consent_token || null,
+    consentText: r.consent_text || "",
+    consentSignedAt: r.consent_signed_at || null,
+    consentSignerName: r.consent_signer_name || "",
+    consentIp: r.consent_ip || "",
+    createdAt: r.created_at,
+  };
+}
+
 function rowToPaymentCredential(r) {
   return {
     id: r.id,
@@ -1610,6 +1629,7 @@ export default function App() {
   // property_id -> { minPrice, privateNote }. RLS sadece sahip + sorumlu danışmana
   // satır döndürdüğü için diğer üyelerde bu harita o portföy için boş kalır.
   const [propertyPrivate, setPropertyPrivate] = useState({});
+  const [showings, setShowings] = useState([]);
   const [tasks, setTasks] = useState([]);
 
   // Ham Postgres/ağ hataları (ör. "violates foreign key constraint") 89+
@@ -1673,6 +1693,7 @@ export default function App() {
       setTasks([]);
       setProperties([]);
       setPropertyPrivate({});
+      setShowings([]);
       setActiveTeamId(undefined);
       setPendingInvites([]);
       setLoading(false);
@@ -1715,7 +1736,8 @@ export default function App() {
       supabase.from("tasks").select("*").is("deleted_at", null).order("due_date"),
       supabase.from("properties").select("*").is("deleted_at", null).order("created_at", { ascending: false }),
       supabase.from("property_private").select("*"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: sc }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ss }, { data: slb }, { data: slr }, { data: ri }, { data: res }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: gcw }, { data: myMembership }, { data: invites }, { data: tk }, { data: props }, { data: propPriv }]) => {
+      supabase.from("property_showings").select("*").is("deleted_at", null).order("shown_at", { ascending: false }),
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: sc }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ss }, { data: slb }, { data: slr }, { data: ri }, { data: res }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: gcw }, { data: myMembership }, { data: invites }, { data: tk }, { data: props }, { data: propPriv }, { data: shw }]) => {
       // customers/deals/company_settings RLS'i, sahiplik politikasına ek olarak
       // portal kullanıcılarının kendi bağlı oldukları kayıtları görmesine izin
       // veren bir politikayla da "veya" ile birleşiyor (customer_*_view'ların
@@ -1763,6 +1785,7 @@ export default function App() {
             .map((row) => [row.property_id, { minPrice: row.min_price != null ? Number(row.min_price) : null, privateNote: row.private_note || "" }])
         )
       );
+      setShowings((shw || []).filter((row) => row.user_id === ownerId).map(rowToShowing));
       setActiveTeamId(ownerId);
       // Sadece BANA gelen davetler (kendi gönderdiklerim değil) — RLS iki SELECT
       // politikasını OR ile birleştirdiği için burada e-postaya göre ek filtre şart.
@@ -2354,6 +2377,64 @@ export default function App() {
     return saved;
   };
 
+  const saveShowing = async (s) => {
+    const previous = showings.find((x) => x.id === s.id);
+    const isNew = !previous;
+    // Gönderilmiş ama henüz onaylanmamış bir linkin dondurulmuş metni, belgedeki
+    // bir bilgi değişince bayatlar - müşteri yanlış metni onaylamasın diye link
+    // geçersiz kılınır, danışman yenisini oluşturur.
+    const invalidatesLink =
+      previous?.consentToken &&
+      !previous.consentSignedAt &&
+      (previous.customerId !== s.customerId || new Date(previous.shownAt).getTime() !== new Date(s.shownAt).getTime() || previous.method !== s.method);
+    const row = {
+      id: s.id,
+      user_id: activeTeamId,
+      property_id: s.propertyId,
+      customer_id: s.customerId,
+      shown_at: s.shownAt,
+      shown_by: s.shownBy || session.user.id,
+      method: s.method,
+      interest: s.interest || null,
+      feedback: s.feedback || null,
+      ...(invalidatesLink ? { consent_token: null, consent_text: null } : {}),
+    };
+    const { data, error } = await supabase.from("property_showings").upsert(row).select().single();
+    if (error) { notify(`Gösterim kaydedilemedi: ${error.message}`); return false; }
+    if (invalidatesLink) notify("Gösterim bilgisi değiştiği için daha önce gönderilen onay linki geçersiz oldu - yeni link oluşturun.", "success");
+    const saved = rowToShowing(data);
+    setShowings((prev) => (isNew ? [saved, ...prev] : prev.map((x) => (x.id === saved.id ? saved : x))));
+    const property = properties.find((p) => p.id === saved.propertyId);
+    const customer = customers.find((c) => c.id === saved.customerId);
+    logAction("property_showings", saved.id, isNew ? "created" : "updated", `"${property?.title || "Portföy"}" ${customer?.name || "müşteri"} için gösterim ${isNew ? "eklendi" : "güncellendi"}`);
+    return true;
+  };
+
+  const deleteShowing = async (id) => {
+    const { error } = await supabase.from("property_showings").update({ deleted_at: new Date().toISOString(), deleted_batch_id: uid() }).eq("id", id);
+    if (error) { notify(`Gösterim silinemedi: ${error.message}`); return; }
+    setShowings((prev) => prev.filter((x) => x.id !== id));
+    logAction("property_showings", id, "deleted", "Gösterim kaydı çöp kutusuna taşındı");
+  };
+
+  // Belge metni burada üretilip DB'ye dondurulur - onay sayfası (api/deal-approval.js
+  // sign-showing) metni yeniden üretmez, müşteri tam olarak bu metni onaylar.
+  // İmzalanmış bir gösterimde metin değiştirilmez (kanıt bozulmasın).
+  const createShowingConsentLink = async (showing, consentText) => {
+    if (showing.consentSignedAt) return showing.consentToken;
+    const token = showing.consentToken || uid();
+    const { data, error } = await supabase
+      .from("property_showings")
+      .update({ consent_token: token, consent_text: consentText })
+      .eq("id", showing.id)
+      .is("consent_signed_at", null)
+      .select()
+      .single();
+    if (error) { notify(`Onay linki oluşturulamadı: ${error.message}`); return null; }
+    setShowings((prev) => prev.map((x) => (x.id === showing.id ? rowToShowing(data) : x)));
+    return token;
+  };
+
   const findPropertyMatches = (p, { silentIfNone = false } = {}) => {
     const matches = matchEmlakListing(
       propertyAsListingDeal(p, { forMatching: true }),
@@ -2374,6 +2455,12 @@ export default function App() {
       .update({ deleted_at: now, deleted_batch_id: batchId })
       .in("entity_type", ["property_photos", "property_docs"])
       .eq("entity_id", id);
+    await supabase
+      .from("property_showings")
+      .update({ deleted_at: now, deleted_batch_id: batchId })
+      .eq("property_id", id)
+      .is("deleted_at", null);
+    setShowings((prev) => prev.filter((s) => s.propertyId !== id));
     setProperties((prev) => prev.filter((x) => x.id !== id));
     setAttachments((prev) => prev.filter((a) => !(a.entityId === id && (a.entityType === "property_photos" || a.entityType === "property_docs"))));
     logAction("properties", id, "deleted", `"${property?.title || "Portföy"}" çöp kutusuna taşındı`);
@@ -3428,6 +3515,7 @@ export default function App() {
       { name: "attachments", setter: setAttachments, map: rowToAttachment, label: (r) => r.file_name },
       { name: "tasks", setter: setTasks, map: rowToTask, label: (r) => r.title },
       { name: "properties", setter: setProperties, map: rowToProperty, label: (r) => r.title },
+      { name: "property_showings", setter: setShowings, map: rowToShowing, label: () => "Gösterim kaydı" },
     ];
     let anyError = null;
     let restoredTicketIds = [];
@@ -3496,7 +3584,7 @@ export default function App() {
       if (error) skipped.push(`Talepler silinemedi: ${error.message}`); else deletedCount += data?.length || 0;
     }
 
-    for (const table of ["kb_articles", "group_classes", "tasks", "properties"]) {
+    for (const table of ["kb_articles", "group_classes", "tasks", "properties", "property_showings"]) {
       const { data, error } = await supabase.from(table).delete().eq("deleted_batch_id", batchId).select();
       if (error) skipped.push(`${TRASH_TABLE_LABELS[table]}: ${error.message}`); else deletedCount += data?.length || 0;
     }
@@ -5545,6 +5633,11 @@ export default function App() {
           onDeleteAttachment={deleteAttachment}
           getSignedUrls={getSignedUrls}
           notify={notify}
+          showings={showings}
+          companySettings={companySettings}
+          onSaveShowing={saveShowing}
+          onDeleteShowing={deleteShowing}
+          onCreateConsentLink={createShowingConsentLink}
           onFindMatches={(p) => findPropertyMatches(p)}
           onShowListingText={(p) => setListingTextDeal(propertyAsListingDeal(p))}
         />
@@ -6580,6 +6673,8 @@ export default function App() {
           onClose={() => setViewingCustomer(null)}
           ownedProperties={properties.filter((p) => p.ownerCustomerId === viewingCustomer.id)}
           onOpenPortfolio={() => { setViewingCustomer(null); setTab("portfoy"); }}
+          showings={showings}
+          properties={properties}
         />
       )}
 

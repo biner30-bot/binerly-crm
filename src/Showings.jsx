@@ -1,0 +1,452 @@
+import React, { useState } from "react";
+import { Badge, ConfirmDialog, InfoTip, toWhatsAppNumber, uid } from "./shared";
+import { SHOWING_INTEREST, buildShowingDocumentText, showingProtectionEnd } from "./realEstate";
+
+const labelStyle = {
+  fontSize: 12,
+  color: "var(--text-secondary)",
+  display: "block",
+  marginBottom: 4,
+};
+
+const SHOWING_LINK_BASE = "https://binerly.com/yer-gosterme/";
+
+const DIGITAL_CONSENT_INFO =
+  "Müşteri linki açıp adını yazarak belge metnini onaylar; tarih, saat ve IP adresi kaydedilir. Bu basit bir elektronik onaydır, ıslak veya güvenli elektronik imza kadar güçlü bir delil sayılmayabilir - yerinde gösterimlerde yazdırıp imzalatmak daha sağlamdır.";
+
+function interestMeta(id) {
+  return SHOWING_INTEREST.find((i) => i.id === id);
+}
+
+function toLocalInput(iso) {
+  const d = iso ? new Date(iso) : new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function escapeHtml(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// Islak imza için yazdırılabilir çıktı. İmzalanmış (dijital onaylı) bir
+// gösterimde saklanan metin basılır, değilse güncel bilgilerle yeniden üretilir.
+export function printShowingDocument({ text, signed, logoUrl }) {
+  const win = window.open("", "_blank");
+  if (!win) return false;
+  const [title, ...rest] = text.split("\n");
+  const body = rest
+    .map((line) => (line.trim() === "" ? "<br/>" : `<p>${escapeHtml(line)}</p>`))
+    .join("");
+  const signatureBlock = signed
+    ? `<div class="signed">Elektronik onay: ${escapeHtml(signed.name)} - ${escapeHtml(
+        new Date(signed.at).toLocaleString("tr-TR"),
+      )} - IP ${escapeHtml(signed.ip || "-")}</div>`
+    : `<div class="sign"><div><span>Taşınmazı gören</span>Ad soyad / imza</div><div><span>Taşınmazı gösteren</span>Ad soyad / imza</div></div>
+       <p class="hint">Gören kişinin "Yukarıdaki kişisel bilgilerimin doğru olduğunu beyan ederim." cümlesini el yazısıyla yazması önerilir.</p>`;
+  win.document
+    .write(`<!doctype html><html lang="tr"><head><meta charset="utf-8"/><title>${escapeHtml(title)}</title>
+<style>
+body{font-family:Arial,sans-serif;color:#111;max-width:720px;margin:32px auto;padding:0 24px;font-size:13px;line-height:1.5}
+h1{font-size:17px;text-align:center;margin:0 0 20px}
+p{margin:0}
+.logo{text-align:center;margin-bottom:12px}.logo img{max-height:48px}
+.sign{display:flex;gap:32px;margin-top:48px}.sign div{flex:1;border-top:1px solid #111;padding-top:6px;font-size:12px;color:#444}
+.sign span{display:block;font-weight:bold;color:#111}
+.signed{margin-top:32px;padding:10px;border:1px solid #888;font-size:12px}
+.hint{margin-top:16px;font-size:11px;color:#666}
+@media print{body{margin:0 auto}}
+</style></head><body>
+${logoUrl ? `<div class="logo"><img src="${escapeHtml(logoUrl)}" alt=""/></div>` : ""}
+<h1>${escapeHtml(title)}</h1>${body}${signatureBlock}
+<script>window.onload=function(){window.print()}</script>
+</body></html>`);
+  win.document.close();
+  return true;
+}
+
+function ShowingForm({ initial, customers, onSave, onCancel }) {
+  const [customerId, setCustomerId] = useState(initial?.customerId || "");
+  const [shownAt, setShownAt] = useState(toLocalInput(initial?.shownAt));
+  const [method, setMethod] = useState(initial?.method || "fiziki");
+  const [interest, setInterest] = useState(initial?.interest || "");
+  const [feedback, setFeedback] = useState(initial?.feedback || "");
+  const [saving, setSaving] = useState(false);
+  return (
+    <div
+      style={{
+        border: "0.5px solid var(--border)",
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 8,
+        background: "var(--surface-1)",
+      }}
+    >
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
+        <div style={{ flex: "1 1 200px" }}>
+          <label style={labelStyle}>Müşteri</label>
+          <select
+            value={customerId}
+            onChange={(e) => setCustomerId(e.target.value)}
+            disabled={!!initial?.consentSignedAt}
+            style={{ width: "100%" }}
+          >
+            <option value="">Seçin</option>
+            {customers.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div style={{ flex: "1 1 180px" }}>
+          <label style={labelStyle}>Tarih ve saat</label>
+          <input
+            type="datetime-local"
+            value={shownAt}
+            onChange={(e) => setShownAt(e.target.value)}
+            disabled={!!initial?.consentSignedAt}
+            style={{ width: "100%" }}
+          />
+        </div>
+        <div style={{ flex: "1 1 140px" }}>
+          <label style={labelStyle}>Gösterim şekli</label>
+          <select
+            value={method}
+            onChange={(e) => setMethod(e.target.value)}
+            disabled={!!initial?.consentSignedAt}
+            style={{ width: "100%" }}
+          >
+            <option value="fiziki">Yerinde</option>
+            <option value="elektronik">Elektronik (foto/video/görüntülü)</option>
+          </select>
+        </div>
+        <div style={{ flex: "1 1 140px" }}>
+          <label style={labelStyle}>İlgi</label>
+          <select
+            value={interest}
+            onChange={(e) => setInterest(e.target.value)}
+            style={{ width: "100%" }}
+          >
+            <option value="">-</option>
+            {SHOWING_INTEREST.map((i) => (
+              <option key={i.id} value={i.id}>
+                {i.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <label style={labelStyle}>Geri bildirim</label>
+      <textarea
+        value={feedback}
+        onChange={(e) => setFeedback(e.target.value)}
+        rows={2}
+        placeholder="Beğendiği/beğenmediği noktalar, fiyat görüşü, tekrar görmek istiyor mu..."
+        style={{ width: "100%", resize: "vertical", marginBottom: 8 }}
+      />
+      {initial?.consentSignedAt && (
+        <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 8px" }}>
+          Belge onaylandığı için müşteri, tarih ve şekil değiştirilemez.
+        </p>
+      )}
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <button type="button" onClick={onCancel}>
+          Vazgeç
+        </button>
+        <button
+          type="button"
+          disabled={!customerId || !shownAt || saving}
+          onClick={async () => {
+            setSaving(true);
+            const ok = await onSave({
+              id: initial?.id || uid(),
+              customerId,
+              shownAt: new Date(shownAt).toISOString(),
+              method,
+              interest,
+              feedback: feedback.trim(),
+            });
+            setSaving(false);
+            if (ok) onCancel();
+          }}
+          style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+        >
+          {saving ? "Kaydediliyor…" : "Kaydet"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ShowingRow({ title, subtitle, showing, onEdit, onPrint, onLink, onDelete }) {
+  const interest = interestMeta(showing.interest);
+  const protectionEnd = showingProtectionEnd(showing.shownAt);
+  const protectionActive = protectionEnd > new Date();
+  return (
+    <div
+      style={{
+        fontSize: 13,
+        padding: "8px 10px",
+        background: "var(--surface-1)",
+        border: "0.5px solid var(--border)",
+        borderRadius: "var(--radius)",
+        marginBottom: 6,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+        <span style={{ fontWeight: 500 }}>{title}</span>
+        <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {interest && <Badge tone={interest.tone}>{interest.label}</Badge>}
+          {showing.consentSignedAt ? (
+            <Badge tone="success">Belge onaylandı</Badge>
+          ) : showing.consentToken ? (
+            <Badge tone="warning">Onay bekleniyor</Badge>
+          ) : null}
+        </span>
+      </div>
+      <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+        {subtitle}
+        {" · "}
+        {protectionActive
+          ? `Koruma ${protectionEnd.toLocaleDateString("tr-TR")} tarihine kadar`
+          : "Koruma süresi doldu"}
+      </div>
+      {showing.feedback && (
+        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>
+          {showing.feedback}
+        </div>
+      )}
+      {(onEdit || onPrint || onLink || onDelete) && (
+        <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+          {onEdit && (
+            <button type="button" style={{ fontSize: 12 }} onClick={onEdit}>
+              Düzenle
+            </button>
+          )}
+          {onPrint && (
+            <button type="button" style={{ fontSize: 12 }} onClick={onPrint}>
+              <i className="ti ti-printer" aria-hidden="true" /> Belgeyi yazdır
+            </button>
+          )}
+          {onLink && !showing.consentSignedAt && (
+            <button type="button" style={{ fontSize: 12 }} onClick={onLink}>
+              <i className="ti ti-link" aria-hidden="true" /> Onay linki
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              style={{ fontSize: 12, color: "var(--text-danger)" }}
+              onClick={onDelete}
+            >
+              Sil
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function PropertyShowings({
+  property,
+  showings,
+  customers,
+  teamMembers,
+  currentUserId,
+  companySettings,
+  onSave,
+  onDelete,
+  onCreateConsentLink,
+  notify,
+}) {
+  const [editing, setEditing] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [linkFor, setLinkFor] = useState(null);
+  const list = showings
+    .filter((s) => s.propertyId === property.id)
+    .sort((a, b) => new Date(b.shownAt) - new Date(a.shownAt));
+  const customerById = new Map(customers.map((c) => [c.id, c]));
+  const shownByName = (id) => {
+    if (!id) return "";
+    if (id === currentUserId) return "siz";
+    const m = teamMembers.find((tm) => tm.id === id);
+    return m ? m.name || m.email : "eski üye";
+  };
+
+  // İmzalanmışsa onaylanan metin birebir korunur; imzasızsa her seferinde güncel
+  // portföy/ayar bilgisiyle yeniden üretilir.
+  const docText = (s) =>
+    (s.consentSignedAt && s.consentText) ||
+    buildShowingDocumentText({
+      company: companySettings,
+      realEstateSettings: companySettings?.realEstateSettings,
+      property,
+      customer: customerById.get(s.customerId) || { name: "-" },
+      showing: s,
+    });
+
+  const handleLink = async (s) => {
+    const token = await onCreateConsentLink(s, docText(s));
+    if (token) setLinkFor({ showing: s, url: `${SHOWING_LINK_BASE}${token}` });
+  };
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <p
+        style={{
+          fontSize: 13,
+          fontWeight: 600,
+          margin: "16px 0 8px",
+          paddingTop: 12,
+          borderTop: "0.5px solid var(--border)",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
+        Gösterimler ({list.length})
+        <InfoTip text="Mülkü gösterdiğiniz her müşteriyi kaydedin. Gösterim tarihinden itibaren 12 ay, yer gösterme belgesindeki koruma süresidir - bu sürede müşteri mülkü aracısız alırsa/kiralarsa hizmet bedeli talep hakkınızı belgeyle ispatlarsınız." />
+      </p>
+      {list.map((s) =>
+        editing?.id === s.id ? (
+          <ShowingForm
+            key={s.id}
+            initial={s}
+            customers={customers}
+            onSave={(v) => onSave({ ...v, propertyId: property.id, shownBy: s.shownBy })}
+            onCancel={() => setEditing(null)}
+          />
+        ) : (
+          <ShowingRow
+            key={s.id}
+            title={customerById.get(s.customerId)?.name || "Silinmiş müşteri"}
+            subtitle={`${new Date(s.shownAt).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })} · ${s.method === "elektronik" ? "Elektronik" : "Yerinde"}${s.shownBy ? ` · gösteren: ${shownByName(s.shownBy)}` : ""}`}
+            showing={s}
+            onEdit={() => setEditing(s)}
+            onPrint={() => {
+              const ok = printShowingDocument({
+                text: docText(s),
+                signed: s.consentSignedAt
+                  ? { name: s.consentSignerName, at: s.consentSignedAt, ip: s.consentIp }
+                  : null,
+                logoUrl: companySettings?.logoUrl,
+              });
+              if (!ok)
+                notify(
+                  "Yazdırma penceresi açılamadı - tarayıcının açılır pencere engelini kaldırın.",
+                );
+            }}
+            onLink={() => handleLink(s)}
+            onDelete={() => setConfirmDeleteId(s.id)}
+          />
+        ),
+      )}
+      {editing && !editing.id ? (
+        <ShowingForm
+          customers={customers.filter((c) => c.id !== property.ownerCustomerId)}
+          onSave={(v) => onSave({ ...v, propertyId: property.id })}
+          onCancel={() => setEditing(null)}
+        />
+      ) : (
+        <button type="button" onClick={() => setEditing({})} style={{ fontSize: 12.5 }}>
+          + Gösterim ekle
+        </button>
+      )}
+
+      {linkFor && (
+        <div
+          style={{
+            marginTop: 8,
+            padding: 10,
+            border: "0.5px solid var(--border)",
+            borderRadius: 8,
+            fontSize: 12.5,
+          }}
+        >
+          <p style={{ margin: "0 0 6px", display: "flex", alignItems: "center", gap: 6 }}>
+            Yer gösterme belgesi onay linki
+            <InfoTip text={DIGITAL_CONSENT_INFO} />
+          </p>
+          <input
+            readOnly
+            value={linkFor.url}
+            style={{ width: "100%", marginBottom: 6 }}
+            onFocus={(e) => e.target.select()}
+          />
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              style={{ fontSize: 12 }}
+              onClick={() => {
+                navigator.clipboard?.writeText(linkFor.url);
+                notify("Link kopyalandı.", "success");
+              }}
+            >
+              Kopyala
+            </button>
+            {customerById.get(linkFor.showing.customerId)?.phone && (
+              <button
+                type="button"
+                style={{ fontSize: 12 }}
+                onClick={() => {
+                  const c = customerById.get(linkFor.showing.customerId);
+                  const msg = `Merhaba ${c.name.split(" ")[0]}, bugün gezdiğimiz "${property.title}" için yer gösterme belgesini aşağıdaki linkten onaylayabilirsiniz:\n${linkFor.url}`;
+                  window.open(
+                    `https://wa.me/${toWhatsAppNumber(c.phone)}?text=${encodeURIComponent(msg)}`,
+                    "_blank",
+                    "noopener,noreferrer",
+                  );
+                }}
+              >
+                WhatsApp'tan gönder
+              </button>
+            )}
+            <button type="button" style={{ fontSize: 12 }} onClick={() => setLinkFor(null)}>
+              Kapat
+            </button>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteId && (
+        <ConfirmDialog
+          title="Gösterim silinsin mi?"
+          message="Gösterim kaydı çöp kutusuna taşınır. Onaylanmış bir belgesi varsa o da birlikte taşınır."
+          confirmLabel="Çöp kutusuna taşı"
+          onConfirm={() => {
+            onDelete(confirmDeleteId);
+            setConfirmDeleteId(null);
+          }}
+          onClose={() => setConfirmDeleteId(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Müşteri kartındaki salt-okur liste - müşteriye gösterilen mülkler.
+export function CustomerShowings({ customerId, showings, properties, onOpenPortfolio }) {
+  const propertyById = new Map(properties.map((p) => [p.id, p]));
+  const list = showings
+    .filter((s) => s.customerId === customerId)
+    .sort((a, b) => new Date(b.shownAt) - new Date(a.shownAt));
+  if (list.length === 0) return null;
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>Gösterilen mülkler</p>
+      {list.map((s) => (
+        <div key={s.id} onClick={onOpenPortfolio} style={{ cursor: "pointer" }}>
+          <ShowingRow
+            title={propertyById.get(s.propertyId)?.title || "Silinmiş portföy"}
+            subtitle={`${new Date(s.shownAt).toLocaleDateString("tr-TR")} · ${s.method === "elektronik" ? "Elektronik" : "Yerinde"}`}
+            showing={s}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}

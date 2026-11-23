@@ -32,6 +32,7 @@ import {
 import { paymentDateLabel, TAGS_INFO_TEXT, BeforeAfterPhotoThumb } from "./Deals";
 import { TaskForm } from "./Tasks";
 import { transactionLabel, propertyStatusMeta } from "./realEstate";
+import { CustomerShowings } from "./Showings";
 
 export const ACTIVITY_TYPES = [
   { id: "note", label: "Not", icon: "ti-note" },
@@ -537,6 +538,8 @@ export function CustomerDetail({
   onClose,
   ownedProperties = [],
   onOpenPortfolio,
+  showings = [],
+  properties = [],
 }) {
   const [type, setType] = useState("note");
   const [content, setContent] = useState("");
@@ -760,6 +763,13 @@ export function CustomerDetail({
           ))}
         </div>
       )}
+
+      <CustomerShowings
+        customerId={customer.id}
+        showings={showings}
+        properties={properties}
+        onOpenPortfolio={onOpenPortfolio}
+      />
 
       {customerDeals.length > 0 && (
         <div style={{ marginBottom: 16 }}>

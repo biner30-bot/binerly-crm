@@ -527,3 +527,88 @@ export function propertyAsListingDeal(p, { forMatching = false } = {}) {
     },
   };
 }
+
+export const SHOWING_INTEREST = [
+  { id: "yuksek", label: "Çok ilgilendi", tone: "success" },
+  { id: "orta", label: "İlgilendi", tone: "accent" },
+  { id: "dusuk", label: "Az ilgilendi", tone: "warning" },
+  { id: "yok", label: "İlgilenmedi", tone: "danger" },
+];
+
+// Yer gösterme belgesinin koruma süresi - gösterimden itibaren bu süre içinde
+// müşteri mülkü aracısız alır/kiralarsa hizmet bedeli doğar.
+export const SHOWING_PROTECTION_MONTHS = 12;
+
+export function showingProtectionEnd(shownAt) {
+  return addMonths(new Date(shownAt), SHOWING_PROTECTION_MONTHS);
+}
+
+function showingFeeClause(transactionType, s) {
+  const kdv = `%${s.serviceFeeKdvPercent} KDV`;
+  if (transactionType === "satilik")
+    return `satış bedeli üzerinden %${s.saleBuyerPercent} + ${kdv}`;
+  return `${s.rentMonths} aylık kira bedeli + ${kdv}`;
+}
+
+// Belge metni Binerly'nin kendi ifadesiyle yazıldı (herhangi bir franchise/ofis
+// formundan alınmadı). Metin dijital onay linki oluşturulurken bu fonksiyonla
+// üretilip property_showings.consent_text'e dondurulur - onaylanan metin sonradan
+// değişmesin diye API tarafı metni yeniden üretmez, sadece saklananı gösterir.
+export function buildShowingDocumentText({
+  company,
+  realEstateSettings,
+  property,
+  customer,
+  showing,
+}) {
+  const s = resolveRealEstateSettings(realEstateSettings);
+  const companyName = company?.companyName || "İşletme";
+  const date = new Date(showing.shownAt).toLocaleDateString("tr-TR");
+  const purpose = {
+    satilik: "satın alma",
+    kiralik: "kiralama",
+    devren_kiralik: "devir alma ve kiralama",
+  }[property.transactionType];
+  const location = [property.neighborhood, property.district, property.city]
+    .filter(Boolean)
+    .join(", ");
+  const parcel = [
+    property.parcelBlock && `Ada ${property.parcelBlock}`,
+    property.parcelNo && `Parsel ${property.parcelNo}`,
+    property.unitNo && `B.B. ${property.unitNo}`,
+  ]
+    .filter(Boolean)
+    .join(" / ");
+  const lines = [
+    "TAŞINMAZ YER GÖSTERME BELGESİ",
+    "",
+    "Aracı işletme",
+    `${companyName}${s.licenseNo ? ` - Yetki belgesi no: ${s.licenseNo}` : ""}`,
+    [company?.address, company?.phone].filter(Boolean).join(" - "),
+    "",
+    "Taşınmazı gören kişi",
+    `${customer.name}${customer.phone ? ` - ${customer.phone}` : ""}`,
+    "",
+    "Gösterilen taşınmaz",
+    `${property.title} (${transactionLabel(property.transactionType)})`,
+    location,
+    property.address || "",
+    parcel,
+    property.price
+      ? `İlan bedeli: ${new Intl.NumberFormat("tr-TR").format(property.price)} TL${property.transactionType === "kiralik" ? " / ay" : ""}`
+      : "",
+    "",
+    `Gösterim tarihi: ${date} - ${showing.method === "elektronik" ? "elektronik ortamda (fotoğraf/video/görüntülü görüşme)" : "yerinde (fiziki)"}`,
+    "",
+    "Beyan",
+    // Şirket adına iyelik/yönelme eki EKLENMİYOR ("X'nin", "X'ye"): ad her
+    // işletmede farklı, ses uyumu tahmini güvenilir değil - "aracı işletme"
+    // ifadesiyle ekten kaçınılıyor.
+    `Yukarıda bilgileri yazılı taşınmaz, ${purpose} amacıyla yukarıda adı geçen aracı işletme tarafından bana gösterilmiş ve tanıtılmıştır. ` +
+      `Bu taşınmazı gösterim tarihinden itibaren ${SHOWING_PROTECTION_MONTHS} ay içinde kendim, eşim, birinci derece yakınlarım ya da ortağı olduğum bir şirket aracılığıyla, ` +
+      `aracı işletmenin aracılığı olmaksızın ${purpose === "satın alma" ? "satın almam" : "kiralamam ya da devir almam"} halinde, ${showingFeeClause(property.transactionType, s)} tutarındaki hizmet bedelini aracı işletmeye ödemeyi kabul ederim.`,
+    "",
+    "Yukarıdaki kişisel bilgilerimin doğru olduğunu beyan ederim.",
+  ];
+  return lines.filter((l, i, arr) => !(l === "" && arr[i - 1] === "")).join("\n");
+}

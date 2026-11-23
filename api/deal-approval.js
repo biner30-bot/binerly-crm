@@ -1077,6 +1077,97 @@ async function handleMarketingConsentConfirm(req, res, supabaseAdmin, token) {
   return res.status(200).send(renderAttendancePage({ logoUrl, company, title: "Teşekkürler!", message: `İzniniz kaydedildi. - ${company}` }));
 }
 
+// Emlak yer gösterme belgesi onay sayfası. Belge metni bu sunucuda üretilmez:
+// danışman linki oluştururken istemcide üretilip property_showings.consent_text'e
+// dondurulur, burada aynen gösterilip onaylanır - müşterinin onayladığı metin
+// ile saklanan metin birebir aynı kalsın diye. Diğer onay akışlarıyla aynı
+// güvenlik deseni: GET sadece gösterir, kayıt SADECE POST'ta (e-posta/WhatsApp
+// önizleme botları linki "tıklayıp" onaylamış gibi görünmesin).
+function renderShowingSignPage({ logoUrl, company, title, text, token, error, done }) {
+  const logo = logoUrl || "https://binerly.com/pwa-512x512.png";
+  const form = token
+    ? `<form method="POST" action="/api/deal-approval" style="margin-top:16px;text-align:left;">
+        <input type="hidden" name="action" value="sign-showing" />
+        <input type="hidden" name="token" value="${escapeAttendanceHtml(token)}" />
+        <label style="display:block;font-size:13px;color:#4a5b70;margin-bottom:4px;">Adınız soyadınız</label>
+        <input name="signer_name" required minlength="3" autocomplete="name" style="width:100%;box-sizing:border-box;padding:11px 12px;margin:0 0 12px;border:1px solid #d5dde6;border-radius:8px;font-size:14px;" />
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;margin-bottom:16px;">
+          <input type="checkbox" name="agree" value="1" required style="margin-top:3px;" />
+          <span>Belgeyi okudum, taşınmazın bana gösterildiğini ve yukarıdaki beyanı kabul ediyorum.</span>
+        </label>
+        <button type="submit" style="width:100%;background:#185fa5;color:#ffffff;border:none;cursor:pointer;padding:13px;border-radius:8px;font-weight:600;font-size:15px;">Onaylıyorum</button>
+      </form>`
+    : "";
+  return `<!doctype html>
+<html lang="tr">
+  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta name="robots" content="noindex" /><title>${escapeAttendanceHtml(company || title)}</title></head>
+  <body style="margin:0;padding:32px 16px;background:#f5f8fc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+    <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e1e8f0;">
+      <div style="padding:24px 28px 16px;border-bottom:1px solid #e1e8f0;text-align:center;">
+        <img src="${escapeAttendanceHtml(logo)}" alt="" style="max-height:48px;max-width:200px;" />
+      </div>
+      <div style="padding:24px 28px;color:#0c2540;font-size:14px;line-height:1.6;">
+        <p style="margin:0 0 12px;font-size:17px;font-weight:600;text-align:center;">${escapeAttendanceHtml(title)}</p>
+        ${error ? `<p style="margin:0 0 12px;padding:10px;background:#fdecec;color:#a32d2d;border-radius:8px;font-size:13px;">${escapeAttendanceHtml(error)}</p>` : ""}
+        ${text ? `<div style="white-space:pre-wrap;background:#f8fafc;border:1px solid #e1e8f0;border-radius:8px;padding:14px;font-size:13px;">${escapeAttendanceHtml(text)}</div>` : ""}
+        ${done ? `<p style="margin:12px 0 0;text-align:center;">${escapeAttendanceHtml(done)}</p>` : ""}
+        ${form}
+      </div>
+    </div>
+    ${BINERLY_TRUST_FOOTER}
+  </body>
+</html>`;
+}
+
+async function handleShowingSign(req, res, supabaseAdmin, token) {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  if (!token) {
+    return res.status(400).send(renderShowingSignPage({ title: "Geçersiz bağlantı", done: "Bu bağlantı eksik ya da hatalı görünüyor." }));
+  }
+  const { data: showing, error } = await supabaseAdmin
+    .from("property_showings")
+    .select("id, user_id, consent_text, consent_signed_at, consent_signer_name")
+    .eq("consent_token", token)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error) console.error("sign-showing query error:", error.message);
+  if (error || !showing || !showing.consent_text) {
+    return res.status(404).send(renderShowingSignPage({ title: "Bağlantı bulunamadı", done: "Bu bağlantı geçersiz ya da yenisiyle değiştirilmiş. Lütfen danışmanınızdan yeni bir link isteyin." }));
+  }
+  const { data: settings } = await supabaseAdmin.from("company_settings").select("company_name, logo_url").eq("user_id", showing.user_id).maybeSingle();
+  const company = settings?.company_name || "";
+  const logoUrl = settings?.logo_url || null;
+  const title = "Yer Gösterme Belgesi";
+
+  if (showing.consent_signed_at) {
+    const at = new Date(showing.consent_signed_at).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" });
+    return res.status(200).send(renderShowingSignPage({ logoUrl, company, title, text: showing.consent_text, done: `Bu belge ${at} tarihinde ${showing.consent_signer_name} adıyla onaylandı.` }));
+  }
+
+  if (req.method === "GET") {
+    return res.status(200).send(renderShowingSignPage({ logoUrl, company, title, text: showing.consent_text, token }));
+  }
+
+  const signerName = String((req.body || {}).signer_name || "").trim().slice(0, 120);
+  const agreed = (req.body || {}).agree === "1";
+  if (signerName.length < 3 || !agreed) {
+    return res.status(400).send(renderShowingSignPage({ logoUrl, company, title, text: showing.consent_text, token, error: "Devam etmek için adınızı yazıp onay kutusunu işaretleyin." }));
+  }
+
+  const nowIso = new Date().toISOString();
+  const { error: updateError } = await supabaseAdmin
+    .from("property_showings")
+    .update({ consent_signed_at: nowIso, consent_signer_name: signerName, consent_ip: getClientIp(req) })
+    .eq("id", showing.id)
+    .eq("consent_token", token)
+    .is("consent_signed_at", null);
+  if (updateError) {
+    console.error("sign-showing update error:", updateError.message);
+    return res.status(500).send(renderShowingSignPage({ logoUrl, company, title, done: "Onay kaydedilemedi, lütfen biraz sonra tekrar deneyin." }));
+  }
+  return res.status(200).send(renderShowingSignPage({ logoUrl, company, title: "Teşekkürler", done: `Onayınız kaydedildi.${company ? ` - ${company}` : ""}` }));
+}
+
 // requestPhotoConsent'in (App.jsx) gönderdiği linkin hedefi — SADECE fotoğraf
 // saklama izni içindir, marketing_consent'e hiç dokunmaz. handleMarketingConsentConfirm
 // ile aynı güvenlik deseni (gerçek mutasyon sadece POST'ta) ve aynı paylaşılan
@@ -1704,6 +1795,15 @@ export default async function handler(req, res) {
   ) {
     const consentToken = req.method === "GET" ? url.searchParams.get("token") : (req.body || {}).token;
     return handlePhotoConsentConfirm(req, res, supabaseAdmin, consentToken);
+  }
+
+  // Emlak yer gösterme belgesi dijital onayı - vercel.json /yer-gosterme/:token.
+  if (
+    (req.method === "GET" && url.searchParams.get("action") === "sign-showing") ||
+    (req.method === "POST" && (req.body || {}).action === "sign-showing")
+  ) {
+    const showingToken = req.method === "GET" ? url.searchParams.get("token") : (req.body || {}).token;
+    return handleShowingSign(req, res, supabaseAdmin, showingToken);
   }
 
   const token = req.method === "GET" ? url.searchParams.get("token") : (req.body || {}).token;
