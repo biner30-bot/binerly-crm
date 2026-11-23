@@ -28,10 +28,11 @@ import {
   isAppointmentSector,
   computeCustomerReliability,
   TagBadges,
+  matchEmlakListing,
 } from "./Sectors";
 import { paymentDateLabel, TAGS_INFO_TEXT, BeforeAfterPhotoThumb } from "./Deals";
 import { TaskForm } from "./Tasks";
-import { transactionLabel, propertyStatusMeta } from "./realEstate";
+import { transactionLabel, propertyStatusMeta, propertyAsListingDeal } from "./realEstate";
 import { CustomerShowings } from "./Showings";
 
 export const ACTIVITY_TYPES = [
@@ -515,6 +516,67 @@ function activityDateLabel(dateStr) {
   );
 }
 
+// Gölge Avcı'nın ters yönü: müşterinin talebine (aranan_* alanları) uyan açık
+// portföyler. Aynı matchEmlakListing puanlaması, tek müşteriyle her portföy için
+// çalıştırılır - iki yönde de aynı eşik/ağırlıklar geçerli kalsın diye.
+function MatchingProperties({ customer, properties, showings, onOpenPortfolio }) {
+  const shownIds = new Set(
+    showings.filter((s) => s.customerId === customer.id).map((s) => s.propertyId),
+  );
+  const matches = properties
+    .filter((p) => ["aktif", "opsiyonlu"].includes(p.status))
+    .filter((p) => p.ownerCustomerId !== customer.id)
+    .map((p) => {
+      const [m] = matchEmlakListing(propertyAsListingDeal(p, { forMatching: true }), [
+        { ...customer, phone: customer.phone || "-" },
+      ]);
+      return m ? { property: p, score: m.score, reasons: m.reasons } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.score - a.score);
+  if (matches.length === 0) return null;
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>
+        Talebine uyan portföyler ({matches.length})
+      </p>
+      {matches.map(({ property, score, reasons }) => (
+        <button
+          key={property.id}
+          type="button"
+          onClick={onOpenPortfolio}
+          style={{
+            display: "block",
+            width: "100%",
+            textAlign: "left",
+            fontSize: 13,
+            padding: "8px 10px",
+            marginBottom: 6,
+            background: "var(--surface-1)",
+            border: "0.5px solid var(--border)",
+            borderRadius: "var(--radius)",
+            cursor: "pointer",
+          }}
+        >
+          <span style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+            <span>{property.title}</span>
+            <span style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+              {shownIds.has(property.id) && <Badge tone="default">Gösterildi</Badge>}
+              <Badge tone={score >= 80 ? "success" : score >= 65 ? "accent" : "default"}>
+                %{score} uyum
+              </Badge>
+            </span>
+          </span>
+          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+            {property.price ? `${formatTL(property.price)} · ` : ""}Uyan kriterler:{" "}
+            {reasons.join(", ")}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function CustomerDetail({
   customer,
   deals,
@@ -770,6 +832,15 @@ export function CustomerDetail({
         properties={properties}
         onOpenPortfolio={onOpenPortfolio}
       />
+
+      {sector === "emlak" && (
+        <MatchingProperties
+          customer={customer}
+          properties={properties}
+          showings={showings}
+          onOpenPortfolio={onOpenPortfolio}
+        />
+      )}
 
       {customerDeals.length > 0 && (
         <div style={{ marginBottom: 16 }}>
