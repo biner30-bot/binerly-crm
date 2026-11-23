@@ -31,6 +31,7 @@ import {
 } from "./Sectors";
 import { paymentDateLabel, TAGS_INFO_TEXT, BeforeAfterPhotoThumb } from "./Deals";
 import { TaskForm } from "./Tasks";
+import { transactionLabel, propertyStatusMeta } from "./realEstate";
 
 export const ACTIVITY_TYPES = [
   { id: "note", label: "Not", icon: "ti-note" },
@@ -534,6 +535,8 @@ export function CustomerDetail({
   currentUserEmail,
   onSaveTask,
   onClose,
+  ownedProperties = [],
+  onOpenPortfolio,
 }) {
   const [type, setType] = useState("note");
   const [content, setContent] = useState("");
@@ -721,6 +724,42 @@ export function CustomerDetail({
           />
         </div>
       </div>
+
+      {ownedProperties.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>Mülkleri</p>
+          {ownedProperties.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={onOpenPortfolio}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 8,
+                width: "100%",
+                textAlign: "left",
+                fontSize: 13,
+                padding: "8px 10px",
+                marginBottom: 6,
+                background: "var(--surface-1)",
+                border: "0.5px solid var(--border)",
+                borderRadius: "var(--radius)",
+                cursor: "pointer",
+              }}
+            >
+              <span>{p.title}</span>
+              <span style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                <Badge tone="accent">{transactionLabel(p.transactionType)}</Badge>
+                <Badge tone={propertyStatusMeta(p.status).tone}>
+                  {propertyStatusMeta(p.status).label}
+                </Badge>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {customerDeals.length > 0 && (
         <div style={{ marginBottom: 16 }}>

@@ -31,7 +31,7 @@ import { ImportModal } from "./ImportExport";
 import { TrackingScripts } from "./analytics";
 import Tasks from "./Tasks";
 import { Portfolio } from "./Portfolio";
-import { authorizationStatus } from "./realEstate";
+import { authorizationStatus, propertyAsListingDeal } from "./realEstate";
 import { PDF_TEMPLATES, buildMergeData, renderTemplateBlocks, TemplateGallery, TABLE_ROW_HEIGHT } from "./PdfTemplates";
 import { TemplateEditor } from "./PdfTemplateEditor";
 import {
@@ -2346,7 +2346,21 @@ export default function App() {
     } else {
       logAction("properties", saved.id, isNew ? "created" : "updated", `"${saved.title}" portföyü ${isNew ? "eklendi" : "güncellendi"}`);
     }
+    // Gölge Avcı: portföy ilk kez aktif olduğunda (yeni ya da taslaktan çıkınca)
+    // talebi uyan müşteriler taranır - her düzenlemede tekrar açılmasın diye.
+    if (saved.status === "aktif" && (isNew || previous.status !== "aktif")) {
+      findPropertyMatches(saved, { silentIfNone: true });
+    }
     return saved;
+  };
+
+  const findPropertyMatches = (p, { silentIfNone = false } = {}) => {
+    const matches = matchEmlakListing(
+      propertyAsListingDeal(p, { forMatching: true }),
+      customers.filter((c) => c.id !== p.ownerCustomerId),
+    );
+    if (matches.length > 0) setEmlakMatches({ deal: propertyAsListingDeal(p), matches });
+    else if (!silentIfNone) notify("Talebi bu portföye uyan müşteri bulunamadı. Müşteri kartlarındaki aranan bölge/bütçe/oda alanları doluysa eşleşme çıkar.", "success");
   };
 
   const deleteProperty = async (id) => {
@@ -5531,6 +5545,8 @@ export default function App() {
           onDeleteAttachment={deleteAttachment}
           getSignedUrls={getSignedUrls}
           notify={notify}
+          onFindMatches={(p) => findPropertyMatches(p)}
+          onShowListingText={(p) => setListingTextDeal(propertyAsListingDeal(p))}
         />
       )}
 
@@ -6433,7 +6449,7 @@ export default function App() {
       {listingTextDeal && (
         <Modal wide title={`İlan Metni - ${listingTextDeal.title}`} onClose={() => setListingTextDeal(null)}>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 14px" }}>
-            Teklifteki Mülk Tipi/Bölge/Oda Sayısı/Fiyat bilgilerinden üç platforma özel metin hazırlandı. Beğenmediğiniz kısmı kopyaladıktan sonra elle düzenleyebilirsiniz.
+            Kayıttaki Mülk Tipi/Bölge/Oda Sayısı/Fiyat bilgilerinden üç platforma özel metin hazırlandı. Beğenmediğiniz kısmı kopyaladıktan sonra elle düzenleyebilirsiniz.
           </p>
           {(() => {
             const texts = buildEmlakListingTexts(listingTextDeal);
@@ -6562,6 +6578,8 @@ export default function App() {
           currentUserEmail={session.user.email}
           onSaveTask={upsertTask}
           onClose={() => setViewingCustomer(null)}
+          ownedProperties={properties.filter((p) => p.ownerCustomerId === viewingCustomer.id)}
+          onOpenPortfolio={() => { setViewingCustomer(null); setTab("portfoy"); }}
         />
       )}
 

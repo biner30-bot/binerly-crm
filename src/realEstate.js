@@ -487,3 +487,31 @@ export function parseListingText(raw) {
 
   return result;
 }
+
+const TRANSACTION_TO_SEEKING = Object.fromEntries(
+  Object.entries(SEEKING_TO_TRANSACTION).map(([label, id]) => [id, label]),
+);
+
+// Gölge Avcı (matchEmlakListing) ve İlan Metni Sihirbazı (buildEmlakListingTexts)
+// teklifin customFields biçimiyle yazıldı - portföyü o biçime çevirip ikisini de
+// değiştirmeden kullanıyoruz. Bölge mahalle+ilçe+il birleşimi: müşteri talebinde
+// hangisini yazdıysa "içerir" karşılaştırmasıyla yakalanır; ilan metninde ise
+// (başlık/hashtag) tek bir bölge adı okunur.
+export function propertyAsListingDeal(p, { forMatching = false } = {}) {
+  return {
+    id: p.id,
+    title: p.title,
+    value: p.price || 0,
+    customFields: {
+      mulk_tipi: p.propertyType || undefined,
+      islem_turu: TRANSACTION_TO_SEEKING[p.transactionType],
+      bolge:
+        (forMatching
+          ? [p.neighborhood, p.district, p.city].filter(Boolean).join(" ")
+          : p.district || p.neighborhood || p.city) || undefined,
+      oda_sayisi: p.roomCount || undefined,
+      metrekare: p.netM2 || p.grossM2 || undefined,
+      ilan_no: p.listingRefs?.sahibinden || undefined,
+    },
+  };
+}

@@ -220,9 +220,13 @@ export function Portfolio({
   onDeleteAttachment,
   getSignedUrls,
   notify,
+  onFindMatches,
+  onShowListingText,
 }) {
   const [editing, setEditing] = useState(null);
   const [importing, setImporting] = useState(false);
+  // editing açılış anındaki kopya; eşleştirme/ilan metni kaydedilmiş son hali kullanmalı
+  const latestEditing = editing?.id ? properties.find((p) => p.id === editing.id) || editing : null;
   const [coverUrls, setCoverUrls] = useState({});
 
   const photosByProperty = useMemo(() => {
@@ -468,6 +472,8 @@ export function Portfolio({
                 : null
             }
             onCancel={() => setEditing(null)}
+            onFindMatches={editing.id ? () => onFindMatches(latestEditing) : null}
+            onShowListingText={editing.id ? () => onShowListingText(latestEditing) : null}
           />
         </Modal>
       )}
@@ -656,6 +662,8 @@ export function PropertyForm({
   onCancel,
   media,
   photoCount = 0,
+  onFindMatches,
+  onShowListingText,
 }) {
   const [f, setF] = useState(() => ({
     transactionType: initial?.transactionType || "satilik",
@@ -1136,7 +1144,7 @@ export function PropertyForm({
       <div
         style={{ display: "flex", gap: 8, justifyContent: "space-between", alignItems: "center" }}
       >
-        <div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {onDelete && (
             <button
               type="button"
@@ -1144,6 +1152,20 @@ export function PropertyForm({
               style={{ color: "var(--text-danger)" }}
             >
               Sil
+            </button>
+          )}
+          {onFindMatches && (
+            <button
+              type="button"
+              onClick={onFindMatches}
+              title="Kayıtlı son hali, müşterilerin aranan bölge/bütçe/oda taleplerine göre taranır"
+            >
+              <i className="ti ti-users" aria-hidden="true" /> Uyan müşteriler
+            </button>
+          )}
+          {onShowListingText && (
+            <button type="button" onClick={onShowListingText}>
+              <i className="ti ti-wand" aria-hidden="true" /> İlan metni
             </button>
           )}
         </div>
