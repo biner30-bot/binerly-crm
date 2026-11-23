@@ -336,3 +336,154 @@ export function checklistProgress(property, photoCount) {
   const done = items.filter((i) => isChecklistItemDone(i, property, photoCount)).length;
   return { done, total: items.length };
 }
+
+// "İlandan aktar": danışmanın kendi tarayıcısında açtığı ilan sayfasını
+// kopyalayıp (Ctrl+A, Ctrl+C) yapıştırdığı düz metinden portföy alanlarını
+// ayıklar. Portala sunucudan hiç bağlanılmaz - otomatik veri çekme portal
+// kullanım şartlarına aykırı. Sahibinden kopyasında etiket ve değer aynı
+// satırda boşluksuz bitişik gelir ("Oda Sayısı1+1"), bu yüzden satır başı
+// bilinen etiketlerle eşleştirilir. "Özellikler" bölümü (cephe, iç/dış
+// özellikler) kopyada seçili/seçisiz ayrımını kaybettiği için ayıklanmaz.
+const LISTING_LABELS = [
+  ["İlan No", "listingNo"],
+  ["Emlak Tipi", "listingType"],
+  ["m² (Brüt)", "grossM2"],
+  ["m² (Net)", "netM2"],
+  ["Oda Sayısı", "roomCount"],
+  ["Bina Yaşı", "buildingAge"],
+  ["Kat Sayısı", "totalFloors"],
+  ["Bulunduğu Kat", "floor"],
+  ["Isıtma", "heating"],
+  ["Banyo Sayısı", "bathrooms"],
+  ["Mutfak", "kitchen"],
+  ["Balkon", "balcony"],
+  ["Asansör", "elevator"],
+  ["Otopark", "parking"],
+  ["Eşyalı", "furnished"],
+  ["Kullanım Durumu", "usage"],
+  ["Site İçerisinde", "in_site"],
+  ["Site Adı", "site_name"],
+  ["Aidat (TL)", "dues"],
+  ["Depozito (TL)", "deposit"],
+  ["Krediye Uygun", "credit_eligible"],
+  ["Enerji Kimlik Belgesi", "energy_class"],
+  ["Tapu Durumu", "deed_status"],
+];
+
+const EMPTY_VALUES = new Set(["", "Belirtilmemiş", "-"]);
+
+const LISTING_PROPERTY_TYPES = [
+  ["Daire", "Daire"],
+  ["Rezidans", "Rezidans"],
+  ["Müstakil", "Müstakil Ev"],
+  ["Villa", "Villa"],
+  ["Yazlık", "Yazlık"],
+  ["Arsa", "Arsa"],
+  ["Dükkan", "Dükkan / Mağaza"],
+  ["Mağaza", "Dükkan / Mağaza"],
+  ["Ofis", "Ofis"],
+  ["Büro", "Ofis"],
+  ["Depo", "Depo"],
+  ["Bina", "Bina"],
+];
+
+const parseNumber = (v) => {
+  const m = String(v)
+    .replace(/\./g, "")
+    .replace(",", ".")
+    .match(/\d+(\.\d+)?/);
+  return m ? Number(m[0]) : null;
+};
+
+function transactionFromText(text) {
+  const t = text.toLocaleLowerCase("tr");
+  if (t.includes("devren")) return "devren_kiralik";
+  if (t.includes("kiralık")) return "kiralik";
+  if (t.includes("satılık")) return "satilik";
+  return null;
+}
+
+export function parseListingText(raw) {
+  const lines = String(raw || "")
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((l) => l.trim());
+  const values = {};
+  const firstLabelLine = lines.findIndex((l) => l.startsWith("İlan No"));
+  const descStart = lines.findIndex((l, i) => i > firstLabelLine && l === "Açıklama");
+  const scanEnd = descStart > 0 ? descStart : lines.length;
+  if (firstLabelLine >= 0) {
+    for (let i = firstLabelLine; i < scanEnd; i++) {
+      const line = lines[i];
+      const match = LISTING_LABELS.find(([label]) => line.startsWith(label));
+      if (!match || values[match[1]] !== undefined) continue;
+      const value = line.slice(match[0].length).trim();
+      if (!EMPTY_VALUES.has(value)) values[match[1]] = value;
+    }
+  }
+
+  const result = { details: {}, listingRefs: {} };
+  const favLine = lines.find((l) => l.includes("Favorilerime Ekle"));
+  if (favLine) result.title = favLine.split("Favorilerime Ekle")[0].trim();
+
+  const priceLine = lines.find((l) => /^[\d.]+(,\d+)?\s*TL$/.test(l));
+  if (priceLine) result.price = parseNumber(priceLine);
+
+  const locationLine = lines.find(
+    (l) => l.split(" / ").length === 3 && !l.startsWith("Emlak") && !/\d/.test(l),
+  );
+  if (locationLine) {
+    const [city, district, neighborhood] = locationLine.split(" / ").map((s) => s.trim());
+    Object.assign(result, { city, district, neighborhood });
+  }
+
+  const typeSource = values.listingType || lines.find((l) => l.startsWith("Emlak / ")) || "";
+  const tx = transactionFromText(typeSource);
+  if (tx) result.transactionType = tx;
+  const pt = LISTING_PROPERTY_TYPES.find(([needle]) => typeSource.includes(needle));
+  if (pt) result.propertyType = pt[1];
+
+  if (values.listingNo) result.listingRefs.sahibinden = values.listingNo.replace(/\D/g, "");
+  if (values.grossM2) result.grossM2 = parseNumber(values.grossM2);
+  if (values.netM2) result.netM2 = parseNumber(values.netM2);
+  if (values.roomCount) {
+    const studio = values.roomCount.match(/\((\d\+\d)\)/);
+    result.roomCount = studio ? studio[1] : values.roomCount;
+  }
+  if (values.buildingAge) result.buildingAge = parseNumber(values.buildingAge);
+  if (values.totalFloors) result.totalFloors = parseNumber(values.totalFloors);
+  if (values.floor) result.floor = values.floor;
+
+  const detailKeys = [
+    "heating",
+    "kitchen",
+    "balcony",
+    "elevator",
+    "parking",
+    "furnished",
+    "usage",
+    "in_site",
+    "site_name",
+    "credit_eligible",
+    "energy_class",
+    "deed_status",
+  ];
+  for (const k of detailKeys) if (values[k]) result.details[k] = values[k];
+  if (values.bathrooms) result.details.bathrooms = parseNumber(values.bathrooms);
+  if (values.dues) result.details.dues = parseNumber(values.dues);
+  if (values.deposit) result.details.deposit = parseNumber(values.deposit);
+
+  if (descStart > 0) {
+    const descEnd = lines.findIndex((l, i) => i > descStart && l === "Özellikler");
+    const desc = lines
+      .slice(descStart + 1, descEnd > 0 ? descEnd : undefined)
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    if (desc) result.description = desc;
+  }
+
+  if (/EİDS sisteminde ilan verme iznine sahiptir/.test(raw)) result.eidsStatus = "onaylandi";
+
+  return result;
+}

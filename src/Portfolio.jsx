@@ -16,7 +16,117 @@ import {
   checklistFor,
   checklistProgress,
   isChecklistItemDone,
+  parseListingText,
 } from "./realEstate";
+
+const IMPORT_FIELD_LABELS = [
+  ["title", "Başlık"],
+  ["transactionType", "İşlem türü", (v) => transactionLabel(v)],
+  ["propertyType", "Mülk tipi"],
+  ["price", "Fiyat", (v) => formatTL(v)],
+  ["city", "İl"],
+  ["district", "İlçe"],
+  ["neighborhood", "Mahalle"],
+  ["grossM2", "Brüt m²"],
+  ["netM2", "Net m²"],
+  ["roomCount", "Oda sayısı"],
+  ["buildingAge", "Bina yaşı"],
+  ["floor", "Bulunduğu kat"],
+  ["totalFloors", "Kat sayısı"],
+  ["eidsStatus", "EİDS", () => "Onaylı"],
+];
+
+function ListingImport({ onUse, onCancel }) {
+  const [text, setText] = useState("");
+  const parsed = useMemo(() => (text.trim() ? parseListingText(text) : null), [text]);
+  const rows = parsed
+    ? IMPORT_FIELD_LABELS.filter(([k]) => parsed[k] != null && parsed[k] !== "").map(
+        ([k, label, fmt]) => [label, fmt ? fmt(parsed[k]) : String(parsed[k])],
+      )
+    : [];
+  const detailCount = parsed ? Object.keys(parsed.details).length : 0;
+  const usable = parsed && (parsed.title || rows.length >= 3);
+  return (
+    <div>
+      <ol
+        style={{
+          fontSize: 13,
+          color: "var(--text-secondary)",
+          margin: "0 0 12px",
+          paddingLeft: 18,
+        }}
+      >
+        <li>İlanınızı tarayıcıda açın (Sahibinden ilan detay sayfası).</li>
+        <li>Sayfada boş bir yere tıklayıp Ctrl+A, ardından Ctrl+C yapın.</li>
+        <li>Aşağıdaki kutuya yapıştırın - alanlar otomatik ayıklanır.</li>
+      </ol>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={6}
+        placeholder="İlan sayfasının metnini buraya yapıştırın"
+        style={{ width: "100%", resize: "vertical", marginBottom: 12 }}
+        autoFocus
+      />
+      {parsed && (
+        <div
+          style={{
+            border: "0.5px solid var(--border)",
+            borderRadius: 8,
+            padding: 12,
+            marginBottom: 12,
+            fontSize: 13,
+          }}
+        >
+          {usable ? (
+            <>
+              <p style={{ fontWeight: 600, margin: "0 0 8px" }}>
+                Bulunan bilgiler ({rows.length + detailCount} alan)
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "4px 12px" }}>
+                {rows.map(([label, value]) => (
+                  <React.Fragment key={label}>
+                    <span style={{ color: "var(--text-muted)" }}>{label}</span>
+                    <span>{value}</span>
+                  </React.Fragment>
+                ))}
+              </div>
+              {(detailCount > 0 || parsed.description) && (
+                <p style={{ color: "var(--text-muted)", margin: "8px 0 0" }}>
+                  {detailCount > 0 && `+ ${detailCount} detay alanı (ısıtma, tapu durumu vb.)`}
+                  {detailCount > 0 && parsed.description && ", "}
+                  {parsed.description && "açıklama metni"}
+                </p>
+              )}
+              <p style={{ color: "var(--text-muted)", margin: "8px 0 0" }}>
+                Cephe ve iç/dış özellikler kopyalanan metinde ayırt edilemediği için aktarılmaz,
+                formda işaretleyebilirsiniz. Fotoğrafları formdan ekleyin.
+              </p>
+            </>
+          ) : (
+            <p style={{ margin: 0, color: "var(--text-warning)" }}>
+              Bu metinde ilan bilgisi bulunamadı. İlan detay sayfasının tamamını kopyaladığınızdan
+              emin olun.
+            </p>
+          )}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <button type="button" onClick={onCancel}>
+          Vazgeç
+        </button>
+        <button
+          type="button"
+          disabled={!usable}
+          onClick={() => onUse(parsed)}
+          style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+        >
+          Bu bilgilerle portföy oluştur
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function ChecklistBar({ progress }) {
   const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
@@ -112,6 +222,7 @@ export function Portfolio({
   notify,
 }) {
   const [editing, setEditing] = useState(null);
+  const [importing, setImporting] = useState(false);
   const [coverUrls, setCoverUrls] = useState({});
 
   const photosByProperty = useMemo(() => {
@@ -191,12 +302,17 @@ export function Portfolio({
             Satılık, kiralık ve devren kiralık mülkleriniz, mal sahipleri ve yetki durumlarıyla.
           </p>
         </div>
-        <button
-          onClick={() => setEditing({})}
-          style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
-        >
-          <i className="ti ti-plus" aria-hidden="true" /> Yeni portföy
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => setImporting(true)}>
+            <i className="ti ti-clipboard-text" aria-hidden="true" /> İlandan aktar
+          </button>
+          <button
+            onClick={() => setEditing({})}
+            style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+          >
+            <i className="ti ti-plus" aria-hidden="true" /> Yeni portföy
+          </button>
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
@@ -283,6 +399,18 @@ export function Portfolio({
         </div>
       )}
 
+      {importing && (
+        <Modal title="İlandan aktar" onClose={() => setImporting(false)} wide>
+          <ListingImport
+            onCancel={() => setImporting(false)}
+            onUse={(parsed) => {
+              setImporting(false);
+              setEditing({ prefill: { ...parsed, status: "aktif" } });
+            }}
+          />
+        </Modal>
+      )}
+
       {editing && (
         <Modal
           title={editing.id ? "Portföyü düzenle" : "Yeni portföy"}
@@ -292,7 +420,7 @@ export function Portfolio({
           <PropertyForm
             key={editing.id || "new"}
             photoCount={photosByProperty[editing.id]?.length || 0}
-            initial={editing.id ? editing : null}
+            initial={editing.id ? editing : editing.prefill || null}
             initialPrivate={editing.id ? propertyPrivate[editing.id] : null}
             canSeePrivate={canSeePrivate(editing.id ? editing : null)}
             customers={customers}
@@ -463,11 +591,13 @@ function DetailInput({ field, value, onChange }) {
         style={{ width: "100%" }}
       >
         <option value="">-</option>
-        {field.options.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
+        {(value && !field.options.includes(value) ? [value, ...field.options] : field.options).map(
+          (o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ),
+        )}
       </select>
     );
   }
