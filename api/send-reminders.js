@@ -328,6 +328,68 @@ export default async function handler(req, res) {
       else failed++;
     }
 
+    // Emlak portföy yetki sözleşmesi bitiş uyarısı. Kendiliğinden uzayan
+    // sözleşmeler atlanır (danışmanın yapacağı bir şey yok); uzamayanlarda bitişe
+    // 30/7/1 gün kala ve bitiş günü sorumlu danışmana (yoksa ofis sahibine) gider.
+    // Cron günde bir çalıştığı için gün eşitliği tek gönderim demek - damga gerekmez.
+    // Bitiş hesabı src/realEstate.js authorizationStatus ile senkron tutulmalı.
+    const AUTH_NOTICE_DAYS = new Set([30, 7, 1, 0]);
+    const addMonthsUtc = (dateStr, months) => {
+      const d = new Date(`${dateStr}T00:00:00Z`);
+      const day = d.getUTCDate();
+      d.setUTCMonth(d.getUTCMonth() + months);
+      if (d.getUTCDate() < day) d.setUTCDate(0);
+      return d;
+    };
+    const { data: authRows, error: authError } = await supabaseAdmin
+      .from("properties")
+      .select("id, user_id, assigned_to, title, authorization_start, authorization_months")
+      .is("deleted_at", null)
+      .eq("authorization_auto_renew", false)
+      .in("status", ["taslak", "aktif", "opsiyonlu"])
+      .not("authorization_start", "is", null)
+      .not("authorization_months", "is", null);
+    if (authError) console.error("property authorization query error:", authError.message);
+    const todayUtc = new Date(`${today}T00:00:00Z`);
+    const authByRecipient = {};
+    for (const p of authRows || []) {
+      const end = addMonthsUtc(p.authorization_start, p.authorization_months);
+      const daysLeft = Math.round((end - todayUtc) / 86400000);
+      if (!AUTH_NOTICE_DAYS.has(daysLeft)) continue;
+      (authByRecipient[p.assigned_to || p.user_id] ||= []).push({ ...p, end, daysLeft });
+    }
+    let authorizationsNotified = 0;
+    for (const [recipientId, rows] of Object.entries(authByRecipient)) {
+      const { data: recipientData } = await supabaseAdmin.auth.admin.getUserById(recipientId);
+      const recipientEmail = recipientData?.user?.email;
+      if (!recipientEmail) {
+        failed++;
+        continue;
+      }
+      const lines = rows.map(
+        (p) =>
+          `- ${p.title}: ${p.daysLeft === 0 ? "yetki süresi bugün doluyor" : `yetki ${p.daysLeft} gün sonra (${p.end.toLocaleDateString("tr-TR", { timeZone: "UTC" })}) bitiyor`}`
+      );
+      const bodyText = `Yetki sözleşmesi bitmek üzere olan portföyleriniz:\n\n${lines.join("\n")}\n\nYenilemek için mal sahibiyle görüşüp Binerly'de Portföy ekranından yetki tarihlerini güncelleyebilirsiniz.`;
+      const footerLines = ["Binerly Ekibi"];
+      const authRes = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "Binerly <noreply@binerly.com>",
+          to: recipientEmail,
+          subject: `Yetki süresi bitmek üzere (${rows.length} portföy)`,
+          html: renderEmailHtml({ bodyText, footerLines }),
+          text: plainTextFallback(bodyText, null, null, footerLines),
+        }),
+      });
+      if (authRes.ok) authorizationsNotified++;
+      else failed++;
+    }
+
     // "Takip gerekiyor" özeti — deals.reminder ile aynı prensip: gönderim damgası
     // YOK, kayıt kazanılana/kaybedilene ya da 3 günlük eşiğin altına düşene kadar
     // (yani çözülene kadar) her gün tekrar bildirilir.
@@ -588,7 +650,7 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(200).json({ usersNotified, failed, customersNotified, reviewsRequested, membershipsMoved, winbackSent, waitlistNotified, tasksNotified, stuckDealsNotified, lowStockNotified });
+    return res.status(200).json({ usersNotified, failed, customersNotified, reviewsRequested, membershipsMoved, winbackSent, waitlistNotified, tasksNotified, stuckDealsNotified, lowStockNotified, authorizationsNotified });
   } catch (err) {
     console.error("send-reminders fatal error:", err.message);
     return res.status(500).json({ error: "Gönderim sırasında hata oluştu." });

@@ -13,7 +13,38 @@ import {
   authorizationStatus,
   transactionLabel,
   propertyStatusMeta,
+  checklistFor,
+  checklistProgress,
+  isChecklistItemDone,
 } from "./realEstate";
+
+function ChecklistBar({ progress }) {
+  const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div
+        style={{
+          flex: 1,
+          height: 6,
+          borderRadius: 3,
+          background: "var(--surface-1)",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            width: `${pct}%`,
+            height: "100%",
+            background: pct === 100 ? "var(--text-success)" : "var(--fill-accent)",
+          }}
+        />
+      </div>
+      <span style={{ fontSize: 11, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+        Kontrol listesi {progress.done}/{progress.total}
+      </span>
+    </div>
+  );
+}
 
 const labelStyle = {
   fontSize: 13,
@@ -260,6 +291,7 @@ export function Portfolio({
         >
           <PropertyForm
             key={editing.id || "new"}
+            photoCount={photosByProperty[editing.id]?.length || 0}
             initial={editing.id ? editing : null}
             initialPrivate={editing.id ? propertyPrivate[editing.id] : null}
             canSeePrivate={canSeePrivate(editing.id ? editing : null)}
@@ -406,6 +438,9 @@ function PropertyCard({ property: p, owner, coverUrl, photoCount, onClick }) {
           <i className="ti ti-user" aria-hidden="true" /> Mal sahibi: {owner.name}
         </span>
       )}
+      {["taslak", "aktif", "opsiyonlu"].includes(p.status) && (
+        <ChecklistBar progress={checklistProgress(p, photoCount)} />
+      )}
       {warnings.length > 0 && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 2 }}>
           {warnings.map((w) => (
@@ -490,6 +525,7 @@ export function PropertyForm({
   onDelete,
   onCancel,
   media,
+  photoCount = 0,
 }) {
   const [f, setF] = useState(() => ({
     transactionType: initial?.transactionType || "satilik",
@@ -521,6 +557,7 @@ export function PropertyForm({
     eidsDate: initial?.eidsDate || "",
     sahibindenNo: initial?.listingRefs?.sahibinden || "",
     details: initial?.details || {},
+    checklist: initial?.checklist || {},
   }));
   const [minPrice, setMinPrice] = useState(initialPrivate?.minPrice ?? "");
   const [privateNote, setPrivateNote] = useState(initialPrivate?.privateNote || "");
@@ -539,6 +576,16 @@ export function PropertyForm({
     authorizationMonths: Number(f.authorizationMonths) || null,
     authorizationAutoRenew: f.authorizationAutoRenew,
   });
+  const checklistItems = checklistFor(f.transactionType);
+  const checklistSubject = {
+    authorizationStart: f.authorizationStart,
+    authorizationMonths: Number(f.authorizationMonths) || null,
+    eidsStatus: f.eidsStatus,
+    checklist: f.checklist,
+  };
+  const checklistDone = checklistItems.filter((i) =>
+    isChecklistItemDone(i, checklistSubject, photoCount),
+  ).length;
 
   const renderDetailGroup = (group) => {
     const fields = visibleDetailFields.filter((d) => d.group === group);
@@ -624,6 +671,7 @@ export function PropertyForm({
               sahibinden: f.sahibindenNo.trim() || undefined,
             },
             details: cleanDetails,
+            checklist: f.checklist,
           },
           canSeePrivate
             ? { minPrice: toNumberOrNull(minPrice), privateNote: privateNote.trim() || null }
@@ -849,6 +897,50 @@ export function PropertyForm({
         {f.eidsStatus === "onaylandi" &&
           field("eidsDate", "EİDS onay tarihi", { input: { type: "date" } })}
         {field("sahibindenNo", "Sahibinden ilan no")}
+      </div>
+
+      <p style={sectionTitleStyle}>
+        Portföy alım kontrol listesi ({checklistDone}/{checklistItems.length})
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+        {checklistItems.map((item) => {
+          const done = isChecklistItemDone(item, checklistSubject, photoCount);
+          const doneAt = !item.auto && f.checklist[item.key];
+          return (
+            <label
+              key={item.key}
+              style={{
+                fontSize: 13,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                color: item.auto ? "var(--text-secondary)" : undefined,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={done}
+                disabled={!!item.auto}
+                onChange={(e) =>
+                  setF((prev) => {
+                    const next = { ...prev.checklist };
+                    if (e.target.checked) next[item.key] = new Date().toISOString().slice(0, 10);
+                    else delete next[item.key];
+                    return { ...prev, checklist: next };
+                  })
+                }
+              />
+              <span style={{ flex: 1 }}>{item.label}</span>
+              {item.auto ? (
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>otomatik</span>
+              ) : doneAt ? (
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                  {new Date(`${doneAt}T00:00:00`).toLocaleDateString("tr-TR")}
+                </span>
+              ) : null}
+            </label>
+          );
+        })}
       </div>
 
       <p style={sectionTitleStyle}>Açıklama</p>

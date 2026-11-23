@@ -279,3 +279,60 @@ export function transactionLabel(id) {
 export function propertyStatusMeta(id) {
   return PROPERTY_STATUSES.find((s) => s.id === id) || PROPERTY_STATUSES[0];
 }
+
+// Portföy alım kontrol listesi. auto: işaret elle değil portföyün kendi
+// verisinden gelir (çift kayıt tutulup birbirinden kopmasın diye).
+const COMMON_CHECKLIST = [
+  { key: "deed_copy", label: "Tapu fotokopisi alındı" },
+  { key: "encumbrance", label: "Tapu takyidatı kontrol edildi (ipotek, haciz, şerh)" },
+  { key: "occupancy_doc", label: "Yapı kullanma izin belgesi (iskan) alındı" },
+  { key: "parcel_verified", label: "Ada/parsel ve adres TKGM Parsel Sorgu'da doğrulandı" },
+  { key: "measured", label: "Ölçüm yapıldı, iskandaki net m² ile karşılaştırıldı" },
+  { key: "valuation", label: "Emsal araştırması yapıldı, fiyat mal sahibiyle netleşti" },
+];
+
+const TRANSACTION_CHECKLIST = {
+  satilik: [
+    { key: "deed_age", label: "Tapu tarihi kontrol edildi (5 yıl - değer artış kazancı vergisi)" },
+    { key: "credit_check", label: "Alıcıların kullanabileceği kredi tutarı araştırıldı" },
+  ],
+  kiralik: [
+    { key: "rent_terms", label: "Depozito, kefil ve kira ödeme günü mal sahibiyle netleşti" },
+    { key: "handover", label: "Teslim tarihi ve teslim durumu (boya, tadilat) netleşti" },
+  ],
+  devren_kiralik: [
+    { key: "owner_consent", label: "Mal sahibinin devre onayı alındı" },
+    { key: "transfer_right", label: "Mevcut kira sözleşmesinde devir yetkisi kontrol edildi" },
+    { key: "fixtures_list", label: "Devredilecek demirbaşların listesi çıkarıldı" },
+    { key: "turnover", label: "Gelir-gider bilgileri istendi" },
+  ],
+};
+
+const CLOSING_CHECKLIST = [
+  { key: "authorization", label: "Yetki sözleşmesi imzalandı", auto: "authorization" },
+  { key: "eids", label: "EİDS yetkisi alındı", auto: "eids" },
+  { key: "photos", label: "Fotoğraflar çekildi", auto: "photos" },
+  { key: "listed", label: "İlanlar yayında (portal, afiş)" },
+];
+
+export function checklistFor(transactionType) {
+  return [
+    ...COMMON_CHECKLIST,
+    ...(TRANSACTION_CHECKLIST[transactionType] || []),
+    ...CLOSING_CHECKLIST,
+  ];
+}
+
+export function isChecklistItemDone(item, property, photoCount) {
+  if (item.auto === "authorization")
+    return !!(property.authorizationStart && property.authorizationMonths);
+  if (item.auto === "eids") return property.eidsStatus === "onaylandi";
+  if (item.auto === "photos") return photoCount > 0;
+  return !!property.checklist?.[item.key];
+}
+
+export function checklistProgress(property, photoCount) {
+  const items = checklistFor(property.transactionType);
+  const done = items.filter((i) => isChecklistItemDone(i, property, photoCount)).length;
+  return { done, total: items.length };
+}

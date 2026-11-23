@@ -117,6 +117,7 @@ export default function Pano({
   newPortalAppointments,
   orderRhythmAlerts,
   lowStockItems,
+  propertyAuthAlerts = [],
   membershipAlerts,
   churnAlerts,
   waitlistFillableAlerts,
@@ -700,6 +701,7 @@ export default function Pano({
         newPortalAppointments.length === 0 &&
         orderRhythmAlerts.length === 0 &&
         lowStockItems.length === 0 &&
+        propertyAuthAlerts.length === 0 &&
         membershipAlerts.length === 0 &&
         churnAlerts.length === 0 &&
         waitlistFillableAlerts.length === 0 &&
@@ -960,6 +962,32 @@ export default function Pano({
                   {item.reorderThreshold} {item.unit})
                 </span>
                 <Badge tone="danger">Stok azaldı</Badge>
+              </div>
+            ))}
+            {propertyAuthAlerts.map(({ property, auth }) => (
+              <div
+                key={`property-auth-${property.id}`}
+                className="pano-alert-row"
+                onClick={() => setTab("portfoy")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  padding: "8px 10px",
+                  background: auth.expired ? "var(--bg-danger)" : "var(--bg-warning)",
+                  borderLeft: `3px solid ${auth.expired ? "var(--text-danger)" : "var(--fill-warning)"}`,
+                  borderRadius: "var(--radius)",
+                }}
+              >
+                <span style={{ flex: 1 }}>
+                  {property.title} -{" "}
+                  {auth.expired
+                    ? `yetki ${auth.end.toLocaleDateString("tr-TR")} tarihinde doldu`
+                    : `yetki ${auth.daysLeft} gün sonra bitiyor`}
+                </span>
+                <Badge tone={auth.expired ? "danger" : "warning"}>Yetki</Badge>
               </div>
             ))}
             {membershipAlerts.map((alert) => (

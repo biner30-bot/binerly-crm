@@ -31,6 +31,7 @@ import { ImportModal } from "./ImportExport";
 import { TrackingScripts } from "./analytics";
 import Tasks from "./Tasks";
 import { Portfolio } from "./Portfolio";
+import { authorizationStatus } from "./realEstate";
 import { PDF_TEMPLATES, buildMergeData, renderTemplateBlocks, TemplateGallery, TABLE_ROW_HEIGHT } from "./PdfTemplates";
 import { TemplateEditor } from "./PdfTemplateEditor";
 import {
@@ -4896,6 +4897,15 @@ export default function App() {
     ? deals.filter((d) => d.stage === "kazanildi" && (d.customFields?.cikis_tarihi || "").slice(0, 10) === otelTodayStr)
     : [];
   const lowStockItems = stockItems.filter((s) => s.reorderThreshold != null && s.quantityOnHand <= s.reorderThreshold);
+  // Sadece kendiliğinden UZAMAYAN yetkiler - uzayanlarda danışmanın yapacağı bir şey
+  // yok (api/send-reminders.js'teki e-posta ile aynı kapsam).
+  const propertyAuthAlerts = companySettings?.sector === "emlak"
+    ? properties
+        .filter((p) => ["taslak", "aktif", "opsiyonlu"].includes(p.status))
+        .map((p) => ({ property: p, auth: authorizationStatus(p) }))
+        .filter(({ auth }) => auth && !auth.autoRenew && auth.daysLeft <= 30)
+        .sort((a, b) => a.auth.daysLeft - b.auth.daysLeft)
+    : [];
   const membershipAlerts = computeMembershipAlerts(deals, customers);
   const churnAlerts = supportsGroupClasses(companySettings?.sector) ? computeAttendanceChurnRisk(customers, deals, groupClassEnrollments, classAttendance) : [];
   // Bir üye kendi portalından iptal edip yer açtığında (personel tarafından
@@ -5315,6 +5325,7 @@ export default function App() {
           newPortalAppointments={newPortalAppointments}
           orderRhythmAlerts={orderRhythmAlerts}
           lowStockItems={lowStockItems}
+          propertyAuthAlerts={propertyAuthAlerts}
           membershipAlerts={membershipAlerts}
           churnAlerts={churnAlerts}
           waitlistFillableAlerts={waitlistFillableAlerts}
