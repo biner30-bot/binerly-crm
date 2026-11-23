@@ -349,6 +349,7 @@ function rowToDeal(r) {
     showcaseFeatured: r.showcase_featured || false,
     notifyCustomer: r.notify_customer || false,
     assignedTo: r.assigned_to || null,
+    propertyId: r.property_id || null,
     paymentMode: r.payment_mode || "none",
     paymentStatus: r.payment_status || null,
     appointmentOfferTime: r.appointment_offer_time || null,
@@ -2556,6 +2557,9 @@ export default function App() {
       custom_fields: customFields,
       notify_customer: d.notifyCustomer || false,
       assigned_to: d.assignedTo || null,
+      // Sadece alanı taşıyan çağrılar yazar - propertyId'yi bilmeyen akışlar
+      // (sürükle-bırak aşama değişimi vb.) bağlantıyı yanlışlıkla silmesin.
+      ...(d.propertyId !== undefined ? { property_id: d.propertyId } : {}),
       payment_mode: d.paymentMode || "none",
       resource_unit_id: resourceUnitId,
       appointment_start: appointmentStart,
@@ -2644,14 +2648,8 @@ export default function App() {
     setShowDealForm(false);
     setEditingDeal(null);
     setAppointmentPrefillDateTime(null);
-    // Gölge Avcı: emlak sektöründe yeni bir teklif (mülk) girildiği an, geçmiş
-    // müşteri taleplerine karşı otomatik taranır. Düzenlemede değil sadece
-    // İLK kayıtta tetiklenir — aksi halde her küçük güncellemede aynı
-    // eşleşmeler tekrar tekrar önüne çıkar.
-    if (isNew && companySettings?.sector === "emlak") {
-      const matches = matchEmlakListing(deal, customers);
-      if (matches.length > 0) setEmlakMatches({ deal, matches });
-    }
+    // Gölge Avcı artık teklif değil portföy kaydında çalışıyor (saveProperty) -
+    // mülk bilgisi teklifin custom_fields'inden portföy kartına taşındı.
     logAction("deals", deal.id, isNew ? "created" : "updated", `${deal.title} ${isNew ? "oluşturuldu" : "güncellendi"}`);
     // "Sorumlu" ata değiştirmesi, kazanma oranı/ciro/prim hesaplarını doğrudan
     // etkiliyor — herhangi bir takım üyesi bunu kendine çevirip haksız kazanç
@@ -5568,7 +5566,12 @@ export default function App() {
           appointmentDateTimeKey={appointmentDateTimeKey}
           dealPdfLabel={dealPdfLabel}
           setTeklifDeal={setTeklifDeal}
-          setListingTextDeal={setListingTextDeal}
+          setListingTextDeal={(d) => {
+            // Portföye bağlı teklifte metin portföyün güncel bilgilerinden üretilir;
+            // bağlantısız eski tekliflerde eskisi gibi kendi alanlarından.
+            const linked = d.propertyId && properties.find((p) => p.id === d.propertyId);
+            setListingTextDeal(linked ? propertyAsListingDeal(linked) : d);
+          }}
           notify={notify}
           setPaymentModeDeal={setPaymentModeDeal}
           handleUseSessionClick={handleUseSessionClick}
@@ -6442,6 +6445,7 @@ export default function App() {
         <Modal wide title={editingDeal?.id ? dealWords.editTitle : dealWords.newTitle} onClose={() => { setShowDealForm(false); setEditingDeal(null); setAppointmentPrefillDateTime(null); }}>
           <DealForm
             customers={customers}
+            properties={properties}
             initial={editingDeal}
             defaultKdvRate={companySettings?.defaultKdvRate}
             preferredCustomerType={dealAudience}

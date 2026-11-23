@@ -58,32 +58,12 @@ export const SECTOR_PRESETS = [
     // "aranan_*" alanları, teklif (mülk) tarafına da bolge/oda_sayisi eklendi.
     // Eski butce_araligi kaldırıldı ama daha önce girilmiş değerler DB'de
     // durur (applySectorCustomFields sadece "active:false" yapar, silmez).
+    // 2026-11: mülk alanları (mulk_tipi, islem_turu, metrekare, bolge,
+    // oda_sayisi, ilan_no) tekliften Portföy kartına taşındı - teklif artık
+    // deals.property_id ile bir portföye bağlanıyor, aynı bilgi iki yerde
+    // girilmesin diye buradan çıkarıldı.
     customFields: [
-      {
-        entity: "deal",
-        key: "mulk_tipi",
-        label: "Mülk Tipi",
-        type: "select",
-        options: PROPERTY_TYPE_OPTIONS,
-      },
-      {
-        entity: "deal",
-        key: "islem_turu",
-        label: "İşlem Türü",
-        type: "select",
-        options: SEEKING_TRANSACTION_OPTIONS,
-      },
-      { entity: "deal", key: "metrekare", label: "Metrekare (m²)", type: "number" },
-      { entity: "deal", key: "bolge", label: "Bölge / İlçe", type: "text" },
-      {
-        entity: "deal",
-        key: "oda_sayisi",
-        label: "Oda Sayısı",
-        type: "select",
-        options: ROOM_COUNT_OPTIONS,
-      },
       { entity: "deal", key: "gorusme_tarihi", label: "Görüşme/Randevu Tarihi", type: "datetime" },
-      { entity: "deal", key: "ilan_no", label: "İlan / Referans No", type: "text" },
       {
         entity: "customer",
         key: "aranan_islem",

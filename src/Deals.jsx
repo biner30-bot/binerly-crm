@@ -493,6 +493,7 @@ export function DealForm({
   onSaveTask,
   onSave,
   onCancel,
+  properties = [],
 }) {
   const [showTaskForm, setShowTaskForm] = useState(false);
   // Yalnızca YENİ randevu/teklifte yarım kalan içerik korunur - form X ile
@@ -546,6 +547,7 @@ export function DealForm({
     !initial && !!selectedCustomer && (selectedCustomer.appointmentCreditCount || 0) > 0;
   const [applyCredit, setApplyCredit] = useState(draft.applyCredit ?? false);
   const [title, setTitle] = useState(draft.title ?? (initial?.title || ""));
+  const [propertyId, setPropertyId] = useState(initial?.propertyId || "");
   const [value, setValue] = useState(draft.value ?? initial?.value ?? "");
   const [selectedPriceItemId, setSelectedPriceItemId] = useState(draft.selectedPriceItemId ?? "");
   // Kalemler tamamen opsiyonel — boşsa Tutar bugünkü gibi elle girilir, hiçbir
@@ -1266,6 +1268,7 @@ export function DealForm({
                 priceItemId: li.priceItemId || null,
               })),
             assignedTo: assignedTo || null,
+            propertyId: propertyId || null,
             notifyCustomer,
             approvalToken: initial?.approvalToken || null,
             approvedAt: initial?.approvedAt || null,
@@ -1357,6 +1360,49 @@ export function DealForm({
               </select>
             )}
           </div>
+          {sector === "emlak" && (
+            <div style={{ marginBottom: 12 }}>
+              <label
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  marginBottom: 4,
+                }}
+              >
+                Portföy
+                <InfoTip text="Teklif hangi mülk için? Seçince başlık ve tutar boşsa portföyden dolar. Mülk bilgileri (m², oda, bölge) portföy kartında tutulur, burada tekrar girilmez." />
+              </label>
+              <select
+                value={propertyId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setPropertyId(id);
+                  const p = properties.find((x) => x.id === id);
+                  if (!p) return;
+                  if (!title.trim()) setTitle(p.title);
+                  if (value === "" || value == null || Number(value) === 0) setValue(p.price ?? "");
+                }}
+                style={{ width: "100%" }}
+              >
+                <option value="">Portföy seçilmedi</option>
+                {properties
+                  .filter(
+                    (p) =>
+                      p.id === propertyId ||
+                      (["aktif", "opsiyonlu"].includes(p.status) &&
+                        p.ownerCustomerId !== customerId),
+                  )
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.title}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          )}
           {creditRisk && (
             <div
               style={{
