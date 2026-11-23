@@ -30,6 +30,7 @@ import Support, {
 import { ImportModal } from "./ImportExport";
 import { TrackingScripts } from "./analytics";
 import Tasks from "./Tasks";
+import { Portfolio } from "./Portfolio";
 import { PDF_TEMPLATES, buildMergeData, renderTemplateBlocks, TemplateGallery, TABLE_ROW_HEIGHT } from "./PdfTemplates";
 import { TemplateEditor } from "./PdfTemplateEditor";
 import {
@@ -371,6 +372,44 @@ function rowToTask(r) {
     createdAt: r.created_at,
     deletedAt: r.deleted_at || null,
     deletedBatchId: r.deleted_batch_id || null,
+  };
+}
+
+function rowToProperty(r) {
+  return {
+    id: r.id,
+    userId: r.user_id,
+    ownerCustomerId: r.owner_customer_id || null,
+    assignedTo: r.assigned_to || null,
+    transactionType: r.transaction_type,
+    status: r.status,
+    title: r.title,
+    propertyType: r.property_type || "",
+    price: r.price != null ? Number(r.price) : null,
+    city: r.city || "",
+    district: r.district || "",
+    neighborhood: r.neighborhood || "",
+    address: r.address || "",
+    parcelBlock: r.parcel_block || "",
+    parcelNo: r.parcel_no || "",
+    unitNo: r.unit_no || "",
+    grossM2: r.gross_m2 != null ? Number(r.gross_m2) : null,
+    netM2: r.net_m2 != null ? Number(r.net_m2) : null,
+    roomCount: r.room_count || "",
+    buildingAge: r.building_age ?? null,
+    floor: r.floor || "",
+    totalFloors: r.total_floors ?? null,
+    description: r.description || "",
+    authorizationStart: r.authorization_start || "",
+    authorizationMonths: r.authorization_months ?? null,
+    authorizationAutoRenew: r.authorization_auto_renew !== false,
+    authorizationExclusive: r.authorization_exclusive !== false,
+    eidsStatus: r.eids_status || "yok",
+    eidsDate: r.eids_date || "",
+    listingRefs: r.listing_refs || {},
+    details: r.details || {},
+    checklist: r.checklist || {},
+    createdAt: r.created_at,
   };
 }
 
@@ -1565,6 +1604,10 @@ export default function App() {
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
   const [teamRoster, setTeamRoster] = useState([]);
+  const [properties, setProperties] = useState([]);
+  // property_id -> { minPrice, privateNote }. RLS sadece sahip + sorumlu danışmana
+  // satır döndürdüğü için diğer üyelerde bu harita o portföy için boş kalır.
+  const [propertyPrivate, setPropertyPrivate] = useState({});
   const [tasks, setTasks] = useState([]);
 
   // Ham Postgres/ağ hataları (ör. "violates foreign key constraint") 89+
@@ -1626,6 +1669,8 @@ export default function App() {
       setResources([]);
       setDealLineItems([]);
       setTasks([]);
+      setProperties([]);
+      setPropertyPrivate({});
       setActiveTeamId(undefined);
       setPendingInvites([]);
       setLoading(false);
@@ -1666,7 +1711,9 @@ export default function App() {
       supabase.from("team_members").select("team_id").eq("member_id", session.user.id).maybeSingle(),
       supabase.from("team_invites").select("*").eq("status", "pending"),
       supabase.from("tasks").select("*").is("deleted_at", null).order("due_date"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: sc }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ss }, { data: slb }, { data: slr }, { data: ri }, { data: res }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: gcw }, { data: myMembership }, { data: invites }, { data: tk }]) => {
+      supabase.from("properties").select("*").is("deleted_at", null).order("created_at", { ascending: false }),
+      supabase.from("property_private").select("*"),
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: sc }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ss }, { data: slb }, { data: slr }, { data: ri }, { data: res }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: gcw }, { data: myMembership }, { data: invites }, { data: tk }, { data: props }, { data: propPriv }]) => {
       // customers/deals/company_settings RLS'i, sahiplik politikasına ek olarak
       // portal kullanıcılarının kendi bağlı oldukları kayıtları görmesine izin
       // veren bir politikayla da "veya" ile birleşiyor (customer_*_view'ların
@@ -1706,6 +1753,14 @@ export default function App() {
       setPriceItemIngredients((pii || []).filter((row) => row.user_id === ownerId).map(rowToPriceItemIngredient));
       setGroupClassWaitlist((gcw || []).filter((row) => row.user_id === ownerId).map(rowToWaitlistEntry));
       setTasks((tk || []).filter((row) => row.user_id === ownerId).map(rowToTask));
+      setProperties((props || []).filter((row) => row.user_id === ownerId).map(rowToProperty));
+      setPropertyPrivate(
+        Object.fromEntries(
+          (propPriv || [])
+            .filter((row) => row.user_id === ownerId)
+            .map((row) => [row.property_id, { minPrice: row.min_price != null ? Number(row.min_price) : null, privateNote: row.private_note || "" }])
+        )
+      );
       setActiveTeamId(ownerId);
       // Sadece BANA gelen davetler (kendi gönderdiklerim değil) — RLS iki SELECT
       // politikasını OR ile birleştirdiği için burada e-postaya göre ek filtre şart.
@@ -2221,6 +2276,91 @@ export default function App() {
     if (error) { notify(`Görev silinemedi: ${error.message}`); return; }
     setTasks((prev) => prev.filter((x) => x.id !== id));
     logAction("tasks", id, "deleted", `"${task?.title || "Görev"}" çöp kutusuna taşındı`);
+  };
+
+  const saveProperty = async (p, priv) => {
+    const previous = properties.find((x) => x.id === p.id);
+    const isNew = !previous;
+    const row = {
+      id: p.id,
+      user_id: activeTeamId,
+      owner_customer_id: p.ownerCustomerId,
+      assigned_to: p.assignedTo,
+      transaction_type: p.transactionType,
+      status: p.status,
+      title: p.title,
+      property_type: p.propertyType,
+      price: p.price,
+      city: p.city,
+      district: p.district,
+      neighborhood: p.neighborhood,
+      address: p.address,
+      parcel_block: p.parcelBlock,
+      parcel_no: p.parcelNo,
+      unit_no: p.unitNo,
+      gross_m2: p.grossM2,
+      net_m2: p.netM2,
+      room_count: p.roomCount,
+      building_age: p.buildingAge,
+      floor: p.floor,
+      total_floors: p.totalFloors,
+      description: p.description,
+      authorization_start: p.authorizationStart,
+      authorization_months: p.authorizationMonths,
+      authorization_auto_renew: p.authorizationAutoRenew,
+      authorization_exclusive: p.authorizationExclusive,
+      eids_status: p.eidsStatus,
+      eids_date: p.eidsDate,
+      listing_refs: p.listingRefs,
+      details: p.details,
+      ...(p.checklist ? { checklist: p.checklist } : {}),
+      updated_at: new Date().toISOString(),
+    };
+    const { data, error } = await supabase.from("properties").upsert(row).select().single();
+    if (error) { notify(`Portföy kaydedilemedi: ${error.message}`); return false; }
+    const saved = rowToProperty(data);
+    setProperties((prev) => (isNew ? [saved, ...prev] : prev.map((x) => (x.id === saved.id ? saved : x))));
+    // Gizli tablo, properties satırı yazıldıktan SONRA yazılmalı: sorumlu danışman
+    // RLS'i properties.assigned_to'ya EXISTS ile bakıyor.
+    if (priv) {
+      const { error: privError } = await supabase.from("property_private").upsert({
+        property_id: saved.id,
+        user_id: activeTeamId,
+        min_price: priv.minPrice,
+        private_note: priv.privateNote,
+        updated_at: new Date().toISOString(),
+      });
+      if (privError) notify(`Gizli bilgiler kaydedilemedi: ${privError.message}`);
+      else setPropertyPrivate((prev) => ({ ...prev, [saved.id]: priv }));
+    }
+    if (previous && previous.assignedTo !== saved.assignedTo) {
+      const labelFor = (id) => {
+        if (!id) return "Atanmamış";
+        if (id === session.user.id) return `Ben (${session.user.email})`;
+        const m = teamMembers.find((tm) => tm.id === id);
+        return m ? (m.name || m.email) : "Eski üye";
+      };
+      logAction("properties", saved.id, "updated", `${saved.title}: Sorumlu ${labelFor(previous.assignedTo)} → ${labelFor(saved.assignedTo)} olarak değiştirildi`);
+    } else {
+      logAction("properties", saved.id, isNew ? "created" : "updated", `"${saved.title}" portföyü ${isNew ? "eklendi" : "güncellendi"}`);
+    }
+    return true;
+  };
+
+  const deleteProperty = async (id) => {
+    const property = properties.find((x) => x.id === id);
+    const now = new Date().toISOString();
+    const batchId = uid();
+    const { error } = await supabase.from("properties").update({ deleted_at: now, deleted_batch_id: batchId }).eq("id", id);
+    if (error) { notify(`Portföy silinemedi: ${error.message}`); return; }
+    await supabase
+      .from("attachments")
+      .update({ deleted_at: now, deleted_batch_id: batchId })
+      .in("entity_type", ["property_photos", "property_docs"])
+      .eq("entity_id", id);
+    setProperties((prev) => prev.filter((x) => x.id !== id));
+    setAttachments((prev) => prev.filter((a) => !(a.entityId === id && (a.entityType === "property_photos" || a.entityType === "property_docs"))));
+    logAction("properties", id, "deleted", `"${property?.title || "Portföy"}" çöp kutusuna taşındı`);
   };
 
   const toggleTaskComplete = async (id) => {
@@ -3242,6 +3382,7 @@ export default function App() {
       { name: "group_classes", setter: setGroupClasses, map: rowToGroupClass, label: (r) => r.name },
       { name: "attachments", setter: setAttachments, map: rowToAttachment, label: (r) => r.file_name },
       { name: "tasks", setter: setTasks, map: rowToTask, label: (r) => r.title },
+      { name: "properties", setter: setProperties, map: rowToProperty, label: (r) => r.title },
     ];
     let anyError = null;
     let restoredTicketIds = [];
@@ -3310,7 +3451,7 @@ export default function App() {
       if (error) skipped.push(`Talepler silinemedi: ${error.message}`); else deletedCount += data?.length || 0;
     }
 
-    for (const table of ["kb_articles", "group_classes", "tasks"]) {
+    for (const table of ["kb_articles", "group_classes", "tasks", "properties"]) {
       const { data, error } = await supabase.from(table).delete().eq("deleted_batch_id", batchId).select();
       if (error) skipped.push(`${TRASH_TABLE_LABELS[table]}: ${error.message}`); else deletedCount += data?.length || 0;
     }
@@ -4998,6 +5139,7 @@ export default function App() {
         {[
           { id: "pano", label: "Pano", icon: "ti-layout-dashboard" },
           { id: "musteri", label: "Müşteriler", icon: "ti-building" },
+          ...(companySettings?.sector === "emlak" ? [{ id: "portfoy", label: "Portföy", icon: "ti-building-estate" }] : []),
           { id: "firsat", label: dealWords.navLabel, icon: "ti-target-arrow" },
           ...(canEditCompanySettings ? [{ id: "fiyatlistesi", label: "Fiyat Listesi", icon: "ti-tag" }] : []),
           ...(canEditCompanySettings ? [{ id: "stokmalzeme", label: "Stok & Malzeme", icon: "ti-package" }] : []),
@@ -5326,6 +5468,20 @@ export default function App() {
           }}
           selectedConversation={selectedChatConversation}
           onSend={(content) => addTicketMessage({ ticketId: selectedChatConversation.ticket.id, direction: "giden", content, isInternal: false })}
+        />
+      )}
+
+      {tab === "portfoy" && companySettings?.sector === "emlak" && (
+        <Portfolio
+          properties={properties}
+          propertyPrivate={propertyPrivate}
+          customers={customers}
+          teamMembers={teamRoster}
+          currentUserId={session.user.id}
+          currentUserEmail={session.user.email}
+          isOwner={isOwner}
+          onSave={saveProperty}
+          onDelete={deleteProperty}
         />
       )}
 
