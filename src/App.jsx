@@ -6480,6 +6480,7 @@ export default function App() {
           <DealForm
             customers={customers}
             properties={properties}
+            realEstateSettings={companySettings?.realEstateSettings}
             initial={editingDeal}
             defaultKdvRate={companySettings?.defaultKdvRate}
             preferredCustomerType={dealAudience}

@@ -45,6 +45,7 @@ import { DEAL_WORD_FORMS } from "./staticData";
 import { TaskForm } from "./Tasks";
 import { SessionsTab } from "./Sessions";
 import { staffShiftsEffectiveOnDate } from "./Team";
+import { computeTransactionCosts } from "./realEstate";
 // Vadesi geçmiş bakiye / kredi limiti uyarısı — GERÇEK BİR ENGEL DEĞİL, sadece
 // bilgilendirme (kullanıcının kararı: "riskli müşteriye teklif vermek KOBİ'nin
 // kendi bileceği iş"). "Ödeme Vadesi" (Peşin/30 gün/60 gün/90 gün) zaten var
@@ -494,6 +495,7 @@ export function DealForm({
   onSave,
   onCancel,
   properties = [],
+  realEstateSettings,
 }) {
   const [showTaskForm, setShowTaskForm] = useState(false);
   // Yalnızca YENİ randevu/teklifte yarım kalan içerik korunur - form X ile
@@ -548,6 +550,23 @@ export function DealForm({
   const [applyCredit, setApplyCredit] = useState(draft.applyCredit ?? false);
   const [title, setTitle] = useState(draft.title ?? (initial?.title || ""));
   const [propertyId, setPropertyId] = useState(initial?.propertyId || "");
+  const selectedProperty = properties.find((p) => p.id === propertyId);
+  // Müşteri mülkün sahibiyse satıcı/devreden payı, değilse alıcı/kiracı/devralan
+  // payı - kiraya verenden varsayılan olarak hizmet bedeli alınmaz.
+  const propertyServiceFeeFor = (p, forCustomerId) => {
+    const r = computeTransactionCosts(
+      {
+        transactionType: p.transactionType,
+        price: p.price,
+        monthlyRent: p.details?.monthly_rent,
+      },
+      realEstateSettings,
+    );
+    const isOwner = p.ownerCustomerId && p.ownerCustomerId === forCustomerId;
+    if (r.transactionType === "satilik") return isOwner ? r.seller.fee.net : r.buyer.fee.net;
+    if (r.transactionType === "kiralik") return isOwner ? 0 : r.tenant.fee.net;
+    return isOwner ? r.transferor.fee.net : r.transferee.fee.net;
+  };
   const [value, setValue] = useState(draft.value ?? initial?.value ?? "");
   const [selectedPriceItemId, setSelectedPriceItemId] = useState(draft.selectedPriceItemId ?? "");
   // Kalemler tamamen opsiyonel — boşsa Tutar bugünkü gibi elle girilir, hiçbir
@@ -1373,7 +1392,7 @@ export function DealForm({
                 }}
               >
                 Portföy
-                <InfoTip text="Teklif hangi mülk için? Seçince başlık ve tutar boşsa portföyden dolar. Mülk bilgileri (m², oda, bölge) portföy kartında tutulur, burada tekrar girilmez." />
+                <InfoTip text="Teklif hangi mülk için? Tutar, bu müşteriden alacağınız hizmet bedelidir (KDV hariç) - mülk bedeli değil. Müşteri mal sahibiyse satıcı/kiraya veren payı, değilse alıcı/kiracı payı önerilir." />
               </label>
               <select
                 value={propertyId}
@@ -1383,24 +1402,31 @@ export function DealForm({
                   const p = properties.find((x) => x.id === id);
                   if (!p) return;
                   if (!title.trim()) setTitle(p.title);
-                  if (value === "" || value == null || Number(value) === 0) setValue(p.price ?? "");
+                  // Emlakçının geliri hizmet bedelidir; mülk bedeli tutar olarak
+                  // girilirse Finans/KDV raporu/tahsilat milyonları gelir sayar.
+                  if (value === "" || value == null || Number(value) === 0) {
+                    setValue(propertyServiceFeeFor(p, customerId) || "");
+                    setKdvRate(Number(realEstateSettings?.serviceFeeKdvPercent ?? 20));
+                  }
                 }}
                 style={{ width: "100%" }}
               >
                 <option value="">Portföy seçilmedi</option>
                 {properties
-                  .filter(
-                    (p) =>
-                      p.id === propertyId ||
-                      (["aktif", "opsiyonlu"].includes(p.status) &&
-                        p.ownerCustomerId !== customerId),
-                  )
+                  .filter((p) => p.id === propertyId || ["aktif", "opsiyonlu"].includes(p.status))
                   .map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.title}
+                      {p.ownerCustomerId === customerId ? " (mal sahibi)" : ""}
                     </option>
                   ))}
               </select>
+              {selectedProperty && (
+                <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>
+                  Mülk bedeli: {selectedProperty.price ? formatTL(selectedProperty.price) : "-"}
+                  {" · "}Tutar alanı bu müşteriden alınacak hizmet bedelidir (KDV hariç).
+                </p>
+              )}
             </div>
           )}
           {creditRisk && (
