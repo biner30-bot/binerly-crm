@@ -75,6 +75,9 @@ export const REAL_ESTATE_SETTING_DEFAULTS = {
   serviceFeeKdvPercent: 20,
   licenseNo: "",
   titleDeedServiceFee: null,
+  // Tapu harcı (492 sayılı Harçlar Kanunu) alıcı ve satıcı için ayrı ayrı alınır;
+  // oran mevzuatla değişebildiği için sabit değil ayar.
+  titleDeedTaxPercent: 2,
 };
 
 // Hizmet bedeli = taban x oran, KDV üstüne eklenir (yetki sözleşmelerinde
@@ -616,4 +619,115 @@ export function buildShowingDocumentText({
     "Yukarıdaki kişisel bilgilerimin doğru olduğunu beyan ederim.",
   ];
   return lines.filter((l, i, arr) => !(l === "" && arr[i - 1] === "")).join("\n");
+}
+
+// Tapu harcının kimde kalacağı taraflar arasında pazarlıkla değişebilir; yasal
+// varsayılan her tarafın kendi payını ödemesidir.
+export const DEED_TAX_SPLITS = [
+  { id: "yasal", label: "Her taraf kendi payını öder" },
+  { id: "alici", label: "Tamamını alıcı öder" },
+  { id: "satici", label: "Tamamını satıcı öder" },
+];
+
+export const SERVICE_FEE_PAYERS = [
+  { id: "her_iki", label: "Alıcı ve satıcıdan" },
+  { id: "alici", label: "Sadece alıcıdan" },
+  { id: "satici", label: "Sadece satıcıdan" },
+];
+
+const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+// Satış/kiralama/devir masraf dökümü. Saf fonksiyon - Portföy'deki hesaplayıcı,
+// teklif tutarı önerisi ve müşteriye verilen çıktı aynı sonucu göstersin diye.
+// Tapuda gösterilecek bedel satış bedelinden farklı girilebilir (rayiç bedelin
+// altında olamaz) - harç onun üzerinden, hizmet bedeli gerçek satış bedeli
+// üzerinden hesaplanır.
+export function computeTransactionCosts(input, rawSettings) {
+  const s = resolveRealEstateSettings(rawSettings);
+  const kdvPercent = s.serviceFeeKdvPercent;
+  const partnerShare = Math.min(100, Math.max(0, Number(input.partnerSharePercent) || 0));
+
+  const withPartner = (fees) => {
+    const totalNet = fees.reduce((sum, f) => sum + f.net, 0);
+    const partnerNet = round2((totalNet * partnerShare) / 100);
+    return { totalNet: round2(totalNet), partnerNet, ourNet: round2(totalNet - partnerNet) };
+  };
+
+  if (input.transactionType === "satilik") {
+    const price = Number(input.price) || 0;
+    const deedValue = Number(input.deedValue) || price;
+    const taxEach = round2((deedValue * s.titleDeedTaxPercent) / 100);
+    const split = input.deedTaxSplit || "yasal";
+    const buyerTax = split === "alici" ? taxEach * 2 : split === "satici" ? 0 : taxEach;
+    const sellerTax = split === "satici" ? taxEach * 2 : split === "alici" ? 0 : taxEach;
+    const revolvingCount = input.withCredit ? 2 : 1;
+    const revolvingTotal = round2((Number(s.titleDeedServiceFee) || 0) * revolvingCount);
+    const payer = input.feePayer || "her_iki";
+    const buyerFee =
+      payer === "satici"
+        ? serviceFee(0, 0, kdvPercent)
+        : serviceFee(price, s.saleBuyerPercent, kdvPercent);
+    const sellerFee =
+      payer === "alici"
+        ? serviceFee(0, 0, kdvPercent)
+        : serviceFee(price, s.saleSellerPercent, kdvPercent);
+    const mortgagePayoff = Number(input.mortgagePayoff) || 0;
+    return {
+      transactionType: "satilik",
+      price,
+      deedValue,
+      deedTaxSplit: split,
+      revolvingCount,
+      revolvingMissing: !s.titleDeedServiceFee,
+      buyer: {
+        deedTax: buyerTax,
+        revolving: revolvingTotal,
+        fee: buyerFee,
+        total: round2(price + buyerTax + revolvingTotal + buyerFee.total),
+      },
+      seller: {
+        deedTax: sellerTax,
+        fee: sellerFee,
+        mortgagePayoff,
+        net: round2(price - sellerTax - sellerFee.total - mortgagePayoff),
+      },
+      commission: withPartner([buyerFee, sellerFee]),
+      kdvPercent,
+      settings: s,
+    };
+  }
+
+  const rent = Number(input.transactionType === "kiralik" ? input.price : input.monthlyRent) || 0;
+  const deposit = Number(input.deposit) || 0;
+  const tenantFee = serviceFee(rent * (Number(s.rentMonths) || 0), 100, kdvPercent);
+
+  if (input.transactionType === "kiralik") {
+    return {
+      transactionType: "kiralik",
+      rent,
+      deposit,
+      tenant: { fee: tenantFee, firstPayment: round2(rent + deposit + tenantFee.total) },
+      owner: { firstRentNet: rent },
+      commission: withPartner([tenantFee]),
+      kdvPercent,
+      settings: s,
+    };
+  }
+
+  const transferPrice = Number(input.price) || 0;
+  const transferorFee = serviceFee(transferPrice, s.transferPercent, kdvPercent);
+  return {
+    transactionType: "devren_kiralik",
+    transferPrice,
+    rent,
+    deposit,
+    transferee: {
+      fee: tenantFee,
+      total: round2(transferPrice + rent + deposit + tenantFee.total),
+    },
+    transferor: { fee: transferorFee, net: round2(transferPrice - transferorFee.total) },
+    commission: withPartner([tenantFee, transferorFee]),
+    kdvPercent,
+    settings: s,
+  };
 }

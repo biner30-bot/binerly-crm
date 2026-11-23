@@ -564,6 +564,10 @@ function normalizeRealEstateSettings(s) {
     ),
     licenseNo: (s.licenseNo || "").trim(),
     titleDeedServiceFee: num(s.titleDeedServiceFee, null),
+    titleDeedTaxPercent: num(
+      s.titleDeedTaxPercent,
+      REAL_ESTATE_SETTING_DEFAULTS.titleDeedTaxPercent,
+    ),
   };
 }
 
@@ -638,6 +642,7 @@ function RealEstateSettingsSection({ value, onChange }) {
         {numberField("rentMonths", "Kiralama - kiracıdan", "aylık kira + KDV")}
         {numberField("transferPercent", "Devir - devredenden", "% + KDV")}
         {numberField("serviceFeeKdvPercent", "Hizmet bedeli KDV oranı", "%")}
+        {numberField("titleDeedTaxPercent", "Tapu harcı (taraf başı)", "%")}
       </div>
       <ServiceFeeExample value={value} />
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>

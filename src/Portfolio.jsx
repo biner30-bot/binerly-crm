@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { PropertyShowings } from "./Showings";
+import { CostCalculator } from "./CostCalculator";
 import { Badge, Modal, ConfirmDialog, InfoTip, AttachmentList, formatTL, uid } from "./shared";
 import {
   TRANSACTION_TYPES,
@@ -234,6 +235,7 @@ export function Portfolio({
 }) {
   const [editing, setEditing] = useState(null);
   const [importing, setImporting] = useState(false);
+  const [costsFor, setCostsFor] = useState(null);
   // editing açılış anındaki kopya; eşleştirme/ilan metni kaydedilmiş son hali kullanmalı
   const latestEditing = editing?.id ? properties.find((p) => p.id === editing.id) || editing : null;
   const [coverUrls, setCoverUrls] = useState({});
@@ -502,7 +504,14 @@ export function Portfolio({
             onCancel={() => setEditing(null)}
             onFindMatches={editing.id ? () => onFindMatches(latestEditing) : null}
             onShowListingText={editing.id ? () => onShowListingText(latestEditing) : null}
+            onShowCosts={editing.id ? () => setCostsFor(latestEditing) : null}
           />
+        </Modal>
+      )}
+
+      {costsFor && (
+        <Modal title="Masraf hesabı" onClose={() => setCostsFor(null)} wide>
+          <CostCalculator property={costsFor} companySettings={companySettings} notify={notify} />
         </Modal>
       )}
     </div>
@@ -692,6 +701,7 @@ export function PropertyForm({
   photoCount = 0,
   onFindMatches,
   onShowListingText,
+  onShowCosts,
 }) {
   const [f, setF] = useState(() => ({
     transactionType: initial?.transactionType || "satilik",
@@ -1194,6 +1204,11 @@ export function PropertyForm({
           {onShowListingText && (
             <button type="button" onClick={onShowListingText}>
               <i className="ti ti-wand" aria-hidden="true" /> İlan metni
+            </button>
+          )}
+          {onShowCosts && (
+            <button type="button" onClick={onShowCosts}>
+              <i className="ti ti-calculator" aria-hidden="true" /> Masraf hesabı
             </button>
           )}
         </div>
