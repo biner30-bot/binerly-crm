@@ -560,6 +560,7 @@ export function buildShowingDocumentText({
   property,
   customer,
   showing,
+  agentName,
 }) {
   const s = resolveRealEstateSettings(realEstateSettings);
   const companyName = company?.companyName || "İşletme";
@@ -583,8 +584,12 @@ export function buildShowingDocumentText({
     "TAŞINMAZ YER GÖSTERME BELGESİ",
     "",
     "Aracı işletme",
-    `${companyName}${s.licenseNo ? ` - Yetki belgesi no: ${s.licenseNo}` : ""}`,
+    companyName,
+    // Yetki belgesi no belgede her zaman yer alır; ayarlarda yoksa yazdırılan
+    // çıktıda elle doldurulacak boş alan kalır (ön onay linki numarasız açılmaz).
+    `Yetki belgesi no: ${s.licenseNo || "...................."}`,
     [company?.address, company?.phone].filter(Boolean).join(" - "),
+    agentName ? `Gösteren danışman: ${agentName}` : "",
     "",
     "Taşınmazı gören kişi",
     `${customer.name}${customer.phone ? ` - ${customer.phone}` : ""}`,

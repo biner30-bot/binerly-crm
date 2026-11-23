@@ -11,8 +11,12 @@ const labelStyle = {
 
 const SHOWING_LINK_BASE = "https://binerly.com/yer-gosterme/";
 
-const DIGITAL_CONSENT_INFO =
-  "Müşteri linki açıp adını yazarak belge metnini onaylar; tarih, saat ve IP adresi kaydedilir. Bu basit bir elektronik onaydır, ıslak veya güvenli elektronik imza kadar güçlü bir delil sayılmayabilir - yerinde gösterimlerde yazdırıp imzalatmak daha sağlamdır.";
+// Linkle alınan onay basit elektronik onaydır: TBK m.520 taşınmaz simsarlığında
+// yazılı şekil (ıslak ya da güvenli elektronik imza) arar, bu onay onu karşılamaz.
+// Ürün bunu "imza" gibi sunarsa kullanıcı hizmet bedeli davasında elinde geçerli
+// belge olduğunu sanabilir - bu yüzden her yerde "ön onay" deniyor.
+const PRE_APPROVAL_WARNING =
+  "Ön onay ıslak imzanın yerini tutmaz. Gösterimin yapıldığını kayıt altına alır (tarih, saat, IP), ancak hizmet bedeli talebi için belgeyi müşteriye ıslak imzalı olarak da imzalatın ve taramasını buraya yükleyin.";
 
 function interestMeta(id) {
   return SHOWING_INTEREST.find((i) => i.id === id);
@@ -31,8 +35,9 @@ function escapeHtml(s) {
     .replace(/>/g, "&gt;");
 }
 
-// Islak imza için yazdırılabilir çıktı. İmzalanmış (dijital onaylı) bir
-// gösterimde saklanan metin basılır, değilse güncel bilgilerle yeniden üretilir.
+// Islak imza için yazdırılabilir çıktı. Ön onaylı gösterimde saklanan metin
+// basılır, değilse güncel bilgilerle yeniden üretilir. İmza alanları ön onay
+// olsa da HER ZAMAN basılır - ön onay ıslak imzanın yerini tutmaz.
 export function printShowingDocument({ text, signed, logoUrl }) {
   const win = window.open("", "_blank");
   if (!win) return false;
@@ -40,11 +45,12 @@ export function printShowingDocument({ text, signed, logoUrl }) {
   const body = rest
     .map((line) => (line.trim() === "" ? "<br/>" : `<p>${escapeHtml(line)}</p>`))
     .join("");
-  const signatureBlock = signed
-    ? `<div class="signed">Elektronik onay: ${escapeHtml(signed.name)} - ${escapeHtml(
+  const preApproval = signed
+    ? `<div class="signed">Elektronik ön onay kaydı: ${escapeHtml(signed.name)} - ${escapeHtml(
         new Date(signed.at).toLocaleString("tr-TR"),
       )} - IP ${escapeHtml(signed.ip || "-")}</div>`
-    : `<div class="sign"><div><span>Taşınmazı gören</span>Ad soyad / imza</div><div><span>Taşınmazı gösteren</span>Ad soyad / imza</div></div>
+    : "";
+  const signatureBlock = `${preApproval}<div class="sign"><div><span>Taşınmazı gören</span>Ad soyad / imza</div><div><span>Taşınmazı gösteren</span>Ad soyad / imza</div></div>
        <p class="hint">Gören kişinin "Yukarıdaki kişisel bilgilerimin doğru olduğunu beyan ederim." cümlesini el yazısıyla yazması önerilir.</p>`;
   win.document
     .write(`<!doctype html><html lang="tr"><head><meta charset="utf-8"/><title>${escapeHtml(title)}</title>
@@ -149,7 +155,7 @@ function ShowingForm({ initial, customers, onSave, onCancel }) {
       />
       {initial?.consentSignedAt && (
         <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 8px" }}>
-          Belge onaylandığı için müşteri, tarih ve şekil değiştirilemez.
+          Ön onay alındığı için müşteri, tarih ve şekil değiştirilemez.
         </p>
       )}
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -181,7 +187,21 @@ function ShowingForm({ initial, customers, onSave, onCancel }) {
   );
 }
 
-function ShowingRow({ title, subtitle, showing, onEdit, onPrint, onLink, onDelete }) {
+function ShowingRow({
+  title,
+  subtitle,
+  showing,
+  onEdit,
+  onPrint,
+  onLink,
+  onDelete,
+  wetDocs = [],
+  onUploadWetSigned,
+  onDeleteWetSigned,
+  onDownloadAttachment,
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [confirmRemoveDoc, setConfirmRemoveDoc] = useState(null);
   const interest = interestMeta(showing.interest);
   const protectionEnd = showingProtectionEnd(showing.shownAt);
   const protectionActive = protectionEnd > new Date();
@@ -200,11 +220,13 @@ function ShowingRow({ title, subtitle, showing, onEdit, onPrint, onLink, onDelet
         <span style={{ fontWeight: 500 }}>{title}</span>
         <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {interest && <Badge tone={interest.tone}>{interest.label}</Badge>}
+          {showing.wetSignedAt && <Badge tone="success">Islak imzalı</Badge>}
           {showing.consentSignedAt ? (
-            <Badge tone="success">Belge onaylandı</Badge>
+            <Badge tone="accent">Ön onay alındı</Badge>
           ) : showing.consentToken ? (
-            <Badge tone="warning">Onay bekleniyor</Badge>
+            <Badge tone="warning">Ön onay bekleniyor</Badge>
           ) : null}
+          {!showing.wetSignedAt && <Badge tone="default">Islak imza yok</Badge>}
         </span>
       </div>
       <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
@@ -233,8 +255,39 @@ function ShowingRow({ title, subtitle, showing, onEdit, onPrint, onLink, onDelet
           )}
           {onLink && !showing.consentSignedAt && (
             <button type="button" style={{ fontSize: 12 }} onClick={onLink}>
-              <i className="ti ti-link" aria-hidden="true" /> Onay linki
+              <i className="ti ti-link" aria-hidden="true" /> Ön onay linki
             </button>
+          )}
+          {onUploadWetSigned && (
+            <label
+              style={{
+                fontSize: 12,
+                padding: "2px 8px",
+                border: "0.5px solid var(--border)",
+                borderRadius: "var(--radius)",
+                cursor: uploading ? "default" : "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <i className="ti ti-upload" aria-hidden="true" />
+              {uploading ? "Yükleniyor…" : "Islak imzalı belgeyi yükle"}
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                disabled={uploading}
+                style={{ display: "none" }}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!file) return;
+                  setUploading(true);
+                  await onUploadWetSigned(showing, file);
+                  setUploading(false);
+                }}
+              />
+            </label>
           )}
           {onDelete && (
             <button
@@ -247,6 +300,43 @@ function ShowingRow({ title, subtitle, showing, onEdit, onPrint, onLink, onDelet
           )}
         </div>
       )}
+      {wetDocs.length > 0 && onDownloadAttachment && (
+        <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap", fontSize: 12 }}>
+          {wetDocs.map((a) => (
+            <span key={a.id} style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+              <button
+                type="button"
+                style={{ fontSize: 12 }}
+                onClick={() => onDownloadAttachment(a)}
+              >
+                <i className="ti ti-file-check" aria-hidden="true" /> {a.fileName}
+              </button>
+              {onDeleteWetSigned && (
+                <button
+                  type="button"
+                  style={{ fontSize: 12, color: "var(--text-danger)" }}
+                  onClick={() => setConfirmRemoveDoc(a)}
+                  aria-label="Islak imzalı belgeyi kaldır"
+                >
+                  <i className="ti ti-trash" aria-hidden="true" />
+                </button>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
+      {confirmRemoveDoc && (
+        <ConfirmDialog
+          title="Islak imzalı belge kaldırılsın mı?"
+          message={`"${confirmRemoveDoc.fileName}" çöp kutusuna taşınır. Başka imzalı belge kalmazsa gösterim "Islak imza yok" durumuna döner.`}
+          confirmLabel="Kaldır"
+          onConfirm={() => {
+            onDeleteWetSigned(confirmRemoveDoc);
+            setConfirmRemoveDoc(null);
+          }}
+          onClose={() => setConfirmRemoveDoc(null)}
+        />
+      )}
     </div>
   );
 }
@@ -257,10 +347,15 @@ export function PropertyShowings({
   customers,
   teamMembers,
   currentUserId,
+  currentUserName = "",
   companySettings,
   onSave,
   onDelete,
   onCreateConsentLink,
+  attachments = [],
+  onUploadWetSigned,
+  onDeleteWetSigned,
+  onDownloadAttachment,
   notify,
 }) {
   const [editing, setEditing] = useState(null);
@@ -287,9 +382,23 @@ export function PropertyShowings({
       property,
       customer: customerById.get(s.customerId) || { name: "-" },
       showing: s,
+      // Belgede e-posta değil gerçek ad görünmeli - adı olmayan üyede satır atlanır.
+      agentName:
+        (s.shownBy === currentUserId && currentUserName) ||
+        teamMembers.find((tm) => tm.id === s.shownBy)?.name ||
+        "",
     });
 
+  const licenseNo = (companySettings?.realEstateSettings?.licenseNo || "").trim();
+
   const handleLink = async (s) => {
+    // Yazdırılan belgede boş alan elle doldurulabilir, linkte müşteri dolduramaz.
+    if (!licenseNo) {
+      notify(
+        "Ön onay linki için önce yetki belgesi numaranızı girin: Ayarlar > İşletme Bilgileri > Emlak ayarları.",
+      );
+      return;
+    }
     const token = await onCreateConsentLink(s, docText(s));
     if (token) setLinkFor({ showing: s, url: `${SHOWING_LINK_BASE}${token}` });
   };
@@ -309,8 +418,22 @@ export function PropertyShowings({
         }}
       >
         Gösterimler ({list.length})
-        <InfoTip text="Mülkü gösterdiğiniz her müşteriyi kaydedin. Gösterim tarihinden itibaren 12 ay, yer gösterme belgesindeki koruma süresidir - bu sürede müşteri mülkü aracısız alırsa/kiralarsa hizmet bedeli talep hakkınızı belgeyle ispatlarsınız." />
+        <InfoTip text="Mülkü gösterdiğiniz her müşteriyi kaydedin. Gösterim tarihinden itibaren 12 ay, yer gösterme belgesindeki koruma süresidir - bu sürede müşteri mülkü aracısız alırsa/kiralarsa hizmet bedeli talebinizin dayanağı ıslak imzalı belgedir. Belgeyi yazdırıp imzalatın, taramasını gösterime yükleyin." />
       </p>
+      {!licenseNo && (
+        <p
+          style={{
+            fontSize: 12,
+            margin: "0 0 8px",
+            padding: "6px 10px",
+            background: "var(--bg-warning)",
+            borderRadius: 6,
+          }}
+        >
+          Yetki belgesi numaranız girilmemiş - belgede boş kalır, ön onay linki oluşturulamaz.
+          Ayarlar &gt; İşletme Bilgileri &gt; Emlak ayarları bölümünden ekleyin.
+        </p>
+      )}
       {list.map((s) =>
         editing?.id === s.id ? (
           <ShowingForm
@@ -342,6 +465,12 @@ export function PropertyShowings({
             }}
             onLink={() => handleLink(s)}
             onDelete={() => setConfirmDeleteId(s.id)}
+            wetDocs={attachments.filter(
+              (a) => a.entityType === "showing_docs" && a.entityId === s.id,
+            )}
+            onUploadWetSigned={onUploadWetSigned}
+            onDeleteWetSigned={onDeleteWetSigned}
+            onDownloadAttachment={onDownloadAttachment}
           />
         ),
       )}
@@ -367,9 +496,18 @@ export function PropertyShowings({
             fontSize: 12.5,
           }}
         >
-          <p style={{ margin: "0 0 6px", display: "flex", alignItems: "center", gap: 6 }}>
-            Yer gösterme belgesi onay linki
-            <InfoTip text={DIGITAL_CONSENT_INFO} />
+          <p style={{ margin: "0 0 6px", fontWeight: 500 }}>Yer gösterme belgesi ön onay linki</p>
+          <p
+            style={{
+              margin: "0 0 8px",
+              padding: "8px 10px",
+              background: "var(--bg-warning)",
+              borderRadius: 6,
+              fontSize: 12,
+              lineHeight: 1.5,
+            }}
+          >
+            <i className="ti ti-alert-triangle" aria-hidden="true" /> {PRE_APPROVAL_WARNING}
           </p>
           <input
             readOnly
@@ -394,7 +532,7 @@ export function PropertyShowings({
                 style={{ fontSize: 12 }}
                 onClick={() => {
                   const c = customerById.get(linkFor.showing.customerId);
-                  const msg = `Merhaba ${c.name.split(" ")[0]}, bugün gezdiğimiz "${property.title}" için yer gösterme belgesini aşağıdaki linkten onaylayabilirsiniz:\n${linkFor.url}`;
+                  const msg = `Merhaba ${c.name.split(" ")[0]}, gezdiğimiz "${property.title}" için yer gösterme belgesini aşağıdaki linkten onaylayabilirsiniz:\n${linkFor.url}`;
                   window.open(
                     `https://wa.me/${toWhatsAppNumber(c.phone)}?text=${encodeURIComponent(msg)}`,
                     "_blank",
@@ -415,7 +553,7 @@ export function PropertyShowings({
       {confirmDeleteId && (
         <ConfirmDialog
           title="Gösterim silinsin mi?"
-          message="Gösterim kaydı çöp kutusuna taşınır. Onaylanmış bir belgesi varsa o da birlikte taşınır."
+          message="Gösterim kaydı çöp kutusuna taşınır. Islak imzalı belge taraması varsa o da birlikte taşınır."
           confirmLabel="Çöp kutusuna taşı"
           onConfirm={() => {
             onDelete(confirmDeleteId);

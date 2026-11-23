@@ -228,6 +228,9 @@ export function Portfolio({
   onSaveShowing,
   onDeleteShowing,
   onCreateConsentLink,
+  onUploadWetSigned,
+  onDeleteWetSigned,
+  currentUserName,
 }) {
   const [editing, setEditing] = useState(null);
   const [importing, setImporting] = useState(false);
@@ -474,6 +477,11 @@ export function Portfolio({
                     onSave={onSaveShowing}
                     onDelete={onDeleteShowing}
                     onCreateConsentLink={onCreateConsentLink}
+                    currentUserName={currentUserName}
+                    attachments={attachments}
+                    onUploadWetSigned={onUploadWetSigned}
+                    onDeleteWetSigned={onDeleteWetSigned}
+                    onDownloadAttachment={onDownloadAttachment}
                     notify={notify}
                   />
                 </>

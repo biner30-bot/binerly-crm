@@ -430,6 +430,7 @@ function rowToShowing(r) {
     consentSignedAt: r.consent_signed_at || null,
     consentSignerName: r.consent_signer_name || "",
     consentIp: r.consent_ip || "",
+    wetSignedAt: r.wet_signed_at || null,
     createdAt: r.created_at,
   };
 }
@@ -2412,8 +2413,12 @@ export default function App() {
   };
 
   const deleteShowing = async (id) => {
-    const { error } = await supabase.from("property_showings").update({ deleted_at: new Date().toISOString(), deleted_batch_id: uid() }).eq("id", id);
+    const now = new Date().toISOString();
+    const batchId = uid();
+    const { error } = await supabase.from("property_showings").update({ deleted_at: now, deleted_batch_id: batchId }).eq("id", id);
     if (error) { notify(`Gösterim silinemedi: ${error.message}`); return; }
+    await supabase.from("attachments").update({ deleted_at: now, deleted_batch_id: batchId }).eq("entity_type", "showing_docs").eq("entity_id", id);
+    setAttachments((prev) => prev.filter((a) => !(a.entityType === "showing_docs" && a.entityId === id)));
     setShowings((prev) => prev.filter((x) => x.id !== id));
     logAction("property_showings", id, "deleted", "Gösterim kaydı çöp kutusuna taşındı");
   };
@@ -2461,6 +2466,11 @@ export default function App() {
       .update({ deleted_at: now, deleted_batch_id: batchId })
       .eq("property_id", id)
       .is("deleted_at", null);
+    const showingIds = showings.filter((s) => s.propertyId === id).map((s) => s.id);
+    if (showingIds.length > 0) {
+      await supabase.from("attachments").update({ deleted_at: now, deleted_batch_id: batchId }).eq("entity_type", "showing_docs").in("entity_id", showingIds);
+      setAttachments((prev) => prev.filter((a) => !(a.entityType === "showing_docs" && showingIds.includes(a.entityId))));
+    }
     setShowings((prev) => prev.filter((s) => s.propertyId !== id));
     setProperties((prev) => prev.filter((x) => x.id !== id));
     setAttachments((prev) => prev.filter((a) => !(a.entityId === id && (a.entityType === "property_photos" || a.entityType === "property_docs"))));
@@ -3027,6 +3037,27 @@ export default function App() {
       "updated",
       extra.photoType ? `"${file.name}" (${extra.photoType === "before" ? "öncesi" : "sonrası"} fotoğrafı) eklendi` : `"${file.name}" dosyası eklendi`
     );
+    return true;
+  };
+
+  // Islak imzalı yer gösterme belgesinin taraması. Linkle alınan ön onay yazılı
+  // şekil şartını karşılamadığı için hizmet bedeli talebinde asıl dayanak bu.
+  const uploadShowingWetSigned = async (showing, file) => {
+    const ok = await uploadAttachment("showing_docs", showing.id, file);
+    if (!ok) return;
+    const wetSignedAt = new Date().toISOString();
+    const { error } = await supabase.from("property_showings").update({ wet_signed_at: wetSignedAt }).eq("id", showing.id);
+    if (error) { notify(`İmza durumu kaydedilemedi: ${error.message}`); return; }
+    setShowings((prev) => prev.map((s) => (s.id === showing.id ? { ...s, wetSignedAt } : s)));
+  };
+
+  const deleteShowingWetSigned = async (attachment) => {
+    await deleteAttachment(attachment.id);
+    const remaining = attachments.filter((a) => a.entityType === "showing_docs" && a.entityId === attachment.entityId && a.id !== attachment.id);
+    if (remaining.length > 0) return;
+    const { error } = await supabase.from("property_showings").update({ wet_signed_at: null }).eq("id", attachment.entityId);
+    if (error) { notify(`İmza durumu güncellenemedi: ${error.message}`); return; }
+    setShowings((prev) => prev.map((s) => (s.id === attachment.entityId ? { ...s, wetSignedAt: null } : s)));
   };
 
   // files zaten tarayıcıda küçültülmüş geliyor (Portfolio.jsx) - sıra, mevcut
@@ -5641,6 +5672,9 @@ export default function App() {
           onSaveShowing={saveShowing}
           onDeleteShowing={deleteShowing}
           onCreateConsentLink={createShowingConsentLink}
+          currentUserName={session.user.user_metadata?.full_name || ""}
+          onUploadWetSigned={uploadShowingWetSigned}
+          onDeleteWetSigned={deleteShowingWetSigned}
           onFindMatches={(p) => findPropertyMatches(p)}
           onShowListingText={(p) => setListingTextDeal(propertyAsListingDeal(p))}
         />
