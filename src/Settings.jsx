@@ -8,10 +8,11 @@ import {
   UserAvatar,
   SegmentedControl,
   THEME_OPTIONS,
+  formatTL,
 } from "./shared";
 import { SECTOR_PRESETS, STAGES, stageLabel, dealWordKind, bookingModel } from "./Sectors";
 import { DEAL_WORD_FORMS } from "./staticData";
-import { REAL_ESTATE_SETTING_DEFAULTS, resolveRealEstateSettings } from "./realEstate";
+import { REAL_ESTATE_SETTING_DEFAULTS, resolveRealEstateSettings, serviceFee } from "./realEstate";
 const COMPANY_NAME_EXAMPLES = {
   emlak: "Akın Emlak",
   dijital_ajans: "Akın Dijital Ajans",
@@ -557,9 +558,40 @@ function normalizeRealEstateSettings(s) {
     saleSellerPercent: num(s.saleSellerPercent, REAL_ESTATE_SETTING_DEFAULTS.saleSellerPercent),
     rentMonths: num(s.rentMonths, REAL_ESTATE_SETTING_DEFAULTS.rentMonths),
     transferPercent: num(s.transferPercent, REAL_ESTATE_SETTING_DEFAULTS.transferPercent),
+    serviceFeeKdvPercent: num(
+      s.serviceFeeKdvPercent,
+      REAL_ESTATE_SETTING_DEFAULTS.serviceFeeKdvPercent,
+    ),
     licenseNo: (s.licenseNo || "").trim(),
     titleDeedServiceFee: num(s.titleDeedServiceFee, null),
   };
+}
+
+// Girilen oranların ne anlama geldiğini somut bir tutarla göstermek için -
+// "%2" yazınca KDV'nin dahil mi hariç mi olduğu tereddüdünü ortadan kaldırır.
+function ServiceFeeExample({ value }) {
+  const s = normalizeRealEstateSettings(value);
+  const salePrice = 4000000;
+  const buyer = serviceFee(salePrice, s.saleBuyerPercent, s.serviceFeeKdvPercent);
+  const seller = serviceFee(salePrice, s.saleSellerPercent, s.serviceFeeKdvPercent);
+  return (
+    <p
+      style={{
+        fontSize: 12,
+        color: "var(--text-secondary)",
+        background: "var(--surface-1)",
+        borderRadius: 6,
+        padding: "8px 10px",
+        margin: "0 0 12px",
+        lineHeight: 1.5,
+      }}
+    >
+      Örnek: {formatTL(salePrice)} satışta alıcıdan {formatTL(buyer.net)} + %
+      {s.serviceFeeKdvPercent} KDV ({formatTL(buyer.kdv)}) ={" "}
+      <strong>{formatTL(buyer.total)}</strong>, satıcıdan {formatTL(seller.net)} + KDV ={" "}
+      <strong>{formatTL(seller.total)}</strong>.
+    </p>
+  );
 }
 
 function RealEstateSettingsSection({ value, onChange }) {
@@ -597,14 +629,17 @@ function RealEstateSettingsSection({ value, onChange }) {
     >
       <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 4px" }}>Emlak ayarları</p>
       <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 12px" }}>
-        Hizmet bedeli hesaplarında ve belgelerde kullanılır. Oranlara KDV ayrıca eklenir.
+        Hizmet bedeli hesaplarında ve belgelerde kullanılır. Oranların üzerine aşağıdaki KDV
+        eklenir.
       </p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
-        {numberField("saleBuyerPercent", "Satış - alıcıdan", "%")}
-        {numberField("saleSellerPercent", "Satış - satıcıdan", "%")}
-        {numberField("rentMonths", "Kiralama - kiracıdan", "aylık kira")}
-        {numberField("transferPercent", "Devir - devredenden", "%")}
+        {numberField("saleBuyerPercent", "Satış - alıcıdan", "% + KDV")}
+        {numberField("saleSellerPercent", "Satış - satıcıdan", "% + KDV")}
+        {numberField("rentMonths", "Kiralama - kiracıdan", "aylık kira + KDV")}
+        {numberField("transferPercent", "Devir - devredenden", "% + KDV")}
+        {numberField("serviceFeeKdvPercent", "Hizmet bedeli KDV oranı", "%")}
       </div>
+      <ServiceFeeExample value={value} />
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
         <div style={{ flex: "1 1 200px" }}>
           <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: 6 }}>

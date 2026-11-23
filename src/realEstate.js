@@ -70,9 +70,21 @@ export const REAL_ESTATE_SETTING_DEFAULTS = {
   saleSellerPercent: 2,
   rentMonths: 1,
   transferPercent: 10,
+  // Aracılık hizmetinin KDV'si işletmenin genel varsayılan KDV oranından ayrı:
+  // o oran ofisin başka satışları için %10/%1 olabilir, hizmet bedeli %20'dir.
+  serviceFeeKdvPercent: 20,
   licenseNo: "",
   titleDeedServiceFee: null,
 };
+
+// Hizmet bedeli = taban x oran, KDV üstüne eklenir (yetki sözleşmelerinde
+// "%2 + KDV" kalıbı). Kuruş yuvarlaması toplamda değil her kalemde yapılır ki
+// faturadaki satırlar toplamla birebir tutsun.
+export function serviceFee(base, percent, kdvPercent) {
+  const net = Math.round((((Number(base) || 0) * (Number(percent) || 0)) / 100) * 100) / 100;
+  const kdv = Math.round(net * (Number(kdvPercent) || 0)) / 100;
+  return { net, kdv, total: Math.round((net + kdv) * 100) / 100 };
+}
 
 export function resolveRealEstateSettings(raw) {
   return { ...REAL_ESTATE_SETTING_DEFAULTS, ...(raw || {}) };
