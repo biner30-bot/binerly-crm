@@ -209,3 +209,28 @@ create policy attachments_storage_office_peer_photos on storage.objects for sele
         and p.user_id in (select public.office_peer_ids())
     )
   );
+
+-- 4/5 Ortak bölge fiyatları: ofis üyeleri birbirinin bölge kaydını görür ve
+-- (yeni ilan yapıştırarak) günceller. Silme sadece kaydı ekleyene ait
+-- (mevcut region_prices_team_access politikası); sahiplik değiştirilemez.
+drop policy if exists region_prices_office_select on public.region_prices;
+create policy region_prices_office_select on public.region_prices for select to authenticated
+  using (user_id in (select public.office_peer_ids()));
+drop policy if exists region_prices_office_update on public.region_prices;
+create policy region_prices_office_update on public.region_prices for update to authenticated
+  using (user_id in (select public.office_peer_ids()))
+  with check (user_id in (select public.office_peer_ids()));
+
+-- Ortak kaydı güncelleyen ofis arkadaşı sahibini değiştiremesin (silme hakkı
+-- sahibinde kalır).
+create or replace function public.region_prices_keep_owner()
+returns trigger language plpgsql as $$
+begin
+  if new.user_id is distinct from old.user_id then
+    raise exception 'Bölge fiyatının sahibi değiştirilemez.';
+  end if;
+  return new;
+end $$;
+drop trigger if exists region_prices_keep_owner on public.region_prices;
+create trigger region_prices_keep_owner before update on public.region_prices
+  for each row execute function public.region_prices_keep_owner();

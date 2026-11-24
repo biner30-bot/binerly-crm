@@ -335,12 +335,15 @@ function findRegionExact(regions, subject, transactionType) {
   const n = normalizePlace(subject.neighborhood);
   if (!n) return null;
   const type = String(subject.propertyType || "Daire").toLocaleLowerCase("tr");
-  const candidates = regions.filter(
-    (r) =>
-      normalizePlace(r.neighborhood) === n &&
-      r.transactionType === transactionType &&
-      String(r.propertyType).toLocaleLowerCase("tr") === type,
-  );
+  // Ofiste aynı mahalle için birden fazla danışmanın kaydı olabilir - en güncel önce.
+  const candidates = regions
+    .filter(
+      (r) =>
+        normalizePlace(r.neighborhood) === n &&
+        r.transactionType === transactionType &&
+        String(r.propertyType).toLocaleLowerCase("tr") === type,
+    )
+    .sort((a, b) => String(b.asOf || "").localeCompare(String(a.asOf || "")));
   if (candidates.length <= 1) return candidates[0] || null;
   const d = normalizePlace(subject.district);
   return candidates.find((r) => normalizePlace(r.district) === d) || candidates[0];

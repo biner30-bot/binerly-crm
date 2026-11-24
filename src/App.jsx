@@ -480,6 +480,7 @@ function rowToRegionPrice(r) {
     source: r.source,
     listings: r.listings || [],
     searchUrl: r.search_url || "",
+    userId: r.user_id,
   };
 }
 
@@ -1862,7 +1863,11 @@ export default function App() {
       );
       setShowings((shw || []).filter((row) => row.user_id === ownerId).map(rowToShowing));
       setComparables((cmp || []).filter((row) => row.user_id === ownerId).map(rowToComparable));
-      setRegionPrices((rgp || []).filter((row) => row.user_id === ownerId).map(rowToRegionPrice));
+      // Ofis arkadaşlarının ortak bölge fiyatları ayrıca yüklenir (ofis effect'i) - korunur.
+      setRegionPrices((prev) => [
+        ...(rgp || []).filter((row) => row.user_id === ownerId).map(rowToRegionPrice),
+        ...prev.filter((r) => r.userId && r.userId !== ownerId),
+      ]);
       setMarketIndex((mkt || []).map((m) => ({ series: m.series, period: m.period, value: Number(m.value) })));
       setActiveTeamId(ownerId);
       // Sadece BANA gelen davetler (kendi gönderdiklerim değil) — RLS iki SELECT
@@ -2580,8 +2585,10 @@ export default function App() {
     };
     // Benzersizlik ifade-indeksinde (lower(...)) olduğu için upsert onConflict
     // kullanılamıyor - mevcut kayıt id'siyle güncellenir.
+    // Ofis arkadaşının ortak kaydı güncellenirken sahibi değişmesin.
+    const { user_id: _owner, ...updateRow } = row;
     const query = r.id
-      ? supabase.from("region_prices").update(row).eq("id", r.id)
+      ? supabase.from("region_prices").update(updateRow).eq("id", r.id)
       : supabase.from("region_prices").insert(row);
     const { data, error } = await query.select().single();
     if (error) {
@@ -2685,7 +2692,12 @@ export default function App() {
     .join(",");
   useEffect(() => {
     const peers = officePeerKey ? officePeerKey.split(",").filter((id) => id !== activeTeamId) : [];
-    if (!peers.length) { setOfficeProperties([]); setOfficePhotos([]); return; }
+    if (!peers.length) {
+      setOfficeProperties([]);
+      setOfficePhotos([]);
+      setRegionPrices((prev) => prev.filter((r) => !r.userId || r.userId === activeTeamId));
+      return;
+    }
     let alive = true;
     (async () => {
       const { data: props } = await supabase
@@ -2696,11 +2708,16 @@ export default function App() {
         .in("status", ["aktif", "opsiyonlu"])
         .is("deleted_at", null);
       const ids = (props || []).map((p) => p.id);
+      const { data: peerRegions } = await supabase.from("region_prices").select("*").in("user_id", peers);
       const { data: photos } = ids.length
         ? await supabase.from("attachments").select("*").eq("entity_type", "property_photos").in("entity_id", ids).is("deleted_at", null)
         : { data: [] };
       if (!alive) return;
       setOfficeProperties((props || []).map(rowToProperty));
+      setRegionPrices((prev) => [
+        ...prev.filter((r) => !r.userId || r.userId === activeTeamId),
+        ...(peerRegions || []).map(rowToRegionPrice),
+      ]);
       setOfficePhotos((photos || []).map(rowToAttachment));
     })();
     return () => { alive = false; };
@@ -2744,8 +2761,9 @@ export default function App() {
   };
 
   const deleteRegionPrice = async (id) => {
-    const { error } = await supabase.from("region_prices").delete().eq("id", id);
+    const { data: gone, error } = await supabase.from("region_prices").delete().eq("id", id).select("id");
     if (error) { notify(`Bölge fiyatı silinemedi: ${error.message}`); return; }
+    if (!gone?.length) { notify("Bu bölge fiyatını ofisteki başka bir danışman ekledi - sadece o silebilir. Yeni ilan yapıştırarak güncelleyebilirsiniz."); return; }
     setRegionPrices((prev) => prev.filter((x) => x.id !== id));
   };
 

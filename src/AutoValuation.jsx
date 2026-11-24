@@ -66,6 +66,12 @@ function looksLikeSahibindenSearch(raw) {
   return /aramanızda/.test(t) && /#\d{7,}/.test(t) && /(sahibinden|İlan Başlığı)/i.test(t);
 }
 
+// Ofiste aynı mahalle için birden fazla kayıt olabilir - en günceline eklenir.
+const latestRegion = (regions, base) =>
+  regions
+    .filter((r) => regionKey(r) === regionKey(base))
+    .sort((a, b) => String(b.asOf || "").localeCompare(String(a.asOf || "")))[0];
+
 const optionsFor = (key) => PROPERTY_DETAIL_FIELDS.find((f) => f.key === key)?.options || [];
 
 function subjectFrom(p) {
@@ -478,7 +484,7 @@ function RegionPaste({
     }
     // Aynı aramanın diğer sayfaları (ya da diğer yaş aralıkları) 14 gün içinde
     // yapıştırılırsa birleştirilir.
-    const existing = regionPrices.find((r) => regionKey(r) === regionKey(base));
+    const existing = latestRegion(regionPrices, base);
     const mergeable =
       existing && existing.source === "ilan_yapistirma" && daysSince(existing.asOf) <= 14;
     setDraft({ ...base, parsed, existing, merged: mergeable, groups });
@@ -547,7 +553,7 @@ function RegionPaste({
   const multi = draft?.groups
     ? draft.groups.map((g) => {
         const base = { ...draft, neighborhood: g.neighborhood };
-        const existingG = regionPrices.find((r) => regionKey(r) === regionKey(base));
+        const existingG = latestRegion(regionPrices, base);
         const mergeableG =
           existingG && existingG.source === "ilan_yapistirma" && daysSince(existingG.asOf) <= 14;
         const inc = g.listings.map(withAge);
@@ -930,7 +936,7 @@ function RegionPaste({
                 propertyType: subject.propertyType || "Daire",
                 transactionType: "satilik",
               };
-              const existing = regionPrices.find((r) => regionKey(r) === regionKey(base));
+              const existing = latestRegion(regionPrices, base);
               save({
                 ...base,
                 id: existing?.id,
