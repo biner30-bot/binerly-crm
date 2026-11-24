@@ -2969,11 +2969,14 @@ export default function App() {
     const isRental = p.transactionType !== "satilik";
     const created = [];
     const client = deals.find((d) => d.propertyId === p.id && d.stage === "kazanildi" && d.customerId !== p.ownerCustomerId);
-    const addDays = (n) => {
-      const d = new Date();
-      d.setDate(d.getDate() + n);
+    // Türkiye gününden say - toISOString() gece yarısından sonra bir gün geri kalıyordu.
+    const addDays = (n, from = istanbulToday()) => {
+      const d = new Date(`${from}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + n);
       return d.toISOString().slice(0, 10);
     };
+    const clientName = customers.find((c) => c.id === client?.customerId)?.name;
+    const ownerName = customers.find((c) => c.id === p.ownerCustomerId)?.name;
     if (justClosed) {
       const ok = await upsertTask({
         id: uid(),
@@ -2986,6 +2989,68 @@ export default function App() {
         dealId: client?.id || null,
       });
       if (ok) created.push("1 hafta sonra memnuniyet araması");
+      // Portföy bulma: eski müşteri en iyi kaynak - mutlu alıcı referans verir,
+      // evini satan çoğu zaman yeni ev arar.
+      if (!isRental) {
+        if (client) {
+          const ok2 = await upsertTask({
+            id: uid(),
+            title: `Ev yıl dönümü - ${clientName || "alıcı"}`,
+            type: "arama",
+            description: `${p.title} 1 yıl önce satıldı. Arayıp hayırlı olsun deyin; çevresinde evini satmak/kiralamak isteyen var mı sorun (referans).`,
+            dueDate: addDays(365),
+            assignedTo: p.assignedTo,
+            customerId: client.customerId,
+            dealId: client.id,
+          });
+          if (ok2) created.push("1 yıl sonra yıl dönümü araması");
+        }
+        if (p.ownerCustomerId) {
+          const ok3 = await upsertTask({
+            id: uid(),
+            title: `Yeni ev ihtiyacı - ${ownerName || "satıcı"}`,
+            type: "arama",
+            description: `${p.title} satıldı. Satıcı yeni bir ev arıyor ya da kiralayacak mı? Alım/kiralama talebini alın.`,
+            dueDate: addDays(14),
+            assignedTo: p.assignedTo,
+            customerId: p.ownerCustomerId,
+            dealId: null,
+          });
+          if (ok3) created.push("2 hafta sonra satıcıya yeni ev araması");
+        }
+      }
+    }
+    if (isRental && CLOSED_STATUSES.includes(p.status) && leaseStart && client && (justClosed || leaseStartChanged)) {
+      // Kiracı 2. yılına girerken: ev almayı düşünüyor mu?
+      const due = addDays(-30, addDays(365 * 2, leaseStart));
+      if (due > istanbulToday()) {
+        const ok4 = await upsertTask({
+          id: uid(),
+          title: `Kiracı 2. yılında - ${clientName || "kiracı"}`,
+          type: "arama",
+          description: `${p.title} kiracısı 2 yılını dolduruyor. Ev almayı düşünüyor mu? Bütçe ve bölge talebini alın.`,
+          dueDate: due,
+          assignedTo: p.assignedTo,
+          customerId: client.customerId,
+          dealId: client.id,
+        });
+        if (ok4) created.push("kiracının 2. yılında ev alma araması");
+      }
+    }
+    // Yetkisi bitip satılmayan / pasife alınan portföy: mal sahibinin fiyat
+    // beklentisi zamanla değişir - 2 ay sonra yeniden aranır.
+    if (p.status === "pasif" && previous && previous.status !== "pasif" && p.ownerCustomerId) {
+      const ok5 = await upsertTask({
+        id: uid(),
+        title: `Pasif portföy: mal sahibini tekrar ara - ${ownerName || p.title}`,
+        type: "arama",
+        description: `${p.title} pasife alındı. Hâlâ satmak/kiralamak istiyor mu, fiyat beklentisi değişti mi? Güncel piyasa analiziyle arayın.`,
+        dueDate: addDays(60),
+        assignedTo: p.assignedTo,
+        customerId: p.ownerCustomerId,
+        dealId: null,
+      });
+      if (ok5) created.push("2 ay sonra mal sahibini tekrar arama");
     }
     if (isRental && CLOSED_STATUSES.includes(p.status) && leaseStart && (justClosed || leaseStartChanged)) {
       const review = nextRentReviewDate(leaseStart);
