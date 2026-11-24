@@ -36,6 +36,8 @@ import {
   nearBandsFor,
   normalizeSahibindenUrl,
   sahibindenBandUrl,
+  marketMoves,
+  istanbulToday,
   regionKey,
   summarizeListings,
 } from "./priceEstimate";
@@ -571,6 +573,17 @@ function RegionPaste({
 
   // Yaş aralığı menüden değiştirilebildiği için birleştirme/özet her çizimde.
   const incoming = draft ? draft.parsed.listings.map(withAge) : [];
+  // Eksiksiz arama: tek sayfa, yaş/oda/fiyat filtresi yok, toplam = okunan.
+  const pasteComplete =
+    !!draft &&
+    !draft.parsed.pages &&
+    !draft.parsed.ageBand &&
+    (!draft.parsed.page || draft.parsed.page.total === 1) &&
+    draft.parsed.totalCount != null &&
+    draft.parsed.totalCount <= draft.parsed.listings.length &&
+    !/(Bina Yaşı|Oda Sayısı|Fiyat|m² \(|Bulunduğu Kat|Kat Sayısı|Isıtma|Site İçerisinde|Kimden)/.test(
+      (text.match(/Seçtiklerimi Gizle([\s\S]*?)Tümünü Temizle/) || [])[1] || "",
+    );
   const draftListings = draft
     ? draft.merged
       ? mergeListings(draft.existing.listings, incoming)
@@ -578,7 +591,15 @@ function RegionPaste({
     : [];
   const summary = draft ? summarizeListings(draftListings) : null;
 
-  const regionFrom = (base, listings, existingRegion, summ) => ({
+  // Piyasa hareketi sadece önceki güncelleme başka bir gündeyse hesaplanır -
+  // aynı gün aynı aramanın 2. sayfası "yeni ilan" sayılmasın.
+  const movesFor = (existingRegion, incomingRows, complete) => {
+    if (!existingRegion?.listings?.length) return existingRegion?.marketMoves ?? null;
+    const today = istanbulToday();
+    if (String(existingRegion.asOf || "") >= today) return existingRegion.marketMoves ?? null;
+    return marketMoves(existingRegion.listings, incomingRows, { complete, today });
+  };
+  const regionFrom = (base, listings, existingRegion, summ, moves) => ({
     id: existingRegion?.id,
     city: base.city,
     district: base.district,
@@ -594,6 +615,7 @@ function RegionPaste({
     asOf: new Date().toISOString().slice(0, 10),
     source: "ilan_yapistirma",
     searchUrl: normalizeSahibindenUrl(searchUrl) || existingRegion?.searchUrl || "",
+    ...(moves !== undefined ? { marketMoves: moves } : {}),
     listings: listings.map(({ id, m2, rooms, price, date, age, ageBand, neighborhood }) => ({
       id,
       m2,
@@ -619,6 +641,7 @@ function RegionPaste({
         return {
           base,
           existing: existingG,
+          incoming: inc,
           incomingCount: inc.length,
           listings: all,
           summary: summarizeListings(all),
@@ -632,7 +655,13 @@ function RegionPaste({
     let savedCount = 0;
     let last = null;
     for (const g of multi.filter((x) => x.enough && x.summary)) {
-      const region = regionFrom(g.base, g.listings, g.existing, g.summary);
+      const region = regionFrom(
+        g.base,
+        g.listings,
+        g.existing,
+        g.summary,
+        movesFor(g.existing, g.incoming, false),
+      );
       if (await onSaveRegion(region)) {
         savedCount += 1;
         if (!last || normalizeName(g.base.neighborhood) === normalizeName(subject.neighborhood))
@@ -691,7 +720,13 @@ function RegionPaste({
     if (!autoPending || !draft || saving) return;
     setAutoPending(false);
     if (multi || !summary || checkItems.some((c) => c.tone !== "info")) return;
-    const region = regionFrom(draft, draftListings, draft.existing, summary);
+    const region = regionFrom(
+      draft,
+      draftListings,
+      draft.existing,
+      summary,
+      movesFor(draft.existing, incoming, pasteComplete),
+    );
     const added = draftListings.length - (draft.merged ? draft.existing.listings.length : 0);
     save(region).then((ok) => {
       if (ok)
@@ -939,7 +974,17 @@ function RegionPaste({
           <button
             type="button"
             disabled={saving}
-            onClick={() => save(regionFrom(draft, draftListings, draft.existing, summary))}
+            onClick={() =>
+              save(
+                regionFrom(
+                  draft,
+                  draftListings,
+                  draft.existing,
+                  summary,
+                  movesFor(draft.existing, incoming, pasteComplete),
+                ),
+              )
+            }
             style={{
               marginTop: 8,
               background: "var(--fill-accent)",
@@ -1689,6 +1734,24 @@ export function AutoValuation({
                     <i className="ti ti-refresh" aria-hidden="true" /> Bölgeyi güncelle
                   </button>
                 )}
+              </div>
+            )}
+            {saleRegion.marketMoves && saleRegion.marketMoves.comparedWith > 0 && (
+              <div style={{ marginTop: 6 }}>
+                <i className="ti ti-activity" aria-hidden="true" /> Piyasa hareketi (
+                {fmtDate(saleRegion.marketMoves.date)} güncellemesi):{" "}
+                {[
+                  `${saleRegion.marketMoves.newCount} yeni ilan`,
+                  saleRegion.marketMoves.dropCount
+                    ? `${saleRegion.marketMoves.dropCount} ilan fiyat düşürdü (ort. %${String(saleRegion.marketMoves.dropAvgPct).replace(".", ",")})`
+                    : "fiyat düşüren yok",
+                  saleRegion.marketMoves.removedCount != null &&
+                    `${saleRegion.marketMoves.removedCount} ilan yayından kalktı`,
+                  saleRegion.marketMoves.medianDaysOnMarket != null &&
+                    `ilanlar ortalama ${saleRegion.marketMoves.medianDaysOnMarket} gündür yayında`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
               </div>
             )}
             {saleRegion.source !== "elle" && (

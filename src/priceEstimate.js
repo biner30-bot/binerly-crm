@@ -923,3 +923,40 @@ export const istanbulToday = () =>
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
+
+// Bölge güncellenirken önceki ilanlarla karşılaştırma. "Kalkan" sayısı sadece
+// arama eksiksizse (tek sayfa, filtresiz, toplam = okunan) hesaplanır - aksi
+// halde sayfada olmamak kalktı demek değildir.
+export function marketMoves(previous, incoming, { complete = false, today } = {}) {
+  const prev = new Map((previous || []).map((l) => [l.id, l]));
+  const inc = incoming || [];
+  const drops = [];
+  let newCount = 0;
+  for (const l of inc) {
+    const old = prev.get(l.id);
+    if (!old) {
+      newCount += 1;
+      continue;
+    }
+    if (old.price && l.price && l.price < old.price * 0.995)
+      drops.push({ id: l.id, from: old.price, to: l.price });
+  }
+  const seen = new Set(inc.map((l) => l.id));
+  const removed = complete ? (previous || []).filter((l) => !seen.has(l.id)).length : null;
+  const ref = today ? new Date(`${today}T00:00:00`) : new Date();
+  const ages = inc
+    .filter((l) => l.date)
+    .map((l) => Math.max(0, Math.floor((ref - new Date(`${l.date}T00:00:00`)) / 86400000)))
+    .sort((a, b) => a - b);
+  return {
+    date: today || null,
+    comparedWith: previous?.length || 0,
+    newCount,
+    dropCount: drops.length,
+    dropAvgPct: drops.length
+      ? Math.round((drops.reduce((s, d) => s + (1 - d.to / d.from), 0) / drops.length) * 1000) / 10
+      : null,
+    removedCount: removed,
+    medianDaysOnMarket: ages.length ? percentile(ages, 0.5) : null,
+  };
+}

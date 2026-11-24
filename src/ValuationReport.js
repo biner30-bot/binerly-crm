@@ -210,6 +210,15 @@ export function buildValuationReportHtml({
     r.aliasFrom
       ? ["Tapudaki mahalle", `${r.aliasFrom} (ilanlarda ${r.neighborhood} olarak geçiyor)`]
       : null,
+    r.marketMoves?.comparedWith > 0 && r.marketMoves.dropCount
+      ? [
+          "Son güncellemede fiyat düşüren ilan",
+          `${r.marketMoves.dropCount} ilan (ort. %${String(r.marketMoves.dropAvgPct).replace(".", ",")})`,
+        ]
+      : null,
+    r.marketMoves?.removedCount
+      ? ["Son güncellemede yayından kalkan", `${r.marketMoves.removedCount} ilan`]
+      : null,
     ["İlan verisi tarihi", fmtDate(r.asOf)],
     result.index.factor !== 1 && result.index.latest
       ? [

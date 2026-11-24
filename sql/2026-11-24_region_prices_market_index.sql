@@ -63,3 +63,7 @@ GRANT ALL ON public.market_index TO service_role;
 -- Mahallenin Sahibinden arama bağlantısı (danışman bir kez yapıştırır). Bina
 -- yaşı filtreli aramalar bu bağlantıya a812=<kod> eklenerek tek tıkla açılır.
 alter table public.region_prices add column if not exists search_url text;
+
+-- Piyasa hareketi: bölge her güncellendiğinde önceki ilanlarla karşılaştırma
+-- (yeni ilan, fiyat düşüren, eksiksiz aramada yayından kalkan, ort. yayın süresi).
+alter table public.region_prices add column if not exists market_moves jsonb;

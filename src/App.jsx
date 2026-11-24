@@ -481,6 +481,7 @@ function rowToRegionPrice(r) {
     source: r.source,
     listings: r.listings || [],
     searchUrl: r.search_url || "",
+    marketMoves: r.market_moves || null,
     userId: r.user_id,
   };
 }
@@ -2585,6 +2586,7 @@ export default function App() {
       source: r.source,
       listings: r.listings || [],
       search_url: r.searchUrl || null,
+      ...(r.marketMoves !== undefined ? { market_moves: r.marketMoves } : {}),
       updated_at: new Date().toISOString(),
     };
     // Benzersizlik ifade-indeksinde (lower(...)) olduğu için upsert onConflict
