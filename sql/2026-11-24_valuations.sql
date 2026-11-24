@@ -27,3 +27,10 @@ grant select, insert, update, delete on public.valuations to authenticated;
 -- "Analizi kaydet" / PDF ile "kaydedildi" olur.
 alter table public.valuations add column if not exists status text not null default 'kaydedildi'
   check (status in ('taslak', 'kaydedildi'));
+
+-- Vitrindeki değerleme talebi (api/_valuation-request.js, service_role) görev
+-- ve taslak analiz yazar, ofis üyeliğini okur. GRANT eksikken service_role
+-- yazmaları SESSİZCE başarısız oluyordu (canlı testte yakalandı).
+grant select, insert on public.tasks to service_role;
+grant select, insert on public.valuations to service_role;
+grant select on public.office_members to service_role;

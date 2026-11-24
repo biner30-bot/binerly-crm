@@ -77,12 +77,13 @@ export function sanitizeSubject(raw) {
 // 30 günden eskiyse, az ilanlıysa ya da daire yaşına yakın emsal yetersizse
 // rakam VERİLMEZ - kullanıcı kararı: sadece güncel veride aralık gösterilir.
 export async function publicEstimate(supabaseAdmin, ownerId, realEstateSettings, subject) {
-  const { data: mine } = await supabaseAdmin
+  const { data: mine, error: officeError } = await supabaseAdmin
     .from("office_members")
     .select("office_id")
     .eq("user_id", ownerId)
     .is("left_at", null)
     .maybeSingle();
+  if (officeError) console.error("valuation-request office lookup:", officeError.message);
   let owners = [ownerId];
   if (mine?.office_id) {
     const { data: peers } = await supabaseAdmin
@@ -133,7 +134,7 @@ export async function saveValuationRequest(supabaseAdmin, settings, { customerId
     .filter(Boolean)
     .join(" · ");
   const today = new Date().toISOString().slice(0, 10);
-  await supabaseAdmin.from("tasks").insert({
+  const { error: taskError } = await supabaseAdmin.from("tasks").insert({
     user_id: settings.user_id,
     title: `Değerleme talebi: ${contactName} - ${place || "mahalle belirtilmedi"}`,
     type: "arama",
@@ -145,7 +146,8 @@ export async function saveValuationRequest(supabaseAdmin, settings, { customerId
     due_date: today,
     customer_id: customerId,
   });
-  await supabaseAdmin.from("valuations").insert({
+  if (taskError) console.error("valuation-request task insert:", taskError.message);
+  const { error: valuationError } = await supabaseAdmin.from("valuations").insert({
     id: crypto.randomUUID(),
     created_by: settings.user_id,
     title: `${contactName} (web) - ${place}`.slice(0, 160),
@@ -162,4 +164,5 @@ export async function saveValuationRequest(supabaseAdmin, settings, { customerId
       : null,
     status: "taslak",
   });
+  if (valuationError) console.error("valuation-request valuation insert:", valuationError.message);
 }
