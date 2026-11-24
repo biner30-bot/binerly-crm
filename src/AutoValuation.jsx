@@ -1184,7 +1184,11 @@ export function AutoValuation({
   // oluşmasın diye kimlik ve süren kayıt ref'te tutulur.
   const valuationIdRef = useRef(valuation?.id || null);
   const inFlightRef = useRef(null);
-  const unsavedAnalysis = savedJson !== JSON.stringify(s);
+  const subjectUnsaved = savedJson !== JSON.stringify(s);
+  const resultKeyOf = (r) => (r ? [r.low, r.mid, r.high, r.rentMonthly ?? ""].join("|") : "");
+  const [savedResultKey, setSavedResultKey] = useState(() =>
+    valuation ? resultKeyOf(valuation.result) : null,
+  );
   const dirty = JSON.stringify(s) !== JSON.stringify(baseline);
   const { persist } = draftStore;
   useEffect(() => {
@@ -1232,6 +1236,21 @@ export function AutoValuation({
     () => estimateValue({ subject: s, saleRegion, rentRegion, marketIndex, factors, extraSpread }),
     [s, saleRegion, rentRegion, marketIndex, factors, extraSpread],
   );
+  const resultSnapshot = result.error
+    ? null
+    : {
+        low: result.value.low,
+        mid: result.value.mid,
+        high: result.value.high,
+        rentMonthly: result.rent?.monthly ?? null,
+        region: result.region?.neighborhood || null,
+        regionAsOf: result.region?.asOf || null,
+      };
+  // Daire bilgisi aynı kalsa da bölgeye yeni ilan eklenince / hesap kuralı
+  // değişince değer değişebilir - kayıttaki değer güncel değere çekilir
+  // (kullanıcı bildirdi: fiyat düştü ama listede eski değer kaldı).
+  const resultChanged = !!valuationId && savedResultKey !== resultKeyOf(resultSnapshot);
+  const unsavedAnalysis = subjectUnsaved || resultChanged;
   const checks = subjectChecks({ subject: s, region: saleRegion, result, property, factors });
   const missingKeys = new Set(checks.missing.map((m) => m.key));
   const coverage = ageCoverage(saleRegion?.listings, s.buildingAge);
@@ -1274,16 +1293,7 @@ export function AutoValuation({
       subject: snapshot,
       status,
       quiet: auto,
-      result: result.error
-        ? null
-        : {
-            low: result.value.low,
-            mid: result.value.mid,
-            high: result.value.high,
-            rentMonthly: result.rent?.monthly ?? null,
-            region: result.region?.neighborhood || null,
-            regionAsOf: result.region?.asOf || null,
-          },
+      result: resultSnapshot,
     });
     inFlightRef.current = job;
     const saved = await job;
@@ -1294,6 +1304,7 @@ export function AutoValuation({
     setValuationId(saved.id);
     setValuationStatus(saved.status);
     setSavedJson(JSON.stringify(snapshot));
+    setSavedResultKey(resultKeyOf(resultSnapshot));
     if (auto) setAutoSavedAt(new Date());
     // Kayıtlı analiz artık veritabanında - yerel taslağa gerek yok (portföy
     // kaydı için baseline korunur ki "portföye kaydet" düğmesi kaybolmasın).
@@ -1308,12 +1319,13 @@ export function AutoValuation({
   const changedSinceOpen = JSON.stringify(s) !== JSON.stringify(initial);
   const sJson = JSON.stringify(s);
   useEffect(() => {
-    if (!onSaveValuation || !meaningful || !changedSinceOpen || !unsavedAnalysis) return undefined;
+    if (!onSaveValuation || !meaningful || !unsavedAnalysis) return undefined;
+    if (!changedSinceOpen && !resultChanged) return undefined;
     const t = setTimeout(() => saveValuation({ auto: true }), 2500);
     return () => clearTimeout(t);
     // sJson s'in içeriğini temsil eder; saveValuation her çizimde yeniden yaratılır
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sJson, meaningful, changedSinceOpen, unsavedAnalysis]);
+  }, [sJson, meaningful, changedSinceOpen, unsavedAnalysis, resultChanged]);
   const runReport = async () => {
     setStaleReportPrompt(false);
     // PDF alınan analiz kendiliğinden kaydedilir (sonradan bulunabilsin).
