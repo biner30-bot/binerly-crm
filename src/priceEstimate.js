@@ -845,10 +845,18 @@ export function parseSearchPages(raw) {
   };
 }
 
-// Sahibinden "Bina Yaşı" filtresinin URL kodu (a812). Bilinmeyen aralıkta
-// bağlantı filtresiz açılır, danışman aralığı sayfada seçer.
+// Sahibinden "Bina Yaşı" filtresinin URL kodu (a812). Kullanıcının gönderdiği
+// bağlantılarla doğrulanan: 31 ve üzeri=43904, 26-30 arası=43903. Kodlar
+// sahibinden'in liste sırasıyla ardışık; 6-25 arası aynı sıradan çıkarıldı.
+// Yanlış çıksa veri bozulmaz - yaş, yapıştırılan sayfadaki filtre yazısından
+// okunur; bağlantı yalnızca kolaylık. 0-5 yaşların sırası belirsiz, filtresiz açılır.
 export const SAHIBINDEN_AGE_CODES = {
   "31 ve üzeri": "43904",
+  "26-30 arası": "43903",
+  "21-25 arası": "43902",
+  "16-20 arası": "43901",
+  "11-15 arası": "43900",
+  "6-10 arası": "43899",
 };
 
 export function normalizeSahibindenUrl(raw) {
