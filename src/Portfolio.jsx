@@ -7,6 +7,7 @@ import { ListingPackage } from "./ListingPackage";
 import { BrokerPanel } from "./BrokerPanel";
 import { Badge, Modal, ConfirmDialog, InfoTip, AttachmentList, formatTL, uid } from "./shared";
 import { LocationFields } from "./LocationFields";
+import { OwnerReport } from "./OwnerReport";
 import { subjectChecks } from "./valuationChecks";
 import { istanbulToday } from "./priceEstimate";
 import {
@@ -282,6 +283,10 @@ export function Portfolio({
   const [valuationFor, setValuationFor] = useState(null);
   const [freeValuation, setFreeValuation] = useState(false);
   const [packageFor, setPackageFor] = useState(null);
+  const [ownerReportFor, setOwnerReportFor] = useState(null);
+  const ownerReportProperty = ownerReportFor
+    ? properties.find((p) => p.id === ownerReportFor)
+    : null;
   const packageProperty = packageFor ? properties.find((p) => p.id === packageFor) : null;
   const valuationProperty = valuationFor ? properties.find((p) => p.id === valuationFor) : null;
   // editing açılış anındaki kopya; eşleştirme/ilan metni kaydedilmiş son hali kullanmalı
@@ -658,6 +663,7 @@ export function Portfolio({
             onShowCosts={editing.id ? () => setCostsFor(latestEditing) : null}
             onShowValuation={editing.id ? () => setValuationFor(editing.id) : null}
             onShowPackage={editing.id ? () => setPackageFor(editing.id) : null}
+            onShowOwnerReport={editing.id ? () => setOwnerReportFor(editing.id) : null}
           />
         </Modal>
       )}
@@ -697,6 +703,25 @@ export function Portfolio({
             onSaveFactors={onSaveAvmFactors}
             onSaveAliases={onSaveNeighborhoodAliases}
             onSaveValuation={onSaveValuation}
+            notify={notify}
+          />
+        </Modal>
+      )}
+
+      {ownerReportProperty && (
+        <Modal
+          title={`Mal sahibi raporu - ${ownerReportProperty.title}`}
+          onClose={() => setOwnerReportFor(null)}
+          wide
+        >
+          <OwnerReport
+            property={ownerReportProperty}
+            showings={showings}
+            owner={customerById.get(ownerReportProperty.ownerCustomerId)}
+            regionPrices={regionPrices}
+            aliases={companySettings?.realEstateSettings?.neighborhoodAliases || []}
+            agentName={agentFor(ownerReportProperty).name}
+            companyName={companySettings?.companyName || ""}
             notify={notify}
           />
         </Modal>
@@ -1240,6 +1265,7 @@ export function PropertyForm({
   onShowCosts,
   onShowValuation,
   onShowPackage,
+  onShowOwnerReport,
   locationSuggestions = [],
   inOffice = false,
   showcaseLink = "",
@@ -1961,6 +1987,11 @@ export function PropertyForm({
           {onShowPackage && (
             <button type="button" onClick={onShowPackage}>
               <i className="ti ti-package-export" aria-hidden="true" /> İlan paketi
+            </button>
+          )}
+          {onShowOwnerReport && (
+            <button type="button" onClick={onShowOwnerReport}>
+              <i className="ti ti-report" aria-hidden="true" /> Mal sahibi raporu
             </button>
           )}
         </div>
