@@ -8,6 +8,8 @@ import {
   AGE_BANDS,
   AVM_FACTOR_DEFAULTS,
   ageStats,
+  aliasFor,
+  groupByNeighborhood,
   closedTransactions,
   officeAskingDiscount,
   AVM_FACTOR_LABELS,
@@ -43,6 +45,13 @@ const fmtUnit = (n) => `${new Intl.NumberFormat("tr-TR").format(Math.round(n))} 
 const fmtDate = (d) =>
   d ? new Date(`${String(d).slice(0, 10)}T00:00:00`).toLocaleDateString("tr-TR") : "";
 const daysSince = (d) => (d ? Math.floor((Date.now() - new Date(`${d}T00:00:00`)) / 86400000) : 0);
+
+const MIN_GROUP_LISTINGS = 3;
+const normalizeName = (s) =>
+  String(s || "")
+    .replace(/\s+(Mah\.?|Mahallesi|Mh\.?)$/i, "")
+    .trim()
+    .toLocaleLowerCase("tr");
 
 const optionsFor = (key) => PROPERTY_DETAIL_FIELDS.find((f) => f.key === key)?.options || [];
 
@@ -186,7 +195,7 @@ function SubjectForm({ s, setS, regionPrices = [], missing = new Set() }) {
   );
 }
 
-function RegionPaste({ regionPrices, subject, onSaveRegion, onParsedLocation, notify }) {
+function RegionPaste({ regionPrices, subject, aliasTo, onSaveRegion, onParsedLocation, notify }) {
   const [text, setText] = useState("");
   const [draft, setDraft] = useState(null);
   const [manual, setManual] = useState(false);
@@ -210,7 +219,8 @@ function RegionPaste({ regionPrices, subject, onSaveRegion, onParsedLocation, no
       propertyType: parsed.propertyType || subject.propertyType || "Daire",
       transactionType: parsed.transactionType || "satilik",
     };
-    if (!base.neighborhood) {
+    const groups = groupByNeighborhood(parsed.listings);
+    if (!base.neighborhood && !groups) {
       notify("Mahalle okunamadı - aramada tek bir mahalle seçip tekrar kopyalayın.");
       return;
     }
@@ -219,7 +229,7 @@ function RegionPaste({ regionPrices, subject, onSaveRegion, onParsedLocation, no
     const existing = regionPrices.find((r) => regionKey(r) === regionKey(base));
     const mergeable =
       existing && existing.source === "ilan_yapistirma" && daysSince(existing.asOf) <= 14;
-    setDraft({ ...base, parsed, existing, merged: mergeable });
+    setDraft({ ...base, parsed, existing, merged: mergeable, groups });
     setAgeBandLabel(parsed.ageBand || "");
     setTypicalAge(existing?.typicalAge ?? "");
   };
@@ -239,6 +249,79 @@ function RegionPaste({ regionPrices, subject, onSaveRegion, onParsedLocation, no
       : incoming
     : [];
   const summary = draft ? summarizeListings(draftListings) : null;
+
+  const regionFrom = (base, listings, existingRegion, summ) => ({
+    id: existingRegion?.id,
+    city: base.city,
+    district: base.district,
+    neighborhood: base.neighborhood,
+    propertyType: base.propertyType,
+    transactionType: base.transactionType,
+    medianM2: summ.medianM2,
+    q1M2: summ.q1M2,
+    q3M2: summ.q3M2,
+    medianArea: summ.medianArea,
+    listingCount: summ.listingCount,
+    typicalAge: summ.typicalAge ?? existingRegion?.typicalAge ?? null,
+    asOf: new Date().toISOString().slice(0, 10),
+    source: "ilan_yapistirma",
+    listings: listings.map(({ id, m2, rooms, price, date, age, ageBand, neighborhood }) => ({
+      id,
+      m2,
+      rooms,
+      price,
+      date,
+      age: age ?? null,
+      ageBand: ageBand ?? null,
+      neighborhood: neighborhood ?? null,
+    })),
+  });
+
+  // Semt/çoklu mahalle aramasında her mahalle kendi bölgesi olur - karışık
+  // ortanca hiçbir mahalleyi doğru temsil etmez.
+  const multi = draft?.groups
+    ? draft.groups.map((g) => {
+        const base = { ...draft, neighborhood: g.neighborhood };
+        const existingG = regionPrices.find((r) => regionKey(r) === regionKey(base));
+        const mergeableG =
+          existingG && existingG.source === "ilan_yapistirma" && daysSince(existingG.asOf) <= 14;
+        const inc = g.listings.map((l) => ({
+          ...l,
+          age: band ? band.age : null,
+          ageBand: band ? band.label : null,
+        }));
+        const all = mergeableG ? mergeListings(existingG.listings, inc) : inc;
+        return {
+          base,
+          existing: existingG,
+          incomingCount: inc.length,
+          listings: all,
+          summary: summarizeListings(all),
+          enough: all.length >= MIN_GROUP_LISTINGS,
+        };
+      })
+    : null;
+
+  const saveAll = async () => {
+    setSaving(true);
+    let savedCount = 0;
+    let last = null;
+    for (const g of multi.filter((x) => x.enough && x.summary)) {
+      const region = regionFrom(g.base, g.listings, g.existing, g.summary);
+      if (await onSaveRegion(region)) {
+        savedCount += 1;
+        if (!last || normalizeName(g.base.neighborhood) === normalizeName(subject.neighborhood))
+          last = region;
+      }
+    }
+    setSaving(false);
+    if (savedCount) {
+      notify(`${savedCount} mahallenin bölge fiyatı kaydedildi.`, "success");
+      setText("");
+      setDraft(null);
+      onParsedLocation(last);
+    }
+  };
 
   const save = async (region) => {
     setSaving(true);
@@ -297,7 +380,80 @@ function RegionPaste({ regionPrices, subject, onSaveRegion, onParsedLocation, no
         </button>
       </div>
 
-      {draft && summary && (
+      {draft && multi && (
+        <div style={{ ...box, marginTop: 8, background: "var(--surface-1)" }}>
+          <p style={{ fontSize: 13, margin: "0 0 6px" }}>
+            <b>Bu arama birden fazla mahalle içeriyor</b> ({draft.parsed.listings.length} ilan).
+            Bölge fiyatı mahalle bazında tutulur - ilanlar mahallelerine ayrıldı:
+          </p>
+          <div style={{ fontSize: 12.5, marginBottom: 6 }}>
+            {multi.map((g) => (
+              <div
+                key={g.base.neighborhood}
+                style={{
+                  padding: "3px 0",
+                  color: g.enough ? undefined : "var(--text-muted)",
+                  fontWeight:
+                    normalizeName(g.base.neighborhood) === normalizeName(subject.neighborhood)
+                      ? 600
+                      : 400,
+                }}
+              >
+                {g.base.neighborhood}: {g.incomingCount} ilan
+                {g.listings.length > g.incomingCount ? ` (kayıtlılarla ${g.listings.length})` : ""}
+                {g.summary ? ` · ortanca ${fmtUnit(g.summary.medianM2)}` : ""}
+                {!g.enough && ` · ${MIN_GROUP_LISTINGS}'ten az ilan, kaydedilmez`}
+              </div>
+            ))}
+          </div>
+          {subject.neighborhood &&
+            !multi.some(
+              (g) => normalizeName(g.base.neighborhood) === normalizeName(subject.neighborhood),
+            ) && (
+              <p style={{ fontSize: 12, color: "var(--text-warning)", margin: "0 0 6px" }}>
+                Bu sayfada {subject.neighborhood} mahallesinden ilan yok.
+              </p>
+            )}
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 220px" }}>
+              <label style={labelStyle}>Bu sayfadaki ilanların bina yaşı</label>
+              <select
+                value={ageBandLabel}
+                onChange={(e) => setAgeBandLabel(e.target.value)}
+                style={{ width: "100%" }}
+              >
+                <option value="">Filtre yok / karışık</option>
+                {AGE_BANDS.map((b) => (
+                  <option key={b.label} value={b.label}>
+                    {b.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0" }}>
+            Daha isabetli sonuç için Sahibinden'de semt yerine tek bir mahalle seçip arayın - tek
+            mahallede sayfa başına daha çok ilan gelir.
+          </p>
+          <button
+            type="button"
+            disabled={saving || !multi.some((g) => g.enough)}
+            onClick={saveAll}
+            style={{
+              marginTop: 8,
+              background: "var(--fill-accent)",
+              color: "var(--on-accent)",
+              border: "none",
+            }}
+          >
+            {saving
+              ? "Kaydediliyor…"
+              : `${multi.filter((g) => g.enough).length} mahalleyi ayrı ayrı kaydet`}
+          </button>
+        </div>
+      )}
+
+      {draft && !multi && summary && (
         <div style={{ ...box, marginTop: 8, background: "var(--surface-1)" }}>
           <p style={{ fontSize: 13, margin: "0 0 6px" }}>
             <b>
@@ -322,6 +478,7 @@ function RegionPaste({ regionPrices, subject, onSaveRegion, onParsedLocation, no
               existing: draft.merged ? draft.existing : null,
               mergedCount: draftListings.length,
               ageBandLabel,
+              aliasTo,
             })}
           />
           {draft.parsed.page && draft.parsed.page.current < draft.parsed.page.total && (
@@ -380,29 +537,8 @@ function RegionPaste({ regionPrices, subject, onSaveRegion, onParsedLocation, no
             disabled={saving}
             onClick={() =>
               save({
-                id: draft.existing?.id,
-                city: draft.city,
-                district: draft.district,
-                neighborhood: draft.neighborhood,
-                propertyType: draft.propertyType,
-                transactionType: draft.transactionType,
-                medianM2: summary.medianM2,
-                q1M2: summary.q1M2,
-                q3M2: summary.q3M2,
-                medianArea: summary.medianArea,
-                listingCount: summary.listingCount,
+                ...regionFrom(draft, draftListings, draft.existing, summary),
                 typicalAge: summary.typicalAge ?? (typicalAge === "" ? null : Number(typicalAge)),
-                asOf: new Date().toISOString().slice(0, 10),
-                source: "ilan_yapistirma",
-                listings: draftListings.map(({ id, m2, rooms, price, date, age, ageBand }) => ({
-                  id,
-                  m2,
-                  rooms,
-                  price,
-                  date,
-                  age: age ?? null,
-                  ageBand: ageBand ?? null,
-                })),
               })
             }
             style={{
@@ -586,6 +722,7 @@ export function AutoValuation({
   onSaveRegion,
   onDeleteRegion,
   onSaveFactors,
+  onSaveAliases,
   onApplyPrice,
   onSaveSubject,
   notify,
@@ -616,8 +753,31 @@ export function AutoValuation({
   const savedFactors = companySettings?.realEstateSettings?.avmFactors || {};
   const [factors, setFactors] = useState(() => ({ ...AVM_FACTOR_DEFAULTS, ...savedFactors }));
 
-  const saleRegion = findRegion(regionPrices, s, "satilik");
-  const rentRegion = findRegion(regionPrices, s, "kiralik");
+  const aliases = companySettings?.realEstateSettings?.neighborhoodAliases || [];
+  const saleRegion = findRegion(regionPrices, s, "satilik", aliases);
+  const rentRegion = findRegion(regionPrices, s, "kiralik", aliases);
+  const [aliasTarget, setAliasTarget] = useState("");
+  const aliasCandidates = [
+    ...new Map(
+      regionPrices
+        .filter(
+          (r) =>
+            !s.district ||
+            !r.district ||
+            r.district.toLocaleLowerCase("tr") === s.district.toLocaleLowerCase("tr"),
+        )
+        .map((r) => [r.neighborhood.toLocaleLowerCase("tr"), r.neighborhood]),
+    ).values(),
+  ].sort((a, b) => a.localeCompare(b, "tr"));
+  const linkAlias = (to) => {
+    const from = s.neighborhood.trim();
+    const rest = aliases.filter(
+      (a) => a.from.toLocaleLowerCase("tr") !== from.toLocaleLowerCase("tr"),
+    );
+    onSaveAliases?.(
+      to ? [...rest, { city: s.city || "", district: s.district || "", from, to }] : rest,
+    );
+  };
   const extraSpread = subjectChecks({ subject: s, region: saleRegion, factors }).extraSpread;
   const result = useMemo(
     () => estimateValue({ subject: s, saleRegion, rentRegion, marketIndex, factors, extraSpread }),
@@ -769,6 +929,18 @@ export function AutoValuation({
         </div>
         {saleRegion ? (
           <div style={{ fontSize: 12.5, marginTop: 6, color: "var(--text-secondary)" }}>
+            {saleRegion.aliasFrom && (
+              <div style={{ marginBottom: 4 }}>
+                <i className="ti ti-link" aria-hidden="true" /> {saleRegion.aliasFrom} (tapudaki ad)
+                ilanlarda <b>{saleRegion.neighborhood}</b> olarak geçiyor - o bölgenin fiyatı
+                kullanılıyor.{" "}
+                {onSaveAliases && (
+                  <button type="button" style={{ fontSize: 11.5 }} onClick={() => linkAlias(null)}>
+                    Bağlantıyı kaldır
+                  </button>
+                )}
+              </div>
+            )}
             <b>{saleRegion.neighborhood}</b> · {saleRegion.propertyType} ·{" "}
             {saleRegion.source === "elle" ? "elle girildi" : `${saleRegion.listingCount} ilan`} ·{" "}
             {fmtDate(saleRegion.asOf)} · ortanca {fmtUnit(saleRegion.medianM2)}
@@ -889,16 +1061,63 @@ export function AutoValuation({
             )}
           </div>
         ) : (
-          <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "6px 0 0" }}>
-            {s.neighborhood ? `${s.neighborhood} için` : "Bu mahalle için"} kayıtlı bölge fiyatı
-            yok. Sahibinden'de mahalleyi ve emlak tipini seçip arama sonuç sayfasını yapıştırın -
-            bir kez eklenen bölge sonraki bütün dairelerde kullanılır.
-          </p>
+          <>
+            <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "6px 0 0" }}>
+              {s.neighborhood ? `${s.neighborhood} için` : "Bu mahalle için"} kayıtlı bölge fiyatı
+              yok. Sahibinden'de mahalleyi ve emlak tipini seçip arama sonuç sayfasını yapıştırın -
+              bir kez eklenen bölge sonraki bütün dairelerde kullanılır.
+            </p>
+            {s.neighborhood && onSaveAliases && aliasCandidates.length > 0 && (
+              <div
+                style={{
+                  marginTop: 8,
+                  padding: "8px 10px",
+                  borderRadius: 6,
+                  background: "var(--surface-1)",
+                  border: "0.5px solid var(--border)",
+                  fontSize: 12.5,
+                }}
+              >
+                <div style={{ marginBottom: 6 }}>
+                  <b>{s.neighborhood} ilanlarda başka adla mı geçiyor?</b> Tapudaki mahalle adı ile
+                  Sahibinden'de kullanılan ad farklı olabilir (ör. tapuda Şemikler, ilanlarda
+                  Atakent). Bağlarsanız o bölgenin fiyatı kullanılır ve ekipçe hatırlanır.
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <select
+                    value={aliasTarget}
+                    onChange={(e) => setAliasTarget(e.target.value)}
+                    style={{ flex: "1 1 180px" }}
+                  >
+                    <option value="">Kayıtlı bölge seçin</option>
+                    {aliasCandidates.map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    style={{ fontSize: 12.5 }}
+                    disabled={!aliasTarget}
+                    onClick={() => {
+                      linkAlias(aliasTarget);
+                      setAliasTarget("");
+                    }}
+                  >
+                    <i className="ti ti-link" aria-hidden="true" /> {s.neighborhood} →{" "}
+                    {aliasTarget || "..."} bağla
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
         {(pasteOpen || !saleRegion) && (
           <RegionPaste
             regionPrices={regionPrices}
             subject={s}
+            aliasTo={aliasFor(aliases, s)?.to}
             onSaveRegion={onSaveRegion}
             notify={notify}
             onParsedLocation={(r) => {

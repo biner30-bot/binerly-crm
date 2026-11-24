@@ -572,6 +572,7 @@ function normalizeRealEstateSettings(s) {
     // Fiyat tahmini oranları bu formda düzenlenmiyor ama aynı jsonb'de duruyor -
     // burada düşürülürse emlak ayarları her kaydedildiğinde sessizce sıfırlanırdı.
     ...(s.avmFactors ? { avmFactors: s.avmFactors } : {}),
+    ...(s.neighborhoodAliases ? { neighborhoodAliases: s.neighborhoodAliases } : {}),
   };
 }
 

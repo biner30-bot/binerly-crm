@@ -76,7 +76,19 @@ export function ageCoverage(listings, subjectAge) {
 }
 
 // Yapıştırılan arama sayfası için kontroller.
-export function pasteChecks({ raw, parsed, subject, existing, mergedCount, ageBandLabel }) {
+export function pasteChecks({
+  raw,
+  parsed,
+  subject,
+  existing,
+  mergedCount,
+  ageBandLabel,
+  aliasTo,
+}) {
+  const plain = (x) =>
+    String(x || "")
+      .toLocaleLowerCase("tr")
+      .replace(/\s*(mah\.?|mahallesi|mh\.?)$/, "");
   const out = [];
   const seg = selectedFilterSegment(raw);
   const other = BIASING_FILTERS.filter((f) => seg.includes(f));
@@ -93,6 +105,7 @@ export function pasteChecks({ raw, parsed, subject, existing, mergedCount, ageBa
   if (
     subject?.neighborhood &&
     parsed.neighborhood &&
+    !(aliasTo && plain(aliasTo) === plain(parsed.neighborhood)) &&
     subject.neighborhood.toLocaleLowerCase("tr").replace(/\s*(mah\.?|mahallesi|mh\.?)$/, "") !==
       parsed.neighborhood.toLocaleLowerCase("tr").replace(/\s*(mah\.?|mahallesi|mh\.?)$/, "")
   )

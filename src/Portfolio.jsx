@@ -256,6 +256,7 @@ export function Portfolio({
   onSaveRegionPrice,
   onDeleteRegionPrice,
   onSaveAvmFactors,
+  onSaveNeighborhoodAliases,
 }) {
   const [view, setView] = useState("list");
   const [editing, setEditing] = useState(null);
@@ -653,6 +654,7 @@ export function Portfolio({
             onSaveRegion={onSaveRegionPrice}
             onDeleteRegion={onDeleteRegionPrice}
             onSaveFactors={onSaveAvmFactors}
+            onSaveAliases={onSaveNeighborhoodAliases}
             notify={notify}
           />
         </Modal>
@@ -675,6 +677,7 @@ export function Portfolio({
             onSaveRegion={onSaveRegionPrice}
             onDeleteRegion={onDeleteRegionPrice}
             onSaveFactors={onSaveAvmFactors}
+            onSaveAliases={onSaveNeighborhoodAliases}
             onApplyPrice={async (price) => {
               // Modal açıkken daire bilgileri portföye kaydedilmiş olabilir - eski
               // nesneyle yazıp onları ezmeyelim.

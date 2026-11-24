@@ -121,6 +121,13 @@ export function parseSearchResults(raw) {
       const month = d ? MONTHS_TR.indexOf(d[2]) : -1;
       if (d && y && month >= 0) {
         cur.date = `${y[1]}-${String(month + 1).padStart(2, "0")}-${d[1].padStart(2, "0")}`;
+        // Listede her ilanın kendi mahallesi yazar ("2026<tab>Atakent Mah.") -
+        // semt ya da çoklu mahalle aramasında ilanları mahallesine ayırmak için.
+        const sameLine = (lines[i + 1] || "").match(/^\d{4}\s+(.+?(?:Mah\.?|Mahallesi|Mh\.?))$/i);
+        const nextLine = (lines[i + 2] || "").match(/^(.+?(?:Mah\.?|Mahallesi|Mh\.?))$/i);
+        const nb = sameLine?.[1] || nextLine?.[1];
+        if (nb) cur.neighborhood = displayPlace(nb);
+        i += 1;
       }
     }
   }
@@ -165,6 +172,20 @@ export function summarizeListings(listings) {
 // Aynı aramanın 2. sayfası ayrıca yapıştırılınca ilan numarasıyla birleştirilir.
 // Aynı ilan önce filtresiz, sonra bina yaşı filtresiyle yapıştırılabilir -
 // yaş bilgisi bir kez öğrenildiyse kaybolmaz.
+// Arama sonucundaki ilanları mahallelerine göre gruplar. Tek mahalleyse null.
+export function groupByNeighborhood(listings) {
+  const groups = new Map();
+  for (const l of listings) {
+    if (!l.neighborhood) continue;
+    const key = normalizePlace(l.neighborhood);
+    const g = groups.get(key) || { neighborhood: l.neighborhood, listings: [] };
+    g.listings.push(l);
+    groups.set(key, g);
+  }
+  if (groups.size < 2) return null;
+  return [...groups.values()].sort((a, b) => b.listings.length - a.listings.length);
+}
+
 export function mergeListings(existing, incoming) {
   const byId = new Map((existing || []).map((l) => [l.id, l]));
   for (const l of incoming) {
@@ -265,7 +286,34 @@ export function regionKey(r) {
   ].join("|");
 }
 
-export function findRegion(regions, subject, transactionType = "satilik") {
+// Tapudaki resmi mahalle adı ile ilanlarda kullanılan ad farklı olabilir
+// (ör. tapuda Şemikler, Sahibinden'de Atakent). Ekip bir kez bağlar.
+export function aliasFor(aliases, subject) {
+  const n = normalizePlace(subject?.neighborhood);
+  if (!n) return null;
+  const d = normalizePlace(subject.district);
+  return (
+    (aliases || []).find(
+      (a) =>
+        normalizePlace(a.from) === n && (!a.district || !d || normalizePlace(a.district) === d),
+    ) || null
+  );
+}
+
+export function findRegion(regions, subject, transactionType = "satilik", aliases = null) {
+  const direct = findRegionExact(regions, subject, transactionType);
+  if (direct || !aliases?.length) return direct;
+  const alias = aliasFor(aliases, subject);
+  if (!alias) return null;
+  const viaAlias = findRegionExact(
+    regions,
+    { ...subject, neighborhood: alias.to },
+    transactionType,
+  );
+  return viaAlias ? { ...viaAlias, aliasFrom: subject.neighborhood } : null;
+}
+
+function findRegionExact(regions, subject, transactionType) {
   const n = normalizePlace(subject.neighborhood);
   if (!n) return null;
   const type = String(subject.propertyType || "Daire").toLocaleLowerCase("tr");
@@ -295,12 +343,12 @@ export function regionAgeDays(region) {
 
 // Sadece portföyde aktif ilanı olan bölgeler - takip edilmeyen mahalle için
 // uyarı gürültü olur.
-export function staleRegionAlerts(regions, properties) {
+export function staleRegionAlerts(regions, properties, aliases = null) {
   const byRegion = new Map();
   for (const p of properties) {
     if (!["aktif", "opsiyonlu"].includes(p.status)) continue;
     if (!["satilik", "kiralik"].includes(p.transactionType)) continue;
-    const r = findRegion(regions, p, p.transactionType);
+    const r = findRegion(regions, p, p.transactionType, aliases);
     if (!r) continue;
     const days = regionAgeDays(r);
     if (days <= REGION_STALE_DAYS) continue;

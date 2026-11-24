@@ -2586,6 +2586,8 @@ export default function App() {
 
   const saveAvmFactors = (avmFactors) =>
     upsertCompanySettings({ realEstateSettings: { ...(companySettings?.realEstateSettings || {}), avmFactors } });
+  const saveNeighborhoodAliases = (neighborhoodAliases) =>
+    upsertCompanySettings({ realEstateSettings: { ...(companySettings?.realEstateSettings || {}), neighborhoodAliases } });
 
   // Satış sonrası takip mevcut Görevler sistemine bağlanır (Pano + son tarih
   // e-postası zaten var). Sadece GEÇİŞ anında oluşur - her kayıtta değil, yoksa
@@ -5266,7 +5268,7 @@ export default function App() {
         .filter(({ auth }) => auth && !auth.autoRenew && auth.daysLeft <= 30)
         .sort((a, b) => a.auth.daysLeft - b.auth.daysLeft)
     : [];
-  const regionStaleAlerts = isRealEstate ? staleRegionAlerts(regionPrices, properties) : [];
+  const regionStaleAlerts = isRealEstate ? staleRegionAlerts(regionPrices, properties, companySettings?.realEstateSettings?.neighborhoodAliases) : [];
   const membershipAlerts = computeMembershipAlerts(deals, customers);
   const churnAlerts = supportsGroupClasses(companySettings?.sector) ? computeAttendanceChurnRisk(customers, deals, groupClassEnrollments, classAttendance) : [];
   // Bir üye kendi portalından iptal edip yer açtığında (personel tarafından
@@ -5916,6 +5918,7 @@ export default function App() {
           onSaveRegionPrice={saveRegionPrice}
           onDeleteRegionPrice={deleteRegionPrice}
           onSaveAvmFactors={saveAvmFactors}
+          onSaveNeighborhoodAliases={saveNeighborhoodAliases}
           onDeleteWetSigned={deleteShowingWetSigned}
           onFindMatches={(p) => findPropertyMatches(p)}
           onShowListingText={(p) => setListingTextDeal(propertyAsListingDeal(p))}
@@ -5931,6 +5934,7 @@ export default function App() {
           onSaveRegion={saveRegionPrice}
           onDeleteRegion={deleteRegionPrice}
           onSaveFactors={saveAvmFactors}
+          onSaveAliases={saveNeighborhoodAliases}
           notify={notify}
           agentFor={(p) => {
             const m = p?.assignedTo && p.assignedTo !== session.user.id ? teamRoster.find((t) => t.id === p.assignedTo) : null;

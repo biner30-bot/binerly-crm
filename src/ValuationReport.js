@@ -188,6 +188,9 @@ export function buildValuationReportHtml({
           `${closed.count} işlem, ortanca ${unit(closed.medianUnitToday)}`,
         ]
       : null,
+    r.aliasFrom
+      ? ["Tapudaki mahalle", `${r.aliasFrom} (ilanlarda ${r.neighborhood} olarak geçiyor)`]
+      : null,
     ["İlan verisi tarihi", fmtDate(r.asOf)],
     result.index.factor !== 1 && result.index.latest
       ? [
