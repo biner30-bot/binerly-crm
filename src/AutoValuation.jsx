@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { ConfirmDialog, InfoTip, formatTL } from "./shared";
+import { buildValuationReportHtml } from "./ValuationReport";
 import { PROPERTY_DETAIL_FIELDS, PROPERTY_TYPE_OPTIONS, ROOM_COUNT_OPTIONS } from "./realEstate";
 import {
   AVM_FACTOR_DEFAULTS,
@@ -381,60 +382,20 @@ function RegionPaste({ regionPrices, subject, onSaveRegion, onParsedLocation, no
   );
 }
 
-function printReport({ subject, result, companySettings, agentName, title }) {
+// Fotoğraf imzalı URL'si async geldiği için pencere tıklama anında (popup
+// engeline takılmadan) açılıp içerik sonradan yazılır.
+async function printReport(args, getPhotoUrl) {
   const win = window.open("", "_blank");
   if (!win) return false;
-  const esc = (s) =>
-    String(s ?? "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-  const d = subject.details;
-  const features = [
-    subject.roomCount,
-    `${Math.round(result.gross)} m² brüt${result.grossEstimated ? " (netten tahmini)" : ""}`,
-    subject.buildingAge !== "" && `${subject.buildingAge} yaşında bina`,
-    subject.floor &&
-      `${subject.floor}. kat${subject.totalFloors ? ` / ${subject.totalFloors}` : ""}`,
-    d.condition,
-    d.elevator === "Var" && "asansörlü",
-    d.parking && d.parking !== "Yok" && d.parking.toLocaleLowerCase("tr"),
-    d.in_site === "Evet" && "site içinde",
-    d.facade.length && `${d.facade.join("-")} cephe`,
-    d.view.length && `${d.view.join(", ")} manzarası`,
-  ].filter(Boolean);
-  const r = result.region;
-  const adjRows = result.adjustments
-    .map(
-      (a) =>
-        `<tr><td>${esc(a.label)}</td><td>${a.percent > 0 ? "+" : ""}${esc(a.percent)}%</td></tr>`,
-    )
-    .join("");
-  win.document
-    .write(`<!doctype html><html lang="tr"><head><meta charset="utf-8"/><title>Piyasa Fiyat Tahmini</title>
-<style>
-body{font-family:Arial,sans-serif;color:#111;max-width:820px;margin:28px auto;padding:0 24px;font-size:12px;line-height:1.45}
-h1{font-size:18px;margin:0}h2{font-size:13px;margin:20px 0 6px}
-.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.head img{max-height:44px}
-.range{display:flex;gap:12px;margin:8px 0}.range div{flex:1;border:1px solid #ccc;border-radius:6px;padding:10px;text-align:center}
-.range div.mid{border:2px solid #185fa5}.range b{display:block;font-size:17px;margin-top:4px}.range span{font-size:10px;color:#666}
-table{width:100%;border-collapse:collapse}td{padding:4px;border-bottom:1px solid #eee}
-.disc{margin-top:18px;padding:10px;border:1px solid #c99;background:#fff7f7;font-size:11px}.meta{color:#555;font-size:11px}
-</style></head><body>
-<div class="head"><div><h1>Piyasa Fiyat Tahmini</h1><div class="meta">${esc(companySettings?.companyName || "")}${agentName ? ` - ${esc(agentName)}` : ""} - ${esc(new Date().toLocaleDateString("tr-TR"))}</div></div>
-${companySettings?.logoUrl ? `<img src="${esc(companySettings.logoUrl)}" alt=""/>` : ""}</div>
-${title ? `<h2>${esc(title)}</h2>` : ""}
-<div><b>${esc([subject.neighborhood, subject.district, subject.city].filter(Boolean).join(", "))}</b> · ${esc(subject.propertyType)}</div>
-<div>${esc(features.join(" · "))}</div>
-<h2>Tahmini değer</h2>
-<div class="range"><div>Hızlı satış<b>${esc(formatTL(result.value.low))}</b><span>kısa sürede alıcı bulur</span></div><div class="mid">Piyasa değeri<b>${esc(formatTL(result.value.mid))}</b><span>${esc(fmtUnit(result.unit))}</span></div><div>Üst fiyat<b>${esc(formatTL(result.value.high))}</b><span>pazarlama süresi uzar</span></div></div>
-${result.rent ? `<div class="meta">Tahmini aylık kira: <b>${esc(formatTL(result.rent.monthly))}</b>${result.rent.paybackYears ? ` · kira ile geri dönüş süresi yaklaşık ${esc(result.rent.paybackYears.toFixed(1))} yıl` : ""}</div>` : ""}
-<h2>Dayanak</h2>
-<div class="meta">${r.source === "elle" ? "Bölge m² fiyatı danışman tarafından girildi" : `${esc(r.neighborhood)} bölgesinde ${esc(r.listingCount)} güncel satılık ilan (${esc(fmtDate(r.asOf))})`}: ortanca ilan fiyatı ${esc(fmtUnit(r.medianM2))}${result.index.factor !== 1 ? `, TCMB Konut Fiyat Endeksi ile bugüne güncellendi (×${esc(result.index.factor.toFixed(3))})` : ""}. İlan fiyatlarından %${esc(result.factors.askingDiscountPercent)} pazarlık payı düşüldü: ${esc(fmtUnit(result.saleUnit))}.</div>
-${adjRows ? `<h2>Dairenin özelliklerine göre düzeltmeler</h2><table>${adjRows}<tr><td><b>Toplam</b></td><td><b>${result.totalPercent > 0 ? "+" : ""}${esc(Math.round(result.totalPercent * 10) / 10)}%</b></td></tr></table>` : ""}
-<div class="disc">${esc(DISCLAIMER)}</div>
-<script>window.onload=function(){window.print()}</script>
-</body></html>`);
+  win.document.write("<p style='font-family:Arial;padding:24px'>Rapor hazırlanıyor…</p>");
+  let photoUrl;
+  try {
+    photoUrl = getPhotoUrl ? await getPhotoUrl() : null;
+  } catch {
+    photoUrl = null;
+  }
+  win.document.open();
+  win.document.write(buildValuationReportHtml({ ...args, photoUrl, disclaimer: DISCLAIMER }));
   win.document.close();
   return true;
 }
@@ -444,7 +405,8 @@ export function AutoValuation({
   regionPrices,
   marketIndex,
   companySettings,
-  agentName,
+  agent,
+  getPhotoUrl,
   onSaveRegion,
   onDeleteRegion,
   onSaveFactors,
@@ -640,22 +602,22 @@ export function AutoValuation({
             <button
               type="button"
               style={{ fontSize: 12.5 }}
-              onClick={() => {
-                const ok = printReport({
-                  subject: s,
-                  result,
-                  companySettings,
-                  agentName,
-                  title: property?.title,
-                });
+              onClick={async () => {
+                const ok = await printReport(
+                  { subject: s, result, property, companySettings, agent, marketIndex },
+                  getPhotoUrl,
+                );
                 if (!ok)
                   notify(
                     "Yazdırma penceresi açılamadı - tarayıcının açılır pencere engelini kaldırın.",
                   );
               }}
             >
-              <i className="ti ti-printer" aria-hidden="true" /> Mal sahibine rapor
+              <i className="ti ti-file-type-pdf" aria-hidden="true" /> PDF rapor
             </button>
+            <span style={{ fontSize: 11.5, color: "var(--text-muted)", alignSelf: "center" }}>
+              Açılan pencerede hedef olarak "PDF olarak kaydet"i seçin.
+            </span>
             {onApplyPrice && (
               <button
                 type="button"
@@ -785,6 +747,55 @@ export function AutoValuation({
           onClose={() => setConfirmDelete(null)}
         />
       )}
+    </div>
+  );
+}
+
+// Emlakta ayrı sekme: portföydeki bir daireyi ya da portföye girmemiş bir
+// daireyi (mal sahibiyle ilk görüşme) fiyatlamak için tek yer.
+export function MarketAnalysisTab({
+  properties,
+  agentFor,
+  getPhotoUrlFor,
+  onApplyPriceFor,
+  ...rest
+}) {
+  const [selectedId, setSelectedId] = useState("");
+  const property = properties.find((p) => p.id === selectedId) || null;
+  const candidates = properties
+    .filter((p) => p.transactionType === "satilik")
+    .sort((a, b) => (a.title || "").localeCompare(b.title || "", "tr"));
+  return (
+    <div>
+      <h2 style={{ fontSize: 20, margin: "0 0 4px" }}>Piyasa Analizi</h2>
+      <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 12px" }}>
+        Bölge fiyatı ve dairenin özelliklerinden hızlı satış, piyasa değeri ve üst fiyatı
+        hesaplayın; mal sahibine PDF rapor verin.
+      </p>
+      <div style={{ marginBottom: 12, maxWidth: 420 }}>
+        <label style={labelStyle}>Hangi daire?</label>
+        <select
+          value={selectedId}
+          onChange={(e) => setSelectedId(e.target.value)}
+          style={{ width: "100%" }}
+        >
+          <option value="">Portföyde olmayan bir daire (boş form)</option>
+          {candidates.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.title}
+              {p.neighborhood ? ` - ${p.neighborhood}` : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+      <AutoValuation
+        key={selectedId || "new"}
+        property={property}
+        agent={agentFor(property)}
+        getPhotoUrl={property ? () => getPhotoUrlFor(property) : null}
+        onApplyPrice={property ? (price) => onApplyPriceFor(property, price) : null}
+        {...rest}
+      />
     </div>
   );
 }

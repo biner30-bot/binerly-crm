@@ -31,6 +31,7 @@ import { ImportModal } from "./ImportExport";
 import { TrackingScripts } from "./analytics";
 import Tasks from "./Tasks";
 import { Portfolio } from "./Portfolio";
+import { MarketAnalysisTab } from "./AutoValuation";
 import { authorizationStatus, propertyAsListingDeal, CLOSED_STATUSES, nextRentReviewDate } from "./realEstate";
 import { PDF_TEMPLATES, buildMergeData, renderTemplateBlocks, TemplateGallery, TABLE_ROW_HEIGHT } from "./PdfTemplates";
 import { TemplateEditor } from "./PdfTemplateEditor";
@@ -4834,6 +4835,7 @@ export default function App() {
   // ya da o an bireysel görünümdeyiz (kurumsal olsa da sektör randevu-temelliyse
   // sektör kazanır — stageLabel()'daki önceliğin aynısı).
   const dealKind = dealWordKind(companySettings?.sector);
+  const isRealEstate = companySettings?.sector === "emlak";
   const dealWords = DEAL_TAB_STRINGS[dealKind];
   const dealPdfLabel = DEAL_WORD_FORMS[dealKind].pdfLabel;
 
@@ -5526,17 +5528,19 @@ export default function App() {
         {[
           { id: "pano", label: "Pano", icon: "ti-layout-dashboard" },
           { id: "musteri", label: "Müşteriler", icon: "ti-building" },
-          ...(companySettings?.sector === "emlak" ? [{ id: "portfoy", label: "Portföy", icon: "ti-building-estate" }] : []),
+          ...(isRealEstate ? [{ id: "portfoy", label: "Portföy", icon: "ti-building-estate" }, { id: "piyasa", label: "Piyasa Analizi", icon: "ti-chart-histogram" }] : []),
           { id: "firsat", label: dealWords.navLabel, icon: "ti-target-arrow" },
-          ...(canEditCompanySettings ? [{ id: "fiyatlistesi", label: "Fiyat Listesi", icon: "ti-tag" }] : []),
-          ...(canEditCompanySettings ? [{ id: "stokmalzeme", label: "Stok & Malzeme", icon: "ti-package" }] : []),
+          // Emlak tarama turu: fiyat listesi (süre/tazeleme/cihaz), stok-reçete ve
+          // destek talebi/SLA başka sektörlerden kalma - emlakçıda gizli.
+          ...(canEditCompanySettings && !isRealEstate ? [{ id: "fiyatlistesi", label: "Fiyat Listesi", icon: "ti-tag" }] : []),
+          ...(canEditCompanySettings && !isRealEstate ? [{ id: "stokmalzeme", label: "Stok & Malzeme", icon: "ti-package" }] : []),
           ...(canEditCompanySettings ? [{ id: "vitrin", label: "Vitrin", icon: "ti-building-store" }] : []),
           { id: "ajanda", label: "Ajanda", icon: "ti-calendar-event" },
           { id: "gorevler", label: "Görevler", icon: "ti-list-check" },
           { id: "finans", label: "Finans", icon: "ti-chart-line" },
           { id: "mesajlar", label: "Mesajlar", icon: "ti-message-2" },
           ...(supportsGroupClasses(companySettings?.sector) ? [{ id: "dersler", label: "Dersler", icon: "ti-calendar-time" }] : []),
-          { id: "destek", label: "Destek", icon: "ti-headset" },
+          ...(!isRealEstate ? [{ id: "destek", label: "Destek", icon: "ti-headset" }] : []),
         ].map((t) => (
           <button
             key={t.id}
@@ -5905,6 +5909,35 @@ export default function App() {
         />
       )}
 
+      {tab === "piyasa" && isRealEstate && (
+        <MarketAnalysisTab
+          properties={properties}
+          regionPrices={regionPrices}
+          marketIndex={marketIndex}
+          companySettings={companySettings}
+          onSaveRegion={saveRegionPrice}
+          onDeleteRegion={deleteRegionPrice}
+          onSaveFactors={saveAvmFactors}
+          notify={notify}
+          agentFor={(p) => {
+            const m = p?.assignedTo && p.assignedTo !== session.user.id ? teamRoster.find((t) => t.id === p.assignedTo) : null;
+            return m ? { name: m.name || m.email, email: m.email } : { name: session.user.user_metadata?.full_name || "", email: session.user.email };
+          }}
+          getPhotoUrlFor={async (p) => {
+            const photo = attachments
+              .filter((a) => a.entityType === "property_photos" && a.entityId === p.id)
+              .sort((a, b) => (a.sortOrder ?? 1e9) - (b.sortOrder ?? 1e9) || new Date(a.createdAt) - new Date(b.createdAt))[0];
+            if (!photo) return null;
+            const urls = await getSignedUrls([photo.storagePath]);
+            return urls[photo.storagePath] || null;
+          }}
+          onApplyPriceFor={async (p, price) => {
+            const saved = await saveProperty({ ...p, price }, null);
+            if (saved) notify(`Portföy fiyatı ${formatTL(price)} olarak güncellendi.`, "success");
+          }}
+        />
+      )}
+
       {tab === "gorevler" && (
         <Tasks
           tasks={tasks}
@@ -6034,7 +6067,7 @@ export default function App() {
           sector={companySettings?.sector}
           dateTimeKey={appointmentDateTimeKey}
           teamMembers={teamRoster}
-          resources={resources}
+          resources={isRealEstate ? [] : resources}
           currentUserId={session.user.id}
           currentUserEmail={session.user.email}
           onOpenDeal={(deal) => openDealOrList([deal], deal.title)}
@@ -6708,7 +6741,7 @@ export default function App() {
             appointmentDateTimeKey={appointmentDateTimeKey}
             initialAppointmentDateTime={appointmentPrefillDateTime}
             roomInventory={roomInventory}
-            resources={resources}
+            resources={isRealEstate ? [] : resources}
             customFieldDefs={customFieldDefs}
             sectorTags={sectorDealTags(companySettings?.sector)}
             teamMembers={teamRoster}

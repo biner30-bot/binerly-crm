@@ -321,6 +321,23 @@ export function Portfolio({
 
   const canSeePrivate = (p) => isOwner || !p || p.assignedTo === currentUserId;
 
+  // Rapordaki "hazırlayan": portföyün sorumlu danışmanı, yoksa raporu açan kişi.
+  const agentFor = (p) => {
+    const m =
+      p?.assignedTo && p.assignedTo !== currentUserId
+        ? teamMembers.find((t) => t.id === p.assignedTo)
+        : null;
+    return m
+      ? { name: m.name || m.email, email: m.email }
+      : { name: currentUserName, email: currentUserEmail };
+  };
+  const coverPhotoUrl = async (p) => {
+    const path = photosByProperty[p.id]?.[0]?.storagePath;
+    if (!path) return null;
+    const urls = await getSignedUrls([path]);
+    return urls[path] || null;
+  };
+
   return (
     <div>
       <div
@@ -609,7 +626,7 @@ export function Portfolio({
             regionPrices={regionPrices}
             marketIndex={marketIndex}
             companySettings={companySettings}
-            agentName={currentUserName}
+            agent={agentFor(null)}
             onSaveRegion={onSaveRegionPrice}
             onDeleteRegion={onDeleteRegionPrice}
             onSaveFactors={onSaveAvmFactors}
@@ -629,11 +646,8 @@ export function Portfolio({
             regionPrices={regionPrices}
             marketIndex={marketIndex}
             companySettings={companySettings}
-            agentName={
-              (valuationProperty.assignedTo === currentUserId && currentUserName) ||
-              teamMembers.find((m) => m.id === valuationProperty.assignedTo)?.name ||
-              ""
-            }
+            agent={agentFor(valuationProperty)}
+            getPhotoUrl={() => coverPhotoUrl(valuationProperty)}
             onSaveRegion={onSaveRegionPrice}
             onDeleteRegion={onDeleteRegionPrice}
             onSaveFactors={onSaveAvmFactors}
