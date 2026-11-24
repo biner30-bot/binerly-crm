@@ -5796,6 +5796,7 @@ export default function App() {
           currentUserName={session.user.user_metadata?.full_name || ""}
           onUploadWetSigned={uploadShowingWetSigned}
           comparables={comparables}
+          deals={deals}
           onSaveComparable={saveComparable}
           onDeleteComparable={deleteComparable}
           onDeleteWetSigned={deleteShowingWetSigned}

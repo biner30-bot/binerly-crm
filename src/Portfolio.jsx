@@ -3,6 +3,7 @@ import { PropertyShowings } from "./Showings";
 import { CostCalculator } from "./CostCalculator";
 import { Valuation } from "./Valuation";
 import { ListingPackage } from "./ListingPackage";
+import { BrokerPanel } from "./BrokerPanel";
 import { Badge, Modal, ConfirmDialog, InfoTip, AttachmentList, formatTL, uid } from "./shared";
 import {
   TRANSACTION_TYPES,
@@ -240,7 +241,9 @@ export function Portfolio({
   comparables = [],
   onSaveComparable,
   onDeleteComparable,
+  deals = [],
 }) {
+  const [view, setView] = useState("list");
   const [editing, setEditing] = useState(null);
   const [importing, setImporting] = useState(false);
   const [costsFor, setCostsFor] = useState(null);
@@ -342,88 +345,133 @@ export function Portfolio({
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Başlık, bölge, mal sahibi veya ilan no ara"
-          style={{ flex: "1 1 220px" }}
-        />
-        <select value={txFilter} onChange={(e) => setTxFilter(e.target.value)}>
-          <option value="all">Tüm işlem türleri</option>
-          {TRANSACTION_TYPES.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.label}
-            </option>
+      {isOwner && (
+        <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+          {[
+            ["list", "Portföyler", "ti-building-estate"],
+            ["report", "Ofis raporu", "ti-chart-bar"],
+          ].map(([id, label, icon]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setView(id)}
+              style={
+                view === id
+                  ? { background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }
+                  : undefined
+              }
+            >
+              <i className={`ti ${icon}`} aria-hidden="true" /> {label}
+            </button>
           ))}
-        </select>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="open">Açık portföyler</option>
-          <option value="all">Tüm durumlar</option>
-          {PROPERTY_STATUSES.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-        {districts.length > 1 && (
-          <select value={districtFilter} onChange={(e) => setDistrictFilter(e.target.value)}>
-            <option value="all">Tüm ilçeler</option>
-            {districts.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
+        </div>
+      )}
 
-      {properties.length === 0 ? (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "48px 16px",
-            border: "0.5px dashed var(--border)",
-            borderRadius: "var(--radius-lg)",
-          }}
-        >
-          <i
-            className="ti ti-building-estate"
-            style={{ fontSize: 32, color: "var(--text-muted)" }}
-            aria-hidden="true"
-          />
-          <p style={{ fontSize: 15, fontWeight: 600, margin: "8px 0 4px" }}>Henüz portföy yok</p>
-          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 16px" }}>
-            İlk mülkünüzü ekleyin - mal sahibi, yetki sözleşmesi ve ilan bilgileri tek kartta durur.
-          </p>
-          <button
-            onClick={() => setEditing({})}
-            style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
-          >
-            Yeni portföy
-          </button>
-        </div>
-      ) : filtered.length === 0 ? (
-        <p style={{ fontSize: 14, color: "var(--text-muted)" }}>Bu filtrelere uyan portföy yok.</p>
+      {isOwner && view === "report" ? (
+        <BrokerPanel
+          properties={properties}
+          showings={showings}
+          deals={deals}
+          teamMembers={teamMembers}
+          currentUserId={currentUserId}
+          currentUserName={currentUserName}
+          onOpenProperty={(p) => setEditing(p)}
+        />
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-            gap: 12,
-          }}
-        >
-          {filtered.map((p) => (
-            <PropertyCard
-              key={p.id}
-              property={p}
-              owner={customerById.get(p.ownerCustomerId)}
-              coverUrl={coverUrls[photosByProperty[p.id]?.[0]?.storagePath]}
-              photoCount={photosByProperty[p.id]?.length || 0}
-              onClick={() => setEditing(p)}
+        <>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Başlık, bölge, mal sahibi veya ilan no ara"
+              style={{ flex: "1 1 220px" }}
             />
-          ))}
-        </div>
+            <select value={txFilter} onChange={(e) => setTxFilter(e.target.value)}>
+              <option value="all">Tüm işlem türleri</option>
+              {TRANSACTION_TYPES.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="open">Açık portföyler</option>
+              <option value="all">Tüm durumlar</option>
+              {PROPERTY_STATUSES.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+            {districts.length > 1 && (
+              <select value={districtFilter} onChange={(e) => setDistrictFilter(e.target.value)}>
+                <option value="all">Tüm ilçeler</option>
+                {districts.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {properties.length === 0 ? (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "48px 16px",
+                border: "0.5px dashed var(--border)",
+                borderRadius: "var(--radius-lg)",
+              }}
+            >
+              <i
+                className="ti ti-building-estate"
+                style={{ fontSize: 32, color: "var(--text-muted)" }}
+                aria-hidden="true"
+              />
+              <p style={{ fontSize: 15, fontWeight: 600, margin: "8px 0 4px" }}>
+                Henüz portföy yok
+              </p>
+              <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 16px" }}>
+                İlk mülkünüzü ekleyin - mal sahibi, yetki sözleşmesi ve ilan bilgileri tek kartta
+                durur.
+              </p>
+              <button
+                onClick={() => setEditing({})}
+                style={{
+                  background: "var(--fill-accent)",
+                  color: "var(--on-accent)",
+                  border: "none",
+                }}
+              >
+                Yeni portföy
+              </button>
+            </div>
+          ) : filtered.length === 0 ? (
+            <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
+              Bu filtrelere uyan portföy yok.
+            </p>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                gap: 12,
+              }}
+            >
+              {filtered.map((p) => (
+                <PropertyCard
+                  key={p.id}
+                  property={p}
+                  owner={customerById.get(p.ownerCustomerId)}
+                  coverUrl={coverUrls[photosByProperty[p.id]?.[0]?.storagePath]}
+                  photoCount={photosByProperty[p.id]?.length || 0}
+                  onClick={() => setEditing(p)}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {importing && (
