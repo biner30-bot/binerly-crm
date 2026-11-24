@@ -6,6 +6,7 @@ import { AutoValuation } from "./AutoValuation";
 import { ListingPackage } from "./ListingPackage";
 import { BrokerPanel } from "./BrokerPanel";
 import { Badge, Modal, ConfirmDialog, InfoTip, AttachmentList, formatTL, uid } from "./shared";
+import { LocationFields } from "./LocationFields";
 import {
   TRANSACTION_TYPES,
   PROPERTY_STATUSES,
@@ -529,6 +530,20 @@ export function Portfolio({
             teamMembers={teamMembers}
             currentUserId={currentUserId}
             currentUserEmail={currentUserEmail}
+            locationSuggestions={[
+              ...(regionPrices || []).map((r) => ({
+                name: r.neighborhood,
+                city: r.city,
+                district: r.district,
+                tag: "bölge fiyatı var",
+              })),
+              ...properties.map((p) => ({
+                name: p.neighborhood,
+                city: p.city,
+                district: p.district,
+                tag: "portföyde var",
+              })),
+            ]}
             onSave={async (p, priv) => {
               const saved = await onSave(p, priv);
               if (!saved) return;
@@ -876,6 +891,7 @@ export function PropertyForm({
   onShowCosts,
   onShowValuation,
   onShowPackage,
+  locationSuggestions = [],
 }) {
   const [f, setF] = useState(() => ({
     transactionType: initial?.transactionType || "satilik",
@@ -1131,9 +1147,12 @@ export function PropertyForm({
 
       <p style={sectionTitleStyle}>Konum</p>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-        {field("city", "İl")}
-        {field("district", "İlçe")}
-        {field("neighborhood", "Mahalle")}
+        <LocationFields
+          value={f}
+          onChange={(patch) => setF((prev) => ({ ...prev, ...patch }))}
+          suggestions={locationSuggestions}
+          labelStyle={labelStyle}
+        />
       </div>
       <div style={{ marginBottom: 12 }}>
         <label style={labelStyle}>Açık adres</label>

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { ConfirmDialog, InfoTip, formatTL } from "./shared";
 import { buildValuationReportHtml } from "./ValuationReport";
+import { LocationFields } from "./LocationFields";
 import { PROPERTY_DETAIL_FIELDS, PROPERTY_TYPE_OPTIONS, ROOM_COUNT_OPTIONS } from "./realEstate";
 import {
   AGE_BANDS,
@@ -64,7 +65,7 @@ function subjectFrom(p) {
   };
 }
 
-function SubjectForm({ s, setS }) {
+function SubjectForm({ s, setS, regionPrices = [] }) {
   const set = (k) => (e) => setS((p) => ({ ...p, [k]: e.target.value }));
   const setD = (k, v) => setS((p) => ({ ...p, details: { ...p.details, [k]: v } }));
   const toggle = (k, opt) =>
@@ -113,9 +114,18 @@ function SubjectForm({ s, setS }) {
   return (
     <>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-        {input("city", "İl")}
-        {input("district", "İlçe")}
-        {input("neighborhood", "Mahalle")}
+        <LocationFields
+          value={s}
+          onChange={(patch) => setS((p) => ({ ...p, ...patch }))}
+          suggestions={regionPrices.map((r) => ({
+            name: r.neighborhood,
+            city: r.city,
+            district: r.district,
+            tag: "bölge fiyatı var",
+          }))}
+          labelStyle={labelStyle}
+          fieldStyle={{ flex: "1 1 110px" }}
+        />
         <div style={{ flex: "1 1 120px" }}>
           <label style={labelStyle}>Tip</label>
           <select value={s.propertyType} onChange={set("propertyType")} style={{ width: "100%" }}>
@@ -492,7 +502,7 @@ export function AutoValuation({
 
       <div style={box}>
         <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 8px" }}>Daire</p>
-        <SubjectForm s={s} setS={setS} />
+        <SubjectForm s={s} setS={setS} regionPrices={regionPrices} />
       </div>
 
       <div style={box}>
