@@ -779,6 +779,96 @@ export function computeTransactionCosts(input, rawSettings) {
   };
 }
 
+// ---- 5 yıl dolmadan satışta değer artış kazancı vergisi (GVK mük. 80-81) ----
+// İstisna tutarı ve ücret dışı gelir tarifesi her yıl tebliğle değişir; yeni yıl
+// eklenmezse son bilinen yıl kullanılır ve ekranda "güncel değil" uyarısı çıkar.
+// Kaynak: GVK Genel Tebliği 332 (2026 istisnası 150.000 TL), 2026 tarifesi.
+export const CAPITAL_GAINS_RULES = {
+  2025: {
+    exemption: 120000,
+    brackets: [
+      [158000, 15],
+      [330000, 20],
+      [800000, 27],
+      [4300000, 35],
+      [Infinity, 40],
+    ],
+  },
+  2026: {
+    exemption: 150000,
+    brackets: [
+      [190000, 15],
+      [400000, 20],
+      [1000000, 27],
+      [5300000, 35],
+      [Infinity, 40],
+    ],
+  },
+};
+export const CAPITAL_GAINS_HOLD_YEARS = 5;
+// Yİ-ÜFE artışı bu oranın altındaysa alış bedeli endekslenmez.
+export const CAPITAL_GAINS_INDEX_MIN = 0.1;
+
+export function progressiveTax(amount, brackets) {
+  let rest = Math.max(0, amount);
+  let prev = 0;
+  let tax = 0;
+  for (const [limit, pct] of brackets) {
+    const slice = Math.min(rest, limit - prev);
+    if (slice <= 0) break;
+    tax += (slice * pct) / 100;
+    rest -= slice;
+    prev = limit;
+  }
+  return round2(tax);
+}
+
+export function computeCapitalGainsTax(input) {
+  const saleDate = input.saleDate || new Date().toISOString().slice(0, 10);
+  const acquiredOn = input.acquiredOn;
+  if (!acquiredOn) return { status: "eksik" };
+  if (input.howAcquired === "miras_bagis") return { status: "muaf_miras" };
+  const fiveYears = addMonths(new Date(`${acquiredOn}T00:00:00`), CAPITAL_GAINS_HOLD_YEARS * 12);
+  const sale = new Date(`${saleDate}T00:00:00`);
+  if (sale >= fiveYears) return { status: "muaf_sure", fiveYears };
+  const saleYear = sale.getFullYear();
+  const knownYears = Object.keys(CAPITAL_GAINS_RULES).map(Number);
+  const ruleYear = CAPITAL_GAINS_RULES[saleYear] ? saleYear : Math.max(...knownYears);
+  const rules = CAPITAL_GAINS_RULES[ruleYear];
+  const saleValue = Number(input.saleValue) || 0;
+  const cost = Number(input.acquisitionCost) || 0;
+  const acquisitionCosts = Number(input.acquisitionCosts) || 0;
+  const saleCosts = Number(input.saleCosts) || 0;
+  const ufeA = Number(input.ufeAtAcquisition) || 0;
+  const ufeS = Number(input.ufeAtSale) || 0;
+  const ufeRatio = ufeA > 0 && ufeS > 0 ? ufeS / ufeA : null;
+  const indexed = ufeRatio != null && ufeRatio - 1 >= CAPITAL_GAINS_INDEX_MIN;
+  const indexedCost = round2(indexed ? cost * ufeRatio : cost);
+  const gain = round2(saleValue - indexedCost - acquisitionCosts - saleCosts);
+  const otherGains = Math.max(0, Number(input.otherGainsThisYear) || 0);
+  // İstisna yılda bir kez, o yılın toplam değer artış kazancına uygulanır.
+  const taxableBefore = Math.max(0, otherGains - rules.exemption);
+  const taxableTotal = Math.max(0, otherGains + Math.max(0, gain) - rules.exemption);
+  const tax = round2(
+    progressiveTax(taxableTotal, rules.brackets) - progressiveTax(taxableBefore, rules.brackets),
+  );
+  return {
+    status: "vergili",
+    fiveYears,
+    ruleYear,
+    rulesOutdated: ruleYear !== saleYear,
+    exemption: rules.exemption,
+    ufeRatio,
+    indexed,
+    indexMissing: ufeRatio == null,
+    indexedCost,
+    gain,
+    taxable: round2(taxableTotal - taxableBefore),
+    tax,
+    declarationYear: saleYear + 1,
+  };
+}
+
 // Kapanış kontrol listesi - portföy alım listesiyle aynı checklist jsonb'de,
 // "close_" önekiyle (iki liste birbirinin ilerlemesini bozmasın).
 const CLOSING_STEPS = {
