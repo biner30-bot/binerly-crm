@@ -566,7 +566,14 @@ export function featureAdjustments(subject, region, rawFactors) {
 
 const roundTo = (n, step) => Math.round(n / step) * step;
 
-export function estimateValue({ subject, saleRegion, rentRegion, marketIndex, factors }) {
+export function estimateValue({
+  subject,
+  saleRegion,
+  rentRegion,
+  marketIndex,
+  factors,
+  extraSpread = 0,
+}) {
   const f = { ...AVM_FACTOR_DEFAULTS, ...(factors || {}) };
   // Sonuç sayfası brüt m² gösteriyor; sadece net bilinen dairede brüt ≈ net×1,2
   // (raporda açıkça yazılır).
@@ -594,7 +601,9 @@ export function estimateValue({ subject, saleRegion, rentRegion, marketIndex, fa
       ? (saleRegion.q3M2 - saleRegion.q1M2) / saleRegion.medianM2
       : 0.2;
   const spread =
-    Math.max(0.05, Math.min(0.12, dispersion * 0.35)) + (saleRegion.listingCount < 8 ? 0.03 : 0);
+    Math.max(0.05, Math.min(0.12, dispersion * 0.35)) +
+    (saleRegion.listingCount < 8 ? 0.03 : 0) +
+    extraSpread;
   const result = {
     gross,
     grossEstimated: !Number(subject.grossM2),
@@ -606,6 +615,7 @@ export function estimateValue({ subject, saleRegion, rentRegion, marketIndex, fa
     adjustments: adj,
     totalPercent: total,
     spread,
+    extraSpread,
     lowConfidence: saleRegion.listingCount < 8,
     value: {
       low: roundTo(mid * (1 - spread), 10000),

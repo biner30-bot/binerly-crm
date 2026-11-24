@@ -7,6 +7,7 @@ import { ListingPackage } from "./ListingPackage";
 import { BrokerPanel } from "./BrokerPanel";
 import { Badge, Modal, ConfirmDialog, InfoTip, AttachmentList, formatTL, uid } from "./shared";
 import { LocationFields } from "./LocationFields";
+import { subjectChecks } from "./valuationChecks";
 import {
   TRANSACTION_TYPES,
   PROPERTY_STATUSES,
@@ -675,8 +676,22 @@ export function Portfolio({
             onDeleteRegion={onDeleteRegionPrice}
             onSaveFactors={onSaveAvmFactors}
             onApplyPrice={async (price) => {
-              const saved = await onSave({ ...valuationProperty, price }, null);
+              // Modal açıkken daire bilgileri portföye kaydedilmiş olabilir - eski
+              // nesneyle yazıp onları ezmeyelim.
+              const fresh =
+                properties.find((x) => x.id === valuationProperty.id) || valuationProperty;
+              const saved = await onSave({ ...fresh, price }, null);
               if (saved) notify(`Portföy fiyatı ${formatTL(price)} olarak güncellendi.`, "success");
+            }}
+            onSaveSubject={async (patch) => {
+              const fresh =
+                properties.find((x) => x.id === valuationProperty.id) || valuationProperty;
+              const saved = await onSave(
+                { ...fresh, ...patch, details: { ...fresh.details, ...patch.details } },
+                null,
+              );
+              if (saved) notify("Daire bilgileri portföye kaydedildi.", "success");
+              return !!saved;
             }}
             notify={notify}
             detailed={
@@ -1216,6 +1231,35 @@ export function PropertyForm({
 
       <p style={sectionTitleStyle}>{DETAIL_GROUP_LABELS.ic}</p>
       {renderDetailGroup("ic")}
+      {["satilik", "kiralik"].includes(f.transactionType) &&
+        (() => {
+          const gaps = subjectChecks({
+            subject: {
+              grossM2: f.grossM2,
+              netM2: f.netM2,
+              roomCount: f.roomCount,
+              buildingAge: f.buildingAge,
+              floor: f.floor,
+              totalFloors: f.totalFloors,
+              details: f.details,
+            },
+          }).missing;
+          return gaps.length ? (
+            <p
+              style={{
+                fontSize: 12,
+                margin: "0 0 12px",
+                padding: "6px 10px",
+                background: "var(--bg-warning)",
+                borderRadius: 6,
+              }}
+            >
+              <i className="ti ti-target" aria-hidden="true" /> Piyasa analizinin isabeti için
+              eksik: {gaps.map((g) => g.label.toLocaleLowerCase("tr")).join(", ")}. Girilmeyen
+              özellik bölgedeki tipik daire gibi kabul edilir.
+            </p>
+          ) : null;
+        })()}
 
       <p style={sectionTitleStyle}>{DETAIL_GROUP_LABELS.tapu}</p>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>

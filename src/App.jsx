@@ -5941,6 +5941,11 @@ export default function App() {
             const saved = await saveProperty({ ...p, price }, null);
             if (saved) notify(`Portföy fiyatı ${formatTL(price)} olarak güncellendi.`, "success");
           }}
+          onSaveSubjectFor={async (p, patch) => {
+            const saved = await saveProperty({ ...p, ...patch, details: { ...p.details, ...patch.details } }, null);
+            if (saved) notify("Daire bilgileri portföye kaydedildi.", "success");
+            return !!saved;
+          }}
         />
       )}
 

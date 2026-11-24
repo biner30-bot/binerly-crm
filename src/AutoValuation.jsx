@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { ConfirmDialog, InfoTip, Modal, formatTL } from "./shared";
 import { buildValuationReportHtml } from "./ValuationReport";
 import { LocationFields } from "./LocationFields";
+import { ageCoverage, bandForAge, pasteChecks, subjectChecks } from "./valuationChecks";
 import { PROPERTY_DETAIL_FIELDS, PROPERTY_TYPE_OPTIONS, ROOM_COUNT_OPTIONS } from "./realEstate";
 import {
   AGE_BANDS,
@@ -70,7 +71,21 @@ function subjectFrom(p) {
   };
 }
 
-function SubjectForm({ s, setS, regionPrices = [] }) {
+function SubjectForm({ s, setS, regionPrices = [], missing = new Set() }) {
+  const lbl = (k, label) => (
+    <label style={labelStyle}>
+      {label}
+      {missing.has(k) && (
+        <span
+          style={{ color: "var(--text-warning)", fontWeight: 600 }}
+          title="Girilmedi - fiyatı etkiler"
+        >
+          {" "}
+          • eksik
+        </span>
+      )}
+    </label>
+  );
   const set = (k) => (e) => setS((p) => ({ ...p, [k]: e.target.value }));
   const setD = (k, v) => setS((p) => ({ ...p, details: { ...p.details, [k]: v } }));
   const toggle = (k, opt) =>
@@ -80,13 +95,13 @@ function SubjectForm({ s, setS, regionPrices = [] }) {
     );
   const input = (k, label, type = "text", flex = "1 1 110px") => (
     <div style={{ flex }}>
-      <label style={labelStyle}>{label}</label>
+      {lbl(k, label)}
       <input type={type} value={s[k] ?? ""} onChange={set(k)} style={{ width: "100%" }} />
     </div>
   );
   const select = (k, label, options, flex = "1 1 130px") => (
     <div style={{ flex }}>
-      <label style={labelStyle}>{label}</label>
+      {lbl(k, label)}
       <select
         value={s.details[k] ?? ""}
         onChange={(e) => setD(k, e.target.value)}
@@ -101,7 +116,7 @@ function SubjectForm({ s, setS, regionPrices = [] }) {
   );
   const checks = (k, label, options) => (
     <div style={{ flex: "1 1 200px" }}>
-      <label style={labelStyle}>{label}</label>
+      {lbl(k, label)}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 13 }}>
         {options.map((o) => (
           <label key={o} style={{ display: "flex", gap: 4, alignItems: "center" }}>
@@ -250,6 +265,29 @@ function RegionPaste({ regionPrices, subject, onSaveRegion, onParsedLocation, no
         placeholder="Sahibinden'de mahalle + emlak tipi ile arama yapın (liste görünümü, sayfa başına 50), sayfada Ctrl+A, Ctrl+C yapıp buraya yapıştırın"
         style={{ width: "100%", resize: "vertical", marginBottom: 6 }}
       />
+      <details style={{ fontSize: 12.5, marginBottom: 6, color: "var(--text-secondary)" }}>
+        <summary style={{ cursor: "pointer" }}>En isabetli sonuç için nasıl yapıştırılır?</summary>
+        <ol style={{ margin: "6px 0 0", paddingLeft: 18, lineHeight: 1.6 }}>
+          <li>Sahibinden'de Emlak &gt; Konut &gt; Satılık (veya Kiralık) &gt; Daire'ye girin.</li>
+          <li>Adres'ten il, ilçe ve sadece TEK bir mahalle seçin.</li>
+          <li>
+            Soldaki Bina Yaşı'ndan tek bir aralık seçin - önce dairenizin aralığı
+            {bandForAge(subject.buildingAge) ? ` ("${bandForAge(subject.buildingAge).label}")` : ""}
+            . Oda sayısı, m², fiyat, kat gibi başka filtre SEÇMEYİN; bölge fiyatı mahallenin
+            tamamını temsil etmeli.
+          </li>
+          <li>Liste görünümünde "sayfa başına 50" seçin.</li>
+          <li>
+            Sayfada Ctrl+A, Ctrl+C; buraya Ctrl+V. Birden fazla sayfa varsa her birini ayrı
+            yapıştırın.
+          </li>
+          <li>
+            Diğer yaş aralıklarını da (0-5, 6-10, 11-20, 21-30, 31+) aynı şekilde ekleyin - 14 gün
+            içindeki yapıştırmalar birleşir; yaşı bilinen 12+ ilanla yaşın etkisi bu mahalleden
+            ölçülür.
+          </li>
+        </ol>
+      </details>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         <button type="button" style={{ fontSize: 12.5 }} disabled={!text.trim()} onClick={read}>
           İlanları oku
@@ -276,6 +314,16 @@ function RegionPaste({ regionPrices, subject, onSaveRegion, onParsedLocation, no
             {summary.outliers > 0 && ` ${summary.outliers} uç değer hesaba katılmadı.`} Ortanca ilan
             fiyatı <b>{fmtUnit(summary.medianM2)}</b>, tipik daire {summary.medianArea} m².
           </p>
+          <Notices
+            items={pasteChecks({
+              raw: text,
+              parsed: draft.parsed,
+              subject,
+              existing: draft.merged ? draft.existing : null,
+              mergedCount: draftListings.length,
+              ageBandLabel,
+            })}
+          />
           {draft.parsed.page && draft.parsed.page.current < draft.parsed.page.total && (
             <p style={{ fontSize: 12, margin: "0 0 6px", color: "var(--text-warning)" }}>
               Aramada {draft.parsed.page.total} sayfa var. Kaydettikten sonra diğer sayfaları da
@@ -458,6 +506,56 @@ async function printReport(args, getPhotoUrl) {
   return true;
 }
 
+// Piyasa analizinde girilen daire bilgileri portföy kaydına geri yazılabilsin
+// (bir sonraki analizde ve ilan metninde tekrar girilmesin).
+function subjectPatch(s) {
+  const n = (v) => (v === "" || v == null ? null : Number(v));
+  const details = Object.fromEntries(
+    Object.entries(s.details).filter(([, v]) => (Array.isArray(v) ? v.length : v)),
+  );
+  return {
+    grossM2: n(s.grossM2),
+    netM2: n(s.netM2),
+    roomCount: s.roomCount || "",
+    buildingAge: n(s.buildingAge),
+    floor: s.floor || "",
+    totalFloors: n(s.totalFloors),
+    details,
+  };
+}
+
+const TONE_COLORS = {
+  danger: { bg: "var(--bg-danger)", fg: "var(--text-danger)", icon: "ti-alert-octagon" },
+  warning: { bg: "var(--bg-warning)", fg: "var(--text-warning)", icon: "ti-alert-triangle" },
+  info: { bg: "var(--surface-1)", fg: "var(--text-secondary)", icon: "ti-info-circle" },
+};
+
+function Notices({ items }) {
+  if (!items.length) return null;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8 }}>
+      {items.map((w, i) => {
+        const t = TONE_COLORS[w.tone] || TONE_COLORS.info;
+        return (
+          <div
+            key={i}
+            style={{
+              fontSize: 12.5,
+              padding: "6px 10px",
+              borderRadius: 6,
+              background: t.bg,
+              borderLeft: `3px solid ${t.fg}`,
+              lineHeight: 1.45,
+            }}
+          >
+            <i className={`ti ${t.icon}`} aria-hidden="true" style={{ color: t.fg }} /> {w.text}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function RegionAgeTag({ days }) {
   if (days <= REGION_STALE_DAYS)
     return <span style={{ color: "var(--text-muted)" }}>({days} gün)</span>;
@@ -489,10 +587,13 @@ export function AutoValuation({
   onDeleteRegion,
   onSaveFactors,
   onApplyPrice,
+  onSaveSubject,
   notify,
   detailed,
 }) {
   const [s, setS] = useState(() => subjectFrom(property));
+  const [baseline, setBaseline] = useState(() => subjectFrom(property));
+  const [savingSubject, setSavingSubject] = useState(false);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [showFactors, setShowFactors] = useState(false);
   const [showRegions, setShowRegions] = useState(false);
@@ -504,10 +605,18 @@ export function AutoValuation({
 
   const saleRegion = findRegion(regionPrices, s, "satilik");
   const rentRegion = findRegion(regionPrices, s, "kiralik");
+  const extraSpread = subjectChecks({ subject: s, region: saleRegion, factors }).extraSpread;
   const result = useMemo(
-    () => estimateValue({ subject: s, saleRegion, rentRegion, marketIndex, factors }),
-    [s, saleRegion, rentRegion, marketIndex, factors],
+    () => estimateValue({ subject: s, saleRegion, rentRegion, marketIndex, factors, extraSpread }),
+    [s, saleRegion, rentRegion, marketIndex, factors, extraSpread],
   );
+  const checks = subjectChecks({ subject: s, region: saleRegion, result, property, factors });
+  const missingKeys = new Set(checks.missing.map((m) => m.key));
+  const coverage = ageCoverage(saleRegion?.listings, s.buildingAge);
+  const subjectDirty =
+    property &&
+    onSaveSubject &&
+    JSON.stringify(subjectPatch(s)) !== JSON.stringify(subjectPatch(baseline));
   const closed = useMemo(
     () =>
       closedTransactions(
@@ -533,7 +642,16 @@ export function AutoValuation({
   const runReport = async () => {
     setStaleReportPrompt(false);
     const ok = await printReport(
-      { subject: s, result, property, companySettings, agent, marketIndex, closed },
+      {
+        subject: s,
+        result,
+        property,
+        companySettings,
+        agent,
+        marketIndex,
+        closed,
+        missing: checks.missing,
+      },
       getPhotoUrl,
     );
     if (!ok) notify("Yazdırma penceresi açılamadı - tarayıcının açılır pencere engelini kaldırın.");
@@ -557,7 +675,75 @@ export function AutoValuation({
 
       <div style={box}>
         <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 8px" }}>Daire</p>
-        <SubjectForm s={s} setS={setS} regionPrices={regionPrices} />
+        <SubjectForm s={s} setS={setS} regionPrices={regionPrices} missing={missingKeys} />
+        <div
+          style={{
+            marginTop: 10,
+            paddingTop: 8,
+            borderTop: "0.5px solid var(--border)",
+            fontSize: 12.5,
+          }}
+        >
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <b>
+              <i
+                className={`ti ${checks.missing.length ? "ti-target" : "ti-circle-check"}`}
+                aria-hidden="true"
+                style={{
+                  color: checks.missing.length ? "var(--text-warning)" : "var(--text-success)",
+                }}
+              />{" "}
+              Tahmin isabeti: {checks.filled}/{checks.total} bilgi girildi
+            </b>
+            {checks.missing.length > 0 && (
+              <span style={{ color: "var(--text-muted)" }}>
+                eksikler fiyata etkisine göre sıralı
+                {checks.extraSpread > 0 &&
+                  ` · bu yüzden aralık %${String(Math.round(checks.extraSpread * 1000) / 10).replace(".", ",")} genişletildi`}
+              </span>
+            )}
+            {subjectDirty && (
+              <button
+                type="button"
+                style={{ fontSize: 12, marginLeft: "auto" }}
+                disabled={savingSubject}
+                onClick={async () => {
+                  setSavingSubject(true);
+                  const ok = await onSaveSubject(subjectPatch(s));
+                  setSavingSubject(false);
+                  if (ok) setBaseline(s);
+                }}
+              >
+                <i className="ti ti-device-floppy" aria-hidden="true" />{" "}
+                {savingSubject ? "Kaydediliyor…" : "Bu bilgileri portföye kaydet"}
+              </button>
+            )}
+          </div>
+          {checks.missing.length > 0 && (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+              {checks.missing
+                .slice()
+                .sort((a, b) => (b.impact || 0) - (a.impact || 0))
+                .map((m) => (
+                  <span
+                    key={m.key}
+                    style={{
+                      fontSize: 11.5,
+                      padding: "2px 8px",
+                      borderRadius: 10,
+                      background: "var(--bg-warning)",
+                      color: "var(--text-warning)",
+                    }}
+                  >
+                    {m.label}
+                    {m.impact ? ` ±%${m.impact}` : ""}
+                    {m.note ? ` - ${m.note}` : ""}
+                  </span>
+                ))}
+            </div>
+          )}
+          <Notices items={checks.warnings} />
+        </div>
       </div>
 
       <div style={box}>
@@ -626,6 +812,59 @@ export function AutoValuation({
                   <button type="button" style={{ fontSize: 12 }} onClick={askUpdate}>
                     <i className="ti ti-refresh" aria-hidden="true" /> Bölgeyi güncelle
                   </button>
+                )}
+              </div>
+            )}
+            {saleRegion.source !== "elle" && (
+              <div style={{ marginTop: 6 }}>
+                Yaş dağılımı ({coverage.agedCount}/{coverage.total} ilanın yaşı biliniyor):{" "}
+                {coverage.groups.map((g, i) => (
+                  <span
+                    key={g.label}
+                    style={{
+                      fontWeight: g.label === coverage.subjectGroup ? 700 : 400,
+                      color: g.count ? undefined : "var(--text-muted)",
+                    }}
+                  >
+                    {i > 0 && " · "}
+                    {g.label}: {g.count}
+                  </span>
+                ))}
+                {coverage.subjectGroup && coverage.subjectGroupCount < 3 && (
+                  <div
+                    style={{
+                      marginTop: 4,
+                      color: "var(--text-warning)",
+                      display: "flex",
+                      gap: 8,
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <span style={{ flex: "1 1 240px" }}>
+                      Dairenin yaş aralığından ({coverage.subjectGroup}){" "}
+                      {coverage.subjectGroupCount
+                        ? `sadece ${coverage.subjectGroupCount} ilan var`
+                        : "hiç ilan yok"}
+                      . Sahibinden'de Bina Yaşı "{bandForAge(s.buildingAge)?.label}" filtresiyle
+                      arayıp yapıştırın - yaş etkisi en isabetli böyle hesaplanır.
+                    </span>
+                    {!pasteOpen && (
+                      <button
+                        type="button"
+                        style={{ fontSize: 12 }}
+                        onClick={() => setPasteOpen(true)}
+                      >
+                        Yapıştır
+                      </button>
+                    )}
+                  </div>
+                )}
+                {coverage.agedCount === 0 && !coverage.subjectGroup && (
+                  <div style={{ marginTop: 4, color: "var(--text-muted)" }}>
+                    İlanların yaşı bilinmiyor. Bina Yaşı filtresiyle yapıştırırsanız yaş etkisi bu
+                    mahallenin kendi ilanlarından hesaplanır.
+                  </div>
                 )}
               </div>
             )}
@@ -1006,6 +1245,7 @@ export function MarketAnalysisTab({
   agentFor,
   getPhotoUrlFor,
   onApplyPriceFor,
+  onSaveSubjectFor,
   ...rest
 }) {
   const [selectedId, setSelectedId] = useState("");
@@ -1043,6 +1283,9 @@ export function MarketAnalysisTab({
         agent={agentFor(property)}
         getPhotoUrl={property ? () => getPhotoUrlFor(property) : null}
         onApplyPrice={property ? (price) => onApplyPriceFor(property, price) : null}
+        onSaveSubject={
+          property && onSaveSubjectFor ? (patch) => onSaveSubjectFor(property, patch) : null
+        }
         {...rest}
       />
     </div>

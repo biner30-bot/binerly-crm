@@ -105,6 +105,7 @@ export function buildValuationReportHtml({
   marketIndex,
   photoUrl,
   closed,
+  missing,
   disclaimer,
 }) {
   const r = result.region;
@@ -271,6 +272,11 @@ ${result.rent ? `<div class="cards" style="margin-top:8px"><div class="card"><di
 <div class="band">Değere etki eden özellikler</div>
 <p class="note" style="margin:0 0 6px">Bölgedeki ortanca ilan fiyatı ${unit(result.askingUnit)}; ilan fiyatlarından %${esc(result.factors.askingDiscountPercent)} pazarlık payı düşülerek ${unit(result.saleUnit)} bulundu. Dairenin bölgedeki tipik daireden farkları aşağıdaki gibi yansıtıldı.</p>
 ${adjRows ? `<table class="list"><tbody>${adjRows}<tr><td><b>Toplam</b></td><td class="num"><b>${result.totalPercent > 0 ? "+" : ""}${esc(Math.round(result.totalPercent * 10) / 10)}%</b></td></tr></tbody></table>` : `<p class="note">Daire bölgedeki tipik daireyle aynı özellikte kabul edildi.</p>`}
+${
+  missing?.length
+    ? `<p class="note" style="margin-top:8px">Bilinmeyen özellikler (bölgedeki tipik daire gibi kabul edildi): ${esc(missing.map((m) => m.label.toLocaleLowerCase("tr")).join(", "))}.${result.extraSpread ? ` Bu belirsizlik nedeniyle değer aralığı %${esc(String(Math.round(result.extraSpread * 1000) / 10).replace(".", ","))} genişletildi.` : ""}</p>`
+    : ""
+}
 ${footer(2)}
 </section>
 
