@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { ConfirmDialog, InfoTip, Modal, formatTL, useFormDraft } from "./shared";
 import { buildValuationReportHtml } from "./ValuationReport";
 import { LocationFields } from "./LocationFields";
@@ -8,6 +8,8 @@ import { PROPERTY_DETAIL_FIELDS, PROPERTY_TYPE_OPTIONS, ROOM_COUNT_OPTIONS } fro
 import {
   AGE_BANDS,
   AVM_FACTOR_DEFAULTS,
+  MIN_NEAR_AGE_LISTINGS,
+  NEAR_AGE_YEARS,
   ageStats,
   aliasFor,
   groupByNeighborhood,
@@ -165,15 +167,18 @@ function AddressSection({ s, setS, hasPropertyPhoto, notify }) {
     if (hasLoc || (!s.neighborhood && !s.district)) return undefined;
     let alive = true;
     const t = setTimeout(() => {
-      geocodeArea({ neighborhood: s.neighborhood, district: s.district, city: s.city }).then(
-        (c) => alive && c && setCenter(c),
-      );
-    }, 700);
+      geocodeArea({
+        street: a.street,
+        neighborhood: s.neighborhood,
+        district: s.district,
+        city: s.city,
+      }).then((c) => alive && c && setCenter(c));
+    }, 900);
     return () => {
       alive = false;
       clearTimeout(t);
     };
-  }, [s.neighborhood, s.district, s.city, hasLoc]);
+  }, [a.street, s.neighborhood, s.district, s.city, hasLoc]);
 
   const field = (k, label, flex = "1 1 120px") => (
     <div style={{ flex }}>
@@ -242,8 +247,8 @@ function AddressSection({ s, setS, hasPropertyPhoto, notify }) {
             />
           </Suspense>
           <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "4px 0 0" }}>
-            Harita OpenStreetMap. Konumu bulmak için dış servise sadece mahalle/ilçe/il gönderilir;
-            sokak ve kapı numarası gönderilmez.
+            Harita OpenStreetMap. Haritayı konumlamak için dış servise sokak, mahalle, ilçe ve il
+            gönderilir; bina ve daire numarası gönderilmez.
           </p>
         </div>
       )}
@@ -995,6 +1000,12 @@ export function AutoValuation({
   const [valuationId, setValuationId] = useState(valuation?.id || null);
   const [savedJson, setSavedJson] = useState(() => (valuation ? JSON.stringify(initial) : null));
   const [savingValuation, setSavingValuation] = useState(false);
+  const [valuationStatus, setValuationStatus] = useState(valuation?.status || null);
+  const [autoSavedAt, setAutoSavedAt] = useState(null);
+  // Otomatik kayıt ile elle kayıt aynı anda çalışırsa iki ayrı kayıt
+  // oluşmasın diye kimlik ve süren kayıt ref'te tutulur.
+  const valuationIdRef = useRef(valuation?.id || null);
+  const inFlightRef = useRef(null);
   const unsavedAnalysis = savedJson !== JSON.stringify(s);
   const dirty = JSON.stringify(s) !== JSON.stringify(baseline);
   const { persist } = draftStore;
@@ -1070,34 +1081,59 @@ export function AutoValuation({
     setStaleReportPrompt(false);
     setPasteOpen(true);
   };
-  const saveValuation = async ({ quiet = false } = {}) => {
-    if (!onSaveValuation || result.error) return null;
-    setSavingValuation(true);
-    const saved = await onSaveValuation({
-      id: valuationId,
+  const saveValuation = async ({ quiet = false, auto = false } = {}) => {
+    if (!onSaveValuation) return null;
+    if (inFlightRef.current) await inFlightRef.current;
+    const snapshot = s;
+    const status = auto ? valuationStatus || "taslak" : "kaydedildi";
+    if (!auto) setSavingValuation(true);
+    const job = onSaveValuation({
+      id: valuationIdRef.current,
       propertyId: property?.id || null,
-      title: valuationTitle(s, property),
-      subject: s,
-      result: {
-        low: result.value.low,
-        mid: result.value.mid,
-        high: result.value.high,
-        rentMonthly: result.rent?.monthly ?? null,
-        region: result.region?.neighborhood || null,
-        regionAsOf: result.region?.asOf || null,
-      },
+      title: valuationTitle(snapshot, property),
+      subject: snapshot,
+      status,
+      quiet: auto,
+      result: result.error
+        ? null
+        : {
+            low: result.value.low,
+            mid: result.value.mid,
+            high: result.value.high,
+            rentMonthly: result.rent?.monthly ?? null,
+            region: result.region?.neighborhood || null,
+            regionAsOf: result.region?.asOf || null,
+          },
     });
-    setSavingValuation(false);
+    inFlightRef.current = job;
+    const saved = await job;
+    inFlightRef.current = null;
+    if (!auto) setSavingValuation(false);
     if (!saved) return null;
+    valuationIdRef.current = saved.id;
     setValuationId(saved.id);
-    setSavedJson(JSON.stringify(s));
-    // Kayıtlı analiz artık veritabanında - taslağa gerek yok (portföy kaydı
-    // için baseline korunur ki "portföye kaydet" düğmesi kaybolmasın).
-    if (!property) setBaseline(s);
+    setValuationStatus(saved.status);
+    setSavedJson(JSON.stringify(snapshot));
+    if (auto) setAutoSavedAt(new Date());
+    // Kayıtlı analiz artık veritabanında - yerel taslağa gerek yok (portföy
+    // kaydı için baseline korunur ki "portföye kaydet" düğmesi kaybolmasın).
+    if (!property) setBaseline(snapshot);
     onValuationSaved?.(saved);
-    if (!quiet) notify("Analiz kaydedildi - Kayıtlı analizlerim listesinde.", "success");
+    if (!quiet && !auto) notify("Analiz kaydedildi - Kayıtlı analizlerim listesinde.", "success");
     return saved;
   };
+  // Kaydetmeyi unutanlar için: mahalle + m² girilmiş ve açılıştan beri
+  // değişmiş bir analiz birkaç saniye sonra kendiliğinden "taslak" olarak yazılır.
+  const meaningful = !!(s.neighborhood && (Number(s.grossM2) || Number(s.netM2)));
+  const changedSinceOpen = JSON.stringify(s) !== JSON.stringify(initial);
+  const sJson = JSON.stringify(s);
+  useEffect(() => {
+    if (!onSaveValuation || !meaningful || !changedSinceOpen || !unsavedAnalysis) return undefined;
+    const t = setTimeout(() => saveValuation({ auto: true }), 2500);
+    return () => clearTimeout(t);
+    // sJson s'in içeriğini temsil eder; saveValuation her çizimde yeniden yaratılır
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sJson, meaningful, changedSinceOpen, unsavedAnalysis]);
   const runReport = async () => {
     setStaleReportPrompt(false);
     // PDF alınan analiz kendiliğinden kaydedilir (sonradan bulunabilsin).
@@ -1119,6 +1155,23 @@ export function AutoValuation({
     if (!ok) notify("Yazdırma penceresi açılamadı - tarayıcının açılır pencere engelini kaldırın.");
   };
   const saleAgeStats = ageStats(saleRegion?.listings);
+  // Yaş en belirleyici etken: daire yaşı ve ona yakın en az
+  // MIN_NEAR_AGE_LISTINGS emsal olmadan mal sahibine rapor verilmez.
+  const ageBasis = result.ageBasis;
+  const reportBlock = result.error
+    ? null
+    : ageBasis?.subjectAge == null
+      ? "Bina yaşını girin - yaş fiyatı en çok belirleyen bilgi."
+      : !ageBasis.enough
+        ? `Dairenin yaşına (${ageBasis.subjectAge}) yakın en az ${MIN_NEAR_AGE_LISTINGS} emsal ilan gerekli, şu an ${ageBasis.nearCount} var. Sahibinden'de Bina Yaşı ${AGE_BANDS.filter(
+            (b) =>
+              b.label !== "0 (Yapım Aşamasında)" &&
+              ageBasis.subjectAge >= b.lo - NEAR_AGE_YEARS &&
+              ageBasis.subjectAge <= b.hi + NEAR_AGE_YEARS,
+          )
+            .map((b) => `"${b.label}"`)
+            .join(" / ")} filtresiyle arayıp yapıştırın.`
+        : null;
 
   return (
     <div data-unsaved-work={dirty ? "" : undefined}>
@@ -1490,6 +1543,38 @@ export function AutoValuation({
         <p style={{ fontSize: 13, color: "var(--text-warning)" }}>{result.error}</p>
       ) : (
         <div style={{ ...box, borderWidth: 1 }}>
+          {reportBlock ? (
+            <div
+              style={{
+                fontSize: 12.5,
+                marginBottom: 8,
+                padding: "8px 10px",
+                borderRadius: 6,
+                background: "var(--bg-warning)",
+                borderLeft: "3px solid var(--text-warning)",
+                display: "flex",
+                gap: 8,
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <span style={{ flex: "1 1 260px" }}>
+                <b>Ön tahmin - rapor için yetersiz.</b> {reportBlock}
+              </span>
+              {ageBasis?.subjectAge != null && !pasteOpen && (
+                <button type="button" style={{ fontSize: 12 }} onClick={() => setPasteOpen(true)}>
+                  Yapıştır
+                </button>
+              )}
+            </div>
+          ) : (
+            ageBasis?.enough && (
+              <p style={{ fontSize: 12, color: "var(--text-success)", margin: "0 0 8px" }}>
+                <i className="ti ti-circle-check" aria-hidden="true" /> Baz fiyat dairenin yaşına
+                yakın {ageBasis.nearCount} emsal ilandan ({ageBasis.bands.join(", ")}) hesaplandı.
+              </p>
+            )
+          )}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {[
               ["Hızlı satış", result.value.low, "kısa sürede alıcı bulur"],
@@ -1563,6 +1648,8 @@ export function AutoValuation({
             <button
               type="button"
               style={{ fontSize: 12.5 }}
+              disabled={!!reportBlock}
+              title={reportBlock || ""}
               onClick={() => (stale || rentStale ? setStaleReportPrompt(true) : runReport())}
             >
               <i className="ti ti-file-type-pdf" aria-hidden="true" /> PDF rapor
@@ -1571,18 +1658,28 @@ export function AutoValuation({
               <button
                 type="button"
                 style={{ fontSize: 12.5 }}
-                disabled={savingValuation || !unsavedAnalysis}
+                disabled={savingValuation || (!unsavedAnalysis && valuationStatus !== "taslak")}
                 onClick={() => saveValuation()}
               >
                 <i className="ti ti-device-floppy" aria-hidden="true" />{" "}
                 {savingValuation
                   ? "Kaydediliyor…"
-                  : unsavedAnalysis
-                    ? valuationId
-                      ? "Değişiklikleri kaydet"
-                      : "Analizi kaydet"
-                    : "Kaydedildi"}
+                  : valuationStatus === "taslak"
+                    ? "Taslaktan çıkar, kaydet"
+                    : unsavedAnalysis
+                      ? valuationId
+                        ? "Değişiklikleri kaydet"
+                        : "Analizi kaydet"
+                      : "Kaydedildi"}
               </button>
+            )}
+            {valuationStatus === "taslak" && (
+              <span style={{ fontSize: 11.5, color: "var(--text-muted)", alignSelf: "center" }}>
+                Taslak olarak otomatik kaydedildi
+                {autoSavedAt
+                  ? ` (${autoSavedAt.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })})`
+                  : ""}
+              </span>
             )}
             <span style={{ fontSize: 11.5, color: "var(--text-muted)", alignSelf: "center" }}>
               Açılan pencerede hedef olarak "PDF olarak kaydet"i seçin.
@@ -1899,6 +1996,20 @@ export function MarketAnalysisTab({
                 >
                   <span style={{ flex: "1 1 260px" }}>
                     <b>{v.title || "Adsız analiz"}</b>
+                    {v.status === "taslak" && (
+                      <span
+                        style={{
+                          marginLeft: 6,
+                          fontSize: 11,
+                          padding: "1px 6px",
+                          borderRadius: 4,
+                          background: "var(--bg-warning)",
+                          color: "var(--text-warning)",
+                        }}
+                      >
+                        Taslak
+                      </span>
+                    )}
                     <span style={{ color: "var(--text-muted)" }}>
                       {" "}
                       · {fmtDate(v.updatedAt)}

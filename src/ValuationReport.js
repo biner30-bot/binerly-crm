@@ -180,7 +180,15 @@ export function buildValuationReportHtml({
 
   const ages2 = ageStats(r.listings);
   const metrics = [
-    ["Değerlendirilen ilan", r.source === "elle" ? "elle girildi" : `${r.listingCount} ilan`],
+    result.ageBasis?.enough
+      ? [
+          "Baz alınan emsal",
+          `yaşa yakın ${result.ageBasis.nearCount} ilan (${result.ageBasis.bands.join(", ")})`,
+        ]
+      : ["Değerlendirilen ilan", r.source === "elle" ? "elle girildi" : `${r.listingCount} ilan`],
+    result.ageBasis?.enough && result.fullRegion
+      ? ["Mahallede kayıtlı toplam ilan", `${result.fullRegion.listingCount} ilan`]
+      : null,
     ["Ortanca ilan fiyatı", unit(r.medianM2)],
     r.q1M2 && r.q3M2 ? ["İlanların orta yarısı", `${nf(r.q1M2)} - ${unit(r.q3M2)}`] : null,
     r.medianArea ? ["Bölgede tipik daire", `${r.medianArea} m² brüt`] : null,

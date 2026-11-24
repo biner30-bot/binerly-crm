@@ -203,20 +203,38 @@ export function mergeListings(existing, incoming) {
 // Sahibinden "Bina Yaşı" filtresinin seçenekleri; aralıklar orta noktayla
 // temsil edilir ("31 ve üzeri" için 35 - üst sınır yok, temkinli bir değer).
 export const AGE_BANDS = [
-  { label: "0 (Oturuma Hazır)", age: 0 },
-  { label: "0 (Yapım Aşamasında)", age: 0 },
-  { label: "1", age: 1 },
-  { label: "2", age: 2 },
-  { label: "3", age: 3 },
-  { label: "4", age: 4 },
-  { label: "5", age: 5 },
-  { label: "6-10 arası", age: 8 },
-  { label: "11-15 arası", age: 13 },
-  { label: "16-20 arası", age: 18 },
-  { label: "21-25 arası", age: 23 },
-  { label: "26-30 arası", age: 28 },
-  { label: "31 ve üzeri", age: 35 },
+  { label: "0 (Oturuma Hazır)", age: 0, lo: 0, hi: 0 },
+  { label: "0 (Yapım Aşamasında)", age: 0, lo: 0, hi: 0 },
+  { label: "1", age: 1, lo: 1, hi: 1 },
+  { label: "2", age: 2, lo: 2, hi: 2 },
+  { label: "3", age: 3, lo: 3, hi: 3 },
+  { label: "4", age: 4, lo: 4, hi: 4 },
+  { label: "5", age: 5, lo: 5, hi: 5 },
+  { label: "6-10 arası", age: 8, lo: 6, hi: 10 },
+  { label: "11-15 arası", age: 13, lo: 11, hi: 15 },
+  { label: "16-20 arası", age: 18, lo: 16, hi: 20 },
+  { label: "21-25 arası", age: 23, lo: 21, hi: 25 },
+  { label: "26-30 arası", age: 28, lo: 26, hi: 30 },
+  { label: "31 ve üzeri", age: 35, lo: 31, hi: 200 },
 ];
+
+// Yaş en belirleyici etken - rapor, dairenin yaşına yakın emsal ilanlara
+// dayanmalı. İlan yaşı Sahibinden'de aralık olarak bilinir; daire yaşı
+// aralığın ±NEAR_AGE_YEARS yakınındaysa "yakın" sayılır.
+export const NEAR_AGE_YEARS = 3;
+export const MIN_NEAR_AGE_LISTINGS = 5;
+
+export function nearAgeListings(listings, subjectAge) {
+  const a = subjectAge === "" || subjectAge == null ? null : Number(subjectAge);
+  if (a == null || Number.isNaN(a)) return [];
+  return (listings || []).filter((l) => {
+    if (l.age == null) return false;
+    const band = AGE_BANDS.find((b) => b.label === l.ageBand);
+    const lo = band ? band.lo : l.age;
+    const hi = band ? band.hi : l.age;
+    return a >= lo - NEAR_AGE_YEARS && a <= hi + NEAR_AGE_YEARS;
+  });
+}
 
 // Seçili filtreler sayfada "Seçtiklerimi Gizle ... Tümünü Temizle" arasında
 // bitişik metin olarak duruyor. Birden fazla yaş seçiliyse aralık belirsiz -
@@ -564,11 +582,13 @@ export function featureAdjustments(subject, region, rawFactors) {
     subject.buildingAge != null && subject.buildingAge !== "" ? Number(subject.buildingAge) : null;
   // Yaş filtreli yapıştırmalardan gelen veri öncelikli; yoksa elle girilen tipik yaş.
   const stats = ageStats(region?.listings);
+  const slope = stats.ageSlope ?? region?.fallbackAgeSlope ?? null;
   const typical = stats.typicalAge ?? (region?.typicalAge != null ? Number(region.typicalAge) : 20);
-  if (age != null && stats.ageSlope != null && age !== typical) {
-    const p = Math.max(-25, Math.min(25, stats.ageSlope * (age - typical)));
+  const typicalLabel = region?.nearAge ? "yakın emsallerde tipik" : "bölgede tipik";
+  if (age != null && slope != null && age !== typical) {
+    const p = Math.max(-25, Math.min(25, slope * (age - typical)));
     adj.push({
-      label: `Bina yaşı (${age}, bölgede tipik ${typical}; bölge verisinden yılda %${stats.ageSlope})`,
+      label: `Bina yaşı (${age}, ${typicalLabel} ${typical}; bölge verisinden yılda %${slope})`,
       percent: Math.round(p * 10) / 10,
     });
   } else {
@@ -576,7 +596,7 @@ export function featureAdjustments(subject, region, rawFactors) {
     const a0 = ageBand(typical, f);
     if (a1 != null && a0 != null && a1 !== a0)
       adj.push({
-        label: `Bina yaşı (${age}, bölgede tipik ${typical})`,
+        label: `Bina yaşı (${age}, ${typicalLabel} ${typical})`,
         percent: Math.round((a1 - a0) * 10) / 10,
       });
   }
@@ -630,6 +650,33 @@ export function estimateValue({
   if (!gross) return { error: "Dairenin m² bilgisini girin." };
   if (!saleRegion) return { error: "Bu mahalle için bölge fiyatı yok - aşağıdan ekleyin." };
   const s = { ...subject, grossM2: Math.round(gross) };
+  // Dairenin yaşına yakın yeterli emsal varsa baz fiyat sadece onlardan
+  // hesaplanır; yaş düzeltmesi yalnızca kalan küçük farkı kapatır.
+  const near = nearAgeListings(saleRegion.listings, subject.buildingAge);
+  const nearSummary = near.length >= MIN_NEAR_AGE_LISTINGS ? summarizeListings(near) : null;
+  const fullRegion = saleRegion;
+  if (nearSummary) {
+    saleRegion = {
+      ...saleRegion,
+      medianM2: nearSummary.medianM2,
+      q1M2: nearSummary.q1M2,
+      q3M2: nearSummary.q3M2,
+      medianArea: nearSummary.medianArea,
+      listingCount: nearSummary.listingCount,
+      listings: near,
+      nearAge: true,
+      fallbackAgeSlope: ageStats(fullRegion.listings).ageSlope,
+    };
+  }
+  const ageBasis = {
+    subjectAge:
+      subject.buildingAge === "" || subject.buildingAge == null
+        ? null
+        : Number(subject.buildingAge),
+    nearCount: near.length,
+    enough: !!nearSummary,
+    bands: [...new Set(near.map((l) => l.ageBand).filter(Boolean))],
+  };
   const idx = indexFactor(marketIndex || [], saleRegion.city || subject.city, saleRegion.asOf);
   const askingUnit = saleRegion.medianM2 * idx.factor;
   const saleUnit = askingUnit * (1 - Number(f.askingDiscountPercent || 0) / 100);
@@ -664,6 +711,8 @@ export function estimateValue({
     totalPercent: total,
     spread,
     extraSpread,
+    ageBasis,
+    fullRegion,
     lowConfidence: saleRegion.listingCount < 8,
     value: {
       low: roundTo(mid * (1 - spread), 10000),

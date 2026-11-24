@@ -25,7 +25,7 @@ export default function LocationMap({ location, center, onChange, height = 280 }
     const start = isValidLocation(location) ? location : center || TURKEY;
     const map = L.map(elRef.current, { scrollWheelZoom: false }).setView(
       [start.lat, start.lng],
-      isValidLocation(location) ? 18 : center ? 15 : 5,
+      isValidLocation(location) ? 18 : center ? center.zoom || 15 : 5,
     );
     L.tileLayer(OSM_TILE_URL, { maxZoom: 19, attribution: OSM_ATTRIBUTION }).addTo(map);
     map.on("click", (e) => onChangeRef.current({ lat: e.latlng.lat, lng: e.latlng.lng }));
@@ -63,8 +63,8 @@ export default function LocationMap({ location, center, onChange, height = 280 }
 
   useEffect(() => {
     if (center && !isValidLocation(location) && mapRef.current)
-      mapRef.current.setView([center.lat, center.lng], 15);
-  }, [center?.lat, center?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
+      mapRef.current.setView([center.lat, center.lng], center.zoom || 15);
+  }, [center?.lat, center?.lng, center?.zoom]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div

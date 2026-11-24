@@ -12,14 +12,10 @@ export const streetViewUrl = ({ lat, lng }) =>
 export const mapsUrl = ({ lat, lng }) =>
   `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 
-// Sadece mahalle/ilçe/il gönderilir - sokak ve kapı no dış servise gitmez
-// (adres + mal sahibi kişisel veri; bina pin'le elle işaretlenir).
+// Bina ve daire numarası gönderilmez (adres + mal sahibi kişisel veri; bina
+// pin'le elle işaretlenir) - sokak adı tek başına kişiyi belirtmez.
 // Nominatim kullanım politikası: düşük hacim, sonuçlar önbelleğe alınır.
-export async function geocodeArea({ neighborhood, district, city }) {
-  const q = [neighborhood && `${neighborhood} Mahallesi`, district, city, "Türkiye"]
-    .filter(Boolean)
-    .join(", ");
-  if (!district && !neighborhood) return null;
+async function nominatim(q) {
   const cacheKey = `binerly.geo.${q.toLocaleLowerCase("tr")}`;
   try {
     const cached = sessionStorage.getItem(cacheKey);
@@ -33,8 +29,7 @@ export async function geocodeArea({ neighborhood, district, city }) {
     );
     if (!res.ok) return null;
     const [hit] = await res.json();
-    if (!hit) return null;
-    const out = { lat: Number(hit.lat), lng: Number(hit.lon) };
+    const out = hit ? { lat: Number(hit.lat), lng: Number(hit.lon) } : null;
     try {
       sessionStorage.setItem(cacheKey, JSON.stringify(out));
     } catch {
@@ -44,6 +39,19 @@ export async function geocodeArea({ neighborhood, district, city }) {
   } catch {
     return null;
   }
+}
+
+export async function geocodeArea({ street, neighborhood, district, city }) {
+  if (!district && !neighborhood) return null;
+  const area = [neighborhood && `${neighborhood} Mahallesi`, district, city, "Türkiye"]
+    .filter(Boolean)
+    .join(", ");
+  if (street && street.trim()) {
+    const hit = await nominatim(`${street.trim()}, ${area}`);
+    if (hit) return { ...hit, zoom: 17 };
+  }
+  const hit = await nominatim(area);
+  return hit ? { ...hit, zoom: neighborhood ? 15 : 13 } : null;
 }
 
 // Rapor için harita görüntüsü. Karolar rapor penceresinden değil uygulama

@@ -22,3 +22,8 @@ create policy valuations_owner_all on public.valuations
   with check (created_by = auth.uid());
 
 grant select, insert, update, delete on public.valuations to authenticated;
+
+-- Otomatik kayıt: yeterince bilgi girilen analiz "taslak" olarak düşer,
+-- "Analizi kaydet" / PDF ile "kaydedildi" olur.
+alter table public.valuations add column if not exists status text not null default 'kaydedildi'
+  check (status in ('taslak', 'kaydedildi'));

@@ -2589,6 +2589,7 @@ export default function App() {
     title: r.title || "",
     subject: r.subject || {},
     result: r.result || null,
+    status: r.status || "kaydedildi",
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   });
@@ -2614,13 +2615,14 @@ export default function App() {
       title: v.title,
       subject: v.subject,
       result: v.result,
+      status: v.status || "kaydedildi",
       updated_at: new Date().toISOString(),
     };
     const query = v.id
       ? supabase.from("valuations").update(row).eq("id", v.id)
       : supabase.from("valuations").insert(row);
     const { data, error } = await query.select().single();
-    if (error) { notify(`Analiz kaydedilemedi: ${error.message}`); return null; }
+    if (error) { if (!v.quiet) notify(`Analiz kaydedilemedi: ${error.message}`); return null; }
     const saved = rowToValuation(data);
     setValuations((prev) => [saved, ...prev.filter((x) => x.id !== saved.id)]);
     return saved;
