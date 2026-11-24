@@ -14,7 +14,24 @@ function getClientIp(req: Request): string {
   return "203.0.113.1";
 }
 
+// Tarayıcıdan supabase.functions.invoke ile çağrılıyor; OPTIONS ön kontrolüne
+// cevap verilmeyince tarayıcı her isteği engelliyordu - 26 Ağu'dan 24 Kas'a
+// kadar hiç login/logout logu yazılmadı ve portal izin değişiklikleri hata verdi.
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
+  const res = await handle(req);
+  for (const [k, v] of Object.entries(CORS_HEADERS)) res.headers.set(k, v);
+  res.headers.set("Content-Type", "application/json");
+  return res;
+});
+
+async function handle(req: Request): Promise<Response> {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405 });
   }
@@ -89,4 +106,4 @@ Deno.serve(async (req: Request) => {
   }
 
   return new Response(JSON.stringify({ error: "Bilinmeyen action" }), { status: 400 });
-});
+}
