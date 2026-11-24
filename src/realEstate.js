@@ -551,6 +551,33 @@ export function propertyAsListingDeal(p, { forMatching = false } = {}) {
   };
 }
 
+// Müşteriye WhatsApp'tan portföy gönderme metni. Adres/ada-parsel/bağımsız
+// bölüm bilerek yok - vitrinde de gösterilmeyen bilgiler mesajla da çıkmasın.
+export function propertyShareText(p, link) {
+  const m2 = p.netM2 || p.grossM2;
+  const specs = [
+    p.roomCount,
+    m2 && `${m2} m²`,
+    p.buildingAge !== "" && p.buildingAge != null && `${p.buildingAge} yaşında`,
+    p.floor && `Kat: ${p.floor}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const price = p.price
+    ? `${Number(p.price).toLocaleString("tr-TR")} TL${p.transactionType === "kiralik" ? " / ay" : ""}`
+    : "";
+  return [p.title, [p.neighborhood, p.district].filter(Boolean).join(", "), specs, price, link]
+    .filter(Boolean)
+    .join("\n");
+}
+
+// Vitrinde yayınlanan portföyün doğrudan açılan bağlantısı (?ilan=).
+export function propertyShowcaseUrl(p, companySettings) {
+  const scope = companySettings?.showcaseSlug || companySettings?.leadCaptureToken;
+  if (!scope || !p?.showcaseVisible || !["aktif", "opsiyonlu"].includes(p.status)) return "";
+  return `${window.location.origin}/vitrin/${scope}?ilan=${p.id}`;
+}
+
 export const SHOWING_INTEREST = [
   { id: "yuksek", label: "Çok ilgilendi", tone: "success" },
   { id: "orta", label: "İlgilendi", tone: "accent" },

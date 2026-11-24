@@ -385,7 +385,11 @@ function ProspectRow({ p, onUpdate, onCreateTask, onCreateProperty, onDelete }) 
         <button type="button" style={{ fontSize: 12 }} onClick={() => onCreateTask(p)}>
           <i className="ti ti-phone" aria-hidden="true" /> Arama görevi
         </button>
-        {!p.propertyId && (
+        {p.propertyId ? (
+          <span style={{ fontSize: 12, color: "var(--text-success, #15803d)" }}>
+            <i className="ti ti-check" aria-hidden="true" /> Portföyde
+          </span>
+        ) : (
           <button type="button" style={{ fontSize: 12 }} onClick={() => onCreateProperty(p)}>
             Portföye ekle
           </button>
@@ -411,7 +415,12 @@ export function mergeProspects(existing, paste) {
   const inserts = [];
   const updates = [];
   let priceChanged = 0;
+  const handled = new Set();
   for (const r of paste.rows) {
+    // Aynı ilan bir yapıştırmada iki kez gelirse (vitrin + liste) unique
+    // kısıtı tüm eklemeyi reddederdi.
+    if (handled.has(r.listingNo)) continue;
+    handled.add(r.listingNo);
     const old = byNo.get(r.listingNo);
     if (!old) {
       inserts.push({

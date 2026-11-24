@@ -2468,6 +2468,17 @@ export default function App() {
       findPropertyMatches(saved, { silentIfNone: true });
     }
     await createPostSaleTasks(saved, previous);
+    // Portföy Adayları'ndan gelen ilan portföye girince aday kapanır - yoksa
+    // "Portföye ekle" düğmesi aday listesinde sonsuza dek kalıyordu.
+    const sahibindenNo = saved.listingRefs?.sahibinden;
+    const prospect = sahibindenNo && prospects.find((x) => x.listingNo === sahibindenNo && (!x.propertyId || x.propertyId === saved.id));
+    if (prospect) {
+      const patch = {
+        ...(!prospect.propertyId ? { propertyId: saved.id } : {}),
+        ...(saved.status !== "taslak" && !["yetki_alindi", "istemiyor"].includes(prospect.status) ? { status: "yetki_alindi" } : {}),
+      };
+      if (Object.keys(patch).length) await updateProspect(prospect.id, patch);
+    }
     return saved;
   };
 
@@ -3062,7 +3073,8 @@ export default function App() {
         title: `Kira artışı (TÜFE) - ${p.title}`,
         type: "arama",
         description: "Sözleşme yıl dönümü yaklaşıyor. Sözleşmedeki artış oranına göre (konut kiralarında üst sınır son 12 aylık TÜFE ortalaması) yeni kirayı mal sahibiyle netleştirip kiracıya bildirin.",
-        dueDate: review.toISOString().slice(0, 10),
+        // nextRentReviewDate yerel gece yarısı döner; toISOString() TR'de bir gün geri yazıyordu.
+        dueDate: `${review.getFullYear()}-${String(review.getMonth() + 1).padStart(2, "0")}-${String(review.getDate()).padStart(2, "0")}`,
         assignedTo: p.assignedTo,
         customerId: p.ownerCustomerId || null,
         dealId: null,
@@ -3822,7 +3834,7 @@ export default function App() {
 
   const seedDemoData = async () => {
     const now = new Date().toISOString();
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = istanbulToday();
     const demoNote = "Bu örnek bir kayıttır, istediğiniz zaman silebilirsiniz.";
     const sectorPreset = SECTOR_DEMO_PRESETS[companySettings?.sector];
 
@@ -5255,7 +5267,7 @@ export default function App() {
   const activeMemberships = supportsGroupClasses(companySettings?.sector)
     ? wonDealsAll.filter((d) => {
         const endDate = d.customFields?.uyelik_bitis_tarihi ?? d.customFields?.kurs_bitis_tarihi;
-        return !endDate || endDate >= new Date().toISOString().slice(0, 10);
+        return !endDate || endDate >= istanbulToday();
       })
     : [];
   const customerById = (id) => customers.find((c) => c.id === id);
@@ -5689,7 +5701,7 @@ export default function App() {
   // giriş/çıkışlarını toplayan bilgilendirici bir liste (bkz.
   // project_binerly_beauty_pipeline_fit_question — aynı "günün operasyonel
   // işi" ihtiyacı, farklı sektörde farklı çözüm).
-  const otelTodayStr = new Date().toISOString().slice(0, 10);
+  const otelTodayStr = istanbulToday();
   const otelArrivalsToday = companySettings?.sector === "otel"
     ? deals.filter((d) => d.stage === "kazanildi" && (d.customFields?.giris_tarihi || "").slice(0, 10) === otelTodayStr)
     : [];
@@ -7495,6 +7507,7 @@ export default function App() {
           onOpenPortfolio={() => { setViewingCustomer(null); setTab("portfoy"); }}
           showings={showings}
           properties={properties}
+          companySettings={companySettings}
         />
       )}
 

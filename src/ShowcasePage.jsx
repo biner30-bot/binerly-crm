@@ -59,7 +59,11 @@ function toWaNumber(phone) {
 
 function ShowcaseListings({ listings, phone, companyName, cardStyle }) {
   const [txFilter, setTxFilter] = useState("all");
-  const [openId, setOpenId] = useState(null);
+  // Danışmanın WhatsApp'tan gönderdiği bağlantı (?ilan=<id>) ilanı doğrudan açar.
+  const [openId, setOpenId] = useState(() => {
+    const id = new URLSearchParams(window.location.search).get("ilan");
+    return id && listings.some((l) => l.id === id) ? id : null;
+  });
   const [photoIndex, setPhotoIndex] = useState(0);
   const types = [...new Set(listings.map((l) => l.transactionType))];
   const shown = listings.filter((l) => txFilter === "all" || l.transactionType === txFilter);

@@ -8,6 +8,7 @@ import { BrokerPanel } from "./BrokerPanel";
 import { Badge, Modal, ConfirmDialog, InfoTip, AttachmentList, formatTL, uid } from "./shared";
 import { LocationFields } from "./LocationFields";
 import { subjectChecks } from "./valuationChecks";
+import { istanbulToday } from "./priceEstimate";
 import {
   TRANSACTION_TYPES,
   PROPERTY_STATUSES,
@@ -29,6 +30,7 @@ import {
   CLOSING_STATUSES,
   CLOSED_STATUSES,
   RENT_REVIEW_LEAD_DAYS,
+  propertyShowcaseUrl,
 } from "./realEstate";
 
 const IMPORT_FIELD_LABELS = [
@@ -570,6 +572,8 @@ export function Portfolio({
             currentUserId={currentUserId}
             currentUserEmail={currentUserEmail}
             inOffice={!!office}
+            showcaseLink={editing.id ? propertyShowcaseUrl(editing, companySettings) : ""}
+            notify={notify}
             officeDocs={officeDocs.filter(
               (d) => d.propertyId && d.propertyId === editing.id && d.uploadedBy === currentUserId,
             )}
@@ -1238,6 +1242,8 @@ export function PropertyForm({
   onShowPackage,
   locationSuggestions = [],
   inOffice = false,
+  showcaseLink = "",
+  notify,
   officeDocs = [],
   onUploadOfficeDoc,
   onDownloadOfficeDoc,
@@ -1454,7 +1460,7 @@ export function PropertyForm({
                 status,
                 details:
                   CLOSED_STATUSES.includes(status) && !prev.details.closed_on
-                    ? { ...prev.details, closed_on: new Date().toISOString().slice(0, 10) }
+                    ? { ...prev.details, closed_on: istanbulToday() }
                     : prev.details,
               }));
             }}
@@ -1697,6 +1703,24 @@ export function PropertyForm({
         Vitrin sayfamda yayınla
         <InfoTip text="Durumu Aktif veya Opsiyonlu olan ilan, Vitrin sayfanızın 'Portföyümüz' bölümünde fotoğraflarıyla görünür. Açık adres, ada/parsel, mal sahibi ve gizli bilgiler hiçbir zaman yayınlanmaz - sadece mahalle/ilçe görünür. İnternette ilan için EİDS yetkisi gerekir." />
       </label>
+      {showcaseLink && f.showcaseVisible && (
+        <p style={{ fontSize: 12.5, margin: "-6px 0 12px" }}>
+          <button
+            type="button"
+            style={{ fontSize: 12 }}
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(showcaseLink);
+                notify?.("İlan bağlantısı kopyalandı - müşteriye gönderebilirsiniz.", "success");
+              } catch {
+                window.prompt("Bağlantıyı kopyalayın:", showcaseLink);
+              }
+            }}
+          >
+            <i className="ti ti-link" aria-hidden="true" /> Vitrindeki ilan bağlantısını kopyala
+          </button>
+        </p>
+      )}
       {f.showcaseVisible && f.eidsStatus !== "onaylandi" && (
         <p
           style={{
@@ -1737,7 +1761,7 @@ export function PropertyForm({
                 onChange={(e) =>
                   setF((prev) => {
                     const next = { ...prev.checklist };
-                    if (e.target.checked) next[item.key] = new Date().toISOString().slice(0, 10);
+                    if (e.target.checked) next[item.key] = istanbulToday();
                     else delete next[item.key];
                     return { ...prev, checklist: next };
                   })
@@ -1819,7 +1843,7 @@ export function PropertyForm({
                   onChange={(e) =>
                     setF((prev) => {
                       const next = { ...prev.checklist };
-                      if (e.target.checked) next[item.key] = new Date().toISOString().slice(0, 10);
+                      if (e.target.checked) next[item.key] = istanbulToday();
                       else delete next[item.key];
                       return { ...prev, checklist: next };
                     })

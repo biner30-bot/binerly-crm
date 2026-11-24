@@ -32,7 +32,13 @@ import {
 } from "./Sectors";
 import { paymentDateLabel, TAGS_INFO_TEXT, BeforeAfterPhotoThumb } from "./Deals";
 import { TaskForm } from "./Tasks";
-import { transactionLabel, propertyStatusMeta, propertyAsListingDeal } from "./realEstate";
+import {
+  transactionLabel,
+  propertyStatusMeta,
+  propertyAsListingDeal,
+  propertyShareText,
+  propertyShowcaseUrl,
+} from "./realEstate";
 import { CustomerShowings } from "./Showings";
 
 export const ACTIVITY_TYPES = [
@@ -519,7 +525,7 @@ function activityDateLabel(dateStr) {
 // Gölge Avcı'nın ters yönü: müşterinin talebine (aranan_* alanları) uyan açık
 // portföyler. Aynı matchEmlakListing puanlaması, tek müşteriyle her portföy için
 // çalıştırılır - iki yönde de aynı eşik/ağırlıklar geçerli kalsın diye.
-function MatchingProperties({ customer, properties, showings, onOpenPortfolio }) {
+function MatchingProperties({ customer, properties, showings, onOpenPortfolio, companySettings }) {
   const shownIds = new Set(
     showings.filter((s) => s.customerId === customer.id).map((s) => s.propertyId),
   );
@@ -535,43 +541,69 @@ function MatchingProperties({ customer, properties, showings, onOpenPortfolio })
     .filter(Boolean)
     .sort((a, b) => b.score - a.score);
   if (matches.length === 0) return null;
+  const wa = toWhatsAppNumber(customer.phone);
   return (
     <div style={{ marginBottom: 16 }}>
       <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>
         Talebine uyan portföyler ({matches.length})
+        <InfoTip text="Yeşil simge portföyü müşteriye WhatsApp'tan gönderir. Portföy vitrinde yayındaysa mesaja fotoğraflı ilan sayfasının bağlantısı eklenir; adres ve ada/parsel mesajda yer almaz." />
       </p>
       {matches.map(({ property, score, reasons }) => (
-        <button
-          key={property.id}
-          type="button"
-          onClick={onOpenPortfolio}
-          style={{
-            display: "block",
-            width: "100%",
-            textAlign: "left",
-            fontSize: 13,
-            padding: "8px 10px",
-            marginBottom: 6,
-            background: "var(--surface-1)",
-            border: "0.5px solid var(--border)",
-            borderRadius: "var(--radius)",
-            cursor: "pointer",
-          }}
-        >
-          <span style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-            <span>{property.title}</span>
-            <span style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-              {shownIds.has(property.id) && <Badge tone="default">Gösterildi</Badge>}
-              <Badge tone={score >= 80 ? "success" : score >= 65 ? "accent" : "default"}>
-                %{score} uyum
-              </Badge>
+        <div key={property.id} style={{ display: "flex", gap: 6, alignItems: "stretch" }}>
+          <button
+            type="button"
+            onClick={onOpenPortfolio}
+            style={{
+              display: "block",
+              flex: 1,
+              minWidth: 0,
+              textAlign: "left",
+              fontSize: 13,
+              padding: "8px 10px",
+              marginBottom: 6,
+              background: "var(--surface-1)",
+              border: "0.5px solid var(--border)",
+              borderRadius: "var(--radius)",
+              cursor: "pointer",
+            }}
+          >
+            <span style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+              <span>{property.title}</span>
+              <span style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                {shownIds.has(property.id) && <Badge tone="default">Gösterildi</Badge>}
+                <Badge tone={score >= 80 ? "success" : score >= 65 ? "accent" : "default"}>
+                  %{score} uyum
+                </Badge>
+              </span>
             </span>
-          </span>
-          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-            {property.price ? `${formatTL(property.price)} · ` : ""}Uyan kriterler:{" "}
-            {reasons.join(", ")}
-          </span>
-        </button>
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              {property.price ? `${formatTL(property.price)} · ` : ""}Uyan kriterler:{" "}
+              {reasons.join(", ")}
+            </span>
+          </button>
+          {wa && (
+            <a
+              href={`https://wa.me/${wa}?text=${encodeURIComponent(
+                `Merhaba ${customer.name?.split(" ")[0] || ""}, aradığınız kriterlere uyan bir portföyümüz var:\n\n${propertyShareText(property, propertyShowcaseUrl(property, companySettings))}`,
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Bu portföyü müşteriye WhatsApp'tan gönder"
+              aria-label="Bu portföyü müşteriye WhatsApp'tan gönder"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                padding: "0 10px",
+                marginBottom: 6,
+                border: "0.5px solid var(--border)",
+                borderRadius: "var(--radius)",
+                color: "#25d366",
+              }}
+            >
+              <WhatsAppIcon />
+            </a>
+          )}
+        </div>
       ))}
     </div>
   );
@@ -602,6 +634,7 @@ export function CustomerDetail({
   onOpenPortfolio,
   showings = [],
   properties = [],
+  companySettings = null,
 }) {
   const [type, setType] = useState("note");
   const [content, setContent] = useState("");
@@ -835,6 +868,7 @@ export function CustomerDetail({
 
       {sector === "emlak" && (
         <MatchingProperties
+          companySettings={companySettings}
           customer={customer}
           properties={properties}
           showings={showings}
