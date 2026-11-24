@@ -2895,6 +2895,30 @@ export default function App() {
     return { success: true };
   };
 
+  // Adres ayarı Vitrin sekmesinde duruyor ama KOBİ onu link modalında arıyor
+  // (kullanıcı "linkleri değiştiremiyorum" dedi) - modallardan oraya kısayol.
+  const openSlugEditor = () => {
+    setLeadCaptureLink(null);
+    setAppointmentLink(null);
+    setVitrinLink(null);
+    setShowSettingsHub(false);
+    setTab("vitrin");
+  };
+
+  const renderLinkAddressNote = (pathPrefix) => {
+    if (!canEditCompanySettings) return null;
+    return (
+      <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "8px 0 0" }}>
+        {companySettings?.showcaseSlug
+          ? "Vitrin, Randevu Alma ve Müşteri Kazanma linkleriniz aynı işletme adresini kullanır."
+          : `💡 Bu linkte rastgele bir kod var. Adınızı taşıyan bir adres seçebilirsiniz (örn. binerly.com/${pathPrefix}/${slugify(companySettings?.companyName || "isletme-adiniz")}-a4f2b1).`}{" "}
+        <button type="button" onClick={openSlugEditor} style={{ fontSize: 12, padding: "2px 8px" }}>
+          Adresi değiştir
+        </button>
+      </p>
+    );
+  };
+
   // Kurumsal/Bireysel seçimi her yapıldığında burada güncellenir, böylece bir
   // sonraki müşteri/teklif formu son seçilen türle açılır — B2C ağırlıklı
   // KOBİ'ler her seferinde "Kurumsal"ı elle değiştirmek zorunda kalmaz.
@@ -6156,11 +6180,7 @@ export default function App() {
               Kopyala
             </button>
           </div>
-          {!companySettings?.showcaseSlug && (
-            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "8px 0 0" }}>
-              💡 Bu linkte rastgele bir kod var. İşletme Bilgileri'nden şirket adınızı girerseniz link otomatik olarak adınızı taşır (örn. binerly.com/lead/{slugify(companySettings?.companyName || "isletme-adiniz")}-a4f2b1). Adresi Ayarlar &gt; Vitrin'den kısaltabilirsiniz.
-            </p>
-          )}
+          {renderLinkAddressNote("lead")}
 
           <div style={{ marginTop: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
             <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
@@ -6241,11 +6261,7 @@ export default function App() {
               Kopyala
             </button>
           </div>
-          {!companySettings?.showcaseSlug && (
-            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "8px 0 0" }}>
-              💡 Bu linkte rastgele bir kod var. İşletme Bilgileri'nden şirket adınızı girerseniz link otomatik olarak adınızı taşır (örn. binerly.com/randevu-al/{slugify(companySettings?.companyName || "isletme-adiniz")}-a4f2b1). Adresi Ayarlar &gt; Vitrin'den kısaltabilirsiniz.
-            </p>
-          )}
+          {renderLinkAddressNote("randevu-al")}
 
           <div style={{ marginTop: 20, paddingTop: 16, borderTop: "0.5px solid var(--border)" }}>
             <label style={{ fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>
@@ -6295,6 +6311,7 @@ export default function App() {
               Kopyala
             </button>
           </div>
+          {renderLinkAddressNote("vitrin")}
         </Modal>
       )}
 

@@ -845,6 +845,27 @@ export function ShowcaseManager({
             {slugError}
           </p>
         )}
+        {/* Şirket adı sonradan değişince adres eski adda kalıyor (sektör/isim
+            değiştiren test hesabında "elif-guzellik-salonu" olarak kaldı) -
+            otomatik değiştirmiyoruz çünkü paylaşılmış eski link kırılır. */}
+        {storedSlug && !slugDirty && suggestedSlug && currentNamePart !== suggestedSlug && (
+          <p style={{ fontSize: 12, color: "var(--text-warning)", margin: "6px 0 0" }}>
+            Adresiniz şirket adınızla ({companySettings.companyName}) uyuşmuyor.{" "}
+            <button
+              type="button"
+              onClick={() => setSlugInput(suggestedSlug)}
+              style={{ fontSize: 12, padding: "2px 8px" }}
+            >
+              "{suggestedSlug}" yap
+            </button>
+          </p>
+        )}
+        {slugDirty && storedSlug && (
+          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0" }}>
+            Kaydedince eski adresle ({storedSlug}) paylaştığınız linkler çalışmaz, yenisini
+            paylaşmanız gerekir.
+          </p>
+        )}
         {slugSuffix && (slugInput || suggestedSlug) && !slugError && (
           <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0" }}>
             {bookingKind.label}: binerly.com/{bookingKind.path}/
