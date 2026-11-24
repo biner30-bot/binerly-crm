@@ -4,7 +4,7 @@
 // bize ait, yalnızca elimizde gerçekten olan veriler gösterilir (demografi/seçim
 // gibi verimiz olmayan bölümler uydurulmaz).
 import { formatTL } from "./shared";
-import { kfeSeriesForCity } from "./priceEstimate";
+import { ageStats, kfeSeriesForCity } from "./priceEstimate";
 
 const esc = (s) =>
   String(s ?? "")
@@ -146,8 +146,8 @@ export function buildValuationReportHtml({
     .map((l, j) => {
       const i = from + j;
       return l.subject
-        ? `<tr class="me"><td>${i + 1}</td><td>${esc(subject.roomCount || "-")}</td><td>${Math.round(result.gross)}</td><td>${esc(formatTL(subjectAskingPrice))}</td><td>${unit(l.unit)}</td><td>Bu daire (ilan seviyesinde)</td></tr>`
-        : `<tr><td>${i + 1}</td><td>${esc(l.rooms || "-")}</td><td>${esc(l.m2)}</td><td>${esc(formatTL(l.price))}</td><td>${unit(l.unit)}</td><td>${esc(fmtDate(l.date))}</td></tr>`;
+        ? `<tr class="me"><td>${i + 1}</td><td>${esc(subject.roomCount || "-")}</td><td>${Math.round(result.gross)}</td><td>${esc(formatTL(subjectAskingPrice))}</td><td>${unit(l.unit)}</td><td>${esc(subject.buildingAge !== "" ? subject.buildingAge : "-")}</td><td>Bu daire (ilan seviyesinde)</td></tr>`
+        : `<tr><td>${i + 1}</td><td>${esc(l.rooms || "-")}</td><td>${esc(l.m2)}</td><td>${esc(formatTL(l.price))}</td><td>${unit(l.unit)}</td><td>${esc(l.ageBand || "-")}</td><td>${esc(fmtDate(l.date))}</td></tr>`;
     })
     .join("");
   const rankNote =
@@ -160,12 +160,18 @@ export function buildValuationReportHtml({
     : null;
   const chart = kfeChart(marketIndex, r.city || subject.city);
 
+  const ages2 = ageStats(r.listings);
   const metrics = [
     ["Değerlendirilen ilan", r.source === "elle" ? "elle girildi" : `${r.listingCount} ilan`],
     ["Ortanca ilan fiyatı", unit(r.medianM2)],
     r.q1M2 && r.q3M2 ? ["İlanların orta yarısı", `${nf(r.q1M2)} - ${unit(r.q3M2)}`] : null,
     r.medianArea ? ["Bölgede tipik daire", `${r.medianArea} m² brüt`] : null,
-    r.typicalAge != null ? ["Bölgede tipik bina yaşı", r.typicalAge] : null,
+    ages2.typicalAge != null
+      ? ["Bölgede tipik bina yaşı", `${ages2.typicalAge} (${ages2.agedCount} ilandan)`]
+      : r.typicalAge != null
+        ? ["Bölgede tipik bina yaşı", `${r.typicalAge} (danışman tahmini)`]
+        : null,
+    ages2.ageSlope != null ? ["Yaşın m² fiyatına etkisi", `yılda %${ages2.ageSlope}`] : null,
     avgListingAge != null ? ["İlanların ortalama yayın süresi", `${avgListingAge} gün`] : null,
     ["Bölge verisi tarihi", fmtDate(r.asOf)],
     result.index.factor !== 1
@@ -261,7 +267,7 @@ ${
 }
 ${
   rankRows
-    ? `<div class="band">Dairenin emsal ilanlar arasındaki yeri (m² fiyatına göre)</div><table class="list"><thead><tr><th>#</th><th>Oda</th><th>Brüt m²</th><th>İlan fiyatı</th><th>m² fiyatı</th><th>İlan tarihi</th></tr></thead><tbody>${rankRows}</tbody></table><p class="note">İlanlar istenen fiyattır, gerçekleşen satış fiyatı değildir. Bu dairenin satırı, tahmini piyasa değerinin ilan seviyesine (pazarlık payı eklenerek) çevrilmiş halidir.${rankNote}</p>`
+    ? `<div class="band">Dairenin emsal ilanlar arasındaki yeri (m² fiyatına göre)</div><table class="list"><thead><tr><th>#</th><th>Oda</th><th>Brüt m²</th><th>İlan fiyatı</th><th>m² fiyatı</th><th>Bina yaşı</th><th>İlan tarihi</th></tr></thead><tbody>${rankRows}</tbody></table><p class="note">İlanlar istenen fiyattır, gerçekleşen satış fiyatı değildir. Bu dairenin satırı, tahmini piyasa değerinin ilan seviyesine (pazarlık payı eklenerek) çevrilmiş halidir.${rankNote}</p>`
     : ""
 }
 <div class="disc">${esc(disclaimer)}</div>

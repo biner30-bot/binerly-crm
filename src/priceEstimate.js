@@ -59,8 +59,14 @@ export function parseSearchResults(raw) {
     const parts = address[1].split(",").map((s) => s.trim());
     out.city = parts[0] || "";
     out.district = parts[1] || "";
-    if (parts.length >= 3) out.neighborhood = displayPlace(parts[parts.length - 1]);
+    // Seçili filtreler adresin arkasına bitişik yazılıyor ("Atakent Mah.Bina
+    // Yaşı31 ve üzeri") - mahalle arama başlığından alınır, yoksa "Mah."ta kesilir.
+    if (parts.length >= 3 && !out.neighborhood)
+      out.neighborhood = displayPlace(
+        parts[parts.length - 1].replace(/(Mah\.|Mahallesi|Mh\.).*$/, "$1"),
+      );
   }
+  out.ageBand = detectAgeBand(text);
   const total = text.match(/(\d[\d.]*)\s*ilan\s*bulundu/);
   if (total) out.totalCount = toNumber(total[1]);
   const pages = text.match(/Toplam (\d+) sayfa içerisinde (\d+)\. sayfa/);
@@ -152,14 +158,101 @@ export function summarizeListings(listings) {
     medianArea: Math.round(percentile(areas, 0.5)),
     listingCount: kept.length,
     outliers: valid.length - kept.length,
+    ...ageStats(kept),
   };
 }
 
 // Aynı aramanın 2. sayfası ayrıca yapıştırılınca ilan numarasıyla birleştirilir.
+// Aynı ilan önce filtresiz, sonra bina yaşı filtresiyle yapıştırılabilir -
+// yaş bilgisi bir kez öğrenildiyse kaybolmaz.
 export function mergeListings(existing, incoming) {
   const byId = new Map((existing || []).map((l) => [l.id, l]));
-  for (const l of incoming) byId.set(l.id, l);
+  for (const l of incoming) {
+    const old = byId.get(l.id);
+    byId.set(l.id, {
+      ...old,
+      ...l,
+      age: l.age ?? old?.age ?? null,
+      ageBand: l.ageBand ?? old?.ageBand ?? null,
+    });
+  }
   return [...byId.values()];
+}
+
+// Sahibinden "Bina Yaşı" filtresinin seçenekleri; aralıklar orta noktayla
+// temsil edilir ("31 ve üzeri" için 35 - üst sınır yok, temkinli bir değer).
+export const AGE_BANDS = [
+  { label: "0 (Oturuma Hazır)", age: 0 },
+  { label: "0 (Yapım Aşamasında)", age: 0 },
+  { label: "1", age: 1 },
+  { label: "2", age: 2 },
+  { label: "3", age: 3 },
+  { label: "4", age: 4 },
+  { label: "5", age: 5 },
+  { label: "6-10 arası", age: 8 },
+  { label: "11-15 arası", age: 13 },
+  { label: "16-20 arası", age: 18 },
+  { label: "21-25 arası", age: 23 },
+  { label: "26-30 arası", age: 28 },
+  { label: "31 ve üzeri", age: 35 },
+];
+
+// Seçili filtreler sayfada "Seçtiklerimi Gizle ... Tümünü Temizle" arasında
+// bitişik metin olarak duruyor. Birden fazla yaş seçiliyse aralık belirsiz -
+// null döner, kullanıcı menüden seçer.
+export function detectAgeBand(raw) {
+  const seg = String(raw || "").match(/Seçtiklerimi Gizle([\s\S]*?)Tümünü Temizle/);
+  if (!seg || !seg[1].includes("Bina Yaşı")) return null;
+  const after = seg[1].split("Bina Yaşı")[1].slice(0, 80);
+  const longFirst = [...AGE_BANDS].sort((a, b) => b.label.length - a.label.length);
+  const found = [];
+  let rest = after.replace(/^[\s:]+/, "");
+  for (;;) {
+    const band = longFirst.find((b) => rest.startsWith(b.label));
+    if (!band) break;
+    found.push(band);
+    rest = rest.slice(band.label.length).replace(/^[\s,]+/, "");
+  }
+  return found.length === 1 ? found[0].label : null;
+}
+
+function solve3(A, b) {
+  const m = A.map((row, i) => [...row, b[i]]);
+  for (let c = 0; c < 3; c++) {
+    let piv = c;
+    for (let r = c + 1; r < 3; r++) if (Math.abs(m[r][c]) > Math.abs(m[piv][c])) piv = r;
+    if (Math.abs(m[piv][c]) < 1e-12) return null;
+    [m[c], m[piv]] = [m[piv], m[c]];
+    for (let r = 0; r < 3; r++) {
+      if (r === c) continue;
+      const f = m[r][c] / m[c][c];
+      for (let k = c; k < 4; k++) m[r][k] -= f * m[c][k];
+    }
+  }
+  return m.map((row, i) => row[3] / m[i][i]);
+}
+
+// Yaşı bilinen ilanlardan: tipik yaş (ortanca) ve yaşın m² fiyatına etkisi.
+// Etki, ln(m² fiyatı) ~ yaş + ln(alan) regresyonuyla ölçülür (büyük dairelerin
+// m² fiyatı düşük olduğu için alan da modelde - yoksa yaş etkisine karışırdı).
+// En az 12 ilan ve 2 farklı yaş aralığı yoksa ölçülmez, varsayılan eğri kullanılır.
+export function ageStats(listings) {
+  const aged = (listings || []).filter((l) => l.age != null && l.m2 >= 20 && l.price > 0);
+  const ages = aged.map((l) => l.age).sort((a, b) => a - b);
+  const out = { agedCount: aged.length, typicalAge: null, ageSlope: null };
+  if (aged.length >= 5) out.typicalAge = Math.round(percentile(ages, 0.5));
+  if (aged.length >= 12 && new Set(ages).size >= 2) {
+    const X = aged.map((l) => [1, l.age, Math.log(l.m2)]);
+    const y = aged.map((l) => Math.log(l.price / l.m2));
+    const XtX = [0, 1, 2].map((i) => [0, 1, 2].map((j) => X.reduce((s, r) => s + r[i] * r[j], 0)));
+    const Xty = [0, 1, 2].map((i) => X.reduce((s, r, k) => s + r[i] * y[k], 0));
+    const beta = solve3(XtX, Xty);
+    if (beta) {
+      const pct = (Math.exp(beta[1]) - 1) * 100;
+      out.ageSlope = Math.round(Math.max(-2, Math.min(0.5, pct)) * 100) / 100;
+    }
+  }
+  return out;
 }
 
 export function regionKey(r) {
@@ -390,14 +483,24 @@ export function featureAdjustments(subject, region, rawFactors) {
   }
   const age =
     subject.buildingAge != null && subject.buildingAge !== "" ? Number(subject.buildingAge) : null;
-  const typical = region?.typicalAge != null ? Number(region.typicalAge) : 20;
-  const a1 = ageBand(age, f);
-  const a0 = ageBand(typical, f);
-  if (a1 != null && a0 != null && a1 !== a0)
+  // Yaş filtreli yapıştırmalardan gelen veri öncelikli; yoksa elle girilen tipik yaş.
+  const stats = ageStats(region?.listings);
+  const typical = stats.typicalAge ?? (region?.typicalAge != null ? Number(region.typicalAge) : 20);
+  if (age != null && stats.ageSlope != null && age !== typical) {
+    const p = Math.max(-25, Math.min(25, stats.ageSlope * (age - typical)));
     adj.push({
-      label: `Bina yaşı (${age}, bölgede tipik ${typical})`,
-      percent: Math.round((a1 - a0) * 10) / 10,
+      label: `Bina yaşı (${age}, bölgede tipik ${typical}; bölge verisinden yılda %${stats.ageSlope})`,
+      percent: Math.round(p * 10) / 10,
     });
+  } else {
+    const a1 = ageBand(age, f);
+    const a0 = ageBand(typical, f);
+    if (a1 != null && a0 != null && a1 !== a0)
+      adj.push({
+        label: `Bina yaşı (${age}, bölgede tipik ${typical})`,
+        percent: Math.round((a1 - a0) * 10) / 10,
+      });
+  }
   const fl = floorAdjustment(subject.floor, subject.totalFloors, f);
   if (fl && fl.percent) adj.push(fl);
   const floorNo = Number(subject.floor);

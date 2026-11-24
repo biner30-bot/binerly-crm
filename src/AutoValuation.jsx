@@ -3,7 +3,9 @@ import { ConfirmDialog, InfoTip, formatTL } from "./shared";
 import { buildValuationReportHtml } from "./ValuationReport";
 import { PROPERTY_DETAIL_FIELDS, PROPERTY_TYPE_OPTIONS, ROOM_COUNT_OPTIONS } from "./realEstate";
 import {
+  AGE_BANDS,
   AVM_FACTOR_DEFAULTS,
+  ageStats,
   AVM_FACTOR_LABELS,
   CONDITION_OPTIONS,
   VIEW_OPTIONS,
@@ -160,6 +162,7 @@ function RegionPaste({ regionPrices, subject, onSaveRegion, onParsedLocation, no
   const [manual, setManual] = useState(false);
   const [manualM2, setManualM2] = useState("");
   const [typicalAge, setTypicalAge] = useState("");
+  const [ageBandLabel, setAgeBandLabel] = useState("");
   const [saving, setSaving] = useState(false);
 
   const read = () => {
@@ -181,23 +184,31 @@ function RegionPaste({ regionPrices, subject, onSaveRegion, onParsedLocation, no
       notify("Mahalle okunamadı - aramada tek bir mahalle seçip tekrar kopyalayın.");
       return;
     }
-    // Aynı aramanın diğer sayfaları 14 gün içinde yapıştırılırsa birleştirilir.
+    // Aynı aramanın diğer sayfaları (ya da diğer yaş aralıkları) 14 gün içinde
+    // yapıştırılırsa birleştirilir.
     const existing = regionPrices.find((r) => regionKey(r) === regionKey(base));
     const mergeable =
       existing && existing.source === "ilan_yapistirma" && daysSince(existing.asOf) <= 14;
-    const listings = mergeable
-      ? mergeListings(existing.listings, parsed.listings)
-      : parsed.listings;
-    setDraft({
-      ...base,
-      parsed,
-      existing,
-      merged: mergeable,
-      listings,
-      summary: summarizeListings(listings),
-    });
+    setDraft({ ...base, parsed, existing, merged: mergeable });
+    setAgeBandLabel(parsed.ageBand || "");
     setTypicalAge(existing?.typicalAge ?? "");
   };
+
+  // Yaş aralığı menüden değiştirilebildiği için birleştirme/özet her çizimde.
+  const band = AGE_BANDS.find((b) => b.label === ageBandLabel) || null;
+  const incoming = draft
+    ? draft.parsed.listings.map((l) => ({
+        ...l,
+        age: band ? band.age : null,
+        ageBand: band ? band.label : null,
+      }))
+    : [];
+  const draftListings = draft
+    ? draft.merged
+      ? mergeListings(draft.existing.listings, incoming)
+      : incoming
+    : [];
+  const summary = draft ? summarizeListings(draftListings) : null;
 
   const save = async (region) => {
     setSaving(true);
@@ -233,7 +244,7 @@ function RegionPaste({ regionPrices, subject, onSaveRegion, onParsedLocation, no
         </button>
       </div>
 
-      {draft && draft.summary && (
+      {draft && summary && (
         <div style={{ ...box, marginTop: 8, background: "var(--surface-1)" }}>
           <p style={{ fontSize: 13, margin: "0 0 6px" }}>
             <b>
@@ -245,11 +256,10 @@ function RegionPaste({ regionPrices, subject, onSaveRegion, onParsedLocation, no
           </p>
           <p style={{ fontSize: 12.5, margin: "0 0 6px", color: "var(--text-secondary)" }}>
             Bu sayfadan {draft.parsed.listings.length} ilan okundu
-            {draft.merged ? `, önceki sayfalarla birlikte ${draft.listings.length} ilan` : ""}
-            {draft.parsed.totalCount ? ` (aramada toplam ${draft.parsed.totalCount} ilan)` : ""}.
-            {draft.summary.outliers > 0 && ` ${draft.summary.outliers} uç değer hesaba katılmadı.`}{" "}
-            Ortanca ilan fiyatı <b>{fmtUnit(draft.summary.medianM2)}</b>, tipik daire{" "}
-            {draft.summary.medianArea} m².
+            {draft.merged ? `, önceki yapıştırmalarla birlikte ${draftListings.length} ilan` : ""}
+            {draft.parsed.totalCount ? ` (bu aramada toplam ${draft.parsed.totalCount} ilan)` : ""}.
+            {summary.outliers > 0 && ` ${summary.outliers} uç değer hesaba katılmadı.`} Ortanca ilan
+            fiyatı <b>{fmtUnit(summary.medianM2)}</b>, tipik daire {summary.medianArea} m².
           </p>
           {draft.parsed.page && draft.parsed.page.current < draft.parsed.page.total && (
             <p style={{ fontSize: 12, margin: "0 0 6px", color: "var(--text-warning)" }}>
@@ -258,56 +268,89 @@ function RegionPaste({ regionPrices, subject, onSaveRegion, onParsedLocation, no
             </p>
           )}
           <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
-            <div style={{ flex: "0 1 200px" }}>
+            <div style={{ flex: "1 1 220px" }}>
               <label style={labelStyle}>
-                Bölgedeki tipik bina yaşı
-                <InfoTip text="Arama sonuç sayfası ilanların bina yaşını göstermiyor. Bu bölgedeki dairelerin çoğu kaç yaşındaysa onu yazın - yaş düzeltmesi bu tipik yaşa göre yapılır." />
+                Bu sayfadaki ilanların bina yaşı
+                <InfoTip text="Sahibinden'de soldaki Bina Yaşı filtresinden tek bir aralık seçip arama yaptıysanız burada o aralığı seçin (sayfadan okunabildiyse kendiliğinden seçilir). Her yaş aralığını ayrı yapıştırırsanız tipik bina yaşı ve yaşın fiyata etkisi bölgenin kendi ilanlarından hesaplanır. Filtre kullanmadıysanız boş bırakın." />
               </label>
-              <input
-                type="number"
-                value={typicalAge}
-                onChange={(e) => setTypicalAge(e.target.value)}
-                placeholder="ör. 25"
+              <select
+                value={ageBandLabel}
+                onChange={(e) => setAgeBandLabel(e.target.value)}
                 style={{ width: "100%" }}
-              />
+              >
+                <option value="">Filtre yok / karışık</option>
+                {AGE_BANDS.map((b) => (
+                  <option key={b.label} value={b.label}>
+                    {b.label}
+                  </option>
+                ))}
+              </select>
             </div>
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() =>
-                save({
-                  id: draft.existing?.id,
-                  city: draft.city,
-                  district: draft.district,
-                  neighborhood: draft.neighborhood,
-                  propertyType: draft.propertyType,
-                  transactionType: draft.transactionType,
-                  medianM2: draft.summary.medianM2,
-                  q1M2: draft.summary.q1M2,
-                  q3M2: draft.summary.q3M2,
-                  medianArea: draft.summary.medianArea,
-                  listingCount: draft.summary.listingCount,
-                  typicalAge: typicalAge === "" ? null : Number(typicalAge),
-                  asOf: new Date().toISOString().slice(0, 10),
-                  source: "ilan_yapistirma",
-                  listings: draft.listings.map(({ id, m2, rooms, price, date }) => ({
-                    id,
-                    m2,
-                    rooms,
-                    price,
-                    date,
-                  })),
-                })
-              }
-              style={{
-                background: "var(--fill-accent)",
-                color: "var(--on-accent)",
-                border: "none",
-              }}
-            >
-              {saving ? "Kaydediliyor…" : "Bölge fiyatı olarak kaydet"}
-            </button>
+            {summary.typicalAge == null && (
+              <div style={{ flex: "0 1 200px" }}>
+                <label style={labelStyle}>
+                  Bölgedeki tipik bina yaşı
+                  <InfoTip text="Yaşı bilinen ilan azken (5'ten az) bu bölgedeki dairelerin çoğu kaç yaşındaysa onu yazın - yaş düzeltmesi bu tipik yaşa göre yapılır." />
+                </label>
+                <input
+                  type="number"
+                  value={typicalAge}
+                  onChange={(e) => setTypicalAge(e.target.value)}
+                  placeholder="ör. 25"
+                  style={{ width: "100%" }}
+                />
+              </div>
+            )}
           </div>
+          {summary.agedCount > 0 && (
+            <p style={{ fontSize: 12, margin: "6px 0 0", color: "var(--text-secondary)" }}>
+              Yaşı bilinen ilan: {summary.agedCount}
+              {summary.typicalAge != null &&
+                ` · tipik bina yaşı ${summary.typicalAge} (ilanlardan)`}
+              {summary.ageSlope != null
+                ? ` · yaşın etkisi bölge verisinden: yılda %${summary.ageSlope}`
+                : " · yaş etkisini bölge verisinden ölçmek için en az 12 ilan ve 2 farklı yaş aralığı gerekir"}
+            </p>
+          )}
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() =>
+              save({
+                id: draft.existing?.id,
+                city: draft.city,
+                district: draft.district,
+                neighborhood: draft.neighborhood,
+                propertyType: draft.propertyType,
+                transactionType: draft.transactionType,
+                medianM2: summary.medianM2,
+                q1M2: summary.q1M2,
+                q3M2: summary.q3M2,
+                medianArea: summary.medianArea,
+                listingCount: summary.listingCount,
+                typicalAge: summary.typicalAge ?? (typicalAge === "" ? null : Number(typicalAge)),
+                asOf: new Date().toISOString().slice(0, 10),
+                source: "ilan_yapistirma",
+                listings: draftListings.map(({ id, m2, rooms, price, date, age, ageBand }) => ({
+                  id,
+                  m2,
+                  rooms,
+                  price,
+                  date,
+                  age: age ?? null,
+                  ageBand: ageBand ?? null,
+                })),
+              })
+            }
+            style={{
+              marginTop: 8,
+              background: "var(--fill-accent)",
+              color: "var(--on-accent)",
+              border: "none",
+            }}
+          >
+            {saving ? "Kaydediliyor…" : "Bölge fiyatı olarak kaydet"}
+          </button>
         </div>
       )}
 
@@ -430,6 +473,7 @@ export function AutoValuation({
     [s, saleRegion, rentRegion, marketIndex, factors],
   );
   const age = saleRegion ? daysSince(saleRegion.asOf) : 0;
+  const saleAgeStats = ageStats(saleRegion?.listings);
 
   return (
     <div>
@@ -467,18 +511,29 @@ export function AutoValuation({
             {result.index?.factor && result.index.factor !== 1 && (
               <> · TCMB endeksiyle bugün {fmtUnit(saleRegion.medianM2 * result.index.factor)}</>
             )}
-            {" · "}tipik bina yaşı{" "}
-            <input
-              type="number"
-              defaultValue={saleRegion.typicalAge ?? ""}
-              key={saleRegion.id}
-              placeholder="20"
-              onBlur={(e) => {
-                const v = e.target.value === "" ? null : Number(e.target.value);
-                if (v !== saleRegion.typicalAge) onSaveRegion({ ...saleRegion, typicalAge: v });
-              }}
-              style={{ width: 60, fontSize: 12 }}
-            />
+            {saleAgeStats.typicalAge != null ? (
+              <>
+                {" · "}tipik bina yaşı {saleAgeStats.typicalAge} ({saleAgeStats.agedCount} ilanın
+                yaşından)
+                {saleAgeStats.ageSlope != null &&
+                  ` · yaş etkisi bölge verisinden: yılda %${saleAgeStats.ageSlope}`}
+              </>
+            ) : (
+              <>
+                {" · "}tipik bina yaşı{" "}
+                <input
+                  type="number"
+                  defaultValue={saleRegion.typicalAge ?? ""}
+                  key={saleRegion.id}
+                  placeholder="20"
+                  onBlur={(e) => {
+                    const v = e.target.value === "" ? null : Number(e.target.value);
+                    if (v !== saleRegion.typicalAge) onSaveRegion({ ...saleRegion, typicalAge: v });
+                  }}
+                  style={{ width: 60, fontSize: 12 }}
+                />
+              </>
+            )}
             {age > 90 && (
               <p style={{ color: "var(--text-warning)", margin: "4px 0 0" }}>
                 Bölge fiyatı {age} gün önce alındı. TCMB endeksiyle güncelleniyor ama yeni ilan
