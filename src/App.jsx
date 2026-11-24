@@ -32,6 +32,7 @@ import { TrackingScripts } from "./analytics";
 import Tasks from "./Tasks";
 import { Portfolio } from "./Portfolio";
 import { MarketAnalysisTab } from "./AutoValuation";
+import { OfficeTab } from "./Office";
 import { staleRegionAlerts } from "./priceEstimate";
 import { authorizationStatus, propertyAsListingDeal, CLOSED_STATUSES, nextRentReviewDate } from "./realEstate";
 import { PDF_TEMPLATES, buildMergeData, renderTemplateBlocks, TemplateGallery, TABLE_ROW_HEIGHT } from "./PdfTemplates";
@@ -1691,6 +1692,8 @@ export default function App() {
   // birlikte değil, oturumdaki kullanıcı için ayrı yüklenir.
   const [valuations, setValuations] = useState([]);
   const [valuationsLoaded, setValuationsLoaded] = useState(false);
+  // Emlak ofisi (takımdan bağımsız): undefined = yükleniyor, null = ofissiz.
+  const [office, setOffice] = useState(undefined);
   const [portfolioPrefill, setPortfolioPrefill] = useState(null);
   const [marketIndex, setMarketIndex] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -2637,6 +2640,47 @@ export default function App() {
   };
   // Mal sahibiyle ilk görüşmede yapılan analiz, yetki alınca portföy kaydına
   // dönüşür - bilgiler yeniden girilmesin.
+  const loadOffice = async () => {
+    if (!currentUserId) { setOffice(undefined); return; }
+    const { data: mine } = await supabase
+      .from("office_members")
+      .select("office_id")
+      .eq("user_id", currentUserId)
+      .is("left_at", null)
+      .maybeSingle();
+    if (!mine) { setOffice(null); return; }
+    const [{ data: off }, { data: members }, { data: invite }] = await Promise.all([
+      supabase.from("offices").select("*").eq("id", mine.office_id).single(),
+      supabase.from("office_members").select("*").eq("office_id", mine.office_id).order("joined_at"),
+      supabase.from("office_invites").select("code").eq("office_id", mine.office_id).maybeSingle(),
+    ]);
+    setOffice({
+      office: { id: off.id, name: off.name, brokerId: off.broker_id },
+      inviteCode: invite?.code || null,
+      members: (members || []).map((m) => ({
+        userId: m.user_id,
+        role: m.role,
+        displayName: m.display_name,
+        email: m.email,
+        phone: m.phone,
+        joinedAt: m.joined_at,
+        leftAt: m.left_at,
+      })),
+    });
+  };
+  useEffect(() => {
+    loadOffice();
+    // loadOffice sadece oturumdaki kullanıcıya bağlı
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUserId]);
+  const officeRpc = async (fn, args, okMsg) => {
+    const { error } = await supabase.rpc(fn, args);
+    if (error) { notify(error.message); return false; }
+    await loadOffice();
+    if (okMsg) notify(okMsg, "success");
+    return true;
+  };
+
   const createPropertyFromValuation = (v) => {
     const sub = v.subject || {};
     const a = sub.address || {};
@@ -5630,7 +5674,7 @@ export default function App() {
         {[
           { id: "pano", label: "Pano", icon: "ti-layout-dashboard" },
           { id: "musteri", label: "Müşteriler", icon: "ti-building" },
-          ...(isRealEstate ? [{ id: "portfoy", label: "Portföy", icon: "ti-building-estate" }, { id: "piyasa", label: "Piyasa Analizi", icon: "ti-chart-histogram" }] : []),
+          ...(isRealEstate ? [{ id: "portfoy", label: "Portföy", icon: "ti-building-estate" }, { id: "piyasa", label: "Piyasa Analizi", icon: "ti-chart-histogram" }, { id: "ofis", label: "Ofis", icon: "ti-building-community" }] : []),
           { id: "firsat", label: dealWords.navLabel, icon: "ti-target-arrow" },
           // Emlak tarama turu: fiyat listesi (süre/tazeleme/cihaz), stok-reçete ve
           // destek talebi/SLA başka sektörlerden kalma - emlakçıda gizli.
@@ -6013,6 +6057,26 @@ export default function App() {
           onDeleteWetSigned={deleteShowingWetSigned}
           onFindMatches={(p) => findPropertyMatches(p)}
           onShowListingText={(p) => setListingTextDeal(propertyAsListingDeal(p))}
+        />
+      )}
+
+      {tab === "ofis" && isRealEstate && (
+        <OfficeTab
+          office={office}
+          currentUserId={session.user.id}
+          defaultName={session.user.user_metadata?.full_name || ""}
+          defaultPhone={companySettings?.phone || ""}
+          onCreate={(name, displayName, phone) => officeRpc("create_office", { p_name: name, p_display_name: displayName, p_phone: phone }, "Ofis kuruldu - davet kodunu danışmanlarınızla paylaşın.")}
+          onJoin={(code, displayName, phone) => officeRpc("join_office", { p_code: code, p_display_name: displayName, p_phone: phone }, "Ofise katıldınız.")}
+          onLeave={() => officeRpc("leave_office", {}, "Ofisten ayrıldınız.")}
+          onRemoveMember={(userId) => officeRpc("remove_office_member", { p_user: userId }, "Danışman ofisten çıkarıldı.")}
+          onResetInvite={() => officeRpc("reset_office_invite", { p_office: office?.office?.id }, "Davet kodu yenilendi.")}
+          onUpdateMe={async ({ displayName, phone }) => {
+            const { error } = await supabase.from("office_members").update({ display_name: displayName.trim(), phone: phone.trim() }).eq("office_id", office.office.id).eq("user_id", session.user.id);
+            if (error) { notify(`Kaydedilemedi: ${error.message}`); return false; }
+            await loadOffice();
+            return true;
+          }}
         />
       )}
 
