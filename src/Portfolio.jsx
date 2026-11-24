@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { PropertyShowings } from "./Showings";
 import { CostCalculator } from "./CostCalculator";
+import { Valuation } from "./Valuation";
 import { Badge, Modal, ConfirmDialog, InfoTip, AttachmentList, formatTL, uid } from "./shared";
 import {
   TRANSACTION_TYPES,
@@ -235,10 +236,15 @@ export function Portfolio({
   onUploadWetSigned,
   onDeleteWetSigned,
   currentUserName,
+  comparables = [],
+  onSaveComparable,
+  onDeleteComparable,
 }) {
   const [editing, setEditing] = useState(null);
   const [importing, setImporting] = useState(false);
   const [costsFor, setCostsFor] = useState(null);
+  const [valuationFor, setValuationFor] = useState(null);
+  const valuationProperty = valuationFor ? properties.find((p) => p.id === valuationFor) : null;
   // editing açılış anındaki kopya; eşleştirme/ilan metni kaydedilmiş son hali kullanmalı
   const latestEditing = editing?.id ? properties.find((p) => p.id === editing.id) || editing : null;
   const [coverUrls, setCoverUrls] = useState({});
@@ -508,6 +514,7 @@ export function Portfolio({
             onFindMatches={editing.id ? () => onFindMatches(latestEditing) : null}
             onShowListingText={editing.id ? () => onShowListingText(latestEditing) : null}
             onShowCosts={editing.id ? () => setCostsFor(latestEditing) : null}
+            onShowValuation={editing.id ? () => setValuationFor(editing.id) : null}
           />
         </Modal>
       )}
@@ -515,6 +522,39 @@ export function Portfolio({
       {costsFor && (
         <Modal title="Masraf hesabı" onClose={() => setCostsFor(null)} wide>
           <CostCalculator property={costsFor} companySettings={companySettings} notify={notify} />
+        </Modal>
+      )}
+
+      {valuationProperty && (
+        <Modal
+          title={`Fiyat analizi - ${valuationProperty.title}`}
+          onClose={() => setValuationFor(null)}
+          wide
+        >
+          <Valuation
+            property={valuationProperty}
+            comparables={comparables}
+            properties={properties}
+            companySettings={companySettings}
+            agentName={
+              (valuationProperty.assignedTo === currentUserId && currentUserName) ||
+              teamMembers.find((m) => m.id === valuationProperty.assignedTo)?.name ||
+              ""
+            }
+            onSaveComparable={onSaveComparable}
+            onDeleteComparable={onDeleteComparable}
+            onSaveOptions={(valuation) =>
+              onSave(
+                { ...valuationProperty, details: { ...valuationProperty.details, valuation } },
+                null,
+              )
+            }
+            onApplyPrice={async (price) => {
+              const saved = await onSave({ ...valuationProperty, price }, null);
+              if (saved) notify(`Portföy fiyatı ${formatTL(price)} olarak güncellendi.`, "success");
+            }}
+            notify={notify}
+          />
         </Modal>
       )}
     </div>
@@ -705,6 +745,7 @@ export function PropertyForm({
   onFindMatches,
   onShowListingText,
   onShowCosts,
+  onShowValuation,
 }) {
   const [f, setF] = useState(() => ({
     transactionType: initial?.transactionType || "satilik",
@@ -1265,6 +1306,11 @@ export function PropertyForm({
           {onShowCosts && (
             <button type="button" onClick={onShowCosts}>
               <i className="ti ti-calculator" aria-hidden="true" /> Masraf hesabı
+            </button>
+          )}
+          {onShowValuation && (
+            <button type="button" onClick={onShowValuation}>
+              <i className="ti ti-chart-bar" aria-hidden="true" /> Fiyat analizi
             </button>
           )}
         </div>

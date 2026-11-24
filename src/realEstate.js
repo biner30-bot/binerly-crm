@@ -796,3 +796,120 @@ export function nextRentReviewDate(leaseStart, today = new Date()) {
   }
   return new Date(anniversary.getTime() - RENT_REVIEW_LEAD_DAYS * 86400000);
 }
+
+// ---- Piyasa Fiyat Analizi (emsal karşılaştırma) ----
+// SPK lisanslı değerleme DEĞİLDİR: danışmanın mal sahibiyle fiyat konuşması için
+// şeffaf bir karşılaştırma. Her düzeltme kalemi ayrı tutulur ki raporda "bu sayı
+// nereden çıktı" görülebilsin; gizli ağırlık/kara kutu yok.
+export const VALUATION_DEFAULTS = {
+  askingDiscountPercent: 5,
+  annualIncreasePercent: 0,
+  agePercentPerYear: 0.5,
+  lowFloorPercent: 5,
+};
+
+const LOW_FLOOR_PATTERN = /bodrum|bahçe|giriş|zemin|kot/i;
+
+function floorIsLow(floor) {
+  return !!floor && LOW_FLOOR_PATTERN.test(String(floor));
+}
+
+function monthsBetween(fromDate, to = new Date()) {
+  if (!fromDate) return 0;
+  const from = new Date(`${String(fromDate).slice(0, 10)}T00:00:00`);
+  return Math.max(0, (to - from) / (30.44 * 86400000));
+}
+
+function percentile(sorted, p) {
+  if (sorted.length === 0) return 0;
+  const idx = (sorted.length - 1) * p;
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+}
+
+const roundTo = (n, step) => Math.round(n / step) * step;
+
+export function analyzeComparables(subject, comparables, rawOptions = {}, today = new Date()) {
+  const o = { ...VALUATION_DEFAULTS, ...rawOptions };
+  const num = (v) => (v === "" || v == null ? null : Number(v));
+  // Net m² tercih edilir (ilanlarda brüt şişirilebiliyor); konu mülkte net yoksa
+  // herkes brüt üzerinden karşılaştırılır - iki farklı taban karıştırılmaz.
+  const basis = num(subject.netM2) ? "net" : num(subject.grossM2) ? "gross" : null;
+  const subjectArea = basis === "net" ? num(subject.netM2) : num(subject.grossM2);
+  if (!basis)
+    return { error: "Konu mülkün m² bilgisi yok - portföy kartına brüt veya net m² girin." };
+
+  const rows = comparables.map((c) => {
+    const area = basis === "net" ? num(c.netM2) || num(c.grossM2) : num(c.grossM2) || num(c.netM2);
+    if (!area || !num(c.price)) return { comp: c, skipped: "m² veya fiyat eksik" };
+    const unit = num(c.price) / area;
+    const adj = [];
+    if (c.kind === "ilan" && o.askingDiscountPercent) {
+      adj.push({ label: "Pazarlık payı (ilan fiyatı)", percent: -o.askingDiscountPercent });
+    }
+    const months = monthsBetween(c.observedOn, today);
+    if (o.annualIncreasePercent && months >= 1) {
+      adj.push({
+        label: `Zaman (${Math.round(months)} ay önce)`,
+        percent: Math.round(((o.annualIncreasePercent * months) / 12) * 10) / 10,
+      });
+    }
+    const subjAge = num(subject.buildingAge);
+    const compAge = num(c.buildingAge);
+    if (subjAge != null && compAge != null && subjAge !== compAge) {
+      const p = Math.max(-15, Math.min(15, (compAge - subjAge) * o.agePercentPerYear));
+      adj.push({ label: `Bina yaşı (${compAge} - ${subjAge})`, percent: Math.round(p * 10) / 10 });
+    }
+    if (subject.floor && c.floor && floorIsLow(subject.floor) !== floorIsLow(c.floor)) {
+      adj.push({
+        label: "Kat (giriş/bodrum farkı)",
+        percent: floorIsLow(c.floor) ? o.lowFloorPercent : -o.lowFloorPercent,
+      });
+    }
+    if (Number(c.manualAdjustPercent)) {
+      adj.push({ label: "Danışman düzeltmesi", percent: Number(c.manualAdjustPercent) });
+    }
+    const totalPercent = adj.reduce((s, a) => s + a.percent, 0);
+    const adjustedUnit = unit * (1 + totalPercent / 100);
+
+    // Benzerlik ağırlığı: alan yakınlığı, aynı ilçe, gerçekleşmiş satış, tazelik.
+    const areaGap = Math.abs(area - subjectArea) / subjectArea;
+    const sameDistrict =
+      !subject.district ||
+      !c.district ||
+      subject.district.toLocaleLowerCase("tr") === c.district.toLocaleLowerCase("tr");
+    const weight =
+      (1 / (1 + areaGap * 2)) *
+      (sameDistrict ? 1 : 0.6) *
+      (c.kind === "satis" ? 1.2 : 1) *
+      (months > 6 ? 0.75 : 1) *
+      (subject.roomCount && c.roomCount && subject.roomCount === c.roomCount ? 1.1 : 1);
+    return { comp: c, area, unit, adj, totalPercent, adjustedUnit, weight };
+  });
+
+  const used = rows.filter((r) => !r.skipped);
+  if (used.length === 0)
+    return { basis, subjectArea, rows, error: "Hesaba katılabilecek emsal yok." };
+  const weightSum = used.reduce((s, r) => s + r.weight, 0);
+  const midUnit = used.reduce((s, r) => s + r.adjustedUnit * r.weight, 0) / weightSum;
+  const sorted = used.map((r) => r.adjustedUnit).sort((a, b) => a - b);
+  // 3'ten az emsalle çeyreklik anlamsız - sabit ±%7 bant, raporda "az emsal" uyarısı.
+  const lowUnit = used.length >= 3 ? Math.min(percentile(sorted, 0.25), midUnit) : midUnit * 0.93;
+  const highUnit = used.length >= 3 ? Math.max(percentile(sorted, 0.75), midUnit) : midUnit * 1.07;
+  const step = subject.transactionType === "satilik" ? 10000 : 500;
+  return {
+    basis,
+    subjectArea,
+    rows,
+    count: used.length,
+    lowConfidence: used.length < 3,
+    unit: { low: lowUnit, mid: midUnit, high: highUnit },
+    value: {
+      low: roundTo(lowUnit * subjectArea, step),
+      mid: roundTo(midUnit * subjectArea, step),
+      high: roundTo(highUnit * subjectArea, step),
+    },
+    options: o,
+  };
+}

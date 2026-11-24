@@ -435,6 +435,27 @@ function rowToShowing(r) {
   };
 }
 
+function rowToComparable(r) {
+  return {
+    id: r.id,
+    propertyId: r.property_id,
+    kind: r.kind,
+    title: r.title || "",
+    price: r.price != null ? Number(r.price) : null,
+    grossM2: r.gross_m2 != null ? Number(r.gross_m2) : null,
+    netM2: r.net_m2 != null ? Number(r.net_m2) : null,
+    roomCount: r.room_count || "",
+    buildingAge: r.building_age ?? null,
+    floor: r.floor || "",
+    district: r.district || "",
+    neighborhood: r.neighborhood || "",
+    observedOn: r.observed_on || "",
+    manualAdjustPercent: r.manual_adjust_percent != null ? Number(r.manual_adjust_percent) : 0,
+    note: r.note || "",
+    sourcePropertyId: r.source_property_id || null,
+  };
+}
+
 function rowToPaymentCredential(r) {
   return {
     id: r.id,
@@ -1632,6 +1653,7 @@ export default function App() {
   // satır döndürdüğü için diğer üyelerde bu harita o portföy için boş kalır.
   const [propertyPrivate, setPropertyPrivate] = useState({});
   const [showings, setShowings] = useState([]);
+  const [comparables, setComparables] = useState([]);
   const [tasks, setTasks] = useState([]);
 
   // Ham Postgres/ağ hataları (ör. "violates foreign key constraint") 89+
@@ -1696,6 +1718,7 @@ export default function App() {
       setProperties([]);
       setPropertyPrivate({});
       setShowings([]);
+      setComparables([]);
       setActiveTeamId(undefined);
       setPendingInvites([]);
       setLoading(false);
@@ -1739,7 +1762,8 @@ export default function App() {
       supabase.from("properties").select("*").is("deleted_at", null).order("created_at", { ascending: false }),
       supabase.from("property_private").select("*"),
       supabase.from("property_showings").select("*").is("deleted_at", null).order("shown_at", { ascending: false }),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: sc }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ss }, { data: slb }, { data: slr }, { data: ri }, { data: res }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: gcw }, { data: myMembership }, { data: invites }, { data: tk }, { data: props }, { data: propPriv }, { data: shw }]) => {
+      supabase.from("property_comparables").select("*").is("deleted_at", null).order("created_at"),
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: sc }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ss }, { data: slb }, { data: slr }, { data: ri }, { data: res }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: gcw }, { data: myMembership }, { data: invites }, { data: tk }, { data: props }, { data: propPriv }, { data: shw }, { data: cmp }]) => {
       // customers/deals/company_settings RLS'i, sahiplik politikasına ek olarak
       // portal kullanıcılarının kendi bağlı oldukları kayıtları görmesine izin
       // veren bir politikayla da "veya" ile birleşiyor (customer_*_view'ların
@@ -1788,6 +1812,7 @@ export default function App() {
         )
       );
       setShowings((shw || []).filter((row) => row.user_id === ownerId).map(rowToShowing));
+      setComparables((cmp || []).filter((row) => row.user_id === ownerId).map(rowToComparable));
       setActiveTeamId(ownerId);
       // Sadece BANA gelen davetler (kendi gönderdiklerim değil) — RLS iki SELECT
       // politikasını OR ile birleştirdiği için burada e-postaya göre ek filtre şart.
@@ -2332,12 +2357,14 @@ export default function App() {
       floor: p.floor,
       total_floors: p.totalFloors,
       description: p.description,
-      authorization_start: p.authorizationStart,
+      // Form dışı kayıtlarda (fiyat analizi vb.) rowToProperty'nin "" değerleri
+      // gelir - Postgres date "" kabul etmez, tüm kayıt 400 ile reddedilir.
+      authorization_start: p.authorizationStart || null,
       authorization_months: p.authorizationMonths,
       authorization_auto_renew: p.authorizationAutoRenew,
       authorization_exclusive: p.authorizationExclusive,
       eids_status: p.eidsStatus,
-      eids_date: p.eidsDate,
+      eids_date: p.eidsDate || null,
       listing_refs: p.listingRefs,
       details: p.details,
       ...(p.checklist ? { checklist: p.checklist } : {}),
@@ -2440,6 +2467,42 @@ export default function App() {
     if (error) { notify(`Onay linki oluşturulamadı: ${error.message}`); return null; }
     setShowings((prev) => prev.map((x) => (x.id === showing.id ? rowToShowing(data) : x)));
     return token;
+  };
+
+  const saveComparable = async (c) => {
+    const isNew = !comparables.some((x) => x.id === c.id);
+    const row = {
+      id: c.id,
+      user_id: activeTeamId,
+      property_id: c.propertyId,
+      kind: c.kind,
+      title: c.title || null,
+      price: c.price,
+      gross_m2: c.grossM2 ?? null,
+      net_m2: c.netM2 ?? null,
+      room_count: c.roomCount || null,
+      building_age: c.buildingAge ?? null,
+      floor: c.floor || null,
+      district: c.district || null,
+      neighborhood: c.neighborhood || null,
+      observed_on: c.observedOn || null,
+      manual_adjust_percent: Number(c.manualAdjustPercent) || 0,
+      note: c.note || null,
+      source_property_id: c.sourcePropertyId || null,
+    };
+    const { data, error } = await supabase.from("property_comparables").upsert(row).select().single();
+    if (error) { notify(`Emsal kaydedilemedi: ${error.message}`); return false; }
+    const saved = rowToComparable(data);
+    setComparables((prev) => (isNew ? [...prev, saved] : prev.map((x) => (x.id === saved.id ? saved : x))));
+    return true;
+  };
+
+  // Emsal analizin ara verisi - çöp kutusuna değil doğrudan silinir (geri
+  // yüklenecek bir iş kaydı değil, tek tıkla yeniden eklenebilir).
+  const deleteComparable = async (id) => {
+    const { error } = await supabase.from("property_comparables").delete().eq("id", id);
+    if (error) { notify(`Emsal silinemedi: ${error.message}`); return; }
+    setComparables((prev) => prev.filter((x) => x.id !== id));
   };
 
   // Satış sonrası takip mevcut Görevler sistemine bağlanır (Pano + son tarih
@@ -3658,6 +3721,15 @@ export default function App() {
       await supabase.from("ticket_messages").delete().in("ticket_id", ticketIds);
       const { data, error } = await supabase.from("tickets").delete().eq("deleted_batch_id", batchId).select();
       if (error) skipped.push(`Talepler silinemedi: ${error.message}`); else deletedCount += data?.length || 0;
+    }
+
+    // Emsallerin kendi çöp kutusu yok (analiz ara verisi) - portföy kalıcı
+    // silinirken sahipsiz kalmasınlar diye birlikte siliniyor.
+    const { data: batchProps } = await supabase.from("properties").select("id").eq("deleted_batch_id", batchId);
+    if (batchProps && batchProps.length > 0) {
+      const propIds = batchProps.map((p) => p.id);
+      await supabase.from("property_comparables").delete().in("property_id", propIds);
+      setComparables((prev) => prev.filter((c) => !propIds.includes(c.propertyId)));
     }
 
     for (const table of ["kb_articles", "group_classes", "tasks", "properties", "property_showings"]) {
@@ -5721,6 +5793,9 @@ export default function App() {
           onCreateConsentLink={createShowingConsentLink}
           currentUserName={session.user.user_metadata?.full_name || ""}
           onUploadWetSigned={uploadShowingWetSigned}
+          comparables={comparables}
+          onSaveComparable={saveComparable}
+          onDeleteComparable={deleteComparable}
           onDeleteWetSigned={deleteShowingWetSigned}
           onFindMatches={(p) => findPropertyMatches(p)}
           onShowListingText={(p) => setListingTextDeal(propertyAsListingDeal(p))}
