@@ -59,3 +59,7 @@ CREATE POLICY market_index_read ON public.market_index
 
 GRANT SELECT ON public.market_index TO authenticated;
 GRANT ALL ON public.market_index TO service_role;
+
+-- Mahallenin Sahibinden arama bağlantısı (danışman bir kez yapıştırır). Bina
+-- yaşı filtreli aramalar bu bağlantıya a812=<kod> eklenerek tek tıkla açılır.
+alter table public.region_prices add column if not exists search_url text;

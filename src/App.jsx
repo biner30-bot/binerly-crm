@@ -477,6 +477,7 @@ function rowToRegionPrice(r) {
     asOf: r.as_of,
     source: r.source,
     listings: r.listings || [],
+    searchUrl: r.search_url || "",
   };
 }
 
@@ -2566,6 +2567,7 @@ export default function App() {
       as_of: r.asOf,
       source: r.source,
       listings: r.listings || [],
+      search_url: r.searchUrl || null,
       updated_at: new Date().toISOString(),
     };
     // Benzersizlik ifade-indeksinde (lower(...)) olduğu için upsert onConflict

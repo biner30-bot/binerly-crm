@@ -801,3 +801,86 @@ export function officeAskingDiscount(properties, transactionType = "satilik") {
   if (ds.length < 3) return { count: ds.length, percent: null };
   return { count: ds.length, percent: Math.round(percentile(ds, 0.5) * 10) / 10 };
 }
+
+// Birden fazla arama sayfası aynı kutuya peş peşe yapıştırılabilir (ör. önce
+// "26-30 arası", sonra "31 ve üzeri"). Her sayfa kendi bina yaşı filtresiyle
+// ayrı okunur, ilanlara kendi aralığının yaşı yazılır.
+export function parseSearchPages(raw) {
+  const text = String(raw || "").replace(/\r/g, "");
+  const re = /"[^"\n]+"\s*\n?\s*aramanızda/g;
+  const starts = [];
+  let m;
+  while ((m = re.exec(text))) starts.push(m.index);
+  if (starts.length < 2) return { ...parseSearchResults(text), pages: null };
+  const pages = starts.map((st, i) => {
+    const chunk = text.slice(st, starts[i + 1] ?? text.length);
+    const parsed = parseSearchResults(chunk);
+    const band = AGE_BANDS.find((b) => b.label === parsed.ageBand) || null;
+    return {
+      parsed,
+      ageBand: band?.label || null,
+      listings: parsed.listings.map((l) => ({
+        ...l,
+        age: band ? band.age : null,
+        ageBand: band ? band.label : null,
+      })),
+    };
+  });
+  const first = pages[0].parsed;
+  return {
+    ...first,
+    ageBand: null,
+    totalCount: pages.reduce((s, p) => s + (p.parsed.totalCount || 0), 0) || undefined,
+    page: null,
+    skipped: pages.reduce((s, p) => s + p.parsed.skipped, 0),
+    listings: mergeListings(
+      [],
+      pages.flatMap((p) => p.listings),
+    ),
+    pages: pages.map((p) => ({
+      ageBand: p.ageBand,
+      count: p.listings.length,
+      neighborhood: p.parsed.neighborhood,
+    })),
+  };
+}
+
+// Sahibinden "Bina Yaşı" filtresinin URL kodu (a812). Bilinmeyen aralıkta
+// bağlantı filtresiz açılır, danışman aralığı sayfada seçer.
+export const SAHIBINDEN_AGE_CODES = {
+  "31 ve üzeri": "43904",
+};
+
+export function normalizeSahibindenUrl(raw) {
+  try {
+    const u = new URL(String(raw || "").trim());
+    if (!/(^|\.)sahibinden\.com$/.test(u.hostname)) return null;
+    u.searchParams.delete("a812");
+    u.searchParams.delete("pagingOffset");
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
+export function sahibindenBandUrl(base, bandLabel) {
+  const clean = normalizeSahibindenUrl(base);
+  if (!clean) return null;
+  const code = SAHIBINDEN_AGE_CODES[bandLabel];
+  if (!code) return clean;
+  const u = new URL(clean);
+  u.searchParams.set("a812", code);
+  return u.toString();
+}
+
+// Daire yaşı için yakın sayılan Sahibinden aralıkları (rapor şartı bunlardan).
+export function nearBandsFor(age) {
+  const a = age === "" || age == null ? null : Number(age);
+  if (a == null || Number.isNaN(a)) return [];
+  return AGE_BANDS.filter(
+    (b) =>
+      b.label !== "0 (Yapım Aşamasında)" &&
+      a >= b.lo - NEAR_AGE_YEARS &&
+      a <= b.hi + NEAR_AGE_YEARS,
+  );
+}

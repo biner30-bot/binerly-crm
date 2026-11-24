@@ -97,7 +97,13 @@ export function pasteChecks({
       tone: "danger",
       text: `Aramada başka filtre de seçili: ${other.join(", ")}. Bölge fiyatı mahalledeki bütün daireleri temsil etmeli - bu filtre ortancayı kaydırır. Sahibinden'de bu filtreyi kaldırıp sadece mahalle (isterseniz + bina yaşı) ile arayın.`,
     });
-  if (seg.includes("Bina Yaşı") && !parsed.ageBand)
+  const multiPage = !!parsed.pages;
+  if (multiPage && parsed.pages.some((pg) => !pg.ageBand))
+    out.push({
+      tone: "info",
+      text: "Yapıştırılan sayfalardan bazılarında bina yaşı filtresi yok - o ilanlar daha önce yaşı öğrenilmişse yaşını korur, yoksa yaşsız sayılır.",
+    });
+  if (!multiPage && seg.includes("Bina Yaşı") && !parsed.ageBand)
     out.push({
       tone: "warning",
       text: "Birden fazla bina yaşı aralığı seçili görünüyor. Yaş bilgisinin ilanlara doğru işlenmesi için her aralığı ayrı arayıp ayrı yapıştırın; ya da aşağıdan bu sayfanın aralığını elle seçin.",
@@ -126,7 +132,7 @@ export function pasteChecks({
       tone: "info",
       text: "Bu sayfadaki ilanların hepsi zaten kayıtlı - yeni ilan eklenmedi. Farklı bir yaş aralığını veya sonraki sayfayı yapıştırın.",
     });
-  if (!ageBandLabel && !seg.includes("Bina Yaşı")) {
+  if (!multiPage && !ageBandLabel && !seg.includes("Bina Yaşı")) {
     const band = bandForAge(subject?.buildingAge);
     out.push({
       tone: "info",

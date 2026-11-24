@@ -24,7 +24,10 @@ import {
   REGION_OLD_DAYS,
   REGION_STALE_DAYS,
   regionAgeDays,
-  parseSearchResults,
+  parseSearchPages,
+  nearBandsFor,
+  normalizeSahibindenUrl,
+  sahibindenBandUrl,
   regionKey,
   summarizeListings,
 } from "./priceEstimate";
@@ -434,9 +437,10 @@ function RegionPaste({ regionPrices, subject, aliasTo, onSaveRegion, onParsedLoc
   const [typicalAge, setTypicalAge] = useState("");
   const [ageBandLabel, setAgeBandLabel] = useState("");
   const [saving, setSaving] = useState(false);
+  const [searchUrl, setSearchUrl] = useState("");
 
   const read = () => {
-    const parsed = parseSearchResults(text);
+    const parsed = parseSearchPages(text);
     if (parsed.listings.length === 0) {
       notify(
         "İlan bulunamadı - Sahibinden'de arama sonuç sayfasını (liste görünümü) Ctrl+A, Ctrl+C ile kopyalayın.",
@@ -463,17 +467,29 @@ function RegionPaste({ regionPrices, subject, aliasTo, onSaveRegion, onParsedLoc
     setDraft({ ...base, parsed, existing, merged: mergeable, groups });
     setAgeBandLabel(parsed.ageBand || "");
     setTypicalAge(existing?.typicalAge ?? "");
+    setSearchUrl(existing?.searchUrl || "");
+  };
+  const multiPage = !!draft?.parsed.pages;
+  const band = AGE_BANDS.find((b) => b.label === ageBandLabel) || null;
+  // Bir kez yaşı bilinen ilan (aynı ilan no) sonraki filtresiz güncellemelerde
+  // de yaşını korur - her yaş aralığı mahalle başına bir kez yapıştırılır.
+  const knownAges = new Map(
+    regionPrices
+      .flatMap((r) => r.listings || [])
+      .filter((l) => l.age != null)
+      .map((l) => [l.id, l]),
+  );
+  const withAge = (l) => {
+    if (!multiPage && band) return { ...l, age: band.age, ageBand: band.label };
+    if (l.age != null) return l;
+    const known = knownAges.get(l.id);
+    return known
+      ? { ...l, age: known.age, ageBand: known.ageBand }
+      : { ...l, age: null, ageBand: null };
   };
 
   // Yaş aralığı menüden değiştirilebildiği için birleştirme/özet her çizimde.
-  const band = AGE_BANDS.find((b) => b.label === ageBandLabel) || null;
-  const incoming = draft
-    ? draft.parsed.listings.map((l) => ({
-        ...l,
-        age: band ? band.age : null,
-        ageBand: band ? band.label : null,
-      }))
-    : [];
+  const incoming = draft ? draft.parsed.listings.map(withAge) : [];
   const draftListings = draft
     ? draft.merged
       ? mergeListings(draft.existing.listings, incoming)
@@ -496,6 +512,7 @@ function RegionPaste({ regionPrices, subject, aliasTo, onSaveRegion, onParsedLoc
     typicalAge: summ.typicalAge ?? existingRegion?.typicalAge ?? null,
     asOf: new Date().toISOString().slice(0, 10),
     source: "ilan_yapistirma",
+    searchUrl: normalizeSahibindenUrl(searchUrl) || existingRegion?.searchUrl || "",
     listings: listings.map(({ id, m2, rooms, price, date, age, ageBand, neighborhood }) => ({
       id,
       m2,
@@ -516,11 +533,7 @@ function RegionPaste({ regionPrices, subject, aliasTo, onSaveRegion, onParsedLoc
         const existingG = regionPrices.find((r) => regionKey(r) === regionKey(base));
         const mergeableG =
           existingG && existingG.source === "ilan_yapistirma" && daysSince(existingG.asOf) <= 14;
-        const inc = g.listings.map((l) => ({
-          ...l,
-          age: band ? band.age : null,
-          ageBand: band ? band.label : null,
-        }));
+        const inc = g.listings.map(withAge);
         const all = mergeableG ? mergeListings(existingG.listings, inc) : inc;
         return {
           base,
@@ -694,8 +707,17 @@ function RegionPaste({ regionPrices, subject, aliasTo, onSaveRegion, onParsedLoc
             </b>{" "}
             · {draft.transactionType === "kiralik" ? "Kiralık" : "Satılık"} {draft.propertyType}
           </p>
+          {multiPage && (
+            <p style={{ fontSize: 12.5, margin: "0 0 6px" }}>
+              <i className="ti ti-files" aria-hidden="true" /> {draft.parsed.pages.length} sayfa
+              okundu:{" "}
+              {draft.parsed.pages
+                .map((pg) => `${pg.ageBand || "yaş filtresi yok"} (${pg.count} ilan)`)
+                .join(" · ")}
+            </p>
+          )}
           <p style={{ fontSize: 12.5, margin: "0 0 6px", color: "var(--text-secondary)" }}>
-            Bu sayfadan {draft.parsed.listings.length} ilan okundu
+            {multiPage ? "Toplam" : "Bu sayfadan"} {draft.parsed.listings.length} ilan okundu
             {draft.merged ? `, önceki yapıştırmalarla birlikte ${draftListings.length} ilan` : ""}
             {draft.parsed.totalCount ? ` (bu aramada toplam ${draft.parsed.totalCount} ilan)` : ""}.
             {summary.outliers > 0 && ` ${summary.outliers} uç değer hesaba katılmadı.`} Ortanca ilan
@@ -719,39 +741,43 @@ function RegionPaste({ regionPrices, subject, aliasTo, onSaveRegion, onParsedLoc
             </p>
           )}
           <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
-            <div style={{ flex: "1 1 220px" }}>
-              <label style={labelStyle}>
-                Bu sayfadaki ilanların bina yaşı
-                <InfoTip text="Sahibinden'de soldaki Bina Yaşı filtresinden tek bir aralık seçip arama yaptıysanız burada o aralığı seçin (sayfadan okunabildiyse kendiliğinden seçilir). Her yaş aralığını ayrı yapıştırırsanız tipik bina yaşı ve yaşın fiyata etkisi bölgenin kendi ilanlarından hesaplanır. Filtre kullanmadıysanız boş bırakın." />
-              </label>
-              <select
-                value={ageBandLabel}
-                onChange={(e) => setAgeBandLabel(e.target.value)}
-                style={{ width: "100%" }}
-              >
-                <option value="">Filtre yok / karışık</option>
-                {AGE_BANDS.map((b) => (
-                  <option key={b.label} value={b.label}>
-                    {b.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {summary.typicalAge == null && (
-              <div style={{ flex: "0 1 200px" }}>
+            {!multiPage && (
+              <div style={{ flex: "1 1 220px" }}>
                 <label style={labelStyle}>
-                  Bölgedeki tipik bina yaşı
-                  <InfoTip text="Yaşı bilinen ilan azken (5'ten az) bu bölgedeki dairelerin çoğu kaç yaşındaysa onu yazın - yaş düzeltmesi bu tipik yaşa göre yapılır." />
+                  Bu sayfadaki ilanların bina yaşı
+                  <InfoTip text="Sahibinden'de Bina Yaşı filtresiyle aradıysanız sayfadan okunup kendiliğinden seçilir. Filtre kullanmadıysanız boş bırakın - daha önce yaşı öğrenilmiş ilanlar yaşını korur." />
                 </label>
-                <input
-                  type="number"
-                  value={typicalAge}
-                  onChange={(e) => setTypicalAge(e.target.value)}
-                  placeholder="ör. 25"
+                <select
+                  value={ageBandLabel}
+                  onChange={(e) => setAgeBandLabel(e.target.value)}
                   style={{ width: "100%" }}
-                />
+                >
+                  <option value="">Filtre yok / karışık</option>
+                  {AGE_BANDS.map((b) => (
+                    <option key={b.label} value={b.label}>
+                      {b.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
+            <div style={{ flex: "2 1 260px" }}>
+              <label style={labelStyle}>
+                Sahibinden arama bağlantısı (isteğe bağlı)
+                <InfoTip text="Sahibinden'de bu mahallenin aramasını yaptığınız sayfanın adres çubuğundaki bağlantı. Bir kez eklerseniz eksik yaş aralıklarının filtreli aramasını buradan tek tıkla açabilirsiniz." />
+              </label>
+              <input
+                value={searchUrl}
+                onChange={(e) => setSearchUrl(e.target.value)}
+                placeholder="https://www.sahibinden.com/satilik-daire/..."
+                style={{ width: "100%" }}
+              />
+              {searchUrl && !normalizeSahibindenUrl(searchUrl) && (
+                <span style={{ fontSize: 11.5, color: "var(--text-warning)" }}>
+                  Bu bir sahibinden.com bağlantısı değil.
+                </span>
+              )}
+            </div>
           </div>
           {summary.agedCount > 0 && (
             <p style={{ fontSize: 12, margin: "6px 0 0", color: "var(--text-secondary)" }}>
@@ -766,12 +792,7 @@ function RegionPaste({ regionPrices, subject, aliasTo, onSaveRegion, onParsedLoc
           <button
             type="button"
             disabled={saving}
-            onClick={() =>
-              save({
-                ...regionFrom(draft, draftListings, draft.existing, summary),
-                typicalAge: summary.typicalAge ?? (typicalAge === "" ? null : Number(typicalAge)),
-              })
-            }
+            onClick={() => save(regionFrom(draft, draftListings, draft.existing, summary))}
             style={{
               marginTop: 8,
               background: "var(--fill-accent)",
@@ -934,6 +955,81 @@ function Notices({ items }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// Dairenin yaşı için gereken Sahibinden yaş aralıkları, her birinden kaç
+// ilan olduğu ve (bağlantı kayıtlıysa) filtreli aramayı açan düğme.
+function NeededBands({ region, subjectAge, onSaveRegion }) {
+  const [urlDraft, setUrlDraft] = useState("");
+  const bands = nearBandsFor(subjectAge);
+  if (!region || !bands.length) return null;
+  const counts = new Map();
+  for (const l of region.listings || []) {
+    if (l.ageBand) counts.set(l.ageBand, (counts.get(l.ageBand) || 0) + 1);
+  }
+  const total = bands.reduce((t, b) => t + (counts.get(b.label) || 0), 0);
+  const ok = total >= MIN_NEAR_AGE_LISTINGS;
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        <span style={{ color: ok ? "var(--text-success)" : "var(--text-warning)" }}>
+          <i className={`ti ${ok ? "ti-circle-check" : "ti-list-check"}`} aria-hidden="true" /> Bu
+          daire ({subjectAge} yaş) için gereken emsal: {total}/{MIN_NEAR_AGE_LISTINGS}
+        </span>
+        {bands.map((b) => {
+          const n = counts.get(b.label) || 0;
+          const url = region.searchUrl ? sahibindenBandUrl(region.searchUrl, b.label) : null;
+          return (
+            <span
+              key={b.label}
+              style={{
+                fontSize: 11.5,
+                padding: "2px 8px",
+                borderRadius: 10,
+                background: n ? "var(--surface-1)" : "var(--bg-warning)",
+                border: "0.5px solid var(--border)",
+              }}
+            >
+              {n ? "✓" : "✗"} {b.label}: {n} ilan
+              {url && (
+                <>
+                  {" · "}
+                  <a href={url} target="_blank" rel="noopener noreferrer">
+                    Sahibinden'de aç
+                  </a>
+                </>
+              )}
+            </span>
+          );
+        })}
+      </div>
+      {!region.searchUrl && !ok && onSaveRegion && (
+        <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+          <input
+            value={urlDraft}
+            onChange={(e) => setUrlDraft(e.target.value)}
+            placeholder="Sahibinden'de bu mahallenin arama bağlantısı (bir kez)"
+            style={{ flex: "1 1 260px", fontSize: 12 }}
+          />
+          <button
+            type="button"
+            style={{ fontSize: 12 }}
+            disabled={!normalizeSahibindenUrl(urlDraft)}
+            onClick={() => {
+              const { aliasFrom: _a, ...clean } = region;
+              onSaveRegion({ ...clean, searchUrl: normalizeSahibindenUrl(urlDraft) });
+              setUrlDraft("");
+            }}
+          >
+            Bağlantıyı kaydet
+          </button>
+          <span style={{ fontSize: 11.5, color: "var(--text-muted)", flexBasis: "100%" }}>
+            Kaydederseniz eksik yaş aralıklarının filtreli araması buradan tek tıkla açılır.
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -1298,22 +1394,7 @@ export function AutoValuation({
                 {saleAgeStats.ageSlope != null &&
                   ` · yaş etkisi bölge verisinden: yılda %${saleAgeStats.ageSlope}`}
               </>
-            ) : (
-              <>
-                {" · "}tipik bina yaşı{" "}
-                <input
-                  type="number"
-                  defaultValue={saleRegion.typicalAge ?? ""}
-                  key={saleRegion.id}
-                  placeholder="20"
-                  onBlur={(e) => {
-                    const v = e.target.value === "" ? null : Number(e.target.value);
-                    if (v !== saleRegion.typicalAge) onSaveRegion({ ...saleRegion, typicalAge: v });
-                  }}
-                  style={{ width: 60, fontSize: 12 }}
-                />
-              </>
-            )}
+            ) : null}
             {(stale || rentStale) && (
               <div
                 style={{
@@ -1359,35 +1440,12 @@ export function AutoValuation({
                     {g.label}: {g.count}
                   </span>
                 ))}
-                {coverage.subjectGroup && coverage.subjectGroupCount < 3 && (
-                  <div
-                    style={{
-                      marginTop: 4,
-                      color: "var(--text-warning)",
-                      display: "flex",
-                      gap: 8,
-                      alignItems: "center",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <span style={{ flex: "1 1 240px" }}>
-                      Dairenin yaş aralığından ({coverage.subjectGroup}){" "}
-                      {coverage.subjectGroupCount
-                        ? `sadece ${coverage.subjectGroupCount} ilan var`
-                        : "hiç ilan yok"}
-                      . Sahibinden'de Bina Yaşı "{bandForAge(s.buildingAge)?.label}" filtresiyle
-                      arayıp yapıştırın - yaş etkisi en isabetli böyle hesaplanır.
-                    </span>
-                    {!pasteOpen && (
-                      <button
-                        type="button"
-                        style={{ fontSize: 12 }}
-                        onClick={() => setPasteOpen(true)}
-                      >
-                        Yapıştır
-                      </button>
-                    )}
-                  </div>
+                {s.buildingAge !== "" && s.buildingAge != null && (
+                  <NeededBands
+                    region={saleRegion}
+                    subjectAge={s.buildingAge}
+                    onSaveRegion={onSaveRegion}
+                  />
                 )}
                 {coverage.agedCount === 0 && !coverage.subjectGroup && (
                   <div style={{ marginTop: 4, color: "var(--text-muted)" }}>
