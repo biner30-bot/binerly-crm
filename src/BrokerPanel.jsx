@@ -153,7 +153,7 @@ export function BrokerPanel({
           value={sum("open")}
           sub={`${sum("newOnes")} yeni (${period.label.toLowerCase()})`}
         />
-        <StatCard label="Gösterim" value={sum("shows")} sub={`${sum("wet")} ıslak imzalı belge`} />
+        <StatCard label="Gösterim" value={sum("shows")} sub={`${sum("wet")} imzalı belgeli`} />
         <StatCard label="Kapanan işlem" value={sum("closed")} sub="satıldı + kiralandı (tümü)" />
         <StatCard
           label="Hizmet bedeli"
@@ -183,7 +183,7 @@ export function BrokerPanel({
               <th style={th}>Açık</th>
               <th style={th}>Yeni</th>
               <th style={th}>Gösterim</th>
-              <th style={th}>Islak imza</th>
+              <th style={th}>İmzalı belge</th>
               <th style={th}>Kapanan</th>
               <th style={th}>Hizmet bedeli</th>
               <th style={th}>Uyarı</th>

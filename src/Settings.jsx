@@ -563,6 +563,7 @@ function normalizeRealEstateSettings(s) {
       REAL_ESTATE_SETTING_DEFAULTS.serviceFeeKdvPercent,
     ),
     licenseNo: (s.licenseNo || "").trim(),
+    builtInShowingDoc: s.builtInShowingDoc === true,
     titleDeedServiceFee: num(s.titleDeedServiceFee, null),
     titleDeedTaxPercent: num(
       s.titleDeedTaxPercent,
@@ -654,7 +655,7 @@ function RealEstateSettingsSection({ value, onChange }) {
             Yetki belgesi no
             <InfoTip
               align="right"
-              text="Taşınmaz Ticareti Hakkında Yönetmelik kapsamında Ticaret Bakanlığı'ndan aldığınız yetki belgesinin numarası. Belgelerde ve ilan metinlerinde gösterilir."
+              text="Taşınmaz Ticareti Hakkında Yönetmelik kapsamında Ticaret Bakanlığı'ndan aldığınız yetki belgesinin numarası. Binerly'nin hazır yer gösterme belgesinde gösterilir."
             />
           </label>
           <input
@@ -680,6 +681,23 @@ function RealEstateSettingsSection({ value, onChange }) {
           />
         </div>
       </div>
+      <label
+        style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, marginTop: 12 }}
+      >
+        <input
+          type="checkbox"
+          checked={value.builtInShowingDoc === true}
+          onChange={(e) => onChange({ ...value, builtInShowingDoc: e.target.checked })}
+          style={{ marginTop: 3 }}
+        />
+        <span>
+          Binerly'nin hazır yer gösterme belgesini kullan
+          <span style={{ display: "block", fontSize: 12, color: "var(--text-muted)" }}>
+            Kapalıyken gösterimlere ofisinizin kendi belgesini imzalatıp taramasını yüklersiniz.
+            Açıkken gösterimde "Belgeyi yazdır" ve müşteriye "Ön onay linki" de çıkar.
+          </span>
+        </span>
+      </label>
     </div>
   );
 }

@@ -74,6 +74,10 @@ export const REAL_ESTATE_SETTING_DEFAULTS = {
   // o oran ofisin başka satışları için %10/%1 olabilir, hizmet bedeli %20'dir.
   serviceFeeKdvPercent: 20,
   licenseNo: "",
+  // Ofislerin çoğunun kendi yer gösterme/yetki belgesi standardı var - hazır
+  // belge isteğe bağlı, varsayılan kapalı; takip (koruma süresi, imzalı tarama)
+  // her durumda çalışır.
+  builtInShowingDoc: false,
   titleDeedServiceFee: null,
   // Tapu harcı (492 sayılı Harçlar Kanunu) alıcı ve satıcı için ayrı ayrı alınır;
   // oran mevzuatla değişebildiği için sabit değil ayar.

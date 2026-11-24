@@ -220,13 +220,13 @@ function ShowingRow({
         <span style={{ fontWeight: 500 }}>{title}</span>
         <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {interest && <Badge tone={interest.tone}>{interest.label}</Badge>}
-          {showing.wetSignedAt && <Badge tone="success">Islak imzalı</Badge>}
+          {showing.wetSignedAt && <Badge tone="success">İmzalı belge var</Badge>}
           {showing.consentSignedAt ? (
             <Badge tone="accent">Ön onay alındı</Badge>
           ) : showing.consentToken ? (
             <Badge tone="warning">Ön onay bekleniyor</Badge>
           ) : null}
-          {!showing.wetSignedAt && <Badge tone="default">Islak imza yok</Badge>}
+          {!showing.wetSignedAt && <Badge tone="default">İmzalı belge yok</Badge>}
         </span>
       </div>
       <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
@@ -272,7 +272,7 @@ function ShowingRow({
               }}
             >
               <i className="ti ti-upload" aria-hidden="true" />
-              {uploading ? "Yükleniyor…" : "Islak imzalı belgeyi yükle"}
+              {uploading ? "Yükleniyor…" : "İmzalı belgeyi yükle"}
               <input
                 type="file"
                 accept="image/*,application/pdf"
@@ -316,7 +316,7 @@ function ShowingRow({
                   type="button"
                   style={{ fontSize: 12, color: "var(--text-danger)" }}
                   onClick={() => setConfirmRemoveDoc(a)}
-                  aria-label="Islak imzalı belgeyi kaldır"
+                  aria-label="İmzalı belgeyi kaldır"
                 >
                   <i className="ti ti-trash" aria-hidden="true" />
                 </button>
@@ -327,8 +327,8 @@ function ShowingRow({
       )}
       {confirmRemoveDoc && (
         <ConfirmDialog
-          title="Islak imzalı belge kaldırılsın mı?"
-          message={`"${confirmRemoveDoc.fileName}" çöp kutusuna taşınır. Başka imzalı belge kalmazsa gösterim "Islak imza yok" durumuna döner.`}
+          title="İmzalı belge kaldırılsın mı?"
+          message={`"${confirmRemoveDoc.fileName}" çöp kutusuna taşınır. Başka imzalı belge kalmazsa gösterim "İmzalı belge yok" durumuna döner.`}
           confirmLabel="Kaldır"
           onConfirm={() => {
             onDeleteWetSigned(confirmRemoveDoc);
@@ -390,6 +390,7 @@ export function PropertyShowings({
     });
 
   const licenseNo = (companySettings?.realEstateSettings?.licenseNo || "").trim();
+  const builtInDoc = companySettings?.realEstateSettings?.builtInShowingDoc === true;
 
   const handleLink = async (s) => {
     // Yazdırılan belgede boş alan elle doldurulabilir, linkte müşteri dolduramaz.
@@ -418,9 +419,9 @@ export function PropertyShowings({
         }}
       >
         Gösterimler ({list.length})
-        <InfoTip text="Mülkü gösterdiğiniz her müşteriyi kaydedin. Gösterim tarihinden itibaren 12 ay, yer gösterme belgesindeki koruma süresidir - bu sürede müşteri mülkü aracısız alırsa/kiralarsa hizmet bedeli talebinizin dayanağı ıslak imzalı belgedir. Belgeyi yazdırıp imzalatın, taramasını gösterime yükleyin." />
+        <InfoTip text="Mülkü gösterdiğiniz her müşteriyi kaydedin. Gösterim tarihinden itibaren 12 ay, yer gösterme belgesindeki koruma süresidir - bu sürede müşteri mülkü aracısız alırsa/kiralarsa hizmet bedeli talebinizin dayanağı ıslak imzalı belgedir. Ofisinizin belgesini imzalatıp taramasını gösterime yükleyin." />
       </p>
-      {!licenseNo && (
+      {builtInDoc && !licenseNo && (
         <p
           style={{
             fontSize: 12,
@@ -450,20 +451,24 @@ export function PropertyShowings({
             subtitle={`${new Date(s.shownAt).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })} · ${s.method === "elektronik" ? "Elektronik" : "Yerinde"}${s.shownBy ? ` · gösteren: ${shownByName(s.shownBy)}` : ""}`}
             showing={s}
             onEdit={() => setEditing(s)}
-            onPrint={() => {
-              const ok = printShowingDocument({
-                text: docText(s),
-                signed: s.consentSignedAt
-                  ? { name: s.consentSignerName, at: s.consentSignedAt, ip: s.consentIp }
-                  : null,
-                logoUrl: companySettings?.logoUrl,
-              });
-              if (!ok)
-                notify(
-                  "Yazdırma penceresi açılamadı - tarayıcının açılır pencere engelini kaldırın.",
-                );
-            }}
-            onLink={() => handleLink(s)}
+            onPrint={
+              builtInDoc || s.consentSignedAt
+                ? () => {
+                    const ok = printShowingDocument({
+                      text: docText(s),
+                      signed: s.consentSignedAt
+                        ? { name: s.consentSignerName, at: s.consentSignedAt, ip: s.consentIp }
+                        : null,
+                      logoUrl: companySettings?.logoUrl,
+                    });
+                    if (!ok)
+                      notify(
+                        "Yazdırma penceresi açılamadı - tarayıcının açılır pencere engelini kaldırın.",
+                      );
+                  }
+                : null
+            }
+            onLink={builtInDoc ? () => handleLink(s) : null}
             onDelete={() => setConfirmDeleteId(s.id)}
             wetDocs={attachments.filter(
               (a) => a.entityType === "showing_docs" && a.entityId === s.id,
@@ -553,7 +558,7 @@ export function PropertyShowings({
       {confirmDeleteId && (
         <ConfirmDialog
           title="Gösterim silinsin mi?"
-          message="Gösterim kaydı çöp kutusuna taşınır. Islak imzalı belge taraması varsa o da birlikte taşınır."
+          message="Gösterim kaydı çöp kutusuna taşınır. İmzalı belge taraması varsa o da birlikte taşınır."
           confirmLabel="Çöp kutusuna taşı"
           onConfirm={() => {
             onDelete(confirmDeleteId);
