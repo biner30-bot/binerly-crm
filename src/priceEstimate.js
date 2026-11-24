@@ -33,6 +33,18 @@ export function normalizePlace(s) {
     .toLocaleLowerCase("tr");
 }
 
+// "Yeni İlan" öneki ve "Videolu İlan" gibi rozet ekleri ofis adı sayılmaz.
+const LISTING_BADGES = /\s*(Videolu İlan|Acil|Fiyatı Düştü|Sanal Tur|Fırsat)\s*$/i;
+export function storeFromSecondLine(line, title) {
+  let s = String(line || "")
+    .replace(/^Yeni İlan\s+/i, "")
+    .trim();
+  const t = String(title || "").trim();
+  if (t && s.startsWith(t)) s = s.slice(t.length);
+  for (let k = 0; k < 3; k++) s = s.replace(LISTING_BADGES, "");
+  return s.trim();
+}
+
 function displayPlace(s) {
   return String(s || "")
     .replace(/\s+(Mah\.?|Mahallesi|Mh\.?)$/i, "")
@@ -88,6 +100,12 @@ export function parseSearchResults(raw) {
       continue;
     }
     if (!cur) continue;
+    // İlan başlığının altındaki satır: "<başlık> <ofis/mağaza adı>". Ofis adı
+    // yoksa ilan sahibinden verilmiştir (aracısız satıcı - portföy adayı).
+    if (!cur.m2 && cur.store === undefined && line && !/^\d/.test(line) && line !== "Rozet") {
+      cur.store = storeFromSecondLine(line, cur.title);
+      continue;
+    }
     if (!cur.m2) {
       const cols = line.split(/\s+/);
       if (
@@ -895,3 +913,13 @@ export function nearBandsFor(age) {
       a <= b.hi + NEAR_AGE_YEARS,
   );
 }
+
+// Türkiye takvim günü. toISOString() UTC'dir - gece yarısından sonraki ilk
+// saatlerde günü bir geri kaydırır (görev "dün" tarihli açılıyordu).
+export const istanbulToday = () =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Istanbul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());

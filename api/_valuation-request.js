@@ -7,6 +7,7 @@ import crypto from "node:crypto";
 import {
   REGION_STALE_DAYS,
   estimateValue,
+  istanbulToday,
   findRegion,
   kfeSeriesForCity,
   regionAgeDays,
@@ -133,7 +134,7 @@ export async function saveValuationRequest(supabaseAdmin, settings, { customerId
   const spec = [subject.roomCount, subject.grossM2 && `${subject.grossM2} m²`, subject.buildingAge !== "" && `${subject.buildingAge} yaş`]
     .filter(Boolean)
     .join(" · ");
-  const today = new Date().toISOString().slice(0, 10);
+  const today = istanbulToday();
   const { error: taskError } = await supabaseAdmin.from("tasks").insert({
     user_id: settings.user_id,
     title: `Değerleme talebi: ${contactName} - ${place || "mahalle belirtilmedi"}`,

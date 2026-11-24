@@ -33,7 +33,8 @@ import Tasks from "./Tasks";
 import { Portfolio } from "./Portfolio";
 import { MarketAnalysisTab } from "./AutoValuation";
 import { OfficeTab } from "./Office";
-import { staleRegionAlerts } from "./priceEstimate";
+import { ProspectsTab, mergeProspects } from "./Prospects";
+import { istanbulToday, staleRegionAlerts } from "./priceEstimate";
 import { authorizationStatus, propertyAsListingDeal, CLOSED_STATUSES, nextRentReviewDate } from "./realEstate";
 import { PDF_TEMPLATES, buildMergeData, renderTemplateBlocks, TemplateGallery, TABLE_ROW_HEIGHT } from "./PdfTemplates";
 import { TemplateEditor } from "./PdfTemplateEditor";
@@ -1701,6 +1702,8 @@ export default function App() {
   const [officePhotos, setOfficePhotos] = useState([]);
   const [officeDocs, setOfficeDocs] = useState([]);
   const [portfolioPrefill, setPortfolioPrefill] = useState(null);
+  // Portföy adayları (Sahibinden'den aracısız satanlar) - kişiye özel.
+  const [prospects, setProspects] = useState([]);
   const [marketIndex, setMarketIndex] = useState([]);
   const [tasks, setTasks] = useState([]);
 
@@ -2788,6 +2791,129 @@ export default function App() {
     await loadOffice();
     if (okMsg) notify(okMsg, "success");
     return true;
+  };
+
+  const rowToProspect = (r) => ({
+    id: r.id,
+    listingNo: r.listing_no,
+    title: r.title,
+    city: r.city,
+    district: r.district,
+    neighborhood: r.neighborhood,
+    propertyType: r.property_type,
+    transactionType: r.transaction_type,
+    m2: r.m2 != null ? Number(r.m2) : null,
+    rooms: r.rooms,
+    ageBand: r.age_band,
+    price: r.price != null ? Number(r.price) : null,
+    firstPrice: r.first_price != null ? Number(r.first_price) : null,
+    priceHistory: r.price_history || [],
+    listingDate: r.listing_date,
+    firstSeen: r.first_seen,
+    lastSeen: r.last_seen,
+    status: r.status,
+    note: r.note || "",
+    propertyId: r.property_id || null,
+  });
+  const prospectToRow = (p) => ({
+    ...(p.listingNo !== undefined ? { listing_no: p.listingNo } : {}),
+    ...(p.title !== undefined ? { title: p.title } : {}),
+    ...(p.city !== undefined ? { city: p.city } : {}),
+    ...(p.district !== undefined ? { district: p.district } : {}),
+    ...(p.neighborhood !== undefined ? { neighborhood: p.neighborhood } : {}),
+    ...(p.propertyType !== undefined ? { property_type: p.propertyType } : {}),
+    ...(p.transactionType !== undefined ? { transaction_type: p.transactionType } : {}),
+    ...(p.m2 !== undefined ? { m2: p.m2 } : {}),
+    ...(p.rooms !== undefined ? { rooms: p.rooms } : {}),
+    ...(p.ageBand !== undefined ? { age_band: p.ageBand } : {}),
+    ...(p.price !== undefined ? { price: p.price } : {}),
+    ...(p.firstPrice !== undefined ? { first_price: p.firstPrice } : {}),
+    ...(p.priceHistory !== undefined ? { price_history: p.priceHistory } : {}),
+    ...(p.listingDate !== undefined ? { listing_date: p.listingDate } : {}),
+    ...(p.firstSeen !== undefined ? { first_seen: p.firstSeen } : {}),
+    ...(p.lastSeen !== undefined ? { last_seen: p.lastSeen } : {}),
+    ...(p.status !== undefined ? { status: p.status } : {}),
+    ...(p.note !== undefined ? { note: p.note } : {}),
+    ...(p.propertyId !== undefined ? { property_id: p.propertyId } : {}),
+  });
+  useEffect(() => {
+    if (!currentUserId) { setProspects([]); return; }
+    let alive = true;
+    supabase
+      .from("listing_prospects")
+      .select("*")
+      .eq("created_by", currentUserId)
+      .order("last_seen", { ascending: false })
+      .then(({ data }) => { if (alive) setProspects((data || []).map(rowToProspect)); });
+    return () => { alive = false; };
+  }, [currentUserId]);
+  const mergeProspectPaste = async (paste) => {
+    const { inserts, updates, priceChanged, gone } = mergeProspects(prospects, paste);
+    if (inserts.length) {
+      const { data, error } = await supabase.from("listing_prospects").insert(inserts.map(prospectToRow)).select();
+      if (error) { notify(`Adaylar kaydedilemedi: ${error.message}`); return null; }
+      setProspects((prev) => [...(data || []).map(rowToProspect), ...prev]);
+    }
+    const now = new Date().toISOString();
+    for (const u of updates) {
+      const { data, error } = await supabase
+        .from("listing_prospects")
+        .update({ ...prospectToRow(u.patch), updated_at: now })
+        .eq("id", u.id)
+        .select()
+        .single();
+      if (!error && data) setProspects((prev) => prev.map((x) => (x.id === u.id ? rowToProspect(data) : x)));
+    }
+    return { added: inserts.length, updated: updates.length - gone, priceChanged, gone };
+  };
+  const updateProspect = async (id, patch) => {
+    const { data, error } = await supabase
+      .from("listing_prospects")
+      .update({ ...prospectToRow(patch), updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) { notify(`Kaydedilemedi: ${error.message}`); return false; }
+    setProspects((prev) => prev.map((x) => (x.id === id ? rowToProspect(data) : x)));
+    return true;
+  };
+  const deleteProspect = async (id) => {
+    const { error } = await supabase.from("listing_prospects").delete().eq("id", id);
+    if (error) { notify(`Silinemedi: ${error.message}`); return; }
+    setProspects((prev) => prev.filter((x) => x.id !== id));
+  };
+  const createProspectTask = async (p) => {
+    const ok = await upsertTask({
+      id: uid(),
+      title: `Sahibinden ilan sahibini ara: ${p.neighborhood || ""} ${p.rooms || ""} ${p.m2 ? `${p.m2} m²` : ""}`.replace(/\s+/g, " ").trim(),
+      type: "arama",
+      description: `${p.title} - ilan no ${p.listingNo}${p.price ? `, ${formatTL(p.price)}` : ""}. Portföy Adayları'ndan.`,
+      dueDate: istanbulToday(),
+      assignedTo: session.user.id,
+    });
+    if (ok) {
+      if (p.status === "yeni") await updateProspect(p.id, { status: "aranacak" });
+      notify("Bugün için arama görevi eklendi.", "success");
+    }
+  };
+  const createPropertyFromProspect = (p) => {
+    const band = (p.ageBand || "").match(/^(\d+)/);
+    setPortfolioPrefill({
+      transactionType: p.transactionType,
+      status: "taslak",
+      title: p.title,
+      propertyType: p.propertyType || "Daire",
+      price: p.price ?? "",
+      city: p.city || "",
+      district: p.district || "",
+      neighborhood: p.neighborhood || "",
+      grossM2: p.m2 ?? "",
+      roomCount: p.rooms || "",
+      buildingAge: band && !/arası|üzeri/.test(p.ageBand) ? Number(band[1]) : "",
+      details: {},
+      listingRefs: { sahibinden: p.listingNo },
+    });
+    setTab("portfoy");
   };
 
   const createPropertyFromValuation = (v) => {
@@ -5784,7 +5910,7 @@ export default function App() {
         {[
           { id: "pano", label: "Pano", icon: "ti-layout-dashboard" },
           { id: "musteri", label: "Müşteriler", icon: "ti-building" },
-          ...(isRealEstate ? [{ id: "portfoy", label: "Portföy", icon: "ti-building-estate" }, { id: "piyasa", label: "Piyasa Analizi", icon: "ti-chart-histogram" }, { id: "ofis", label: "Ofis", icon: "ti-building-community" }] : []),
+          ...(isRealEstate ? [{ id: "portfoy", label: "Portföy", icon: "ti-building-estate" }, { id: "piyasa", label: "Piyasa Analizi", icon: "ti-chart-histogram" }, { id: "adaylar", label: "Portföy Adayları", icon: "ti-target-arrow" }, { id: "ofis", label: "Ofis", icon: "ti-building-community" }] : []),
           { id: "firsat", label: dealWords.navLabel, icon: "ti-target-arrow" },
           // Emlak tarama turu: fiyat listesi (süre/tazeleme/cihaz), stok-reçete ve
           // destek talebi/SLA başka sektörlerden kalma - emlakçıda gizli.
@@ -6173,6 +6299,21 @@ export default function App() {
           onDeleteWetSigned={deleteShowingWetSigned}
           onFindMatches={(p) => findPropertyMatches(p)}
           onShowListingText={(p) => setListingTextDeal(propertyAsListingDeal(p))}
+        />
+      )}
+
+      {tab === "adaylar" && isRealEstate && (
+        <ProspectsTab
+          prospects={prospects}
+          regionPrices={regionPrices}
+          marketIndex={marketIndex}
+          companySettings={companySettings}
+          onMerge={mergeProspectPaste}
+          onUpdate={updateProspect}
+          onDelete={deleteProspect}
+          onCreateTask={createProspectTask}
+          onCreateProperty={createPropertyFromProspect}
+          notify={notify}
         />
       )}
 
