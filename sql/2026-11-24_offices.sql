@@ -297,3 +297,33 @@ create policy office_archive_delete on storage.objects for delete to authenticat
     bucket_id = 'office-archive'
     and public.is_office_broker(((storage.foldername(name))[1])::uuid)
   );
+
+-- 5 (portföy bulma) Ofiste alıcı talepleri: danışman İSTERSE (varsayılan
+-- kapalı) müşterilerinin talep alanları ofise anonim gösterilir. Müşterinin
+-- adı/telefonu/notu ASLA dönmez; sadece talep + hangi danışmanda olduğu
+-- (ortak satış için birbirini arayabilsinler). customers tablosuna ofis
+-- erişimi verilmez - sadece bu SECURITY DEFINER özet.
+alter table public.office_members add column if not exists share_demand boolean not null default false;
+grant update (share_demand) on public.office_members to authenticated;
+
+create or replace function public.office_demand_board()
+returns table (
+  agent_id uuid, agent_name text, islem text, bolge text, oda text, mulk_tipi text,
+  min_butce numeric, max_butce numeric, last_contact timestamptz
+) language sql stable security definer set search_path = public as $$
+  select m.user_id, coalesce(nullif(m.display_name, ''), m.email),
+    c.custom_fields->>'aranan_islem', c.custom_fields->>'aranan_bolge',
+    c.custom_fields->>'aranan_oda_sayisi', c.custom_fields->>'aranan_mulk_tipi',
+    case when (c.custom_fields->>'min_butce') ~ '^\d+(\.\d+)?$' then (c.custom_fields->>'min_butce')::numeric end,
+    case when (c.custom_fields->>'max_butce') ~ '^\d+(\.\d+)?$' then (c.custom_fields->>'max_butce')::numeric end,
+    c.last_contact
+  from public.office_members m
+  join public.customers c on c.user_id = m.user_id and c.deleted_at is null
+  where m.left_at is null and m.share_demand
+    and m.office_id in (select public.my_office_ids())
+    and coalesce(c.last_contact, c.created_at) >= now() - interval '180 days'
+    and (coalesce(c.custom_fields->>'aranan_bolge', '') <> '' or coalesce(c.custom_fields->>'max_butce', '') <> ''
+         or coalesce(c.custom_fields->>'aranan_oda_sayisi', '') <> '');
+$$;
+revoke all on function public.office_demand_board() from public;
+grant execute on function public.office_demand_board() to authenticated;

@@ -1702,6 +1702,7 @@ export default function App() {
   const [officeProperties, setOfficeProperties] = useState([]);
   const [officePhotos, setOfficePhotos] = useState([]);
   const [officeDocs, setOfficeDocs] = useState([]);
+  const [officeDemand, setOfficeDemand] = useState([]);
   const [portfolioPrefill, setPortfolioPrefill] = useState(null);
   // Portföy adayları (Sahibinden'den aracısız satanlar) - kişiye özel.
   const [prospects, setProspects] = useState([]);
@@ -2666,7 +2667,8 @@ export default function App() {
       .eq("user_id", currentUserId)
       .is("left_at", null)
       .maybeSingle();
-    if (!mine) { setOffice(null); setOfficeDocs([]); return; }
+    if (!mine) { setOffice(null); setOfficeDocs([]); setOfficeDemand([]); return; }
+    supabase.rpc("office_demand_board").then(({ data }) => setOfficeDemand(data || []));
     const [{ data: off }, { data: members }, { data: invite }, { data: docs }] = await Promise.all([
       supabase.from("offices").select("*").eq("id", mine.office_id).single(),
       supabase.from("office_members").select("*").eq("office_id", mine.office_id).order("joined_at"),
@@ -2696,6 +2698,7 @@ export default function App() {
         phone: m.phone,
         joinedAt: m.joined_at,
         leftAt: m.left_at,
+        shareDemand: m.share_demand === true,
       })),
     });
   };
@@ -6387,6 +6390,13 @@ export default function App() {
       {tab === "ofis" && isRealEstate && (
         <OfficeTab
           office={office}
+          demand={officeDemand}
+          myProperties={properties}
+          onToggleShareDemand={async (on) => {
+            const { error } = await supabase.from("office_members").update({ share_demand: on }).eq("office_id", office.office.id).eq("user_id", session.user.id);
+            if (error) { notify(`Kaydedilemedi: ${error.message}`); return; }
+            await loadOffice();
+          }}
           sharedCounts={{
             [session.user.id]: properties.filter((p) => p.officeShared !== false && ["aktif", "opsiyonlu"].includes(p.status)).length,
             ...officeProperties.reduce((acc, p) => ({ ...acc, [p.userId]: (acc[p.userId] || 0) + 1 }), {}),

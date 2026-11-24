@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Badge, ConfirmDialog, InfoTip } from "./shared";
 import { OFFICE_DOC_TYPES } from "./Portfolio";
+import { SEEKING_TO_TRANSACTION } from "./realEstate";
 
 // Emlak ofisi: danışmanlar bağımsız çalışır, ofis sadece portföy paylaşımı,
 // ortak bölge fiyatları ve sözleşme arşivi içindir. Broker danışmanın
@@ -37,6 +38,10 @@ function SharedScope() {
         <li>
           <b>Yetki ve aracılık sözleşmeleri</b> - yüklediğiniz imzalı sözleşmenin bir kopyası ofis
           arşivine gider; ofisten ayrılsanız da arşivde kalır.
+        </li>
+        <li>
+          <b>Alıcı talepleri (isteğe bağlı)</b> - açarsanız müşterilerinizin aradığı mülkler anonim
+          görünür; müşterinin adı/telefonu asla paylaşılmaz.
         </li>
       </ul>
       <p style={{ margin: "8px 0 0", color: "var(--text-muted)" }}>
@@ -147,6 +152,135 @@ function NoOffice({ defaultName, defaultPhone, onCreate, onJoin }) {
   );
 }
 
+const shortM = (n) =>
+  n >= 1_000_000
+    ? `${(n / 1_000_000).toLocaleString("tr-TR", { maximumFractionDigits: 1 })}M`
+    : `${Math.round(n / 1000)}B`;
+
+// Talebe uyan kendi portföyleri - basit eşleşme (işlem, bölge metni, oda,
+// tip, bütçe aralığı); "Farketmez"/boş alan kısıt sayılmaz.
+function matchesDemand(p, d) {
+  if (!["aktif", "opsiyonlu"].includes(p.status)) return false;
+  const tx = SEEKING_TO_TRANSACTION[d.islem];
+  if (tx && p.transactionType !== tx) return false;
+  const b = (d.bolge || "").trim().toLocaleLowerCase("tr");
+  if (b) {
+    const place = [p.neighborhood, p.district, p.city].join(" ").toLocaleLowerCase("tr");
+    if (!place.includes(b) && !b.split(/[,\s/]+/).some((w) => w.length > 2 && place.includes(w)))
+      return false;
+  }
+  if (d.oda && d.oda !== "Farketmez" && p.roomCount && p.roomCount !== d.oda) return false;
+  if (
+    d.mulk_tipi &&
+    d.mulk_tipi !== "Farketmez" &&
+    p.propertyType &&
+    p.propertyType !== d.mulk_tipi
+  )
+    return false;
+  const price = Number(p.price) || 0;
+  if (price && d.max_butce && price > Number(d.max_butce) * 1.05) return false;
+  if (price && d.min_butce && price < Number(d.min_butce) * 0.95) return false;
+  return true;
+}
+
+function DemandBoard({ demand, myShare, onToggleShare, myProperties }) {
+  const groups = new Map();
+  for (const d of demand || []) {
+    const key = [
+      d.islem,
+      (d.bolge || "").toLocaleLowerCase("tr"),
+      d.oda,
+      d.mulk_tipi,
+      d.min_butce,
+      d.max_butce,
+    ].join("|");
+    const g = groups.get(key) || { d, agents: new Map(), count: 0 };
+    g.count += 1;
+    g.agents.set(d.agent_name, (g.agents.get(d.agent_name) || 0) + 1);
+    groups.set(key, g);
+  }
+  const list = [...groups.values()].sort((a, b) => b.count - a.count);
+  return (
+    <div style={box}>
+      <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600 }}>
+        Ofisteki alıcı talepleri
+        <InfoTip text="Paylaşmayı seçen danışmanların son 6 ayda temas kurduğu müşterilerinin aradığı mülkler. Müşterinin adı, telefonu ve notları hiçbir zaman paylaşılmaz - sadece talep ve hangi danışmanda olduğu. Portföyünüz uyuyorsa o danışmanla iletişime geçip ortak satış yapabilirsiniz." />
+      </p>
+      <label
+        style={{
+          display: "flex",
+          gap: 8,
+          alignItems: "flex-start",
+          fontSize: 12.5,
+          margin: "0 0 8px",
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={!!myShare}
+          onChange={(e) => onToggleShare(e.target.checked)}
+          style={{ marginTop: 2 }}
+        />
+        <span>
+          Alıcı taleplerimi ofiste paylaş
+          <span style={{ display: "block", color: "var(--text-muted)" }}>
+            Müşteri kartındaki aranan bölge/bütçe/oda bilgileri anonim olarak görünür; adınız
+            &quot;bu talep kimde&quot; diye yazar.
+          </span>
+        </span>
+      </label>
+      {list.length === 0 ? (
+        <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: 0 }}>
+          Ofiste paylaşılan alıcı talebi yok.
+        </p>
+      ) : (
+        list.map((g, i) => {
+          const d = g.d;
+          const budget =
+            d.min_butce || d.max_butce
+              ? `${d.min_butce ? shortM(Number(d.min_butce)) : "?"} - ${d.max_butce ? shortM(Number(d.max_butce)) : "?"}`
+              : null;
+          const mine = myProperties.filter((p) => matchesDemand(p, d)).length;
+          return (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+                alignItems: "center",
+                fontSize: 13,
+                padding: "6px 0",
+                borderTop: "0.5px solid var(--border)",
+              }}
+            >
+              <span style={{ flex: "1 1 260px" }}>
+                <b>
+                  {[
+                    d.islem,
+                    d.bolge,
+                    d.oda && d.oda !== "Farketmez" ? d.oda : null,
+                    d.mulk_tipi && d.mulk_tipi !== "Farketmez" ? d.mulk_tipi : null,
+                    budget,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || "Talep"}
+                </b>
+                <span style={{ color: "var(--text-muted)" }}>
+                  {" "}
+                  · {g.count} alıcı ·{" "}
+                  {[...g.agents].map(([n, c]) => (c > 1 ? `${n} (${c})` : n)).join(", ")}
+                </span>
+              </span>
+              {mine > 0 && <Badge tone="success">Portföylerimde uyan: {mine}</Badge>}
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
 function DocArchive({ docs, isBroker, onDownload, onDelete }) {
   const [type, setType] = useState("all");
   const [q, setQ] = useState("");
@@ -245,6 +379,9 @@ export function OfficeTab({
   onUpdateMe,
   docs = [],
   sharedCounts = {},
+  demand = [],
+  onToggleShareDemand,
+  myProperties = [],
   onDownloadDoc,
   onDeleteDoc,
 }) {
@@ -410,6 +547,13 @@ export function OfficeTab({
               </p>
             )}
           </div>
+
+          <DemandBoard
+            demand={demand}
+            myShare={office.members.find((m) => m.userId === currentUserId)?.shareDemand}
+            onToggleShare={onToggleShareDemand}
+            myProperties={myProperties}
+          />
 
           <DocArchive
             docs={docs}
