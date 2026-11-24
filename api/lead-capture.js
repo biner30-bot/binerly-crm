@@ -64,7 +64,7 @@ async function fetchIndexHtml(req) {
 function renderVitrinHtml(baseHtml, payload, vitrinUrl) {
   const name = payload.companyName;
   const contactLine = [payload.address, payload.phone].filter(Boolean).join(" · ");
-  const description = `${name}${contactLine ? " - " + contactLine : ""} - ürünler, fiyat listesi ve güncel kampanyalar.`;
+  const description = `${name}${contactLine ? " - " + contactLine : ""} - ${payload.sector === "emlak" ? "satılık ve kiralık portföy, güncel ilanlar." : "ürünler, fiyat listesi ve güncel kampanyalar."}`;
   const title = `${name} - Vitrin`;
   const image = payload.logoUrl || "https://binerly.com/og-image.png";
   const titleSafe = escapeHtml(title);
@@ -366,7 +366,67 @@ export default async function handler(req, res) {
       const acceptsAppointments = !!apptFieldDefs?.[0]?.key && settings.sector !== "otel";
       const ctaKind = sectorCtaKind(settings.sector);
 
+      // Emlak portföyü: SADECE danışmanın "vitrinde yayınla" dediği açık ilanlar.
+      // Seçilen kolonlar bilerek dar - adres, ada/parsel, bağımsız bölüm, mal
+      // sahibi, yetki/EİDS ve property_private ASLA buraya girmez (kişisel veri +
+      // portföyü rakibe/aracısız alıcıya açmamak için).
+      let listings = [];
+      if (settings.sector === "emlak") {
+        const { data: props } = await supabaseAdmin
+          .from("properties")
+          .select("id, transaction_type, status, title, property_type, price, city, district, neighborhood, gross_m2, net_m2, room_count, building_age, floor, total_floors, description, details")
+          .eq("user_id", settings.user_id)
+          .eq("showcase_visible", true)
+          .in("status", ["aktif", "opsiyonlu"])
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false })
+          .limit(60);
+        if (props?.length) {
+          const { data: photoRows } = await supabaseAdmin
+            .from("attachments")
+            .select("entity_id, storage_path, sort_order, created_at")
+            .eq("entity_type", "property_photos")
+            .in("entity_id", props.map((p) => p.id))
+            .is("deleted_at", null);
+          const byProp = {};
+          for (const ph of photoRows || []) (byProp[ph.entity_id] ||= []).push(ph);
+          const MAX_PHOTOS = 12;
+          for (const list of Object.values(byProp)) {
+            list.sort((a, b) => (a.sort_order ?? 1e9) - (b.sort_order ?? 1e9) || new Date(a.created_at) - new Date(b.created_at));
+            list.splice(MAX_PHOTOS);
+          }
+          const paths = Object.values(byProp).flat().map((ph) => ph.storage_path);
+          const urlByPath = {};
+          if (paths.length) {
+            const { data: signed } = await supabaseAdmin.storage.from("attachments").createSignedUrls(paths, 3600);
+            (signed || []).forEach((s, i) => { if (s?.signedUrl) urlByPath[paths[i]] = s.signedUrl; });
+          }
+          // details'tan da sadece mülkün kendisini anlatan alanlar - gizli/kişisel
+          // olabilecek (demirbaş listesi, kira başlangıcı, analiz varsayımları) çıkmaz.
+          const PUBLIC_DETAIL_KEYS = ["heating", "elevator", "parking", "in_site", "dues", "facade", "bathrooms", "kitchen", "balcony", "furnished", "usage", "deed_status", "credit_eligible", "energy_class", "deposit", "monthly_rent"];
+          listings = props.map((p) => ({
+            id: p.id,
+            transactionType: p.transaction_type,
+            status: p.status,
+            title: p.title,
+            propertyType: p.property_type,
+            price: p.price != null ? Number(p.price) : null,
+            location: [p.neighborhood, p.district, p.city].filter(Boolean).join(", "),
+            grossM2: p.gross_m2 != null ? Number(p.gross_m2) : null,
+            netM2: p.net_m2 != null ? Number(p.net_m2) : null,
+            roomCount: p.room_count,
+            buildingAge: p.building_age,
+            floor: p.floor,
+            totalFloors: p.total_floors,
+            description: p.description,
+            details: Object.fromEntries(Object.entries(p.details || {}).filter(([k]) => PUBLIC_DETAIL_KEYS.includes(k))),
+            photos: (byProp[p.id] || []).map((ph) => urlByPath[ph.storage_path]).filter(Boolean),
+          }));
+        }
+      }
+
       const vitrinPayload = {
+        listings,
         companyName: settings.company_name || "Binerly",
         logoUrl: settings.logo_url || null,
         sector: settings.sector || null,

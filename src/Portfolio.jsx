@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { PropertyShowings } from "./Showings";
 import { CostCalculator } from "./CostCalculator";
 import { Valuation } from "./Valuation";
+import { ListingPackage } from "./ListingPackage";
 import { Badge, Modal, ConfirmDialog, InfoTip, AttachmentList, formatTL, uid } from "./shared";
 import {
   TRANSACTION_TYPES,
@@ -244,6 +245,8 @@ export function Portfolio({
   const [importing, setImporting] = useState(false);
   const [costsFor, setCostsFor] = useState(null);
   const [valuationFor, setValuationFor] = useState(null);
+  const [packageFor, setPackageFor] = useState(null);
+  const packageProperty = packageFor ? properties.find((p) => p.id === packageFor) : null;
   const valuationProperty = valuationFor ? properties.find((p) => p.id === valuationFor) : null;
   // editing açılış anındaki kopya; eşleştirme/ilan metni kaydedilmiş son hali kullanmalı
   const latestEditing = editing?.id ? properties.find((p) => p.id === editing.id) || editing : null;
@@ -515,6 +518,7 @@ export function Portfolio({
             onShowListingText={editing.id ? () => onShowListingText(latestEditing) : null}
             onShowCosts={editing.id ? () => setCostsFor(latestEditing) : null}
             onShowValuation={editing.id ? () => setValuationFor(editing.id) : null}
+            onShowPackage={editing.id ? () => setPackageFor(editing.id) : null}
           />
         </Modal>
       )}
@@ -522,6 +526,21 @@ export function Portfolio({
       {costsFor && (
         <Modal title="Masraf hesabı" onClose={() => setCostsFor(null)} wide>
           <CostCalculator property={costsFor} companySettings={companySettings} notify={notify} />
+        </Modal>
+      )}
+
+      {packageProperty && (
+        <Modal
+          title={`İlan paketi - ${packageProperty.title}`}
+          onClose={() => setPackageFor(null)}
+          wide
+        >
+          <ListingPackage
+            property={packageProperty}
+            photos={photosByProperty[packageProperty.id] || []}
+            getSignedUrls={getSignedUrls}
+            notify={notify}
+          />
         </Modal>
       )}
 
@@ -746,6 +765,7 @@ export function PropertyForm({
   onShowListingText,
   onShowCosts,
   onShowValuation,
+  onShowPackage,
 }) {
   const [f, setF] = useState(() => ({
     transactionType: initial?.transactionType || "satilik",
@@ -776,6 +796,7 @@ export function PropertyForm({
     eidsStatus: initial?.eidsStatus || "yok",
     eidsDate: initial?.eidsDate || "",
     sahibindenNo: initial?.listingRefs?.sahibinden || "",
+    showcaseVisible: initial?.showcaseVisible === true,
     details: initial?.details || {},
     checklist: initial?.checklist || {},
   }));
@@ -894,6 +915,7 @@ export function PropertyForm({
             },
             details: cleanDetails,
             checklist: f.checklist,
+            showcaseVisible: f.showcaseVisible,
           },
           canSeePrivate
             ? { minPrice: toNumberOrNull(minPrice), privateNote: privateNote.trim() || null }
@@ -1120,6 +1142,31 @@ export function PropertyForm({
           field("eidsDate", "EİDS onay tarihi", { input: { type: "date" } })}
         {field("sahibindenNo", "Sahibinden ilan no")}
       </div>
+      <label
+        style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}
+      >
+        <input
+          type="checkbox"
+          checked={f.showcaseVisible}
+          onChange={(e) => setF((prev) => ({ ...prev, showcaseVisible: e.target.checked }))}
+        />
+        Vitrin sayfamda yayınla
+        <InfoTip text="Durumu Aktif veya Opsiyonlu olan ilan, Vitrin sayfanızın 'Portföyümüz' bölümünde fotoğraflarıyla görünür. Açık adres, ada/parsel, mal sahibi ve gizli bilgiler hiçbir zaman yayınlanmaz - sadece mahalle/ilçe görünür. İnternette ilan için EİDS yetkisi gerekir." />
+      </label>
+      {f.showcaseVisible && f.eidsStatus !== "onaylandi" && (
+        <p
+          style={{
+            fontSize: 12,
+            margin: "-6px 0 12px",
+            padding: "6px 10px",
+            background: "var(--bg-warning)",
+            borderRadius: 6,
+          }}
+        >
+          EİDS yetkisi onaylı görünmüyor. İnternette emlak ilanı yayınlamak için mal sahibinin EİDS
+          yetkilendirmesi gerekir.
+        </p>
+      )}
 
       <p style={sectionTitleStyle}>
         Portföy alım kontrol listesi ({checklistDone}/{checklistItems.length})
@@ -1311,6 +1358,11 @@ export function PropertyForm({
           {onShowValuation && (
             <button type="button" onClick={onShowValuation}>
               <i className="ti ti-chart-bar" aria-hidden="true" /> Fiyat analizi
+            </button>
+          )}
+          {onShowPackage && (
+            <button type="button" onClick={onShowPackage}>
+              <i className="ti ti-package-export" aria-hidden="true" /> İlan paketi
             </button>
           )}
         </div>

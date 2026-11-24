@@ -411,6 +411,7 @@ function rowToProperty(r) {
     listingRefs: r.listing_refs || {},
     details: r.details || {},
     checklist: r.checklist || {},
+    showcaseVisible: r.showcase_visible === true,
     createdAt: r.created_at,
   };
 }
@@ -2368,6 +2369,7 @@ export default function App() {
       listing_refs: p.listingRefs,
       details: p.details,
       ...(p.checklist ? { checklist: p.checklist } : {}),
+      ...(p.showcaseVisible !== undefined ? { showcase_visible: p.showcaseVisible === true } : {}),
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase.from("properties").upsert(row).select().single();

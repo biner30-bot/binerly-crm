@@ -26,6 +26,334 @@ function portalUrlFor() {
   return window.location.origin + "/portal";
 }
 
+// realEstate.js'ten import edilmiyor (bu sayfa bağımsız paket, bkz. yukarıdaki
+// kasıtlı kopya notu) - sadece görünen etiketler.
+const TX_LABELS = { satilik: "Satılık", kiralik: "Kiralık", devren_kiralik: "Devren Kiralık" };
+const DETAIL_LABELS = {
+  heating: "Isıtma",
+  elevator: "Asansör",
+  parking: "Otopark",
+  in_site: "Site içinde",
+  dues: "Aidat",
+  facade: "Cephe",
+  bathrooms: "Banyo",
+  kitchen: "Mutfak",
+  balcony: "Balkon",
+  furnished: "Eşyalı",
+  usage: "Kullanım durumu",
+  deed_status: "Tapu durumu",
+  credit_eligible: "Krediye uygun",
+  energy_class: "Enerji sınıfı",
+  deposit: "Depozito",
+  monthly_rent: "Aylık kira",
+};
+const MONEY_DETAILS = new Set(["dues", "deposit", "monthly_rent"]);
+
+function toWaNumber(phone) {
+  const digits = (phone || "").replace(/\D/g, "").replace(/^0/, "");
+  return digits.startsWith("90") ? digits : `90${digits}`;
+}
+
+function ShowcaseListings({ listings, phone, companyName, cardStyle }) {
+  const [txFilter, setTxFilter] = useState("all");
+  const [openId, setOpenId] = useState(null);
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const types = [...new Set(listings.map((l) => l.transactionType))];
+  const shown = listings.filter((l) => txFilter === "all" || l.transactionType === txFilter);
+  const opened = listings.find((l) => l.id === openId);
+  const priceText = (l) =>
+    l.price
+      ? `${formatPrice(l.price)}${l.transactionType === "kiralik" ? " / ay" : ""}`
+      : "Fiyat için arayın";
+  const specs = (l) =>
+    [l.roomCount, l.netM2 || l.grossM2 ? `${l.netM2 || l.grossM2} m²` : null, l.propertyType]
+      .filter(Boolean)
+      .join(" · ");
+  const pill = (active) => ({
+    border: "1px solid #d5dde6",
+    background: active ? "#185fa5" : "#fff",
+    color: active ? "#fff" : "#0c2540",
+    borderRadius: 999,
+    padding: "6px 14px",
+    fontSize: 13,
+    cursor: "pointer",
+  });
+  return (
+    <>
+      {types.length > 1 && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+          <button type="button" style={pill(txFilter === "all")} onClick={() => setTxFilter("all")}>
+            Tümü
+          </button>
+          {types.map((t) => (
+            <button
+              key={t}
+              type="button"
+              style={pill(txFilter === t)}
+              onClick={() => setTxFilter(t)}
+            >
+              {TX_LABELS[t] || t}
+            </button>
+          ))}
+        </div>
+      )}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+          gap: 14,
+        }}
+      >
+        {shown.map((l) => (
+          <button
+            key={l.id}
+            type="button"
+            onClick={() => {
+              setOpenId(l.id);
+              setPhotoIndex(0);
+            }}
+            style={{
+              ...cardStyle,
+              padding: 0,
+              overflow: "hidden",
+              textAlign: "left",
+              cursor: "pointer",
+            }}
+          >
+            <div style={{ aspectRatio: "4 / 3", background: "#eef2f7", position: "relative" }}>
+              {l.photos[0] && (
+                <img
+                  src={l.photos[0]}
+                  alt={l.title}
+                  loading="lazy"
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                />
+              )}
+              <span
+                style={{
+                  position: "absolute",
+                  left: 10,
+                  top: 10,
+                  background: "#185fa5",
+                  color: "#fff",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  borderRadius: 6,
+                  padding: "3px 8px",
+                }}
+              >
+                {TX_LABELS[l.transactionType]}
+                {l.status === "opsiyonlu" ? " · Opsiyonlu" : ""}
+              </span>
+            </div>
+            <div style={{ padding: 14 }}>
+              <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#0c2540" }}>
+                {l.title}
+              </p>
+              <p style={{ margin: "4px 0 0", fontSize: 15, fontWeight: 800, color: "#185fa5" }}>
+                {priceText(l)}
+              </p>
+              {l.location && (
+                <p style={{ margin: "6px 0 0", fontSize: 12.5, color: "#5b7088" }}>{l.location}</p>
+              )}
+              {specs(l) && (
+                <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "#5b7088" }}>{specs(l)}</p>
+              )}
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {opened && (
+        <div
+          onClick={() => setOpenId(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(12,37,64,0.6)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "flex-start",
+            overflowY: "auto",
+            padding: "1rem",
+            zIndex: 50,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#fff",
+              borderRadius: 14,
+              maxWidth: 720,
+              width: "100%",
+              overflow: "hidden",
+            }}
+          >
+            {opened.photos.length > 0 && (
+              <div style={{ position: "relative", background: "#0c2540" }}>
+                <img
+                  src={opened.photos[photoIndex]}
+                  alt={opened.title}
+                  style={{ width: "100%", maxHeight: 460, objectFit: "contain", display: "block" }}
+                />
+                {opened.photos.length > 1 && (
+                  <>
+                    {[
+                      [-1, "‹", { left: 8 }],
+                      [1, "›", { right: 8 }],
+                    ].map(([dir, ch, pos]) => (
+                      <button
+                        key={dir}
+                        type="button"
+                        aria-label={dir < 0 ? "Önceki fotoğraf" : "Sonraki fotoğraf"}
+                        onClick={() =>
+                          setPhotoIndex(
+                            (i) => (i + dir + opened.photos.length) % opened.photos.length,
+                          )
+                        }
+                        style={{
+                          position: "absolute",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          ...pos,
+                          width: 40,
+                          height: 40,
+                          borderRadius: 20,
+                          border: "none",
+                          background: "rgba(255,255,255,0.85)",
+                          fontSize: 24,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {ch}
+                      </button>
+                    ))}
+                    <span
+                      style={{
+                        position: "absolute",
+                        right: 10,
+                        bottom: 10,
+                        background: "rgba(0,0,0,0.6)",
+                        color: "#fff",
+                        fontSize: 12,
+                        borderRadius: 6,
+                        padding: "2px 8px",
+                      }}
+                    >
+                      {photoIndex + 1} / {opened.photos.length}
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+            <div style={{ padding: 18 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "#185fa5" }}>
+                    {TX_LABELS[opened.transactionType]}
+                  </p>
+                  <h3 style={{ margin: "2px 0 0", fontSize: 18, color: "#0c2540" }}>
+                    {opened.title}
+                  </h3>
+                  {opened.location && (
+                    <p style={{ margin: "4px 0 0", fontSize: 13, color: "#5b7088" }}>
+                      {opened.location}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOpenId(null)}
+                  aria-label="Kapat"
+                  style={{
+                    border: "none",
+                    background: "none",
+                    fontSize: 22,
+                    cursor: "pointer",
+                    alignSelf: "flex-start",
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              <p style={{ margin: "10px 0 0", fontSize: 20, fontWeight: 800, color: "#185fa5" }}>
+                {priceText(opened)}
+              </p>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+                  gap: "6px 16px",
+                  margin: "14px 0",
+                  fontSize: 13,
+                }}
+              >
+                {[
+                  ["Oda", opened.roomCount],
+                  ["Brüt m²", opened.grossM2],
+                  ["Net m²", opened.netM2],
+                  ["Bina yaşı", opened.buildingAge],
+                  [
+                    "Kat",
+                    opened.floor &&
+                      `${opened.floor}${opened.totalFloors ? ` / ${opened.totalFloors}` : ""}`,
+                  ],
+                  ["Tip", opened.propertyType],
+                  ...Object.entries(opened.details || {}).map(([k, v]) => [
+                    DETAIL_LABELS[k] || k,
+                    Array.isArray(v) ? v.join(", ") : MONEY_DETAILS.has(k) ? formatPrice(v) : v,
+                  ]),
+                ]
+                  .filter(([, v]) => v !== null && v !== undefined && v !== "")
+                  .map(([label, v]) => (
+                    <div key={label}>
+                      <span style={{ color: "#9aa8b8" }}>{label}: </span>
+                      <span style={{ color: "#0c2540", fontWeight: 600 }}>{v}</span>
+                    </div>
+                  ))}
+              </div>
+              {opened.description && (
+                <p
+                  style={{
+                    whiteSpace: "pre-wrap",
+                    fontSize: 13.5,
+                    color: "#425466",
+                    lineHeight: 1.6,
+                    margin: "0 0 14px",
+                  }}
+                >
+                  {opened.description}
+                </p>
+              )}
+              {phone && (
+                <a
+                  href={`https://wa.me/${toWaNumber(phone)}?text=${encodeURIComponent(
+                    `Merhaba, ${companyName} vitrinindeki "${opened.title}" ilanı hakkında bilgi almak istiyorum.`,
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "inline-block",
+                    background: "#185fa5",
+                    color: "#fff",
+                    fontWeight: 700,
+                    fontSize: 14,
+                    textDecoration: "none",
+                    borderRadius: 10,
+                    padding: "12px 22px",
+                  }}
+                >
+                  Bu ilan hakkında bilgi al
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 // Kamuya açık, giriş gerektirmeyen vitrin sayfası - /vitrin/{token}. AYNI
 // token'ı, AYNI /api/lead-capture uç noktasını kullanır (Vercel Hobby'nin 12
 // fonksiyon sınırı zaten dolu olduğu için ayrı bir api/*.js açılmadı) - GET
@@ -74,8 +402,10 @@ export default function ShowcasePage() {
   const showcase = company?.showcase || [];
   const priceList = company?.priceList || [];
   const campaigns = company?.campaigns || [];
+  const listings = company?.listings || [];
   const opened = openIndex !== null ? showcase[openIndex] : null;
-  const hasAnyContent = showcase.length > 0 || priceList.length > 0 || campaigns.length > 0;
+  const hasAnyContent =
+    showcase.length > 0 || priceList.length > 0 || campaigns.length > 0 || listings.length > 0;
 
   const sectionTitleStyle = { fontSize: 17, fontWeight: 800, color: "#0c2540", margin: "0 0 12px" };
   const cardStyle = {
@@ -152,6 +482,18 @@ export default function ShowcasePage() {
               <p style={{ textAlign: "center", color: "#9aa8b8", padding: "2rem 1rem 3rem" }}>
                 Bu işletme henüz vitrin içeriği yayınlamadı.
               </p>
+            )}
+
+            {listings.length > 0 && (
+              <section style={{ marginBottom: "2.5rem" }}>
+                <h2 style={sectionTitleStyle}>Portföyümüz</h2>
+                <ShowcaseListings
+                  listings={listings}
+                  phone={company.phone}
+                  companyName={company.companyName}
+                  cardStyle={cardStyle}
+                />
+              </section>
             )}
 
             {campaigns.length > 0 && (
