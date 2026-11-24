@@ -59,6 +59,13 @@ const normalizeName = (s) =>
     .trim()
     .toLocaleLowerCase("tr");
 
+// Panodaki metin bir Sahibinden arama sonuç sayfası mı? Değilse hiç
+// işlenmez (danışmanın panosundaki başka bir şey okunup tutulmaz).
+function looksLikeSahibindenSearch(raw) {
+  const t = String(raw || "");
+  return /aramanızda/.test(t) && /#\d{7,}/.test(t) && /(sahibinden|İlan Başlığı)/i.test(t);
+}
+
 const optionsFor = (key) => PROPERTY_DETAIL_FIELDS.find((f) => f.key === key)?.options || [];
 
 function subjectFrom(p) {
@@ -429,8 +436,17 @@ function SubjectForm({ s, setS, regionPrices = [], missing = new Set() }) {
   );
 }
 
-function RegionPaste({ regionPrices, subject, aliasTo, onSaveRegion, onParsedLocation, notify }) {
+function RegionPaste({
+  regionPrices,
+  subject,
+  aliasTo,
+  clipboardInput,
+  onSaveRegion,
+  onParsedLocation,
+  notify,
+}) {
   const [text, setText] = useState("");
+  const [autoPending, setAutoPending] = useState(false);
   const [draft, setDraft] = useState(null);
   const [manual, setManual] = useState(false);
   const [manualM2, setManualM2] = useState("");
@@ -439,8 +455,8 @@ function RegionPaste({ regionPrices, subject, aliasTo, onSaveRegion, onParsedLoc
   const [saving, setSaving] = useState(false);
   const [searchUrl, setSearchUrl] = useState("");
 
-  const read = () => {
-    const parsed = parseSearchPages(text);
+  const read = (raw = text) => {
+    const parsed = parseSearchPages(raw);
     if (parsed.listings.length === 0) {
       notify(
         "İlan bulunamadı - Sahibinden'de arama sonuç sayfasını (liste görünümü) Ctrl+A, Ctrl+C ile kopyalayın.",
@@ -578,6 +594,65 @@ function RegionPaste({ regionPrices, subject, aliasTo, onSaveRegion, onParsedLoc
       setManualM2("");
       onParsedLocation(region);
     }
+    return ok;
+  };
+
+  const checkItems =
+    draft && !multi
+      ? pasteChecks({
+          raw: text,
+          parsed: draft.parsed,
+          subject,
+          existing: draft.merged ? draft.existing : null,
+          mergedCount: draftListings.length,
+          ageBandLabel,
+          aliasTo,
+        })
+      : [];
+
+  // Panodan gelen metin: okunur; uyarı yoksa ayrıca "Kaydet" beklemeden
+  // bölgeye eklenir, uyarı varsa danışmana gösterilir.
+  const startFrom = (raw, auto) => {
+    setText(raw);
+    read(raw);
+    setAutoPending(auto);
+  };
+  useEffect(() => {
+    if (clipboardInput?.text) startFrom(clipboardInput.text, clipboardInput.auto);
+    // sadece yeni pano içeriği geldiğinde
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clipboardInput?.nonce]);
+  useEffect(() => {
+    if (!autoPending || !draft || saving) return;
+    setAutoPending(false);
+    if (multi || !summary || checkItems.some((c) => c.tone !== "info")) return;
+    const region = regionFrom(draft, draftListings, draft.existing, summary);
+    const added = draftListings.length - (draft.merged ? draft.existing.listings.length : 0);
+    save(region).then((ok) => {
+      if (ok)
+        notify(
+          `${region.neighborhood} bölgesine ${Math.max(added, 0)} yeni ilan eklendi${draft.parsed.pages ? "" : draft.parsed.ageBand ? ` (${draft.parsed.ageBand})` : ""} - toplam ${region.listingCount} ilan.`,
+          "success",
+        );
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPending, draft]);
+
+  const pasteFromClipboard = async () => {
+    let raw;
+    try {
+      raw = await navigator.clipboard.readText();
+    } catch {
+      notify("Panoya erişilemedi - tarayıcıda pano iznine izin verin ya da kutuya Ctrl+V yapın.");
+      return;
+    }
+    if (!looksLikeSahibindenSearch(raw)) {
+      notify(
+        "Panoda Sahibinden arama sayfası yok - Sahibinden'de sonuç sayfasında Ctrl+A, Ctrl+C yapın.",
+      );
+      return;
+    }
+    startFrom(raw, true);
   };
 
   return (
@@ -616,7 +691,24 @@ function RegionPaste({ regionPrices, subject, aliasTo, onSaveRegion, onParsedLoc
         </ol>
       </details>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        <button type="button" style={{ fontSize: 12.5 }} disabled={!text.trim()} onClick={read}>
+        <button
+          type="button"
+          style={{
+            fontSize: 12.5,
+            background: "var(--fill-accent)",
+            color: "var(--on-accent)",
+            border: "none",
+          }}
+          onClick={pasteFromClipboard}
+        >
+          <i className="ti ti-clipboard-check" aria-hidden="true" /> Panodan ekle
+        </button>
+        <button
+          type="button"
+          style={{ fontSize: 12.5 }}
+          disabled={!text.trim()}
+          onClick={() => read()}
+        >
           İlanları oku
         </button>
         <button type="button" style={{ fontSize: 12.5 }} onClick={() => setManual((v) => !v)}>
@@ -723,17 +815,7 @@ function RegionPaste({ regionPrices, subject, aliasTo, onSaveRegion, onParsedLoc
             {summary.outliers > 0 && ` ${summary.outliers} uç değer hesaba katılmadı.`} Ortanca ilan
             fiyatı <b>{fmtUnit(summary.medianM2)}</b>, tipik daire {summary.medianArea} m².
           </p>
-          <Notices
-            items={pasteChecks({
-              raw: text,
-              parsed: draft.parsed,
-              subject,
-              existing: draft.merged ? draft.existing : null,
-              mergedCount: draftListings.length,
-              ageBandLabel,
-              aliasTo,
-            })}
-          />
+          <Notices items={checkItems} />
           {draft.parsed.page && draft.parsed.page.current < draft.parsed.page.total && (
             <p style={{ fontSize: 12, margin: "0 0 6px", color: "var(--text-warning)" }}>
               Aramada {draft.parsed.page.total} sayfa var. Kaydettikten sonra diğer sayfaları da
@@ -1115,6 +1197,8 @@ export function AutoValuation({
   const [showDetailed, setShowDetailed] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [staleReportPrompt, setStaleReportPrompt] = useState(false);
+  const [clipOffer, setClipOffer] = useState(null);
+  const [pasteIncoming, setPasteIncoming] = useState(null);
   const savedFactors = companySettings?.realEstateSettings?.avmFactors || {};
   const [factors, setFactors] = useState(() => ({ ...AVM_FACTOR_DEFAULTS, ...savedFactors }));
 
@@ -1251,6 +1335,62 @@ export function AutoValuation({
     if (!ok) notify("Yazdırma penceresi açılamadı - tarayıcının açılır pencere engelini kaldırın.");
   };
   const saleAgeStats = ageStats(saleRegion?.listings);
+
+  // Sahibinden sekmesinde Ctrl+A, Ctrl+C yapıp buraya dönünce: pano izni
+  // önceden verildiyse panodaki arama sayfası fark edilir ve tek tıkla eklenir.
+  // İzin yoksa hiçbir şey okunmaz (ilk izin "Panodan ekle" düğmesiyle istenir).
+  const regionPricesRef = useRef(regionPrices);
+  regionPricesRef.current = regionPrices;
+  useEffect(() => {
+    const check = async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const perm = await navigator.permissions.query({ name: "clipboard-read" });
+        if (perm.state !== "granted") return;
+        const raw = await navigator.clipboard.readText();
+        if (!looksLikeSahibindenSearch(raw)) return;
+        const sig = `${raw.length}:${(raw.match(/#\d{7,}/g) || []).slice(0, 5).join(",")}`;
+        if (sessionStorage.getItem("binerly.clip.handled") === sig) return;
+        const parsed = parseSearchPages(raw);
+        if (!parsed.listings.length) return;
+        // Hepsi zaten kayıtlıysa ve yaşları biliniyorsa önermeye gerek yok.
+        const known = new Map(
+          regionPricesRef.current.flatMap((r) => r.listings || []).map((l) => [l.id, l]),
+        );
+        const fresh = parsed.listings.filter((l) => {
+          const k = known.get(l.id);
+          return !k || (parsed.ageBand && k.ageBand !== parsed.ageBand);
+        });
+        if (!fresh.length) return;
+        setClipOffer({
+          raw,
+          sig,
+          neighborhood: parsed.neighborhood,
+          band: parsed.pages
+            ? parsed.pages.map((pg) => pg.ageBand || "filtresiz").join(" + ")
+            : parsed.ageBand || "yaş filtresi yok",
+          count: parsed.listings.length,
+          fresh: fresh.length,
+        });
+      } catch {
+        // izin API'si desteklenmiyor (ör. Firefox) - düğme yine çalışır
+      }
+    };
+    window.addEventListener("focus", check);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      window.removeEventListener("focus", check);
+      document.removeEventListener("visibilitychange", check);
+    };
+  }, []);
+  const dismissClip = () => {
+    try {
+      sessionStorage.setItem("binerly.clip.handled", clipOffer.sig);
+    } catch {
+      // sadece kolaylık
+    }
+    setClipOffer(null);
+  };
   // Yaş en belirleyici etken: daire yaşı ve ona yakın en az
   // MIN_NEAR_AGE_LISTINGS emsal olmadan mal sahibine rapor verilmez.
   const ageBasis = result.ageBasis;
@@ -1358,6 +1498,41 @@ export function AutoValuation({
       </div>
 
       <AddressSection s={s} setS={setS} hasPropertyPhoto={hasPropertyPhoto} notify={notify} />
+
+      {clipOffer && (
+        <div
+          style={{
+            ...box,
+            background: "var(--bg-accent, var(--surface-1))",
+            borderLeft: "3px solid var(--fill-accent)",
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
+            flexWrap: "wrap",
+            fontSize: 13,
+          }}
+        >
+          <span style={{ flex: "1 1 260px" }}>
+            <i className="ti ti-clipboard-text" aria-hidden="true" /> Panoda Sahibinden araması var:{" "}
+            <b>{clipOffer.neighborhood || "mahalle okunamadı"}</b> · {clipOffer.band} ·{" "}
+            {clipOffer.count} ilan ({clipOffer.fresh} yeni)
+          </span>
+          <button
+            type="button"
+            style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+            onClick={() => {
+              setPasteOpen(true);
+              setPasteIncoming({ text: clipOffer.raw, auto: true, nonce: Date.now() });
+              dismissClip();
+            }}
+          >
+            Ekle
+          </button>
+          <button type="button" onClick={dismissClip}>
+            Yoksay
+          </button>
+        </div>
+      )}
 
       <div style={box}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
@@ -1519,6 +1694,7 @@ export function AutoValuation({
           <RegionPaste
             regionPrices={regionPrices}
             subject={s}
+            clipboardInput={pasteIncoming}
             aliasTo={aliasFor(aliases, s)?.to}
             onSaveRegion={onSaveRegion}
             notify={notify}
