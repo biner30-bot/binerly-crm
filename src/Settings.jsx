@@ -568,6 +568,9 @@ function normalizeRealEstateSettings(s) {
       s.titleDeedTaxPercent,
       REAL_ESTATE_SETTING_DEFAULTS.titleDeedTaxPercent,
     ),
+    // Fiyat tahmini oranları bu formda düzenlenmiyor ama aynı jsonb'de duruyor -
+    // burada düşürülürse emlak ayarları her kaydedildiğinde sessizce sıfırlanırdı.
+    ...(s.avmFactors ? { avmFactors: s.avmFactors } : {}),
   };
 }
 

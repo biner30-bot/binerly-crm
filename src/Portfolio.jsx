@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { PropertyShowings } from "./Showings";
 import { CostCalculator } from "./CostCalculator";
 import { Valuation } from "./Valuation";
+import { AutoValuation } from "./AutoValuation";
 import { ListingPackage } from "./ListingPackage";
 import { BrokerPanel } from "./BrokerPanel";
 import { Badge, Modal, ConfirmDialog, InfoTip, AttachmentList, formatTL, uid } from "./shared";
@@ -242,12 +243,18 @@ export function Portfolio({
   onSaveComparable,
   onDeleteComparable,
   deals = [],
+  regionPrices = [],
+  marketIndex = [],
+  onSaveRegionPrice,
+  onDeleteRegionPrice,
+  onSaveAvmFactors,
 }) {
   const [view, setView] = useState("list");
   const [editing, setEditing] = useState(null);
   const [importing, setImporting] = useState(false);
   const [costsFor, setCostsFor] = useState(null);
   const [valuationFor, setValuationFor] = useState(null);
+  const [freeValuation, setFreeValuation] = useState(false);
   const [packageFor, setPackageFor] = useState(null);
   const packageProperty = packageFor ? properties.find((p) => p.id === packageFor) : null;
   const valuationProperty = valuationFor ? properties.find((p) => p.id === valuationFor) : null;
@@ -332,7 +339,10 @@ export function Portfolio({
             Satılık, kiralık ve devren kiralık mülkleriniz, mal sahipleri ve yetki durumlarıyla.
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button onClick={() => setFreeValuation(true)}>
+            <i className="ti ti-calculator" aria-hidden="true" /> Fiyat hesapla
+          </button>
           <button onClick={() => setImporting(true)}>
             <i className="ti ti-clipboard-text" aria-hidden="true" /> İlandan aktar
           </button>
@@ -592,35 +602,73 @@ export function Portfolio({
         </Modal>
       )}
 
+      {freeValuation && (
+        <Modal title="Fiyat hesapla" onClose={() => setFreeValuation(false)} wide>
+          <AutoValuation
+            property={null}
+            regionPrices={regionPrices}
+            marketIndex={marketIndex}
+            companySettings={companySettings}
+            agentName={currentUserName}
+            onSaveRegion={onSaveRegionPrice}
+            onDeleteRegion={onDeleteRegionPrice}
+            onSaveFactors={onSaveAvmFactors}
+            notify={notify}
+          />
+        </Modal>
+      )}
+
       {valuationProperty && (
         <Modal
           title={`Fiyat analizi - ${valuationProperty.title}`}
           onClose={() => setValuationFor(null)}
           wide
         >
-          <Valuation
+          <AutoValuation
             property={valuationProperty}
-            comparables={comparables}
-            properties={properties}
+            regionPrices={regionPrices}
+            marketIndex={marketIndex}
             companySettings={companySettings}
             agentName={
               (valuationProperty.assignedTo === currentUserId && currentUserName) ||
               teamMembers.find((m) => m.id === valuationProperty.assignedTo)?.name ||
               ""
             }
-            onSaveComparable={onSaveComparable}
-            onDeleteComparable={onDeleteComparable}
-            onSaveOptions={(valuation) =>
-              onSave(
-                { ...valuationProperty, details: { ...valuationProperty.details, valuation } },
-                null,
-              )
-            }
+            onSaveRegion={onSaveRegionPrice}
+            onDeleteRegion={onDeleteRegionPrice}
+            onSaveFactors={onSaveAvmFactors}
             onApplyPrice={async (price) => {
               const saved = await onSave({ ...valuationProperty, price }, null);
               if (saved) notify(`Portföy fiyatı ${formatTL(price)} olarak güncellendi.`, "success");
             }}
             notify={notify}
+            detailed={
+              <Valuation
+                property={valuationProperty}
+                comparables={comparables}
+                properties={properties}
+                companySettings={companySettings}
+                agentName={
+                  (valuationProperty.assignedTo === currentUserId && currentUserName) ||
+                  teamMembers.find((m) => m.id === valuationProperty.assignedTo)?.name ||
+                  ""
+                }
+                onSaveComparable={onSaveComparable}
+                onDeleteComparable={onDeleteComparable}
+                onSaveOptions={(valuation) =>
+                  onSave(
+                    { ...valuationProperty, details: { ...valuationProperty.details, valuation } },
+                    null,
+                  )
+                }
+                onApplyPrice={async (price) => {
+                  const saved = await onSave({ ...valuationProperty, price }, null);
+                  if (saved)
+                    notify(`Portföy fiyatı ${formatTL(price)} olarak güncellendi.`, "success");
+                }}
+                notify={notify}
+              />
+            }
           />
         </Modal>
       )}

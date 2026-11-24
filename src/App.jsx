@@ -457,6 +457,27 @@ function rowToComparable(r) {
   };
 }
 
+function rowToRegionPrice(r) {
+  const num = (v) => (v != null ? Number(v) : null);
+  return {
+    id: r.id,
+    city: r.city || "",
+    district: r.district || "",
+    neighborhood: r.neighborhood,
+    propertyType: r.property_type,
+    transactionType: r.transaction_type,
+    medianM2: Number(r.median_m2),
+    q1M2: num(r.q1_m2),
+    q3M2: num(r.q3_m2),
+    medianArea: num(r.median_area),
+    listingCount: r.listing_count || 0,
+    typicalAge: r.typical_age ?? null,
+    asOf: r.as_of,
+    source: r.source,
+    listings: r.listings || [],
+  };
+}
+
 function rowToPaymentCredential(r) {
   return {
     id: r.id,
@@ -1655,6 +1676,8 @@ export default function App() {
   const [propertyPrivate, setPropertyPrivate] = useState({});
   const [showings, setShowings] = useState([]);
   const [comparables, setComparables] = useState([]);
+  const [regionPrices, setRegionPrices] = useState([]);
+  const [marketIndex, setMarketIndex] = useState([]);
   const [tasks, setTasks] = useState([]);
 
   // Ham Postgres/ağ hataları (ör. "violates foreign key constraint") 89+
@@ -1764,7 +1787,10 @@ export default function App() {
       supabase.from("property_private").select("*"),
       supabase.from("property_showings").select("*").is("deleted_at", null).order("shown_at", { ascending: false }),
       supabase.from("property_comparables").select("*").is("deleted_at", null).order("created_at"),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: sc }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ss }, { data: slb }, { data: slr }, { data: ri }, { data: res }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: gcw }, { data: myMembership }, { data: invites }, { data: tk }, { data: props }, { data: propPriv }, { data: shw }, { data: cmp }]) => {
+      supabase.from("region_prices").select("*").order("neighborhood"),
+      // Sadece son 3 yıl; endeks oranı için bölge fiyatının alındığı ay ve en son ay yeterli.
+      supabase.from("market_index").select("series, period, value").gte("period", `${new Date().getFullYear() - 3}-01-01`),
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: sc }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ss }, { data: slb }, { data: slr }, { data: ri }, { data: res }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: gcw }, { data: myMembership }, { data: invites }, { data: tk }, { data: props }, { data: propPriv }, { data: shw }, { data: cmp }, { data: rgp }, { data: mkt }]) => {
       // customers/deals/company_settings RLS'i, sahiplik politikasına ek olarak
       // portal kullanıcılarının kendi bağlı oldukları kayıtları görmesine izin
       // veren bir politikayla da "veya" ile birleşiyor (customer_*_view'ların
@@ -1814,6 +1840,8 @@ export default function App() {
       );
       setShowings((shw || []).filter((row) => row.user_id === ownerId).map(rowToShowing));
       setComparables((cmp || []).filter((row) => row.user_id === ownerId).map(rowToComparable));
+      setRegionPrices((rgp || []).filter((row) => row.user_id === ownerId).map(rowToRegionPrice));
+      setMarketIndex((mkt || []).map((m) => ({ series: m.series, period: m.period, value: Number(m.value) })));
       setActiveTeamId(ownerId);
       // Sadece BANA gelen davetler (kendi gönderdiklerim değil) — RLS iki SELECT
       // politikasını OR ile birleştirdiği için burada e-postaya göre ek filtre şart.
@@ -2506,6 +2534,49 @@ export default function App() {
     if (error) { notify(`Emsal silinemedi: ${error.message}`); return; }
     setComparables((prev) => prev.filter((x) => x.id !== id));
   };
+
+  const saveRegionPrice = async (r) => {
+    const row = {
+      user_id: activeTeamId,
+      city: r.city || "",
+      district: r.district || "",
+      neighborhood: r.neighborhood,
+      property_type: r.propertyType || "Daire",
+      transaction_type: r.transactionType || "satilik",
+      median_m2: r.medianM2,
+      q1_m2: r.q1M2 ?? null,
+      q3_m2: r.q3M2 ?? null,
+      median_area: r.medianArea ?? null,
+      listing_count: r.listingCount || 0,
+      typical_age: r.typicalAge ?? null,
+      as_of: r.asOf,
+      source: r.source,
+      listings: r.listings || [],
+      updated_at: new Date().toISOString(),
+    };
+    // Benzersizlik ifade-indeksinde (lower(...)) olduğu için upsert onConflict
+    // kullanılamıyor - mevcut kayıt id'siyle güncellenir.
+    const query = r.id
+      ? supabase.from("region_prices").update(row).eq("id", r.id)
+      : supabase.from("region_prices").insert(row);
+    const { data, error } = await query.select().single();
+    if (error) {
+      notify(error.code === "23505" ? "Bu bölge zaten kayıtlı - sayfayı yenileyip tekrar deneyin." : `Bölge fiyatı kaydedilemedi: ${error.message}`);
+      return false;
+    }
+    const saved = rowToRegionPrice(data);
+    setRegionPrices((prev) => [...prev.filter((x) => x.id !== saved.id), saved]);
+    return true;
+  };
+
+  const deleteRegionPrice = async (id) => {
+    const { error } = await supabase.from("region_prices").delete().eq("id", id);
+    if (error) { notify(`Bölge fiyatı silinemedi: ${error.message}`); return; }
+    setRegionPrices((prev) => prev.filter((x) => x.id !== id));
+  };
+
+  const saveAvmFactors = (avmFactors) =>
+    upsertCompanySettings({ realEstateSettings: { ...(companySettings?.realEstateSettings || {}), avmFactors } });
 
   // Satış sonrası takip mevcut Görevler sistemine bağlanır (Pano + son tarih
   // e-postası zaten var). Sadece GEÇİŞ anında oluşur - her kayıtta değil, yoksa
@@ -5823,6 +5894,11 @@ export default function App() {
           deals={deals}
           onSaveComparable={saveComparable}
           onDeleteComparable={deleteComparable}
+          regionPrices={regionPrices}
+          marketIndex={marketIndex}
+          onSaveRegionPrice={saveRegionPrice}
+          onDeleteRegionPrice={deleteRegionPrice}
+          onSaveAvmFactors={saveAvmFactors}
           onDeleteWetSigned={deleteShowingWetSigned}
           onFindMatches={(p) => findPropertyMatches(p)}
           onShowListingText={(p) => setListingTextDeal(propertyAsListingDeal(p))}

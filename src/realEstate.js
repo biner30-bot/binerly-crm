@@ -154,6 +154,22 @@ export const PROPERTY_DETAIL_FIELDS = [
     type: "multi",
     options: ["Kuzey", "Güney", "Doğu", "Batı"],
   },
+  // Manzara ve durum otomatik fiyat tahmininde (priceEstimate.js) kullanılıyor -
+  // seçenek metinleri oradaki katsayı eşlemesiyle birebir aynı olmalı.
+  {
+    group: "ic",
+    key: "condition",
+    label: "Durum",
+    type: "select",
+    options: ["Yeni / sıfır", "Yeni tadilatlı", "Bakımlı", "Standart", "Tadilat gerekli"],
+  },
+  {
+    group: "ic",
+    key: "view",
+    label: "Manzara",
+    type: "multi",
+    options: ["Deniz", "Doğa / Park", "Şehir"],
+  },
   { group: "ic", key: "bathrooms", label: "Banyo sayısı", type: "number" },
   {
     group: "ic",
