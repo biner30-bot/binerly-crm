@@ -104,6 +104,7 @@ export function buildValuationReportHtml({
   agent,
   marketIndex,
   photoUrl,
+  closed,
   disclaimer,
 }) {
   const r = result.region;
@@ -178,6 +179,14 @@ export function buildValuationReportHtml({
         : null,
     ages2.ageSlope != null ? ["Yaşın m² fiyatına etkisi", `yılda %${ages2.ageSlope}`] : null,
     avgListingAge != null ? ["İlanların ortalama yayın süresi", `${avgListingAge} gün`] : null,
+    // Tek tek işlem fiyatı başka müşterilerin bilgisidir - sadece en az 3
+    // işlemin ortancası gösterilir.
+    closed?.count >= 3
+      ? [
+          "Ofisin bölgede gerçekleşen satışları",
+          `${closed.count} işlem, ortanca ${unit(closed.medianUnitToday)}`,
+        ]
+      : null,
     ["İlan verisi tarihi", fmtDate(r.asOf)],
     result.index.factor !== 1 && result.index.latest
       ? [

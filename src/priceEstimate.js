@@ -635,3 +635,62 @@ export function estimateValue({ subject, saleRegion, rentRegion, marketIndex, fa
   }
   return result;
 }
+
+// Ofisin kendi kapanan işlemleri (portföyde "Satıldı/Kiralandı" + gerçekleşen
+// fiyat). İlan fiyatı değil gerçek bedel olduğu için bölge verisinden değerli;
+// her biri kapanış ayından bugüne TCMB endeksiyle taşınır.
+const CLOSED_LOOKBACK_DAYS = 730;
+
+function closedRecords(properties, transactionType, marketIndex) {
+  const status = transactionType === "kiralik" ? "kiralandi" : "satildi";
+  const cutoff = Date.now() - CLOSED_LOOKBACK_DAYS * 86400000;
+  return properties
+    .filter((p) => p.status === status && p.transactionType === transactionType)
+    .map((p) => {
+      const closedPrice = Number(p.details?.closed_price);
+      const gross = Number(p.grossM2) || (Number(p.netM2) ? Number(p.netM2) * 1.2 : 0);
+      const on = p.details?.closed_on || String(p.createdAt || "").slice(0, 10);
+      if (!(closedPrice > 0) || !on || new Date(`${on}T00:00:00`) < cutoff) return null;
+      const idx = indexFactor(marketIndex || [], p.city, on);
+      return {
+        property: p,
+        closedPrice,
+        closedOn: on,
+        listPrice: Number(p.price) || null,
+        unit: gross ? closedPrice / gross : null,
+        unitToday: gross ? (closedPrice / gross) * idx.factor : null,
+      };
+    })
+    .filter(Boolean);
+}
+
+export function closedTransactions(properties, subject, transactionType, marketIndex) {
+  const n = normalizePlace(subject.neighborhood);
+  if (!n) return { count: 0, items: [] };
+  const type = String(subject.propertyType || "Daire").toLocaleLowerCase("tr");
+  const items = closedRecords(properties, transactionType, marketIndex).filter(
+    (r) =>
+      r.unitToday &&
+      normalizePlace(r.property.neighborhood) === n &&
+      String(r.property.propertyType || "Daire").toLocaleLowerCase("tr") === type,
+  );
+  const units = items.map((r) => r.unitToday).sort((a, b) => a - b);
+  return {
+    count: items.length,
+    items,
+    medianUnitToday: units.length ? percentile(units, 0.5) : null,
+  };
+}
+
+// Pazarlık payı = ilan fiyatından gerçekleşene iniş. Mahalle şartı yok - ofisin
+// genel pazarlık alışkanlığı. Fiyat sonradan gerçekleşene çekilmişse (fark 0)
+// veya ilan fiyatı yoksa o kayıt sayılmaz.
+export function officeAskingDiscount(properties, transactionType = "satilik") {
+  const ds = closedRecords(properties, transactionType, [])
+    .filter((r) => r.listPrice && r.closedPrice < r.listPrice * 1.05)
+    .map((r) => (1 - r.closedPrice / r.listPrice) * 100)
+    .filter((d) => d > 0.1 && d < 40)
+    .sort((a, b) => a - b);
+  if (ds.length < 3) return { count: ds.length, percent: null };
+  return { count: ds.length, percent: Math.round(percentile(ds, 0.5) * 10) / 10 };
+}

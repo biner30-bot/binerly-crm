@@ -7,6 +7,8 @@ import {
   AGE_BANDS,
   AVM_FACTOR_DEFAULTS,
   ageStats,
+  closedTransactions,
+  officeAskingDiscount,
   AVM_FACTOR_LABELS,
   CONDITION_OPTIONS,
   VIEW_OPTIONS,
@@ -477,6 +479,7 @@ function RegionAgeTag({ days }) {
 
 export function AutoValuation({
   property,
+  properties = [],
   regionPrices,
   marketIndex,
   companySettings,
@@ -505,6 +508,20 @@ export function AutoValuation({
     () => estimateValue({ subject: s, saleRegion, rentRegion, marketIndex, factors }),
     [s, saleRegion, rentRegion, marketIndex, factors],
   );
+  const closed = useMemo(
+    () =>
+      closedTransactions(
+        properties.filter((p) => p.id !== property?.id),
+        s,
+        "satilik",
+        marketIndex,
+      ),
+    [properties, property?.id, s, marketIndex],
+  );
+  const officeDiscount = useMemo(() => officeAskingDiscount(properties, "satilik"), [properties]);
+  const discountDiffers =
+    officeDiscount.percent != null &&
+    Math.abs(officeDiscount.percent - Number(factors.askingDiscountPercent || 0)) >= 1;
   const age = regionAgeDays(saleRegion);
   const rentAge = regionAgeDays(rentRegion);
   const stale = saleRegion && age > REGION_STALE_DAYS;
@@ -516,7 +533,7 @@ export function AutoValuation({
   const runReport = async () => {
     setStaleReportPrompt(false);
     const ok = await printReport(
-      { subject: s, result, property, companySettings, agent, marketIndex },
+      { subject: s, result, property, companySettings, agent, marketIndex, closed },
       getPhotoUrl,
     );
     if (!ok) notify("Yazdırma penceresi açılamadı - tarayıcının açılır pencere engelini kaldırın.");
@@ -643,6 +660,61 @@ export function AutoValuation({
                 }));
             }}
           />
+        )}
+        {s.neighborhood && (
+          <div style={{ fontSize: 12.5, marginTop: 8, color: "var(--text-secondary)" }}>
+            <i className="ti ti-circle-check" aria-hidden="true" />{" "}
+            {closed.count > 0 ? (
+              <>
+                Ofisinizin {s.neighborhood} gerçekleşen satışları: <b>{closed.count} işlem</b>,
+                ortanca {fmtUnit(closed.medianUnitToday)} (kapanış ayından bugüne TCMB ile)
+                {!result.error && (
+                  <>
+                    {" · "}bu tahmin {fmtUnit(result.unit)} (
+                    {result.unit >= closed.medianUnitToday ? "+" : ""}
+                    {Math.round((result.unit / closed.medianUnitToday - 1) * 100)}%)
+                  </>
+                )}
+                <InfoTip
+                  text={`Portföyde "Satıldı" işaretli ve gerçekleşen fiyatı girilmiş, son 2 yıldaki ${s.neighborhood} ${s.propertyType || "Daire"} kayıtları. İlan fiyatı değil gerçek bedel olduğu için tahmini bunlarla karşılaştırın; fark büyükse düzeltme oranlarını veya pazarlık payını gözden geçirin.`}
+                />
+              </>
+            ) : (
+              <span style={{ color: "var(--text-muted)" }}>
+                Bu mahallede gerçekleşen satış kaydınız yok. Portföy "Satıldı" olunca gerçekleşen
+                fiyatı girin - burada tahminle karşılaştırılır.
+              </span>
+            )}
+          </div>
+        )}
+        {discountDiffers && (
+          <div
+            style={{
+              fontSize: 12.5,
+              marginTop: 6,
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <span style={{ flex: "1 1 240px" }}>
+              Ofisinizin gerçek pazarlık payı <b>%{officeDiscount.percent}</b> (
+              {officeDiscount.count} satışta ilan fiyatından gerçekleşene iniş); hesaplamada %
+              {factors.askingDiscountPercent} kullanılıyor.
+            </span>
+            <button
+              type="button"
+              style={{ fontSize: 12 }}
+              onClick={() => {
+                const next = { ...factors, askingDiscountPercent: officeDiscount.percent };
+                setFactors(next);
+                onSaveFactors(next);
+              }}
+            >
+              %{officeDiscount.percent} kullan
+            </button>
+          </div>
         )}
         {!rentRegion && saleRegion && (
           <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "6px 0 0" }}>
@@ -967,6 +1039,7 @@ export function MarketAnalysisTab({
       <AutoValuation
         key={selectedId || "new"}
         property={property}
+        properties={properties}
         agent={agentFor(property)}
         getPhotoUrl={property ? () => getPhotoUrlFor(property) : null}
         onApplyPrice={property ? (price) => onApplyPriceFor(property, price) : null}

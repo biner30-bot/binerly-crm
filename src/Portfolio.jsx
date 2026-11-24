@@ -26,6 +26,7 @@ import {
   parseListingText,
   closingStepsFor,
   CLOSING_STATUSES,
+  CLOSED_STATUSES,
   RENT_REVIEW_LEAD_DAYS,
 } from "./realEstate";
 
@@ -189,8 +190,13 @@ function formatPropertyPrice(p) {
 }
 
 // Kartta gösterilecek uyarılar - yetki bitişi ve aktif ilanda eksik EİDS.
-// Kapanmış (satıldı/kiralandı/pasif) portföylerde uyarı gürültü olur, gösterilmez.
+// Kapanmış portföyde tek uyarı eksik gerçekleşen fiyattır (Piyasa Analizi verisi).
 export function propertyWarnings(p) {
+  if (CLOSED_STATUSES.includes(p.status)) {
+    return Number(p.details?.closed_price) > 0
+      ? []
+      : [{ tone: "warning", label: "Gerçekleşen fiyat girilmedi" }];
+  }
   if (!["taslak", "aktif", "opsiyonlu"].includes(p.status)) return [];
   const warnings = [];
   const auth = authorizationStatus(p);
@@ -638,6 +644,7 @@ export function Portfolio({
         <Modal title="Fiyat hesapla" onClose={() => setFreeValuation(false)} wide>
           <AutoValuation
             property={null}
+            properties={properties}
             regionPrices={regionPrices}
             marketIndex={marketIndex}
             companySettings={companySettings}
@@ -658,6 +665,7 @@ export function Portfolio({
         >
           <AutoValuation
             property={valuationProperty}
+            properties={properties}
             regionPrices={regionPrices}
             marketIndex={marketIndex}
             companySettings={companySettings}
@@ -1094,7 +1102,21 @@ export function PropertyForm({
         {field("price", PRICE_LABELS[f.transactionType], { input: { type: "number", min: "0" } })}
         <div style={{ flex: "1 1 140px" }}>
           <label style={labelStyle}>Durum</label>
-          <select value={f.status} onChange={set("status")} style={{ width: "100%" }}>
+          <select
+            value={f.status}
+            onChange={(e) => {
+              const status = e.target.value;
+              setF((prev) => ({
+                ...prev,
+                status,
+                details:
+                  CLOSED_STATUSES.includes(status) && !prev.details.closed_on
+                    ? { ...prev.details, closed_on: new Date().toISOString().slice(0, 10) }
+                    : prev.details,
+              }));
+            }}
+            style={{ width: "100%" }}
+          >
             {PROPERTY_STATUSES.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.label}
@@ -1343,6 +1365,36 @@ export function PropertyForm({
 
       {CLOSING_STATUSES.includes(f.status) && (
         <>
+          {CLOSED_STATUSES.includes(f.status) && (
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
+              <div style={{ flex: "1 1 200px" }}>
+                <label style={labelStyle}>
+                  {f.transactionType === "satilik"
+                    ? "Gerçekleşen satış fiyatı (TL)"
+                    : f.transactionType === "kiralik"
+                      ? "Gerçekleşen aylık kira (TL)"
+                      : "Gerçekleşen devir bedeli (TL)"}
+                  <InfoTip text="Tapuda/sözleşmede anlaşılan gerçek bedel. Ofis içinde kalır, vitrinde görünmez. Piyasa Analizi bu kayıtlardan mahallenin gerçekleşen m² fiyatını ve ofisinizin gerçek pazarlık payını hesaplar - ilan fiyatını (yukarıdaki fiyat) değiştirmeyin, fark ondan bulunur." />
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={f.details.closed_price ?? ""}
+                  onChange={(e) => setDetail("closed_price", e.target.value)}
+                  style={{ width: "100%" }}
+                />
+              </div>
+              <div style={{ flex: "1 1 160px" }}>
+                <label style={labelStyle}>Kapanış tarihi</label>
+                <input
+                  type="date"
+                  value={f.details.closed_on || ""}
+                  onChange={(e) => setDetail("closed_on", e.target.value)}
+                  style={{ width: "100%" }}
+                />
+              </div>
+            </div>
+          )}
           <p style={sectionTitleStyle}>
             Kapanış kontrol listesi ({closingDone}/{closingSteps.length})
           </p>
