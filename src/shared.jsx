@@ -1690,7 +1690,27 @@ const TOUR_STEPS = [
   },
 ];
 
-export function OnboardingTour({ step, dealNavLabel, dealTourBody, onStepChange, onClose }) {
+// Emlakta Destek sekmesi ve fiyat listesi yok - adım sayısı (ve step===3 özel
+// durumu) değişmesin diye aynı indekste emlağa özel içerik gösterilir.
+const REAL_ESTATE_TOUR_OVERRIDES = {
+  '[data-tour="settings-gear"]': {
+    body: "Sektörünüzü, özel alanlarınızı, emlak ayarlarınızı (hizmet bedeli oranları, yetki belgesi no) ve müsaitlik saatlerinizi buradan yönetirsiniz.",
+  },
+  '[data-tour="tab-destek"]': {
+    target: '[data-tour="tab-portfoy"]',
+    title: "Portföy ve Piyasa Analizi",
+    body: "Mülklerinizi, yetki sözleşmelerini ve gösterimleri Portföy'de; bölge fiyatı ve dairenin özelliklerinden fiyat tahmini ile PDF raporu Piyasa Analizi'nde yönetirsiniz.",
+  },
+};
+
+export function OnboardingTour({
+  step,
+  dealNavLabel,
+  dealTourBody,
+  realEstate,
+  onStepChange,
+  onClose,
+}) {
   const [rect, setRect] = useState(null);
   // "Müşteri Takibi" sekmesi artık sektöre göre Teklifler/Randevular/Üyelikler/
   // Rezervasyonlar olarak adlanıyor — shared.jsx döngüsel import olmadan Sectors.jsx'i
@@ -1698,10 +1718,14 @@ export function OnboardingTour({ step, dealNavLabel, dealTourBody, onStepChange,
   // geçiyor (bkz. dealWords.navLabel/tourBody). Otel'de title "Rezervasyonlar" olurken
   // body sabit "Teklif, randevu veya üyelik..." kalıyordu (rezervasyon hiç geçmiyordu) —
   // body de artık aynı şekilde dinamik.
-  const current =
+  const base =
     step === 3 && dealNavLabel
       ? { ...TOUR_STEPS[step], title: dealNavLabel, body: dealTourBody || TOUR_STEPS[step].body }
       : TOUR_STEPS[step];
+  const current =
+    realEstate && REAL_ESTATE_TOUR_OVERRIDES[base.target]
+      ? { ...base, ...REAL_ESTATE_TOUR_OVERRIDES[base.target] }
+      : base;
 
   useEffect(() => {
     const measure = () => {

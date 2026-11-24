@@ -637,7 +637,7 @@ export function Portfolio({
 
       {valuationProperty && (
         <Modal
-          title={`Fiyat analizi - ${valuationProperty.title}`}
+          title={`Piyasa analizi - ${valuationProperty.title}`}
           onClose={() => setValuationFor(null)}
           wide
         >
@@ -1467,7 +1467,7 @@ export function PropertyForm({
           )}
           {onShowValuation && (
             <button type="button" onClick={onShowValuation}>
-              <i className="ti ti-chart-bar" aria-hidden="true" /> Fiyat analizi
+              <i className="ti ti-chart-histogram" aria-hidden="true" /> Piyasa analizi
             </button>
           )}
           {onShowPackage && (

@@ -673,13 +673,24 @@ export function AutoValuation({
             <span style={{ fontSize: 11.5, color: "var(--text-muted)", alignSelf: "center" }}>
               Açılan pencerede hedef olarak "PDF olarak kaydet"i seçin.
             </span>
-            {onApplyPrice && (
+            {/* Portföy fiyatının anlamı işlem türüne göre değişir (kiralıkta aylık
+                kira) - satış değerini kira alanına yazmasın. */}
+            {onApplyPrice && property?.transactionType === "satilik" && (
               <button
                 type="button"
                 style={{ fontSize: 12.5 }}
                 onClick={() => onApplyPrice(result.value.mid)}
               >
                 Piyasa değerini portföy fiyatı yap
+              </button>
+            )}
+            {onApplyPrice && property?.transactionType === "kiralik" && result.rent && (
+              <button
+                type="button"
+                style={{ fontSize: 12.5 }}
+                onClick={() => onApplyPrice(result.rent.monthly)}
+              >
+                Tahmini kirayı portföy fiyatı yap
               </button>
             )}
           </div>
@@ -818,7 +829,7 @@ export function MarketAnalysisTab({
   const [selectedId, setSelectedId] = useState("");
   const property = properties.find((p) => p.id === selectedId) || null;
   const candidates = properties
-    .filter((p) => p.transactionType === "satilik")
+    .filter((p) => ["satilik", "kiralik"].includes(p.transactionType))
     .sort((a, b) => (a.title || "").localeCompare(b.title || "", "tr"));
   return (
     <div>

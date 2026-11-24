@@ -4836,6 +4836,9 @@ export default function App() {
   // sektör kazanır — stageLabel()'daki önceliğin aynısı).
   const dealKind = dealWordKind(companySettings?.sector);
   const isRealEstate = companySettings?.sector === "emlak";
+  const vitrinLinkDescription = isRealEstate
+    ? "Yayınladığınız portföyleri ve duyurularınızı herkese açık gösterin"
+    : "Ürünlerinizi, fiyat listenizi ve kampanyalarınızı herkese açık gösterin";
   const dealWords = DEAL_TAB_STRINGS[dealKind];
   const dealPdfLabel = DEAL_WORD_FORMS[dealKind].pdfLabel;
 
@@ -4883,7 +4886,7 @@ export default function App() {
     ...(supportsSelfBooking(companySettings?.sector) && bookingModel(companySettings?.sector) === "slot"
       ? [{ label: "Randevu Alma Linki", description: appointmentDateTimeKey ? "Müşteri girişsiz kendi randevusunu seçip talep etsin" : "⚠ Şu anda çalışmıyor - açıp düzeltin", onOpen: async () => { const link = await generateLeadCaptureLink("randevu-al"); if (link) setAppointmentLink(link); } }]
       : []),
-    { label: "Vitrin Linki", description: "Ürünlerinizi, fiyat listenizi ve kampanyalarınızı herkese açık gösterin", onOpen: async () => { const link = await generateLeadCaptureLink("vitrin"); if (link) setVitrinLink(link); } },
+    { label: "Vitrin Linki", description: vitrinLinkDescription, onOpen: async () => { const link = await generateLeadCaptureLink("vitrin"); if (link) setVitrinLink(link); } },
     { label: "Müşteri Portalı Linki", description: "Mevcut müşterileriniz için - kendi hesaplarıyla giriş yapıp takip etsinler", onOpen: () => setShowPortalLinkModal(true) },
     { label: "Turu Tekrar Başlat", description: "Sistemin nasıl çalıştığını gösteren kısa turu tekrar izleyin", onOpen: () => { setTourStep(0); setShowTour(true); } },
   ];
@@ -5245,7 +5248,7 @@ export default function App() {
   const otelDeparturesToday = companySettings?.sector === "otel"
     ? deals.filter((d) => d.stage === "kazanildi" && (d.customFields?.cikis_tarihi || "").slice(0, 10) === otelTodayStr)
     : [];
-  const lowStockItems = stockItems.filter((s) => s.reorderThreshold != null && s.quantityOnHand <= s.reorderThreshold);
+  const lowStockItems = isRealEstate ? [] : stockItems.filter((s) => s.reorderThreshold != null && s.quantityOnHand <= s.reorderThreshold);
   // Sadece kendiliğinden UZAMAYAN yetkiler - uzayanlarda danışmanın yapacağı bir şey
   // yok (api/send-reminders.js'teki e-posta ile aynı kapsam).
   const propertyAuthAlerts = companySettings?.sector === "emlak"
@@ -6212,7 +6215,7 @@ export default function App() {
             <MenuRow
               icon="ti-building-store"
               label="Vitrin Linki"
-              description="Ürünlerinizi, fiyat listenizi ve kampanyalarınızı herkese açık gösterin"
+              description={vitrinLinkDescription}
               onClick={async () => {
                 setShowSettingsHub(false);
                 const link = await generateLeadCaptureLink("vitrin");
@@ -6403,7 +6406,9 @@ export default function App() {
       {vitrinLink && (
         <Modal title="Vitrin Linki" onClose={() => setVitrinLink(null)}>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 16px" }}>
-            Bu linki (veya QR kodu) Instagram bio'nuza, sitenize veya kartvizitinize koyun - Vitrin sekmesinden açtığınız fiyat listesi ve eklediğiniz kampanyalar burada görünür. Randevu sektörlerinde ayrıca öncesi/sonrası fotoğraflarından "Vitrin sayfasında göster" diye işaretlediğiniz çalışmalar da (müşteri adı olmadan) eklenir. Hiçbir şey yayınlamadıysanız sayfa boş bir karşılama mesajı gösterir.
+            {isRealEstate
+              ? "Bu linki (veya QR kodu) Instagram bio'nuza, sitenize veya kartvizitinize koyun - portföy kartında \"Vitrin sayfamda yayınla\" işaretlediğiniz ilanlar fotoğraf ve detaylarıyla, eklediğiniz duyurular da burada görünür. Adres ve ada/parsel gibi bilgiler gösterilmez. Hiçbir şey yayınlamadıysanız sayfa boş bir karşılama mesajı gösterir."
+              : "Bu linki (veya QR kodu) Instagram bio'nuza, sitenize veya kartvizitinize koyun - Vitrin sekmesinden açtığınız fiyat listesi ve eklediğiniz kampanyalar burada görünür. Randevu sektörlerinde ayrıca öncesi/sonrası fotoğraflarından \"Vitrin sayfasında göster\" diye işaretlediğiniz çalışmalar da (müşteri adı olmadan) eklenir. Hiçbir şey yayınlamadıysanız sayfa boş bir karşılama mesajı gösterir."}
           </p>
           <img
             src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(vitrinLink)}`}
@@ -6543,6 +6548,7 @@ export default function App() {
         <OnboardingTour
           step={tourStep}
           dealNavLabel={dealWords.navLabel}
+          realEstate={isRealEstate}
           dealTourBody={dealWords.tourBody}
           onStepChange={setTourStep}
           onClose={() => {

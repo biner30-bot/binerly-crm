@@ -403,7 +403,7 @@ export default async function handler(req, res) {
           }
           // details'tan da sadece mülkün kendisini anlatan alanlar - gizli/kişisel
           // olabilecek (demirbaş listesi, kira başlangıcı, analiz varsayımları) çıkmaz.
-          const PUBLIC_DETAIL_KEYS = ["heating", "elevator", "parking", "in_site", "dues", "facade", "bathrooms", "kitchen", "balcony", "furnished", "usage", "deed_status", "credit_eligible", "energy_class", "deposit", "monthly_rent"];
+          const PUBLIC_DETAIL_KEYS = ["condition", "view", "heating", "elevator", "parking", "in_site", "dues", "facade", "bathrooms", "kitchen", "balcony", "furnished", "usage", "deed_status", "credit_eligible", "energy_class", "deposit", "monthly_rent"];
           listings = props.map((p) => ({
             id: p.id,
             transactionType: p.transaction_type,

@@ -30,6 +30,8 @@ function portalUrlFor() {
 // kasıtlı kopya notu) - sadece görünen etiketler.
 const TX_LABELS = { satilik: "Satılık", kiralik: "Kiralık", devren_kiralik: "Devren Kiralık" };
 const DETAIL_LABELS = {
+  condition: "Durum",
+  view: "Manzara",
   heating: "Isıtma",
   elevator: "Asansör",
   parking: "Otopark",

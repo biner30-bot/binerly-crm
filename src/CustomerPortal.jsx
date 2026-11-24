@@ -4910,7 +4910,11 @@ export default function CustomerPortal() {
                   </div>
                 )}
                 {[
-                  { id: "talepler", label: "Taleplerim", icon: "ti-ticket" },
+                  // Emlakta KOBİ tarafında Destek sekmesi gizli - burada talep
+                  // açılırsa kimse görmezdi; müşteri Mesajlar'dan yazar.
+                  ...(activeCustomerRow?.companySector === "emlak"
+                    ? []
+                    : [{ id: "talepler", label: "Taleplerim", icon: "ti-ticket" }]),
                   { id: "mesajlar", label: "Mesajlar", icon: "ti-message-circle" },
                   {
                     id: "teklifler",
@@ -5007,7 +5011,7 @@ export default function CustomerPortal() {
               </nav>
 
               <div style={{ flex: 1, minWidth: 0 }}>
-                {portalTab === "talepler" && (
+                {portalTab === "talepler" && activeCustomerRow?.companySector !== "emlak" && (
                   <div>
                     <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
                       <button
