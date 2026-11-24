@@ -59,6 +59,8 @@ export default function LocationMap({ location, center, onChange, height = 280 }
     } else {
       markerRef.current.setLatLng(ll);
     }
+    // Koordinat yapıştırılınca / kayıt açılınca iğne görünür alanda değilse oraya git.
+    if (!map.getBounds().contains(ll) || map.getZoom() < 15) map.setView(ll, 18);
   }, [location?.lat, location?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

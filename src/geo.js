@@ -112,3 +112,40 @@ export async function renderMapImage({ lat, lng }, { width = 340, height = 300, 
   ctx.fillText(label, W - tw - 4 * scale, H - 3.5 * scale);
   return canvas.toDataURL("image/jpeg", 0.85);
 }
+
+export const TKGM_PARSEL_SORGU_URL = "https://parselsorgu.tkgm.gov.tr/";
+
+// Parsel Sorgu / Google Haritalar'dan kopyalanan koordinatı okur:
+// "38.4664, 27.0880", "38,4664 27,0880" (Türkçe ondalık) veya
+// 38°27'59.0"N 27°05'16.8"E. Okunamazsa null.
+export function parseCoordinates(raw) {
+  const t = String(raw || "").trim();
+  if (!t) return null;
+  const dms = [
+    ...t.matchAll(
+      /(\d{1,3})\s*[°º]\s*(\d{1,2})\s*['′]\s*(\d{1,2}(?:[.,]\d+)?)\s*["″]?\s*([NSEWKDGB])?/gi,
+    ),
+  ];
+  if (dms.length >= 2) {
+    const toDec = (m) => {
+      const v = Number(m[1]) + Number(m[2]) / 60 + Number(m[3].replace(",", ".")) / 3600;
+      return /[SWGB]/i.test(m[4] || "") ? -v : v;
+    };
+    return validLatLng(toDec(dms[0]), toDec(dms[1]));
+  }
+  // Önce Türkçe "38,4664 27,0880" (virgül ondalık, aralarında boşluk/noktalı virgül)
+  const tr = t.match(/^(-?\d{1,2},\d+)\s*[;\s]\s*(-?\d{1,3},\d+)$/);
+  if (tr) return validLatLng(Number(tr[1].replace(",", ".")), Number(tr[2].replace(",", ".")));
+  const dec = t.match(/(-?\d{1,2}\.\d+)\s*[,;\s]\s*(-?\d{1,3}\.\d+)/);
+  if (dec) return validLatLng(Number(dec[1]), Number(dec[2]));
+  return null;
+}
+
+function validLatLng(lat, lng) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  // Türkiye dışı büyük olasılıkla enlem/boylam ters yapıştırılmıştır.
+  const inTurkey = (a, b) => a >= 35 && a <= 43 && b >= 25 && b <= 45;
+  if (!inTurkey(lat, lng) && inTurkey(lng, lat)) return { lat: lng, lng: lat };
+  return { lat, lng, outsideTurkey: !inTurkey(lat, lng) };
+}

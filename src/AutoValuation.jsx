@@ -2,7 +2,15 @@ import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "rea
 import { ConfirmDialog, InfoTip, Modal, formatTL, useFormDraft } from "./shared";
 import { buildValuationReportHtml } from "./ValuationReport";
 import { LocationFields } from "./LocationFields";
-import { geocodeArea, isValidLocation, mapsUrl, renderMapImage, streetViewUrl } from "./geo";
+import {
+  TKGM_PARSEL_SORGU_URL,
+  geocodeArea,
+  isValidLocation,
+  mapsUrl,
+  parseCoordinates,
+  renderMapImage,
+  streetViewUrl,
+} from "./geo";
 import { ageCoverage, bandForAge, pasteChecks, subjectChecks } from "./valuationChecks";
 import { PROPERTY_DETAIL_FIELDS, PROPERTY_TYPE_OPTIONS, ROOM_COUNT_OPTIONS } from "./realEstate";
 import {
@@ -176,6 +184,17 @@ function AddressSection({ s, setS, hasPropertyPhoto, notify }) {
   const setA = (k) => (e) =>
     setS((p) => ({ ...p, address: { ...(p.address || {}), [k]: e.target.value } }));
   const [center, setCenter] = useState(null);
+  const [coordText, setCoordText] = useState("");
+  const applyCoords = () => {
+    const c = parseCoordinates(coordText);
+    if (!c) {
+      notify("Koordinat okunamadı - örnek: 38.4664, 27.0880");
+      return;
+    }
+    if (c.outsideTurkey) notify("Bu koordinat Türkiye dışında görünüyor - kontrol edin.");
+    setS((p) => ({ ...p, location: { lat: c.lat, lng: c.lng } }));
+    setCoordText("");
+  };
   const [showMap, setShowMap] = useState(true);
   const hasLoc = isValidLocation(s.location);
 
@@ -213,6 +232,45 @@ function AddressSection({ s, setS, hasPropertyPhoto, notify }) {
         {field("siteName", "Site / apartman adı", "1 1 160px")}
         {field("parcelBlock", "Ada", "0 1 80px")}
         {field("parcelNo", "Parsel", "0 1 80px")}
+      </div>
+      <div
+        style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}
+      >
+        <a
+          href={TKGM_PARSEL_SORGU_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            fontSize: 12.5,
+            padding: "4px 10px",
+            border: "0.5px solid var(--border)",
+            borderRadius: "var(--radius)",
+            textDecoration: "none",
+          }}
+        >
+          <i className="ti ti-map-search" aria-hidden="true" /> Parsel Sorgu'da aç
+        </a>
+        <input
+          value={coordText}
+          onChange={(e) => setCoordText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              applyCoords();
+            }
+          }}
+          placeholder="Koordinat yapıştır: 38.4664, 27.0880"
+          style={{ flex: "1 1 220px", fontSize: 12.5 }}
+        />
+        <button
+          type="button"
+          style={{ fontSize: 12.5 }}
+          disabled={!coordText.trim()}
+          onClick={applyCoords}
+        >
+          Konuma git
+        </button>
+        <InfoTip text="TKGM Parsel Sorgu'da il/ilçe/mahalle/ada/parsel girip parseli bulun; parsele tıklayınca çıkan koordinatı (ya da Google Haritalar'da binaya sağ tıklayınca çıkan koordinatı) buraya yapıştırın - iğne tam oraya konur. Binerly Parsel Sorgu'ya kendisi bağlanmaz." />
       </div>
       <div
         style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: 12.5 }}
