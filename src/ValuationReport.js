@@ -4,6 +4,7 @@
 // bize ait, yalnızca elimizde gerçekten olan veriler gösterilir (demografi/seçim
 // gibi verimiz olmayan bölümler uydurulmaz).
 import { formatTL } from "./shared";
+import { isValidLocation, mapsUrl, streetViewUrl } from "./geo";
 import { ageStats, kfeSeriesForCity } from "./priceEstimate";
 
 const esc = (s) =>
@@ -106,8 +107,18 @@ export function buildValuationReportHtml({
   photoUrl,
   closed,
   missing,
+  fullAddress,
+  mapImage,
   disclaimer,
 }) {
+  const loc = isValidLocation(subject.location) ? subject.location : null;
+  const mapHtml = mapImage
+    ? `<img class="map-img${photoUrl ? " half" : ""}" src="${esc(mapImage)}" alt="Konum haritası"/>`
+    : "";
+  const parcel = [
+    subject.address?.parcelBlock || property?.parcelBlock,
+    subject.address?.parcelNo || property?.parcelNo,
+  ].filter(Boolean);
   const r = result.region;
   const office = companySettings?.companyName || "";
   const today = new Date().toLocaleDateString("tr-TR");
@@ -220,6 +231,11 @@ body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#111827;font-size:11.
 h1{font-size:30px;line-height:1.15;margin:0 0 6px;color:#1e3a8a}
 .sub{font-size:14px;color:#374151}
 .cover-photo{width:100%;height:95mm;object-fit:cover;border-radius:8px;margin:14mm 0 8mm;background:#f3f4f6}
+.cover-row{display:flex;gap:10px;margin:10mm 0 7mm;align-items:stretch}
+.cover-row .cover-photo.half{flex:1 1 0;min-width:0;width:auto;height:86mm;margin:0}
+.map-img{width:100%;height:86mm;object-fit:cover;border-radius:8px}
+.map-img.half{width:86mm;flex:0 0 86mm;min-width:0}
+.info a{color:#1d4ed8;text-decoration:none}
 .cover-ph{width:100%;height:60mm;border-radius:8px;margin:14mm 0 8mm;background:#eff6ff;display:flex;align-items:center;justify-content:center;color:#1e3a8a;font-size:15px}
 .info{font-size:13px}.info b{display:inline-block;width:34mm;color:#374151}
 .info div{margin-bottom:5px}
@@ -248,12 +264,21 @@ table{width:100%;border-collapse:collapse}
 ${companySettings?.logoUrl ? `<img class="logo" src="${esc(companySettings.logoUrl)}" alt=""/>` : ""}
 <h1>Piyasa Değer Raporu</h1>
 <div class="sub">${esc(r.transactionType === "kiralik" ? "Kiralık" : "Satılık")} ${esc(subject.propertyType || "Konut")}${subject.roomCount ? ` · ${esc(subject.roomCount)}` : ""}${result.gross ? ` · ${Math.round(result.gross)} m²` : ""}</div>
-${photoUrl ? `<img class="cover-photo" src="${esc(photoUrl)}" alt=""/>` : `<div class="cover-ph">${esc(location)}</div>`}
+${
+  photoUrl && mapHtml
+    ? `<div class="cover-row"><img class="cover-photo half" src="${esc(photoUrl)}" alt=""/>${mapHtml}</div>`
+    : photoUrl
+      ? `<img class="cover-photo" src="${esc(photoUrl)}" alt=""/>`
+      : mapHtml
+        ? `<div class="cover-row">${mapHtml}</div>`
+        : `<div class="cover-ph">${esc(location)}</div>`
+}
 <div class="info">
 ${property?.title ? `<div><b>Portföy</b>${esc(property.title)}</div>` : ""}
 <div><b>Konum</b>${esc(location)}</div>
-${property?.address ? `<div><b>Adres</b>${esc(property.address)}</div>` : ""}
-${property?.parcelBlock || property?.parcelNo ? `<div><b>Ada / Parsel</b>${esc([property.parcelBlock, property.parcelNo].filter(Boolean).join(" / "))}</div>` : ""}
+${fullAddress && fullAddress !== location ? `<div><b>Adres</b>${esc(fullAddress)}</div>` : property?.address ? `<div><b>Adres</b>${esc(property.address)}</div>` : ""}
+${parcel.length ? `<div><b>Ada / Parsel</b>${esc(parcel.join(" / "))}</div>` : ""}
+${loc ? `<div><b>Harita</b><a href="${esc(mapsUrl(loc))}">Haritada aç</a> · <a href="${esc(streetViewUrl(loc))}">Sokak görünümü</a> <span style="color:#6b7280">(${Number(loc.lat).toFixed(5)}, ${Number(loc.lng).toFixed(5)})</span></div>` : ""}
 <div><b>Rapor tarihi</b>${esc(today)}</div>
 ${agent?.name ? `<div><b>Hazırlayan</b>${esc(agent.name)}${office ? `, ${esc(office)}` : ""}</div>` : office ? `<div><b>Hazırlayan</b>${esc(office)}</div>` : ""}
 ${contact ? `<div><b>İletişim</b>${esc([agent?.phone || companySettings?.phone, agent?.email || companySettings?.email].filter(Boolean).join(" · "))}</div>` : ""}

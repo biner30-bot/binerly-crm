@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { ConfirmDialog, InfoTip, Modal, formatTL, useFormDraft } from "./shared";
 import { buildValuationReportHtml } from "./ValuationReport";
 import { LocationFields } from "./LocationFields";
+import { geocodeArea, isValidLocation, mapsUrl, renderMapImage, streetViewUrl } from "./geo";
 import { ageCoverage, bandForAge, pasteChecks, subjectChecks } from "./valuationChecks";
 import { PROPERTY_DETAIL_FIELDS, PROPERTY_TYPE_OPTIONS, ROOM_COUNT_OPTIONS } from "./realEstate";
 import {
@@ -77,7 +78,232 @@ function subjectFrom(p) {
       condition: d.condition || "",
       heating: d.heating || "",
     },
+    address: {
+      street: p?.address || "",
+      buildingNo: "",
+      unitNo: p?.unitNo || "",
+      siteName: "",
+      parcelBlock: p?.parcelBlock || "",
+      parcelNo: p?.parcelNo || "",
+    },
+    location: isValidLocation(d.geo) ? { lat: d.geo.lat, lng: d.geo.lng } : null,
+    photo: null,
   };
+}
+
+// Kayıtlı analizin konusu, eski kayıtlarda olmayan alanlar boş kalacak
+// şekilde güncel şablonla birleştirilir.
+function subjectFromValuation(v, property) {
+  const base = subjectFrom(property);
+  const sub = v?.subject || {};
+  return {
+    ...base,
+    ...sub,
+    details: { ...base.details, ...(sub.details || {}) },
+    address: { ...base.address, ...(sub.address || {}) },
+  };
+}
+
+export function fullAddress(s) {
+  const a = s.address || {};
+  const line1 = [
+    a.siteName,
+    a.street,
+    a.buildingNo && `No: ${a.buildingNo}`,
+    a.unitNo && `Daire: ${a.unitNo}`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const place = [s.neighborhood && `${s.neighborhood} Mah.`, s.district, s.city]
+    .filter(Boolean)
+    .join(", ");
+  return [line1, place].filter(Boolean).join(", ");
+}
+
+function valuationTitle(s, property) {
+  const a = s.address || {};
+  const street = [a.street, a.buildingNo && `No: ${a.buildingNo}`, a.unitNo && `D: ${a.unitNo}`]
+    .filter(Boolean)
+    .join(" ");
+  return [street, s.neighborhood].filter(Boolean).join(", ") || property?.title || "Adsız analiz";
+}
+
+// Fotoğraf analiz kaydının içinde (kişiye özel tablo) tutulur - küçültülür ki
+// kayıt şişmesin.
+async function resizeImage(file, max = 1280) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = url;
+    });
+    const scale = Math.min(1, max / Math.max(img.width, img.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", 0.8);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+const LocationMap = lazy(() => import("./LocationMap"));
+
+function AddressSection({ s, setS, hasPropertyPhoto, notify }) {
+  const a = s.address || {};
+  const setA = (k) => (e) =>
+    setS((p) => ({ ...p, address: { ...(p.address || {}), [k]: e.target.value } }));
+  const [center, setCenter] = useState(null);
+  const [showMap, setShowMap] = useState(true);
+  const hasLoc = isValidLocation(s.location);
+
+  // Pin yoksa harita mahalleye götürülür (sadece mahalle/ilçe/il gönderilir).
+  useEffect(() => {
+    if (hasLoc || (!s.neighborhood && !s.district)) return undefined;
+    let alive = true;
+    const t = setTimeout(() => {
+      geocodeArea({ neighborhood: s.neighborhood, district: s.district, city: s.city }).then(
+        (c) => alive && c && setCenter(c),
+      );
+    }, 700);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [s.neighborhood, s.district, s.city, hasLoc]);
+
+  const field = (k, label, flex = "1 1 120px") => (
+    <div style={{ flex }}>
+      <label style={labelStyle}>{label}</label>
+      <input value={a[k] ?? ""} onChange={setA(k)} style={{ width: "100%" }} />
+    </div>
+  );
+  return (
+    <div style={box}>
+      <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 8px" }}>Adres ve konum</p>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+        {field("street", "Cadde / sokak", "2 1 220px")}
+        {field("buildingNo", "Bina no", "0 1 90px")}
+        {field("unitNo", "Daire no", "0 1 90px")}
+        {field("siteName", "Site / apartman adı", "1 1 160px")}
+        {field("parcelBlock", "Ada", "0 1 80px")}
+        {field("parcelNo", "Parsel", "0 1 80px")}
+      </div>
+      <div
+        style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: 12.5 }}
+      >
+        <span style={{ color: hasLoc ? "var(--text-success)" : "var(--text-warning)" }}>
+          <i className={`ti ${hasLoc ? "ti-map-pin-check" : "ti-map-pin"}`} aria-hidden="true" />{" "}
+          {hasLoc
+            ? "Konum işaretlendi - iğneyi sürükleyerek düzeltebilirsiniz."
+            : "Haritada binaya tıklayarak konumu işaretleyin."}
+        </span>
+        {hasLoc && (
+          <>
+            <a href={streetViewUrl(s.location)} target="_blank" rel="noopener noreferrer">
+              Sokak görünümünde aç
+            </a>
+            <a href={mapsUrl(s.location)} target="_blank" rel="noopener noreferrer">
+              Haritada aç
+            </a>
+            <button
+              type="button"
+              style={{ fontSize: 12 }}
+              onClick={() => setS((p) => ({ ...p, location: null }))}
+            >
+              Konumu kaldır
+            </button>
+          </>
+        )}
+        <button
+          type="button"
+          style={{ fontSize: 12, marginLeft: "auto" }}
+          onClick={() => setShowMap((v) => !v)}
+        >
+          {showMap ? "Haritayı gizle" : "Haritayı göster"}
+        </button>
+      </div>
+      {showMap && (
+        <div style={{ marginTop: 8 }}>
+          <Suspense
+            fallback={
+              <div style={{ height: 280, fontSize: 12, color: "var(--text-muted)" }}>
+                Harita yükleniyor…
+              </div>
+            }
+          >
+            <LocationMap
+              location={s.location}
+              center={center}
+              onChange={(loc) => setS((p) => ({ ...p, location: loc }))}
+            />
+          </Suspense>
+          <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "4px 0 0" }}>
+            Harita OpenStreetMap. Konumu bulmak için dış servise sadece mahalle/ilçe/il gönderilir;
+            sokak ve kapı numarası gönderilmez.
+          </p>
+        </div>
+      )}
+      <div
+        style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 10 }}
+      >
+        {s.photo ? (
+          <>
+            <img
+              src={s.photo}
+              alt="Bina fotoğrafı"
+              style={{ height: 70, borderRadius: 6, border: "0.5px solid var(--border)" }}
+            />
+            <button
+              type="button"
+              style={{ fontSize: 12, color: "var(--text-danger)" }}
+              onClick={() => setS((p) => ({ ...p, photo: null }))}
+            >
+              Fotoğrafı kaldır
+            </button>
+          </>
+        ) : (
+          <label
+            style={{
+              fontSize: 12.5,
+              padding: "4px 10px",
+              border: "0.5px solid var(--border)",
+              borderRadius: "var(--radius)",
+              cursor: "pointer",
+            }}
+          >
+            <i className="ti ti-camera" aria-hidden="true" /> Bina fotoğrafı ekle
+            <input
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (!file) return;
+                try {
+                  const photo = await resizeImage(file);
+                  setS((p) => ({ ...p, photo }));
+                } catch {
+                  notify("Fotoğraf okunamadı - JPG veya PNG deneyin.");
+                }
+              }}
+            />
+          </label>
+        )}
+        <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+          {s.photo
+            ? "Rapor kapağında bu fotoğraf kullanılır."
+            : hasPropertyPhoto
+              ? "Eklemezseniz portföyün kapak fotoğrafı kullanılır."
+              : "Raporun kapağına girer. Kendi çektiğiniz fotoğrafı kullanın - Google Haritalar görüntüleri izinsiz kullanılamaz."}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 function SubjectForm({ s, setS, regionPrices = [], missing = new Set() }) {
@@ -632,12 +858,25 @@ async function printReport(args, getPhotoUrl) {
   win.document.write("<p style='font-family:Arial;padding:24px'>Rapor hazırlanıyor…</p>");
   let photoUrl;
   try {
-    photoUrl = getPhotoUrl ? await getPhotoUrl() : null;
+    photoUrl = args.subject.photo || (getPhotoUrl ? await getPhotoUrl() : null);
   } catch {
     photoUrl = null;
   }
+  let mapImage = null;
+  if (isValidLocation(args.subject.location)) {
+    try {
+      mapImage = await renderMapImage(args.subject.location, {
+        width: photoUrl ? 330 : 680,
+        height: 330,
+      });
+    } catch {
+      mapImage = null; // harita olmadan da rapor çıksın
+    }
+  }
   win.document.open();
-  win.document.write(buildValuationReportHtml({ ...args, photoUrl, disclaimer: DISCLAIMER }));
+  win.document.write(
+    buildValuationReportHtml({ ...args, photoUrl, mapImage, disclaimer: DISCLAIMER }),
+  );
   win.document.close();
   return true;
 }
@@ -656,7 +895,9 @@ function subjectPatch(s) {
     buildingAge: n(s.buildingAge),
     floor: s.floor || "",
     totalFloors: n(s.totalFloors),
-    details,
+    details: isValidLocation(s.location)
+      ? { ...details, geo: { lat: s.location.lat, lng: s.location.lng } }
+      : details,
   };
 }
 
@@ -725,19 +966,36 @@ export function AutoValuation({
   onSaveAliases,
   onApplyPrice,
   onSaveSubject,
+  valuation = null,
+  onSaveValuation,
+  onValuationSaved,
+  hasPropertyPhoto = false,
   notify,
   detailed,
 }) {
   // Sekme değişince / sürüm güncellemesiyle sayfa yenilenince girilenler
-  // kaybolmasın. Portföy sonradan değiştiyse eski taslak kullanılmaz.
-  const draftStore = useFormDraft(`valuation:${property?.id || "free"}`, true);
-  const [baseline, setBaseline] = useState(() => subjectFrom(property));
+  // kaybolmasın. Portföy/kayıt sonradan değiştiyse eski taslak kullanılmaz.
+  const initial = useMemo(
+    () => (valuation ? subjectFromValuation(valuation, property) : subjectFrom(property)),
+    // sadece açılışta
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+  const draftStore = useFormDraft(
+    valuation ? `valuation:v:${valuation.id}` : `valuation:${property?.id || "free"}`,
+    true,
+  );
+  const [baseline, setBaseline] = useState(initial);
   const [s, setS] = useState(() =>
     draftStore.draft.subject &&
-    JSON.stringify(draftStore.draft.baseline) === JSON.stringify(subjectFrom(property))
+    JSON.stringify(draftStore.draft.baseline) === JSON.stringify(initial)
       ? draftStore.draft.subject
-      : subjectFrom(property),
+      : initial,
   );
+  const [valuationId, setValuationId] = useState(valuation?.id || null);
+  const [savedJson, setSavedJson] = useState(() => (valuation ? JSON.stringify(initial) : null));
+  const [savingValuation, setSavingValuation] = useState(false);
+  const unsavedAnalysis = savedJson !== JSON.stringify(s);
   const dirty = JSON.stringify(s) !== JSON.stringify(baseline);
   const { persist } = draftStore;
   useEffect(() => {
@@ -812,8 +1070,38 @@ export function AutoValuation({
     setStaleReportPrompt(false);
     setPasteOpen(true);
   };
+  const saveValuation = async ({ quiet = false } = {}) => {
+    if (!onSaveValuation || result.error) return null;
+    setSavingValuation(true);
+    const saved = await onSaveValuation({
+      id: valuationId,
+      propertyId: property?.id || null,
+      title: valuationTitle(s, property),
+      subject: s,
+      result: {
+        low: result.value.low,
+        mid: result.value.mid,
+        high: result.value.high,
+        rentMonthly: result.rent?.monthly ?? null,
+        region: result.region?.neighborhood || null,
+        regionAsOf: result.region?.asOf || null,
+      },
+    });
+    setSavingValuation(false);
+    if (!saved) return null;
+    setValuationId(saved.id);
+    setSavedJson(JSON.stringify(s));
+    // Kayıtlı analiz artık veritabanında - taslağa gerek yok (portföy kaydı
+    // için baseline korunur ki "portföye kaydet" düğmesi kaybolmasın).
+    if (!property) setBaseline(s);
+    onValuationSaved?.(saved);
+    if (!quiet) notify("Analiz kaydedildi - Kayıtlı analizlerim listesinde.", "success");
+    return saved;
+  };
   const runReport = async () => {
     setStaleReportPrompt(false);
+    // PDF alınan analiz kendiliğinden kaydedilir (sonradan bulunabilsin).
+    if (onSaveValuation && unsavedAnalysis) saveValuation({ quiet: true });
     const ok = await printReport(
       {
         subject: s,
@@ -824,6 +1112,7 @@ export function AutoValuation({
         marketIndex,
         closed,
         missing: checks.missing,
+        fullAddress: fullAddress(s),
       },
       getPhotoUrl,
     );
@@ -918,6 +1207,8 @@ export function AutoValuation({
           <Notices items={checks.warnings} />
         </div>
       </div>
+
+      <AddressSection s={s} setS={setS} hasPropertyPhoto={hasPropertyPhoto} notify={notify} />
 
       <div style={box}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
@@ -1276,6 +1567,23 @@ export function AutoValuation({
             >
               <i className="ti ti-file-type-pdf" aria-hidden="true" /> PDF rapor
             </button>
+            {onSaveValuation && (
+              <button
+                type="button"
+                style={{ fontSize: 12.5 }}
+                disabled={savingValuation || !unsavedAnalysis}
+                onClick={() => saveValuation()}
+              >
+                <i className="ti ti-device-floppy" aria-hidden="true" />{" "}
+                {savingValuation
+                  ? "Kaydediliyor…"
+                  : unsavedAnalysis
+                    ? valuationId
+                      ? "Değişiklikleri kaydet"
+                      : "Analizi kaydet"
+                    : "Kaydedildi"}
+              </button>
+            )}
             <span style={{ fontSize: 11.5, color: "var(--text-muted)", alignSelf: "center" }}>
               Açılan pencerede hedef olarak "PDF olarak kaydet"i seçin.
             </span>
@@ -1471,34 +1779,65 @@ export function AutoValuation({
 }
 
 // Emlakta ayrı sekme: portföydeki bir daireyi ya da portföye girmemiş bir
-// daireyi (mal sahibiyle ilk görüşme) fiyatlamak için tek yer.
+// daireyi (mal sahibiyle ilk görüşme) fiyatlamak için tek yer. Kayıtlı
+// analizler kişiye özeldir (sadece yapan danışman görür).
+const SELECTION_KEY = "binerly.valuation.selection";
+
+function readSelection() {
+  try {
+    const raw = sessionStorage.getItem(SELECTION_KEY);
+    if (raw) return JSON.parse(raw);
+    // eski sürümden kalan seçim
+    const old = sessionStorage.getItem("binerly.valuation.selected");
+    return old ? { kind: "property", id: old } : { kind: "new" };
+  } catch {
+    return { kind: "new" };
+  }
+}
+
 export function MarketAnalysisTab({
   properties,
+  valuations = [],
+  valuationsLoaded = true,
   agentFor,
   getPhotoUrlFor,
+  hasPhotoFor,
   onApplyPriceFor,
   onSaveSubjectFor,
+  onSaveValuation,
+  onDeleteValuation,
+  onCreatePropertyFrom,
   ...rest
 }) {
-  const [selectedId, setSelectedIdState] = useState(() => {
+  const [selection, setSelectionState] = useState(readSelection);
+  // Bileşeni yeniden kurmak sadece kullanıcı başka bir analiz seçince - kayıt
+  // sonrası seçimin "kayıtlı analiz"e dönmesi açık formu sıfırlamasın.
+  const [instance, setInstance] = useState(0);
+  const [confirmDeleteV, setConfirmDeleteV] = useState(null);
+  const [listOpen, setListOpen] = useState(true);
+  const persistSelection = (sel) => {
+    setSelectionState(sel);
     try {
-      return sessionStorage.getItem("binerly.valuation.selected") || "";
-    } catch {
-      return "";
-    }
-  });
-  const setSelectedId = (id) => {
-    setSelectedIdState(id);
-    try {
-      sessionStorage.setItem("binerly.valuation.selected", id);
+      sessionStorage.setItem(SELECTION_KEY, JSON.stringify(sel));
     } catch {
       // sadece kolaylık
     }
   };
-  const property = properties.find((p) => p.id === selectedId) || null;
+  const choose = (sel) => {
+    persistSelection(sel);
+    setInstance((n) => n + 1);
+  };
+  const valuation =
+    selection.kind === "valuation" ? valuations.find((v) => v.id === selection.id) || null : null;
+  const propertyId =
+    selection.kind === "property" ? selection.id : valuation ? valuation.propertyId : null;
+  const property = properties.find((p) => p.id === propertyId) || null;
   const candidates = properties
     .filter((p) => ["satilik", "kiralik"].includes(p.transactionType))
     .sort((a, b) => (a.title || "").localeCompare(b.title || "", "tr"));
+  const missingValuation = selection.kind === "valuation" && !valuation && valuationsLoaded;
+  const waitingValuation = selection.kind === "valuation" && !valuation && !valuationsLoaded;
+
   return (
     <div>
       <h2 style={{ fontSize: 20, margin: "0 0 4px" }}>Piyasa Analizi</h2>
@@ -1506,34 +1845,167 @@ export function MarketAnalysisTab({
         Bölge fiyatı ve dairenin özelliklerinden hızlı satış, piyasa değeri ve üst fiyatı
         hesaplayın; mal sahibine PDF rapor verin.
       </p>
-      <div style={{ marginBottom: 12, maxWidth: 420 }}>
-        <label style={labelStyle}>Hangi daire?</label>
-        <select
-          value={selectedId}
-          onChange={(e) => setSelectedId(e.target.value)}
-          style={{ width: "100%" }}
-        >
-          <option value="">Portföyde olmayan bir daire (boş form)</option>
-          {candidates.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.title}
-              {p.neighborhood ? ` - ${p.neighborhood}` : ""}
-            </option>
-          ))}
-        </select>
+
+      <div style={{ ...box, marginBottom: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+          <p style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>
+            Kayıtlı analizlerim ({valuations.length})
+            <InfoTip text="Analizler sadece size görünür. Paylaşmak için PDF'i indirip gönderin." />
+          </p>
+          <span style={{ display: "flex", gap: 6 }}>
+            <button
+              type="button"
+              style={{ fontSize: 12.5 }}
+              onClick={() => choose({ kind: "new" })}
+            >
+              + Yeni analiz
+            </button>
+            {valuations.length > 0 && (
+              <button
+                type="button"
+                style={{ fontSize: 12.5 }}
+                onClick={() => setListOpen((v) => !v)}
+              >
+                {listOpen ? "Listeyi gizle" : "Listeyi göster"}
+              </button>
+            )}
+          </span>
+        </div>
+        {listOpen && valuations.length === 0 && (
+          <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "6px 0 0" }}>
+            Henüz kayıtlı analiz yok. Aşağıda analizi yapıp "Analizi kaydet"e basın - PDF aldığınız
+            analizler de kendiliğinden kaydedilir.
+          </p>
+        )}
+        {listOpen && valuations.length > 0 && (
+          <div style={{ marginTop: 8, maxHeight: 260, overflowY: "auto" }}>
+            {valuations.map((v) => {
+              const active = selection.kind === "valuation" && selection.id === v.id;
+              const linked = v.propertyId && properties.find((p) => p.id === v.propertyId);
+              return (
+                <div
+                  key={v.id}
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    fontSize: 12.5,
+                    padding: "6px 8px",
+                    borderRadius: 6,
+                    background: active ? "var(--bg-accent, var(--surface-1))" : undefined,
+                    borderBottom: "0.5px solid var(--border)",
+                  }}
+                >
+                  <span style={{ flex: "1 1 260px" }}>
+                    <b>{v.title || "Adsız analiz"}</b>
+                    <span style={{ color: "var(--text-muted)" }}>
+                      {" "}
+                      · {fmtDate(v.updatedAt)}
+                      {v.result?.mid ? ` · piyasa değeri ${formatTL(v.result.mid)}` : ""}
+                      {linked ? ` · portföy: ${linked.title}` : ""}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    style={{ fontSize: 12 }}
+                    disabled={active}
+                    onClick={() => choose({ kind: "valuation", id: v.id })}
+                  >
+                    {active ? "Açık" : "Aç"}
+                  </button>
+                  {!v.propertyId && onCreatePropertyFrom && (
+                    <button
+                      type="button"
+                      style={{ fontSize: 12 }}
+                      onClick={() => onCreatePropertyFrom(v)}
+                    >
+                      Portföye ekle
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    style={{ fontSize: 12, color: "var(--text-danger)" }}
+                    onClick={() => setConfirmDeleteV(v)}
+                  >
+                    Sil
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
-      <AutoValuation
-        key={selectedId || "new"}
-        property={property}
-        properties={properties}
-        agent={agentFor(property)}
-        getPhotoUrl={property ? () => getPhotoUrlFor(property) : null}
-        onApplyPrice={property ? (price) => onApplyPriceFor(property, price) : null}
-        onSaveSubject={
-          property && onSaveSubjectFor ? (patch) => onSaveSubjectFor(property, patch) : null
-        }
-        {...rest}
-      />
+
+      {selection.kind !== "valuation" && (
+        <div style={{ marginBottom: 12, maxWidth: 420 }}>
+          <label style={labelStyle}>Hangi daire?</label>
+          <select
+            value={selection.kind === "property" ? selection.id : ""}
+            onChange={(e) =>
+              choose(e.target.value ? { kind: "property", id: e.target.value } : { kind: "new" })
+            }
+            style={{ width: "100%" }}
+          >
+            <option value="">Portföyde olmayan bir daire (boş form)</option>
+            {candidates.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.title}
+                {p.neighborhood ? ` - ${p.neighborhood}` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {valuation && (
+        <p style={{ fontSize: 13, margin: "0 0 10px" }}>
+          <i className="ti ti-file-analytics" aria-hidden="true" /> Kayıtlı analiz:{" "}
+          <b>{valuation.title}</b> ({fmtDate(valuation.createdAt)})
+        </p>
+      )}
+
+      {waitingValuation ? (
+        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Analiz yükleniyor…</p>
+      ) : missingValuation ? (
+        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+          Bu analiz bulunamadı (silinmiş olabilir).{" "}
+          <button type="button" onClick={() => choose({ kind: "new" })}>
+            Yeni analiz
+          </button>
+        </p>
+      ) : (
+        <AutoValuation
+          key={instance}
+          property={property}
+          properties={properties}
+          valuation={valuation}
+          agent={agentFor(property)}
+          getPhotoUrl={property ? () => getPhotoUrlFor(property) : null}
+          hasPropertyPhoto={property ? hasPhotoFor?.(property) : false}
+          onApplyPrice={property ? (price) => onApplyPriceFor(property, price) : null}
+          onSaveSubject={
+            property && onSaveSubjectFor ? (patch) => onSaveSubjectFor(property, patch) : null
+          }
+          onSaveValuation={onSaveValuation}
+          onValuationSaved={(saved) => persistSelection({ kind: "valuation", id: saved.id })}
+          {...rest}
+        />
+      )}
+
+      {confirmDeleteV && (
+        <ConfirmDialog
+          title="Analiz silinsin mi?"
+          message={`"${confirmDeleteV.title}" kalıcı olarak silinir. Daha önce indirdiğiniz PDF'ler etkilenmez.`}
+          onConfirm={async () => {
+            const v = confirmDeleteV;
+            setConfirmDeleteV(null);
+            const ok = await onDeleteValuation(v.id);
+            if (ok && selection.kind === "valuation" && selection.id === v.id)
+              choose({ kind: "new" });
+          }}
+          onClose={() => setConfirmDeleteV(null)}
+        />
+      )}
     </div>
   );
 }

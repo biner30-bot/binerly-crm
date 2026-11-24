@@ -1686,6 +1686,11 @@ export default function App() {
   const [showings, setShowings] = useState([]);
   const [comparables, setComparables] = useState([]);
   const [regionPrices, setRegionPrices] = useState([]);
+  // Kayıtlı piyasa analizleri kişiye özel (RLS: created_by) - ekip verisiyle
+  // birlikte değil, oturumdaki kullanıcı için ayrı yüklenir.
+  const [valuations, setValuations] = useState([]);
+  const [valuationsLoaded, setValuationsLoaded] = useState(false);
+  const [portfolioPrefill, setPortfolioPrefill] = useState(null);
   const [marketIndex, setMarketIndex] = useState([]);
   const [tasks, setTasks] = useState([]);
 
@@ -2576,6 +2581,85 @@ export default function App() {
     const saved = rowToRegionPrice(data);
     setRegionPrices((prev) => [...prev.filter((x) => x.id !== saved.id), saved]);
     return true;
+  };
+
+  const rowToValuation = (r) => ({
+    id: r.id,
+    propertyId: r.property_id || null,
+    title: r.title || "",
+    subject: r.subject || {},
+    result: r.result || null,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  });
+  const currentUserId = session?.user?.id;
+  useEffect(() => {
+    if (!currentUserId) { setValuations([]); setValuationsLoaded(false); return; }
+    let alive = true;
+    supabase
+      .from("valuations")
+      .select("*")
+      .eq("created_by", currentUserId)
+      .order("updated_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (!alive) return;
+        if (!error) setValuations((data || []).map(rowToValuation));
+        setValuationsLoaded(true);
+      });
+    return () => { alive = false; };
+  }, [currentUserId]);
+  const saveValuation = async (v) => {
+    const row = {
+      property_id: v.propertyId || null,
+      title: v.title,
+      subject: v.subject,
+      result: v.result,
+      updated_at: new Date().toISOString(),
+    };
+    const query = v.id
+      ? supabase.from("valuations").update(row).eq("id", v.id)
+      : supabase.from("valuations").insert(row);
+    const { data, error } = await query.select().single();
+    if (error) { notify(`Analiz kaydedilemedi: ${error.message}`); return null; }
+    const saved = rowToValuation(data);
+    setValuations((prev) => [saved, ...prev.filter((x) => x.id !== saved.id)]);
+    return saved;
+  };
+  const deleteValuation = async (id) => {
+    const { error } = await supabase.from("valuations").delete().eq("id", id);
+    if (error) { notify(`Analiz silinemedi: ${error.message}`); return false; }
+    setValuations((prev) => prev.filter((x) => x.id !== id));
+    return true;
+  };
+  // Mal sahibiyle ilk görüşmede yapılan analiz, yetki alınca portföy kaydına
+  // dönüşür - bilgiler yeniden girilmesin.
+  const createPropertyFromValuation = (v) => {
+    const sub = v.subject || {};
+    const a = sub.address || {};
+    const d = { ...(sub.details || {}) };
+    if (sub.location?.lat != null) d.geo = { lat: sub.location.lat, lng: sub.location.lng };
+    setPortfolioPrefill({
+      transactionType: "satilik",
+      status: "taslak",
+      title: [sub.neighborhood, sub.roomCount, sub.propertyType || "Daire"].filter(Boolean).join(" "),
+      propertyType: sub.propertyType || "Daire",
+      price: v.result?.mid ?? "",
+      city: sub.city || "",
+      district: sub.district || "",
+      neighborhood: sub.neighborhood || "",
+      address: [a.siteName, a.street, a.buildingNo && `No: ${a.buildingNo}`].filter(Boolean).join(" "),
+      unitNo: a.unitNo || "",
+      parcelBlock: a.parcelBlock || "",
+      parcelNo: a.parcelNo || "",
+      grossM2: sub.grossM2 ?? "",
+      netM2: sub.netM2 ?? "",
+      roomCount: sub.roomCount || "",
+      buildingAge: sub.buildingAge ?? "",
+      floor: sub.floor || "",
+      totalFloors: sub.totalFloors ?? "",
+      details: d,
+    });
+    setTab("portfoy");
   };
 
   const deleteRegionPrice = async (id) => {
@@ -5919,6 +6003,9 @@ export default function App() {
           onDeleteRegionPrice={deleteRegionPrice}
           onSaveAvmFactors={saveAvmFactors}
           onSaveNeighborhoodAliases={saveNeighborhoodAliases}
+          onSaveValuation={saveValuation}
+          prefillRequest={portfolioPrefill}
+          onPrefillConsumed={() => setPortfolioPrefill(null)}
           onDeleteWetSigned={deleteShowingWetSigned}
           onFindMatches={(p) => findPropertyMatches(p)}
           onShowListingText={(p) => setListingTextDeal(propertyAsListingDeal(p))}
@@ -5928,6 +6015,12 @@ export default function App() {
       {tab === "piyasa" && isRealEstate && (
         <MarketAnalysisTab
           properties={properties}
+          valuations={valuations}
+          valuationsLoaded={valuationsLoaded}
+          onSaveValuation={saveValuation}
+          onDeleteValuation={deleteValuation}
+          onCreatePropertyFrom={createPropertyFromValuation}
+          hasPhotoFor={(p) => attachments.some((a) => a.entityType === "property_photos" && a.entityId === p.id)}
           regionPrices={regionPrices}
           marketIndex={marketIndex}
           companySettings={companySettings}

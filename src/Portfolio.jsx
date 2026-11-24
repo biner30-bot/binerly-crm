@@ -257,9 +257,18 @@ export function Portfolio({
   onDeleteRegionPrice,
   onSaveAvmFactors,
   onSaveNeighborhoodAliases,
+  onSaveValuation,
+  prefillRequest,
+  onPrefillConsumed,
 }) {
   const [view, setView] = useState("list");
   const [editing, setEditing] = useState(null);
+  // Piyasa Analizi'ndeki "Portföye ekle" - yeni portföy formu analizden dolu açılır.
+  useEffect(() => {
+    if (!prefillRequest) return;
+    setEditing({ prefill: prefillRequest });
+    onPrefillConsumed?.();
+  }, [prefillRequest, onPrefillConsumed]);
   const [importing, setImporting] = useState(false);
   const [costsFor, setCostsFor] = useState(null);
   const [valuationFor, setValuationFor] = useState(null);
@@ -655,6 +664,7 @@ export function Portfolio({
             onDeleteRegion={onDeleteRegionPrice}
             onSaveFactors={onSaveAvmFactors}
             onSaveAliases={onSaveNeighborhoodAliases}
+            onSaveValuation={onSaveValuation}
             notify={notify}
           />
         </Modal>
@@ -678,6 +688,7 @@ export function Portfolio({
             onDeleteRegion={onDeleteRegionPrice}
             onSaveFactors={onSaveAvmFactors}
             onSaveAliases={onSaveNeighborhoodAliases}
+            onSaveValuation={onSaveValuation}
             onApplyPrice={async (price) => {
               // Modal açıkken daire bilgileri portföye kaydedilmiş olabilir - eski
               // nesneyle yazıp onları ezmeyelim.
