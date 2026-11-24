@@ -415,6 +415,7 @@ function rowToProperty(r) {
     details: r.details || {},
     checklist: r.checklist || {},
     showcaseVisible: r.showcase_visible === true,
+    officeShared: r.office_shared !== false,
     createdAt: r.created_at,
   };
 }
@@ -1694,6 +1695,9 @@ export default function App() {
   const [valuationsLoaded, setValuationsLoaded] = useState(false);
   // Emlak ofisi (takımdan bağımsız): undefined = yükleniyor, null = ofissiz.
   const [office, setOffice] = useState(undefined);
+  // Ofisteki diğer danışmanların paylaşılan (aktif) portföyleri - salt okunur.
+  const [officeProperties, setOfficeProperties] = useState([]);
+  const [officePhotos, setOfficePhotos] = useState([]);
   const [portfolioPrefill, setPortfolioPrefill] = useState(null);
   const [marketIndex, setMarketIndex] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -2416,6 +2420,7 @@ export default function App() {
       details: p.details,
       ...(p.checklist ? { checklist: p.checklist } : {}),
       ...(p.showcaseVisible !== undefined ? { showcase_visible: p.showcaseVisible === true } : {}),
+      ...(p.officeShared !== undefined ? { office_shared: p.officeShared !== false } : {}),
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase.from("properties").upsert(row).select().single();
@@ -2673,6 +2678,34 @@ export default function App() {
     // loadOffice sadece oturumdaki kullanıcıya bağlı
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUserId]);
+  const officePeerKey = (office?.members || [])
+    .filter((m) => !m.leftAt && m.userId !== currentUserId)
+    .map((m) => m.userId)
+    .sort()
+    .join(",");
+  useEffect(() => {
+    const peers = officePeerKey ? officePeerKey.split(",").filter((id) => id !== activeTeamId) : [];
+    if (!peers.length) { setOfficeProperties([]); setOfficePhotos([]); return; }
+    let alive = true;
+    (async () => {
+      const { data: props } = await supabase
+        .from("properties")
+        .select("*")
+        .in("user_id", peers)
+        .eq("office_shared", true)
+        .in("status", ["aktif", "opsiyonlu"])
+        .is("deleted_at", null);
+      const ids = (props || []).map((p) => p.id);
+      const { data: photos } = ids.length
+        ? await supabase.from("attachments").select("*").eq("entity_type", "property_photos").in("entity_id", ids).is("deleted_at", null)
+        : { data: [] };
+      if (!alive) return;
+      setOfficeProperties((props || []).map(rowToProperty));
+      setOfficePhotos((photos || []).map(rowToAttachment));
+    })();
+    return () => { alive = false; };
+  }, [officePeerKey, activeTeamId]);
+
   const officeRpc = async (fn, args, okMsg) => {
     const { error } = await supabase.rpc(fn, args);
     if (error) { notify(error.message); return false; }
@@ -6018,6 +6051,9 @@ export default function App() {
       {tab === "portfoy" && companySettings?.sector === "emlak" && (
         <Portfolio
           properties={properties}
+          office={office}
+          officeProperties={officeProperties}
+          officePhotos={officePhotos}
           propertyPrivate={propertyPrivate}
           customers={customers}
           teamMembers={teamRoster}

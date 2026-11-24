@@ -173,3 +173,39 @@ grant execute on function public.reset_office_invite(uuid) to authenticated;
 grant execute on function public.my_office_ids() to authenticated;
 grant execute on function public.office_peer_ids() to authenticated;
 grant execute on function public.is_office_broker(uuid) to authenticated;
+
+-- 2/5 Ortak portföy: aynı ofisteki danışmanlar birbirinin AKTİF portföyünü
+-- salt okunur görür (satılan/kiralanan paylaşılmaz - gerçekleşen fiyat vb.
+-- danışmanın bilgisi). Mal sahibi (customers) ve property_private zaten
+-- kendi RLS'leriyle kapalı. Düzenleme yetkisi verilmez.
+alter table public.properties add column if not exists office_shared boolean not null default true;
+
+drop policy if exists properties_office_peer_select on public.properties;
+create policy properties_office_peer_select on public.properties for select to authenticated
+  using (
+    office_shared and deleted_at is null and status in ('aktif', 'opsiyonlu')
+    and user_id in (select public.office_peer_ids())
+  );
+
+-- Paylaşılan portföyün sadece FOTOĞRAFLARI (belgeler değil).
+drop policy if exists attachments_office_peer_photos on public.attachments;
+create policy attachments_office_peer_photos on public.attachments for select to authenticated
+  using (
+    entity_type = 'property_photos' and deleted_at is null and exists (
+      select 1 from public.properties p
+      where p.id = attachments.entity_id and p.office_shared and p.deleted_at is null
+        and p.status in ('aktif', 'opsiyonlu') and p.user_id in (select public.office_peer_ids())
+    )
+  );
+
+drop policy if exists attachments_storage_office_peer_photos on storage.objects;
+create policy attachments_storage_office_peer_photos on storage.objects for select to authenticated
+  using (
+    bucket_id = 'attachments' and exists (
+      select 1 from public.attachments a
+      join public.properties p on p.id = a.entity_id
+      where a.storage_path = objects.name and a.entity_type = 'property_photos' and a.deleted_at is null
+        and p.office_shared and p.deleted_at is null and p.status in ('aktif', 'opsiyonlu')
+        and p.user_id in (select public.office_peer_ids())
+    )
+  );

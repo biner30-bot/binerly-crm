@@ -260,6 +260,9 @@ export function Portfolio({
   onSaveValuation,
   prefillRequest,
   onPrefillConsumed,
+  office = null,
+  officeProperties = [],
+  officePhotos = [],
 }) {
   const [view, setView] = useState("list");
   const [editing, setEditing] = useState(null);
@@ -390,11 +393,20 @@ export function Portfolio({
         </div>
       </div>
 
-      {isOwner && (
-        <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+      {(isOwner || office) && (
+        <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
           {[
-            ["list", "Portföyler", "ti-building-estate"],
-            ["report", "Ofis raporu", "ti-chart-bar"],
+            ["list", office ? "Portföylerim" : "Portföyler", "ti-building-estate"],
+            ...(office
+              ? [
+                  [
+                    "office",
+                    `Ofis portföyleri (${officeProperties.length})`,
+                    "ti-building-community",
+                  ],
+                ]
+              : []),
+            ...(isOwner ? [["report", "Ofis raporu", "ti-chart-bar"]] : []),
           ].map(([id, label, icon]) => (
             <button
               key={id}
@@ -412,7 +424,14 @@ export function Portfolio({
         </div>
       )}
 
-      {isOwner && view === "report" ? (
+      {office && view === "office" ? (
+        <OfficePortfolios
+          office={office}
+          properties={officeProperties}
+          photos={officePhotos}
+          getSignedUrls={getSignedUrls}
+        />
+      ) : isOwner && view === "report" ? (
         <BrokerPanel
           properties={properties}
           showings={showings}
@@ -547,6 +566,7 @@ export function Portfolio({
             teamMembers={teamMembers}
             currentUserId={currentUserId}
             currentUserEmail={currentUserEmail}
+            inOffice={!!office}
             locationSuggestions={[
               ...(regionPrices || []).map((r) => ({
                 name: r.neighborhood,
@@ -742,9 +762,9 @@ export function Portfolio({
   );
 }
 
-function PropertyCard({ property: p, owner, coverUrl, photoCount, onClick }) {
+function PropertyCard({ property: p, owner, agent, readOnly, coverUrl, photoCount, onClick }) {
   const status = propertyStatusMeta(p.status);
-  const warnings = propertyWarnings(p);
+  const warnings = readOnly ? [] : propertyWarnings(p);
   const location = [p.neighborhood, p.district, p.city].filter(Boolean).join(", ");
   const specs = [
     p.roomCount,
@@ -833,7 +853,14 @@ function PropertyCard({ property: p, owner, coverUrl, photoCount, onClick }) {
           <i className="ti ti-user" aria-hidden="true" /> Mal sahibi: {owner.name}
         </span>
       )}
-      {["taslak", "aktif", "opsiyonlu"].includes(p.status) && (
+      {agent && (
+        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+          <i className="ti ti-user" aria-hidden="true" /> Sorumlu:{" "}
+          {agent.displayName || agent.email}
+          {agent.phone ? ` · ${agent.phone}` : ""}
+        </span>
+      )}
+      {!readOnly && ["taslak", "aktif", "opsiyonlu"].includes(p.status) && (
         <ChecklistBar progress={checklistProgress(p, photoCount)} />
       )}
       {warnings.length > 0 && (
@@ -846,6 +873,206 @@ function PropertyCard({ property: p, owner, coverUrl, photoCount, onClick }) {
         </div>
       )}
     </button>
+  );
+}
+
+// Ofisteki diğer danışmanların paylaştığı portföyler: salt okunur. Mal sahibi,
+// en düşük fiyat, gizli not ve belgeler veritabanı kurallarıyla zaten gelmez.
+function OfficePortfolios({ office, properties, photos, getSignedUrls }) {
+  const [query, setQuery] = useState("");
+  const [txFilter, setTxFilter] = useState("all");
+  const [open, setOpen] = useState(null);
+  const [coverUrls, setCoverUrls] = useState({});
+  const memberById = new Map(office.members.map((m) => [m.userId, m]));
+  const photosByProperty = useMemo(() => {
+    const map = {};
+    for (const a of photos) (map[a.entityId] ||= []).push(a);
+    for (const list of Object.values(map)) list.sort(comparePhotos);
+    return map;
+  }, [photos]);
+  const coverKey = Object.values(photosByProperty)
+    .map((l) => l[0]?.storagePath)
+    .filter(Boolean)
+    .join("|");
+  useEffect(() => {
+    if (!coverKey) return undefined;
+    let alive = true;
+    getSignedUrls(coverKey.split("|")).then((u) => alive && setCoverUrls(u));
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coverKey]);
+  const q = query.trim().toLocaleLowerCase("tr");
+  const list = properties
+    .filter((p) => txFilter === "all" || p.transactionType === txFilter)
+    .filter(
+      (p) =>
+        !q ||
+        [p.title, p.neighborhood, p.district, memberById.get(p.userId)?.displayName]
+          .filter(Boolean)
+          .some((x) => x.toLocaleLowerCase("tr").includes(q)),
+    )
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  return (
+    <>
+      <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 12px" }}>
+        {office.office.name} ofisindeki diğer danışmanların paylaştığı aktif portföyler. Alıcınıza
+        uyan bir portföy için sorumlu danışmanla iletişime geçin.
+      </p>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Başlık, bölge veya danışman ara"
+          style={{ flex: "1 1 220px" }}
+        />
+        <select value={txFilter} onChange={(e) => setTxFilter(e.target.value)}>
+          <option value="all">Tüm işlem türleri</option>
+          {TRANSACTION_TYPES.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      {list.length === 0 ? (
+        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+          {properties.length === 0
+            ? "Ofiste henüz paylaşılan portföy yok."
+            : "Aramaya uyan portföy yok."}
+        </p>
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+            gap: 12,
+          }}
+        >
+          {list.map((p) => (
+            <PropertyCard
+              key={p.id}
+              property={p}
+              agent={memberById.get(p.userId)}
+              readOnly
+              coverUrl={coverUrls[photosByProperty[p.id]?.[0]?.storagePath]}
+              photoCount={photosByProperty[p.id]?.length || 0}
+              onClick={() => setOpen(p)}
+            />
+          ))}
+        </div>
+      )}
+      {open && (
+        <OfficePropertyModal
+          property={open}
+          agent={memberById.get(open.userId)}
+          photos={photosByProperty[open.id] || []}
+          getSignedUrls={getSignedUrls}
+          onClose={() => setOpen(null)}
+        />
+      )}
+    </>
+  );
+}
+
+function OfficePropertyModal({ property: p, agent, photos, getSignedUrls, onClose }) {
+  const [urls, setUrls] = useState({});
+  const pathKey = photos.map((a) => a.storagePath).join("|");
+  useEffect(() => {
+    if (!pathKey) return undefined;
+    let alive = true;
+    getSignedUrls(pathKey.split("|")).then((u) => alive && setUrls(u));
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathKey]);
+  const d = p.details || {};
+  const rows = [
+    ["İşlem", transactionLabel(p.transactionType)],
+    ["Fiyat", formatPropertyPrice(p)],
+    ["Konum", [p.neighborhood, p.district, p.city].filter(Boolean).join(", ")],
+    ["Adres", p.address],
+    ["Tip", p.propertyType],
+    ["Oda", p.roomCount],
+    ["Brüt / net m²", [p.grossM2, p.netM2].filter(Boolean).join(" / ")],
+    ["Bina yaşı", p.buildingAge],
+    ["Kat", [p.floor, p.totalFloors && `${p.totalFloors} katlı`].filter(Boolean).join(" / ")],
+    ...PROPERTY_DETAIL_FIELDS.filter((f) => d[f.key] != null && d[f.key] !== "").map((f) => [
+      f.label,
+      Array.isArray(d[f.key]) ? d[f.key].join(", ") : String(d[f.key]),
+    ]),
+  ].filter(([, v]) => v !== "" && v != null);
+  const phone = (agent?.phone || "").replace(/\D/g, "");
+  return (
+    <Modal title={p.title} onClose={onClose} wide>
+      {photos.length > 0 && (
+        <div style={{ display: "flex", gap: 8, overflowX: "auto", marginBottom: 12 }}>
+          {photos.map((a) =>
+            urls[a.storagePath] ? (
+              <img
+                key={a.id}
+                src={urls[a.storagePath]}
+                alt=""
+                style={{ height: 160, borderRadius: 8, flex: "0 0 auto" }}
+              />
+            ) : null,
+          )}
+        </div>
+      )}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+          gap: "4px 16px",
+          fontSize: 13,
+          marginBottom: 12,
+        }}
+      >
+        {rows.map(([k, v]) => (
+          <div key={k}>
+            <span style={{ color: "var(--text-muted)" }}>{k}: </span>
+            {v}
+          </div>
+        ))}
+      </div>
+      {p.description && (
+        <p style={{ fontSize: 13, whiteSpace: "pre-wrap", margin: "0 0 12px" }}>{p.description}</p>
+      )}
+      <div
+        style={{
+          padding: "10px 12px",
+          borderRadius: 8,
+          background: "var(--surface-1)",
+          border: "0.5px solid var(--border)",
+          fontSize: 13,
+          display: "flex",
+          gap: 10,
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
+        <span style={{ flex: "1 1 200px" }}>
+          <b>Sorumlu danışman:</b> {agent?.displayName || agent?.email || "-"}
+        </span>
+        {phone && (
+          <>
+            <a href={`tel:${phone}`}>
+              <i className="ti ti-phone" aria-hidden="true" /> {agent.phone}
+            </a>
+            <a
+              href={`https://wa.me/${phone.startsWith("0") ? `9${phone}` : phone}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <i className="ti ti-brand-whatsapp" aria-hidden="true" /> WhatsApp
+            </a>
+          </>
+        )}
+        {agent?.email && <a href={`mailto:${agent.email}`}>{agent.email}</a>}
+      </div>
+    </Modal>
   );
 }
 
@@ -929,6 +1156,7 @@ export function PropertyForm({
   onShowValuation,
   onShowPackage,
   locationSuggestions = [],
+  inOffice = false,
 }) {
   const [f, setF] = useState(() => ({
     transactionType: initial?.transactionType || "satilik",
@@ -960,6 +1188,7 @@ export function PropertyForm({
     eidsDate: initial?.eidsDate || "",
     sahibindenNo: initial?.listingRefs?.sahibinden || "",
     showcaseVisible: initial?.showcaseVisible === true,
+    officeShared: initial?.officeShared !== false,
     details: initial?.details || {},
     checklist: initial?.checklist || {},
   }));
@@ -1079,6 +1308,7 @@ export function PropertyForm({
             details: cleanDetails,
             checklist: f.checklist,
             showcaseVisible: f.showcaseVisible,
+            officeShared: f.officeShared,
           },
           canSeePrivate
             ? { minPrice: toNumberOrNull(minPrice), privateNote: privateNote.trim() || null }
@@ -1351,6 +1581,19 @@ export function PropertyForm({
           field("eidsDate", "EİDS onay tarihi", { input: { type: "date" } })}
         {field("sahibindenNo", "Sahibinden ilan no")}
       </div>
+      {inOffice && (
+        <label
+          style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}
+        >
+          <input
+            type="checkbox"
+            checked={f.officeShared}
+            onChange={(e) => setF((prev) => ({ ...prev, officeShared: e.target.checked }))}
+          />
+          Ofisteki danışmanlarla paylaş
+          <InfoTip text="Aktif veya opsiyonlu portföy, ofisinizdeki diğer danışmanların 'Ofis portföyleri' listesinde salt okunur görünür. Mal sahibi bilgisi, en düşük fiyat, gizli not ve belgeler görünmez; sizin adınız ve telefonunuz sorumlu danışman olarak yazar." />
+        </label>
+      )}
       <label
         style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}
       >
