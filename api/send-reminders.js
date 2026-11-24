@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { renderEmailHtml, plainTextFallback } from "./_email-template.js";
+import { refreshMarketIndex } from "./_market-index.js";
 
 function secretsMatch(a, b) {
   const bufA = Buffer.from(a);
@@ -24,6 +25,11 @@ export default async function handler(req, res) {
     process.env.SUPABASE_SERVICE_ROLE_KEY,
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
+
+  // Erken "bildirilecek bir şey yok" dönüşünden ÖNCE - yoksa sakin günlerde
+  // endeks hiç tazelenmezdi.
+  const marketIndex = await refreshMarketIndex(supabaseAdmin);
+  if (marketIndex.error) console.error("market_index refresh:", marketIndex.error);
 
   try {
     const today = new Date().toISOString().slice(0, 10);
