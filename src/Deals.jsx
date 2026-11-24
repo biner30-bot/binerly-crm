@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
+import { istanbulToday } from "./priceEstimate";
 import {
   Modal,
   InfoTip,
@@ -346,7 +347,7 @@ export function AppointmentDateTimeField({
   onChange,
   serviceIds = [],
 }) {
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = istanbulToday();
   const date = (value || "").slice(0, 10) || todayStr;
   const time = (value || "").slice(11, 16);
   const [slots, setSlots] = useState([]);
@@ -3326,7 +3327,7 @@ export const PAYMENT_METHOD_LABELS = {
 // sözleşmeye bağlı olduğu için (iyzico'nun aksine kesin değil) ayrı ifade edildi.
 function refundCommissionNote(payment) {
   const providerLabel = payment.provider === "paytr" ? "PayTR" : "iyzico";
-  const isSameDay = (payment.paidAt || "").slice(0, 10) === new Date().toISOString().slice(0, 10);
+  const isSameDay = (payment.paidAt || "").slice(0, 10) === istanbulToday();
   if (isSameDay) {
     return `Bugün alınan bir ödeme - gün sonu kapanışından önce iptal ederseniz ${providerLabel} komisyon kesmez.`;
   }
@@ -3347,7 +3348,7 @@ export function DealPayments({
   canDelete,
 }) {
   const [amount, setAmount] = useState("");
-  const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10));
+  const [paidAt, setPaidAt] = useState(istanbulToday());
   const [note, setNote] = useState("");
   const [method, setMethod] = useState("");
   const [saving, setSaving] = useState(false);

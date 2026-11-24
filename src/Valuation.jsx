@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Badge, ConfirmDialog, InfoTip, formatTL, uid } from "./shared";
+import { istanbulToday } from "./priceEstimate";
 import {
   VALUATION_DEFAULTS,
   analyzeComparables,
@@ -31,7 +32,7 @@ const emptyComp = () => ({
   buildingAge: "",
   floor: "",
   district: "",
-  observedOn: new Date().toISOString().slice(0, 10),
+  observedOn: istanbulToday(),
   manualAdjustPercent: "",
   note: "",
 });
@@ -259,7 +260,7 @@ export function Valuation({
       floor: p.floor || "",
       district: p.district || "",
       neighborhood: p.neighborhood || "",
-      observedOn: new Date().toISOString().slice(0, 10),
+      observedOn: istanbulToday(),
       note: p.listingRefs?.sahibinden ? `İlan no ${p.listingRefs.sahibinden}` : "",
     });
     if (ok) {

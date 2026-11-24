@@ -612,7 +612,7 @@ function RegionPaste({
     medianArea: summ.medianArea,
     listingCount: summ.listingCount,
     typicalAge: summ.typicalAge ?? existingRegion?.typicalAge ?? null,
-    asOf: new Date().toISOString().slice(0, 10),
+    asOf: istanbulToday(),
     source: "ilan_yapistirma",
     searchUrl: normalizeSahibindenUrl(searchUrl) || existingRegion?.searchUrl || "",
     ...(moves !== undefined ? { marketMoves: moves } : {}),
@@ -1049,7 +1049,7 @@ function RegionPaste({
                 medianArea: null,
                 listingCount: 0,
                 typicalAge: typicalAge === "" ? null : Number(typicalAge),
-                asOf: new Date().toISOString().slice(0, 10),
+                asOf: istanbulToday(),
                 source: "elle",
                 listings: [],
               });
