@@ -562,10 +562,12 @@ export function DealForm({
       },
       realEstateSettings,
     );
+    // Tutar alanı uygulama genelinde KDV DAHİL (KDV raporu ve Paraşüt KDV'yi
+    // içinden ayırır) - net yazılırsa hem tahsilat hem KDV eksik çıkıyordu.
     const isOwner = p.ownerCustomerId && p.ownerCustomerId === forCustomerId;
-    if (r.transactionType === "satilik") return isOwner ? r.seller.fee.net : r.buyer.fee.net;
-    if (r.transactionType === "kiralik") return isOwner ? 0 : r.tenant.fee.net;
-    return isOwner ? r.transferor.fee.net : r.transferee.fee.net;
+    if (r.transactionType === "satilik") return isOwner ? r.seller.fee.total : r.buyer.fee.total;
+    if (r.transactionType === "kiralik") return isOwner ? 0 : r.tenant.fee.total;
+    return isOwner ? r.transferor.fee.total : r.transferee.fee.total;
   };
   const [value, setValue] = useState(draft.value ?? initial?.value ?? "");
   const [selectedPriceItemId, setSelectedPriceItemId] = useState(draft.selectedPriceItemId ?? "");
@@ -1392,7 +1394,7 @@ export function DealForm({
                 }}
               >
                 Portföy
-                <InfoTip text="Teklif hangi mülk için? Tutar, bu müşteriden alacağınız hizmet bedelidir (KDV hariç) - mülk bedeli değil. Müşteri mal sahibiyse satıcı/kiraya veren payı, değilse alıcı/kiracı payı önerilir." />
+                <InfoTip text="Teklif hangi mülk için? Tutar, bu müşteriden alacağınız hizmet bedelidir (KDV dahil) - mülk bedeli değil. Müşteri mal sahibiyse satıcı/kiraya veren payı, değilse alıcı/kiracı payı önerilir." />
               </label>
               <select
                 value={propertyId}
@@ -1424,7 +1426,7 @@ export function DealForm({
               {selectedProperty && (
                 <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>
                   Mülk bedeli: {selectedProperty.price ? formatTL(selectedProperty.price) : "-"}
-                  {" · "}Tutar alanı bu müşteriden alınacak hizmet bedelidir (KDV hariç).
+                  {" · "}Tutar alanı bu müşteriden alınacak hizmet bedelidir (KDV dahil).
                 </p>
               )}
             </div>
@@ -2457,7 +2459,8 @@ export function DealForm({
             <span>
               Ek Bilgiler ve Dosyalar{" "}
               <span style={{ fontWeight: 400, color: "var(--text-muted)", fontSize: 12 }}>
-                (Gider, seans/paket, not, sorumlu, etiket, özel alan, dosya)
+                (Gider, {supportsSessionPackages(sector) ? "seans/paket, " : ""}not, sorumlu,
+                etiket, özel alan, dosya)
               </span>
             </span>
             <i

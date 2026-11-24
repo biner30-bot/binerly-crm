@@ -86,9 +86,13 @@ export function BrokerPanel({
       const wet = shows.filter((s) => s.wetSignedAt).length;
       const closed = mine.filter((p) => CLOSED_STATUSES.includes(p.status));
       const newOnes = mine.filter((p) => inPeriod(p.createdAt));
+      // Teklif tutarı KDV dahil tutulur; raporda ofisin geliri KDV hariç gösterilir.
       const fee = wonDeals
         .filter((d) => mineIds.has(d.propertyId))
-        .reduce((s, d) => s + (Number(d.value) || 0), 0);
+        .reduce(
+          (s, d) => s + (Number(d.value) || 0) / (1 + (Number(d.kdvRate ?? 20) || 0) / 100),
+          0,
+        );
       const warnings = open.filter((p) => {
         const auth = authorizationStatus(p);
         return (
