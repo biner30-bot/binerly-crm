@@ -1680,18 +1680,22 @@ export function CustomersTab({
           <option value="kurumsal">Kurumsal</option>
           <option value="bireysel">Bireysel</option>
         </select>
-        <select
-          value={customerSectorFilter}
-          onChange={(e) => setCustomerSectorFilter(e.target.value)}
-          style={{ fontSize: 13 }}
-        >
-          <option value="all">Tüm sektörler</option>
-          {SECTORS.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
+        {/* Emlakçının müşterisi alıcı/kiracı/mal sahibi - tekstil/otomotiv gibi
+            B2B sektör filtresi orada anlamsız (emlak tarama turu). */}
+        {companySettings?.sector !== "emlak" && (
+          <select
+            value={customerSectorFilter}
+            onChange={(e) => setCustomerSectorFilter(e.target.value)}
+            style={{ fontSize: 13 }}
+          >
+            <option value="all">Tüm sektörler</option>
+            {SECTORS.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        )}
         <select
           value={customerConsentFilter}
           onChange={(e) => setCustomerConsentFilter(e.target.value)}

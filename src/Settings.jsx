@@ -878,32 +878,55 @@ export function ShowcaseManager({
         )}
       </div>
 
-      <div
-        style={{
-          background: "var(--surface-1)",
-          border: "0.5px solid var(--border)",
-          borderRadius: "var(--radius)",
-          padding: 16,
-          marginBottom: 20,
-        }}
-      >
-        <label
-          style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, cursor: "pointer" }}
+      {companySettings?.sector === "emlak" ? (
+        // Emlakta Fiyat Listesi sekmesi yok; vitrinin asıl içeriği portföyler.
+        <p
+          style={{
+            fontSize: 13,
+            background: "var(--surface-1)",
+            border: "0.5px solid var(--border)",
+            borderRadius: "var(--radius)",
+            padding: 16,
+            margin: "0 0 20px",
+          }}
         >
-          <input
-            type="checkbox"
-            checked={companySettings?.showcasePriceListVisible === true}
-            onChange={(e) => onTogglePriceListVisible(e.target.checked)}
-          />
-          Fiyat listemi vitrinde göster
-          <InfoTip text="Açarsanız, Fiyat Listesi sekmesindeki tüm ürün/hizmetler isim ve fiyatlarıyla herkese açık Vitrin sayfasında görünür. Kapalıyken vitrin fiyat göstermez." />
-        </label>
-        {priceListItems.length === 0 && (
-          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0" }}>
-            Fiyat Listesi sekmesinde henüz ürün/hizmet yok.
-          </p>
-        )}
-      </div>
+          Portföylerinizi vitrinde göstermek için Portföy sekmesinde ilgili portföyü açıp "Vitrin
+          sayfamda yayınla"yı işaretleyin.
+        </p>
+      ) : (
+        <div
+          style={{
+            background: "var(--surface-1)",
+            border: "0.5px solid var(--border)",
+            borderRadius: "var(--radius)",
+            padding: 16,
+            marginBottom: 20,
+          }}
+        >
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 14,
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={companySettings?.showcasePriceListVisible === true}
+              onChange={(e) => onTogglePriceListVisible(e.target.checked)}
+            />
+            Fiyat listemi vitrinde göster
+            <InfoTip text="Açarsanız, Fiyat Listesi sekmesindeki tüm ürün/hizmetler isim ve fiyatlarıyla herkese açık Vitrin sayfasında görünür. Kapalıyken vitrin fiyat göstermez." />
+          </label>
+          {priceListItems.length === 0 && (
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0" }}>
+              Fiyat Listesi sekmesinde henüz ürün/hizmet yok.
+            </p>
+          )}
+        </div>
+      )}
 
       <h2 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 8px" }}>Kampanyalar</h2>
       <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>

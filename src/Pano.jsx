@@ -1378,39 +1378,44 @@ export default function Pano({
               : undefined
           }
         />
-        <MetricCard
-          label={
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-              Açık destek talepleri{" "}
-              <InfoTip text="Durumu Çözüldü veya Kapatıldı olmayan destek talepleri." />
-            </span>
-          }
-          value={openTicketsCount}
-          onClick={
-            openTicketsCount > 0
-              ? () =>
-                  openTicketOrList(
-                    tickets.filter((t) => !TERMINAL_STATUSES.includes(t.status)),
-                    "Açık destek talepleri",
-                  )
-              : undefined
-          }
-        />
-        <MetricCard
-          label={
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-              SLA aşılan talepler{" "}
-              <InfoTip text="Hedef çözüm süresi geçmiş ama hâlâ açık olan destek talepleri." />
-            </span>
-          }
-          value={breachedTicketsCount}
-          tone="danger"
-          onClick={
-            breachedTicketsCount > 0
-              ? () => openTicketOrList(breachedTickets, "SLA aşılan talepler")
-              : undefined
-          }
-        />
+        {/* Emlakta Destek (talep/SLA) sekmesi gizli - kartları da gizli. */}
+        {companySettings?.sector !== "emlak" && (
+          <>
+            <MetricCard
+              label={
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  Açık destek talepleri{" "}
+                  <InfoTip text="Durumu Çözüldü veya Kapatıldı olmayan destek talepleri." />
+                </span>
+              }
+              value={openTicketsCount}
+              onClick={
+                openTicketsCount > 0
+                  ? () =>
+                      openTicketOrList(
+                        tickets.filter((t) => !TERMINAL_STATUSES.includes(t.status)),
+                        "Açık destek talepleri",
+                      )
+                  : undefined
+              }
+            />
+            <MetricCard
+              label={
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  SLA aşılan talepler{" "}
+                  <InfoTip text="Hedef çözüm süresi geçmiş ama hâlâ açık olan destek talepleri." />
+                </span>
+              }
+              value={breachedTicketsCount}
+              tone="danger"
+              onClick={
+                breachedTicketsCount > 0
+                  ? () => openTicketOrList(breachedTickets, "SLA aşılan talepler")
+                  : undefined
+              }
+            />
+          </>
+        )}
         <MetricCard
           label={
             <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
