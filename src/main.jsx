@@ -263,14 +263,18 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
       .catch(() => {});
     let reloaded = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => {
-      // Yeni sürüm hazır. Bir form/modal AÇIKKEN otomatik yeniden yüklemek
+      // Yeni sürüm hazır. Bir form/modal (ya da data-unsaved-work işaretli
+      // sekme içi form, ör. Piyasa Analizi) AÇIKKEN otomatik yeniden yüklemek
       // kullanıcının yarım kalan işini böler (içerik useFormDraft ile korunsa
       // da modal kapanır, kaydırma konumu gider). Modal açıksa bekle; modal
       // kapanınca ya da sekme arka plana alınınca yükle. Sekme gizlenince
       // useFormDraft de taslağı zaten anında yazar.
       const reloadWhenSafe = () => {
         if (reloaded) return;
-        if (document.querySelector(".modal-overlay") && document.visibilityState === "visible")
+        if (
+          document.querySelector(".modal-overlay, [data-unsaved-work]") &&
+          document.visibilityState === "visible"
+        )
           return;
         reloaded = true;
         document.removeEventListener("visibilitychange", reloadWhenSafe);

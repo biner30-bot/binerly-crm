@@ -96,7 +96,11 @@ export function useFormDraft(key, enabled) {
     };
   }, [enabled, flush]);
 
-  useEffect(() => () => clearTimeout(timerRef.current), []);
+  // Uygulama içi sekme değişiminde bileşen kalkar - bekleyen son değişiklik
+  // debounce yüzünden kaybolmasın diye çıkışta yazılır.
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
+  useEffect(() => () => flushRef.current(), []);
 
   return { draft, persist, clear, restored };
 }

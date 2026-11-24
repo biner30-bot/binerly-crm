@@ -1545,7 +1545,14 @@ export default function App() {
   // sürüklenip hemen düzeltilen bir teklif için müşteriye yanlış mail gitmesin.
   const stageEmailTimers = useRef(new Map());
   const [session, setSession] = useState(undefined);
-  const [tab, setTab] = useState("pano");
+  // Sürüm güncellemesiyle sayfa kendiliğinden yenilenince kullanıcı bulunduğu
+  // sekmede kalsın (sessionStorage: sadece bu tarayıcı sekmesi).
+  const [tab, setTab] = useState(() => {
+    try { return sessionStorage.getItem("binerly.tab") || "pano"; } catch { return "pano"; }
+  });
+  useEffect(() => {
+    try { sessionStorage.setItem("binerly.tab", tab); } catch { /* sadece kolaylık */ }
+  }, [tab]);
   const [customers, setCustomers] = useState([]);
   const [deals, setDeals] = useState([]);
   const [activities, setActivities] = useState([]);

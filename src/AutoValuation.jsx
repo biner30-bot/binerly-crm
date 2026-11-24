@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { ConfirmDialog, InfoTip, Modal, formatTL } from "./shared";
+import React, { useEffect, useMemo, useState } from "react";
+import { ConfirmDialog, InfoTip, Modal, formatTL, useFormDraft } from "./shared";
 import { buildValuationReportHtml } from "./ValuationReport";
 import { LocationFields } from "./LocationFields";
 import { ageCoverage, bandForAge, pasteChecks, subjectChecks } from "./valuationChecks";
@@ -591,8 +591,21 @@ export function AutoValuation({
   notify,
   detailed,
 }) {
-  const [s, setS] = useState(() => subjectFrom(property));
+  // Sekme değişince / sürüm güncellemesiyle sayfa yenilenince girilenler
+  // kaybolmasın. Portföy sonradan değiştiyse eski taslak kullanılmaz.
+  const draftStore = useFormDraft(`valuation:${property?.id || "free"}`, true);
   const [baseline, setBaseline] = useState(() => subjectFrom(property));
+  const [s, setS] = useState(() =>
+    draftStore.draft.subject &&
+    JSON.stringify(draftStore.draft.baseline) === JSON.stringify(subjectFrom(property))
+      ? draftStore.draft.subject
+      : subjectFrom(property),
+  );
+  const dirty = JSON.stringify(s) !== JSON.stringify(baseline);
+  const { persist } = draftStore;
+  useEffect(() => {
+    persist({ subject: s, baseline }, dirty);
+  }, [s, baseline, dirty, persist]);
   const [savingSubject, setSavingSubject] = useState(false);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [showFactors, setShowFactors] = useState(false);
@@ -659,7 +672,7 @@ export function AutoValuation({
   const saleAgeStats = ageStats(saleRegion?.listings);
 
   return (
-    <div>
+    <div data-unsaved-work={dirty ? "" : undefined}>
       <p
         style={{
           fontSize: 12,
@@ -1248,7 +1261,21 @@ export function MarketAnalysisTab({
   onSaveSubjectFor,
   ...rest
 }) {
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedId, setSelectedIdState] = useState(() => {
+    try {
+      return sessionStorage.getItem("binerly.valuation.selected") || "";
+    } catch {
+      return "";
+    }
+  });
+  const setSelectedId = (id) => {
+    setSelectedIdState(id);
+    try {
+      sessionStorage.setItem("binerly.valuation.selected", id);
+    } catch {
+      // sadece kolaylık
+    }
+  };
   const property = properties.find((p) => p.id === selectedId) || null;
   const candidates = properties
     .filter((p) => ["satilik", "kiralik"].includes(p.transactionType))
