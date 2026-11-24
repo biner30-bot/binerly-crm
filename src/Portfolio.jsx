@@ -409,7 +409,7 @@ export function Portfolio({
                   ],
                 ]
               : []),
-            ...(isOwner ? [["report", "Ofis raporu", "ti-chart-bar"]] : []),
+            ...(isOwner ? [["report", "Raporum", "ti-chart-bar"]] : []),
           ].map(([id, label, icon]) => (
             <button
               key={id}

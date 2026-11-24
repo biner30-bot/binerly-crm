@@ -5132,7 +5132,7 @@ export default function App() {
         ]
       : []),
     { label: "Görünüm, Bildirimler & Hesap", description: "Tema, push bildirimleri, şifre", onOpen: () => setShowAppSettings(true) },
-    { label: "Takım", description: "Üyeler ve davetler", onOpen: () => setShowTeamModal(true) },
+    { label: "Takım", description: isRealEstate ? "Hesabınıza tam erişimli kişiler (ör. asistan) - ofis arkadaşları için Ofis sekmesi" : "Üyeler ve davetler", onOpen: () => setShowTeamModal(true) },
     { label: "Çöp Kutusu ve Geçmiş", description: "Silinen kayıtlar, işlem geçmişi", onOpen: () => setShowTrashHistory(true) },
     { label: "Müşteri Kazanma Linki", description: "Müşteri kendi bilgisini bıraksın, elle girmeyin", onOpen: async () => { const link = await generateLeadCaptureLink(); if (link) setLeadCaptureLink(link); } },
     ...(supportsSelfBooking(companySettings?.sector) && bookingModel(companySettings?.sector) === "slot"
@@ -6179,6 +6179,10 @@ export default function App() {
       {tab === "ofis" && isRealEstate && (
         <OfficeTab
           office={office}
+          sharedCounts={{
+            [session.user.id]: properties.filter((p) => p.officeShared !== false && ["aktif", "opsiyonlu"].includes(p.status)).length,
+            ...officeProperties.reduce((acc, p) => ({ ...acc, [p.userId]: (acc[p.userId] || 0) + 1 }), {}),
+          }}
           docs={officeDocs}
           onDownloadDoc={downloadOfficeDoc}
           onDeleteDoc={deleteOfficeDoc}
@@ -6480,7 +6484,7 @@ export default function App() {
             <MenuRow
               icon="ti-users-group"
               label="Takım"
-              description="Üyeler ve davetler"
+              description={isRealEstate ? "Hesabınıza tam erişimli kişiler (ör. asistan) - ofis arkadaşları için Ofis sekmesi" : "Üyeler ve davetler"}
               onClick={() => { setShowSettingsHub(false); setShowTeamModal(true); }}
             />
             <MenuRow

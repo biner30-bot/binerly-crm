@@ -280,6 +280,15 @@ export function TermsPage() {
           </a>{" "}
           üzerinden ayrıca bir çözüm değerlendirilebilir.
         </p>
+        <p>
+          Emlak sektöründe birbirinden bağımsız çalışan danışmanlar tek bir hesabı paylaşmak yerine
+          her biri kendi hesabıyla bir &quot;Ofis&quot;e katılır. Ofiste yalnızca danışmanın
+          paylaşmayı seçtiği aktif portföyler (mal sahibi bilgisi hariç), bölge fiyat verileri ve
+          ofis sözleşme arşivine yüklediği imzalı yetki/aracılık sözleşmeleri ile yer gösterme
+          belgeleri paylaşılır; müşteri, teklif, gösterim ve analiz kayıtları danışmana özel kalır.
+          Ofis arşivine yüklenen belgelerin kopyası, danışman ofisten ayrılsa da ofiste kalır ve bu
+          kopyalar bakımından ofisi kuran işletme (broker) veri sorumlusudur.
+        </p>
       </Section>
       <Section title="5. Faturalandırma ve Vergi Yükümlülükleri">
         <p>

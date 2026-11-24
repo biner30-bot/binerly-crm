@@ -244,6 +244,7 @@ export function OfficeTab({
   onResetInvite,
   onUpdateMe,
   docs = [],
+  sharedCounts = {},
   onDownloadDoc,
   onDeleteDoc,
 }) {
@@ -338,8 +339,8 @@ export function OfficeTab({
                   {m.role === "broker" && <Badge tone="accent">Broker</Badge>}
                   <span style={{ color: "var(--text-muted)" }}>
                     {" "}
-                    · {[m.phone, m.email].filter(Boolean).join(" · ")} · katılış{" "}
-                    {fmtDate(m.joinedAt)}
+                    · {sharedCounts[m.userId] || 0} paylaşılan portföy ·{" "}
+                    {[m.phone, m.email].filter(Boolean).join(" · ")} · katılış {fmtDate(m.joinedAt)}
                   </span>
                 </span>
                 {m.userId === currentUserId && (
