@@ -6354,6 +6354,9 @@ export default function App() {
             onDeleteCampaign={deleteShowcaseCampaign}
             onReorderCampaigns={reorderShowcaseCampaigns}
             onSaveSlug={saveShowcaseSlug}
+            onSaveValuationForm={(valuationForm) =>
+              upsertCompanySettings({ realEstateSettings: { ...(companySettings?.realEstateSettings || {}), valuationForm } })
+            }
             onOpenLink={async () => {
               const link = await generateLeadCaptureLink("vitrin");
               if (link) setVitrinLink(link);

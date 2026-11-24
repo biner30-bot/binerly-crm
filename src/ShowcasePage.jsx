@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import BackgroundScatter from "./BackgroundScatter.jsx";
+import { ValuationRequestForm } from "./ValuationRequestForm";
 
 // DealApprovalPage.jsx/shared.jsx'teki AYNI biçimlendirme (kasıtlı kopya, bu
 // sayfa da tamamen bağımsız/herkese açık - bkz. api/lead-capture.js'teki
@@ -406,8 +407,13 @@ export default function ShowcasePage() {
   const campaigns = company?.campaigns || [];
   const listings = company?.listings || [];
   const opened = openIndex !== null ? showcase[openIndex] : null;
+  const valuationForm = company?.valuationForm || null;
   const hasAnyContent =
-    showcase.length > 0 || priceList.length > 0 || campaigns.length > 0 || listings.length > 0;
+    showcase.length > 0 ||
+    priceList.length > 0 ||
+    campaigns.length > 0 ||
+    listings.length > 0 ||
+    !!valuationForm;
 
   const sectionTitleStyle = { fontSize: 17, fontWeight: 800, color: "#0c2540", margin: "0 0 12px" };
   const cardStyle = {
@@ -472,6 +478,26 @@ export default function ShowcasePage() {
                   {company.ctaLabel}
                 </a>
               )}
+              {valuationForm && (
+                <a
+                  href="#degerleme"
+                  style={{
+                    display: "inline-block",
+                    marginTop: 16,
+                    marginLeft: 8,
+                    background: "#fff",
+                    color: "#185fa5",
+                    border: "1.5px solid #185fa5",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    borderRadius: 10,
+                    padding: "11px 24px",
+                  }}
+                >
+                  Evim ne kadar eder?
+                </a>
+              )}
               <p style={{ fontSize: 12, color: "#9aa8b8", margin: "14px 0 0" }}>
                 Zaten müşterimiz misiniz?{" "}
                 <a href={portalUrlFor()} style={{ color: "#185fa5" }}>
@@ -484,6 +510,23 @@ export default function ShowcasePage() {
               <p style={{ textAlign: "center", color: "#9aa8b8", padding: "2rem 1rem 3rem" }}>
                 Bu işletme henüz vitrin içeriği yayınlamadı.
               </p>
+            )}
+
+            {valuationForm && (
+              <section id="degerleme" style={{ marginBottom: "2.5rem", scrollMarginTop: 16 }}>
+                <h2 style={sectionTitleStyle}>Evim ne kadar eder?</h2>
+                <div style={cardStyle}>
+                  <p style={{ fontSize: 13, color: "#5b7088", margin: "0 0 12px" }}>
+                    Evinizin bilgilerini girin, {company.companyName} bölgenizdeki güncel ilan
+                    fiyatlarıyla ücretsiz değerleme raporunuzu hazırlasın.
+                  </p>
+                  <ValuationRequestForm
+                    token={token}
+                    companyName={company.companyName}
+                    showRange={valuationForm.showRange}
+                  />
+                </div>
+              </section>
             )}
 
             {listings.length > 0 && (

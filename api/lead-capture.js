@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
 import { applyServiceCapacity } from "./_appointment-concurrency.js";
 import { buildShiftAvailability, fetchShiftData, shiftWindowsByWeekday } from "./_appointment-shifts.js";
+import { publicEstimate, sanitizeSubject, saveValuationRequest } from "./_valuation-request.js";
 
 // KVKK ispat kaydı için — deal-approval.js'teki AYNI fonksiyon, aralarında
 // import olmadığı için kopyalanmış (bkz. sql/2026-07-31_consent_ip_and_text.sql).
@@ -263,7 +264,7 @@ export default async function handler(req, res) {
   // orada da kabul eder - zararsız, aynı company_settings satırına düşer.
   const { data: settings, error: settingsError } = await supabaseAdmin
     .from("company_settings")
-    .select("user_id, company_name, logo_url, sector, appointment_deposit_amount, appointment_concurrency, appointment_widget_mode, appointment_availability_source, address, phone, showcase_price_list_visible, showcase_slug, default_kdv_rate")
+    .select("user_id, company_name, logo_url, sector, appointment_deposit_amount, appointment_concurrency, appointment_widget_mode, appointment_availability_source, address, phone, showcase_price_list_visible, showcase_slug, default_kdv_rate, real_estate_settings")
     .or(`lead_capture_token.eq.${token},showcase_slug.eq.${token}`)
     .maybeSingle();
   if (settingsError) console.error("lead-capture query error:", settingsError.message);
@@ -425,8 +426,14 @@ export default async function handler(req, res) {
         }
       }
 
+      // "Evim ne kadar eder?" formu - danışman Ayarlar > Vitrin'den açar (varsayılan kapalı).
+      const vf = settings.real_estate_settings?.valuationForm || {};
       const vitrinPayload = {
         listings,
+        valuationForm:
+          settings.sector === "emlak" && vf.enabled === true
+            ? { enabled: true, showRange: vf.showRange !== false }
+            : null,
         companyName: settings.company_name || "Binerly",
         logoUrl: settings.logo_url || null,
         sector: settings.sector || null,
@@ -561,6 +568,7 @@ export default async function handler(req, res) {
   if (!isValidPhone(trimmedPhone)) return res.status(400).json({ error: "Geçerli bir telefon numarası girin." });
   if (!trimmedEmail) return res.status(400).json({ error: "E-posta gerekli." });
 
+
   // --- Bekleme listesi kaydı (AppointmentRequestPage, dolu bir gün seçilince
   // "Bu gün için beni haberdar et") --- dateTime/dateTimeKey'den AYRI bir dal:
   // burada belirli bir SAAT değil sadece bir GÜN seçiliyor (bkz.
@@ -594,6 +602,40 @@ export default async function handler(req, res) {
   const consented = trimmedEmail && marketingConsent === true;
   const consentedAt = new Date().toISOString();
   const consentIp = consented ? getClientIp(req) : null;
+
+  // --- "Evim ne kadar eder?" değerleme talebi (vitrin, sadece emlak) ---
+  // Önce talep kaydedilir; veri güncelse aralık teşekkür ekranında döner.
+  if ((req.body || {}).action === "valuation-request") {
+    const vf = settings.real_estate_settings?.valuationForm || {};
+    if (settings.sector !== "emlak" || vf.enabled !== true) {
+      return res.status(400).json({ error: "Bu işletmede değerleme formu kapalı." });
+    }
+    const subject = sanitizeSubject((req.body || {}).subject);
+    if (!subject.neighborhood || !subject.district) return res.status(400).json({ error: "İlçe ve mahalle gerekli." });
+    if (!subject.grossM2 && !subject.netM2) return res.status(400).json({ error: "Metrekare gerekli." });
+    if (subject.buildingAge === "") return res.status(400).json({ error: "Bina yaşı gerekli." });
+    const spec = [subject.neighborhood, subject.district, subject.city, subject.roomCount, subject.grossM2 && `${subject.grossM2} m² brüt`, `${subject.buildingAge} yaş`]
+      .filter(Boolean)
+      .join(", ");
+    const { customerId, error: customerError } = await findOrCreateAppointmentCustomer(supabaseAdmin, settings, {
+      trimmedName, trimmedPhone, trimmedEmail,
+      consented, consentedAt, consentIp,
+      notes: `Mal sahibi adayı - vitrindeki değerleme formundan: ${spec}.${note ? ` Not: ${String(note).trim().slice(0, 500)}` : ""}`,
+    });
+    if (customerError) return res.status(500).json({ error: customerError.message });
+    let estimateInfo = null;
+    try {
+      estimateInfo = await publicEstimate(supabaseAdmin, settings.user_id, settings.real_estate_settings, subject);
+    } catch (e) {
+      console.error("valuation estimate error:", e.message);
+    }
+    await saveValuationRequest(supabaseAdmin, settings, { customerId, contactName: trimmedName, subject, estimateInfo });
+    return res.status(200).json({
+      ok: true,
+      valuation: true,
+      estimate: vf.showRange !== false ? estimateInfo?.estimate || null : null,
+    });
+  }
 
   // --- Randevu talebi (AppointmentRequestPage, /randevu-al/{token}) ---
   // Sadece dateTime+dateTimeKey gönderildiğinde bu dal çalışır; düz /lead/ formu

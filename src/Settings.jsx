@@ -573,6 +573,7 @@ function normalizeRealEstateSettings(s) {
     // burada düşürülürse emlak ayarları her kaydedildiğinde sessizce sıfırlanırdı.
     ...(s.avmFactors ? { avmFactors: s.avmFactors } : {}),
     ...(s.neighborhoodAliases ? { neighborhoodAliases: s.neighborhoodAliases } : {}),
+    ...(s.valuationForm ? { valuationForm: s.valuationForm } : {}),
   };
 }
 
@@ -737,6 +738,67 @@ export function slugify(text) {
 // Öncesi/sonrası foto galerisi burada YOK - o hâlâ per-deal, DealForm
 // içindeki BeforeAfterPhotos'ta (müşteri fotoğraf izniyle bağlı, sadece
 // randevu sektörlerinde anlamlı).
+// Vitrinde "Evim ne kadar eder?" - ev sahibinden değerleme talebi (portföy
+// bulma). Varsayılan kapalı; açıkken talep her zaman alınır, aralık sadece
+// bölge verisi güncelse gösterilir.
+function ValuationFormToggle({ value, onChange }) {
+  const enabled = value.enabled === true;
+  const showRange = value.showRange !== false;
+  return (
+    <span
+      style={{
+        display: "block",
+        marginTop: 12,
+        paddingTop: 12,
+        borderTop: "0.5px solid var(--border)",
+      }}
+    >
+      <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontWeight: 600 }}>
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => onChange({ ...value, enabled: e.target.checked, showRange })}
+          style={{ marginTop: 3 }}
+        />
+        <span>
+          Vitrinde "Evim ne kadar eder?" formu
+          <span
+            style={{ display: "block", fontWeight: 400, fontSize: 12, color: "var(--text-muted)" }}
+          >
+            Ev sahibi evinin bilgilerini ve iletişimini bırakır; size mal sahibi adayı, arama görevi
+            ve Piyasa Analizi'nde taslak bir analiz olarak düşer.
+          </span>
+        </span>
+      </label>
+      {enabled && (
+        <label
+          style={{
+            display: "flex",
+            gap: 8,
+            alignItems: "flex-start",
+            marginTop: 8,
+            marginLeft: 22,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={showRange}
+            onChange={(e) => onChange({ ...value, enabled, showRange: e.target.checked })}
+            style={{ marginTop: 3 }}
+          />
+          <span>
+            Talepten sonra tahmini değer aralığını göster
+            <span style={{ display: "block", fontSize: 12, color: "var(--text-muted)" }}>
+              Sadece mahallenin bölge fiyatı 30 günden yeniyse ve daire yaşına yakın yeterli emsal
+              varsa gösterilir; yoksa "raporunuzu hazırlayıp ileteceğiz" denir.
+            </span>
+          </span>
+        </label>
+      )}
+    </span>
+  );
+}
+
 export function ShowcaseManager({
   companySettings,
   priceListItems,
@@ -748,6 +810,7 @@ export function ShowcaseManager({
   onDeleteCampaign,
   onReorderCampaigns,
   onOpenLink,
+  onSaveValuationForm,
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -911,6 +974,10 @@ export function ShowcaseManager({
         >
           Portföylerinizi vitrinde göstermek için Portföy sekmesinde ilgili portföyü açıp "Vitrin
           sayfamda yayınla"yı işaretleyin.
+          <ValuationFormToggle
+            value={companySettings?.realEstateSettings?.valuationForm || {}}
+            onChange={onSaveValuationForm}
+          />
         </p>
       ) : (
         <div
