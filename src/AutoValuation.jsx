@@ -133,6 +133,7 @@ export function fullAddress(s) {
 }
 
 function valuationTitle(s, property) {
+  if (s.name && s.name.trim()) return s.name.trim();
   const a = s.address || {};
   const street = [a.street, a.buildingNo && `No: ${a.buildingNo}`, a.unitNo && `D: ${a.unitNo}`]
     .filter(Boolean)
@@ -1305,7 +1306,7 @@ export function AutoValuation({
     setValuationStatus(saved.status);
     setSavedJson(JSON.stringify(snapshot));
     setSavedResultKey(resultKeyOf(resultSnapshot));
-    if (auto) setAutoSavedAt(new Date());
+    setAutoSavedAt(new Date());
     // Kayıtlı analiz artık veritabanında - yerel taslağa gerek yok (portföy
     // kaydı için baseline korunur ki "portföye kaydet" düğmesi kaybolmasın).
     if (!property) setBaseline(snapshot);
@@ -1436,6 +1437,20 @@ export function AutoValuation({
         <i className="ti ti-info-circle" aria-hidden="true" /> {DISCLAIMER}
       </p>
 
+      {onSaveValuation && (
+        <div style={{ marginBottom: 12, maxWidth: 520 }}>
+          <label style={labelStyle}>
+            Analiz adı (isteğe bağlı)
+            <InfoTip text="Kayıtlı analizlerim listesinde bu adla görünür ve aranır - ör. mal sahibinin adı. Boş bırakırsanız adresten oluşturulur." />
+          </label>
+          <input
+            value={s.name || ""}
+            onChange={(e) => setS((p) => ({ ...p, name: e.target.value }))}
+            placeholder={valuationTitle({ ...s, name: "" }, property)}
+            style={{ width: "100%" }}
+          />
+        </div>
+      )}
       <div style={box}>
         <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 8px" }}>Daire</p>
         <SubjectForm s={s} setS={setS} regionPrices={regionPrices} missing={missingKeys} />
@@ -1919,12 +1934,14 @@ export function AutoValuation({
                       : "Kaydedildi"}
               </button>
             )}
-            {valuationStatus === "taslak" && (
+            {valuationId && (
               <span style={{ fontSize: 11.5, color: "var(--text-muted)", alignSelf: "center" }}>
-                Taslak olarak otomatik kaydedildi
-                {autoSavedAt
-                  ? ` (${autoSavedAt.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })})`
-                  : ""}
+                {valuationStatus === "taslak" ? "Taslak" : "Kayıtlı analiz"}
+                {unsavedAnalysis
+                  ? " · değişiklikler birkaç saniye içinde kaydedilecek"
+                  : autoSavedAt
+                    ? ` · son kayıt ${autoSavedAt.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}`
+                    : " · güncel"}
               </span>
             )}
             <span style={{ fontSize: 11.5, color: "var(--text-muted)", alignSelf: "center" }}>
@@ -2158,6 +2175,7 @@ export function MarketAnalysisTab({
   const [instance, setInstance] = useState(0);
   const [confirmDeleteV, setConfirmDeleteV] = useState(null);
   const [listOpen, setListOpen] = useState(true);
+  const [listQuery, setListQuery] = useState("");
   const persistSelection = (sel) => {
     setSelectionState(sel);
     try {
@@ -2172,6 +2190,16 @@ export function MarketAnalysisTab({
   };
   const valuation =
     selection.kind === "valuation" ? valuations.find((v) => v.id === selection.id) || null : null;
+  const lq = listQuery.trim().toLocaleLowerCase("tr");
+  const filteredValuations = !lq
+    ? valuations
+    : valuations.filter((v) => {
+        const sub = v.subject || {};
+        const a = sub.address || {};
+        return [v.title, sub.name, sub.neighborhood, sub.district, sub.city, a.street, a.siteName]
+          .filter(Boolean)
+          .some((x) => String(x).toLocaleLowerCase("tr").includes(lq));
+      });
   const propertyId =
     selection.kind === "property" ? selection.id : valuation ? valuation.propertyId : null;
   const property = properties.find((p) => p.id === propertyId) || null;
@@ -2221,8 +2249,21 @@ export function MarketAnalysisTab({
           </p>
         )}
         {listOpen && valuations.length > 0 && (
-          <div style={{ marginTop: 8, maxHeight: 260, overflowY: "auto" }}>
-            {valuations.map((v) => {
+          <input
+            value={listQuery}
+            onChange={(e) => setListQuery(e.target.value)}
+            placeholder="Analizlerde ara: ad, sokak, mahalle, site"
+            style={{ width: "100%", marginTop: 8 }}
+          />
+        )}
+        {listOpen && valuations.length > 0 && (
+          <div style={{ marginTop: 8, maxHeight: 300, overflowY: "auto" }}>
+            {filteredValuations.length === 0 && (
+              <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: 0 }}>
+                Aramaya uyan analiz yok.
+              </p>
+            )}
+            {filteredValuations.map((v) => {
               const active = selection.kind === "valuation" && selection.id === v.id;
               const linked = v.propertyId && properties.find((p) => p.id === v.propertyId);
               return (
@@ -2269,7 +2310,7 @@ export function MarketAnalysisTab({
                     disabled={active}
                     onClick={() => choose({ kind: "valuation", id: v.id })}
                   >
-                    {active ? "Açık" : "Aç"}
+                    {active ? "Açık" : "Aç / düzenle"}
                   </button>
                   {!v.propertyId && onCreatePropertyFrom && (
                     <button
