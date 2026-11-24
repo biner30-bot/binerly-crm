@@ -23,7 +23,7 @@ export default function LocationMap({ location, center, onChange, height = 280 }
 
   useEffect(() => {
     const start = isValidLocation(location) ? location : center || TURKEY;
-    const map = L.map(elRef.current, { scrollWheelZoom: false }).setView(
+    const map = L.map(elRef.current, { scrollWheelZoom: true }).setView(
       [start.lat, start.lng],
       isValidLocation(location) ? 18 : center ? center.zoom || 15 : 5,
     );
