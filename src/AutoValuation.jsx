@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { ConfirmDialog, InfoTip, formatTL } from "./shared";
+import { ConfirmDialog, InfoTip, Modal, formatTL } from "./shared";
 import { buildValuationReportHtml } from "./ValuationReport";
 import { LocationFields } from "./LocationFields";
 import { PROPERTY_DETAIL_FIELDS, PROPERTY_TYPE_OPTIONS, ROOM_COUNT_OPTIONS } from "./realEstate";
@@ -13,6 +13,9 @@ import {
   estimateValue,
   findRegion,
   mergeListings,
+  REGION_OLD_DAYS,
+  REGION_STALE_DAYS,
+  regionAgeDays,
   parseSearchResults,
   regionKey,
   summarizeListings,
@@ -453,6 +456,25 @@ async function printReport(args, getPhotoUrl) {
   return true;
 }
 
+function RegionAgeTag({ days }) {
+  if (days <= REGION_STALE_DAYS)
+    return <span style={{ color: "var(--text-muted)" }}>({days} gün)</span>;
+  const old = days > REGION_OLD_DAYS;
+  return (
+    <span
+      style={{
+        fontSize: 11,
+        padding: "1px 6px",
+        borderRadius: 4,
+        background: old ? "var(--bg-danger)" : "var(--bg-warning)",
+        color: old ? "var(--text-danger)" : "var(--text-warning)",
+      }}
+    >
+      {days} gün - güncelleyin
+    </span>
+  );
+}
+
 export function AutoValuation({
   property,
   regionPrices,
@@ -473,6 +495,7 @@ export function AutoValuation({
   const [showRegions, setShowRegions] = useState(false);
   const [showDetailed, setShowDetailed] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [staleReportPrompt, setStaleReportPrompt] = useState(false);
   const savedFactors = companySettings?.realEstateSettings?.avmFactors || {};
   const [factors, setFactors] = useState(() => ({ ...AVM_FACTOR_DEFAULTS, ...savedFactors }));
 
@@ -482,7 +505,22 @@ export function AutoValuation({
     () => estimateValue({ subject: s, saleRegion, rentRegion, marketIndex, factors }),
     [s, saleRegion, rentRegion, marketIndex, factors],
   );
-  const age = saleRegion ? daysSince(saleRegion.asOf) : 0;
+  const age = regionAgeDays(saleRegion);
+  const rentAge = regionAgeDays(rentRegion);
+  const stale = saleRegion && age > REGION_STALE_DAYS;
+  const rentStale = rentRegion && rentAge > REGION_STALE_DAYS;
+  const askUpdate = () => {
+    setStaleReportPrompt(false);
+    setPasteOpen(true);
+  };
+  const runReport = async () => {
+    setStaleReportPrompt(false);
+    const ok = await printReport(
+      { subject: s, result, property, companySettings, agent, marketIndex },
+      getPhotoUrl,
+    );
+    if (!ok) notify("Yazdırma penceresi açılamadı - tarayıcının açılır pencere engelini kaldırın.");
+  };
   const saleAgeStats = ageStats(saleRegion?.listings);
 
   return (
@@ -544,11 +582,35 @@ export function AutoValuation({
                 />
               </>
             )}
-            {age > 90 && (
-              <p style={{ color: "var(--text-warning)", margin: "4px 0 0" }}>
-                Bölge fiyatı {age} gün önce alındı. TCMB endeksiyle güncelleniyor ama yeni ilan
-                sonuçlarını yapıştırmanız önerilir.
-              </p>
+            {(stale || rentStale) && (
+              <div
+                style={{
+                  margin: "8px 0 0",
+                  padding: "8px 10px",
+                  borderRadius: 6,
+                  background:
+                    Math.max(age, rentAge) > REGION_OLD_DAYS
+                      ? "var(--bg-danger)"
+                      : "var(--bg-warning)",
+                  color: "var(--text-primary)",
+                  display: "flex",
+                  gap: 8,
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                <span style={{ flex: "1 1 240px" }}>
+                  {stale && `Satılık bölge fiyatı ${age} gün önce alındı. `}
+                  {rentStale && `Kiralık bölge fiyatı ${rentAge} gün önce alındı. `}
+                  TCMB endeksi yaklaşık 2 ay geriden gelir ve il ortalamasıdır - güncel tahmin için
+                  Sahibinden'deki aynı aramayı yeniden yapıştırın.
+                </span>
+                {!pasteOpen && (
+                  <button type="button" style={{ fontSize: 12 }} onClick={askUpdate}>
+                    <i className="ti ti-refresh" aria-hidden="true" /> Bölgeyi güncelle
+                  </button>
+                )}
+              </div>
             )}
             {saleRegion.listingCount > 0 && saleRegion.listingCount < 8 && (
               <p style={{ color: "var(--text-warning)", margin: "4px 0 0" }}>
@@ -667,16 +729,7 @@ export function AutoValuation({
             <button
               type="button"
               style={{ fontSize: 12.5 }}
-              onClick={async () => {
-                const ok = await printReport(
-                  { subject: s, result, property, companySettings, agent, marketIndex },
-                  getPhotoUrl,
-                );
-                if (!ok)
-                  notify(
-                    "Yazdırma penceresi açılamadı - tarayıcının açılır pencere engelini kaldırın.",
-                  );
-              }}
+              onClick={() => (stale || rentStale ? setStaleReportPrompt(true) : runReport())}
             >
               <i className="ti ti-file-type-pdf" aria-hidden="true" /> PDF rapor
             </button>
@@ -794,15 +847,35 @@ export function AutoValuation({
                     {r.district ? `, ${r.district}` : ""} ·{" "}
                     {r.transactionType === "kiralik" ? "Kiralık" : "Satılık"} {r.propertyType} ·{" "}
                     {fmtUnit(r.medianM2)} ·{" "}
-                    {r.source === "elle" ? "elle" : `${r.listingCount} ilan`} · {fmtDate(r.asOf)}
+                    {r.source === "elle" ? "elle" : `${r.listingCount} ilan`} · {fmtDate(r.asOf)}{" "}
+                    <RegionAgeTag days={regionAgeDays(r)} />
                   </span>
-                  <button
-                    type="button"
-                    style={{ fontSize: 12, color: "var(--text-danger)" }}
-                    onClick={() => setConfirmDelete(r)}
-                  >
-                    Sil
-                  </button>
+                  <span style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      style={{ fontSize: 12 }}
+                      onClick={() => {
+                        setS((p) => ({
+                          ...p,
+                          city: r.city || "",
+                          district: r.district || "",
+                          neighborhood: r.neighborhood,
+                          propertyType: r.propertyType || p.propertyType,
+                        }));
+                        setShowRegions(false);
+                        setPasteOpen(true);
+                      }}
+                    >
+                      Güncelle
+                    </button>
+                    <button
+                      type="button"
+                      style={{ fontSize: 12, color: "var(--text-danger)" }}
+                      onClick={() => setConfirmDelete(r)}
+                    >
+                      Sil
+                    </button>
+                  </span>
                 </div>
               ))
           )}
@@ -811,6 +884,33 @@ export function AutoValuation({
 
       {showDetailed && detailed}
 
+      {staleReportPrompt && (
+        <Modal title="Bölge fiyatı eski" onClose={() => setStaleReportPrompt(false)}>
+          <p
+            style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.5, marginTop: 0 }}
+          >
+            Bu rapordaki bölge fiyatı {Math.max(stale ? age : 0, rentStale ? rentAge : 0)} gün önce
+            alınmış ilanlara dayanıyor. Mal sahibine vermeden önce aynı aramayı yeniden yapıştırıp
+            güncellemeniz önerilir. Rapor yine de alınırsa veri tarihi raporda yazar.
+          </p>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+            <button type="button" onClick={runReport}>
+              Yine de rapor al
+            </button>
+            <button
+              type="button"
+              onClick={askUpdate}
+              style={{
+                background: "var(--fill-accent)",
+                color: "var(--on-accent)",
+                border: "none",
+              }}
+            >
+              Önce bölgeyi güncelle
+            </button>
+          </div>
+        </Modal>
+      )}
       {confirmDelete && (
         <ConfirmDialog
           title="Bölge fiyatı silinsin mi?"

@@ -14,6 +14,11 @@ const esc = (s) =>
     .replace(/"/g, "&quot;");
 const nf = (n) => new Intl.NumberFormat("tr-TR").format(Math.round(n));
 const unit = (n) => `${nf(n)} TL/m²`;
+const monthLabel = (period) =>
+  new Date(`${String(period).slice(0, 7)}-01T00:00:00`).toLocaleDateString("tr-TR", {
+    month: "long",
+    year: "numeric",
+  });
 const fmtDate = (d) =>
   d ? new Date(`${String(d).slice(0, 10)}T00:00:00`).toLocaleDateString("tr-TR") : "";
 const MONTHS = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
@@ -173,9 +178,12 @@ export function buildValuationReportHtml({
         : null,
     ages2.ageSlope != null ? ["Yaşın m² fiyatına etkisi", `yılda %${ages2.ageSlope}`] : null,
     avgListingAge != null ? ["İlanların ortalama yayın süresi", `${avgListingAge} gün`] : null,
-    ["Bölge verisi tarihi", fmtDate(r.asOf)],
-    result.index.factor !== 1
-      ? ["TCMB endeksiyle güncelleme", `×${result.index.factor.toFixed(3)}`]
+    ["İlan verisi tarihi", fmtDate(r.asOf)],
+    result.index.factor !== 1 && result.index.latest
+      ? [
+          "TCMB endeksiyle güncelleme",
+          `${monthLabel(result.index.latest)} verisine kadar %${((result.index.factor - 1) * 100).toFixed(1).replace(".", ",")}`,
+        ]
       : null,
   ].filter(Boolean);
 

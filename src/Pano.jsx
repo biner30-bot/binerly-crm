@@ -118,6 +118,7 @@ export default function Pano({
   orderRhythmAlerts,
   lowStockItems,
   propertyAuthAlerts = [],
+  regionStaleAlerts = [],
   membershipAlerts,
   churnAlerts,
   waitlistFillableAlerts,
@@ -702,6 +703,7 @@ export default function Pano({
         orderRhythmAlerts.length === 0 &&
         lowStockItems.length === 0 &&
         propertyAuthAlerts.length === 0 &&
+        regionStaleAlerts.length === 0 &&
         membershipAlerts.length === 0 &&
         churnAlerts.length === 0 &&
         waitlistFillableAlerts.length === 0 &&
@@ -988,6 +990,32 @@ export default function Pano({
                     : `yetki ${auth.daysLeft} gün sonra bitiyor`}
                 </span>
                 <Badge tone={auth.expired ? "danger" : "warning"}>Yetki</Badge>
+              </div>
+            ))}
+            {regionStaleAlerts.map(({ region, days, properties: props }) => (
+              <div
+                key={`region-stale-${region.id}`}
+                className="pano-alert-row"
+                onClick={() => setTab("piyasa")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  padding: "8px 10px",
+                  background: days > 60 ? "var(--bg-danger)" : "var(--bg-warning)",
+                  borderLeft: `3px solid ${days > 60 ? "var(--text-danger)" : "var(--fill-warning)"}`,
+                  borderRadius: "var(--radius)",
+                }}
+              >
+                <span style={{ flex: 1 }}>
+                  {region.neighborhood}{" "}
+                  {region.transactionType === "kiralik" ? "kiralık" : "satılık"} bölge fiyatı {days}{" "}
+                  gün önce alındı - {props.length} aktif portföy bu fiyatı kullanıyor. Yeni ilan
+                  sonuçlarını yapıştırın.
+                </span>
+                <Badge tone={days > 60 ? "danger" : "warning"}>Bölge fiyatı</Badge>
               </div>
             ))}
             {membershipAlerts.map((alert) => (

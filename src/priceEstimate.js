@@ -280,6 +280,37 @@ export function findRegion(regions, subject, transactionType = "satilik") {
   return candidates.find((r) => normalizePlace(r.district) === d) || candidates[0];
 }
 
+// TCMB endeksi ~2 ay geriden gelir ve il/bölge ortalamasıdır; yüksek
+// enflasyonda mahalle fiyatı ondan hızlı kayabilir. Bu yüzden ilan verisi
+// 30 günden eskiyse yenisi istenir.
+export const REGION_STALE_DAYS = 30;
+export const REGION_OLD_DAYS = 60;
+
+export function regionAgeDays(region) {
+  if (!region?.asOf) return 0;
+  return Math.floor(
+    (Date.now() - new Date(`${String(region.asOf).slice(0, 10)}T00:00:00`)) / 86400000,
+  );
+}
+
+// Sadece portföyde aktif ilanı olan bölgeler - takip edilmeyen mahalle için
+// uyarı gürültü olur.
+export function staleRegionAlerts(regions, properties) {
+  const byRegion = new Map();
+  for (const p of properties) {
+    if (!["aktif", "opsiyonlu"].includes(p.status)) continue;
+    if (!["satilik", "kiralik"].includes(p.transactionType)) continue;
+    const r = findRegion(regions, p, p.transactionType);
+    if (!r) continue;
+    const days = regionAgeDays(r);
+    if (days <= REGION_STALE_DAYS) continue;
+    const entry = byRegion.get(r.id) || { region: r, days, properties: [] };
+    entry.properties.push(p);
+    byRegion.set(r.id, entry);
+  }
+  return [...byRegion.values()].sort((a, b) => b.days - a.days);
+}
+
 // TCMB Konut Fiyat Endeksi bölge serileri (İBBS Düzey 2). Sadece değişim oranı
 // için kullanılır - endeks resmi değerleme ortalamalarından gelir, seviyesi
 // piyasa ilan fiyatının altındadır ama aylık değişimi güvenilirdir.

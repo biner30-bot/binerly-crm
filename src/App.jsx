@@ -32,6 +32,7 @@ import { TrackingScripts } from "./analytics";
 import Tasks from "./Tasks";
 import { Portfolio } from "./Portfolio";
 import { MarketAnalysisTab } from "./AutoValuation";
+import { staleRegionAlerts } from "./priceEstimate";
 import { authorizationStatus, propertyAsListingDeal, CLOSED_STATUSES, nextRentReviewDate } from "./realEstate";
 import { PDF_TEMPLATES, buildMergeData, renderTemplateBlocks, TemplateGallery, TABLE_ROW_HEIGHT } from "./PdfTemplates";
 import { TemplateEditor } from "./PdfTemplateEditor";
@@ -5258,6 +5259,7 @@ export default function App() {
         .filter(({ auth }) => auth && !auth.autoRenew && auth.daysLeft <= 30)
         .sort((a, b) => a.auth.daysLeft - b.auth.daysLeft)
     : [];
+  const regionStaleAlerts = isRealEstate ? staleRegionAlerts(regionPrices, properties) : [];
   const membershipAlerts = computeMembershipAlerts(deals, customers);
   const churnAlerts = supportsGroupClasses(companySettings?.sector) ? computeAttendanceChurnRisk(customers, deals, groupClassEnrollments, classAttendance) : [];
   // Bir üye kendi portalından iptal edip yer açtığında (personel tarafından
@@ -5680,6 +5682,7 @@ export default function App() {
           orderRhythmAlerts={orderRhythmAlerts}
           lowStockItems={lowStockItems}
           propertyAuthAlerts={propertyAuthAlerts}
+          regionStaleAlerts={regionStaleAlerts}
           membershipAlerts={membershipAlerts}
           churnAlerts={churnAlerts}
           waitlistFillableAlerts={waitlistFillableAlerts}
