@@ -263,6 +263,9 @@ export function Portfolio({
   office = null,
   officeProperties = [],
   officePhotos = [],
+  officeDocs = [],
+  onUploadOfficeDoc,
+  onDownloadOfficeDoc,
 }) {
   const [view, setView] = useState("list");
   const [editing, setEditing] = useState(null);
@@ -567,6 +570,11 @@ export function Portfolio({
             currentUserId={currentUserId}
             currentUserEmail={currentUserEmail}
             inOffice={!!office}
+            officeDocs={officeDocs.filter(
+              (d) => d.propertyId && d.propertyId === editing.id && d.uploadedBy === currentUserId,
+            )}
+            onUploadOfficeDoc={onUploadOfficeDoc}
+            onDownloadOfficeDoc={onDownloadOfficeDoc}
             locationSuggestions={[
               ...(regionPrices || []).map((r) => ({
                 name: r.neighborhood,
@@ -876,6 +884,79 @@ function PropertyCard({ property: p, owner, agent, readOnly, coverUrl, photoCoun
   );
 }
 
+export const OFFICE_DOC_TYPES = [
+  { id: "yetki_sozlesmesi", label: "Yetki sözleşmesi" },
+  { id: "aracilik_sozlesmesi", label: "Aracılık sözleşmesi" },
+  { id: "yer_gosterme", label: "Yer gösterme belgesi" },
+];
+
+// İmzalı sözleşme ofis arşivine yüklenir (danışman ayrılsa da ofiste kalır).
+function OfficeDocUploader({ property, docs, onUpload, onDownload }) {
+  const [docType, setDocType] = useState("yetki_sozlesmesi");
+  const [busy, setBusy] = useState(false);
+  return (
+    <div
+      style={{
+        marginBottom: 12,
+        padding: "10px 12px",
+        border: "0.5px solid var(--border)",
+        borderRadius: 8,
+        fontSize: 13,
+      }}
+    >
+      <p style={{ margin: "0 0 6px", fontWeight: 600 }}>
+        Ofis sözleşme arşivi
+        <InfoTip text="İmzalı yetki/aracılık sözleşmesi ve yer gösterme belgesinin taraması ofis arşivine gider (broker görür) ve kendi portföy belgelerinize de eklenir. Ofisten ayrılsanız da arşivdeki kopya ofiste kalır." />
+      </p>
+      {docs.length > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+          {docs.map((d) => (
+            <button key={d.id} type="button" style={{ fontSize: 12 }} onClick={() => onDownload(d)}>
+              <i className="ti ti-file-check" aria-hidden="true" />{" "}
+              {OFFICE_DOC_TYPES.find((t) => t.id === d.docType)?.label}: {d.fileName}
+            </button>
+          ))}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+        <select value={docType} onChange={(e) => setDocType(e.target.value)}>
+          {OFFICE_DOC_TYPES.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+        <label
+          style={{
+            fontSize: 12.5,
+            padding: "4px 10px",
+            border: "0.5px solid var(--border)",
+            borderRadius: "var(--radius)",
+            cursor: busy ? "default" : "pointer",
+          }}
+        >
+          <i className="ti ti-upload" aria-hidden="true" />{" "}
+          {busy ? "Yükleniyor…" : "İmzalı belgeyi arşive yükle"}
+          <input
+            type="file"
+            accept="image/*,application/pdf"
+            disabled={busy}
+            style={{ display: "none" }}
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (!file) return;
+              setBusy(true);
+              await onUpload({ file, docType, property });
+              setBusy(false);
+            }}
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
 // Ofisteki diğer danışmanların paylaştığı portföyler: salt okunur. Mal sahibi,
 // en düşük fiyat, gizli not ve belgeler veritabanı kurallarıyla zaten gelmez.
 function OfficePortfolios({ office, properties, photos, getSignedUrls }) {
@@ -1157,6 +1238,9 @@ export function PropertyForm({
   onShowPackage,
   locationSuggestions = [],
   inOffice = false,
+  officeDocs = [],
+  onUploadOfficeDoc,
+  onDownloadOfficeDoc,
 }) {
   const [f, setF] = useState(() => ({
     transactionType: initial?.transactionType || "satilik",
@@ -1581,6 +1665,14 @@ export function PropertyForm({
           field("eidsDate", "EİDS onay tarihi", { input: { type: "date" } })}
         {field("sahibindenNo", "Sahibinden ilan no")}
       </div>
+      {inOffice && initial?.id && onUploadOfficeDoc && (
+        <OfficeDocUploader
+          property={initial}
+          docs={officeDocs}
+          onUpload={onUploadOfficeDoc}
+          onDownload={onDownloadOfficeDoc}
+        />
+      )}
       {inOffice && (
         <label
           style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}

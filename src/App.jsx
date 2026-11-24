@@ -1699,6 +1699,7 @@ export default function App() {
   // Ofisteki diğer danışmanların paylaşılan (aktif) portföyleri - salt okunur.
   const [officeProperties, setOfficeProperties] = useState([]);
   const [officePhotos, setOfficePhotos] = useState([]);
+  const [officeDocs, setOfficeDocs] = useState([]);
   const [portfolioPrefill, setPortfolioPrefill] = useState(null);
   const [marketIndex, setMarketIndex] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -2660,12 +2661,25 @@ export default function App() {
       .eq("user_id", currentUserId)
       .is("left_at", null)
       .maybeSingle();
-    if (!mine) { setOffice(null); return; }
-    const [{ data: off }, { data: members }, { data: invite }] = await Promise.all([
+    if (!mine) { setOffice(null); setOfficeDocs([]); return; }
+    const [{ data: off }, { data: members }, { data: invite }, { data: docs }] = await Promise.all([
       supabase.from("offices").select("*").eq("id", mine.office_id).single(),
       supabase.from("office_members").select("*").eq("office_id", mine.office_id).order("joined_at"),
       supabase.from("office_invites").select("code").eq("office_id", mine.office_id).maybeSingle(),
+      supabase.from("office_documents").select("*").eq("office_id", mine.office_id).order("created_at", { ascending: false }),
     ]);
+    setOfficeDocs((docs || []).map((d) => ({
+      id: d.id,
+      uploadedBy: d.uploaded_by,
+      uploaderName: d.uploader_name,
+      propertyId: d.property_id,
+      propertyTitle: d.property_title,
+      docType: d.doc_type,
+      fileName: d.file_name,
+      storagePath: d.storage_path,
+      fileSize: d.file_size,
+      createdAt: d.created_at,
+    })));
     setOffice({
       office: { id: off.id, name: off.name, brokerId: off.broker_id },
       inviteCode: invite?.code || null,
@@ -2722,6 +2736,51 @@ export default function App() {
     })();
     return () => { alive = false; };
   }, [officePeerKey, activeTeamId]);
+
+  // İmzalı sözleşme: ofis arşivine (ayrı bucket - danışman silse de kalır) +
+  // danışmanın kendi portföy belgelerine bir kopya.
+  const uploadOfficeDoc = async ({ file, docType, property }) => {
+    if (!office || !file) return false;
+    if (file.size > MAX_ATTACHMENT_SIZE) { notify("Dosya en fazla 10 MB olabilir."); return false; }
+    const lowerName = file.name.toLowerCase();
+    if (BLOCKED_ATTACHMENT_EXTENSIONS.some((ext) => lowerName.endsWith(ext))) {
+      notify("Bu dosya türü güvenlik nedeniyle yüklenemiyor.");
+      return false;
+    }
+    const path = `${office.office.id}/${uid()}-${file.name.replace(/[^\w.-]+/g, "_")}`;
+    const { error: upErr } = await supabase.storage.from("office-archive").upload(path, file);
+    if (upErr) { notify(`Arşive yüklenemedi: ${upErr.message}`); return false; }
+    const me = office.members.find((m) => m.userId === session.user.id);
+    const { error } = await supabase.from("office_documents").insert({
+      office_id: office.office.id,
+      uploader_name: me?.displayName || session.user.email,
+      property_id: property?.id || null,
+      property_title: property?.title || "",
+      doc_type: docType,
+      file_name: file.name,
+      storage_path: path,
+      file_size: file.size,
+    });
+    if (error) { notify(`Arşive kaydedilemedi: ${error.message}`); return false; }
+    if (property?.id) await uploadAttachment("property_docs", property.id, file);
+    await loadOffice();
+    notify("Sözleşme ofis arşivine ve portföy belgelerine eklendi.", "success");
+    return true;
+  };
+  const downloadOfficeDoc = async (doc) => {
+    const { data, error } = await supabase.storage.from("office-archive").createSignedUrl(doc.storagePath, 60);
+    if (error || !data?.signedUrl) { notify("Belge açılamadı."); return; }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  };
+  const deleteOfficeDoc = async (doc) => {
+    // Önce dosya: depo izni arşiv kaydına bakıyor, kayıt önce silinirse dosya
+    // görünmez olup silinemiyordu (testte yakalandı).
+    const { data: removed, error: rmErr } = await supabase.storage.from("office-archive").remove([doc.storagePath]);
+    if (rmErr || !removed?.length) { notify("Arşivden sadece broker silebilir."); return; }
+    const { error } = await supabase.from("office_documents").delete().eq("id", doc.id);
+    if (error) { notify(`Arşiv kaydı silinemedi: ${error.message}`); return; }
+    await loadOffice();
+  };
 
   const officeRpc = async (fn, args, okMsg) => {
     const { error } = await supabase.rpc(fn, args);
@@ -6072,6 +6131,9 @@ export default function App() {
           office={office}
           officeProperties={officeProperties}
           officePhotos={officePhotos}
+          officeDocs={officeDocs}
+          onUploadOfficeDoc={uploadOfficeDoc}
+          onDownloadOfficeDoc={downloadOfficeDoc}
           propertyPrivate={propertyPrivate}
           customers={customers}
           teamMembers={teamRoster}
@@ -6117,6 +6179,9 @@ export default function App() {
       {tab === "ofis" && isRealEstate && (
         <OfficeTab
           office={office}
+          docs={officeDocs}
+          onDownloadDoc={downloadOfficeDoc}
+          onDeleteDoc={deleteOfficeDoc}
           currentUserId={session.user.id}
           defaultName={session.user.user_metadata?.full_name || ""}
           defaultPhone={companySettings?.phone || ""}

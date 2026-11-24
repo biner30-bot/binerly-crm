@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Badge, ConfirmDialog, InfoTip } from "./shared";
+import { OFFICE_DOC_TYPES } from "./Portfolio";
 
 // Emlak ofisi: danışmanlar bağımsız çalışır, ofis sadece portföy paylaşımı,
 // ortak bölge fiyatları ve sözleşme arşivi içindir. Broker danışmanın
@@ -146,6 +147,91 @@ function NoOffice({ defaultName, defaultPhone, onCreate, onJoin }) {
   );
 }
 
+function DocArchive({ docs, isBroker, onDownload, onDelete }) {
+  const [type, setType] = useState("all");
+  const [q, setQ] = useState("");
+  const query = q.trim().toLocaleLowerCase("tr");
+  const list = docs
+    .filter((d) => type === "all" || d.docType === type)
+    .filter(
+      (d) =>
+        !query ||
+        [d.propertyTitle, d.uploaderName, d.fileName]
+          .filter(Boolean)
+          .some((x) => x.toLocaleLowerCase("tr").includes(query)),
+    );
+  return (
+    <div style={box}>
+      <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600 }}>
+        Sözleşme arşivi ({docs.length})
+        <InfoTip
+          text={
+            isBroker
+              ? "Danışmanların portföy formundan yüklediği imzalı yetki/aracılık sözleşmeleri ve yer gösterme belgeleri. Danışman ayrılsa da burada kalır."
+              : "Sizin ofis arşivine yüklediğiniz belgeler. Broker tüm arşivi görür; ofisten ayrılsanız da kopya ofiste kalır."
+          }
+        />
+      </p>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 8px" }}>
+        Belge eklemek için Portföy'de ilgili portföyü açıp "Ofis sözleşme arşivi" bölümünü kullanın.
+      </p>
+      {docs.length > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Portföy, danışman veya dosya ara"
+            style={{ flex: "1 1 220px" }}
+          />
+          <select value={type} onChange={(e) => setType(e.target.value)}>
+            <option value="all">Tüm belgeler</option>
+            {OFFICE_DOC_TYPES.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {list.map((d) => (
+        <div
+          key={d.id}
+          style={{
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
+            flexWrap: "wrap",
+            fontSize: 13,
+            padding: "6px 0",
+            borderTop: "0.5px solid var(--border)",
+          }}
+        >
+          <span style={{ flex: "1 1 260px" }}>
+            <b>{OFFICE_DOC_TYPES.find((t) => t.id === d.docType)?.label}</b> ·{" "}
+            {d.propertyTitle || "portföy silinmiş"}
+            <span style={{ color: "var(--text-muted)" }}>
+              {" "}
+              · {d.uploaderName} · {fmtDate(d.createdAt)} · {d.fileName}
+            </span>
+          </span>
+          <button type="button" style={{ fontSize: 12 }} onClick={() => onDownload(d)}>
+            Aç
+          </button>
+          {isBroker && (
+            <button
+              type="button"
+              style={{ fontSize: 12, color: "var(--text-danger)" }}
+              onClick={() => onDelete(d)}
+            >
+              Sil
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function OfficeTab({
   office,
   currentUserId,
@@ -157,7 +243,9 @@ export function OfficeTab({
   onRemoveMember,
   onResetInvite,
   onUpdateMe,
-  archive,
+  docs = [],
+  onDownloadDoc,
+  onDeleteDoc,
 }) {
   const [confirm, setConfirm] = useState(null);
   const [editMe, setEditMe] = useState(null);
@@ -322,7 +410,12 @@ export function OfficeTab({
             )}
           </div>
 
-          {archive}
+          <DocArchive
+            docs={docs}
+            isBroker={isBroker}
+            onDownload={onDownloadDoc}
+            onDelete={(d) => setConfirm({ kind: "deleteDoc", doc: d })}
+          />
 
           <SharedScope />
 
@@ -361,6 +454,18 @@ export function OfficeTab({
             const m = confirm.member;
             setConfirm(null);
             await onRemoveMember(m.userId);
+          }}
+          onClose={() => setConfirm(null)}
+        />
+      )}
+      {confirm?.kind === "deleteDoc" && (
+        <ConfirmDialog
+          title="Belge arşivden silinsin mi?"
+          message={`"${confirm.doc.fileName}" ofis arşivinden kalıcı olarak silinir. Danışmanın kendi portföy belgelerindeki kopya etkilenmez.`}
+          onConfirm={async () => {
+            const d = confirm.doc;
+            setConfirm(null);
+            await onDeleteDoc(d);
           }}
           onClose={() => setConfirm(null)}
         />

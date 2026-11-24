@@ -234,3 +234,66 @@ end $$;
 drop trigger if exists region_prices_keep_owner on public.region_prices;
 create trigger region_prices_keep_owner before update on public.region_prices
   for each row execute function public.region_prices_keep_owner();
+
+-- 3/5 Ofis sözleşme arşivi: imzalı yetki/aracılık sözleşmeleri ve yer gösterme
+-- belgeleri ofiste kalır (fiziksel arşivin karşılığı). Ayrı bucket: danışman
+-- kendi dosyasını silse ya da ofisten ayrılsa da kopya kalır.
+insert into storage.buckets (id, name, public)
+values ('office-archive', 'office-archive', false)
+on conflict (id) do nothing;
+
+create table if not exists public.office_documents (
+  id uuid primary key default gen_random_uuid(),
+  office_id uuid not null references public.offices (id) on delete cascade,
+  uploaded_by uuid not null default auth.uid() references auth.users (id),
+  uploader_name text not null default '',
+  property_id uuid references public.properties (id) on delete set null,
+  property_title text not null default '',
+  doc_type text not null check (doc_type in ('yetki_sozlesmesi', 'aracilik_sozlesmesi', 'yer_gosterme')),
+  file_name text not null,
+  storage_path text not null unique,
+  file_size bigint,
+  created_at timestamptz not null default now()
+);
+create index if not exists office_documents_office_idx on public.office_documents (office_id, created_at desc);
+
+alter table public.office_documents enable row level security;
+
+-- Broker hepsini, danışman (ofisteyken) kendi yüklediklerini görür.
+drop policy if exists office_documents_select on public.office_documents;
+create policy office_documents_select on public.office_documents for select to authenticated
+  using (
+    public.is_office_broker(office_id)
+    or (uploaded_by = auth.uid() and office_id in (select public.my_office_ids()))
+  );
+drop policy if exists office_documents_insert on public.office_documents;
+create policy office_documents_insert on public.office_documents for insert to authenticated
+  with check (uploaded_by = auth.uid() and office_id in (select public.my_office_ids()));
+-- Arşiv değiştirilemez; yanlış yüklemeyi sadece broker siler.
+drop policy if exists office_documents_broker_delete on public.office_documents;
+create policy office_documents_broker_delete on public.office_documents for delete to authenticated
+  using (public.is_office_broker(office_id));
+grant select, insert, delete on public.office_documents to authenticated;
+
+drop policy if exists office_archive_insert on storage.objects;
+create policy office_archive_insert on storage.objects for insert to authenticated
+  with check (
+    bucket_id = 'office-archive'
+    and ((storage.foldername(name))[1])::uuid in (select public.my_office_ids())
+  );
+drop policy if exists office_archive_select on storage.objects;
+create policy office_archive_select on storage.objects for select to authenticated
+  using (
+    bucket_id = 'office-archive' and exists (
+      select 1 from public.office_documents d
+      where d.storage_path = objects.name
+        and (public.is_office_broker(d.office_id)
+             or (d.uploaded_by = auth.uid() and d.office_id in (select public.my_office_ids())))
+    )
+  );
+drop policy if exists office_archive_delete on storage.objects;
+create policy office_archive_delete on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'office-archive'
+    and public.is_office_broker(((storage.foldername(name))[1])::uuid)
+  );
