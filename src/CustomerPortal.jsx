@@ -368,6 +368,7 @@ function CustomerPortalLanding({ onEnter, entryCompany }) {
       <div style={{ maxWidth: 440, width: "100%", position: "relative", zIndex: 1 }}>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <img
+            className="brand-logo"
             src={entryCompany?.logoUrl || "/favicon.svg"}
             alt=""
             style={{
@@ -611,6 +612,7 @@ function CustomerAuthForm({ initialMode = "login", onBack, entryCompany }) {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
           <img
+            className="brand-logo"
             src={entryCompany?.logoUrl || "/favicon.svg"}
             alt=""
             style={{ width: "auto", height: 39, maxWidth: 150, objectFit: "contain" }}

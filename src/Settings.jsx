@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "./supabase";
+import { removeLogoBackground } from "./logoBackground";
 import {
   Modal,
   InfoTip,
@@ -130,6 +131,7 @@ export function CompanySettingsForm({
   const [taxNumber, setTaxNumber] = useState(initial?.taxNumber || "");
   const [logoUrl, setLogoUrl] = useState(initial?.logoUrl || "");
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [cleanLogoBg, setCleanLogoBg] = useState(true);
   const [defaultKdvRate, setDefaultKdvRate] = useState(initial?.defaultKdvRate ?? 20);
   const [customerNotificationsEnabled, setCustomerNotificationsEnabled] = useState(
     initial?.customerNotificationsEnabled === true,
@@ -163,9 +165,15 @@ export function CompanySettingsForm({
       return;
     }
     setUploadingLogo(true);
-    const ext = file.name.split(".").pop();
+    // Beyaz zeminli logo, açık renkli sayfalarda kutu gibi duruyordu: kenara
+    // bağlı beyaz arka plan şeffaf PNG'ye çevrilir (logonun içi korunur).
+    const cleaned = cleanLogoBg ? await removeLogoBackground(file) : null;
+    const upload = cleaned || file;
+    const ext = cleaned ? "png" : file.name.split(".").pop();
     const path = `${activeTeamId}/logo-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("logos").upload(path, file, { upsert: true });
+    const { error } = await supabase.storage
+      .from("logos")
+      .upload(path, upload, cleaned ? { contentType: "image/png" } : undefined);
     setUploadingLogo(false);
     if (error) {
       notify(`Logo yüklenemedi: ${error.message}`);
@@ -173,6 +181,7 @@ export function CompanySettingsForm({
     }
     const { data } = supabase.storage.from("logos").getPublicUrl(path);
     setLogoUrl(data.publicUrl);
+    if (cleaned) notify("Logonun beyaz arka planı kaldırıldı.", "success");
   };
 
   return (
@@ -362,6 +371,17 @@ export function CompanySettingsForm({
           PNG, JPG veya SVG - en fazla 2 MB. Teklif çıktısında ve müşterinin gördüğü sayfalarda
           görünür.
         </p>
+        <label
+          style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}
+        >
+          <input
+            type="checkbox"
+            checked={cleanLogoBg}
+            onChange={(e) => setCleanLogoBg(e.target.checked)}
+          />
+          Yüklerken beyaz arka planı kaldır
+          <InfoTip text="Logonuzun etrafındaki beyaz zemin şeffaf yapılır, böylece sayfanın rengine uyum sağlar. Logonun içindeki beyaz alanlar korunur. Sonuçtan memnun kalmazsanız bu kutuyu kaldırıp logoyu tekrar yükleyin." />
+        </label>
       </div>
       <div style={{ marginBottom: 16 }}>
         <label

@@ -399,7 +399,7 @@ export default function AppointmentRequestPage() {
           </>
         ) : !company.acceptsAppointments ? (
           <>
-            {company.logoUrl && <img src={company.logoUrl} alt="" style={{ maxHeight: 48, display: "block", margin: "0 auto 12px" }} />}
+            {company.logoUrl && <img className="brand-logo" src={company.logoUrl} alt="" style={{ maxHeight: 48, display: "block", margin: "0 auto 12px" }} />}
             <p style={{ textAlign: "center", color: "#5b7088" }}>
               {company.companyName} şu anda online randevu almıyor. Lütfen işletmeyle doğrudan iletişime geçin.
             </p>
@@ -407,7 +407,7 @@ export default function AppointmentRequestPage() {
         ) : (
           <>
             {company.logoUrl ? (
-              <img src={company.logoUrl} alt="" style={{ maxHeight: 64, display: "block", margin: "0 auto 14px" }} />
+              <img className="brand-logo" src={company.logoUrl} alt="" style={{ maxHeight: 64, display: "block", margin: "0 auto 14px" }} />
             ) : SECTOR_ICON[company.sector] ? (
               <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#e6f1fb", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
                 <i className={`ti ${SECTOR_ICON[company.sector]}`} aria-hidden="true" style={{ fontSize: 26, color: "#185fa5" }} />

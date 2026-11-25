@@ -172,6 +172,7 @@ export default function LeadCapturePage() {
           <>
             {company.logoUrl && (
               <img
+                className="brand-logo"
                 src={company.logoUrl}
                 alt=""
                 style={{

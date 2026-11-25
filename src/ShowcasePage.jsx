@@ -450,6 +450,7 @@ export default function ShowcasePage() {
             <div style={{ textAlign: "center", padding: "2.5rem 1rem 1.5rem" }}>
               {company.logoUrl && (
                 <img
+                  className="brand-logo"
                   src={company.logoUrl}
                   alt=""
                   style={{

@@ -335,6 +335,7 @@ export default function DealApprovalPage() {
           <div style={{ textAlign: "left" }}>
             {branding?.logoUrl && (
               <img
+                className="brand-logo"
                 src={branding.logoUrl}
                 alt=""
                 style={{
@@ -484,7 +485,12 @@ export default function DealApprovalPage() {
         ) : (
           <>
             {state.deal.logoUrl && (
-              <img src={state.deal.logoUrl} alt="" style={{ maxHeight: 48, marginBottom: 16 }} />
+              <img
+                className="brand-logo"
+                src={state.deal.logoUrl}
+                alt=""
+                style={{ maxHeight: 48, marginBottom: 16 }}
+              />
             )}
             <p style={{ fontSize: 13, color: "#94a7bb", margin: "0 0 4px" }}>
               {state.deal.companyName}

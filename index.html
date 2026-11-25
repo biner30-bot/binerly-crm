@@ -459,6 +459,10 @@
       @media (max-width: 760px) {
         .finance-ledger-grid { grid-template-columns: 1fr !important; }
       }
+      /* Beyaz arka planlı logo (JPG/PNG) açık renkli sayfada beyaz kutu gibi
+         duruyordu: multiply'da beyaz, zeminin rengini alır, renkli kısımlar
+         aynen kalır. Koyu temada logo kararmasın diye sadece açık temada. */
+      :root:not([data-theme="dark"]) .brand-logo { mix-blend-mode: multiply; }
     </style>
   </head>
   <body>
