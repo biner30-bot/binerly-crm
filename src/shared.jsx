@@ -1972,7 +1972,8 @@ export function shiftTimeStr(hhmm, deltaMinutes) {
 // çıkabiliyordu) sıkışık ve okunaksız hale geliyordu. Tek bir "..." menüsünde
 // yazılı etiketlerle toplanıyor — NotificationBell'deki aynı dışa-tıkla-kapat
 // deseni kullanılıyor.
-export function RowActionsMenu({ items }) {
+// triggerLabel: verilirse üç nokta yerine etiketli düğme (ör. liste başlığındaki "Diğer").
+export function RowActionsMenu({ items, triggerLabel }) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState(null);
   const buttonRef = useRef(null);
@@ -2031,12 +2032,30 @@ export function RowActionsMenu({ items }) {
 
   return (
     <div ref={buttonRef} style={{ display: "inline-block" }}>
-      <IconButton
-        icon="ti-dots-vertical"
-        title="İşlemler"
-        onClick={() => setOpen((v) => !v)}
-        active={open}
-      />
+      {triggerLabel ? (
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+          style={{
+            background: "var(--surface-1)",
+            border: "0.5px solid var(--border)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <i className="ti ti-dots" style={{ fontSize: 16 }} aria-hidden="true"></i>
+          {triggerLabel}
+        </button>
+      ) : (
+        <IconButton
+          icon="ti-dots-vertical"
+          title="İşlemler"
+          onClick={() => setOpen((v) => !v)}
+          active={open}
+        />
+      )}
       {open &&
         createPortal(
           <div

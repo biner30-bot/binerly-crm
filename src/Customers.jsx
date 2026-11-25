@@ -20,6 +20,7 @@ import {
   getPortalUrl,
   IconButton,
   isValidPhone,
+  RowActionsMenu,
 } from "./shared";
 import {
   CustomFieldsSection,
@@ -1941,6 +1942,14 @@ export function CustomersTab({
     return { owned, shows, matches };
   }, [isEmlak, properties, showings, customers]);
   const rolesOf = (c) => customerRoles(c, emlakInfo?.owned.get(c.id) || []);
+  const [showFilters, setShowFilters] = useState(false);
+  const activeFilterCount = [
+    isEmlak ? roleFilter !== "all" : customerTypeFilter !== "all",
+    !isEmlak && customerSectorFilter !== "all",
+    customerConsentFilter !== "all",
+    customerSort !== "newest",
+    !!(customerFromDate || customerToDate),
+  ].filter(Boolean).length;
   const shownCustomers =
     isEmlak && roleFilter !== "all"
       ? filteredCustomers.filter((c) => rolesOf(c).some((r) => r.id === roleFilter))
@@ -1957,76 +1966,37 @@ export function CustomersTab({
           flexWrap: "wrap",
         }}
       >
-        <button
-          onClick={() => setShowCustomerExport(true)}
-          disabled={filteredCustomers.length === 0}
-          style={{
-            background: "var(--surface-1)",
-            border: "0.5px solid var(--border)",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          <i className="ti ti-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
-          Dışa aktar
-        </button>
-        <button
-          onClick={() => setShowImportCustomers(true)}
-          style={{
-            background: "var(--surface-1)",
-            border: "0.5px solid var(--border)",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
-          İçe aktar
-        </button>
-        <button
-          onClick={() => setShowCampaignModal(true)}
-          disabled={customers.filter((c) => c.email).length === 0}
-          style={{
-            background: "var(--surface-1)",
-            border: "0.5px solid var(--border)",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          <i className="ti ti-mail-forward" style={{ fontSize: 16 }} aria-hidden="true"></i>
-          Kampanya gönder
-        </button>
-        <button
-          onClick={async () => {
-            const link = await generateLeadCaptureLink();
-            if (link) setLeadCaptureLink(link);
-          }}
-          style={{
-            background: "var(--surface-1)",
-            border: "0.5px solid var(--border)",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          <i className="ti ti-qrcode" style={{ fontSize: 16 }} aria-hidden="true"></i>
-          Müşteri Kazanma Linki
-        </button>
-        <button
-          onClick={() => setShowPortalLinkModal(true)}
-          style={{
-            background: "var(--surface-1)",
-            border: "0.5px solid var(--border)",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          <i className="ti ti-users-group" style={{ fontSize: 16 }} aria-hidden="true"></i>
-          Müşteri Portalı Linki
-        </button>
+        <RowActionsMenu
+          triggerLabel="Diğer"
+          items={[
+            {
+              label: "Dışa aktar",
+              icon: "ti-download",
+              disabled: filteredCustomers.length === 0,
+              onClick: () => setShowCustomerExport(true),
+            },
+            { label: "İçe aktar", icon: "ti-upload", onClick: () => setShowImportCustomers(true) },
+            {
+              label: "Kampanya gönder",
+              icon: "ti-mail-forward",
+              disabled: customers.filter((c) => c.email).length === 0,
+              onClick: () => setShowCampaignModal(true),
+            },
+            {
+              label: "Müşteri Kazanma Linki",
+              icon: "ti-qrcode",
+              onClick: async () => {
+                const link = await generateLeadCaptureLink();
+                if (link) setLeadCaptureLink(link);
+              },
+            },
+            {
+              label: "Müşteri Portalı Linki",
+              icon: "ti-users-group",
+              onClick: () => setShowPortalLinkModal(true),
+            },
+          ]}
+        />
         <button
           onClick={() => {
             setEditingCustomer(null);
@@ -2056,70 +2026,84 @@ export function CustomersTab({
           placeholder="Müşteri ara (ad, sektör, bölge, telefon, e-posta)..."
           style={{ flex: 1, minWidth: 200 }}
         />
-        {isEmlak ? (
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            style={{ fontSize: 13 }}
-            aria-label="Rol"
-          >
-            <option value="all">Tüm müşteriler</option>
-            {CUSTOMER_ROLES.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.label}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <select
-            value={customerTypeFilter}
-            onChange={(e) => setCustomerTypeFilter(e.target.value)}
-            style={{ fontSize: 13 }}
-          >
-            <option value="all">Tüm müşteriler</option>
-            <option value="kurumsal">Kurumsal</option>
-            <option value="bireysel">Bireysel</option>
-          </select>
-        )}
-        {/* Emlakçının müşterisi alıcı/kiracı/mal sahibi - tekstil/otomotiv gibi
+        {/* Telefonda 5-6 filtre listeyi ekranın yarısına itiyordu: arama açık,
+            gerisi "Filtreler" arkasında (masaüstünde hep açık, bkz. index.html). */}
+        <button
+          type="button"
+          className="customer-filters-toggle"
+          aria-expanded={showFilters}
+          onClick={() => setShowFilters((v) => !v)}
+          style={{ fontSize: 13, alignItems: "center", gap: 6 }}
+        >
+          <i className="ti ti-adjustments-horizontal" aria-hidden="true" /> Filtreler
+          {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+        </button>
+        <div className={`customer-extra-filters${showFilters ? " open" : ""}`}>
+          {isEmlak ? (
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              style={{ fontSize: 13 }}
+              aria-label="Rol"
+            >
+              <option value="all">Tüm müşteriler</option>
+              {CUSTOMER_ROLES.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <select
+              value={customerTypeFilter}
+              onChange={(e) => setCustomerTypeFilter(e.target.value)}
+              style={{ fontSize: 13 }}
+            >
+              <option value="all">Tüm müşteriler</option>
+              <option value="kurumsal">Kurumsal</option>
+              <option value="bireysel">Bireysel</option>
+            </select>
+          )}
+          {/* Emlakçının müşterisi alıcı/kiracı/mal sahibi - tekstil/otomotiv gibi
             B2B sektör filtresi orada anlamsız (emlak tarama turu). */}
-        {companySettings?.sector !== "emlak" && (
+          {companySettings?.sector !== "emlak" && (
+            <select
+              value={customerSectorFilter}
+              onChange={(e) => setCustomerSectorFilter(e.target.value)}
+              style={{ fontSize: 13 }}
+            >
+              <option value="all">Tüm sektörler</option>
+              {SECTORS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          )}
           <select
-            value={customerSectorFilter}
-            onChange={(e) => setCustomerSectorFilter(e.target.value)}
+            value={customerConsentFilter}
+            onChange={(e) => setCustomerConsentFilter(e.target.value)}
             style={{ fontSize: 13 }}
           >
-            <option value="all">Tüm sektörler</option>
-            {SECTORS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
+            <option value="all">Pazarlama izni: hepsi</option>
+            <option value="verildi">İzin verildi</option>
+            <option value="verilmedi">İzin verilmedi</option>
           </select>
-        )}
-        <select
-          value={customerConsentFilter}
-          onChange={(e) => setCustomerConsentFilter(e.target.value)}
-          style={{ fontSize: 13 }}
-        >
-          <option value="all">Pazarlama izni: hepsi</option>
-          <option value="verildi">İzin verildi</option>
-          <option value="verilmedi">İzin verilmedi</option>
-        </select>
-        <select
-          value={customerSort}
-          onChange={(e) => setCustomerSort(e.target.value)}
-          style={{ fontSize: 13 }}
-        >
-          <option value="newest">En yeni müşteri</option>
-          <option value="oldest">En eski müşteri</option>
-        </select>
-        <DateRangeFilter
-          from={customerFromDate}
-          to={customerToDate}
-          onFromChange={setCustomerFromDate}
-          onToChange={setCustomerToDate}
-        />
+          <select
+            value={customerSort}
+            onChange={(e) => setCustomerSort(e.target.value)}
+            style={{ fontSize: 13 }}
+          >
+            <option value="newest">En yeni müşteri</option>
+            <option value="oldest">En eski müşteri</option>
+          </select>
+          <DateRangeFilter
+            from={customerFromDate}
+            to={customerToDate}
+            onFromChange={setCustomerFromDate}
+            onToChange={setCustomerToDate}
+          />
+        </div>
       </div>
 
       {shownCustomers.length === 0 ? (

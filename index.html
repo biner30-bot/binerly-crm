@@ -402,6 +402,15 @@
         .app-header-company-name { display: none; }
         .app-header-company img { max-width: 110px !important; }
       }
+      /* Müşteriler listesi: filtreler masaüstünde satırın parçası, telefonda
+         "Filtreler" düğmesinin arkasında (liste ekranın yarısından başlıyordu). */
+      .customer-extra-filters { display: contents; }
+      .customer-filters-toggle { display: none !important; }
+      @media (max-width: 640px) {
+        .customer-filters-toggle { display: flex !important; }
+        .customer-extra-filters:not(.open) { display: none; }
+        .customer-extra-filters.open { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+      }
       @media (max-width: 640px) {
         .app-header-search { display: none !important; }
         /* Dar ekranda Binerly+sektor yazisi satiri dolduruyor; isletme blogu yan
@@ -435,6 +444,9 @@
          sadece hücrelerin satır-içi köşe-yuvarlatması (masaüstünde ilk/son
          hücreye özel) sıfırlanıp yuvarlatma satırın kendisine taşınıyor. */
       @media (max-width: 640px) {
+        /* Kart görünümünde tablonun inline minWidth'i (640) kartı ekrandan taşırıp
+           yatay kaydırma çubuğu çıkarıyordu (5 listede). */
+        .responsive-table { min-width: 0 !important; }
         .responsive-table thead { display: none !important; }
         .responsive-table tr { display: block !important; border-radius: var(--radius-lg) !important; margin-bottom: 8px; box-shadow: var(--shadow-sm); }
         .responsive-table td { display: block !important; border-radius: 0 !important; padding: 4px 12px !important; text-align: left !important; white-space: normal !important; }
