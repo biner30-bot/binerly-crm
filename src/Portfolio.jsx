@@ -251,6 +251,7 @@ export function Portfolio({
   onDeleteWetSigned,
   currentUserName,
   currentAgent = null,
+  agentCards = {},
   comparables = [],
   onSaveComparable,
   onDeleteComparable,
@@ -355,13 +356,13 @@ export function Portfolio({
 
   // Rapordaki "hazırlayan": portföyün sorumlu danışmanı, yoksa raporu açan kişi.
   const agentFor = (p) => {
-    const m =
-      p?.assignedTo && p.assignedTo !== currentUserId
-        ? teamMembers.find((t) => t.id === p.assignedTo)
-        : null;
-    return m
-      ? { name: m.name || m.email, email: m.email }
-      : currentAgent || { name: currentUserName, email: currentUserEmail };
+    const self = currentAgent || { name: currentUserName, email: currentUserEmail };
+    if (!p?.assignedTo || p.assignedTo === currentUserId) return self;
+    const card = agentCards[p.assignedTo];
+    const m = teamMembers.find((t) => t.id === p.assignedTo);
+    // Sahibe atanmış portföy teamMembers'ta yok; eskiden raporu açan kişi yazılıyordu.
+    if (card) return { ...card, name: card.name || m?.name || card.email };
+    return m ? { name: m.name || m.email, email: m.email } : self;
   };
   const coverPhotoUrl = async (p) => {
     const path = photosByProperty[p.id]?.[0]?.storagePath;

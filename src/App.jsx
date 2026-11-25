@@ -1687,6 +1687,7 @@ export default function App() {
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
   const [teamRoster, setTeamRoster] = useState([]);
+  const [agentCards, setAgentCards] = useState({});
   const [properties, setProperties] = useState([]);
   // property_id -> { minPrice, privateNote }. RLS sadece sahip + sorumlu danışmana
   // satır döndürdüğü için diğer üyelerde bu harita o portföy için boş kalır.
@@ -1976,6 +1977,13 @@ export default function App() {
     if (!activeTeamId) { setTeamRoster([]); return; }
     supabase.rpc("team_roster").then(({ data }) => {
       setTeamRoster((data || []).map((m) => ({ id: m.member_id, email: m.email, name: m.name || null })));
+    });
+    // Rapordaki "Danışmanınız" kartı başka üyenin (veya sahibin) profilini
+    // gösterebilsin diye - profil user_metadata'da, istemci doğrudan okuyamıyor.
+    supabase.rpc("team_agent_cards").then(({ data }) => {
+      setAgentCards(Object.fromEntries((data || []).map((a) => [a.user_id, {
+        name: a.name || "", email: a.email || "", phone: a.phone || "", title: a.title || "", photoUrl: a.photo_url || "", about: a.about || "",
+      }])));
     });
   }, [activeTeamId]);
 
@@ -6463,6 +6471,7 @@ export default function App() {
           onCreateConsentLink={createShowingConsentLink}
           currentUserName={session.user.user_metadata?.full_name || ""}
           currentAgent={selfAgent()}
+          agentCards={agentCards}
           onUploadWetSigned={uploadShowingWetSigned}
           comparables={comparables}
           deals={deals}
@@ -6550,7 +6559,11 @@ export default function App() {
           onSaveAliases={saveNeighborhoodAliases}
           notify={notify}
           agentFor={(p) => {
-            const m = p?.assignedTo && p.assignedTo !== session.user.id ? teamRoster.find((t) => t.id === p.assignedTo) : null;
+            if (!p?.assignedTo || p.assignedTo === session.user.id) return selfAgent();
+            const card = agentCards[p.assignedTo];
+            const m = teamRoster.find((t) => t.id === p.assignedTo);
+            // Sahibe atanmış portföy teamRoster'da yok; eskiden raporu açan kişi yazılıyordu.
+            if (card) return { ...card, name: card.name || m?.name || card.email };
             return m ? { name: m.name || m.email, email: m.email } : selfAgent();
           }}
           getPhotoUrlFor={async (p) => {
