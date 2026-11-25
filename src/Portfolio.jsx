@@ -610,8 +610,8 @@ export function Portfolio({
               if (editing.id) {
                 setEditing(null);
               } else {
+                // "Kaydedildi" mesajı App'te görev mesajıyla birlikte verilir.
                 setEditing(saved);
-                notify("Portföy kaydedildi. Şimdi fotoğraf ve belge ekleyebilirsiniz.", "success");
               }
             }}
             media={

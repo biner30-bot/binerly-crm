@@ -3265,7 +3265,11 @@ export default function App() {
         if (ok6) created.push(`${dueDate.split("-").reverse().join(".")} tarihinde yetki yenileme araması`);
       }
     }
-    if (created.length > 0) notify(`Görev oluşturuldu: ${created.join(", ")}.`, "success");
+    // Yeni portföyde "kaydedildi" mesajı da burada: formun kendi mesajı sonradan
+    // gelip "Görev oluşturuldu"yu eziyordu, danışman açılan görevden habersiz kalıyordu.
+    const savedMsg = !previous ? "Portföy kaydedildi. Şimdi fotoğraf ve belge ekleyebilirsiniz." : "";
+    const taskMsg = created.length > 0 ? `Görev oluşturuldu: ${created.join(", ")}.` : "";
+    if (savedMsg || taskMsg) notify([savedMsg, taskMsg].filter(Boolean).join(" "), "success");
     else if (justClosed && isRental && !leaseStart) notify("Kapanış bölümüne kira başlangıç tarihini girerseniz kira artışı hatırlatması da oluşturulur.", "success");
   };
 
