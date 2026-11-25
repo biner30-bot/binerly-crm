@@ -27,6 +27,9 @@ function saveFormDraft(key, obj) {
     // kota dolu / storage devre dışı (gizli sekme vb.) - taslak sadece bir kolaylık
   }
 }
+// Form dışından taslak silmek için (ör. "+ Yeni analiz" açıkça boş form ister).
+export const discardFormDraft = (key) => clearFormDraft(key);
+
 function clearFormDraft(key) {
   try {
     localStorage.removeItem(DRAFT_PREFIX + key);

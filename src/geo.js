@@ -110,10 +110,15 @@ const OSM_VALUE_LABELS = {
   marketplace: "Pazar yeri",
   townhall: "Belediye / muhtarlık",
 };
+// Photon arazi alanlarını (landuse: site, iş merkezi arsası) da "district/locality"
+// türüyle döndürüyor - "Folkart Towers Mahallesi" çıkıyordu. Mahalle = place anahtarı.
+const isMahalleFeature = (p) =>
+  p.osm_key === "place" && ["suburb", "neighbourhood", "quarter", "village"].includes(p.osm_value);
 function placeKindLabel(p) {
   if (p.osm_key === "highway") return "Sokak / cadde";
-  if (p.type === "district" || p.type === "locality") return "Mahalle";
-  if (p.type === "city" || p.type === "county") return "İlçe / şehir";
+  if (isMahalleFeature(p)) return "Mahalle";
+  if (p.osm_key === "place") return "İlçe / şehir";
+  if (p.osm_key === "landuse" && p.osm_value === "residential") return "Konut / site";
   if (OSM_VALUE_LABELS[p.osm_value]) return OSM_VALUE_LABELS[p.osm_value];
   if (p.osm_key === "shop") return "Dükkân";
   if (p.osm_key === "building") return "Bina";
@@ -158,7 +163,7 @@ export async function suggestPlaces(text, { bias, district, city } = {}) {
     .filter((f) => f.properties?.countrycode === "TR")
     .map((f) => {
       const p = f.properties;
-      const isMahalle = p.type === "district" || p.type === "locality";
+      const isMahalle = isMahalleFeature(p);
       const title = isMahalle && !/mahalle/i.test(p.name || "") ? `${p.name} Mahallesi` : p.name;
       const mahalle =
         !isMahalle && p.district
@@ -177,7 +182,19 @@ export async function suggestPlaces(text, { bias, district, city } = {}) {
         (city && lc(p.state) === lc(city) ? 0 : 2) +
         (streetQuery && p.osm_key !== "highway" ? 1 : 0);
       const kind = placeKindLabel(p);
-      return { title, subtitle, kind, lat, lng, zoom: PHOTON_ZOOM[p.type] || 17, rank };
+      // Seçilince formun boş alanlarını doldurmak için (mahalle OSM'den - tapudakiyle
+      // farklı olabilir, çağıran resmi listeyle doğrular).
+      const parts = {
+        city: p.state || "",
+        district: p.city || "",
+        neighborhood: (isMahalle ? p.name : p.district || "").replace(
+          /\s*(mahallesi|mah\.?)$/iu,
+          "",
+        ),
+        street: p.osm_key === "highway" ? p.name : p.street || "",
+        building: p.osm_key === "building",
+      };
+      return { title, subtitle, kind, parts, lat, lng, zoom: PHOTON_ZOOM[p.type] || 17, rank };
     })
     .filter((s) => {
       const k = `${s.title}|${s.subtitle}`;

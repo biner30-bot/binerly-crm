@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
-import { ConfirmDialog, InfoTip, Modal, formatTL, useFormDraft } from "./shared";
+import { ConfirmDialog, InfoTip, Modal, discardFormDraft, formatTL, useFormDraft } from "./shared";
 import { buildValuationReportHtml } from "./ValuationReport";
-import { LocationFields } from "./LocationFields";
+import { LocationFields, resolveOfficialPlace } from "./LocationFields";
 import {
   TKGM_PARSEL_SORGU_URL,
   geocodeArea,
@@ -330,12 +330,11 @@ function PlaceSearch({ bias, district, city, onPick }) {
   );
 }
 
-function AddressSection({ s, setS, hasPropertyPhoto, notify }) {
+function AddressSection({ s, setS, hasPropertyPhoto, notify, focus }) {
   const a = s.address || {};
   const setA = (k) => (e) =>
     setS((p) => ({ ...p, address: { ...(p.address || {}), [k]: e.target.value } }));
   const [center, setCenter] = useState(null);
-  const [focus, setFocus] = useState(null);
   const [coordText, setCoordText] = useState("");
   const applyCoords = () => {
     const c = parseCoordinates(coordText);
@@ -460,12 +459,6 @@ function AddressSection({ s, setS, hasPropertyPhoto, notify }) {
       </div>
       {showMap && (
         <div style={{ marginTop: 8 }}>
-          <PlaceSearch
-            bias={isValidLocation(s.location) ? s.location : focus || center}
-            district={s.district}
-            city={s.city}
-            onPick={(p) => setFocus({ ...p, at: Date.now() })}
-          />
           <Suspense
             fallback={
               <div style={{ height: 280, fontSize: 12, color: "var(--text-muted)" }}>
@@ -1478,6 +1471,66 @@ export function AutoValuation({
   const [staleReportPrompt, setStaleReportPrompt] = useState(false);
   const [clipOffer, setClipOffer] = useState(null);
   const [pasteIncoming, setPasteIncoming] = useState(null);
+  // Adres tek yerden girilsin: aramadan seçilen yer formun BOŞ alanlarını doldurur.
+  // Başka ilçedeki bir yer seçildiyse (yakındaki okul vb.) alanlara dokunulmaz.
+  const [mapFocus, setMapFocus] = useState(null);
+  const pickPlace = async (p) => {
+    setMapFocus({ lat: p.lat, lng: p.lng, zoom: p.zoom, at: Date.now() });
+    const off = await resolveOfficialPlace(p.parts);
+    const lc = (v) => String(v || "").toLocaleLowerCase("tr");
+    const next = { ...s, address: { ...(s.address || {}) } };
+    const filled = [];
+    if (!s.city && off.city) {
+      next.city = off.city;
+      filled.push("il");
+    }
+    const cityOk = !!off.city && lc(next.city) === lc(off.city);
+    if (cityOk && !s.district && off.district) {
+      next.district = off.district;
+      filled.push("ilçe");
+    }
+    const districtOk = cityOk && !!off.district && lc(next.district) === lc(off.district);
+    if (!districtOk) {
+      const otherDistrict = s.district && off.district && lc(s.district) !== lc(off.district);
+      if (otherDistrict) {
+        notify(
+          `Seçilen yer ${off.district} ilçesinde, formda ${s.district} seçili - alanlar değiştirilmedi.`,
+        );
+        return;
+      }
+      // İlçesi bilinmeyen yer (OSM'de eksik): sadece il ve bina konumu.
+      if (cityOk && p.parts.building && !isValidLocation(s.location)) {
+        next.location = { lat: p.lat, lng: p.lng };
+        filled.push("haritada konum");
+      }
+      if (filled.length) {
+        setS(next);
+        notify(`Dolduruldu: ${filled.join(", ")}. İlçe ve mahalleyi seçin.`, "success");
+      }
+      return;
+    }
+    let mahalleNote = null;
+    if (!s.neighborhood) {
+      if (off.neighborhood) {
+        next.neighborhood = off.neighborhood;
+        filled.push("mahalle");
+      } else if (p.parts.neighborhood)
+        mahalleNote = `"${p.parts.neighborhood}" resmi mahalle listesinde yok - mahalleyi listeden seçin.`;
+    }
+    if (!next.address.street && p.parts.street) {
+      next.address.street = p.parts.street;
+      filled.push("sokak");
+    }
+    if (p.parts.building && !isValidLocation(s.location)) {
+      next.location = { lat: p.lat, lng: p.lng };
+      filled.push("haritada konum");
+    }
+    if (filled.length) setS(next);
+    const msg = [filled.length ? `Dolduruldu: ${filled.join(", ")}.` : null, mahalleNote]
+      .filter(Boolean)
+      .join(" ");
+    if (msg) notify(msg, mahalleNote ? undefined : "success");
+  };
   // Kayıtlı analiz kaydedildiği günün verileriyle açılır - mal sahibine verilen
   // rapor, bölgeye sonradan ilan eklenince (ofisteki başka biri eklese bile)
   // sessizce değişmesin. Danışman isterse "güncel verilerle güncelle" der ya da
@@ -1794,6 +1847,16 @@ export function AutoValuation({
       )}
       <div style={box}>
         <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 8px" }}>Daire</p>
+        <label style={labelStyle}>
+          Adresi arayın
+          <InfoTip text="Mahalle, sokak, site, apartman ya da yakındaki okul/cami adını yazıp öneriden seçin: boş olan il, ilçe, mahalle ve sokak kendiliğinden dolar, harita oraya gider (binaysa iğne de konur). Dolu alanlara dokunulmaz." />
+        </label>
+        <PlaceSearch
+          bias={isValidLocation(s.location) ? s.location : mapFocus}
+          district={s.district}
+          city={s.city}
+          onPick={pickPlace}
+        />
         <SubjectForm s={s} setS={setS} regionPrices={regionPrices} missing={missingKeys} />
         <div
           style={{
@@ -1865,7 +1928,13 @@ export function AutoValuation({
         </div>
       </div>
 
-      <AddressSection s={s} setS={setS} hasPropertyPhoto={hasPropertyPhoto} notify={notify} />
+      <AddressSection
+        s={s}
+        setS={setS}
+        hasPropertyPhoto={hasPropertyPhoto}
+        notify={notify}
+        focus={mapFocus}
+      />
 
       {clipOffer && (
         <div
@@ -2645,7 +2714,12 @@ export function MarketAnalysisTab({
             <button
               type="button"
               style={{ fontSize: 12.5 }}
-              onClick={() => choose({ kind: "new" })}
+              onClick={() => {
+                // Kaydedilmemiş yarım taslak sekme değişiminde korunur, ama "Yeni
+                // analiz"e basan boş form ister - yoksa öncekinin bilgileriyle açılıyordu.
+                discardFormDraft("valuation:free");
+                choose({ kind: "new" });
+              }}
             >
               + Yeni analiz
             </button>

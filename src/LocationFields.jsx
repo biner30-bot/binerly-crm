@@ -21,6 +21,22 @@ function loadCityNeighborhoods(code) {
 const lower = (s) => String(s || "").toLocaleLowerCase("tr");
 const findCity = (name) => TR_CITIES.find((c) => lower(c.name) === lower(name));
 
+// Harita aramasından gelen il/ilçe/mahalleyi resmi (idari) listedeki yazımla eşler.
+// Tapu/TKGM kadastro mahallesini gösterir (ör. Gaziemir "Sakarya"), ilanlar ve bu
+// liste idari mahalleyi ("Beyazevler") - bölge fiyatı için doğru olan idari olan.
+// Resmi listede birebir olmayan mahalle null döner, doldurulmaz.
+export async function resolveOfficialPlace({ city, district, neighborhood }) {
+  const c = findCity(city);
+  if (!c) return { city: null, district: null, neighborhood: null };
+  const d = c.districts.find((x) => lower(x) === lower(district)) || null;
+  let n = null;
+  if (d && neighborhood) {
+    const list = (await loadCityNeighborhoods(c.code))[d] || [];
+    n = list.find((x) => lower(x) === lower(neighborhood)) || null;
+  }
+  return { city: c.name, district: d, neighborhood: n };
+}
+
 // İl/ilçe listeden seçilir; mahalle serbest yazılır ama öneri listesi sunulur -
 // resmi listede olmayan site/semt adları da girilebilsin. Eski kayıtlarda
 // listede olmayan bir il/ilçe yazılıysa kaybolmasın diye seçenek olarak eklenir.
