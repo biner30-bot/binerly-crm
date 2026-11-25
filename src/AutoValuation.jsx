@@ -366,7 +366,7 @@ function PlaceSearch({ bias, district, city, onPick }) {
   );
 }
 
-function AddressSection({ s, setS, hasPropertyPhoto, notify, focus }) {
+function AddressSection({ s, setS, hasPropertyPhoto, notify, focus, top }) {
   const a = s.address || {};
   const setA = (k) => (e) =>
     setS((p) => ({ ...p, address: { ...(p.address || {}), [k]: e.target.value } }));
@@ -411,61 +411,11 @@ function AddressSection({ s, setS, hasPropertyPhoto, notify, focus }) {
   );
   return (
     <div style={box}>
-      {/* Danışmanlar ada/parseli zorunlu sanıyordu: fiyatı etkileyenler Daire
-          bölümünde "eksik" işaretli, bu bölüm sadece rapor ve harita içindir. */}
-      <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 8px" }}>
-        Adres ve konum{" "}
-        <span style={{ fontWeight: 400, fontSize: 12, color: "var(--text-muted)" }}>
-          - isteğe bağlı, fiyatı etkilemez; raporda ve haritada görünür
-        </span>
-      </p>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-        {field("street", "Cadde / sokak", "2 1 220px")}
-        {field("buildingNo", "Bina no", "0 1 90px")}
-        {field("unitNo", "Daire no", "0 1 90px")}
-        {field("siteName", "Site / apartman adı", "1 1 160px")}
-        {field("parcelBlock", "Ada", "0 1 80px")}
-        {field("parcelNo", "Parsel", "0 1 80px")}
-      </div>
-      <div
-        style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}
-      >
-        <a
-          href={TKGM_PARSEL_SORGU_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            fontSize: 12.5,
-            padding: "4px 10px",
-            border: "0.5px solid var(--border)",
-            borderRadius: "var(--radius)",
-            textDecoration: "none",
-          }}
-        >
-          <i className="ti ti-map-search" aria-hidden="true" /> Parsel Sorgu'da aç
-        </a>
-        <input
-          value={coordText}
-          onChange={(e) => setCoordText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              applyCoords();
-            }
-          }}
-          placeholder="Koordinat yapıştır: 38.4664, 27.0880"
-          style={{ flex: "1 1 220px", fontSize: 12.5 }}
-        />
-        <button
-          type="button"
-          style={{ fontSize: 12.5 }}
-          disabled={!coordText.trim()}
-          onClick={applyCoords}
-        >
-          Konuma git
-        </button>
-        <InfoTip text="Tam konum için: Parsel Sorgu'da il/ilçe/mahalle/ada/parsel ile hangi bina olduğunu görün, sonra aynı binayı Google Haritalar'da bulup çatısına sağ tıklayın (telefonda basılı tutun) - en üstte çıkan koordinata tıklayınca kopyalanır, buraya yapıştırın. Parsel Sorgu'nun araç çubuğundaki koordinat yaklaşıktır (~10 m). Koordinat yerine aşağıdaki haritada binaya tıklayıp iğneyi sürükleyebilirsiniz de." />
-      </div>
+      {/* Konumla ilgili her şey tek yerde: arama -> il/ilçe/mahalle (fiyat için
+          gerekli) -> harita -> isteğe bağlı adres ayrıntıları (rapor/harita için;
+          danışmanlar ada/parseli zorunlu sanıyordu). */}
+      <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 8px" }}>Konum</p>
+      {top}
       <div
         style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: 12.5 }}
       >
@@ -524,6 +474,59 @@ function AddressSection({ s, setS, hasPropertyPhoto, notify, focus }) {
           </p>
         </div>
       )}
+      <p style={{ fontSize: 12.5, fontWeight: 600, margin: "12px 0 6px" }}>
+        Adres ayrıntıları{" "}
+        <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>
+          - isteğe bağlı, fiyatı etkilemez; raporda ve haritada görünür
+        </span>
+      </p>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+        {field("street", "Cadde / sokak", "2 1 220px")}
+        {field("buildingNo", "Bina no", "0 1 90px")}
+        {field("unitNo", "Daire no", "0 1 90px")}
+        {field("siteName", "Site / apartman adı", "1 1 160px")}
+        {field("parcelBlock", "Ada", "0 1 80px")}
+        {field("parcelNo", "Parsel", "0 1 80px")}
+      </div>
+      <div
+        style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}
+      >
+        <a
+          href={TKGM_PARSEL_SORGU_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            fontSize: 12.5,
+            padding: "4px 10px",
+            border: "0.5px solid var(--border)",
+            borderRadius: "var(--radius)",
+            textDecoration: "none",
+          }}
+        >
+          <i className="ti ti-map-search" aria-hidden="true" /> Parsel Sorgu'da aç
+        </a>
+        <input
+          value={coordText}
+          onChange={(e) => setCoordText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              applyCoords();
+            }
+          }}
+          placeholder="Koordinat yapıştır: 38.4664, 27.0880"
+          style={{ flex: "1 1 220px", fontSize: 12.5 }}
+        />
+        <button
+          type="button"
+          style={{ fontSize: 12.5 }}
+          disabled={!coordText.trim()}
+          onClick={applyCoords}
+        >
+          Konuma git
+        </button>
+        <InfoTip text="Tam konum için: Parsel Sorgu'da il/ilçe/mahalle/ada/parsel ile hangi bina olduğunu görün, sonra aynı binayı Google Haritalar'da bulup çatısına sağ tıklayın (telefonda basılı tutun) - en üstte çıkan koordinata tıklayınca kopyalanır, buraya yapıştırın. Parsel Sorgu'nun araç çubuğundaki koordinat yaklaşıktır (~10 m). Koordinat yerine aşağıdaki haritada binaya tıklayıp iğneyi sürükleyebilirsiniz de." />
+      </div>
       <div
         style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 10 }}
       >
@@ -583,7 +586,7 @@ function AddressSection({ s, setS, hasPropertyPhoto, notify, focus }) {
   );
 }
 
-function SubjectForm({ s, setS, regionPrices = [], missing = new Set() }) {
+function SubjectForm({ s, setS, regionPrices = [], missing = new Set(), hideLocation = false }) {
   const lbl = (k, label) => (
     <label style={labelStyle}>
       {label}
@@ -646,19 +649,22 @@ function SubjectForm({ s, setS, regionPrices = [], missing = new Set() }) {
   return (
     <>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-        <LocationFields
-          value={s}
-          onChange={(patch) => setS((p) => ({ ...p, ...patch }))}
-          suggestions={regionPrices.map((r) => ({
-            name: r.neighborhood,
-            city: r.city,
-            district: r.district,
-            tag: "bölge fiyatı var",
-          }))}
-          labelStyle={labelStyle}
-          fieldStyle={{ flex: "1 1 110px" }}
-        />
-        <div style={{ flex: "1 1 120px" }}>
+        {!hideLocation && (
+          <LocationFields
+            value={s}
+            onChange={(patch) => setS((p) => ({ ...p, ...patch }))}
+            suggestions={regionPrices.map((r) => ({
+              name: r.neighborhood,
+              city: r.city,
+              district: r.district,
+              tag: "bölge fiyatı var",
+            }))}
+            labelStyle={labelStyle}
+            fieldStyle={{ flex: "1 1 110px" }}
+          />
+        )}
+        {/* Konum Daire'den ayrılınca Tip satırda tek kalıp tüm genişliğe yayılıyordu. */}
+        <div style={{ flex: hideLocation ? "0 1 260px" : "1 1 120px" }}>
           <label style={labelStyle}>Tip</label>
           <select value={s.propertyType} onChange={set("propertyType")} style={{ width: "100%" }}>
             {PROPERTY_TYPE_OPTIONS.map((o) => (
@@ -1905,19 +1911,50 @@ export function AutoValuation({
           />
         </div>
       )}
+      <AddressSection
+        s={s}
+        setS={setS}
+        hasPropertyPhoto={hasPropertyPhoto}
+        notify={notify}
+        focus={mapFocus}
+        top={
+          <>
+            <label style={labelStyle}>
+              Adresi arayın
+              <InfoTip text="Mahalle, sokak, site, apartman ya da yakındaki okul/cami adını yazıp öneriden seçin: boş olan il, ilçe, mahalle, sokak, site adı ve (varsa) bina no kendiliğinden dolar, harita oraya gider (binaysa iğne de konur). Dolu alanlara dokunulmaz." />
+            </label>
+            <PlaceSearch
+              bias={isValidLocation(s.location) ? s.location : mapFocus}
+              district={s.district}
+              city={s.city}
+              onPick={pickPlace}
+            />
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+              <LocationFields
+                value={s}
+                onChange={(patch) => setS((p) => ({ ...p, ...patch }))}
+                suggestions={regionPrices.map((r) => ({
+                  name: r.neighborhood,
+                  city: r.city,
+                  district: r.district,
+                  tag: "bölge fiyatı var",
+                }))}
+                labelStyle={labelStyle}
+                fieldStyle={{ flex: "1 1 110px" }}
+              />
+            </div>
+          </>
+        }
+      />
       <div style={box}>
         <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 8px" }}>Daire</p>
-        <label style={labelStyle}>
-          Adresi arayın
-          <InfoTip text="Mahalle, sokak, site, apartman ya da yakındaki okul/cami adını yazıp öneriden seçin: boş olan il, ilçe, mahalle ve sokak kendiliğinden dolar, harita oraya gider (binaysa iğne de konur). Dolu alanlara dokunulmaz." />
-        </label>
-        <PlaceSearch
-          bias={isValidLocation(s.location) ? s.location : mapFocus}
-          district={s.district}
-          city={s.city}
-          onPick={pickPlace}
+        <SubjectForm
+          s={s}
+          setS={setS}
+          regionPrices={regionPrices}
+          missing={missingKeys}
+          hideLocation
         />
-        <SubjectForm s={s} setS={setS} regionPrices={regionPrices} missing={missingKeys} />
         <div
           style={{
             marginTop: 10,
@@ -1987,14 +2024,6 @@ export function AutoValuation({
           <Notices items={checks.warnings} />
         </div>
       </div>
-
-      <AddressSection
-        s={s}
-        setS={setS}
-        hasPropertyPhoto={hasPropertyPhoto}
-        notify={notify}
-        focus={mapFocus}
-      />
 
       {clipOffer && (
         <div
