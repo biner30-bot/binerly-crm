@@ -44,10 +44,6 @@ function SharedScope() {
           görünür; müşterinin adı/telefonu asla paylaşılmaz.
         </li>
       </ul>
-      <p style={{ margin: "8px 0 0", color: "var(--text-muted)" }}>
-        Müşterileriniz, teklif ve hizmet bedelleriniz, gösterimleriniz, görevleriniz ve piyasa
-        analizleriniz sadece sizdedir - broker dahil kimse göremez.
-      </p>
     </div>
   );
 }
