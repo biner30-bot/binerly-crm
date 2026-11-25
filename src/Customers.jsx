@@ -868,6 +868,8 @@ export function CustomerDetail({
   officeMembers = [],
   onSaveBuyerListings,
   onDeleteBuyerListing,
+  onStartSharedDeal,
+  agentName = "",
 }) {
   const [type, setType] = useState("note");
   const [content, setContent] = useState("");
@@ -1153,8 +1155,11 @@ export function CustomerDetail({
           officeProperties={officeProperties}
           officeMembers={officeMembers}
           hasOwnMatches={hasOwnPropertyMatch(customer, properties)}
+          companySettings={companySettings}
+          agentName={agentName}
           onSave={onSaveBuyerListings}
           onDelete={onDeleteBuyerListing}
+          onStartSharedDeal={onStartSharedDeal}
         />
       )}
 

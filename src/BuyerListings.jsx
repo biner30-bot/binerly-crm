@@ -1,8 +1,29 @@
 import { useMemo, useState } from "react";
 import { Badge, ConfirmDialog, InfoTip, WhatsAppIcon, formatTL, toWhatsAppNumber } from "./shared";
 import { matchEmlakListing } from "./Sectors";
-import { propertyAsListingDeal } from "./realEstate";
+import {
+  buildShowingDocumentText,
+  computeTransactionCosts,
+  propertyAsListingDeal,
+} from "./realEstate";
 import { parseSearchPages } from "./priceEstimate";
+import { printShowingDocument } from "./Showings";
+
+// Paylaşımlı işlemde bizim payımız sadece alıcı/kiracı tarafının hizmet bedeli
+// (KDV dahil - uygulamada tutar alanı KDV dahil); satıcı tarafı karşı emlakçının.
+export function buyerSideFee(listing, realEstateSettings) {
+  const r = computeTransactionCosts(
+    {
+      transactionType: listing.transactionType || "satilik",
+      price: listing.price,
+      feePayer: "alici",
+    },
+    realEstateSettings,
+  );
+  if (r.transactionType === "satilik") return r.buyer.fee.total;
+  if (r.transactionType === "kiralik") return r.tenant.fee.total;
+  return r.transferee.fee.total;
+}
 
 // Alıcı için DIŞARIDA bulunan evler (ofis arkadaşı, Sahibinden'deki emlakçı
 // ilanı, çevredeki emlakçı). Danışmanın 10-15 portföyü talebe nadiren uyar;
@@ -271,8 +292,11 @@ export function BuyerListings({
   officeProperties = [],
   officeMembers = [],
   hasOwnMatches = false,
+  companySettings = null,
+  agentName = "",
   onSave,
   onDelete,
+  onStartSharedDeal,
 }) {
   const [mode, setMode] = useState(null);
   const [editing, setEditing] = useState(null);
@@ -436,6 +460,46 @@ export function BuyerListings({
                 >
                   <WhatsAppIcon />
                 </a>
+              )}
+              {/* Dış evi gösterirken de alıcı tarafının hizmet bedelini korur:
+                  "aracılığımız olmadan satın alırsa" - karşı emlakçı üzerinden de olsa. */}
+              <button
+                type="button"
+                style={{ fontSize: 12 }}
+                onClick={() => {
+                  const ok = printShowingDocument({
+                    text: buildShowingDocumentText({
+                      company: companySettings,
+                      realEstateSettings: companySettings?.realEstateSettings,
+                      property: { ...l, transactionType: l.transactionType || "satilik" },
+                      customer,
+                      showing: {
+                        shownAt: l.shownAt || new Date().toISOString(),
+                        method: "yerinde",
+                      },
+                      agentName,
+                    }),
+                    logoUrl: companySettings?.logoUrl,
+                  });
+                  if (ok && ["bulundu", "gonderildi"].includes(l.status))
+                    setStatus(l, "gosterildi");
+                }}
+                title="Gösterimden önce alıcıya imzalatın - ev başka emlakçının olsa da alıcı tarafının hizmet bedelini korur"
+              >
+                Yer gösterme belgesi
+              </button>
+              {onStartSharedDeal && l.status !== "elendi" && (
+                <button
+                  type="button"
+                  style={{ fontSize: 12 }}
+                  onClick={() => {
+                    if (l.status !== "islem") setStatus(l, "islem");
+                    onStartSharedDeal(l, buyerSideFee(l, companySettings?.realEstateSettings));
+                  }}
+                  title="Sadece alıcı tarafının hizmet bedeliyle işlem açar - satıcı tarafının bedeli karşı emlakçının"
+                >
+                  Paylaşımlı işlem başlat
+                </button>
               )}
               <button type="button" style={{ fontSize: 12 }} onClick={() => setEditing(l.id)}>
                 Düzenle
