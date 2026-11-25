@@ -452,7 +452,14 @@ export default function ShowcasePage() {
                 <img
                   src={company.logoUrl}
                   alt=""
-                  style={{ maxHeight: 64, display: "block", margin: "0 auto 14px" }}
+                  style={{
+                    maxHeight: 64,
+                    maxWidth: 240,
+                    objectFit: "contain",
+                    borderRadius: 8,
+                    display: "block",
+                    margin: "0 auto 14px",
+                  }}
                 />
               )}
               <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0c2540", margin: "0 0 6px" }}>

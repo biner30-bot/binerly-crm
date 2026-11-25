@@ -4922,8 +4922,9 @@ export default function CustomerPortal() {
                   >
                     <UserAvatar
                       url={activeCustomerRow.companyLogoUrl}
+                      logo
                       name={activeCustomerRow.companyName || activeCustomerRow.name}
-                      size={38}
+                      size={44}
                     />
                     <div style={{ minWidth: 0 }}>
                       <div

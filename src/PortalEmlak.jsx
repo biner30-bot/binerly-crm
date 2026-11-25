@@ -225,7 +225,9 @@ export function PortalHomes({ overview, companyName, onSendMessage, onSaveDemand
       .filter(Boolean)
       .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   }, [listings, talep, demand]);
-  const visible = ranked.filter(({ l }) => !hidden.includes(l.id));
+  // Hem mal sahibi hem alıcı olan müşteriye kendi satılık evi "uygun ev" diye çıkmasın.
+  const ownIds = new Set((overview?.mulklerim || []).map((p) => p.id));
+  const visible = ranked.filter(({ l }) => !hidden.includes(l.id) && !ownIds.has(l.id));
 
   const hide = (id) => {
     const next = [...hidden, id];

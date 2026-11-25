@@ -174,7 +174,14 @@ export default function LeadCapturePage() {
               <img
                 src={company.logoUrl}
                 alt=""
-                style={{ maxHeight: 48, display: "block", margin: "0 auto 12px" }}
+                style={{
+                  maxHeight: 48,
+                  maxWidth: 200,
+                  objectFit: "contain",
+                  borderRadius: 6,
+                  display: "block",
+                  margin: "0 auto 12px",
+                }}
               />
             )}
             <h1

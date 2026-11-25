@@ -63,7 +63,9 @@ as $$
           )
         ) order by p.created_at desc), '[]'::jsonb)
         from properties p
+        -- Satılan/kiralanan/pasife alınan mülk "Mülklerim"den çıkar (kullanıcı kararı).
         where p.owner_customer_id = c.id and p.deleted_at is null
+          and p.status not in ('satildi', 'kiralandi', 'pasif')
       )
     ) as x
     from customers c
