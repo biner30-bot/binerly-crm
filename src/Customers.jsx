@@ -206,6 +206,14 @@ export function CustomerForm({
   const otherDefs = isEmlak
     ? defsForEntity.filter((d) => !SEEKING_FIELD_KEYS.includes(d.key))
     : defsForEntity;
+  // Emlak: danışman telefonda/ayakta kayıt açar - önce ad, telefon, rol ve ne
+  // aradığı; adres/not/etiket/talep detayları "Diğer bilgiler"de katlı (yeni
+  // kayıtta). Blok sırası CSS order ile: diğer sektörlerin formu değişmez.
+  const [showMore, setShowMore] = useState(!isEmlak || !!initial?.id);
+  const ord = (n) => (isEmlak ? { order: n } : {});
+  const showExtra = !isEmlak || showMore;
+  const roleTagSet = new Set(CUSTOMER_ROLES.map((r) => r.tag));
+  const tagSuggestions = isEmlak ? sectorTags.filter((t) => !roleTagSet.has(t)) : sectorTags;
   const toggleRole = (r) => {
     const on = !roleIds.has(r.id);
     setTags((prev) => (on ? [...(prev || []), r.tag] : (prev || []).filter((t) => t !== r.tag)));
@@ -230,6 +238,7 @@ export function CustomerForm({
 
   return (
     <form
+      style={{ display: "flex", flexDirection: "column" }}
       onSubmit={(e) => {
         e.preventDefault();
         if (!name.trim()) {
@@ -324,7 +333,7 @@ export function CustomerForm({
           </select>
         </div>
       )}
-      <div style={{ marginBottom: 12 }}>
+      <div style={{ marginBottom: 12, ...ord(1) }}>
         <label
           style={{
             fontSize: 13,
@@ -343,7 +352,7 @@ export function CustomerForm({
         />
       </div>
       {isEmlak && (
-        <div style={{ marginBottom: 12 }}>
+        <div style={{ marginBottom: 12, ...ord(3) }}>
           <label
             style={{
               fontSize: 13,
@@ -389,77 +398,81 @@ export function CustomerForm({
           )}
         </div>
       )}
-      <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-        {isKurumsal && (
+      {showExtra && (
+        <div style={{ display: "flex", gap: 12, marginBottom: 12, ...ord(11) }}>
+          {isKurumsal && (
+            <div style={{ flex: 1 }}>
+              <label
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  marginBottom: 4,
+                }}
+              >
+                Sektör <InfoTip text={SECTOR_FIELD_INFO_TEXT} />
+              </label>
+              <select
+                value={sector}
+                onChange={(e) => setSector(e.target.value)}
+                style={{ width: "100%" }}
+              >
+                {SECTORS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div style={{ flex: 1 }}>
             <label
               style={{
                 fontSize: 13,
                 color: "var(--text-secondary)",
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
+                display: "block",
                 marginBottom: 4,
               }}
             >
-              Sektör <InfoTip text={SECTOR_FIELD_INFO_TEXT} />
+              Bölge / Şehir
             </label>
-            <select
-              value={sector}
-              onChange={(e) => setSector(e.target.value)}
+            <input
+              value={region}
+              onChange={(e) => setRegion(e.target.value)}
+              placeholder="İstanbul"
               style={{ width: "100%" }}
-            >
-              {SECTORS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+            />
           </div>
-        )}
-        <div style={{ flex: 1 }}>
+        </div>
+      )}
+      {showExtra && (
+        <div style={{ marginBottom: 12, ...ord(12) }}>
           <label
             style={{
               fontSize: 13,
               color: "var(--text-secondary)",
-              display: "block",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
               marginBottom: 4,
             }}
           >
-            Bölge / Şehir
+            Açık Adres{" "}
+            <InfoTip
+              align="left"
+              text="Online ödeme (iyzico/PayTR) alırken fatura/adres bilgisi olarak kullanılır - boş bırakılırsa sadece Bölge/Şehir gönderilir."
+            />
           </label>
           <input
-            value={region}
-            onChange={(e) => setRegion(e.target.value)}
-            placeholder="İstanbul"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="Mahalle, cadde/sokak, no, ilçe"
             style={{ width: "100%" }}
           />
         </div>
-      </div>
-      <div style={{ marginBottom: 12 }}>
-        <label
-          style={{
-            fontSize: 13,
-            color: "var(--text-secondary)",
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            marginBottom: 4,
-          }}
-        >
-          Açık Adres{" "}
-          <InfoTip
-            align="left"
-            text="Online ödeme (iyzico/PayTR) alırken fatura/adres bilgisi olarak kullanılır - boş bırakılırsa sadece Bölge/Şehir gönderilir."
-          />
-        </label>
-        <input
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          placeholder="Mahalle, cadde/sokak, no, ilçe"
-          style={{ width: "100%" }}
-        />
-      </div>
+      )}
       {isKurumsal && sector === "Diğer" && (
         <div style={{ marginBottom: 12 }}>
           <label
@@ -480,7 +493,7 @@ export function CustomerForm({
           />
         </div>
       )}
-      <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+      <div style={{ display: "flex", gap: 12, marginBottom: 12, ...ord(2) }}>
         <div style={{ flex: 1 }}>
           <label
             style={{
@@ -512,9 +525,11 @@ export function CustomerForm({
             }}
           >
             E-posta{" "}
-            <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text-warning)" }}>
-              (önemli)
-            </span>{" "}
+            {!isEmlak && (
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text-warning)" }}>
+                (önemli)
+              </span>
+            )}{" "}
             <InfoTip align="right" text={CUSTOMER_EMAIL_INFO_TEXT} />
           </label>
           <input
@@ -526,50 +541,54 @@ export function CustomerForm({
           />
         </div>
       </div>
-      <div style={{ marginBottom: 12 }}>
-        <label
-          style={{
-            fontSize: 13,
-            color: "var(--text-secondary)",
-            display: "block",
-            marginBottom: 4,
-          }}
-        >
-          Not
-        </label>
-        <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder={
-              isKurumsal
-                ? `Örn. ${CUSTOMER_NOTE_EXAMPLES_KURUMSAL[companySector] || "yaz aylarında sipariş hacmi artıyor"}`
-                : "Örn. genelde akşamları ulaşmak daha kolay"
-            }
-            style={{ flex: 1, minHeight: 70, resize: "vertical" }}
-          />
-          <VoiceInputButton
-            onResult={(text) => setNotes((prev) => (prev ? `${prev} ${text}` : text))}
-          />
+      {showExtra && (
+        <div style={{ marginBottom: 12, ...ord(13) }}>
+          <label
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Not
+          </label>
+          <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder={
+                isKurumsal
+                  ? `Örn. ${CUSTOMER_NOTE_EXAMPLES_KURUMSAL[companySector] || "yaz aylarında sipariş hacmi artıyor"}`
+                  : "Örn. genelde akşamları ulaşmak daha kolay"
+              }
+              style={{ flex: 1, minHeight: 70, resize: "vertical" }}
+            />
+            <VoiceInputButton
+              onResult={(text) => setNotes((prev) => (prev ? `${prev} ${text}` : text))}
+            />
+          </div>
         </div>
-      </div>
-      <div style={{ marginBottom: 16 }}>
-        <label
-          style={{
-            fontSize: 13,
-            color: "var(--text-secondary)",
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            marginBottom: 4,
-          }}
-        >
-          Etiketler <InfoTip align="left" text={TAGS_INFO_TEXT} />
-        </label>
-        <TagInput tags={tags} onChange={setTags} suggestions={sectorTags} />
-      </div>
+      )}
+      {showExtra && (
+        <div style={{ marginBottom: 16, ...ord(14) }}>
+          <label
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              marginBottom: 4,
+            }}
+          >
+            Etiketler <InfoTip align="left" text={TAGS_INFO_TEXT} />
+          </label>
+          <TagInput tags={tags} onChange={setTags} suggestions={tagSuggestions} />
+        </div>
+      )}
       {isEmlak && showSeeking && seekingDefs.length > 0 && (
-        <div style={{ marginBottom: 4 }}>
+        <div style={{ marginBottom: 4, ...ord(4) }}>
           <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 6px" }}>
             Ne arıyor?{" "}
             <span style={{ fontWeight: 400, fontSize: 12, color: "var(--text-muted)" }}>
@@ -582,16 +601,29 @@ export function CustomerForm({
             onChange={setCustomFields}
             hideTitle
           />
-          <TalepDetails values={customFields || {}} onChange={setCustomFields} />
+          {showExtra && <TalepDetails values={customFields || {}} onChange={setCustomFields} />}
         </div>
       )}
-      <CustomFieldsSection defs={otherDefs} values={customFields} onChange={setCustomFields} />
+      {isEmlak && !showMore && (
+        <button
+          type="button"
+          onClick={() => setShowMore(true)}
+          style={{ alignSelf: "flex-start", fontSize: 12.5, marginBottom: 12, ...ord(5) }}
+        >
+          + Diğer bilgiler (m², bina yaşı, ödeme, aciliyet, adres, not, etiket)
+        </button>
+      )}
+      {showExtra && (
+        <div style={ord(15)}>
+          <CustomFieldsSection defs={otherDefs} values={customFields} onChange={setCustomFields} />
+        </div>
+      )}
       {formError && (
-        <p style={{ fontSize: 12.5, color: "var(--text-danger)", margin: "0 0 8px" }}>
+        <p style={{ fontSize: 12.5, color: "var(--text-danger)", margin: "0 0 8px", ...ord(20) }}>
           {formError}
         </p>
       )}
-      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", ...ord(21) }}>
         <button
           type="button"
           onClick={() => {
