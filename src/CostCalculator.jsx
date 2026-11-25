@@ -62,7 +62,15 @@ const feeLabel = (fee, kdvPercent) =>
 
 // Müşteriye verilecek döküm - sadece o tarafı ilgilendiren satırlar, ofisin
 // komisyon bölüşümü/kendi net kazancı ASLA basılmaz.
-function printBreakdown({ title, rows, companySettings, note }) {
+function printBreakdown({ title, rows, companySettings, note, agent }) {
+  const prepared = [
+    agent?.name,
+    agent?.title,
+    agent?.phone || companySettings?.phone,
+    agent?.email || companySettings?.email,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const win = window.open("", "_blank");
   if (!win) return false;
   const esc = (s) =>
@@ -83,12 +91,13 @@ body{font-family:Arial,sans-serif;color:#111;max-width:640px;margin:32px auto;pa
 h1{font-size:16px;margin:0 0 4px}.sub{color:#555;margin:0 0 16px}
 table{width:100%;border-collapse:collapse}td{padding:6px 0;border-bottom:1px solid #eee}td:last-child{text-align:right;white-space:nowrap}
 tr.strong td{font-weight:bold;border-top:1px solid #111}
-.note{margin-top:16px;font-size:11px;color:#666;line-height:1.5}
+.prep{margin-top:16px;font-size:12px}.note{margin-top:16px;font-size:11px;color:#666;line-height:1.5}
 .logo img{max-height:44px;margin-bottom:12px}
 </style></head><body>
 ${companySettings?.logoUrl ? `<div class="logo"><img src="${esc(companySettings.logoUrl)}" alt=""/></div>` : ""}
 <h1>${esc(title)}</h1><p class="sub">${esc(companySettings?.companyName || "")} - ${esc(new Date().toLocaleDateString("tr-TR"))}</p>
 <table>${body}</table>
+${prepared ? `<p class="prep"><b>Hazırlayan:</b> ${esc(prepared)}</p>` : ""}
 <p class="note">${esc(note)}</p>
 <script>window.onload=function(){window.print()}</script>
 </body></html>`);
@@ -325,7 +334,7 @@ function CapitalGainsSection({ saleValue, saleCosts, onPrint }) {
 const ESTIMATE_NOTE =
   "Bu döküm bilgilendirme amaçlı bir tahmindir. Tapu harcı ve döner sermaye tutarları ilgili tapu müdürlüğü ve güncel mevzuata göre değişebilir; kesin tutar tapu işlemi sırasında belirlenir.";
 
-export function CostCalculator({ property, companySettings, notify }) {
+export function CostCalculator({ property, companySettings, agent = null, notify }) {
   const [price, setPrice] = useState(property.price ?? "");
   const [deedValue, setDeedValue] = useState("");
   const [withCredit, setWithCredit] = useState(false);
@@ -366,7 +375,7 @@ export function CostCalculator({ property, companySettings, notify }) {
   );
 
   const doPrint = (title, rows) => {
-    const ok = printBreakdown({ title, rows, companySettings, note: ESTIMATE_NOTE });
+    const ok = printBreakdown({ title, rows, companySettings, note: ESTIMATE_NOTE, agent });
     if (!ok) notify("Yazdırma penceresi açılamadı - tarayıcının açılır pencere engelini kaldırın.");
   };
 
@@ -614,6 +623,7 @@ export function CostCalculator({ property, companySettings, notify }) {
               rows,
               companySettings,
               note: TAX_NOTE,
+              agent,
             });
             if (!ok)
               notify(

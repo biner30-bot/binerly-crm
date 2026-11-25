@@ -250,6 +250,7 @@ export function Portfolio({
   onUploadWetSigned,
   onDeleteWetSigned,
   currentUserName,
+  currentAgent = null,
   comparables = [],
   onSaveComparable,
   onDeleteComparable,
@@ -360,7 +361,7 @@ export function Portfolio({
         : null;
     return m
       ? { name: m.name || m.email, email: m.email }
-      : { name: currentUserName, email: currentUserEmail };
+      : currentAgent || { name: currentUserName, email: currentUserEmail };
   };
   const coverPhotoUrl = async (p) => {
     const path = photosByProperty[p.id]?.[0]?.storagePath;
@@ -670,7 +671,12 @@ export function Portfolio({
 
       {costsFor && (
         <Modal title="Masraf hesabı" onClose={() => setCostsFor(null)} wide>
-          <CostCalculator property={costsFor} companySettings={companySettings} notify={notify} />
+          <CostCalculator
+            property={costsFor}
+            companySettings={companySettings}
+            agent={agentFor(costsFor)}
+            notify={notify}
+          />
         </Modal>
       )}
 
@@ -721,6 +727,7 @@ export function Portfolio({
             regionPrices={regionPrices}
             aliases={companySettings?.realEstateSettings?.neighborhoodAliases || []}
             agentName={agentFor(ownerReportProperty).name}
+            agentPhone={agentFor(ownerReportProperty).phone || companySettings?.phone || ""}
             companyName={companySettings?.companyName || ""}
             notify={notify}
           />

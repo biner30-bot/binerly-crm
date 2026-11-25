@@ -25,6 +25,7 @@ export function buildOwnerReportText({
   owner,
   region,
   agentName,
+  agentPhone,
   companyName,
   periodDays,
 }) {
@@ -84,6 +85,7 @@ export function buildOwnerReportText({
   }
   lines.push("");
   lines.push([agentName, companyName].filter(Boolean).join(" - "));
+  if (agentPhone) lines.push(agentPhone);
   return lines.join("\n");
 }
 
@@ -94,6 +96,7 @@ export function OwnerReport({
   regionPrices,
   aliases,
   agentName,
+  agentPhone = "",
   companyName,
   notify,
 }) {
@@ -115,6 +118,7 @@ export function OwnerReport({
     owner,
     region,
     agentName,
+    agentPhone,
     companyName,
     periodDays: period.days,
   });

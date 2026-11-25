@@ -1474,6 +1474,8 @@ export function AppSettingsModal({
   onClose,
 }) {
   const [name, setName] = useState(session.user.user_metadata?.full_name || "");
+  const [contactPhone, setContactPhone] = useState(session.user.user_metadata?.contact_phone || "");
+  const [jobTitle, setJobTitle] = useState(session.user.user_metadata?.job_title || "");
   const [savingName, setSavingName] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(session.user.user_metadata?.avatar_url || "");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -1489,13 +1491,19 @@ export function AppSettingsModal({
       return;
     }
     setSavingName(true);
-    const { error } = await supabase.auth.updateUser({ data: { full_name: name.trim() } });
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        full_name: name.trim(),
+        contact_phone: contactPhone.trim(),
+        job_title: jobTitle.trim(),
+      },
+    });
     setSavingName(false);
     if (error) {
       notify(`Kaydedilemedi: ${translateAuthError(error.message)}`);
       return;
     }
-    notify("Adınız güncellendi.", "success");
+    notify("Profiliniz güncellendi.", "success");
   };
 
   // Şirket logosuyla aynı public "logos" bucket'ı - {userId}/... yolu, storage
@@ -1623,24 +1631,39 @@ export function AppSettingsModal({
             )}
           </div>
         </div>
-        <form onSubmit={saveName} style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-          <div style={{ flex: 1 }}>
-            <label
-              style={{
-                fontSize: 13,
-                color: "var(--text-secondary)",
-                display: "block",
-                marginBottom: 4,
-              }}
-            >
-              Ad Soyad
-            </label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              style={{ width: "100%" }}
-            />
-          </div>
+        <form
+          onSubmit={saveName}
+          style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}
+        >
+          {[
+            ["Ad Soyad", name, setName, "", "text"],
+            ["Telefon", contactPhone, setContactPhone, "Raporlarda görünür", "tel"],
+            ["Unvan", jobTitle, setJobTitle, "ör. Gayrimenkul Danışmanı", "text"],
+          ].map(([label, value, setter, placeholder, type]) => (
+            <div key={label} style={{ flex: "1 1 160px" }}>
+              <label
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  display: "block",
+                  marginBottom: 4,
+                }}
+              >
+                {label}
+              </label>
+              <input
+                type={type}
+                value={value}
+                placeholder={placeholder}
+                onChange={(e) => setter(e.target.value)}
+                style={{ width: "100%" }}
+              />
+            </div>
+          ))}
+          <p style={{ flex: "1 1 100%", fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
+            Fotoğrafınız, adınız, unvanınız ve telefonunuz mal sahibine verdiğiniz raporlarda
+            "Hazırlayan" olarak yer alır. Telefon boşsa şirket telefonu kullanılır.
+          </p>
           <button
             type="submit"
             disabled={savingName || !name.trim()}

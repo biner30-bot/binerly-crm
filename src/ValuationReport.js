@@ -133,6 +133,14 @@ export function buildValuationReportHtml({
     .filter(Boolean)
     .map(esc)
     .join(" · ");
+  const licenseNo = companySettings?.realEstateSettings?.licenseNo || "";
+  const agentPhone = agent?.phone || companySettings?.phone || "";
+  const agentEmail = agent?.email || companySettings?.email || "";
+  // Mal sahibi raporu danışmanın kartvizitidir: fotoğraf, ad, unvan, iletişim.
+  const agentCard =
+    agent?.name || office
+      ? `<div class="agent">${agent?.photoUrl ? `<img src="${esc(agent.photoUrl)}" alt=""/>` : ""}<div><div class="an">${esc(agent?.name || office)}</div>${agent?.title ? `<div class="at">${esc(agent.title)}</div>` : ""}${agent?.name && office ? `<div class="at">${esc(office)}</div>` : ""}<div class="ac">${[agentPhone, agentEmail].filter(Boolean).map(esc).join(" · ")}</div>${licenseNo ? `<div class="at">Yetki belgesi no: ${esc(licenseNo)}</div>` : ""}</div></div>`
+      : "";
   const footer = (n) =>
     `<div class="foot"><span>${contact}${office ? ` · ${esc(office)}` : ""}</span><span>Sayfa ${n}/3</span></div>`;
   const features = featureRows(subject, result, property);
@@ -256,6 +264,9 @@ h1{font-size:30px;line-height:1.15;margin:0 0 6px;color:#1e3a8a}
 .cover-ph{width:100%;height:60mm;border-radius:8px;margin:14mm 0 8mm;background:#eff6ff;display:flex;align-items:center;justify-content:center;color:#1e3a8a;font-size:15px}
 .info{font-size:13px}.info b{display:inline-block;width:34mm;color:#374151}
 .info div{margin-bottom:5px}
+.agent{display:flex;gap:4mm;align-items:center;border:1px solid #e5e7eb;border-radius:3mm;padding:3mm 4mm;margin:3mm 0}
+.agent img{width:18mm;height:18mm;border-radius:50%;object-fit:cover;flex-shrink:0}
+.agent .an{font-weight:700;font-size:12pt}.agent .at{font-size:9pt;color:#6b7280}.agent .ac{font-size:10pt;margin-top:1mm}
 .logo{position:absolute;top:16mm;right:15mm;max-height:16mm;max-width:50mm}
 .cards{display:flex;gap:8px}
 .card{flex:1;border:1px solid #d1d5db;border-radius:8px;padding:10px;text-align:center}
@@ -297,9 +308,8 @@ ${fullAddress && fullAddress !== location ? `<div><b>Adres</b>${esc(fullAddress)
 ${parcel.length ? `<div><b>Ada / Parsel</b>${esc(parcel.join(" / "))}</div>` : ""}
 ${loc ? `<div><b>Harita</b><a href="${esc(mapsUrl(loc))}">Haritada aç</a> · <a href="${esc(streetViewUrl(loc))}">Sokak görünümü</a> <span style="color:#6b7280">(${Number(loc.lat).toFixed(5)}, ${Number(loc.lng).toFixed(5)})</span></div>` : ""}
 <div><b>Rapor tarihi</b>${esc(today)}</div>
-${agent?.name ? `<div><b>Hazırlayan</b>${esc(agent.name)}${office ? `, ${esc(office)}` : ""}</div>` : office ? `<div><b>Hazırlayan</b>${esc(office)}</div>` : ""}
-${contact ? `<div><b>İletişim</b>${esc([agent?.phone || companySettings?.phone, agent?.email || companySettings?.email].filter(Boolean).join(" · "))}</div>` : ""}
 </div>
+${agentCard}
 <div class="disc">${esc(disclaimer)}</div>
 ${footer(1)}
 </section>

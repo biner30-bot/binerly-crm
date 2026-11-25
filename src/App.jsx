@@ -2915,6 +2915,18 @@ export default function App() {
       notify("Bugün için arama görevi eklendi.", "success");
     }
   };
+  // Raporlardaki "hazırlayan" kartı: ad, unvan, telefon, e-posta, fotoğraf
+  // profil ayarlarından (user_metadata) gelir.
+  const selfAgent = () => {
+    const meta = session?.user?.user_metadata || {};
+    return {
+      name: meta.full_name || "",
+      email: session?.user?.email || "",
+      phone: meta.contact_phone || "",
+      title: meta.job_title || "",
+      photoUrl: meta.avatar_url || "",
+    };
+  };
   const createPropertyFromProspect = (p) => {
     const band = (p.ageBand || "").match(/^(\d+)/);
     setPortfolioPrefill({
@@ -6368,6 +6380,7 @@ export default function App() {
           onDeleteShowing={deleteShowing}
           onCreateConsentLink={createShowingConsentLink}
           currentUserName={session.user.user_metadata?.full_name || ""}
+          currentAgent={selfAgent()}
           onUploadWetSigned={uploadShowingWetSigned}
           comparables={comparables}
           deals={deals}
@@ -6456,7 +6469,7 @@ export default function App() {
           notify={notify}
           agentFor={(p) => {
             const m = p?.assignedTo && p.assignedTo !== session.user.id ? teamRoster.find((t) => t.id === p.assignedTo) : null;
-            return m ? { name: m.name || m.email, email: m.email } : { name: session.user.user_metadata?.full_name || "", email: session.user.email };
+            return m ? { name: m.name || m.email, email: m.email } : selfAgent();
           }}
           getPhotoUrlFor={async (p) => {
             const photo = attachments
