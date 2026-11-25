@@ -226,6 +226,7 @@ export function Portfolio({
   properties,
   propertyPrivate,
   customers,
+  onQuickAddCustomer,
   teamMembers,
   currentUserId,
   currentUserEmail,
@@ -575,6 +576,7 @@ export function Portfolio({
             initialPrivate={editing.id ? propertyPrivate[editing.id] : null}
             canSeePrivate={canSeePrivate(editing.id ? editing : null)}
             customers={customers}
+            onQuickAddCustomer={onQuickAddCustomer}
             teamMembers={teamMembers}
             currentUserId={currentUserId}
             currentUserEmail={currentUserEmail}
@@ -1260,6 +1262,7 @@ export function PropertyForm({
   initialPrivate,
   canSeePrivate,
   customers,
+  onQuickAddCustomer,
   teamMembers,
   currentUserId,
   currentUserEmail,
@@ -1282,6 +1285,9 @@ export function PropertyForm({
   onUploadOfficeDoc,
   onDownloadOfficeDoc,
 }) {
+  const [addingOwner, setAddingOwner] = useState(false);
+  const [newOwner, setNewOwner] = useState({ name: "", phone: "" });
+  const [savingOwner, setSavingOwner] = useState(false);
   const [f, setF] = useState(() => ({
     transactionType: initial?.transactionType || "satilik",
     status: initial?.status || "taslak",
@@ -1512,20 +1518,66 @@ export function PropertyForm({
         <div style={{ flex: "1 1 200px" }}>
           <label style={labelStyle}>
             Mal sahibi
-            <InfoTip text="Mülkün sahibi (veya devren kiralıkta devreden). Önce Müşteriler'e kaydedin, buradan seçin - müşteri kartında mülkleri listelenir." />
+            <InfoTip text="Mülkün sahibi (veya devren kiralıkta devreden). Kayıtlı değilse listeden '+ Yeni mal sahibi'ni seçip adını ve telefonunu yazın - müşterilere eklenir, kartında mülkleri listelenir." />
           </label>
-          <select
-            value={f.ownerCustomerId}
-            onChange={set("ownerCustomerId")}
-            style={{ width: "100%" }}
-          >
-            <option value="">Seçilmedi</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          {addingOwner ? (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <input
+                value={newOwner.name}
+                onChange={(e) => setNewOwner((p) => ({ ...p, name: e.target.value }))}
+                placeholder="Ad soyad"
+                autoFocus
+                style={{ flex: "1 1 140px" }}
+              />
+              <input
+                type="tel"
+                value={newOwner.phone}
+                onChange={(e) => setNewOwner((p) => ({ ...p, phone: e.target.value }))}
+                placeholder="Telefon"
+                style={{ flex: "1 1 120px" }}
+              />
+              <button
+                type="button"
+                disabled={!newOwner.name.trim() || savingOwner}
+                onClick={async () => {
+                  setSavingOwner(true);
+                  const c = await onQuickAddCustomer(newOwner);
+                  setSavingOwner(false);
+                  if (!c) return;
+                  setF((p) => ({ ...p, ownerCustomerId: c.id }));
+                  setAddingOwner(false);
+                  setNewOwner({ name: "", phone: "" });
+                }}
+                style={{
+                  background: "var(--fill-accent)",
+                  color: "var(--on-accent)",
+                  border: "none",
+                }}
+              >
+                {savingOwner ? "Ekleniyor…" : "Ekle"}
+              </button>
+              <button type="button" onClick={() => setAddingOwner(false)}>
+                Vazgeç
+              </button>
+            </div>
+          ) : (
+            <select
+              value={f.ownerCustomerId}
+              onChange={(e) => {
+                if (e.target.value === "__new__") setAddingOwner(true);
+                else setF((p) => ({ ...p, ownerCustomerId: e.target.value }));
+              }}
+              style={{ width: "100%" }}
+            >
+              <option value="">Seçilmedi</option>
+              {onQuickAddCustomer && <option value="__new__">+ Yeni mal sahibi</option>}
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         {teamMembers.length > 0 && (
           <div style={{ flex: "1 1 200px" }}>

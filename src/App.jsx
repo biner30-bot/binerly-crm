@@ -2360,6 +2360,25 @@ export default function App() {
     if (isNew && customer.email) requestCustomerConsent(customer);
   };
 
+  // Portföy formundan çıkmadan mal sahibi eklemek için (danışman mal sahibinin
+  // evinde: "önce Müşteriler'e kaydet, sonra seç" akışı pratikte kullanılmıyordu).
+  // Mükerrer telefon gerçek engel: aynı numara varsa yeni kayıt açılmaz, o seçilir.
+  const quickAddCustomer = async ({ name, phone }) => {
+    const last10 = (v) => String(v || "").replace(/\D/g, "").slice(-10);
+    const existing = last10(phone).length === 10 && customers.find((c) => last10(c.phone) === last10(phone));
+    if (existing) { notify(`Bu telefon zaten ${existing.name} adına kayıtlı - o seçildi.`, "success"); return existing; }
+    const now = new Date().toISOString();
+    const { data, error } = await supabase.from("customers").insert({
+      id: uid(), user_id: activeTeamId, name: String(name || "").trim(), customer_type: "bireysel",
+      phone: String(phone || "").trim() || null, tags: [], custom_fields: {}, last_contact: now, created_at: now,
+    }).select().single();
+    if (error) { notify(`Müşteri eklenemedi: ${error.message}`); return null; }
+    const customer = rowToCustomer(data);
+    setCustomers((prev) => [...prev, customer]);
+    logAction("customers", customer.id, "created", `${customer.name} oluşturuldu (portföy formundan)`);
+    return customer;
+  };
+
   // Tüm cascade (payments->deals->tickets->customers->group_class_enrollments->
   // attachments x2) delete_customer_cascade RPC'sinde tek bir transaction —
   // eskiden ayrı ayrı await edilen adımlardan biri (örn. payments'in owner-only
@@ -6539,6 +6558,7 @@ export default function App() {
       {tab === "portfoy" && companySettings?.sector === "emlak" && (
         <Portfolio
           properties={properties}
+          onQuickAddCustomer={quickAddCustomer}
           office={office}
           officeProperties={officeProperties}
           officePhotos={officePhotos}
