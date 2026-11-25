@@ -866,7 +866,7 @@ function LandingFaq() {
 
 // Sektörler bölümünde dil değişimi örneği olarak öne çıkarılan 4 sektör - alttaki
 // tam listede (SECTOR_PRESETS) TEKRAR görünmesinler diye oradan filtrelenirler.
-const SECTOR_FEATURED_IDS = new Set(["guzellik_bakim", "spor_merkezi", "uretim_satis", "otel"]);
+const SECTOR_FEATURED_IDS = new Set(["guzellik_bakim", "spor_merkezi", "uretim_satis", "otel", "emlak"]);
 
 // Hero'daki sektör sekmeleri gerçek dealWordKind/stageLabel eşlemesini
 // kullanıyor - "her sektöre göre şekillenir" iddiasını soyut laf olarak değil,
@@ -1212,7 +1212,7 @@ function LandingPage() {
             Sistemi
           </h1>
           <p style={{ fontSize: 17, color: "rgba(255,255,255,0.82)", lineHeight: 1.7, margin: "0 0 2rem", maxWidth: 480 }}>
-            Müşteri veya danışan takibi, teklif, randevu ya da üyelik süreci, destek ve müşterinizin kendi portalı - hepsi bir arada, sektörünüze göre şekillenen tek bir sistemde.
+            Müşteri veya danışan takibi, teklif, randevu, üyelik ya da portföy süreci, destek ve müşterinizin kendi portalı - hepsi bir arada, sektörünüze göre şekillenen tek bir sistemde.
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <button onClick={() => setAuthModal("register")} style={{ background: "#fff", color: "#0c2540", border: "none", borderRadius: 8, padding: "13px 28px", fontWeight: 700, fontSize: 15, cursor: "pointer", boxShadow: "0 12px 30px rgba(4,20,40,0.28)" }}>
@@ -1365,6 +1365,8 @@ function LandingPage() {
             { sector: "Spor Merkezi", icon: "ti-barbell", term: "Üyelik", color: "#7c3aed", bg: "#ede9fe" },
             { sector: "Üretim / Satış", icon: "ti-truck-delivery", term: "Teklif", color: "#185fa5", bg: "#e6f1fb" },
             { sector: "Otel", icon: "ti-bed", term: "Rezervasyon", color: "#b45309", bg: "#fef3c7" },
+            // Emlakta satışın merkezi "Portföy" sekmesi (dealWordKind değil, emlağa özel sekme).
+            { sector: "Emlak", icon: "ti-home", term: "Portföy", color: "#be123c", bg: "#ffe4e6" },
           ].map((s) => (
             <div key={s.sector} style={{ background: "var(--surface-1)", border: "1px solid var(--border)", borderRadius: 12, padding: "1.25rem 1rem", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, textAlign: "center" }}>
               <div style={{ width: 44, height: 44, borderRadius: "50%", background: s.bg, color: s.color, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1379,7 +1381,7 @@ function LandingPage() {
           ))}
         </ScrollReveal>
         <p style={{ textAlign: "center", fontSize: 13, color: "var(--text-muted)", margin: "0 0 2rem", fontWeight: 500 }}>
-          ...ve 7 farklı sektör için daha hazır şablonlar
+          ...ve {SECTOR_PRESETS.filter((s) => s.id !== "genel" && !SECTOR_FEATURED_IDS.has(s.id)).length} farklı sektör için daha hazır şablonlar
         </p>
         <ScrollReveal style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
           {SECTOR_PRESETS.filter((s) => s.id !== "genel" && !SECTOR_FEATURED_IDS.has(s.id)).map((s) => (

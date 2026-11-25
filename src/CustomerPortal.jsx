@@ -363,7 +363,7 @@ function CustomerPortalLanding({ onEnter, entryCompany }) {
     : [
         {
           icon: "ti-list-check",
-          text: "Teklif, randevu, üyelik veya rezervasyon durumunuzu görün",
+          text: "Teklif, randevu, üyelik, rezervasyon ya da emlak işleminizin durumunu görün",
         },
         { icon: "ti-message-circle", text: "İşletmeyle mesajlaşın, destek talebi açın" },
         {
