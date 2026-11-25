@@ -423,6 +423,35 @@ function rowToProperty(r) {
   };
 }
 
+function rowToBuyerListing(r) {
+  return {
+    id: r.id,
+    customerId: r.customer_id,
+    createdBy: r.created_by,
+    source: r.source,
+    status: r.status,
+    title: r.title,
+    transactionType: r.transaction_type || "",
+    propertyType: r.property_type || "",
+    price: r.price != null ? Number(r.price) : null,
+    city: r.city || "",
+    district: r.district || "",
+    neighborhood: r.neighborhood || "",
+    roomCount: r.room_count || "",
+    grossM2: r.gross_m2 != null ? Number(r.gross_m2) : null,
+    listingNo: r.listing_no || "",
+    listingUrl: r.listing_url || "",
+    counterpartOffice: r.counterpart_office || "",
+    counterpartAgent: r.counterpart_agent || "",
+    counterpartPhone: r.counterpart_phone || "",
+    officePropertyId: r.office_property_id || null,
+    note: r.note || "",
+    shownAt: r.shown_at || null,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
 function rowToShowing(r) {
   return {
     id: r.id,
@@ -1695,6 +1724,7 @@ export default function App() {
   // satır döndürdüğü için diğer üyelerde bu harita o portföy için boş kalır.
   const [propertyPrivate, setPropertyPrivate] = useState({});
   const [showings, setShowings] = useState([]);
+  const [buyerListings, setBuyerListings] = useState([]);
   const [comparables, setComparables] = useState([]);
   const [regionPrices, setRegionPrices] = useState([]);
   // Kayıtlı piyasa analizleri kişiye özel (RLS: created_by) - ekip verisiyle
@@ -1824,7 +1854,8 @@ export default function App() {
       supabase.from("region_prices").select("*").order("neighborhood"),
       // Sadece son 3 yıl; endeks oranı için bölge fiyatının alındığı ay ve en son ay yeterli.
       supabase.from("market_index").select("series, period, value").gte("period", `${new Date().getFullYear() - 3}-01-01`),
-    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: sc }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ss }, { data: slb }, { data: slr }, { data: ri }, { data: res }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: gcw }, { data: myMembership }, { data: invites }, { data: tk }, { data: props }, { data: propPriv }, { data: shw }, { data: cmp }, { data: rgp }, { data: mkt }]) => {
+      supabase.from("buyer_listings").select("*").is("deleted_at", null).order("created_at", { ascending: false }),
+    ]).then(([{ data: c }, { data: d }, { data: a }, { data: pay }, { data: exp }, { data: cred }, { data: payCred }, { data: att }, { data: chMsg }, { data: t }, { data: tm }, { data: kb }, { data: cs }, { data: cfd }, { data: pli }, { data: sc }, { data: gc }, { data: gce }, { data: catt }, { data: bh }, { data: ss }, { data: slb }, { data: slr }, { data: ri }, { data: res }, { data: pdft }, { data: dli }, { data: stk }, { data: pii }, { data: gcw }, { data: myMembership }, { data: invites }, { data: tk }, { data: props }, { data: propPriv }, { data: shw }, { data: cmp }, { data: rgp }, { data: mkt }, { data: bls }]) => {
       // customers/deals/company_settings RLS'i, sahiplik politikasına ek olarak
       // portal kullanıcılarının kendi bağlı oldukları kayıtları görmesine izin
       // veren bir politikayla da "veya" ile birleşiyor (customer_*_view'ların
@@ -1873,6 +1904,7 @@ export default function App() {
         )
       );
       setShowings((shw || []).filter((row) => row.user_id === ownerId).map(rowToShowing));
+      setBuyerListings((bls || []).filter((row) => row.user_id === ownerId).map(rowToBuyerListing));
       setComparables((cmp || []).filter((row) => row.user_id === ownerId).map(rowToComparable));
       // Ofis arkadaşlarının ortak bölge fiyatları ayrıca yüklenir (ofis effect'i) - korunur.
       setRegionPrices((prev) => [
@@ -2536,6 +2568,53 @@ export default function App() {
     setAttachments((prev) => prev.filter((a) => !(a.entityType === "showing_docs" && a.entityId === id)));
     setShowings((prev) => prev.filter((x) => x.id !== id));
     logAction("property_showings", id, "deleted", "Gösterim kaydı çöp kutusuna taşındı");
+  };
+
+  const buyerListingRow = (b) => ({
+    id: b.id || uid(),
+    user_id: activeTeamId,
+    customer_id: b.customerId,
+    source: b.source || "emlakci",
+    status: b.status || "bulundu",
+    title: String(b.title || "").trim() || "Adsız ev",
+    transaction_type: b.transactionType || null,
+    property_type: b.propertyType || null,
+    price: Number(b.price) || null,
+    city: b.city || null,
+    district: b.district || null,
+    neighborhood: b.neighborhood || null,
+    room_count: b.roomCount || null,
+    gross_m2: Number(b.grossM2) || null,
+    listing_no: b.listingNo || null,
+    listing_url: b.listingUrl || null,
+    counterpart_office: b.counterpartOffice || null,
+    counterpart_agent: b.counterpartAgent || null,
+    counterpart_phone: b.counterpartPhone || null,
+    office_property_id: b.officePropertyId || null,
+    note: b.note || null,
+    shown_at: b.shownAt || null,
+    updated_at: new Date().toISOString(),
+  });
+  // Tek kayıt ya da Sahibinden yapıştırmasından toplu ekleme.
+  const saveBuyerListings = async (items) => {
+    const list = Array.isArray(items) ? items : [items];
+    const { data, error } = await supabase.from("buyer_listings").upsert(list.map(buyerListingRow)).select();
+    if (error) { notify(`Kaydedilemedi: ${error.message}`); return false; }
+    const saved = (data || []).map(rowToBuyerListing);
+    setBuyerListings((prev) => {
+      const byId = new Map(prev.map((x) => [x.id, x]));
+      saved.forEach((s) => byId.set(s.id, s));
+      return [...byId.values()].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    });
+    return true;
+  };
+  const deleteBuyerListing = async (id) => {
+    const { error } = await supabase
+      .from("buyer_listings")
+      .update({ deleted_at: new Date().toISOString(), deleted_batch_id: uid() })
+      .eq("id", id);
+    if (error) { notify(`Silinemedi: ${error.message}`); return; }
+    setBuyerListings((prev) => prev.filter((x) => x.id !== id));
   };
 
   // Belge metni burada üretilip DB'ye dondurulur - onay sayfası (api/deal-approval.js
@@ -7621,6 +7700,11 @@ export default function App() {
           showings={showings}
           properties={properties}
           companySettings={companySettings}
+          buyerListings={buyerListings}
+          officeProperties={officeProperties}
+          officeMembers={office?.members || []}
+          onSaveBuyerListings={saveBuyerListings}
+          onDeleteBuyerListing={deleteBuyerListing}
         />
       )}
 

@@ -48,6 +48,7 @@ import {
   TALEP_URGENCY_OPTIONS,
 } from "./realEstate";
 import { CustomerShowings } from "./Showings";
+import { BuyerListings } from "./BuyerListings";
 
 export const ACTIVITY_TYPES = [
   { id: "note", label: "Not", icon: "ti-note" },
@@ -740,6 +741,18 @@ function activityDateLabel(dateStr) {
 // Gölge Avcı'nın ters yönü: müşterinin talebine (aranan_* alanları) uyan açık
 // portföyler. Aynı matchEmlakListing puanlaması, tek müşteriyle her portföy için
 // çalıştırılır - iki yönde de aynı eşik/ağırlıklar geçerli kalsın diye.
+// Pano'daki "uyan evi olmayan alıcılar" ve kart içi uyarı aynı ölçütü kullansın.
+export function hasOwnPropertyMatch(customer, properties) {
+  return properties.some(
+    (p) =>
+      ["aktif", "opsiyonlu"].includes(p.status) &&
+      p.ownerCustomerId !== customer.id &&
+      matchEmlakListing(propertyAsListingDeal(p, { forMatching: true }), [
+        { ...customer, phone: customer.phone || "-" },
+      ]).length > 0,
+  );
+}
+
 function MatchingProperties({ customer, properties, showings, onOpenPortfolio, companySettings }) {
   const shownIds = new Set(
     showings.filter((s) => s.customerId === customer.id).map((s) => s.propertyId),
@@ -850,6 +863,11 @@ export function CustomerDetail({
   showings = [],
   properties = [],
   companySettings = null,
+  buyerListings = [],
+  officeProperties = [],
+  officeMembers = [],
+  onSaveBuyerListings,
+  onDeleteBuyerListing,
 }) {
   const [type, setType] = useState("note");
   const [content, setContent] = useState("");
@@ -1125,6 +1143,18 @@ export function CustomerDetail({
           properties={properties}
           showings={showings}
           onOpenPortfolio={onOpenPortfolio}
+        />
+      )}
+
+      {sector === "emlak" && onSaveBuyerListings && (
+        <BuyerListings
+          customer={customer}
+          listings={buyerListings.filter((l) => l.customerId === customer.id)}
+          officeProperties={officeProperties}
+          officeMembers={officeMembers}
+          hasOwnMatches={hasOwnPropertyMatch(customer, properties)}
+          onSave={onSaveBuyerListings}
+          onDelete={onDeleteBuyerListing}
         />
       )}
 
