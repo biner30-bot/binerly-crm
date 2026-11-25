@@ -396,8 +396,20 @@
          tasmayi onlemek icin gizlenir, tipki referans tasarimdaki gibi
          (masaustune ozel bir kolaylik, aramanin kendisi hicbir yerde
          kaybolmuyor - ilgili sekmeden yine erisilebiliyor). */
+      /* Tablet: arama + isletme blogu yan yana sigmiyor, arama eziliyordu. */
+      @media (min-width: 641px) and (max-width: 1024px) {
+        .app-header-search { min-width: 160px !important; }
+        .app-header-company-name { display: none; }
+        .app-header-company img { max-width: 110px !important; }
+      }
       @media (max-width: 640px) {
         .app-header-search { display: none !important; }
+        /* Dar ekranda Binerly+sektor yazisi satiri dolduruyor; isletme blogu yan
+           yana sigmayip sagdaki ikonlarin ustune biniyordu - kendi satirina iner. */
+        .app-header-left { flex-wrap: wrap !important; row-gap: 8px; }
+        .app-header-company { flex-basis: 100%; }
+        .app-header-company img { height: 26px !important; max-width: 110px !important; }
+        .app-header-company-name { font-size: 13.5px !important; }
       }
       .global-search-result:hover { background: var(--surface-2) !important; }
       /* Pano'daki tıklanabilir uyarı satırları (stuckDeals, dueReminderDeals vb.)

@@ -5899,31 +5899,13 @@ export default function App() {
       }}
     >
       <div className="app-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: "1.5rem" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 16, flex: 1, minWidth: 0 }}>
+        <div className="app-header-left" style={{ display: "flex", alignItems: "flex-start", gap: 16, flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 10, flex: "none" }}>
           <IconButton icon="ti-menu-2" onClick={() => setSidebarOpen(true)} title="Menü" className="app-sidebar-toggle" />
           <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
             <img src="/favicon.svg" alt="Binerly" style={{ width: 31, height: 31 }} />
             <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Binerly</h1>
-            {companySettings?.companyName && (
-              <>
-                <span style={{ width: 1, height: 18, background: "var(--border)" }} aria-hidden="true" />
-                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  {companySettings.logoUrl ? (
-                    <img
-                      src={companySettings.logoUrl}
-                      alt=""
-                      style={{ width: 18, height: 18, borderRadius: 4, objectFit: "contain" }}
-                      onError={(e) => { e.currentTarget.style.display = "none"; }}
-                    />
-                  ) : (
-                    <InitialsAvatar name={companySettings.companyName} size={18} />
-                  )}
-                  <span style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 500 }}>{companySettings.companyName}</span>
-                </span>
-              </>
-            )}
           </div>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>{appTagline(companySettings?.sector)}</p>
           </div>
@@ -6006,6 +5988,23 @@ export default function App() {
             </div>
           )}
         </div>
+        {companySettings?.companyName && (
+          // 18x18 kareye sıkışınca geniş (yatay) ofis logoları okunmuyordu - yükseklik sabit, genişlik serbest.
+          <div className="app-header-company" style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, alignSelf: "center" }}>
+            {companySettings.logoUrl ? (
+              <img
+                className="brand-logo"
+                src={companySettings.logoUrl}
+                alt=""
+                style={{ height: 34, width: "auto", maxWidth: 150, objectFit: "contain", flex: "none" }}
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
+              />
+            ) : (
+              <InitialsAvatar name={companySettings.companyName} size={30} />
+            )}
+            <span className="app-header-company-name" style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{companySettings.companyName}</span>
+          </div>
+        )}
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
