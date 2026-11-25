@@ -2742,11 +2742,9 @@ export function MarketAnalysisTab({
   // sonrası seçimin "kayıtlı analiz"e dönmesi açık formu sıfırlamasın.
   const [instance, setInstance] = useState(0);
   const [confirmDeleteV, setConfirmDeleteV] = useState(null);
-  // Açık bir analiz varken liste kapalı başlar - yoksa analiz sayısı arttıkça
-  // düzenleme ekranı aşağı itiliyordu.
-  const [listOpen, setListOpen] = useState(() => readSelection().kind !== "valuation");
+  // Kayıtlı analizler ayrı sekmede: liste uzadıkça analiz ekranını aşağı itiyordu.
+  const [subTab, setSubTab] = useState("analiz");
   const [listQuery, setListQuery] = useState("");
-  const [showAll, setShowAll] = useState(false);
   const persistSelection = (sel) => {
     setSelectionState(sel);
     try {
@@ -2758,12 +2756,11 @@ export function MarketAnalysisTab({
   const choose = (sel) => {
     persistSelection(sel);
     setInstance((n) => n + 1);
-    if (sel.kind === "valuation") setListOpen(false);
+    setSubTab("analiz");
   };
   const valuation =
     selection.kind === "valuation" ? valuations.find((v) => v.id === selection.id) || null : null;
   const lq = listQuery.trim().toLocaleLowerCase("tr");
-  const RECENT_LIMIT = 5;
   const sortedValuations = [...valuations].sort(
     (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
   );
@@ -2793,59 +2790,70 @@ export function MarketAnalysisTab({
         hesaplayın; mal sahibine PDF rapor verin.
       </p>
 
-      <div style={{ ...box, marginBottom: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-          <p style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>
-            Kayıtlı analizlerim ({valuations.length})
-            <InfoTip text="Analizler sadece size görünür. Paylaşmak için PDF'i indirip gönderin." />
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          marginBottom: 12,
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
+      >
+        {[
+          ["analiz", "Analiz", "ti-chart-histogram"],
+          ["liste", `Kayıtlı analizler (${valuations.length})`, "ti-list"],
+        ].map(([id, label, icon]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setSubTab(id)}
+            style={
+              subTab === id
+                ? { background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }
+                : undefined
+            }
+          >
+            <i className={`ti ${icon}`} aria-hidden="true" /> {label}
+          </button>
+        ))}
+        <button
+          type="button"
+          style={{ marginLeft: "auto" }}
+          onClick={() => {
+            // Kaydedilmemiş yarım taslak sekme değişiminde korunur, ama "Yeni
+            // analiz"e basan boş form ister - yoksa öncekinin bilgileriyle açılıyordu.
+            discardFormDraft("valuation:free");
+            choose({ kind: "new" });
+          }}
+        >
+          + Yeni analiz
+        </button>
+      </div>
+
+      {subTab === "liste" && (
+        <div style={box}>
+          <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 8px" }}>
+            Analizler sadece size görünür. Paylaşmak için PDF'i indirip gönderin.
           </p>
-          <span style={{ display: "flex", gap: 6 }}>
-            <button
-              type="button"
-              style={{ fontSize: 12.5 }}
-              onClick={() => {
-                // Kaydedilmemiş yarım taslak sekme değişiminde korunur, ama "Yeni
-                // analiz"e basan boş form ister - yoksa öncekinin bilgileriyle açılıyordu.
-                discardFormDraft("valuation:free");
-                choose({ kind: "new" });
-              }}
-            >
-              + Yeni analiz
-            </button>
-            {valuations.length > 0 && (
-              <button
-                type="button"
-                style={{ fontSize: 12.5 }}
-                onClick={() => setListOpen((v) => !v)}
-              >
-                {listOpen ? "Listeyi gizle" : "Listeyi göster"}
-              </button>
-            )}
-          </span>
-        </div>
-        {listOpen && valuations.length === 0 && (
-          <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "6px 0 0" }}>
-            Henüz kayıtlı analiz yok. Aşağıda analizi yapıp "Analizi kaydet"e basın - PDF aldığınız
-            analizler de kendiliğinden kaydedilir.
-          </p>
-        )}
-        {listOpen && valuations.length > 0 && (
-          <input
-            value={listQuery}
-            onChange={(e) => setListQuery(e.target.value)}
-            placeholder="Analizlerde ara: ad, sokak, mahalle, site"
-            style={{ width: "100%", marginTop: 8 }}
-          />
-        )}
-        {listOpen && valuations.length > 0 && (
-          <div style={{ marginTop: 8, maxHeight: 300, overflowY: "auto" }}>
-            {filteredValuations.length === 0 && (
-              <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: 0 }}>
-                Aramaya uyan analiz yok.
-              </p>
-            )}
-            {(lq || showAll ? filteredValuations : filteredValuations.slice(0, RECENT_LIMIT)).map(
-              (v) => {
+          {valuations.length === 0 ? (
+            <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: 0 }}>
+              Henüz kayıtlı analiz yok. "Analiz" sekmesinde analizi yapıp "Analizi kaydet"e basın -
+              PDF aldığınız analizler de kendiliğinden kaydedilir.
+            </p>
+          ) : (
+            <>
+              <input
+                value={listQuery}
+                onChange={(e) => setListQuery(e.target.value)}
+                placeholder="Analizlerde ara: ad, sokak, mahalle, site"
+                style={{ width: "100%", marginBottom: 8 }}
+              />
+              {filteredValuations.length === 0 && (
+                <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: 0 }}>
+                  Aramaya uyan analiz yok.
+                </p>
+              )}
+              {filteredValuations.map((v) => {
                 const active = selection.kind === "valuation" && selection.id === v.id;
                 const linked = v.propertyId && properties.find((p) => p.id === v.propertyId);
                 return (
@@ -2889,10 +2897,11 @@ export function MarketAnalysisTab({
                     <button
                       type="button"
                       style={{ fontSize: 12 }}
-                      disabled={active}
-                      onClick={() => choose({ kind: "valuation", id: v.id })}
+                      onClick={() =>
+                        active ? setSubTab("analiz") : choose({ kind: "valuation", id: v.id })
+                      }
                     >
-                      {active ? "Açık" : "Aç / düzenle"}
+                      {active ? "Açık - analize dön" : "Aç / düzenle"}
                     </button>
                     {!v.propertyId && onCreatePropertyFrom && (
                       <button
@@ -2912,78 +2921,72 @@ export function MarketAnalysisTab({
                     </button>
                   </div>
                 );
-              },
-            )}
-            {!lq && filteredValuations.length > RECENT_LIMIT && (
-              <button
-                type="button"
-                style={{ fontSize: 12, marginTop: 6 }}
-                onClick={() => setShowAll((v) => !v)}
-              >
-                {showAll
-                  ? "Sadece son 5 analizi göster"
-                  : `Tümünü göster (${filteredValuations.length})`}
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {selection.kind !== "valuation" && (
-        <div style={{ marginBottom: 12, maxWidth: 420 }}>
-          <label style={labelStyle}>Hangi daire?</label>
-          <select
-            value={selection.kind === "property" ? selection.id : ""}
-            onChange={(e) =>
-              choose(e.target.value ? { kind: "property", id: e.target.value } : { kind: "new" })
-            }
-            style={{ width: "100%" }}
-          >
-            <option value="">Portföyde olmayan bir daire (boş form)</option>
-            {candidates.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.title}
-                {p.neighborhood ? ` - ${p.neighborhood}` : ""}
-              </option>
-            ))}
-          </select>
+              })}
+            </>
+          )}
         </div>
       )}
-      {valuation && (
-        <p style={{ fontSize: 13, margin: "0 0 10px" }}>
-          <i className="ti ti-file-analytics" aria-hidden="true" /> Kayıtlı analiz:{" "}
-          <b>{valuation.title}</b> ({fmtDate(valuation.createdAt)})
-        </p>
-      )}
 
-      {waitingValuation ? (
-        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Analiz yükleniyor…</p>
-      ) : missingValuation ? (
-        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-          Bu analiz bulunamadı (silinmiş olabilir).{" "}
-          <button type="button" onClick={() => choose({ kind: "new" })}>
-            Yeni analiz
-          </button>
-        </p>
-      ) : (
-        <AutoValuation
-          key={instance}
-          property={property}
-          properties={properties}
-          valuation={valuation}
-          agent={agentFor(property)}
-          getPhotoUrl={property ? () => getPhotoUrlFor(property) : null}
-          hasPropertyPhoto={property ? hasPhotoFor?.(property) : false}
-          onApplyPrice={property ? (price) => onApplyPriceFor(property, price) : null}
-          onSaveSubject={
-            property && onSaveSubjectFor ? (patch) => onSaveSubjectFor(property, patch) : null
-          }
-          onSaveValuation={onSaveValuation}
-          onValuationSaved={(saved) => persistSelection({ kind: "valuation", id: saved.id })}
-          {...rest}
-        />
-      )}
+      {subTab === "analiz" && (
+        <>
+          {selection.kind !== "valuation" && (
+            <div style={{ marginBottom: 12, maxWidth: 420 }}>
+              <label style={labelStyle}>Hangi daire?</label>
+              <select
+                value={selection.kind === "property" ? selection.id : ""}
+                onChange={(e) =>
+                  choose(
+                    e.target.value ? { kind: "property", id: e.target.value } : { kind: "new" },
+                  )
+                }
+                style={{ width: "100%" }}
+              >
+                <option value="">Portföyde olmayan bir daire (boş form)</option>
+                {candidates.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.title}
+                    {p.neighborhood ? ` - ${p.neighborhood}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {valuation && (
+            <p style={{ fontSize: 13, margin: "0 0 10px" }}>
+              <i className="ti ti-file-analytics" aria-hidden="true" /> Kayıtlı analiz:{" "}
+              <b>{valuation.title}</b> ({fmtDate(valuation.createdAt)})
+            </p>
+          )}
 
+          {waitingValuation ? (
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Analiz yükleniyor…</p>
+          ) : missingValuation ? (
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+              Bu analiz bulunamadı (silinmiş olabilir).{" "}
+              <button type="button" onClick={() => choose({ kind: "new" })}>
+                Yeni analiz
+              </button>
+            </p>
+          ) : (
+            <AutoValuation
+              key={instance}
+              property={property}
+              properties={properties}
+              valuation={valuation}
+              agent={agentFor(property)}
+              getPhotoUrl={property ? () => getPhotoUrlFor(property) : null}
+              hasPropertyPhoto={property ? hasPhotoFor?.(property) : false}
+              onApplyPrice={property ? (price) => onApplyPriceFor(property, price) : null}
+              onSaveSubject={
+                property && onSaveSubjectFor ? (patch) => onSaveSubjectFor(property, patch) : null
+              }
+              onSaveValuation={onSaveValuation}
+              onValuationSaved={(saved) => persistSelection({ kind: "valuation", id: saved.id })}
+              {...rest}
+            />
+          )}
+        </>
+      )}
       {confirmDeleteV && (
         <ConfirmDialog
           title="Analiz silinsin mi?"
