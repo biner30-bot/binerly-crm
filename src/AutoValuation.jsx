@@ -411,7 +411,14 @@ function AddressSection({ s, setS, hasPropertyPhoto, notify, focus }) {
   );
   return (
     <div style={box}>
-      <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 8px" }}>Adres ve konum</p>
+      {/* Danışmanlar ada/parseli zorunlu sanıyordu: fiyatı etkileyenler Daire
+          bölümünde "eksik" işaretli, bu bölüm sadece rapor ve harita içindir. */}
+      <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 8px" }}>
+        Adres ve konum{" "}
+        <span style={{ fontWeight: 400, fontSize: 12, color: "var(--text-muted)" }}>
+          - isteğe bağlı, fiyatı etkilemez; raporda ve haritada görünür
+        </span>
+      </p>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
         {field("street", "Cadde / sokak", "2 1 220px")}
         {field("buildingNo", "Bina no", "0 1 90px")}
