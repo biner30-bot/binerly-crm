@@ -71,15 +71,71 @@ export async function geocodeArea({ street, neighborhood, district, city }) {
   return hit ? { ...hit, zoom: mah ? 15 : 13 } : null;
 }
 
-// Haritadaki serbest arama (sokak, site, okul, cami...). Önce ilçe içinde arar.
-export async function geocodePlace(text, { district, city } = {}) {
+// Haritadaki yazarken-öneren arama. Nominatim'in kullanım politikası otomatik
+// tamamlamayı yasaklıyor; Photon (komoot, aynı OSM verisi) bunun için yapılmış
+// ve ücretsiz - çağıran taraf debounce eder, sonuçlar sekme boyunca önbellekte.
+// Photon alanları: name, type, district = mahalle, city = ilçe, state = il.
+const TURKEY_BBOX = "25.6,35.8,44.9,42.2";
+const PHOTON_ZOOM = { house: 18, street: 17, district: 15, locality: 15, city: 13, county: 12 };
+
+export async function suggestPlaces(text, { bias, district, city } = {}) {
   const q = normalizeStreet(text);
-  if (!q) return null;
-  const hit =
-    ((district || city) &&
-      (await nominatim([q, district, city, "Türkiye"].filter(Boolean).join(", ")))) ||
-    (await nominatim(q));
-  return hit ? { ...hit, zoom: 18 } : null;
+  if (q.length < 3) return [];
+  // lang=default: yoksa tarayıcı dili İngilizceyse "Izmir/Istanbul" dönüyor.
+  const params = new URLSearchParams({ q, limit: "10", bbox: TURKEY_BBOX, lang: "default" });
+  if (isValidLocation(bias)) {
+    params.set("lat", String(bias.lat));
+    params.set("lon", String(bias.lng));
+  }
+  const cacheKey = `binerly.photon.${params.toString()}`;
+  let features;
+  try {
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) features = JSON.parse(cached);
+  } catch {
+    // önbellek sadece kolaylık
+  }
+  if (!features) {
+    try {
+      const res = await fetch(`https://photon.komoot.io/api/?${params}`);
+      if (!res.ok) return [];
+      features = (await res.json()).features || [];
+    } catch {
+      return [];
+    }
+    try {
+      sessionStorage.setItem(cacheKey, JSON.stringify(features));
+    } catch {
+      // önbellek sadece kolaylık
+    }
+  }
+  const lc = (v) => String(v || "").toLocaleLowerCase("tr");
+  const seen = new Set();
+  return features
+    .filter((f) => f.properties?.countrycode === "TR")
+    .map((f) => {
+      const p = f.properties;
+      const isMahalle = p.type === "district" || p.type === "locality";
+      const title = isMahalle && !/mahalle/i.test(p.name || "") ? `${p.name} Mahallesi` : p.name;
+      const mahalle = !isMahalle && p.district ? `${p.district} Mah.` : null;
+      const subtitle = [p.street && p.street !== p.name ? p.street : null, mahalle, p.city, p.state]
+        .filter((x, i, a) => x && a.indexOf(x) === i)
+        .join(", ");
+      const [lng, lat] = f.geometry.coordinates;
+      // Formda seçili ilçe/il önce gelsin (aynı adlı mahalle başka ilçelerde de var).
+      const rank =
+        (district && lc(p.city) === lc(district) ? 0 : 2) +
+        (city && lc(p.state) === lc(city) ? 0 : 1);
+      return { title, subtitle, lat, lng, zoom: PHOTON_ZOOM[p.type] || 17, rank };
+    })
+    .filter((s) => {
+      const k = `${s.title}|${s.subtitle}`;
+      if (!s.title || seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    })
+    .sort((a, b) => a.rank - b.rank)
+    .slice(0, 6);
 }
 
 // Rapor için harita görüntüsü. Karolar rapor penceresinden değil uygulama

@@ -8,7 +8,7 @@ import {
   isValidLocation,
   mapsUrl,
   parseCoordinates,
-  geocodePlace,
+  suggestPlaces,
   renderMapImage,
   streetViewUrl,
 } from "./geo";
@@ -182,27 +182,146 @@ async function resizeImage(file, max = 1280) {
 
 const LocationMap = lazy(() => import("./LocationMap"));
 
+// Google Haritalar gibi yazarken öneren arama: aynı adlı mahalle/sokak başka
+// ilçelerde de olduğu için tek sonuca atlamak yanlış yere götürüyordu.
+function PlaceSearch({ bias, district, city, onPick }) {
+  const [q, setQ] = useState("");
+  const [items, setItems] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const biasRef = useRef(bias);
+  biasRef.current = bias;
+  useEffect(() => {
+    if (q.trim().length < 3) {
+      setItems([]);
+      return undefined;
+    }
+    let alive = true;
+    const t = setTimeout(async () => {
+      setLoading(true);
+      const res = await suggestPlaces(q, { bias: biasRef.current, district, city });
+      if (!alive) return;
+      setLoading(false);
+      setItems(res);
+      setActive(0);
+    }, 350);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [q, district, city]);
+  const pick = (it) => {
+    onPick(it);
+    setQ(it.title);
+    setOpen(false);
+  };
+  return (
+    <div style={{ position: "relative", marginBottom: 6 }}>
+      <i
+        className="ti ti-search"
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          left: 9,
+          top: "50%",
+          transform: "translateY(-50%)",
+          color: "var(--text-muted)",
+          fontSize: 14,
+          pointerEvents: "none",
+        }}
+      />
+      <input
+        value={q}
+        onChange={(e) => {
+          setQ(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onKeyDown={(e) => {
+          if (!items.length) return;
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setActive((i) => Math.min(i + 1, items.length - 1));
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setActive((i) => Math.max(i - 1, 0));
+          } else if (e.key === "Enter") {
+            e.preventDefault();
+            pick(items[active] || items[0]);
+          } else if (e.key === "Escape") setOpen(false);
+        }}
+        placeholder="Haritada ara: mahalle, sokak, site, okul, cami... (ör. Mevlana Bornova)"
+        aria-autocomplete="list"
+        style={{ width: "100%", fontSize: 12.5, paddingLeft: 28 }}
+      />
+      {open && q.trim().length >= 3 && (
+        <div
+          role="listbox"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 2px)",
+            left: 0,
+            right: 0,
+            zIndex: 1000,
+            background: "var(--surface-1)",
+            border: "0.5px solid var(--border)",
+            borderRadius: "var(--radius)",
+            boxShadow: "var(--shadow-md)",
+            maxHeight: 280,
+            overflowY: "auto",
+          }}
+        >
+          {items.length === 0 ? (
+            <p
+              style={{ margin: 0, padding: "8px 10px", fontSize: 12.5, color: "var(--text-muted)" }}
+            >
+              {loading
+                ? "Aranıyor…"
+                : "Sonuç yok - ilçe adını da ekleyin ya da yakındaki okul/cami adını deneyin."}
+            </p>
+          ) : (
+            items.map((it, i) => (
+              <button
+                key={`${it.title}|${it.subtitle}`}
+                type="button"
+                role="option"
+                aria-selected={i === active}
+                onMouseDown={(e) => e.preventDefault()}
+                onMouseEnter={() => setActive(i)}
+                onClick={() => pick(it)}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "7px 10px",
+                  border: "none",
+                  borderRadius: 0,
+                  boxShadow: "none",
+                  background: i === active ? "var(--surface-2)" : "none",
+                  fontSize: 12.5,
+                }}
+              >
+                <span style={{ fontWeight: 600 }}>{it.title}</span>
+                {it.subtitle && (
+                  <span style={{ color: "var(--text-muted)" }}> - {it.subtitle}</span>
+                )}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AddressSection({ s, setS, hasPropertyPhoto, notify }) {
   const a = s.address || {};
   const setA = (k) => (e) =>
     setS((p) => ({ ...p, address: { ...(p.address || {}), [k]: e.target.value } }));
   const [center, setCenter] = useState(null);
   const [focus, setFocus] = useState(null);
-  const [placeQuery, setPlaceQuery] = useState("");
-  const [searchingPlace, setSearchingPlace] = useState(false);
-  const searchPlace = async () => {
-    if (!placeQuery.trim()) return;
-    setSearchingPlace(true);
-    const hit = await geocodePlace(placeQuery, { district: s.district, city: s.city });
-    setSearchingPlace(false);
-    if (!hit) {
-      notify(
-        'Bulunamadı - sokak adını "518. Sokak" gibi ya da yakındaki okul/cami/site adını deneyin.',
-      );
-      return;
-    }
-    setFocus({ ...hit, at: Date.now() });
-  };
   const [coordText, setCoordText] = useState("");
   const applyCoords = () => {
     const c = parseCoordinates(coordText);
@@ -327,29 +446,12 @@ function AddressSection({ s, setS, hasPropertyPhoto, notify }) {
       </div>
       {showMap && (
         <div style={{ marginTop: 8 }}>
-          <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-            <input
-              value={placeQuery}
-              onChange={(e) => setPlaceQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  searchPlace();
-                }
-              }}
-              placeholder="Haritada ara: sokak, site, okul, cami... (ör. 518 sk)"
-              style={{ flex: 1, fontSize: 12.5 }}
-            />
-            <button
-              type="button"
-              style={{ fontSize: 12.5 }}
-              disabled={!placeQuery.trim() || searchingPlace}
-              onClick={searchPlace}
-            >
-              <i className="ti ti-search" aria-hidden="true" />{" "}
-              {searchingPlace ? "Aranıyor…" : "Bul"}
-            </button>
-          </div>
+          <PlaceSearch
+            bias={isValidLocation(s.location) ? s.location : focus || center}
+            district={s.district}
+            city={s.city}
+            onPick={(p) => setFocus({ ...p, at: Date.now() })}
+          />
           <Suspense
             fallback={
               <div style={{ height: 280, fontSize: 12, color: "var(--text-muted)" }}>
