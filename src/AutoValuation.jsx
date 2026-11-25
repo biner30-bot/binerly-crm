@@ -1559,12 +1559,27 @@ export function AutoValuation({
       next.address.street = p.parts.street;
       filled.push("sokak");
     }
+    if (!next.address.siteName && p.parts.siteName) {
+      next.address.siteName = p.parts.siteName;
+      filled.push("site/apartman adı");
+    }
+    if (!next.address.buildingNo && p.parts.buildingNo) {
+      next.address.buildingNo = p.parts.buildingNo;
+      filled.push("bina no");
+    }
     if (p.parts.building && !isValidLocation(s.location)) {
       next.location = { lat: p.lat, lng: p.lng };
       filled.push("haritada konum");
     }
     if (filled.length) setS(next);
-    const msg = [filled.length ? `Dolduruldu: ${filled.join(", ")}.` : null, mahalleNote]
+    const rest = [!next.address.buildingNo && "bina no", !next.address.unitNo && "daire no"]
+      .filter(Boolean)
+      .join(" ve ");
+    const msg = [
+      filled.length ? `Dolduruldu: ${filled.join(", ")}.` : null,
+      filled.length && rest ? `Aşağıda ${rest} girin.` : null,
+      mahalleNote,
+    ]
       .filter(Boolean)
       .join(" ");
     if (msg) notify(msg, mahalleNote ? undefined : "success");

@@ -193,6 +193,13 @@ export async function suggestPlaces(text, { bias, district, city } = {}) {
         ),
         street: p.osm_key === "highway" ? p.name : p.street || "",
         building: p.osm_key === "building",
+        // Seçilen öneri bir apartman/site ise adı; bina no sadece SONUÇTAN okunur
+        // (dışarı bina no gönderilmez kuralı değişmez).
+        siteName:
+          p.osm_key === "building" || (p.osm_key === "landuse" && p.osm_value === "residential")
+            ? p.name || ""
+            : "",
+        buildingNo: p.housenumber || "",
       };
       return { title, subtitle, kind, parts, lat, lng, zoom: PHOTON_ZOOM[p.type] || 17, rank };
     })
