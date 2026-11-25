@@ -644,6 +644,7 @@ export function Portfolio({
                     onUploadWetSigned={onUploadWetSigned}
                     onDeleteWetSigned={onDeleteWetSigned}
                     onDownloadAttachment={onDownloadAttachment}
+                    onQuickAddCustomer={onQuickAddCustomer}
                     notify={notify}
                   />
                 </>

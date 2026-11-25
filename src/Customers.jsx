@@ -901,6 +901,8 @@ export function CustomerDetail({
   onDeleteBuyerListing,
   onStartSharedDeal,
   agentName = "",
+  onSaveShowing,
+  notify,
 }) {
   const [type, setType] = useState("note");
   const [content, setContent] = useState("");
@@ -1126,10 +1128,31 @@ export function CustomerDetail({
       )}
 
       <CustomerShowings
+        customer={customer}
         customerId={customer.id}
         showings={showings}
         properties={properties}
+        candidates={
+          sector === "emlak"
+            ? properties
+                .filter(
+                  (p) =>
+                    ["aktif", "opsiyonlu"].includes(p.status) && p.ownerCustomerId !== customer.id,
+                )
+                .map((p) => {
+                  const [m] = matchEmlakListing(propertyAsListingDeal(p, { forMatching: true }), [
+                    { ...customer, phone: customer.phone || "-" },
+                  ]);
+                  return { property: p, score: m ? m.score : null };
+                })
+                .sort((a, b) => (b.score ?? -1) - (a.score ?? -1))
+            : []
+        }
+        companySettings={companySettings}
+        currentUserName={agentName}
+        onSave={onSaveShowing}
         onOpenPortfolio={onOpenPortfolio}
+        notify={notify}
       />
 
       {sector === "emlak" && customerSeekingSummary(customer) && (

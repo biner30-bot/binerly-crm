@@ -615,7 +615,8 @@ export function BuyerListings({
               )}
               {/* Dış evi gösterirken de alıcı tarafının hizmet bedelini korur:
                   "aracılığımız olmadan satın alırsa" - karşı emlakçı üzerinden de olsa. */}
-              {shareOpen(l) && (
+              {/* Hazır belge ayarı kapalıysa ofis kendi belgesini kullanır (portföydeki gösterimle aynı kural). */}
+              {shareOpen(l) && companySettings?.realEstateSettings?.builtInShowingDoc === true && (
                 <button
                   type="button"
                   style={{ fontSize: 12 }}

@@ -73,8 +73,22 @@ ${logoUrl ? `<div class="logo"><img src="${escapeHtml(logoUrl)}" alt=""/></div>`
   return true;
 }
 
-function ShowingForm({ initial, customers, onSave, onCancel }) {
-  const [customerId, setCustomerId] = useState(initial?.customerId || "");
+// properties verilirse müşteri kartından açılmıştır: müşteri sabit, ev seçilir
+// (danışman alıcıdan yola çıkar: "Ayşe Hanım'a şu evi gösterdim").
+// onQuickAddCustomer: gösterime yeni gelen alıcı formdan çıkmadan eklenir.
+function ShowingForm({
+  initial,
+  customers = [],
+  properties,
+  fixedCustomerId,
+  onQuickAddCustomer,
+  onSave,
+  onCancel,
+}) {
+  const [customerId, setCustomerId] = useState(initial?.customerId || fixedCustomerId || "");
+  const [propertyId, setPropertyId] = useState(initial?.propertyId || "");
+  const [newCustomer, setNewCustomer] = useState(null);
+  const [addingCustomer, setAddingCustomer] = useState(false);
   const [shownAt, setShownAt] = useState(toLocalInput(initial?.shownAt));
   const [method, setMethod] = useState(initial?.method || "fiziki");
   const [interest, setInterest] = useState(initial?.interest || "");
@@ -91,22 +105,87 @@ function ShowingForm({ initial, customers, onSave, onCancel }) {
       }}
     >
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
-        <div style={{ flex: "1 1 200px" }}>
-          <label style={labelStyle}>Müşteri</label>
-          <select
-            value={customerId}
-            onChange={(e) => setCustomerId(e.target.value)}
-            disabled={!!initial?.consentSignedAt}
-            style={{ width: "100%" }}
+        {properties ? (
+          <div style={{ flex: "1 1 200px" }}>
+            <label style={labelStyle}>Gösterilen ev</label>
+            <select
+              value={propertyId}
+              onChange={(e) => setPropertyId(e.target.value)}
+              disabled={!!initial?.consentSignedAt}
+              style={{ width: "100%" }}
+            >
+              <option value="">Seçin</option>
+              {properties.map(({ property: p, score }) => (
+                <option key={p.id} value={p.id}>
+                  {p.title}
+                  {score != null ? ` (%${score} uyum)` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : addingCustomer ? (
+          <div
+            style={{
+              flex: "1 1 260px",
+              display: "flex",
+              gap: 6,
+              flexWrap: "wrap",
+              alignItems: "flex-end",
+            }}
           >
-            <option value="">Seçin</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
+            <input
+              value={newCustomer?.name || ""}
+              onChange={(e) => setNewCustomer((p) => ({ ...p, name: e.target.value }))}
+              placeholder="Ad soyad"
+              autoFocus
+              style={{ flex: "1 1 120px" }}
+            />
+            <input
+              type="tel"
+              value={newCustomer?.phone || ""}
+              onChange={(e) => setNewCustomer((p) => ({ ...p, phone: e.target.value }))}
+              placeholder="Telefon"
+              style={{ flex: "1 1 110px" }}
+            />
+            <button
+              type="button"
+              disabled={!newCustomer?.name?.trim()}
+              onClick={async () => {
+                const c = await onQuickAddCustomer(newCustomer);
+                if (!c) return;
+                setCustomerId(c.id);
+                setAddingCustomer(false);
+                setNewCustomer(null);
+              }}
+            >
+              Ekle
+            </button>
+            <button type="button" onClick={() => setAddingCustomer(false)}>
+              Vazgeç
+            </button>
+          </div>
+        ) : (
+          <div style={{ flex: "1 1 200px" }}>
+            <label style={labelStyle}>Müşteri</label>
+            <select
+              value={customerId}
+              onChange={(e) => {
+                if (e.target.value === "__new__") setAddingCustomer(true);
+                else setCustomerId(e.target.value);
+              }}
+              disabled={!!initial?.consentSignedAt}
+              style={{ width: "100%" }}
+            >
+              <option value="">Seçin</option>
+              {onQuickAddCustomer && <option value="__new__">+ Yeni müşteri</option>}
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div style={{ flex: "1 1 180px" }}>
           <label style={labelStyle}>Tarih ve saat</label>
           <input
@@ -164,12 +243,13 @@ function ShowingForm({ initial, customers, onSave, onCancel }) {
         </button>
         <button
           type="button"
-          disabled={!customerId || !shownAt || saving}
+          disabled={!customerId || !shownAt || saving || (properties && !propertyId)}
           onClick={async () => {
             setSaving(true);
             const ok = await onSave({
               id: initial?.id || uid(),
               customerId,
+              ...(properties ? { propertyId } : {}),
               shownAt: new Date(shownAt).toISOString(),
               method,
               interest,
@@ -356,6 +436,7 @@ export function PropertyShowings({
   onUploadWetSigned,
   onDeleteWetSigned,
   onDownloadAttachment,
+  onQuickAddCustomer,
   notify,
 }) {
   const [editing, setEditing] = useState(null);
@@ -482,6 +563,7 @@ export function PropertyShowings({
       {editing && !editing.id ? (
         <ShowingForm
           customers={customers.filter((c) => c.id !== property.ownerCustomerId)}
+          onQuickAddCustomer={onQuickAddCustomer}
           onSave={(v) => onSave({ ...v, propertyId: property.id })}
           onCancel={() => setEditing(null)}
         />
@@ -572,24 +654,86 @@ export function PropertyShowings({
 }
 
 // Müşteri kartındaki salt-okur liste - müşteriye gösterilen mülkler.
-export function CustomerShowings({ customerId, showings, properties, onOpenPortfolio }) {
+// Müşteri kartı: gösterilen mülkler + buradan gösterim ekleme ve belgeyi yazdırma
+// (eskiden gösterim sadece portföyün düzenleme penceresinin en altından eklenebiliyordu).
+export function CustomerShowings({
+  customer,
+  customerId,
+  showings,
+  properties,
+  candidates,
+  companySettings,
+  currentUserName = "",
+  onSave,
+  onOpenPortfolio,
+  notify,
+}) {
+  const [adding, setAdding] = useState(false);
   const propertyById = new Map(properties.map((p) => [p.id, p]));
   const list = showings
     .filter((s) => s.customerId === customerId)
     .sort((a, b) => new Date(b.shownAt) - new Date(a.shownAt));
-  if (list.length === 0) return null;
+  const canAdd = !!onSave && candidates?.length > 0;
+  if (list.length === 0 && !canAdd) return null;
+  const builtInDoc = companySettings?.realEstateSettings?.builtInShowingDoc === true;
+  const print = (s) => {
+    const property = propertyById.get(s.propertyId);
+    if (!property) return;
+    const ok = printShowingDocument({
+      text:
+        (s.consentSignedAt && s.consentText) ||
+        buildShowingDocumentText({
+          company: companySettings,
+          realEstateSettings: companySettings?.realEstateSettings,
+          property,
+          customer: customer || { name: "-" },
+          showing: s,
+          agentName: currentUserName,
+        }),
+      signed: s.consentSignedAt
+        ? { name: s.consentSignerName, at: s.consentSignedAt, ip: s.consentIp }
+        : null,
+      logoUrl: companySettings?.logoUrl,
+    });
+    if (!ok)
+      notify?.("Yazdırma penceresi açılamadı - tarayıcının açılır pencere engelini kaldırın.");
+  };
   return (
     <div style={{ marginBottom: 16 }}>
-      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>Gösterilen mülkler</p>
+      <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>
+        Gösterilen mülkler{list.length ? ` (${list.length})` : ""}
+      </p>
       {list.map((s) => (
-        <div key={s.id} onClick={onOpenPortfolio} style={{ cursor: "pointer" }}>
-          <ShowingRow
-            title={propertyById.get(s.propertyId)?.title || "Silinmiş portföy"}
-            subtitle={`${new Date(s.shownAt).toLocaleDateString("tr-TR")} · ${s.method === "elektronik" ? "Elektronik" : "Yerinde"}`}
-            showing={s}
-          />
-        </div>
+        <ShowingRow
+          key={s.id}
+          title={propertyById.get(s.propertyId)?.title || "Silinmiş portföy"}
+          subtitle={`${new Date(s.shownAt).toLocaleDateString("tr-TR")} · ${s.method === "elektronik" ? "Elektronik" : "Yerinde"}`}
+          showing={s}
+          onPrint={builtInDoc || s.consentSignedAt ? () => print(s) : null}
+        />
       ))}
+      {adding ? (
+        <ShowingForm
+          fixedCustomerId={customerId}
+          properties={candidates}
+          onSave={async (v) => {
+            const ok = await onSave(v);
+            if (ok && builtInDoc)
+              notify?.(
+                "Gösterim kaydedildi - yer gösterme belgesini aşağıdan yazdırabilirsiniz.",
+                "success",
+              );
+            return ok;
+          }}
+          onCancel={() => setAdding(false)}
+        />
+      ) : (
+        canAdd && (
+          <button type="button" onClick={() => setAdding(true)} style={{ fontSize: 12.5 }}>
+            + Gösterim ekle
+          </button>
+        )
+      )}
     </div>
   );
 }

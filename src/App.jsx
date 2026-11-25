@@ -7743,6 +7743,8 @@ export default function App() {
           onSaveBuyerListings={saveBuyerListings}
           onDeleteBuyerListing={deleteBuyerListing}
           agentName={session.user.user_metadata?.full_name || ""}
+          onSaveShowing={saveShowing}
+          notify={notify}
           onStartSharedDeal={(listing, fee) => {
             // Önceki yarım "yeni teklif" taslağı ön doldurmayı ezmesin.
             discardFormDraft(`deal_new_${activeTeamId}`);
