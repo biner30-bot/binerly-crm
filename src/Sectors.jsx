@@ -842,6 +842,25 @@ export function isIndividualFocusedSector(sector) {
 // tipi asıl kayıt, "teklif" veya "randevu" değil), geri kalanında tekliftir.
 // Bireysel müşteri görünümü TEK BAŞINA "randevu"ya çevirmez — örn. Emlak'ta
 // bireysel bir alıcıya sunulan şey de yine bir tekliftir.
+// Uygulama başlığındaki alt satır. "KOBİ" kelimesi emlak danışmanı, klinik ya
+// da spor salonu sahibine yabancı geliyor - kullanıcı kendi işinin diliyle
+// görsün. Müşteri sekmesi her sektörde "Müşteriler" olduğu için burada da
+// müşteri denir (hasta/üye değil).
+const APP_TAGLINES = {
+  emlak: "Portföy, müşteri ve piyasa takibi",
+  dijital_ajans: "Teklif, proje ve müşteri takibi",
+  hizmet_danismanlik: "Teklif, proje ve müşteri takibi",
+  saglik_klinik: "Randevu ve müşteri takibi",
+  guzellik_bakim: "Randevu ve müşteri takibi",
+  uretim_satis: "Sipariş, teklif ve müşteri takibi",
+  perakende: "Satış, stok ve müşteri takibi",
+  spor_merkezi: "Üyelik, ders ve müşteri takibi",
+  egitim_kurs: "Kurs kaydı, ders ve müşteri takibi",
+  otel: "Rezervasyon ve misafir takibi",
+  sanayi_esnaf: "İş, teklif ve tahsilat takibi",
+};
+export const appTagline = (sector) => APP_TAGLINES[sector] || "Müşteri ve satış takibi";
+
 export function dealWordKind(sector) {
   if (sector === "spor_merkezi") return "uyelik";
   if (isAppointmentSector(sector)) return "randevu";

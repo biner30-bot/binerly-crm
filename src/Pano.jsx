@@ -65,6 +65,7 @@ function buildOrderCheckInMessage(customer, typicalInterval, daysSinceLast, comp
   return `Merhaba ${firstName}, genelde ${typicalInterval} günde bir sipariş verirdiniz, ${daysSinceLast} gündür sizden yeni bir sipariş almadık. ${firma}her şey yolunda mı diye sormak istedik, ihtiyacınız varsa buradayız.`;
 }
 export default function Pano({
+  properties = [],
   customers,
   deals,
   tickets,
@@ -281,19 +282,27 @@ export default function Pano({
                 setShowCustomerForm(true);
               },
             },
-            {
-              label: `İlk ${DEAL_WORD_FORMS[dealWordKind(companySettings?.sector)].possYoursAcc} oluşturun`,
-              done: deals.length > 0,
-              onGo: () => {
-                if (customers.length > 0) {
-                  setTab("firsat");
-                  setShowDealForm(true);
-                } else {
-                  setTab("musteri");
-                  setShowCustomerForm(true);
+            // Emlakta işin başlangıcı teklif değil portföy - danışman önce mülkü
+            // (yetkisiyle) girer, teklif sonradan o portföy üzerinden gelir.
+            companySettings?.sector === "emlak"
+              ? {
+                  label: "İlk portföyünüzü ekleyin",
+                  done: properties.length > 0,
+                  onGo: () => setTab("portfoy"),
                 }
-              },
-            },
+              : {
+                  label: `İlk ${DEAL_WORD_FORMS[dealWordKind(companySettings?.sector)].possYoursAcc} oluşturun`,
+                  done: deals.length > 0,
+                  onGo: () => {
+                    if (customers.length > 0) {
+                      setTab("firsat");
+                      setShowDealForm(true);
+                    } else {
+                      setTab("musteri");
+                      setShowCustomerForm(true);
+                    }
+                  },
+                },
           ];
           const doneCount = steps.filter((s) => s.done).length;
           const allDone = doneCount === steps.length;

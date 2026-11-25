@@ -63,6 +63,7 @@ import {
   sectorCustomerTags,
   sectorDealTags,
   appointmentPrepNoteExample,
+  appTagline,
 } from "./Sectors";
 
 // Beklenen Gelir tahmini için basit, sabit olasılık ağırlıkları — kullanıcı
@@ -5826,7 +5827,7 @@ export default function App() {
               </>
             )}
           </div>
-          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>KOBİ satış takip sistemi</p>
+          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>{appTagline(companySettings?.sector)}</p>
           </div>
         </div>
 
@@ -5984,7 +5985,7 @@ export default function App() {
           );
         })}
 
-      <h2 className="sr-only">KOBİ satış takip uygulaması: pano, müşteriler ve iş takibi sekmeleri</h2>
+      <h2 className="sr-only">{appTagline(companySettings?.sector)}: uygulama sekmeleri</h2>
 
       <div style={{ display: "flex", gap: 32, alignItems: "flex-start", maxWidth: 1300 }}>
       {sidebarOpen && <div className="app-sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
@@ -6082,6 +6083,7 @@ export default function App() {
 
       {tab === "pano" && (
         <Pano
+          properties={properties}
           customers={customers}
           deals={deals}
           tickets={tickets}
