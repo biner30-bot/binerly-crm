@@ -303,6 +303,20 @@ function PlaceSearch({ bias, district, city, onPick }) {
                   fontSize: 12.5,
                 }}
               >
+                {it.kind && (
+                  <span
+                    style={{
+                      fontSize: 10.5,
+                      padding: "1px 6px",
+                      marginRight: 6,
+                      borderRadius: 4,
+                      border: "0.5px solid var(--border)",
+                      color: "var(--text-secondary)",
+                    }}
+                  >
+                    {it.kind}
+                  </span>
+                )}
                 <span style={{ fontWeight: 600 }}>{it.title}</span>
                 {it.subtitle && (
                   <span style={{ color: "var(--text-muted)" }}> - {it.subtitle}</span>

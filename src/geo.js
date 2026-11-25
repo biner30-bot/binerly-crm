@@ -78,6 +78,48 @@ export async function geocodeArea({ street, neighborhood, district, city }) {
 const TURKEY_BBOX = "25.6,35.8,44.9,42.2";
 const PHOTON_ZOOM = { house: 18, street: 17, district: 15, locality: 15, city: 13, county: 12 };
 
+// Öneride tür etiketi: "Peynir Ofisi" ararken "Petrol Ofisi" çıkınca "Akaryakıt"
+// yazması danışmanın yanlış yeri seçmesini önler (OSM'de küçük dükkânlar eksik).
+const OSM_VALUE_LABELS = {
+  apartments: "Apartman",
+  residential: "Konut / site",
+  house: "Ev",
+  commercial: "İş merkezi",
+  supermarket: "Market",
+  convenience: "Market",
+  mall: "AVM",
+  bakery: "Fırın",
+  butcher: "Kasap",
+  greengrocer: "Manav",
+  pharmacy: "Eczane",
+  fuel: "Akaryakıt",
+  school: "Okul",
+  kindergarten: "Anaokulu",
+  university: "Üniversite",
+  place_of_worship: "Cami / ibadethane",
+  mosque: "Cami",
+  hospital: "Hastane",
+  clinic: "Sağlık merkezi",
+  doctors: "Sağlık merkezi",
+  bank: "Banka",
+  restaurant: "Restoran",
+  cafe: "Kafe",
+  park: "Park",
+  bus_station: "Otogar",
+  station: "İstasyon",
+  marketplace: "Pazar yeri",
+  townhall: "Belediye / muhtarlık",
+};
+function placeKindLabel(p) {
+  if (p.osm_key === "highway") return "Sokak / cadde";
+  if (p.type === "district" || p.type === "locality") return "Mahalle";
+  if (p.type === "city" || p.type === "county") return "İlçe / şehir";
+  if (OSM_VALUE_LABELS[p.osm_value]) return OSM_VALUE_LABELS[p.osm_value];
+  if (p.osm_key === "shop") return "Dükkân";
+  if (p.osm_key === "building") return "Bina";
+  return null;
+}
+
 export async function suggestPlaces(text, { bias, district, city } = {}) {
   const q = normalizeStreet(text);
   if (q.length < 3) return [];
@@ -110,6 +152,7 @@ export async function suggestPlaces(text, { bias, district, city } = {}) {
     }
   }
   const lc = (v) => String(v || "").toLocaleLowerCase("tr");
+  const streetQuery = /\b(Sokak|Caddesi|Bulvarı)\b/u.test(q);
   const seen = new Set();
   return features
     .filter((f) => f.properties?.countrycode === "TR")
@@ -117,16 +160,24 @@ export async function suggestPlaces(text, { bias, district, city } = {}) {
       const p = f.properties;
       const isMahalle = p.type === "district" || p.type === "locality";
       const title = isMahalle && !/mahalle/i.test(p.name || "") ? `${p.name} Mahallesi` : p.name;
-      const mahalle = !isMahalle && p.district ? `${p.district} Mah.` : null;
+      const mahalle =
+        !isMahalle && p.district
+          ? /mah/iu.test(p.district)
+            ? p.district
+            : `${p.district} Mah.`
+          : null;
       const subtitle = [p.street && p.street !== p.name ? p.street : null, mahalle, p.city, p.state]
         .filter((x, i, a) => x && a.indexOf(x) === i)
         .join(", ");
       const [lng, lat] = f.geometry.coordinates;
       // Formda seçili ilçe/il önce gelsin (aynı adlı mahalle başka ilçelerde de var).
+      // "1700 sk" yazana önce sokağın kendisi (yoksa sokaktaki eczane öne geçiyordu).
       const rank =
-        (district && lc(p.city) === lc(district) ? 0 : 2) +
-        (city && lc(p.state) === lc(city) ? 0 : 1);
-      return { title, subtitle, lat, lng, zoom: PHOTON_ZOOM[p.type] || 17, rank };
+        (district && lc(p.city) === lc(district) ? 0 : 4) +
+        (city && lc(p.state) === lc(city) ? 0 : 2) +
+        (streetQuery && p.osm_key !== "highway" ? 1 : 0);
+      const kind = placeKindLabel(p);
+      return { title, subtitle, kind, lat, lng, zoom: PHOTON_ZOOM[p.type] || 17, rank };
     })
     .filter((s) => {
       const k = `${s.title}|${s.subtitle}`;
