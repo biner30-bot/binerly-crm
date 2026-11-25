@@ -1322,6 +1322,47 @@ export function PropertyForm({
     details: initial?.details || {},
     checklist: initial?.checklist || {},
   }));
+  // Formun içinden "İlandan aktar": yapıştırılan ilan sayfası sadece BOŞ
+  // alanları doldurur (danışmanın yazdığı ezilmez); işlem türü ilandan gelir.
+  // Ayrı "İlandan aktar" düğmesi formu baştan açtığı için sonradan yapıştırınca
+  // seçilen mal sahibi vb. kayboluyordu.
+  const [listingPasted, setListingPasted] = useState(null);
+  const [showChecklist, setShowChecklist] = useState(false);
+  const applyListingPaste = (text) => {
+    const p = parseListingText(text);
+    if (!p.title && !p.listingRefs?.sahibinden) {
+      setListingPasted({ ok: false });
+      return;
+    }
+    setF((prev) => {
+      const empty = (v) => v === "" || v == null;
+      const pick = (k, v) => (empty(prev[k]) && !empty(v) ? v : prev[k]);
+      const keptDetails = Object.fromEntries(
+        Object.entries(prev.details).filter(([, v]) => !empty(v)),
+      );
+      return {
+        ...prev,
+        transactionType: p.transactionType || prev.transactionType,
+        title: pick("title", p.title),
+        propertyType: pick("propertyType", p.propertyType),
+        price: pick("price", p.price),
+        city: pick("city", p.city),
+        district: pick("district", p.district),
+        neighborhood: pick("neighborhood", p.neighborhood),
+        grossM2: pick("grossM2", p.grossM2),
+        netM2: pick("netM2", p.netM2),
+        roomCount: pick("roomCount", p.roomCount),
+        buildingAge: pick("buildingAge", p.buildingAge),
+        floor: pick("floor", p.floor),
+        totalFloors: pick("totalFloors", p.totalFloors),
+        description: pick("description", p.description),
+        sahibindenNo: pick("sahibindenNo", p.listingRefs?.sahibinden),
+        eidsStatus: prev.eidsStatus === "yok" && p.eidsStatus ? p.eidsStatus : prev.eidsStatus,
+        details: { ...(p.details || {}), ...keptDetails },
+      };
+    });
+    setListingPasted({ ok: true });
+  };
   const [minPrice, setMinPrice] = useState(initialPrivate?.minPrice ?? "");
   const [privateNote, setPrivateNote] = useState(initialPrivate?.privateNote || "");
   const [saving, setSaving] = useState(false);
@@ -1447,6 +1488,37 @@ export function PropertyForm({
         setSaving(false);
       }}
     >
+      {!initial?.id && (
+        <div style={{ marginBottom: 12 }}>
+          <textarea
+            onPaste={(e) => {
+              e.preventDefault();
+              applyListingPaste(e.clipboardData.getData("text"));
+            }}
+            onChange={(e) => e.target.value.length > 200 && applyListingPaste(e.target.value)}
+            placeholder="En hızlısı: Sahibinden'deki ilanınızı açın, Ctrl+A, Ctrl+C yapıp buraya yapıştırın - başlık, fiyat, konum, m², oda, bina bilgileri ve açıklama dolar."
+            style={{
+              width: "100%",
+              minHeight: 48,
+              fontSize: 12.5,
+              border: "1px dashed var(--fill-accent)",
+            }}
+          />
+          {listingPasted && (
+            <p
+              style={{
+                margin: "3px 0 0",
+                fontSize: 12,
+                color: listingPasted.ok ? "var(--text-success)" : "var(--text-warning)",
+              }}
+            >
+              {listingPasted.ok
+                ? "İlan okundu, boş alanlar dolduruldu. Mal sahibini seçip kaydedin - gerisini sonra tamamlayabilirsiniz."
+                : "İlan okunamadı - ilan SAYFASINI (detay) yapıştırdığınızdan emin olun."}
+            </p>
+          )}
+        </div>
+      )}
       <div style={{ marginBottom: 12 }}>
         <label style={labelStyle}>İşlem türü</label>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -1822,49 +1894,71 @@ export function PropertyForm({
         </p>
       )}
 
-      <p style={sectionTitleStyle}>
+      {/* 12+ onay kutusu formu uzatıyordu; ilerleme başlıkta görünür, liste katlı. */}
+      <button
+        type="button"
+        onClick={() => setShowChecklist((v) => !v)}
+        aria-expanded={showChecklist}
+        style={{
+          ...sectionTitleStyle,
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          background: "none",
+          border: "none",
+          padding: 0,
+          cursor: "pointer",
+          textAlign: "left",
+        }}
+      >
+        <i
+          className={`ti ${showChecklist ? "ti-chevron-down" : "ti-chevron-right"}`}
+          aria-hidden="true"
+        />
         Portföy alım kontrol listesi ({checklistDone}/{checklistItems.length})
-      </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
-        {checklistItems.map((item) => {
-          const done = isChecklistItemDone(item, checklistSubject, photoCount);
-          const doneAt = !item.auto && f.checklist[item.key];
-          return (
-            <label
-              key={item.key}
-              style={{
-                fontSize: 13,
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                color: item.auto ? "var(--text-secondary)" : undefined,
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={done}
-                disabled={!!item.auto}
-                onChange={(e) =>
-                  setF((prev) => {
-                    const next = { ...prev.checklist };
-                    if (e.target.checked) next[item.key] = istanbulToday();
-                    else delete next[item.key];
-                    return { ...prev, checklist: next };
-                  })
-                }
-              />
-              <span style={{ flex: 1 }}>{item.label}</span>
-              {item.auto ? (
-                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>otomatik</span>
-              ) : doneAt ? (
-                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                  {new Date(`${doneAt}T00:00:00`).toLocaleDateString("tr-TR")}
-                </span>
-              ) : null}
-            </label>
-          );
-        })}
-      </div>
+      </button>
+      {showChecklist && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+          {checklistItems.map((item) => {
+            const done = isChecklistItemDone(item, checklistSubject, photoCount);
+            const doneAt = !item.auto && f.checklist[item.key];
+            return (
+              <label
+                key={item.key}
+                style={{
+                  fontSize: 13,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  color: item.auto ? "var(--text-secondary)" : undefined,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={done}
+                  disabled={!!item.auto}
+                  onChange={(e) =>
+                    setF((prev) => {
+                      const next = { ...prev.checklist };
+                      if (e.target.checked) next[item.key] = istanbulToday();
+                      else delete next[item.key];
+                      return { ...prev, checklist: next };
+                    })
+                  }
+                />
+                <span style={{ flex: 1 }}>{item.label}</span>
+                {item.auto ? (
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>otomatik</span>
+                ) : doneAt ? (
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                    {new Date(`${doneAt}T00:00:00`).toLocaleDateString("tr-TR")}
+                  </span>
+                ) : null}
+              </label>
+            );
+          })}
+        </div>
+      )}
 
       {CLOSING_STATUSES.includes(f.status) && (
         <>
