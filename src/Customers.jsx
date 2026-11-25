@@ -525,11 +525,9 @@ export function CustomerForm({
             }}
           >
             E-posta{" "}
-            {!isEmlak && (
-              <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text-warning)" }}>
-                (önemli)
-              </span>
-            )}{" "}
+            <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text-warning)" }}>
+              (önemli)
+            </span>{" "}
             <InfoTip align="right" text={CUSTOMER_EMAIL_INFO_TEXT} />
           </label>
           <input
