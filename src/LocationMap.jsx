@@ -14,7 +14,7 @@ const pinIcon = L.divIcon({
 
 const TURKEY = { lat: 39, lng: 35 };
 
-export default function LocationMap({ location, center, onChange, height = 280 }) {
+export default function LocationMap({ location, center, focus, onChange, height = 280 }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
@@ -67,6 +67,11 @@ export default function LocationMap({ location, center, onChange, height = 280 }
     if (center && !isValidLocation(location) && mapRef.current)
       mapRef.current.setView([center.lat, center.lng], center.zoom || 15);
   }, [center?.lat, center?.lng, center?.zoom]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Elle yapılan arama: iğne olsa da haritayı oraya götürür (iğneyi taşımaz).
+  useEffect(() => {
+    if (focus && mapRef.current) mapRef.current.setView([focus.lat, focus.lng], focus.zoom || 18);
+  }, [focus]);
 
   return (
     <div

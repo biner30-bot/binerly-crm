@@ -8,6 +8,7 @@ import {
   isValidLocation,
   mapsUrl,
   parseCoordinates,
+  geocodePlace,
   renderMapImage,
   streetViewUrl,
 } from "./geo";
@@ -186,6 +187,22 @@ function AddressSection({ s, setS, hasPropertyPhoto, notify }) {
   const setA = (k) => (e) =>
     setS((p) => ({ ...p, address: { ...(p.address || {}), [k]: e.target.value } }));
   const [center, setCenter] = useState(null);
+  const [focus, setFocus] = useState(null);
+  const [placeQuery, setPlaceQuery] = useState("");
+  const [searchingPlace, setSearchingPlace] = useState(false);
+  const searchPlace = async () => {
+    if (!placeQuery.trim()) return;
+    setSearchingPlace(true);
+    const hit = await geocodePlace(placeQuery, { district: s.district, city: s.city });
+    setSearchingPlace(false);
+    if (!hit) {
+      notify(
+        'Bulunamadı - sokak adını "518. Sokak" gibi ya da yakındaki okul/cami/site adını deneyin.',
+      );
+      return;
+    }
+    setFocus({ ...hit, at: Date.now() });
+  };
   const [coordText, setCoordText] = useState("");
   const applyCoords = () => {
     const c = parseCoordinates(coordText);
@@ -310,6 +327,29 @@ function AddressSection({ s, setS, hasPropertyPhoto, notify }) {
       </div>
       {showMap && (
         <div style={{ marginTop: 8 }}>
+          <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+            <input
+              value={placeQuery}
+              onChange={(e) => setPlaceQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  searchPlace();
+                }
+              }}
+              placeholder="Haritada ara: sokak, site, okul, cami... (ör. 518 sk)"
+              style={{ flex: 1, fontSize: 12.5 }}
+            />
+            <button
+              type="button"
+              style={{ fontSize: 12.5 }}
+              disabled={!placeQuery.trim() || searchingPlace}
+              onClick={searchPlace}
+            >
+              <i className="ti ti-search" aria-hidden="true" />{" "}
+              {searchingPlace ? "Aranıyor…" : "Bul"}
+            </button>
+          </div>
           <Suspense
             fallback={
               <div style={{ height: 280, fontSize: 12, color: "var(--text-muted)" }}>
@@ -320,12 +360,13 @@ function AddressSection({ s, setS, hasPropertyPhoto, notify }) {
             <LocationMap
               location={s.location}
               center={center}
+              focus={focus}
               onChange={(loc) => setS((p) => ({ ...p, location: loc }))}
             />
           </Suspense>
           <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "4px 0 0" }}>
-            Harita OpenStreetMap. Haritayı konumlamak için dış servise sokak, mahalle, ilçe ve il
-            gönderilir; bina ve daire numarası gönderilmez.
+            Harita OpenStreetMap. Haritayı konumlamak için dış servise sokak, mahalle, ilçe, il ve
+            arama kutusuna yazdığınız gönderilir; bina ve daire numarası gönderilmez.
           </p>
         </div>
       )}
@@ -1300,10 +1341,18 @@ export function AutoValuation({
     valuation ? resultKeyOf(valuation.result) : null,
   );
   const dirty = JSON.stringify(s) !== JSON.stringify(baseline);
-  const { persist } = draftStore;
+  const { persist, clear: clearDraft } = draftStore;
+  // Yeni (kaydı olmayan) analiz veritabanına bir kez yazıldıysa ortak "yeni
+  // analiz" taslağı silinir ve bir daha yazılmaz: aksi halde her "Yeni analiz"
+  // bir öncekinin bilgileriyle açılıyor, düzenlenince otomatik kayıt onu yeni
+  // bir taslak analiz olarak çoğaltıyordu. Kayıtlı analiz zaten kendiliğinden kaydediliyor.
+  // Kayıttan sonra üst bileşen valuation'ı doldurur ama taslak anahtarı açılıştaki kalır.
+  const openedAsNew = useRef(!valuation).current;
+  const savedFreeAnalysis = openedAsNew && !!valuationId;
   useEffect(() => {
-    persist({ subject: s, baseline }, dirty);
-  }, [s, baseline, dirty, persist]);
+    if (savedFreeAnalysis) clearDraft();
+    else persist({ subject: s, baseline }, dirty);
+  }, [s, baseline, dirty, persist, clearDraft, savedFreeAnalysis]);
   const [savingSubject, setSavingSubject] = useState(false);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [showFactors, setShowFactors] = useState(false);
@@ -1464,6 +1513,9 @@ export function AutoValuation({
     inFlightRef.current = null;
     if (!auto) setSavingValuation(false);
     if (!saved) return null;
+    // Burada hemen silinmeli: Piyasa Analizi sekmesi kayıttan sonra bileşeni
+    // kayıtlı analiz olarak yeniden kuruyor, effect'teki silme hiç çalışmıyordu.
+    if (openedAsNew) clearDraft();
     valuationIdRef.current = saved.id;
     setValuationId(saved.id);
     setValuationStatus(saved.status);

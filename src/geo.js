@@ -41,17 +41,45 @@ async function nominatim(q) {
   }
 }
 
+// "518 sk", "518. Sok." -> "518. Sokak" (OSM'deki yazım); "Cad."/"Blv." benzer.
+export function normalizeStreet(raw) {
+  return String(raw || "")
+    .trim()
+    .replace(/(?<![\p{L}\d])(\d+)\s*\.?\s*(sokağı|sokak|sok|sk)(?!\p{L})\.?/giu, "$1. Sokak")
+    .replace(/(?<!\p{L})(caddesi|cadde|cad|cd)(?!\p{L})\.?/giu, "Caddesi")
+    .replace(/(?<!\p{L})(bulvarı|bulvar|bulv|blv)(?!\p{L})\.?/giu, "Bulvarı")
+    .replace(/\s+/g, " ");
+}
+
+// OSM'deki mahalle sınırları tapudakinden farklı olabiliyor (ör. tapuda Sakarya,
+// OSM'de Beyazevler): mahalleyle birlikte aranan sokak hiç bulunmuyor, harita
+// yerinden kıpırdamıyordu. Önce tam, sonra mahallesiz, en son alan düzeyinde.
 export async function geocodeArea({ street, neighborhood, district, city }) {
   if (!district && !neighborhood) return null;
-  const area = [neighborhood && `${neighborhood} Mahallesi`, district, city, "Türkiye"]
-    .filter(Boolean)
-    .join(", ");
-  if (street && street.trim()) {
-    const hit = await nominatim(`${street.trim()}, ${area}`);
+  const join = (...parts) => [...parts, "Türkiye"].filter(Boolean).join(", ");
+  const mah = neighborhood && `${neighborhood} Mahallesi`;
+  const st = normalizeStreet(street);
+  if (st) {
+    const hit =
+      (await nominatim(join(st, mah, district, city))) ||
+      (district && (await nominatim(join(st, district, city))));
     if (hit) return { ...hit, zoom: 17 };
   }
-  const hit = await nominatim(area);
-  return hit ? { ...hit, zoom: neighborhood ? 15 : 13 } : null;
+  const hit =
+    (mah && (await nominatim(join(mah, district, city)))) ||
+    (district && (await nominatim(join(district, city))));
+  return hit ? { ...hit, zoom: mah ? 15 : 13 } : null;
+}
+
+// Haritadaki serbest arama (sokak, site, okul, cami...). Önce ilçe içinde arar.
+export async function geocodePlace(text, { district, city } = {}) {
+  const q = normalizeStreet(text);
+  if (!q) return null;
+  const hit =
+    ((district || city) &&
+      (await nominatim([q, district, city, "Türkiye"].filter(Boolean).join(", ")))) ||
+    (await nominatim(q));
+  return hit ? { ...hit, zoom: 18 } : null;
 }
 
 // Rapor için harita görüntüsü. Karolar rapor penceresinden değil uygulama
