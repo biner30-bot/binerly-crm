@@ -272,7 +272,7 @@ function AddressSection({ s, setS, hasPropertyPhoto, notify }) {
         >
           Konuma git
         </button>
-        <InfoTip text="TKGM Parsel Sorgu'da il/ilçe/mahalle/ada/parsel girip parseli bulun; parsele tıklayınca çıkan koordinatı (ya da Google Haritalar'da binaya sağ tıklayınca çıkan koordinatı) buraya yapıştırın - iğne tam oraya konur. Binerly Parsel Sorgu'ya kendisi bağlanmaz." />
+        <InfoTip text="Tam konum için: Parsel Sorgu'da il/ilçe/mahalle/ada/parsel ile hangi bina olduğunu görün, sonra aynı binayı Google Haritalar'da bulup çatısına sağ tıklayın (telefonda basılı tutun) - en üstte çıkan koordinata tıklayınca kopyalanır, buraya yapıştırın. Parsel Sorgu'nun araç çubuğundaki koordinat yaklaşıktır (~10 m). Koordinat yerine aşağıdaki haritada binaya tıklayıp iğneyi sürükleyebilirsiniz de." />
       </div>
       <div
         style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: 12.5 }}

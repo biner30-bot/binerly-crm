@@ -134,9 +134,10 @@ export function parseCoordinates(raw) {
     return validLatLng(toDec(dms[0]), toDec(dms[1]));
   }
   // Önce Türkçe "38,4664 27,0880" (virgül ondalık, aralarında boşluk/noktalı virgül)
-  const tr = t.match(/^(-?\d{1,2},\d+)\s*[;\s]\s*(-?\d{1,3},\d+)$/);
+  // ":" TKGM Parsel Sorgu araç çubuğunun biçimi ("38.3400 : 27.1404").
+  const tr = t.match(/^(-?\d{1,2},\d+)\s*[;:\s]\s*(-?\d{1,3},\d+)$/);
   if (tr) return validLatLng(Number(tr[1].replace(",", ".")), Number(tr[2].replace(",", ".")));
-  const dec = t.match(/(-?\d{1,2}\.\d+)\s*[,;\s]\s*(-?\d{1,3}\.\d+)/);
+  const dec = t.match(/(-?\d{1,2}\.\d+)\s*[,;:\s]\s*(-?\d{1,3}\.\d+)/);
   if (dec) return validLatLng(Number(dec[1]), Number(dec[2]));
   return null;
 }
