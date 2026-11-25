@@ -79,6 +79,15 @@ const PORTAL_DEAL_WORDS = {
     tabLabel: "Rezervasyonlarım",
     plural: "rezervasyonlar",
   },
+  // Sadece portal içi: emlakta müşterinin gördüğü kayıtlar satış/kiralama
+  // işlemleri, "teklif" sanki müşteri bir fiyat teklifi almış gibi okunuyordu.
+  // Uygulama geneli dealWordKind'a eklenmedi (oradaki sözlükleri etkilemesin).
+  islem: {
+    emptyList: "Henüz bir işleminiz yok.",
+    possAcc: "işlemlerinizi",
+    tabLabel: "İşlemlerim",
+    plural: "işlemler",
+  },
 };
 // "Gelecek/geçmiş" filtresi randevu ve rezervasyon (Otel) için anlamlı — ikisi
 // de somut bir tarih/saat taşıyor (portal_randevu_zamani); teklif/üyelikte
@@ -343,12 +352,26 @@ function SectorWatermark({ sector }) {
 }
 
 function CustomerPortalLanding({ onEnter, entryCompany }) {
-  const features = [
-    { icon: "ti-list-check", text: "Teklif, randevu, üyelik veya rezervasyon durumunuzu görün" },
-    { icon: "ti-message-circle", text: "İşletmeyle mesajlaşın, destek talebi açın" },
-    { icon: "ti-calendar-plus", text: "Uygun işletmelerde kendi randevunuzu alın veya iptal edin" },
-    { icon: "ti-bell", text: "Yeni gelişmelerde anında bildirim alın" },
-  ];
+  const isEmlak = entryCompany?.sector === "emlak";
+  const features = isEmlak
+    ? [
+        { icon: "ti-home", text: "Mülklerinizi ve size uygun evleri görün" },
+        { icon: "ti-list-check", text: "Gezdiğiniz evleri ve işlemlerinizi takip edin" },
+        { icon: "ti-message-circle", text: "Danışmanınızla mesajlaşın" },
+        { icon: "ti-bell", text: "Yeni gelişmelerde anında bildirim alın" },
+      ]
+    : [
+        {
+          icon: "ti-list-check",
+          text: "Teklif, randevu, üyelik veya rezervasyon durumunuzu görün",
+        },
+        { icon: "ti-message-circle", text: "İşletmeyle mesajlaşın, destek talebi açın" },
+        {
+          icon: "ti-calendar-plus",
+          text: "Uygun işletmelerde kendi randevunuzu alın veya iptal edin",
+        },
+        { icon: "ti-bell", text: "Yeni gelişmelerde anında bildirim alın" },
+      ];
   return (
     <div
       style={{
@@ -393,7 +416,9 @@ function CustomerPortalLanding({ onEnter, entryCompany }) {
           </h1>
           <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6, margin: 0 }}>
             {entryCompany?.name
-              ? `${entryCompany.name} ile ilgili teklif, randevu ve mesajlarınızı tek yerden takip edin.`
+              ? isEmlak
+                ? `${entryCompany.name} ile mülklerinizi, gezdiğiniz evleri ve mesajlarınızı tek yerden takip edin.`
+                : `${entryCompany.name} ile ilgili teklif, randevu ve mesajlarınızı tek yerden takip edin.`
               : "Hizmet aldığınız işletmeyle ilgili her şeyi tek yerden takip edin."}
           </p>
         </div>
@@ -4744,7 +4769,7 @@ export default function CustomerPortal() {
   );
   const totalUnreadTickets = visibleTickets.filter((t) => unreadCountByTicket[t.id] > 0).length;
 
-  const dealKind = dealWordKind(activeCustomerRow?.companySector);
+  const dealKind = isEmlakPortal ? "islem" : dealWordKind(activeCustomerRow?.companySector);
   const appointmentCompanies =
     activeCustomerRow && publicSelfBooking(activeCustomerRow.companySector)
       ? [activeCustomerRow]
@@ -4965,7 +4990,7 @@ export default function CustomerPortal() {
                   { id: "mesajlar", label: "Mesajlar", icon: "ti-message-circle" },
                   {
                     id: "teklifler",
-                    label: isEmlakPortal ? "İşlemlerim" : PORTAL_DEAL_WORDS[dealKind].tabLabel,
+                    label: PORTAL_DEAL_WORDS[dealKind].tabLabel,
                     icon: "ti-file-text",
                   },
                   ...(showDersler
@@ -5145,10 +5170,12 @@ export default function CustomerPortal() {
                             color: "var(--text-primary)",
                           }}
                         >
-                          {isEmlakPortal ? "İşlemlerim" : PORTAL_DEAL_WORDS[dealKind].tabLabel}
+                          {PORTAL_DEAL_WORDS[dealKind].tabLabel}
                         </h2>
                         <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
-                          {`Yaklaşan ve geçmiş ${PORTAL_DEAL_WORDS[dealKind].plural} buradan yönetebilirsiniz.`}
+                          {isEmlakPortal
+                            ? "Danışmanınızla yürüttüğünüz satış ve kiralama işlemlerinizi buradan takip edebilirsiniz."
+                            : `Yaklaşan ve geçmiş ${PORTAL_DEAL_WORDS[dealKind].plural} buradan yönetebilirsiniz.`}
                         </p>
                       </div>
                       {appointmentCompanies.length > 0 && (
