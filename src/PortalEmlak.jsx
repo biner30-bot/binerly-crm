@@ -205,6 +205,7 @@ export function PortalHomes({ overview, companyName, onSendMessage, onSaveDemand
   const [sent, setSent] = useState({});
   const [openPhoto, setOpenPhoto] = useState({});
   const talep = overview?.talep || {};
+  const foundForMe = overview?.bulunan_evler || [];
   const demand = hasDemand(talep);
   const ranked = useMemo(() => {
     const me = [{ id: "me", phone: "-", customFields: talep }];
@@ -263,6 +264,67 @@ export function PortalHomes({ overview, companyName, onSendMessage, onSaveDemand
             {demand ? "Aradığım evi güncelle" : "Aradığım evi anlat"}
           </button>
         ))}
+      {/* Danışmanın dışarıda (başka emlakçı/ilan sahibi) bulup gönderdiği evler.
+          RPC karşı ofis/telefon/ilan no döndürmez - alıcı danışmanı atlamasın. */}
+      {foundForMe.length > 0 && (
+        <div style={{ marginBottom: 18 }}>
+          <p style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 700 }}>
+            {companyName
+              ? `${companyName} sizin için buldu`
+              : "Danışmanınızın sizin için bulduğu evler"}
+          </p>
+          {foundForMe.map((b) => (
+            <div key={b.id} style={{ ...card, padding: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>{b.title}</div>
+                  <div style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
+                    {[
+                      [b.neighborhood, b.district].filter(Boolean).join(", "),
+                      b.room_count,
+                      b.gross_m2 && `${b.gross_m2} m²`,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>
+                    {b.price ? formatTL(b.price) : "Fiyat için sorun"}
+                    {b.transaction_type === "kiralik" && b.price ? " / ay" : ""}
+                  </div>
+                  {b.status === "gosterildi" && <Badge tone="default">Gezdiniz</Badge>}
+                  {b.status === "begendi" && <Badge tone="success">Beğendiniz</Badge>}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                {sent[b.id] ? (
+                  <Badge tone="success">İletildi - sizi arayacaklar</Badge>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      interested({
+                        id: b.id,
+                        title: b.title,
+                        location: [b.neighborhood, b.district].filter(Boolean).join(", "),
+                        price: b.price,
+                      })
+                    }
+                    style={{
+                      background: "var(--fill-accent)",
+                      color: "var(--on-accent)",
+                      border: "none",
+                    }}
+                  >
+                    {b.status === "gonderildi" ? "Görmek istiyorum" : "İlgileniyorum"}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       {loading ? (
         <p style={{ fontSize: 13, color: "var(--text-muted)" }}>İlanlar yükleniyor…</p>
       ) : visible.length === 0 ? (
