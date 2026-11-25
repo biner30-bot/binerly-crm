@@ -844,7 +844,7 @@ export function ShowcaseManager({
   // kodsuzdur - onu olduğu gibi gösteririz.
   const showSlugCode = !!slugSuffix && (slugDirty || !storedSlug || storedSlugHasCode);
   const bookingKind =
-    bookingModel(companySettings?.sector) === "slot"
+    bookingModel(companySettings?.sector) === "slot" && companySettings?.sector !== "emlak"
       ? { label: "Randevu linki", path: "randevu-al" }
       : { label: "Müşteri kazanma linki", path: "lead" };
 

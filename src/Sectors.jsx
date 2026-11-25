@@ -715,6 +715,14 @@ export function supportsSelfBooking(sector) {
 // ARALIĞINA ve oda tipi STOKUNA göre hesaplanır ("inventory" modeli). Bu ayrım
 // olmadan Otel'de slot mantığı zorlanırsa, odalar boş olsa bile ikinci bir
 // rezervasyon "çakışma" sayılıp yanlışlıkla engellenir.
+// Müşterinin kendisinin saat seçip randevu aldığı public akış (Randevu Alma
+// Linki, portal "Yeni Randevu"). Emlakta randevu telefonla gün/saat konuşularak
+// ayarlanır (kullanıcı kararı) - danışmanın kendi ajandası (gösterim saatleri)
+// slot modeliyle çalışmaya devam eder, sadece müşteriye açık akış kapalı.
+export function publicSelfBooking(sector) {
+  return supportsSelfBooking(sector) && sector !== "emlak";
+}
+
 export function bookingModel(sector) {
   if (sector === "otel") return "inventory";
   if (supportsSelfBooking(sector)) return "slot";

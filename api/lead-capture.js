@@ -38,9 +38,12 @@ function sectorCtaKind(sector) {
   if (sector === "spor_merkezi") return "uyelik";
   if (sector === "guzellik_bakim" || sector === "saglik_klinik") return "randevu";
   if (sector === "otel") return "rezervasyon";
+  // Emlakta randevu telefonla gün/saat konuşularak ayarlanır (kullanıcı kararı) -
+  // ne "Teklif Al" ne de saat seçilen randevu sayfası uygun.
+  if (sector === "emlak") return "iletisim";
   return "teklif";
 }
-const CTA_LABELS = { randevu: "Randevu Al", teklif: "Teklif Al", rezervasyon: "Rezervasyon Yap", uyelik: "Üye Ol" };
+const CTA_LABELS = { randevu: "Randevu Al", teklif: "Teklif Al", rezervasyon: "Rezervasyon Yap", uyelik: "Üye Ol", iletisim: "Sizi arayalım" };
 
 // vercel.json'daki /vitrin/:token rewrite'ı bu uç noktayı ?render=html ile
 // çağırıyor - Google/paylaşım-önizleme botları JS çalıştırmadan/geç çalıştırıp
@@ -443,7 +446,7 @@ export default async function handler(req, res) {
         priceList,
         campaigns,
         ctaLabel: CTA_LABELS[ctaKind],
-        ctaHref: acceptsAppointments ? `/randevu-al/${token}` : `/lead/${token}`,
+        ctaHref: acceptsAppointments && ctaKind !== "iletisim" ? `/randevu-al/${token}` : `/lead/${token}`,
       };
 
       if (wantsHtml) {

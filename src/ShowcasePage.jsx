@@ -522,7 +522,7 @@ export default function ShowcasePage() {
                 <div style={cardStyle}>
                   <p style={{ fontSize: 13, color: "#5b7088", margin: "0 0 12px" }}>
                     Evinizin bilgilerini girin, {company.companyName} bölgenizdeki güncel ilan
-                    fiyatlarıyla ücretsiz değerleme raporunuzu hazırlasın.
+                    fiyatlarıyla ücretsiz piyasa değeri raporunuzu hazırlasın.
                   </p>
                   <ValuationRequestForm
                     token={token}

@@ -99,8 +99,8 @@ export function ValuationRequestForm({ token, companyName, showRange }) {
           </>
         ) : (
           <p style={{ fontSize: 13, color: "#5b7088", margin: 0 }}>
-            {companyName} bölgenizdeki güncel piyasa verileriyle değerleme raporunuzu hazırlayıp en
-            kısa sürede sizinle iletişime geçecek.
+            {companyName} bölgenizdeki güncel piyasa verileriyle piyasa değeri raporunuzu hazırlayıp
+            en kısa sürede sizinle iletişime geçecek.
           </p>
         )}
       </div>
@@ -208,7 +208,10 @@ export function ValuationRequestForm({ token, companyName, showRange }) {
       </div>
 
       <p style={{ fontSize: 13, fontWeight: 700, color: "#0c2540", margin: "0 0 8px" }}>
-        Raporunuzu kime iletelim?
+        Sizin bilgileriniz
+      </p>
+      <p style={{ fontSize: 12.5, color: "#5b7088", margin: "-4px 0 8px" }}>
+        Raporunuzu {companyName} hazırlayıp size telefonla ulaşacak.
       </p>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
         <input
@@ -257,7 +260,7 @@ export function ValuationRequestForm({ token, companyName, showRange }) {
         Kampanya ve değerlendirme isteği gibi e-postalar almak istiyorum (opsiyonel)
       </label>
       <p style={{ fontSize: 11, color: "#9aa8b8", margin: "0 0 12px" }}>
-        Bilgileriniz {companyName} tarafından değerleme talebinizin yanıtlanması
+        Bilgileriniz {companyName} tarafından talebinizin yanıtlanması
         {marketingConsent ? " ve onayladığınız kampanya e-postaları" : ""} amacıyla saklanır ve
         işlenir. Detaylar için{" "}
         <a href="/kvkk" target="_blank" rel="noopener noreferrer" style={{ color: "#185fa5" }}>
@@ -281,7 +284,7 @@ export function ValuationRequestForm({ token, companyName, showRange }) {
           cursor: ready ? "pointer" : "default",
         }}
       >
-        {sending ? "Gönderiliyor…" : "Değerleme raporumu istiyorum"}
+        {sending ? "Gönderiliyor…" : "Ücretsiz raporumu istiyorum"}
       </button>
       {showRange && (
         <p style={{ fontSize: 11.5, color: "#9aa8b8", textAlign: "center", margin: "8px 0 0" }}>

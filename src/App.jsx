@@ -47,6 +47,7 @@ import {
   isIndividualFocusedSector,
   dealWordKind,
   supportsSelfBooking,
+  publicSelfBooking,
   bookingModel,
   supportsGroupClasses,
   supportsSessionPackages,
@@ -5358,7 +5359,7 @@ export default function App() {
     { label: "Takım", description: isRealEstate ? "Hesabınıza tam erişimli kişiler (ör. asistan) - ofis arkadaşları için Ofis sekmesi" : "Üyeler ve davetler", onOpen: () => setShowTeamModal(true) },
     { label: "Çöp Kutusu ve Geçmiş", description: "Silinen kayıtlar, işlem geçmişi", onOpen: () => setShowTrashHistory(true) },
     { label: "Müşteri Kazanma Linki", description: "Müşteri kendi bilgisini bıraksın, elle girmeyin", onOpen: async () => { const link = await generateLeadCaptureLink(); if (link) setLeadCaptureLink(link); } },
-    ...(supportsSelfBooking(companySettings?.sector) && bookingModel(companySettings?.sector) === "slot"
+    ...(publicSelfBooking(companySettings?.sector) && bookingModel(companySettings?.sector) === "slot"
       ? [{ label: "Randevu Alma Linki", description: appointmentDateTimeKey ? "Müşteri girişsiz kendi randevusunu seçip talep etsin" : "⚠ Şu anda çalışmıyor - açıp düzeltin", onOpen: async () => { const link = await generateLeadCaptureLink("randevu-al"); if (link) setAppointmentLink(link); } }]
       : []),
     { label: "Vitrin Linki", description: vitrinLinkDescription, onOpen: async () => { const link = await generateLeadCaptureLink("vitrin"); if (link) setVitrinLink(link); } },
@@ -6753,7 +6754,7 @@ export default function App() {
                 if (link) setLeadCaptureLink(link);
               }}
             />
-            {supportsSelfBooking(companySettings?.sector) && bookingModel(companySettings?.sector) === "slot" && (
+            {publicSelfBooking(companySettings?.sector) && bookingModel(companySettings?.sector) === "slot" && (
               <MenuRow
                 icon="ti-calendar-event"
                 label="Randevu Alma Linki"

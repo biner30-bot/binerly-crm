@@ -33,6 +33,10 @@ export default function LeadCapturePage() {
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [note, setNote] = useState("");
+  // Emlak: danışman randevuyu telefonla ayarlar - formda saat seçtirilmez, sadece
+  // ne istendiği ve ne zaman aranmak istendiği sorulur (nota eklenir).
+  const [purpose, setPurpose] = useState("");
+  const [callTime, setCallTime] = useState("");
   // Bot tuzağı - ekranda görünmez, gerçek kullanıcı doldurmaz (bkz.
   // api/lead-capture.js HONEYPOT_FIELD).
   const [website, setWebsite] = useState("");
@@ -92,7 +96,16 @@ export default function LeadCapturePage() {
           phone,
           email,
           address,
-          note,
+          note:
+            company?.sector === "emlak"
+              ? [
+                  purpose && `Talep: ${purpose}`,
+                  callTime && `Aranmak istediği zaman: ${callTime}`,
+                  note.trim(),
+                ]
+                  .filter(Boolean)
+                  .join("\n")
+              : note,
           marketingConsent,
           website,
         }),
@@ -173,7 +186,9 @@ export default function LeadCapturePage() {
                 margin: "0 0 20px",
               }}
             >
-              {company.companyName} ile iletişime geçin
+              {company.sector === "emlak"
+                ? `${company.companyName} sizi arasın`
+                : `${company.companyName} ile iletişime geçin`}
             </h1>
             <form onSubmit={submit}>
               <input
@@ -190,7 +205,7 @@ export default function LeadCapturePage() {
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Ad Soyad / Firma *"
+                  placeholder={company.sector === "emlak" ? "Ad Soyad *" : "Ad Soyad / Firma *"}
                   required
                   style={{ width: "100%" }}
                 />
@@ -219,10 +234,53 @@ export default function LeadCapturePage() {
                 <textarea
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Açık Adres (opsiyonel)"
+                  placeholder={
+                    company.sector === "emlak"
+                      ? "Mülkün adresi veya aradığınız bölge (opsiyonel)"
+                      : "Açık Adres (opsiyonel)"
+                  }
                   style={{ width: "100%", minHeight: 50, resize: "vertical" }}
                 />
               </div>
+              {company.sector === "emlak" && (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                  <select
+                    value={purpose}
+                    onChange={(e) => setPurpose(e.target.value)}
+                    aria-label="Ne için"
+                    style={{ flex: "1 1 180px" }}
+                  >
+                    <option value="">Ne için? (opsiyonel)</option>
+                    {[
+                      "Evimi satmak istiyorum",
+                      "Evimi kiraya vermek istiyorum",
+                      "Ev almak istiyorum",
+                      "Ev kiralamak istiyorum",
+                      "Evimin değerini öğrenmek istiyorum",
+                      "Diğer",
+                    ].map((o) => (
+                      <option key={o}>{o}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={callTime}
+                    onChange={(e) => setCallTime(e.target.value)}
+                    aria-label="Sizi ne zaman arayalım"
+                    style={{ flex: "1 1 180px" }}
+                  >
+                    <option value="">Sizi ne zaman arayalım? (opsiyonel)</option>
+                    {[
+                      "Fark etmez",
+                      "Hafta içi sabah",
+                      "Hafta içi öğleden sonra",
+                      "Hafta içi akşam",
+                      "Hafta sonu",
+                    ].map((o) => (
+                      <option key={o}>{o}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div style={{ marginBottom: 16 }}>
                 <textarea
                   value={note}
@@ -256,8 +314,10 @@ export default function LeadCapturePage() {
               <p style={{ fontSize: 11, color: "#9aa8b8", margin: "0 0 16px" }}>
                 Bilgileriniz {company.companyName} tarafından{" "}
                 {marketingConsent
-                  ? "hizmet/randevu takibi ve onayladığınız kampanya e-postaları"
-                  : "yalnızca hizmet/randevu takibi"}{" "}
+                  ? `${company.sector === "emlak" ? "talebinizin yanıtlanması" : "hizmet/randevu takibi"} ve onayladığınız kampanya e-postaları`
+                  : company.sector === "emlak"
+                    ? "yalnızca talebinizin yanıtlanması"
+                    : "yalnızca hizmet/randevu takibi"}{" "}
                 amacıyla saklanır ve işlenir. Detaylar için{" "}
                 <a
                   href="/kvkk"

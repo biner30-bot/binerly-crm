@@ -33,7 +33,7 @@ import {
   stageLabel,
   dealWordKind,
   isAppointmentSector,
-  supportsSelfBooking,
+  publicSelfBooking,
   bookingModel,
   supportsGroupClasses,
   groupClassWords,
@@ -4541,7 +4541,7 @@ export default function CustomerPortal() {
   useEffect(() => {
     if (initialAppointmentTabRef.current) return;
     const row = customerRows.find((r) => r.id === selectedCompanyId);
-    if (!row || !supportsSelfBooking(row.companySector)) return;
+    if (!row || !publicSelfBooking(row.companySector)) return;
     initialAppointmentTabRef.current = true;
     setPortalTab("teklifler");
   }, [customerRows, selectedCompanyId]);
@@ -4711,7 +4711,7 @@ export default function CustomerPortal() {
 
   const dealKind = dealWordKind(activeCustomerRow?.companySector);
   const appointmentCompanies =
-    activeCustomerRow && supportsSelfBooking(activeCustomerRow.companySector)
+    activeCustomerRow && publicSelfBooking(activeCustomerRow.companySector)
       ? [activeCustomerRow]
       : [];
   const showDersler =
