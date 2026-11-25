@@ -182,6 +182,42 @@ async function resizeImage(file, max = 1280) {
 
 const LocationMap = lazy(() => import("./LocationMap"));
 
+// Analiz açıkken yeni sürüm yayınlanırsa otomatik yenileme ertelenir; bu arada
+// eski harita dosyası sunucudan silinmiş olur. Hata bütün uygulamayı değil sadece
+// harita kutusunu etkilesin - girilenler taslakta, yenileyince geri gelir.
+class MapErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { failed: false };
+  }
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <div
+        style={{
+          ...box,
+          fontSize: 12.5,
+          display: "flex",
+          gap: 8,
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
+        <span style={{ flex: "1 1 240px" }}>
+          Harita yüklenemedi - büyük olasılıkla Binerly'nin yeni sürümü yayınlandı. Girdiğiniz
+          bilgiler korunuyor, sayfayı yenileyin.
+        </span>
+        <button type="button" style={{ fontSize: 12.5 }} onClick={() => window.location.reload()}>
+          Sayfayı yenile
+        </button>
+      </div>
+    );
+  }
+}
+
 // Google Haritalar gibi yazarken öneren arama: aynı adlı mahalle/sokak başka
 // ilçelerde de olduğu için tek sonuca atlamak yanlış yere götürüyordu.
 function PlaceSearch({ bias, district, city, onPick }) {
@@ -459,20 +495,22 @@ function AddressSection({ s, setS, hasPropertyPhoto, notify, focus }) {
       </div>
       {showMap && (
         <div style={{ marginTop: 8 }}>
-          <Suspense
-            fallback={
-              <div style={{ height: 280, fontSize: 12, color: "var(--text-muted)" }}>
-                Harita yükleniyor…
-              </div>
-            }
-          >
-            <LocationMap
-              location={s.location}
-              center={center}
-              focus={focus}
-              onChange={(loc) => setS((p) => ({ ...p, location: loc }))}
-            />
-          </Suspense>
+          <MapErrorBoundary>
+            <Suspense
+              fallback={
+                <div style={{ height: 280, fontSize: 12, color: "var(--text-muted)" }}>
+                  Harita yükleniyor…
+                </div>
+              }
+            >
+              <LocationMap
+                location={s.location}
+                center={center}
+                focus={focus}
+                onChange={(loc) => setS((p) => ({ ...p, location: loc }))}
+              />
+            </Suspense>
+          </MapErrorBoundary>
           <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "4px 0 0" }}>
             Harita OpenStreetMap. Haritayı konumlamak için dış servise sokak, mahalle, ilçe, il ve
             arama kutusuna yazdığınız gönderilir; bina ve daire numarası gönderilmez.

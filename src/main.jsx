@@ -84,6 +84,28 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+// Yeni sürüm yayınlanınca açık sekme, sunucudan silinmiş eski bir parça dosyasını
+// (ör. LocationMap-xxxx.js) isteyebilir; yükleme hatası bütün uygulamayı hata
+// ekranına düşürüyordu (Sentry JAVASCRIPT-REACT-8). Kaydedilmemiş iş yoksa bir kez
+// sessizce yenilenir; varsa hata yerelde gösterilir (bkz. AutoValuation harita kutusu).
+window.addEventListener("vite:preloadError", (e) => {
+  if (document.querySelector(".modal-overlay, [data-unsaved-work]")) return;
+  let last = 0;
+  try {
+    last = Number(sessionStorage.getItem("binerly.chunkReloadAt")) || 0;
+  } catch {
+    // sadece döngü koruması
+  }
+  if (Date.now() - last < 30000) return;
+  e.preventDefault();
+  try {
+    sessionStorage.setItem("binerly.chunkReloadAt", String(Date.now()));
+  } catch {
+    // sadece döngü koruması
+  }
+  window.location.reload();
+});
+
 // Rota bazlı kod bölme — bir KOBİ kullanıcısı hiç CustomerPortal/Yasal sayfa
 // kodunu indirmez ve tam tersi, her ziyaretçi sadece kendi sayfasının bundle'ını çeker.
 const App = lazy(() => import("./App.jsx"));
