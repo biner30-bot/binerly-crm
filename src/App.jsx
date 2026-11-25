@@ -35,7 +35,7 @@ import { MarketAnalysisTab } from "./AutoValuation";
 import { OfficeTab } from "./Office";
 import { ProspectsTab, mergeProspects } from "./Prospects";
 import { istanbulToday, staleRegionAlerts } from "./priceEstimate";
-import { authorizationStatus, propertyAsListingDeal, CLOSED_STATUSES, nextRentReviewDate } from "./realEstate";
+import { authorizationStatus, AUTHORIZATION_NOTICE_DAYS, propertyAsListingDeal, CLOSED_STATUSES, nextRentReviewDate } from "./realEstate";
 import { PDF_TEMPLATES, buildMergeData, renderTemplateBlocks, TemplateGallery, TABLE_ROW_HEIGHT } from "./PdfTemplates";
 import { TemplateEditor } from "./PdfTemplateEditor";
 import {
@@ -3121,6 +3121,38 @@ export default function App() {
         dealId: null,
       });
       if (ok) created.push(`${review.toLocaleDateString("tr-TR")} tarihinde kira artışı hatırlatması`);
+    }
+    // Yetki bitişi sessizce geçerse portföy başka ofise gidiyor. Otomatik uzayan
+    // sözleşmede asıl risk mal sahibinin fesih bildirimi (bitişten 15 gün önceye
+    // kadar), o yüzden ondan bir hafta önce aranır. Görevlerin portföy bağı yok:
+    // başlık + son tarih eşleşmesiyle aynı dönem için ikinci görev açılmaz.
+    const auth = ["taslak", "aktif", "opsiyonlu"].includes(p.status) ? authorizationStatus(p) : null;
+    if (auth && !auth.expired) {
+      const toYmd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const endYmd = toYmd(auth.end);
+      const lead = auth.autoRenew ? AUTHORIZATION_NOTICE_DAYS + 7 : AUTHORIZATION_NOTICE_DAYS;
+      const today = istanbulToday();
+      const dueDate = addDays(-lead, endYmd) < today ? today : addDays(-lead, endYmd);
+      const title = `Yetki yenileme - ${p.title}`;
+      const ours = tasks.filter((t) => !t.deletedAt && (t.title === title || (previous && t.title === `Yetki yenileme - ${previous.title}`)));
+      if (!ours.some((t) => t.dueDate === dueDate)) {
+        const open = ours.find((t) => !t.completedAt);
+        const endText = auth.end.toLocaleDateString("tr-TR");
+        const ok6 = await upsertTask({
+          ...(open || {}),
+          id: open?.id || uid(),
+          title,
+          type: "arama",
+          description: auth.autoRenew
+            ? `Yetki ${endText} tarihinde kendiliğinden uzayacak; mal sahibi ${addDays(-AUTHORIZATION_NOTICE_DAYS, endYmd).split("-").reverse().join(".")} tarihine kadar fesih bildirebilir. Önce mal sahibi raporunu (gösterim, ilgi, piyasa) gönderin, memnuniyetini ve fiyat beklentisini konuşun.`
+            : `Yetki ${endText} tarihinde bitiyor. Mal sahibi raporunu (gösterim, ilgi, piyasa) gönderin ve yetkiyi yenilemeyi konuşun; gerekiyorsa güncel piyasa analiziyle fiyatı birlikte gözden geçirin.`,
+          dueDate,
+          assignedTo: p.assignedTo,
+          customerId: p.ownerCustomerId || null,
+          dealId: null,
+        });
+        if (ok6) created.push(`${dueDate.split("-").reverse().join(".")} tarihinde yetki yenileme araması`);
+      }
     }
     if (created.length > 0) notify(`Görev oluşturuldu: ${created.join(", ")}.`, "success");
     else if (justClosed && isRental && !leaseStart) notify("Kapanış bölümüne kira başlangıç tarihini girerseniz kira artışı hatırlatması da oluşturulur.", "success");
