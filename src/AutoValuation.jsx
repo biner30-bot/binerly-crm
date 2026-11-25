@@ -1249,11 +1249,11 @@ export function AutoValuation({
   property,
   properties = [],
   regionPrices,
-  marketIndex,
+  marketIndex: liveMarketIndex,
   companySettings,
   agent,
   getPhotoUrl,
-  onSaveRegion,
+  onSaveRegion: saveRegionProp,
   onDeleteRegion,
   onSaveFactors,
   onSaveAliases,
@@ -1313,12 +1313,42 @@ export function AutoValuation({
   const [staleReportPrompt, setStaleReportPrompt] = useState(false);
   const [clipOffer, setClipOffer] = useState(null);
   const [pasteIncoming, setPasteIncoming] = useState(null);
+  // Kayıtlı analiz kaydedildiği günün verileriyle açılır - mal sahibine verilen
+  // rapor, bölgeye sonradan ilan eklenince (ofisteki başka biri eklese bile)
+  // sessizce değişmesin. Danışman isterse "güncel verilerle güncelle" der ya da
+  // analizin içinden bölgeyi kendisi günceller (kullanıcı kararı, 25 Kas).
+  const frozen = valuation?.inputs || null;
+  const [live, setLive] = useState(!valuation);
   const savedFactors = companySettings?.realEstateSettings?.avmFactors || {};
-  const [factors, setFactors] = useState(() => ({ ...AVM_FACTOR_DEFAULTS, ...savedFactors }));
+  const [factors, setFactors] = useState(() => ({
+    ...AVM_FACTOR_DEFAULTS,
+    ...(valuation && frozen?.factors ? frozen.factors : savedFactors),
+  }));
+  const onSaveRegion = saveRegionProp
+    ? async (region) => {
+        const ok = await saveRegionProp(region);
+        if (ok) setLive(true);
+        return ok;
+      }
+    : undefined;
 
   const aliases = companySettings?.realEstateSettings?.neighborhoodAliases || [];
-  const saleRegion = findRegion(regionPrices, s, "satilik", aliases);
-  const rentRegion = findRegion(regionPrices, s, "kiralik", aliases);
+  const liveSaleRegion = findRegion(regionPrices, s, "satilik", aliases);
+  const liveRentRegion = findRegion(regionPrices, s, "kiralik", aliases);
+  // Mahalle/ilçe/tip değiştirildiyse saklanan bölge bu daireye ait değil.
+  const sameArea = ["city", "district", "neighborhood", "propertyType"].every(
+    (k) => String(s[k] || "") === String(initial[k] || ""),
+  );
+  const useSnapshot = !live && !!frozen && sameArea;
+  const saleRegion = useSnapshot && frozen.saleRegion ? frozen.saleRegion : liveSaleRegion;
+  const rentRegion = useSnapshot && frozen.rentRegion ? frozen.rentRegion : liveRentRegion;
+  const marketIndex = useMemo(
+    () =>
+      useSnapshot && frozen.asOf
+        ? (liveMarketIndex || []).filter((m) => String(m.period) <= frozen.asOf)
+        : liveMarketIndex,
+    [useSnapshot, frozen, liveMarketIndex],
+  );
   const [aliasTarget, setAliasTarget] = useState("");
   const aliasCandidates = [
     ...new Map(
@@ -1346,6 +1376,24 @@ export function AutoValuation({
     () => estimateValue({ subject: s, saleRegion, rentRegion, marketIndex, factors, extraSpread }),
     [s, saleRegion, rentRegion, marketIndex, factors, extraSpread],
   );
+  // Sabit analizde güncel verilerin vereceği değer - sadece bilgi için gösterilir.
+  const liveResult = useMemo(() => {
+    if (live || !valuation) return null;
+    const r = estimateValue({
+      subject: s,
+      saleRegion: liveSaleRegion,
+      rentRegion: liveRentRegion,
+      marketIndex: liveMarketIndex,
+      factors,
+      extraSpread: subjectChecks({ subject: s, region: liveSaleRegion, factors }).extraSpread,
+    });
+    return r.error ? null : r;
+  }, [live, valuation, s, liveSaleRegion, liveRentRegion, liveMarketIndex, factors]);
+  const shownMid = useSnapshot ? (result.error ? null : result.value.mid) : valuation?.result?.mid;
+  const liveDiffers =
+    !!liveResult &&
+    shownMid != null &&
+    Math.abs(liveResult.value.mid - shownMid) / shownMid >= 0.005;
   const resultSnapshot = result.error
     ? null
     : {
@@ -1359,7 +1407,7 @@ export function AutoValuation({
   // Daire bilgisi aynı kalsa da bölgeye yeni ilan eklenince / hesap kuralı
   // değişince değer değişebilir - kayıttaki değer güncel değere çekilir
   // (kullanıcı bildirdi: fiyat düştü ama listede eski değer kaldı).
-  const resultChanged = !!valuationId && savedResultKey !== resultKeyOf(resultSnapshot);
+  const resultChanged = !!valuationId && live && savedResultKey !== resultKeyOf(resultSnapshot);
   const unsavedAnalysis = subjectUnsaved || resultChanged;
   const checks = subjectChecks({ subject: s, region: saleRegion, result, property, factors });
   const missingKeys = new Set(checks.missing.map((m) => m.key));
@@ -1404,6 +1452,12 @@ export function AutoValuation({
       status,
       quiet: auto,
       result: resultSnapshot,
+      inputs: {
+        saleRegion: saleRegion || null,
+        rentRegion: rentRegion || null,
+        factors,
+        asOf: useSnapshot && frozen?.asOf ? frozen.asOf : istanbulToday(),
+      },
     });
     inFlightRef.current = job;
     const saved = await job;
@@ -1436,6 +1490,16 @@ export function AutoValuation({
     // sJson s'in içeriğini temsil eder; saveValuation her çizimde yeniden yaratılır
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sJson, meaningful, changedSinceOpen, unsavedAnalysis, resultChanged]);
+  // "Güncel verilerle güncelle": değer aynı çıksa bile saklanan veri tarihi
+  // yenilenmeli - yoksa bir sonraki açılışta eski verilere dönülürdü.
+  const [refreshRequested, setRefreshRequested] = useState(false);
+  useEffect(() => {
+    if (!refreshRequested || !live) return;
+    setRefreshRequested(false);
+    saveValuation({ auto: true });
+    // saveValuation her çizimde yeniden yaratılır
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshRequested, live]);
   const runReport = async () => {
     setStaleReportPrompt(false);
     // PDF alınan analiz kendiliğinden kaydedilir (sonradan bulunabilsin).
@@ -1931,6 +1995,57 @@ export function AutoValuation({
         <p style={{ fontSize: 13, color: "var(--text-warning)" }}>{result.error}</p>
       ) : (
         <div style={{ ...box, borderWidth: 1 }}>
+          {!live && valuation && (useSnapshot || liveDiffers) && (
+            <div
+              style={{
+                fontSize: 12.5,
+                marginBottom: 8,
+                padding: "8px 10px",
+                borderRadius: 6,
+                background: "var(--surface-1)",
+                border: "0.5px solid var(--border)",
+                display: "flex",
+                gap: 8,
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <span style={{ flex: "1 1 280px" }}>
+                <i className="ti ti-lock" aria-hidden="true" />{" "}
+                {useSnapshot ? (
+                  <>
+                    Bu analiz {fmtDate(frozen.asOf)} tarihli bölge verileriyle sabit - raporun
+                    değeri sonradan eklenen ilanlarla değişmez.
+                  </>
+                ) : (
+                  <>Kayıtlı değer {formatTL(valuation.result?.mid)}.</>
+                )}
+                {liveDiffers && (
+                  <>
+                    {" "}
+                    Güncel bölge verileriyle değer <b>{formatTL(liveResult.value.mid)}</b> (
+                    {liveResult.value.mid > shownMid ? "+" : ""}
+                    {(((liveResult.value.mid - shownMid) / shownMid) * 100)
+                      .toFixed(1)
+                      .replace(".", ",")}
+                    %).
+                  </>
+                )}
+              </span>
+              {liveDiffers && (
+                <button
+                  type="button"
+                  style={{ fontSize: 12 }}
+                  onClick={() => {
+                    setLive(true);
+                    setRefreshRequested(true);
+                  }}
+                >
+                  Güncel verilerle güncelle
+                </button>
+              )}
+            </div>
+          )}
           {reportBlock ? (
             <div
               style={{

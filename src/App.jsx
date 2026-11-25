@@ -2625,6 +2625,7 @@ export default function App() {
     title: r.title || "",
     subject: r.subject || {},
     result: r.result || null,
+    inputs: r.inputs || null,
     status: r.status || "kaydedildi",
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -2651,6 +2652,7 @@ export default function App() {
       title: v.title,
       subject: v.subject,
       result: v.result,
+      ...(v.inputs !== undefined ? { inputs: v.inputs } : {}),
       status: v.status || "kaydedildi",
       updated_at: new Date().toISOString(),
     };
