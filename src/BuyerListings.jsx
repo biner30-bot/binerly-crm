@@ -4,8 +4,20 @@ import { matchEmlakListing } from "./Sectors";
 import {
   buildShowingDocumentText,
   computeTransactionCosts,
+  parseListingText,
   propertyAsListingDeal,
 } from "./realEstate";
+
+// İlan metnindeki ilk cep telefonu: "0 (532) 123 45 67", "0532 123 4567", "+90 532...".
+export function findPhone(text) {
+  const m = String(text || "").match(
+    // Önde/arkada rakam olmamalı: uzun ilan no içindeki rakamlar telefon sanılmasın.
+    /(?<!\d)(?:\+90|0)?\s*\(?\s*5\d{2}\s*\)?[\s.-]*\d{3}[\s.-]*\d{2}[\s.-]*\d{2}(?!\d)/,
+  );
+  if (!m) return "";
+  const d = m[0].replace(/\D/g, "").slice(-10);
+  return d.length === 10 ? `0${d}` : "";
+}
 import { parseSearchPages } from "./priceEstimate";
 import { printShowingDocument } from "./Showings";
 
@@ -131,8 +143,65 @@ function ManualForm({ customer, initial, onSave, onCancel }) {
   const row = { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 };
   const raw = String(f.listingUrl || "").trim();
   const isNo = /^\d{7,}$/.test(raw);
+  const [pasted, setPasted] = useState(null);
+  // Tek ilan sayfası yapıştırılınca alanlar dolar (danışman 12 alanı elle
+  // doldurmasın). Sadece BOŞ alanlar doldurulur, yazılan ezilmez.
+  const applyListingPaste = (text) => {
+    const p = parseListingText(text);
+    const phone = findPhone(text);
+    const no = p.listingRefs?.sahibinden || "";
+    if (!p.title && !no) {
+      setPasted({ ok: false });
+      return;
+    }
+    setF((prev) => {
+      const fill = (k, v) => (prev[k] === "" || prev[k] == null ? (v ?? prev[k]) : prev[k]);
+      return {
+        ...prev,
+        source: no ? "sahibinden" : prev.source,
+        title: fill("title", p.title),
+        price: fill("price", p.price),
+        roomCount: fill("roomCount", p.roomCount),
+        grossM2: fill("grossM2", p.grossM2),
+        neighborhood: fill("neighborhood", p.neighborhood),
+        district: fill("district", p.district),
+        city: fill("city", p.city),
+        transactionType: prev.transactionType || p.transactionType,
+        propertyType: prev.propertyType || p.propertyType,
+        listingUrl: fill("listingUrl", no),
+        counterpartPhone: fill("counterpartPhone", phone),
+      };
+    });
+    setPasted({ ok: true, phone: !!phone });
+  };
   return (
     <div style={{ ...box, background: "var(--surface-2, var(--surface-1))" }}>
+      {!initial && (
+        <div style={{ marginBottom: 8 }}>
+          <textarea
+            onPaste={(e) => {
+              e.preventDefault();
+              applyListingPaste(e.clipboardData.getData("text"));
+            }}
+            onChange={(e) => e.target.value.length > 200 && applyListingPaste(e.target.value)}
+            placeholder="En hızlısı: Sahibinden'de ilanı açın (telefonu göster'e basın), Ctrl+A, Ctrl+C yapıp buraya yapıştırın - alanlar dolar."
+            style={{ width: "100%", minHeight: 44, fontSize: 12.5 }}
+          />
+          {pasted && (
+            <p
+              style={{
+                margin: "2px 0 0",
+                fontSize: 12,
+                color: pasted.ok ? "var(--text-success)" : "var(--text-warning)",
+              }}
+            >
+              {pasted.ok
+                ? `İlan okundu.${pasted.phone ? "" : " Telefon bulunamadı - ilanda 'telefonu göster'e basıp tekrar yapıştırın ya da elle yazın."} Danışmanın adını yazın.`
+                : "İlan okunamadı - ilan SAYFASINI (detay) yapıştırdığınızdan emin olun."}
+            </p>
+          )}
+        </div>
+      )}
       <div style={row}>
         {field("title", "Başlık *", "2 1 240px", {
           placeholder: "ör. Bostanlı 3+1 deniz manzaralı",
