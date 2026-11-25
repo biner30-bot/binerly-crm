@@ -43,6 +43,7 @@ import {
   computeAppointmentPenaltyBurn,
 } from "./Sectors";
 import BackgroundScatter from "./BackgroundScatter.jsx";
+import { PortalHomes, PortalShowings, PortalMyProperties } from "./PortalEmlak";
 
 // Müşterinin Profilim'den yüklediği özel fotoğraf (custom_avatar_url) VEYA
 // Google ile girmişse Google fotoğrafı (avatar_url). Özel olan önce gelir -
@@ -3639,6 +3640,11 @@ function PortalInstallNudge() {
 export default function CustomerPortal() {
   const [session, setSession] = useState(undefined);
   const [portalTab, setPortalTab] = useState("talepler");
+  // Emlak: müşterinin kendi talebi, gezdiği evler, mal sahibi olduğu portföyler
+  // (portal_emlak_overview - alıcı kimliği / danışman notu dönmez).
+  const [emlakOverview, setEmlakOverview] = useState({});
+  const [emlakLoaded, setEmlakLoaded] = useState(false);
+  const emlakInitialTabRef = useRef(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tickets, setTickets] = useState([]);
   const [ticketMessages, setTicketMessages] = useState([]);
@@ -3648,6 +3654,30 @@ export default function CustomerPortal() {
   const [selectedCompanyId, setSelectedCompanyId] = useState(
     () => localStorage.getItem("binerly_portal_company") || null,
   );
+  const emlakActiveRow = customerRows.find((r) => r.id === selectedCompanyId) || null;
+  const emlakActiveIsEmlak = emlakActiveRow?.companySector === "emlak";
+  const emlakActiveData = emlakActiveIsEmlak ? emlakOverview[emlakActiveRow.id] || null : null;
+  const hasEmlakRow = customerRows.some((r) => r.companySector === "emlak");
+  useEffect(() => {
+    if (!hasEmlakRow) return undefined;
+    let alive = true;
+    supabase.rpc("portal_emlak_overview").then(({ data, error }) => {
+      if (!alive) return;
+      if (!error) setEmlakOverview(Object.fromEntries((data || []).map((x) => [x.customer_id, x])));
+      setEmlakLoaded(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [hasEmlakRow]);
+  // Emlakta "Taleplerim" sekmesi yok - varsayılan sekmede kalınırsa boş ekran
+  // görünüyordu. Mal sahibi Mülklerim'le, diğerleri uygun evlerle açılır.
+  useEffect(() => {
+    if (emlakInitialTabRef.current || !emlakActiveIsEmlak || !emlakLoaded) return;
+    if (portalTab !== "talepler" && portalTab !== "teklifler") return;
+    emlakInitialTabRef.current = true;
+    setPortalTab(emlakActiveData?.mulklerim?.length ? "mulklerim" : "evler");
+  }, [emlakActiveIsEmlak, emlakActiveData, emlakLoaded, portalTab]);
   const [showcaseCampaigns, setShowcaseCampaigns] = useState([]);
   const [groupClasses, setGroupClasses] = useState([]);
   const [groupClassEnrollments, setGroupClassEnrollments] = useState([]);
@@ -4573,6 +4603,9 @@ export default function CustomerPortal() {
   // karışmaz. Tek firmaya bağlıysa activeCustomerRow otomatik seçilir (yukarıdaki
   // useEffect), müşteri hiçbir seçim ekranı görmez.
   const activeCustomerRow = customerRows.find((r) => r.id === selectedCompanyId) || null;
+  const isEmlakPortal = activeCustomerRow?.companySector === "emlak";
+  const emlakData = isEmlakPortal ? emlakOverview[activeCustomerRow.id] || null : null;
+
   const showCompanyPicker = customerRows.length > 1 && !activeCustomerRow;
 
   // İzin İŞLETME BAZINDA — müşteri birden fazla firmaya bağlıysa (çoklu işletme
@@ -4915,10 +4948,21 @@ export default function CustomerPortal() {
                   ...(activeCustomerRow?.companySector === "emlak"
                     ? []
                     : [{ id: "talepler", label: "Taleplerim", icon: "ti-ticket" }]),
+                  ...(isEmlakPortal
+                    ? [
+                        ...(emlakData?.mulklerim?.length
+                          ? [{ id: "mulklerim", label: "Mülklerim", icon: "ti-home-check" }]
+                          : []),
+                        { id: "evler", label: "Size uygun evler", icon: "ti-home-search" },
+                        ...(emlakData?.gosterimler?.length
+                          ? [{ id: "gezdiklerim", label: "Gezdiğim evler", icon: "ti-route" }]
+                          : []),
+                      ]
+                    : []),
                   { id: "mesajlar", label: "Mesajlar", icon: "ti-message-circle" },
                   {
                     id: "teklifler",
-                    label: PORTAL_DEAL_WORDS[dealKind].tabLabel,
+                    label: isEmlakPortal ? "İşlemlerim" : PORTAL_DEAL_WORDS[dealKind].tabLabel,
                     icon: "ti-file-text",
                   },
                   ...(showDersler
@@ -5039,6 +5083,21 @@ export default function CustomerPortal() {
                   </div>
                 )}
 
+                {isEmlakPortal && portalTab === "evler" && (
+                  <PortalHomes
+                    key={activeCustomerRow.id}
+                    overview={emlakData}
+                    companyName={activeCustomerRow.companyName}
+                    onSendMessage={sendChatMessage}
+                    notify={notify}
+                  />
+                )}
+                {isEmlakPortal && portalTab === "gezdiklerim" && (
+                  <PortalShowings showings={emlakData?.gosterimler || []} />
+                )}
+                {isEmlakPortal && portalTab === "mulklerim" && (
+                  <PortalMyProperties properties={emlakData?.mulklerim || []} />
+                )}
                 {portalTab === "mesajlar" && (
                   <PortalMessagesPanel
                     messages={chatMessages}
@@ -5069,7 +5128,7 @@ export default function CustomerPortal() {
                             color: "var(--text-primary)",
                           }}
                         >
-                          {PORTAL_DEAL_WORDS[dealKind].tabLabel}
+                          {isEmlakPortal ? "İşlemlerim" : PORTAL_DEAL_WORDS[dealKind].tabLabel}
                         </h2>
                         <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
                           {`Yaklaşan ve geçmiş ${PORTAL_DEAL_WORDS[dealKind].plural} buradan yönetebilirsiniz.`}
