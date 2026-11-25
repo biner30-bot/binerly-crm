@@ -37,6 +37,7 @@ import {
   isAppointmentSector,
   isIndividualFocusedSector,
   supportsSelfBooking,
+  publicSelfBooking,
   bookingModel,
   supportsSessionPackages,
   CustomFieldsSection,
@@ -346,6 +347,8 @@ export function AppointmentDateTimeField({
   value,
   onChange,
   serviceIds = [],
+  // Emlak: saat telefonla konuşulup elle yazılır, müsaitlik önerisi yok.
+  showSlots = true,
 }) {
   const todayStr = istanbulToday();
   const date = (value || "").slice(0, 10) || todayStr;
@@ -359,7 +362,7 @@ export function AppointmentDateTimeField({
   // önerilen saat findAppointmentConflict tarafından reddedilebilir.
   const serviceKey = serviceIds.join(",");
   useEffect(() => {
-    if (!businessUserId || !date) return;
+    if (!showSlots || !businessUserId || !date) return;
     setLoading(true);
     setError("");
     const serviceQuery = serviceKey ? `&serviceIds=${encodeURIComponent(serviceKey)}` : "";
@@ -399,11 +402,13 @@ export function AppointmentDateTimeField({
         }}
       >
         {label}
-        <InfoTip
-          placement="bottom"
-          align="right"
-          text="Tarihi seçince o güne ait müsait saatler otomatik listelenir - birine tıklamak saati doldurur. İstediğiniz saat listede yoksa saat kutusuna elle de yazabilirsiniz."
-        />
+        {showSlots && (
+          <InfoTip
+            placement="bottom"
+            align="right"
+            text="Tarihi seçince o güne ait müsait saatler otomatik listelenir - birine tıklamak saati doldurur. İstediğiniz saat listede yoksa saat kutusuna elle de yazabilirsiniz."
+          />
+        )}
       </label>
       <input
         type="date"
@@ -417,7 +422,7 @@ export function AppointmentDateTimeField({
         onChange={(e) => onChange(`${date}T${e.target.value}`)}
         style={{ width: "100%", marginBottom: 8 }}
       />
-      {loading ? (
+      {!showSlots ? null : loading ? (
         <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>Müsaitlik yükleniyor…</p>
       ) : error ? (
         <p style={{ fontSize: 12, color: "var(--text-danger)", margin: 0 }}>{error}</p>
@@ -1651,6 +1656,7 @@ export function DealForm({
                     onChange={(v) =>
                       setCustomFields({ ...customFields, [appointmentDateTimeKey]: v })
                     }
+                    showSlots={publicSelfBooking(sector)}
                   />
                   {/* Vardiya / çalışma saati dışı uyarısı - sebep tarih/saat
                       alanı olduğu için doğrudan onun altında (engel değil). */}
@@ -1691,181 +1697,142 @@ export function DealForm({
               )}
             </div>
           )}
-          <div style={{ marginBottom: 6 }}>
-            <label
-              style={{
-                fontSize: 13,
-                color: "var(--text-secondary)",
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                marginBottom: 4,
-              }}
-            >
-              Kalemler (opsiyonel)
-              <InfoTip
-                align="left"
-                text="Birden fazla ürün/hizmet satırı eklerseniz Tutar bunların toplamına otomatik hesaplanır. Hiç kalem eklemezseniz Tutar'ı yine elle girebilirsiniz."
-              />
-              {lineItemsDuration > 0 && (
-                <Badge tone="default">Tahmini süre: {lineItemsDuration} dk</Badge>
-              )}
-            </label>
-            {lineItems.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 6 }}>
-                {lineItems.map((li, i) => (
-                  <div
-                    key={li.localId ?? i}
-                    style={{
-                      border: "0.5px solid var(--border)",
-                      borderRadius: "var(--radius)",
-                      padding: 8,
-                    }}
-                  >
-                    <div
-                      style={{ display: "flex", gap: 6, alignItems: "flex-end", marginBottom: 6 }}
-                    >
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <label
-                          style={{
-                            fontSize: 11,
-                            color: "var(--text-muted)",
-                            display: "block",
-                            marginBottom: 2,
-                          }}
-                        >
-                          Açıklama
-                        </label>
-                        <input
-                          value={li.description}
-                          onChange={(e) =>
-                            setLineItems((prev) =>
-                              prev.map((x, j) =>
-                                j === i ? { ...x, description: e.target.value } : x,
-                              ),
-                            )
-                          }
-                          placeholder={`Örn. ${PRICE_ITEM_NAME_EXAMPLES[sector] || "Danışmanlık"}`}
-                          style={{ width: "100%", fontSize: 13 }}
-                        />
-                      </div>
-                      <IconButton
-                        icon="ti-trash"
-                        title="Kalemi sil"
-                        size="sm"
-                        onClick={() => setLineItems((prev) => prev.filter((_, j) => j !== i))}
-                      />
-                    </div>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <div style={{ width: 70 }}>
-                        <label
-                          style={{
-                            fontSize: 11,
-                            color: "var(--text-muted)",
-                            display: "block",
-                            marginBottom: 2,
-                          }}
-                        >
-                          Adet
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={li.quantity}
-                          onChange={(e) =>
-                            setLineItems((prev) =>
-                              prev.map((x, j) =>
-                                j === i ? { ...x, quantity: e.target.value } : x,
-                              ),
-                            )
-                          }
-                          style={{ width: "100%", minWidth: 0, fontSize: 13 }}
-                        />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <label
-                          style={{
-                            fontSize: 11,
-                            color: "var(--text-muted)",
-                            display: "block",
-                            marginBottom: 2,
-                          }}
-                        >
-                          Birim fiyat (TL)
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={li.unitPrice}
-                          onChange={(e) =>
-                            setLineItems((prev) =>
-                              prev.map((x, j) =>
-                                j === i ? { ...x, unitPrice: e.target.value } : x,
-                              ),
-                            )
-                          }
-                          style={{ width: "100%", minWidth: 0, fontSize: 13 }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <button
-                type="button"
-                onClick={() =>
-                  setLineItems((prev) => {
-                    const blank = { localId: uid(), description: "", quantity: 1, unitPrice: 0 };
-                    // İlk kalem eklendiğinde, o ana kadar Başlık/Tutar'a elle (veya
-                    // üstteki Ürün/Hizmet seçiciyle) girilmiş olan tutar sessizce
-                    // kaybolmasın diye ilk satır olarak devralınır — AYRICA hemen
-                    // arkasından boş bir satır daha eklenir, yoksa buton "hiçbir şey
-                    // yapmıyormuş" gibi görünüyordu (Tutar aynı kalıyordu çünkü
-                    // devralınan tek kalem zaten mevcut tutara eşit).
-                    if (prev.length === 0 && title.trim() && Number(value) > 0) {
-                      return [
-                        {
-                          localId: uid(),
-                          description: title.trim(),
-                          quantity: 1,
-                          unitPrice: Number(value),
-                        },
-                        blank,
-                      ];
-                    }
-                    return [...prev, blank];
-                  })
-                }
-                style={{ fontSize: 12 }}
+          {/* Emlakta fiyat listesi yok - kalem ekleme sadece eski kayıtta kalem varsa görünür. */}
+          {(sector !== "emlak" || lineItems.length > 0) && (
+            <div style={{ marginBottom: 6 }}>
+              <label
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  marginBottom: 4,
+                }}
               >
-                + Kalem ekle
-              </button>
-              {priceListItems.length > 0 && (
-                <select
-                  value=""
-                  onChange={(e) => {
-                    const item = priceListItems.find((p) => p.id === e.target.value);
-                    if (!item) return;
-                    // Kullanıcının zaten elle seçtiği bir kaynağın üzerine yazılmaz -
-                    // sadece alan boşsa ve hizmetin varsayılan kaynağı hâlâ mevcutsa doldurulur.
-                    if (
-                      !resourceId &&
-                      item.resourceId &&
-                      resources.some((r) => r.id === item.resourceId)
-                    ) {
-                      setResourceId(item.resourceId);
-                    }
+                Kalemler (opsiyonel)
+                <InfoTip
+                  align="left"
+                  text="Birden fazla ürün/hizmet satırı eklerseniz Tutar bunların toplamına otomatik hesaplanır. Hiç kalem eklemezseniz Tutar'ı yine elle girebilirsiniz."
+                />
+                {lineItemsDuration > 0 && (
+                  <Badge tone="default">Tahmini süre: {lineItemsDuration} dk</Badge>
+                )}
+              </label>
+              {lineItems.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 6 }}>
+                  {lineItems.map((li, i) => (
+                    <div
+                      key={li.localId ?? i}
+                      style={{
+                        border: "0.5px solid var(--border)",
+                        borderRadius: "var(--radius)",
+                        padding: 8,
+                      }}
+                    >
+                      <div
+                        style={{ display: "flex", gap: 6, alignItems: "flex-end", marginBottom: 6 }}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <label
+                            style={{
+                              fontSize: 11,
+                              color: "var(--text-muted)",
+                              display: "block",
+                              marginBottom: 2,
+                            }}
+                          >
+                            Açıklama
+                          </label>
+                          <input
+                            value={li.description}
+                            onChange={(e) =>
+                              setLineItems((prev) =>
+                                prev.map((x, j) =>
+                                  j === i ? { ...x, description: e.target.value } : x,
+                                ),
+                              )
+                            }
+                            placeholder={`Örn. ${PRICE_ITEM_NAME_EXAMPLES[sector] || "Danışmanlık"}`}
+                            style={{ width: "100%", fontSize: 13 }}
+                          />
+                        </div>
+                        <IconButton
+                          icon="ti-trash"
+                          title="Kalemi sil"
+                          size="sm"
+                          onClick={() => setLineItems((prev) => prev.filter((_, j) => j !== i))}
+                        />
+                      </div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <div style={{ width: 70 }}>
+                          <label
+                            style={{
+                              fontSize: 11,
+                              color: "var(--text-muted)",
+                              display: "block",
+                              marginBottom: 2,
+                            }}
+                          >
+                            Adet
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={li.quantity}
+                            onChange={(e) =>
+                              setLineItems((prev) =>
+                                prev.map((x, j) =>
+                                  j === i ? { ...x, quantity: e.target.value } : x,
+                                ),
+                              )
+                            }
+                            style={{ width: "100%", minWidth: 0, fontSize: 13 }}
+                          />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <label
+                            style={{
+                              fontSize: 11,
+                              color: "var(--text-muted)",
+                              display: "block",
+                              marginBottom: 2,
+                            }}
+                          >
+                            Birim fiyat (TL)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={li.unitPrice}
+                            onChange={(e) =>
+                              setLineItems((prev) =>
+                                prev.map((x, j) =>
+                                  j === i ? { ...x, unitPrice: e.target.value } : x,
+                                ),
+                              )
+                            }
+                            style={{ width: "100%", minWidth: 0, fontSize: 13 }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <button
+                  type="button"
+                  onClick={() =>
                     setLineItems((prev) => {
-                      const newRow = {
-                        localId: uid(),
-                        description: item.name,
-                        quantity: 1,
-                        unitPrice: item.price == null ? "" : item.price,
-                        priceItemId: item.id,
-                      };
+                      const blank = { localId: uid(), description: "", quantity: 1, unitPrice: 0 };
+                      // İlk kalem eklendiğinde, o ana kadar Başlık/Tutar'a elle (veya
+                      // üstteki Ürün/Hizmet seçiciyle) girilmiş olan tutar sessizce
+                      // kaybolmasın diye ilk satır olarak devralınır — AYRICA hemen
+                      // arkasından boş bir satır daha eklenir, yoksa buton "hiçbir şey
+                      // yapmıyormuş" gibi görünüyordu (Tutar aynı kalıyordu çünkü
+                      // devralınan tek kalem zaten mevcut tutara eşit).
                       if (prev.length === 0 && title.trim() && Number(value) > 0) {
                         return [
                           {
@@ -1873,233 +1840,277 @@ export function DealForm({
                             description: title.trim(),
                             quantity: 1,
                             unitPrice: Number(value),
-                            priceItemId: null,
                           },
-                          newRow,
+                          blank,
                         ];
                       }
-                      return [...prev, newRow];
-                    });
-                  }}
+                      return [...prev, blank];
+                    })
+                  }
                   style={{ fontSize: 12 }}
                 >
-                  <option value="">Fiyat listesinden kalem ekle…</option>
-                  {priceListItems.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                      {p.price == null
-                        ? ""
-                        : Number(p.price) === 0
-                          ? " - Ücretsiz"
-                          : ` - ${formatTL(p.price)}`}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {sector === "uretim_satis" && (
-                <div style={{ position: "relative" }}>
-                  <button
-                    ref={freightBtnRef}
-                    type="button"
-                    onClick={() => setShowFreightCalc((v) => !v)}
+                  + Kalem ekle
+                </button>
+                {priceListItems.length > 0 && (
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const item = priceListItems.find((p) => p.id === e.target.value);
+                      if (!item) return;
+                      // Kullanıcının zaten elle seçtiği bir kaynağın üzerine yazılmaz -
+                      // sadece alan boşsa ve hizmetin varsayılan kaynağı hâlâ mevcutsa doldurulur.
+                      if (
+                        !resourceId &&
+                        item.resourceId &&
+                        resources.some((r) => r.id === item.resourceId)
+                      ) {
+                        setResourceId(item.resourceId);
+                      }
+                      setLineItems((prev) => {
+                        const newRow = {
+                          localId: uid(),
+                          description: item.name,
+                          quantity: 1,
+                          unitPrice: item.price == null ? "" : item.price,
+                          priceItemId: item.id,
+                        };
+                        if (prev.length === 0 && title.trim() && Number(value) > 0) {
+                          return [
+                            {
+                              localId: uid(),
+                              description: title.trim(),
+                              quantity: 1,
+                              unitPrice: Number(value),
+                              priceItemId: null,
+                            },
+                            newRow,
+                          ];
+                        }
+                        return [...prev, newRow];
+                      });
+                    }}
                     style={{ fontSize: 12 }}
                   >
-                    + Navlun/Gümrük ekle
-                  </button>
-                  {showFreightCalc &&
-                    createPortal(
-                      <div
-                        style={{
-                          position: "fixed",
-                          top: freightCoords?.top ?? -9999,
-                          left: freightCoords?.left ?? -9999,
-                          zIndex: 2000,
-                          background: "var(--surface-1)",
-                          border: "0.5px solid var(--border)",
-                          borderRadius: "var(--radius)",
-                          padding: 10,
-                          width: 220,
-                          boxShadow: "var(--shadow-md)",
-                        }}
-                      >
-                        <label
+                    <option value="">Fiyat listesinden kalem ekle…</option>
+                    {priceListItems.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                        {p.price == null
+                          ? ""
+                          : Number(p.price) === 0
+                            ? " - Ücretsiz"
+                            : ` - ${formatTL(p.price)}`}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {sector === "uretim_satis" && (
+                  <div style={{ position: "relative" }}>
+                    <button
+                      ref={freightBtnRef}
+                      type="button"
+                      onClick={() => setShowFreightCalc((v) => !v)}
+                      style={{ fontSize: 12 }}
+                    >
+                      + Navlun/Gümrük ekle
+                    </button>
+                    {showFreightCalc &&
+                      createPortal(
+                        <div
                           style={{
-                            fontSize: 11,
-                            color: "var(--text-muted)",
-                            display: "block",
-                            marginBottom: 2,
+                            position: "fixed",
+                            top: freightCoords?.top ?? -9999,
+                            left: freightCoords?.left ?? -9999,
+                            zIndex: 2000,
+                            background: "var(--surface-1)",
+                            border: "0.5px solid var(--border)",
+                            borderRadius: "var(--radius)",
+                            padding: 10,
+                            width: 220,
+                            boxShadow: "var(--shadow-md)",
                           }}
                         >
-                          Teslim Şekli
-                        </label>
-                        <select
-                          value={freightIncoterm}
-                          onChange={(e) => setFreightIncoterm(e.target.value)}
-                          style={{ width: "100%", fontSize: 13, marginBottom: 6 }}
-                        >
-                          <option value="FOB">FOB</option>
-                          <option value="CIF">CIF</option>
-                          <option value="EXW">EXW</option>
-                          <option value="DAP">DAP</option>
-                        </select>
-                        <label
-                          style={{
-                            fontSize: 11,
-                            color: "var(--text-muted)",
-                            display: "block",
-                            marginBottom: 2,
-                          }}
-                        >
-                          Navlun/Gümrük Oranı (%)
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.1"
-                          value={freightPercent}
-                          onChange={(e) => setFreightPercent(e.target.value)}
-                          placeholder="Örn. 8"
-                          style={{ width: "100%", fontSize: 13, marginBottom: 6 }}
-                        />
-                        <label
-                          style={{
-                            fontSize: 11,
-                            color: "var(--text-muted)",
-                            display: "block",
-                            marginBottom: 2,
-                          }}
-                        >
-                          Sabit Navlun Ücreti (TL)
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={freightFlatFee}
-                          onChange={(e) => setFreightFlatFee(e.target.value)}
-                          placeholder="Opsiyonel"
-                          style={{ width: "100%", fontSize: 13, marginBottom: 8 }}
-                        />
-                        <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 8px" }}>
-                          Oran, mevcut kalem toplamı üzerinden hesaplanır - bu kendi sabit oranınız,
-                          canlı gümrük/navlun verisi değildir.
-                        </p>
-                        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                          <button
-                            type="button"
-                            onClick={() => setShowFreightCalc(false)}
-                            style={{ fontSize: 12 }}
-                          >
-                            Vazgeç
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const percent = Number(freightPercent) || 0;
-                              const flatFee = Number(freightFlatFee) || 0;
-                              const baseTotal = lineItemsTotal || Number(value) || 0;
-                              const amount = Math.round(baseTotal * (percent / 100) + flatFee);
-                              if (amount <= 0) return;
-                              localStorage.setItem("binerly_freight_incoterm", freightIncoterm);
-                              localStorage.setItem("binerly_freight_percent", freightPercent);
-                              localStorage.setItem("binerly_freight_flat_fee", freightFlatFee);
-                              setLineItems((prev) => {
-                                const newRow = {
-                                  localId: uid(),
-                                  description: `Navlun/Gümrük (${freightIncoterm}${percent ? `, %${percent}` : ""})`,
-                                  quantity: 1,
-                                  unitPrice: amount,
-                                };
-                                if (prev.length === 0 && title.trim() && Number(value) > 0) {
-                                  return [
-                                    {
-                                      localId: uid(),
-                                      description: title.trim(),
-                                      quantity: 1,
-                                      unitPrice: Number(value),
-                                    },
-                                    newRow,
-                                  ];
-                                }
-                                return [...prev, newRow];
-                              });
-                              setShowFreightCalc(false);
-                            }}
+                          <label
                             style={{
-                              fontSize: 12,
-                              background: "var(--fill-accent)",
-                              color: "var(--on-accent)",
-                              border: "none",
+                              fontSize: 11,
+                              color: "var(--text-muted)",
+                              display: "block",
+                              marginBottom: 2,
                             }}
                           >
-                            Kalem olarak ekle
-                          </button>
-                        </div>
-                      </div>,
-                      document.body,
-                    )}
+                            Teslim Şekli
+                          </label>
+                          <select
+                            value={freightIncoterm}
+                            onChange={(e) => setFreightIncoterm(e.target.value)}
+                            style={{ width: "100%", fontSize: 13, marginBottom: 6 }}
+                          >
+                            <option value="FOB">FOB</option>
+                            <option value="CIF">CIF</option>
+                            <option value="EXW">EXW</option>
+                            <option value="DAP">DAP</option>
+                          </select>
+                          <label
+                            style={{
+                              fontSize: 11,
+                              color: "var(--text-muted)",
+                              display: "block",
+                              marginBottom: 2,
+                            }}
+                          >
+                            Navlun/Gümrük Oranı (%)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            value={freightPercent}
+                            onChange={(e) => setFreightPercent(e.target.value)}
+                            placeholder="Örn. 8"
+                            style={{ width: "100%", fontSize: 13, marginBottom: 6 }}
+                          />
+                          <label
+                            style={{
+                              fontSize: 11,
+                              color: "var(--text-muted)",
+                              display: "block",
+                              marginBottom: 2,
+                            }}
+                          >
+                            Sabit Navlun Ücreti (TL)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={freightFlatFee}
+                            onChange={(e) => setFreightFlatFee(e.target.value)}
+                            placeholder="Opsiyonel"
+                            style={{ width: "100%", fontSize: 13, marginBottom: 8 }}
+                          />
+                          <p
+                            style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 8px" }}
+                          >
+                            Oran, mevcut kalem toplamı üzerinden hesaplanır - bu kendi sabit
+                            oranınız, canlı gümrük/navlun verisi değildir.
+                          </p>
+                          <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                            <button
+                              type="button"
+                              onClick={() => setShowFreightCalc(false)}
+                              style={{ fontSize: 12 }}
+                            >
+                              Vazgeç
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const percent = Number(freightPercent) || 0;
+                                const flatFee = Number(freightFlatFee) || 0;
+                                const baseTotal = lineItemsTotal || Number(value) || 0;
+                                const amount = Math.round(baseTotal * (percent / 100) + flatFee);
+                                if (amount <= 0) return;
+                                localStorage.setItem("binerly_freight_incoterm", freightIncoterm);
+                                localStorage.setItem("binerly_freight_percent", freightPercent);
+                                localStorage.setItem("binerly_freight_flat_fee", freightFlatFee);
+                                setLineItems((prev) => {
+                                  const newRow = {
+                                    localId: uid(),
+                                    description: `Navlun/Gümrük (${freightIncoterm}${percent ? `, %${percent}` : ""})`,
+                                    quantity: 1,
+                                    unitPrice: amount,
+                                  };
+                                  if (prev.length === 0 && title.trim() && Number(value) > 0) {
+                                    return [
+                                      {
+                                        localId: uid(),
+                                        description: title.trim(),
+                                        quantity: 1,
+                                        unitPrice: Number(value),
+                                      },
+                                      newRow,
+                                    ];
+                                  }
+                                  return [...prev, newRow];
+                                });
+                                setShowFreightCalc(false);
+                              }}
+                              style={{
+                                fontSize: 12,
+                                background: "var(--fill-accent)",
+                                color: "var(--on-accent)",
+                                border: "none",
+                              }}
+                            >
+                              Kalem olarak ekle
+                            </button>
+                          </div>
+                        </div>,
+                        document.body,
+                      )}
+                  </div>
+                )}
+              </div>
+              {lineItems.length > 0 && (
+                <div
+                  style={{
+                    marginTop: 8,
+                    display: "flex",
+                    gap: 8,
+                    alignItems: "flex-end",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ width: 100 }}>
+                    <label
+                      style={{
+                        fontSize: 11,
+                        color: "var(--text-muted)",
+                        display: "block",
+                        marginBottom: 2,
+                      }}
+                    >
+                      İndirim
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={discountValue}
+                      onChange={(e) => setDiscountValue(e.target.value)}
+                      placeholder="0"
+                      style={{ width: "100%", fontSize: 13 }}
+                    />
+                  </div>
+                  <div style={{ width: 70 }}>
+                    <label
+                      style={{
+                        fontSize: 11,
+                        color: "var(--text-muted)",
+                        display: "block",
+                        marginBottom: 2,
+                      }}
+                    >
+                      &nbsp;
+                    </label>
+                    <select
+                      value={discountType}
+                      onChange={(e) => setDiscountType(e.target.value)}
+                      style={{ width: "100%", fontSize: 13 }}
+                    >
+                      <option value="percent">%</option>
+                      <option value="amount">TL</option>
+                    </select>
+                  </div>
+                  {discountAmount > 0 && (
+                    <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 6px" }}>
+                      Kalem toplamı {formatTL(lineItemsTotal)} - indirim {formatTL(discountAmount)}{" "}
+                      = <strong>{formatTL(lineItemsTotal - discountAmount)}</strong>
+                    </p>
+                  )}
                 </div>
               )}
             </div>
-            {lineItems.length > 0 && (
-              <div
-                style={{
-                  marginTop: 8,
-                  display: "flex",
-                  gap: 8,
-                  alignItems: "flex-end",
-                  flexWrap: "wrap",
-                }}
-              >
-                <div style={{ width: 100 }}>
-                  <label
-                    style={{
-                      fontSize: 11,
-                      color: "var(--text-muted)",
-                      display: "block",
-                      marginBottom: 2,
-                    }}
-                  >
-                    İndirim
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={discountValue}
-                    onChange={(e) => setDiscountValue(e.target.value)}
-                    placeholder="0"
-                    style={{ width: "100%", fontSize: 13 }}
-                  />
-                </div>
-                <div style={{ width: 70 }}>
-                  <label
-                    style={{
-                      fontSize: 11,
-                      color: "var(--text-muted)",
-                      display: "block",
-                      marginBottom: 2,
-                    }}
-                  >
-                    &nbsp;
-                  </label>
-                  <select
-                    value={discountType}
-                    onChange={(e) => setDiscountType(e.target.value)}
-                    style={{ width: "100%", fontSize: 13 }}
-                  >
-                    <option value="percent">%</option>
-                    <option value="amount">TL</option>
-                  </select>
-                </div>
-                {discountAmount > 0 && (
-                  <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "0 0 6px" }}>
-                    Kalem toplamı {formatTL(lineItemsTotal)} - indirim {formatTL(discountAmount)} ={" "}
-                    <strong>{formatTL(lineItemsTotal - discountAmount)}</strong>
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
+          )}
           {marginRisk && (
             <div
               style={{
@@ -2180,7 +2191,7 @@ export function DealForm({
                   marginBottom: 4,
                 }}
               >
-                Tutar (TL){" "}
+                {sector === "emlak" ? "Hizmet bedeli (TL)" : "Tutar (TL)"}{" "}
                 <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>
                   - KDV dahil{lineItems.length > 0 ? ", kalemlerden otomatik" : ""}
                 </span>
@@ -4496,14 +4507,16 @@ export function DealsTab({
           alignItems: "center",
         }}
       >
-        <SegmentedControl
-          value={dealAudience}
-          onChange={(v) => {
-            setDealAudience(v);
-            updatePreferredCustomerType(v);
-          }}
-          options={DEAL_AUDIENCE_OPTIONS}
-        />
+        {companySettings?.sector !== "emlak" && (
+          <SegmentedControl
+            value={dealAudience}
+            onChange={(v) => {
+              setDealAudience(v);
+              updatePreferredCustomerType(v);
+            }}
+            options={DEAL_AUDIENCE_OPTIONS}
+          />
+        )}
         <SegmentedControl
           value={dealView}
           onChange={changeDealView}
@@ -4596,7 +4609,7 @@ export function DealsTab({
           <i className="ti ti-upload" style={{ fontSize: 16 }} aria-hidden="true"></i>
           İçe aktar
         </button>
-        {supportsSelfBooking(companySettings?.sector) &&
+        {publicSelfBooking(companySettings?.sector) &&
           bookingModel(companySettings?.sector) === "slot" && (
             <button
               onClick={async () => {

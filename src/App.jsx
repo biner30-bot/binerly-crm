@@ -5372,7 +5372,7 @@ export default function App() {
           { label: "Sektör & Özel Alanlar", description: "Aşama isimleri, etiket önerileri, özel alanlar", onOpen: () => setShowSectorFields(true) },
           { label: "Teklif Şablonları", description: "PDF teklifinizin tasarımını seçin", onOpen: () => setShowPdfTemplates(true) },
           { label: "Ödeme Bağlantısı", description: "Onay linkinden kartla tahsilat almak için iyzico veya PayTR bağlayın", onOpen: () => setShowPaymentSettings(true) },
-          ...(bookingModel(companySettings?.sector) === "slot"
+          ...(publicSelfBooking(companySettings?.sector) && bookingModel(companySettings?.sector) === "slot"
             ? [{ label: "Müsaitlik Saatleri", description: "Randevu Alma Linki ve portaldan randevu alınabilecek gün/saatleri belirleyin", onOpen: () => setShowBusinessHours(true) }]
             : []),
           ...(bookingModel(companySettings?.sector) === "inventory"
@@ -5420,7 +5420,9 @@ export default function App() {
     : null;
   const dealQuery = dealSearch.trim().toLowerCase();
   const filteredDeals = deals.filter((d) => {
-    if ((customerById(d.customerId)?.customerType || "kurumsal") !== dealAudience) return false;
+    // Emlakta müşteri tipi ayrımı yok (eski kayıtlar kurumsal, yeniler bireysel
+    // açılıyor) - süzülürse bir grubun teklifleri listeden kayboluyordu.
+    if (!isRealEstate && (customerById(d.customerId)?.customerType || "kurumsal") !== dealAudience) return false;
     if (!matchesDateRange(d.createdAt, dealFromDate, dealToDate)) return false;
     if (dealStageFilter === "acik" && (d.stage === "kazanildi" || d.stage === "kaybedildi")) return false;
     if (dealStageFilter !== "all" && dealStageFilter !== "acik" && d.stage !== dealStageFilter) return false;
@@ -6140,6 +6142,8 @@ export default function App() {
       {tab === "pano" && (
         <Pano
           properties={properties}
+          showings={isRealEstate ? showings : []}
+          prospects={isRealEstate ? prospects : []}
           customers={customers}
           deals={deals}
           tickets={tickets}
@@ -6753,7 +6757,7 @@ export default function App() {
                   description={paymentCredentials.length > 0 ? `Bağlı ✓ (${paymentCredentials[0].provider === "paytr" ? "PayTR" : "iyzico"}) - müşteriler onay linkinden kartla ödeyebilir` : "Onay linkinden kartla tahsilat almak için iyzico veya PayTR bağlayın"}
                   onClick={() => { setShowSettingsHub(false); setShowPaymentSettings(true); }}
                 />
-                {bookingModel(companySettings?.sector) === "slot" && (
+                {publicSelfBooking(companySettings?.sector) && bookingModel(companySettings?.sector) === "slot" && (
                   <MenuRow
                     icon="ti-clock"
                     label="Müsaitlik Saatleri"

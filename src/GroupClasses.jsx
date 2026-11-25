@@ -1294,7 +1294,7 @@ export function AgendaTab({
               onChange={(e) => setStaffFilter(e.target.value)}
               style={{ fontSize: 16 }}
             >
-              <option value="">Tüm personel</option>
+              <option value="">{sector === "emlak" ? "Herkes" : "Tüm personel"}</option>
               {currentUserId && <option value={currentUserId}>Ben ({currentUserEmail})</option>}
               {teamMembers
                 .filter((m) => m.id !== currentUserId)

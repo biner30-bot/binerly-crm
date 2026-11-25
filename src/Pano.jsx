@@ -28,6 +28,7 @@ import {
 } from "./Sectors";
 import { getSlaStatus, TERMINAL_STATUSES } from "./Support";
 import { TASK_TYPES } from "./Tasks";
+import { authorizationStatus } from "./realEstate";
 
 // Paket/üyelik yenileme hatırlatması — approvalLink opsiyonel, çağıran taraf
 // (async generateApprovalLink sonucu) hazırsa geçiyor, hazır değilse linksiz
@@ -66,6 +67,8 @@ function buildOrderCheckInMessage(customer, typicalInterval, daysSinceLast, comp
 }
 export default function Pano({
   properties = [],
+  showings = [],
+  prospects = [],
   customers,
   deals,
   tickets,
@@ -1328,6 +1331,78 @@ export default function Pano({
         </div>
       </div>
 
+      {companySettings?.sector === "emlak" &&
+        (() => {
+          // Emlakçının asıl baktığı rakamlar - genel satış kartlarının önünde.
+          const open = properties.filter((p) => ["aktif", "opsiyonlu"].includes(p.status));
+          const since30 = Date.now() - 30 * 86400000;
+          const shows30 = showings.filter((s) => new Date(s.shownAt).getTime() >= since30).length;
+          const expiring = open.filter((p) => {
+            const a = authorizationStatus(p);
+            return a && !a.autoRenew && a.daysLeft <= 30;
+          }).length;
+          const noShows = open.filter(
+            (p) =>
+              p.createdAt &&
+              Date.now() - new Date(p.createdAt).getTime() > 30 * 86400000 &&
+              !showings.some(
+                (s) => s.propertyId === p.id && new Date(s.shownAt).getTime() >= since30,
+              ),
+          ).length;
+          const openProspects = prospects.filter(
+            (x) => !["yetki_alindi", "istemiyor", "yayindan_kalkti"].includes(x.status),
+          ).length;
+          return (
+            <>
+              <p
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "var(--text-secondary)",
+                  textTransform: "uppercase",
+                  margin: "0 0 8px",
+                }}
+              >
+                Portföy
+              </p>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))",
+                  gap: 12,
+                  marginBottom: "1.5rem",
+                }}
+              >
+                <MetricCard
+                  label="Aktif portföy"
+                  value={open.length}
+                  onClick={() => setTab("portfoy")}
+                />
+                <MetricCard
+                  label="Son 30 gün gösterim"
+                  value={shows30}
+                  onClick={() => setTab("portfoy")}
+                />
+                <MetricCard
+                  label="30 gündür gösterimsiz"
+                  value={noShows}
+                  sub={noShows ? "fiyatı mal sahibiyle konuşun" : undefined}
+                  onClick={() => setTab("portfoy")}
+                />
+                <MetricCard
+                  label="Yetkisi 30 gün içinde biten"
+                  value={expiring}
+                  onClick={() => setTab("portfoy")}
+                />
+                <MetricCard
+                  label="Açık portföy adayı"
+                  value={openProspects}
+                  onClick={() => setTab("adaylar")}
+                />
+              </div>
+            </>
+          );
+        })()}
       <p
         style={{
           fontSize: 12,
