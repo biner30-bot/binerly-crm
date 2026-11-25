@@ -2926,6 +2926,7 @@ export default function App() {
       phone: meta.contact_phone || "",
       title: meta.job_title || "",
       photoUrl: meta.avatar_url || "",
+      about: meta.about || "",
     };
   };
   const createPropertyFromProspect = (p) => {

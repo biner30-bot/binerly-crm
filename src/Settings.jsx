@@ -1476,6 +1476,7 @@ export function AppSettingsModal({
   const [name, setName] = useState(session.user.user_metadata?.full_name || "");
   const [contactPhone, setContactPhone] = useState(session.user.user_metadata?.contact_phone || "");
   const [jobTitle, setJobTitle] = useState(session.user.user_metadata?.job_title || "");
+  const [about, setAbout] = useState(session.user.user_metadata?.about || "");
   const [savingName, setSavingName] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(session.user.user_metadata?.avatar_url || "");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -1496,6 +1497,7 @@ export function AppSettingsModal({
         full_name: name.trim(),
         contact_phone: contactPhone.trim(),
         job_title: jobTitle.trim(),
+        about: about.trim().slice(0, 700),
       },
     });
     setSavingName(false);
@@ -1660,6 +1662,26 @@ export function AppSettingsModal({
               />
             </div>
           ))}
+          <div style={{ flex: "1 1 100%" }}>
+            <label
+              style={{
+                fontSize: 13,
+                color: "var(--text-secondary)",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
+              Hakkımda
+            </label>
+            <textarea
+              value={about}
+              onChange={(e) => setAbout(e.target.value)}
+              maxLength={700}
+              rows={3}
+              placeholder="ör. 10 yıldır Karşıyaka'da konut satış ve kiralamasında çalışıyorum..."
+              style={{ width: "100%", resize: "vertical" }}
+            />
+          </div>
           <p style={{ flex: "1 1 100%", fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
             Fotoğrafınız, adınız, unvanınız ve telefonunuz mal sahibine verdiğiniz raporlarda
             "Hazırlayan" olarak yer alır. Telefon boşsa şirket telefonu kullanılır.

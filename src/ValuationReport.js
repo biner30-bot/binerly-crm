@@ -141,8 +141,9 @@ export function buildValuationReportHtml({
     agent?.name || office
       ? `<div class="agent">${agent?.photoUrl ? `<img src="${esc(agent.photoUrl)}" alt=""/>` : ""}<div><div class="an">${esc(agent?.name || office)}</div>${agent?.title ? `<div class="at">${esc(agent.title)}</div>` : ""}${agent?.name && office ? `<div class="at">${esc(office)}</div>` : ""}<div class="ac">${[agentPhone, agentEmail].filter(Boolean).map(esc).join(" · ")}</div>${licenseNo ? `<div class="at">Yetki belgesi no: ${esc(licenseNo)}</div>` : ""}</div></div>`
       : "";
+  let totalPages = 3;
   const footer = (n) =>
-    `<div class="foot"><span>${contact}${office ? ` · ${esc(office)}` : ""}</span><span>Sayfa ${n}/3</span></div>`;
+    `<div class="foot"><span>${contact}${office ? ` · ${esc(office)}` : ""}</span><span>Sayfa ${n}/__TOTAL__</span></div>`;
   const features = featureRows(subject, result, property);
   const half = Math.ceil(features.length / 2);
   const featTable = (rows) =>
@@ -156,19 +157,19 @@ export function buildValuationReportHtml({
     .filter((l) => l.m2 && l.price)
     .map((l) => ({ ...l, unit: l.price / l.m2 }))
     .sort((a, b) => a.unit - b.unit);
-  // Tek A4 sayfaya sığsın diye konu dairenin çevresindeki 15 ilan gösterilir;
+  // Tek A4 sayfaya sığsın diye konu dairenin çevresindeki 12 ilan gösterilir;
   // sıra numarası tüm listedeki gerçek sırasıdır.
   const ranked = [...comps, { subject: true, unit: subjectAskingUnit }].sort(
     (a, b) => a.unit - b.unit,
   );
   const meIdx = ranked.findIndex((l) => l.subject);
-  const from = Math.max(0, Math.min(meIdx - 7, ranked.length - 15));
+  const from = Math.max(0, Math.min(meIdx - 6, ranked.length - 12));
   const subjectAskingPrice =
     Math.round(
       result.value.mid / (1 - Number(result.factors.askingDiscountPercent || 0) / 100) / 10000,
     ) * 10000;
   const rankRows = ranked
-    .slice(from, from + 15)
+    .slice(from, from + 12)
     .map((l, j) => {
       const i = from + j;
       return l.subject
@@ -177,7 +178,7 @@ export function buildValuationReportHtml({
     })
     .join("");
   const rankNote =
-    ranked.length > 15 ? ` ${ranked.length} kayıttan bu daireye en yakın 15'i gösteriliyor.` : "";
+    ranked.length > 12 ? ` ${ranked.length} kayıttan bu daireye en yakın 12'si gösteriliyor.` : "";
   const ages = comps
     .filter((l) => l.date)
     .map((l) => (Date.now() - new Date(`${l.date}T00:00:00`)) / 86400000);
@@ -185,6 +186,94 @@ export function buildValuationReportHtml({
     ? Math.round(ages.reduce((s, a) => s + a, 0) / ages.length)
     : null;
   const chart = kfeChart(marketIndex, r.city || subject.city);
+
+  // ---- 4. sayfa: satış süresi, bekleyen ve yeni emsaller, piyasa yönü ----
+  // Süreler bölge verisinin tarihine göre sayılır - sabitlenmiş analizin raporu
+  // sonradan açılınca da aynı kalsın. Sahibinden'deki ilan tarihi yayın ya da
+  // son güncelleme tarihidir; gerçek bekleme süresi daha uzun olabilir.
+  const refDate = r.asOf ? new Date(`${String(r.asOf).slice(0, 10)}T00:00:00`) : new Date();
+  const withDays = comps
+    .filter((l) => l.date)
+    .map((l) => ({
+      ...l,
+      days: Math.max(
+        0,
+        Math.floor((refDate - new Date(`${String(l.date).slice(0, 10)}T00:00:00`)) / 86400000),
+      ),
+    }));
+  const med = (arr) => {
+    if (!arr.length) return null;
+    const s = [...arr].sort((a, b) => a - b);
+    const m = Math.floor(s.length / 2);
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  };
+  const disc = 1 - Number(result.factors.askingDiscountPercent || 0) / 100;
+  const askUnitOf = (v) => (result.gross ? v / disc / result.gross : null);
+  const lowAsk = askUnitOf(result.value.low);
+  const highAsk = askUnitOf(result.value.high);
+  const bandDefs =
+    lowAsk && highAsk
+      ? [
+          ["Hızlı satış seviyesi ve altı", (u) => u <= lowAsk],
+          ["Piyasa değeri civarı", (u) => u > lowAsk && u < highAsk],
+          ["Üst fiyat seviyesi ve üzeri", (u) => u >= highAsk],
+        ]
+      : [];
+  const speedRows = bandDefs
+    .map(([label, test]) => {
+      const g = withDays.filter((l) => test(l.unit));
+      return g.length >= 2 ? [label, g.length, Math.round(med(g.map((l) => l.days)))] : null;
+    })
+    .filter(Boolean);
+  const waiting = withDays
+    .filter((l) => l.days >= 90)
+    .sort((a, b) => b.days - a.days)
+    .slice(0, 8);
+  const waitingMedUnit = med(waiting.map((l) => l.unit));
+  const fresh = withDays
+    .filter((l) => l.days <= 30)
+    .sort((a, b) => a.days - b.days)
+    .slice(0, 6);
+  const mv = (result.fullRegion || r).marketMoves;
+  let direction = null;
+  if (mv && mv.comparedWith > 0) {
+    const dropShare = (mv.dropCount || 0) / mv.comparedWith;
+    const removed = mv.removedCount;
+    if (dropShare >= 0.15 || (removed != null && mv.newCount >= 3 && mv.newCount > removed * 1.5))
+      direction = [
+        "Alıcı lehine",
+        "stok artıyor veya fiyat düşüren ilan çok - alıcı pazarlık gücüne sahip",
+      ];
+    else if (removed != null && removed > mv.newCount && dropShare < 0.05)
+      direction = ["Satıcı lehine", "yayından kalkan ilan yeni gelenden fazla, fiyat düşüren az"];
+    else direction = ["Dengeli", "yeni gelen ve yayından kalkan ilanlar birbirine yakın"];
+  }
+  const marketBoxes = [
+    mv?.comparedWith > 0 ? ["Son güncellemede yeni ilan", `${mv.newCount}`] : null,
+    mv?.comparedWith > 0
+      ? [
+          "Fiyat düşüren ilan",
+          mv.dropCount
+            ? `${mv.dropCount} (ort. %${String(mv.dropAvgPct).replace(".", ",")})`
+            : "yok",
+        ]
+      : null,
+    mv?.removedCount != null ? ["Yayından kalkan ilan", `${mv.removedCount}`] : null,
+    withDays.length
+      ? ["Emsallerin ortanca yayın süresi", `${Math.round(med(withDays.map((l) => l.days)))} gün`]
+      : null,
+    direction ? ["Piyasa yönü", direction[0]] : null,
+  ].filter(Boolean);
+  const listRow = (l) =>
+    `<tr><td>${esc(l.rooms || "-")}</td><td>${esc(l.m2)}</td><td>${esc(l.ageBand || (l.age != null ? l.age : "-"))}</td><td>${esc(formatTL(l.price))}</td><td>${unit(l.unit)}</td><td class="num">${l.days} gün</td></tr>`;
+  const listHead = `<thead><tr><th>Oda</th><th>Brüt m²</th><th>Bina yaşı</th><th>İlan fiyatı</th><th>m² fiyatı</th><th class="num">Yayında</th></tr></thead>`;
+  const aboutBlock =
+    agent?.about && agent.about.trim()
+      ? `<div class="band">Danışmanınız</div><div class="agent">${agent?.photoUrl ? `<img src="${esc(agent.photoUrl)}" alt=""/>` : ""}<div><div class="an">${esc(agent.name || office)}</div>${agent?.title ? `<div class="at">${esc(agent.title)}</div>` : ""}<div class="ac">${[agentPhone, agentEmail].filter(Boolean).map(esc).join(" · ")}</div></div></div><p style="margin:4px 0 0;white-space:pre-line">${esc(agent.about.trim())}</p>`
+      : "";
+  const page4 =
+    speedRows.length || waiting.length || fresh.length || marketBoxes.length || aboutBlock;
+  if (page4) totalPages = 4;
 
   const ages2 = ageStats(r.listings);
   const metrics = [
@@ -243,7 +332,7 @@ export function buildValuationReportHtml({
     )
     .join("");
 
-  return `<!doctype html><html lang="tr"><head><meta charset="utf-8"/>
+  const html = `<!doctype html><html lang="tr"><head><meta charset="utf-8"/>
 <title>Piyasa Değer Raporu - ${esc(location)}</title>
 <style>
 @page{size:A4;margin:0}
@@ -351,6 +440,20 @@ ${
 <div class="disc">${esc(disclaimer)}</div>
 ${footer(3)}
 </section>
+${
+  page4
+    ? `<section class="page">
+${marketBoxes.length ? `<div class="band">Piyasa nabzı - ${esc(r.neighborhood)}</div><div class="metrics">${marketBoxes.map(([k, v]) => `<div class="metric"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join("")}</div>${direction ? `<p class="note">Piyasa yönü son iki ilan güncellemesinin karşılaştırmasından çıkarılır: ${esc(direction[1])}.</p>` : ""}` : ""}
+${speedRows.length ? `<div class="band">Fiyat seviyesine göre yayında kalma süresi</div><table class="list"><thead><tr><th>Fiyat seviyesi</th><th class="num">Emsal ilan</th><th class="num">Ortanca yayın süresi</th></tr></thead><tbody>${speedRows.map(([l, n, d]) => `<tr><td>${esc(l)}</td><td class="num">${n}</td><td class="num">${d} gün</td></tr>`).join("")}</tbody></table><p class="note">Seviyeler bu raporun hızlı satış ve üst fiyat değerlerinin ilan fiyatı karşılığına göre ayrılmıştır. Yüksek fiyatlı ilanların daha uzun süre yayında kalması, fiyatın satış süresine etkisini gösterir.</p>` : ""}
+${waiting.length ? `<div class="band">Uzun süredir satılmayı bekleyen emsaller (90 gün ve üzeri)</div><table class="list">${listHead}<tbody>${waiting.map(listRow).join("")}</tbody></table>${waitingMedUnit ? `<p class="note">Bu ilanların ortanca m² fiyatı ${unit(waitingMedUnit)}; bu dairenin ilan seviyesindeki m² fiyatı ${unit(subjectAskingUnit)}.</p>` : ""}` : ""}
+${fresh.length ? `<div class="band">Son 30 günde yayına giren emsaller</div><table class="list">${listHead}<tbody>${fresh.map(listRow).join("")}</tbody></table>` : ""}
+${aboutBlock}
+<p class="note" style="margin-top:8px">Yayın süreleri ${esc(fmtDate(r.asOf))} tarihli ilan verisine göredir; Sahibinden'deki ilan tarihi yayın veya son güncelleme tarihi olabilir.</p>
+${footer(4)}
+</section>`
+    : ""
+}
 <script>window.onload=function(){setTimeout(function(){window.print()},300)}</script>
 </body></html>`;
+  return html.replaceAll("__TOTAL__", String(totalPages));
 }
