@@ -12,7 +12,7 @@ import { TRASH_TABLE_LABELS, TrashHistoryModal } from "./TrashHistory";
 import { GroupClassForm, GroupClassRoster, LateCancelPolicyBox, GroupClassesTab, AgendaTab, agendaDateKey, quickDateWindow } from "./GroupClasses";
 import { DealForm, roomTypeConflict, dealLostReasons, TAGS_INFO_TEXT, DealPayments, TeklifPrint, ParasutExportModal, PaymentModeModal, DealsTab, STUCK_DEAL_DAYS_THRESHOLD } from "./Deals";
 import { AppointmentRequestsPanel } from "./AppointmentRequests";
-import { CustomerForm, CustomerDetail, CampaignModal, ACTIVITY_TYPES, CustomersTab } from "./Customers";
+import { CustomerForm, CustomerDetail, CampaignModal, ACTIVITY_TYPES, CustomersTab, hasOwnPropertyMatch } from "./Customers";
 import { AskBubble, AskDock } from "./AskWidget";
 import Pano from "./Pano";
 import Finance, { rowToCompanyExpense } from "./Finance";
@@ -5899,6 +5899,19 @@ export default function App() {
         })
         .filter(Boolean)
     : [];
+  // Alıcı kaçmasın: talebi olan ama kendi portföyünde uyan ev olmayan ve
+  // dışarıdan da henüz ev bulunmamış (açık dış ev yok) alıcılar. Acil olan önde.
+  const unservedBuyers = isRealEstate
+    ? customers
+        .filter((c) => {
+          const cf = c.customFields || {};
+          const hasDemand = !!(cf.aranan_bolge || cf.min_butce || cf.max_butce || (cf.aranan_oda_sayisi && cf.aranan_oda_sayisi !== "Farketmez"));
+          if (!hasDemand || cf.talep_aciliyet === "Sadece bakıyor") return false;
+          if (buyerListings.some((l) => l.customerId === c.id && l.status !== "elendi")) return false;
+          return !hasOwnPropertyMatch(c, properties);
+        })
+        .sort((a, b) => (["Hemen", "1-3 ay"].includes(b.customFields?.talep_aciliyet) ? 1 : 0) - (["Hemen", "1-3 ay"].includes(a.customFields?.talep_aciliyet) ? 1 : 0))
+    : [];
   const membershipAlerts = computeMembershipAlerts(deals, customers);
   const churnAlerts = supportsGroupClasses(companySettings?.sector) ? computeAttendanceChurnRisk(customers, deals, groupClassEnrollments, classAttendance) : [];
   // Bir üye kendi portalından iptal edip yer açtığında (personel tarafından
@@ -6325,6 +6338,7 @@ export default function App() {
           propertyAuthAlerts={propertyAuthAlerts}
           regionStaleAlerts={regionStaleAlerts}
           newPropertyMatchAlerts={newPropertyMatchAlerts}
+          unservedBuyers={unservedBuyers}
           membershipAlerts={membershipAlerts}
           churnAlerts={churnAlerts}
           waitlistFillableAlerts={waitlistFillableAlerts}

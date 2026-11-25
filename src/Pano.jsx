@@ -124,6 +124,7 @@ export default function Pano({
   propertyAuthAlerts = [],
   regionStaleAlerts = [],
   newPropertyMatchAlerts = [],
+  unservedBuyers = [],
   membershipAlerts,
   churnAlerts,
   waitlistFillableAlerts,
@@ -718,6 +719,7 @@ export default function Pano({
         propertyAuthAlerts.length === 0 &&
         regionStaleAlerts.length === 0 &&
         newPropertyMatchAlerts.length === 0 &&
+        unservedBuyers.length === 0 &&
         membershipAlerts.length === 0 &&
         churnAlerts.length === 0 &&
         waitlistFillableAlerts.length === 0 &&
@@ -1049,6 +1051,49 @@ export default function Pano({
                 <Badge tone="accent">Uyan müşteri</Badge>
               </div>
             ))}
+            {unservedBuyers.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 13,
+                  padding: "8px 10px",
+                  background: "var(--bg-warning)",
+                  borderLeft: "3px solid var(--fill-warning)",
+                  borderRadius: "var(--radius)",
+                }}
+              >
+                <span style={{ flex: 1 }}>
+                  {unservedBuyers.length} alıcının talebine uyan portföyünüz yok - kaçmasın,
+                  dışarıda ev bulun:{" "}
+                  {unservedBuyers.slice(0, 3).map((c, i) => (
+                    <span key={c.id}>
+                      {i > 0 && ", "}
+                      <button
+                        type="button"
+                        className="pano-alert-row"
+                        onClick={() => setViewingCustomer(c)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          padding: 0,
+                          color: "var(--accent)",
+                          textDecoration: "underline",
+                          cursor: "pointer",
+                          fontSize: 13,
+                        }}
+                      >
+                        {c.name}
+                      </button>
+                      {c.customFields?.talep_aciliyet === "Hemen" ? " (acil)" : ""}
+                    </span>
+                  ))}
+                  {unservedBuyers.length > 3 ? ` +${unservedBuyers.length - 3}` : ""}
+                </span>
+                <Badge tone="warning">Alıcı</Badge>
+              </div>
+            )}
             {regionStaleAlerts.map(({ region, days, properties: props }) => (
               <div
                 key={`region-stale-${region.id}`}
