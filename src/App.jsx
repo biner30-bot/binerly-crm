@@ -2929,6 +2929,30 @@ export default function App() {
       about: meta.about || "",
     };
   };
+  // Müşteri listesindeki hızlı arama kaydı (emlak): geçmişe yazılır, istenirse
+  // "tekrar ara" görevi açılır.
+  const quickCallCustomer = async (c, { outcome, note, followDays }) => {
+    const content = [outcome.label, note].filter(Boolean).join(" - ");
+    await addActivity({ customerId: c.id, type: outcome.type, content });
+    if (followDays > 0) {
+      const d = new Date(`${istanbulToday()}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + followDays);
+      const ok = await upsertTask({
+        id: uid(),
+        title: `Tekrar ara: ${c.name}`,
+        type: "arama",
+        description: content,
+        dueDate: d.toISOString().slice(0, 10),
+        assignedTo: session.user.id,
+        customerId: c.id,
+        dealId: null,
+      });
+      notify(ok ? `Kaydedildi - ${d.toLocaleDateString("tr-TR", { timeZone: "UTC" })} için arama görevi açıldı.` : "Arama kaydedildi, görev açılamadı.", ok ? "success" : undefined);
+    } else {
+      notify("Arama kaydedildi.", "success");
+    }
+    return true;
+  };
   const createPropertyFromProspect = (p) => {
     const band = (p.ageBand || "").match(/^(\d+)/);
     setPortfolioPrefill({
@@ -6241,6 +6265,9 @@ export default function App() {
           requestCustomerConsent={requestCustomerConsent}
           vipCustomerIds={vipCustomerIds}
           notify={notify}
+          properties={isRealEstate ? properties : []}
+          showings={isRealEstate ? showings : []}
+          onQuickCall={isRealEstate ? quickCallCustomer : undefined}
         />
       )}
 

@@ -551,6 +551,68 @@ export function propertyAsListingDeal(p, { forMatching = false } = {}) {
   };
 }
 
+// ---- Emlak müşteri rolleri ----
+// Rol ayrı bir kolon değil, sektör etiketlerinden okunur: eski kayıtlar da
+// kendiliğinden doğru role düşer, etiket sistemi (filtre, kampanya) bozulmaz.
+// Portföyde mal sahibi olarak seçilen kişi etiket olmasa da mal sahibidir.
+export const CUSTOMER_ROLES = [
+  { id: "alici", label: "Alıcı", tag: "Alıcı adayı", seeks: "Satış" },
+  { id: "kiraci", label: "Kiracı", tag: "Kiracı", seeks: "Kiralama" },
+  { id: "satici", label: "Mal sahibi - satış", tag: "Satıcı" },
+  { id: "kiraya_veren", label: "Mal sahibi - kiralama", tag: "Kiraya veren" },
+  { id: "yatirimci", label: "Yatırımcı", tag: "Yatırımcı", seeks: "Satış" },
+];
+export const SEEKING_ROLE_IDS = ["alici", "kiraci", "yatirimci"];
+export const SEEKING_FIELD_KEYS = [
+  "aranan_islem",
+  "aranan_bolge",
+  "min_butce",
+  "max_butce",
+  "aranan_oda_sayisi",
+  "aranan_mulk_tipi",
+];
+
+export function customerRoles(customer, ownedProperties = []) {
+  const tags = new Set(customer?.tags || []);
+  const ids = new Set(CUSTOMER_ROLES.filter((r) => tags.has(r.tag)).map((r) => r.id));
+  for (const p of ownedProperties)
+    ids.add(p.transactionType === "satilik" ? "satici" : "kiraya_veren");
+  const seek = customer?.customFields?.aranan_islem;
+  if (seek && !SEEKING_ROLE_IDS.some((i) => ids.has(i)))
+    ids.add(seek === "Satış" ? "alici" : "kiraci");
+  return CUSTOMER_ROLES.filter((r) => ids.has(r.id));
+}
+
+const shortMoney = (n) =>
+  n >= 1_000_000
+    ? `${(n / 1_000_000).toLocaleString("tr-TR", { maximumFractionDigits: 1 })}M`
+    : `${Math.round(n / 1000)}B`;
+
+// Listede tek satırda "ne arıyor": bölge · oda · tip · bütçe.
+export function customerSeekingSummary(customer) {
+  const cf = customer?.customFields || {};
+  const min = Number(cf.min_butce) || 0;
+  const max = Number(cf.max_butce) || 0;
+  const budget =
+    min && max
+      ? `${shortMoney(min)}-${shortMoney(max)}`
+      : max
+        ? `en fazla ${shortMoney(max)}`
+        : min
+          ? `en az ${shortMoney(min)}`
+          : "";
+  const real = (v) => (v && v !== "Farketmez" ? v : "");
+  return [
+    cf.aranan_islem && cf.aranan_islem !== "Satış" ? cf.aranan_islem : "",
+    cf.aranan_bolge,
+    real(cf.aranan_oda_sayisi),
+    real(cf.aranan_mulk_tipi),
+    budget,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 // Müşteriye WhatsApp'tan portföy gönderme metni. Adres/ada-parsel/bağımsız
 // bölüm bilerek yok - vitrinde de gösterilmeyen bilgiler mesajla da çıkmasın.
 export function propertyShareText(p, link) {

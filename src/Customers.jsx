@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Modal,
   InfoTip,
@@ -38,6 +38,11 @@ import {
   propertyAsListingDeal,
   propertyShareText,
   propertyShowcaseUrl,
+  CUSTOMER_ROLES,
+  SEEKING_ROLE_IDS,
+  SEEKING_FIELD_KEYS,
+  customerRoles,
+  customerSeekingSummary,
 } from "./realEstate";
 import { CustomerShowings } from "./Showings";
 
@@ -114,7 +119,10 @@ export function CustomerForm({
   } = useFormDraft(`customer_new_${draftScopeId}`, !initial?.id);
   const [showDraftNote, setShowDraftNote] = useState(draftRestored);
   const [customerType, setCustomerType] = useState(
-    draft.customerType ?? (initial?.customerType || preferredCustomerType || "kurumsal"),
+    draft.customerType ??
+      (initial?.customerType ||
+        (companySector === "emlak" ? "bireysel" : preferredCustomerType) ||
+        "kurumsal"),
   );
   const [name, setName] = useState(draft.name ?? (initial?.name || ""));
   const [sector, setSector] = useState(
@@ -179,6 +187,27 @@ export function CustomerForm({
   const defsForEntity = customFieldDefs.filter(
     (d) => d.entity === "customer" && (!d.audience || d.audience === customerType),
   );
+  // Emlak: rol (alıcı/kiracı/mal sahibi...) etiketten okunur; talep alanları
+  // sadece bir şey arayan rollerde gösterilir - mal sahibine "aranan oda" sormak
+  // formu boşuna uzatıyordu.
+  const isEmlak = companySector === "emlak";
+  const roleIds = new Set(
+    CUSTOMER_ROLES.filter((r) => (tags || []).includes(r.tag)).map((r) => r.id),
+  );
+  const showSeeking =
+    !isEmlak || roleIds.size === 0 || SEEKING_ROLE_IDS.some((i) => roleIds.has(i));
+  const seekingDefs = isEmlak
+    ? defsForEntity.filter((d) => SEEKING_FIELD_KEYS.includes(d.key))
+    : [];
+  const otherDefs = isEmlak
+    ? defsForEntity.filter((d) => !SEEKING_FIELD_KEYS.includes(d.key))
+    : defsForEntity;
+  const toggleRole = (r) => {
+    const on = !roleIds.has(r.id);
+    setTags((prev) => (on ? [...(prev || []), r.tag] : (prev || []).filter((t) => t !== r.tag)));
+    if (on && r.seeks && !customFields?.aranan_islem)
+      setCustomFields((prev) => ({ ...(prev || {}), aranan_islem: r.seeks }));
+  };
 
   // Aynı e-posta/telefonla ikinci bir müşteri kaydı oluşturulursa (genelde
   // yanlışlıkla), müşteri portalı bu iki kaydı da aynı hesaba bağlar ve aynı
@@ -267,28 +296,30 @@ export function CustomerForm({
           />
         </div>
       )}
-      <div style={{ marginBottom: 12 }}>
-        <label
-          style={{
-            fontSize: 13,
-            color: "var(--text-secondary)",
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            marginBottom: 4,
-          }}
-        >
-          Müşteri tipi <InfoTip text={CUSTOMER_TYPE_INFO_TEXT} placement="bottom" align="left" />
-        </label>
-        <select
-          value={customerType}
-          onChange={(e) => setCustomerType(e.target.value)}
-          style={{ width: "100%" }}
-        >
-          <option value="kurumsal">Kurumsal</option>
-          <option value="bireysel">Bireysel</option>
-        </select>
-      </div>
+      {(!isEmlak || isKurumsal) && (
+        <div style={{ marginBottom: 12 }}>
+          <label
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              marginBottom: 4,
+            }}
+          >
+            Müşteri tipi <InfoTip text={CUSTOMER_TYPE_INFO_TEXT} placement="bottom" align="left" />
+          </label>
+          <select
+            value={customerType}
+            onChange={(e) => setCustomerType(e.target.value)}
+            style={{ width: "100%" }}
+          >
+            <option value="kurumsal">Kurumsal</option>
+            <option value="bireysel">Bireysel</option>
+          </select>
+        </div>
+      )}
       <div style={{ marginBottom: 12 }}>
         <label
           style={{
@@ -307,6 +338,53 @@ export function CustomerForm({
           style={{ width: "100%" }}
         />
       </div>
+      {isEmlak && (
+        <div style={{ marginBottom: 12 }}>
+          <label
+            style={{
+              fontSize: 13,
+              color: "var(--text-secondary)",
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Müşteri kim? (birden fazla seçilebilir)
+          </label>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {CUSTOMER_ROLES.map((r) => {
+              const on = roleIds.has(r.id);
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => toggleRole(r)}
+                  style={{
+                    fontSize: 12.5,
+                    padding: "5px 10px",
+                    borderRadius: 999,
+                    ...(on
+                      ? {
+                          background: "var(--fill-accent)",
+                          color: "var(--on-accent)",
+                          border: "none",
+                        }
+                      : {}),
+                  }}
+                >
+                  {on && <i className="ti ti-check" aria-hidden="true" />} {r.label}
+                </button>
+              );
+            })}
+          </div>
+          {roleIds.size > 0 && !showSeeking && (
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0" }}>
+              Mülkünü Portföy sekmesinden ekleyip mal sahibi olarak bu müşteriyi seçin - portföy
+              kartında görünür.
+            </p>
+          )}
+        </div>
+      )}
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
         {isKurumsal && (
           <div style={{ flex: 1 }}>
@@ -486,7 +564,23 @@ export function CustomerForm({
         </label>
         <TagInput tags={tags} onChange={setTags} suggestions={sectorTags} />
       </div>
-      <CustomFieldsSection defs={defsForEntity} values={customFields} onChange={setCustomFields} />
+      {isEmlak && showSeeking && seekingDefs.length > 0 && (
+        <div style={{ marginBottom: 4 }}>
+          <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 6px" }}>
+            Ne arıyor?{" "}
+            <span style={{ fontWeight: 400, fontSize: 12, color: "var(--text-muted)" }}>
+              - uyan portföyler bu bilgilere göre bulunur
+            </span>
+          </p>
+          <CustomFieldsSection
+            defs={seekingDefs}
+            values={customFields}
+            onChange={setCustomFields}
+            hideTitle
+          />
+        </div>
+      )}
+      <CustomFieldsSection defs={otherDefs} values={customFields} onChange={setCustomFields} />
       {formError && (
         <p style={{ fontSize: 12.5, color: "var(--text-danger)", margin: "0 0 8px" }}>
           {formError}
@@ -1593,7 +1687,41 @@ export function CustomersTab({
   totalPaidForDeal,
   requestCustomerConsent,
   notify,
+  properties = [],
+  showings = [],
+  onQuickCall,
 }) {
+  const isEmlak = companySettings?.sector === "emlak";
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [callFor, setCallFor] = useState(null);
+  // Emlak listesi: rol, ne aradığı, gösterim ve uyan portföy sayısı - Portal /
+  // Bakiye sütunları emlakçının günlük işine yaramıyor.
+  const emlakInfo = useMemo(() => {
+    if (!isEmlak) return null;
+    const owned = new Map();
+    for (const p of properties) {
+      if (!p.ownerCustomerId) continue;
+      owned.set(p.ownerCustomerId, [...(owned.get(p.ownerCustomerId) || []), p]);
+    }
+    const shows = new Map();
+    for (const s of showings) shows.set(s.customerId, (shows.get(s.customerId) || 0) + 1);
+    const matches = new Map();
+    const pool = customers.map((c) => ({ ...c, phone: c.phone || "-" }));
+    for (const p of properties) {
+      if (!["aktif", "opsiyonlu"].includes(p.status)) continue;
+      for (const m of matchEmlakListing(propertyAsListingDeal(p, { forMatching: true }), pool)) {
+        const id = m.customer.id;
+        if (id === p.ownerCustomerId) continue;
+        matches.set(id, (matches.get(id) || 0) + 1);
+      }
+    }
+    return { owned, shows, matches };
+  }, [isEmlak, properties, showings, customers]);
+  const rolesOf = (c) => customerRoles(c, emlakInfo?.owned.get(c.id) || []);
+  const shownCustomers =
+    isEmlak && roleFilter !== "all"
+      ? filteredCustomers.filter((c) => rolesOf(c).some((r) => r.id === roleFilter))
+      : filteredCustomers;
   return (
     <div>
       <div
@@ -1705,15 +1833,31 @@ export function CustomersTab({
           placeholder="Müşteri ara (ad, sektör, bölge, telefon, e-posta)..."
           style={{ flex: 1, minWidth: 200 }}
         />
-        <select
-          value={customerTypeFilter}
-          onChange={(e) => setCustomerTypeFilter(e.target.value)}
-          style={{ fontSize: 13 }}
-        >
-          <option value="all">Tüm müşteriler</option>
-          <option value="kurumsal">Kurumsal</option>
-          <option value="bireysel">Bireysel</option>
-        </select>
+        {isEmlak ? (
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            style={{ fontSize: 13 }}
+            aria-label="Rol"
+          >
+            <option value="all">Tüm müşteriler</option>
+            {CUSTOMER_ROLES.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <select
+            value={customerTypeFilter}
+            onChange={(e) => setCustomerTypeFilter(e.target.value)}
+            style={{ fontSize: 13 }}
+          >
+            <option value="all">Tüm müşteriler</option>
+            <option value="kurumsal">Kurumsal</option>
+            <option value="bireysel">Bireysel</option>
+          </select>
+        )}
         {/* Emlakçının müşterisi alıcı/kiracı/mal sahibi - tekstil/otomotiv gibi
             B2B sektör filtresi orada anlamsız (emlak tarama turu). */}
         {companySettings?.sector !== "emlak" && (
@@ -1755,7 +1899,7 @@ export function CustomersTab({
         />
       </div>
 
-      {filteredCustomers.length === 0 ? (
+      {shownCustomers.length === 0 ? (
         customers.length === 0 ? (
           <div
             style={{
@@ -1814,6 +1958,38 @@ export function CustomersTab({
                 >
                   Müşteri
                 </th>
+                {isEmlak && (
+                  <>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: "0 12px",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: "var(--text-muted)",
+                        textTransform: "uppercase",
+                        letterSpacing: 0.3,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      Rol
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: "0 12px",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: "var(--text-muted)",
+                        textTransform: "uppercase",
+                        letterSpacing: 0.3,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      Aradığı
+                    </th>
+                  </>
+                )}
                 <th
                   style={{
                     textAlign: "left",
@@ -1857,7 +2033,13 @@ export function CustomersTab({
                   }}
                 >
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    Portal <InfoTip text={PORTAL_INFO_TEXT} />
+                    {isEmlak ? (
+                      "Gösterim"
+                    ) : (
+                      <>
+                        Portal <InfoTip text={PORTAL_INFO_TEXT} />
+                      </>
+                    )}
                   </span>
                 </th>
                 <th
@@ -1889,14 +2071,25 @@ export function CustomersTab({
                   }}
                 >
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    Bakiye <InfoTip text={cariBakiyeInfoText(companySettings?.sector)} />
+                    {isEmlak ? (
+                      <>
+                        Uyan portföy{" "}
+                        <InfoTip text="Aktif/opsiyonlu portföylerinizden müşterinin talebine (bölge, bütçe, oda, tip) uyanların sayısı. Müşteriyi açınca listesi ve WhatsApp'tan gönderme var." />
+                      </>
+                    ) : (
+                      <>
+                        Bakiye <InfoTip text={cariBakiyeInfoText(companySettings?.sector)} />
+                      </>
+                    )}
                   </span>
                 </th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {filteredCustomers.map((c) => {
+              {shownCustomers.map((c) => {
+                const roles = isEmlak ? rolesOf(c) : [];
+                const seeking = isEmlak ? customerSeekingSummary(c) : "";
                 const customerBalance = wonDealsAll
                   .filter((d) => d.customerId === c.id)
                   .reduce((sum, d) => sum + (d.value || 0) - totalPaidForDeal(d.id), 0);
@@ -1923,7 +2116,7 @@ export function CustomersTab({
                         {c.name}
                       </p>
                       <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
-                        {[c.sector, c.region, c.phone].filter(Boolean).join(" · ")}
+                        {[isEmlak ? "" : c.sector, c.region, c.phone].filter(Boolean).join(" · ")}
                       </p>
                       {c.tags?.length > 0 && (
                         <div style={{ marginTop: 4 }}>
@@ -1931,6 +2124,26 @@ export function CustomersTab({
                         </div>
                       )}
                     </td>
+                    {isEmlak && (
+                      <>
+                        <td data-label="Rol" style={{ padding: "10px 12px" }}>
+                          {roles.length ? (
+                            <span style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                              {roles.map((r) => (
+                                <Badge key={r.id} tone="default">
+                                  {r.label}
+                                </Badge>
+                              ))}
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>-</span>
+                          )}
+                        </td>
+                        <td data-label="Aradığı" style={{ padding: "10px 12px", fontSize: 12.5 }}>
+                          {seeking || <span style={{ color: "var(--text-muted)" }}>-</span>}
+                        </td>
+                      </>
+                    )}
                     <td
                       data-label="İlgi durumu"
                       style={{ padding: "10px 12px", whiteSpace: "nowrap" }}
@@ -1947,8 +2160,13 @@ export function CustomersTab({
                         {daysAgo(c.lastContact) || "Temas yok"}
                       </Badge>
                     </td>
-                    <td data-label="Portal" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                      {c.portalUserId ? (
+                    <td
+                      data-label={isEmlak ? "Gösterim" : "Portal"}
+                      style={{ padding: "10px 12px", whiteSpace: "nowrap" }}
+                    >
+                      {isEmlak ? (
+                        <span style={{ fontSize: 13 }}>{emlakInfo.shows.get(c.id) || "-"}</span>
+                      ) : c.portalUserId ? (
                         <Badge tone="accent">Var</Badge>
                       ) : (
                         <button
@@ -2012,8 +2230,24 @@ export function CustomersTab({
                         </button>
                       )}
                     </td>
-                    <td data-label="Bakiye" style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                      {customerBalance > 0 ? (
+                    <td
+                      data-label={isEmlak ? "Uyan portföy" : "Bakiye"}
+                      style={{ padding: "10px 12px", whiteSpace: "nowrap" }}
+                    >
+                      {isEmlak ? (
+                        emlakInfo.matches.get(c.id) ? (
+                          <button
+                            type="button"
+                            onClick={() => setViewingCustomer(c)}
+                            title="Uyan portföyleri gör"
+                            style={{ fontSize: 12, padding: "2px 8px" }}
+                          >
+                            {emlakInfo.matches.get(c.id)} portföy
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>-</span>
+                        )
+                      ) : customerBalance > 0 ? (
                         <Badge tone="warning">{formatTL(customerBalance)}</Badge>
                       ) : (
                         <span style={{ fontSize: 12, color: "var(--text-muted)" }}>-</span>
@@ -2026,6 +2260,13 @@ export function CustomersTab({
                       }}
                     >
                       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                        {isEmlak && onQuickCall && (
+                          <IconButton
+                            icon="ti-phone-check"
+                            title="Arama kaydı: görüştüm / ulaşılamadı + tekrar ara"
+                            onClick={() => setCallFor(c)}
+                          />
+                        )}
                         {c.phone && (
                           <a
                             href={`https://wa.me/${toWhatsAppNumber(c.phone)}`}
@@ -2075,6 +2316,106 @@ export function CustomersTab({
           </table>
         </div>
       )}
+      {callFor && (
+        <QuickCallModal
+          customer={callFor}
+          onClose={() => setCallFor(null)}
+          onSave={async (entry) => {
+            const ok = await onQuickCall(callFor, entry);
+            if (ok !== false) setCallFor(null);
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+// Emlakta iş telefonla yürür: arama sonucu tek tıkla geçmişe yazılır, istenirse
+// "tekrar ara" görevi açılır - not yazmaya üşenilen aramalar da kayda geçsin.
+const CALL_OUTCOMES = [
+  { id: "gorustum", label: "Görüştüm", type: "call" },
+  { id: "ulasilamadi", label: "Ulaşılamadı", type: "call" },
+  { id: "whatsapp", label: "WhatsApp'tan yazdım", type: "note" },
+];
+const FOLLOW_UPS = [
+  { days: 0, label: "Tekrar arama yok" },
+  { days: 1, label: "Yarın tekrar ara" },
+  { days: 3, label: "3 gün sonra ara" },
+  { days: 7, label: "1 hafta sonra ara" },
+  { days: 30, label: "1 ay sonra ara" },
+];
+
+function QuickCallModal({ customer, onClose, onSave }) {
+  const [outcome, setOutcome] = useState("gorustum");
+  const [followDays, setFollowDays] = useState(0);
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    if (outcome === "ulasilamadi" && followDays === 0) setFollowDays(1);
+    // sadece sonuç değişince öneri
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outcome]);
+  return (
+    <Modal title={`Arama kaydı - ${customer.name}`} onClose={onClose}>
+      {customer.phone && (
+        <p style={{ fontSize: 13, margin: "0 0 10px" }}>
+          <a href={`tel:${customer.phone.replace(/\s/g, "")}`}>
+            <i className="ti ti-phone" aria-hidden="true" /> {customer.phone}
+          </a>
+        </p>
+      )}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+        {CALL_OUTCOMES.map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            aria-pressed={outcome === o.id}
+            onClick={() => setOutcome(o.id)}
+            style={
+              outcome === o.id
+                ? { background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }
+                : undefined
+            }
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="Kısa not (opsiyonel) - ör. bütçe 9M'ye çıkabilir, eşiyle konuşacak"
+        style={{ width: "100%", minHeight: 60, resize: "vertical", marginBottom: 10 }}
+      />
+      <select
+        value={followDays}
+        onChange={(e) => setFollowDays(Number(e.target.value))}
+        style={{ width: "100%", marginBottom: 12 }}
+      >
+        {FOLLOW_UPS.map((f) => (
+          <option key={f.days} value={f.days}>
+            {f.label}
+          </option>
+        ))}
+      </select>
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <button type="button" onClick={onClose}>
+          Vazgeç
+        </button>
+        <button
+          type="button"
+          disabled={saving}
+          onClick={async () => {
+            setSaving(true);
+            const o = CALL_OUTCOMES.find((x) => x.id === outcome);
+            await onSave({ outcome: o, note: note.trim(), followDays });
+            setSaving(false);
+          }}
+          style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+        >
+          {saving ? "Kaydediliyor…" : "Kaydet"}
+        </button>
+      </div>
+    </Modal>
   );
 }

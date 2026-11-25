@@ -2005,27 +2005,29 @@ export function DateTimeSplitInput({ value, onChange }) {
 
 // Bir varlığa (müşteri/teklif) ait aktif özel alan tanımlarını, formda dinamik
 // input render etmek için kullanılır — CustomerForm/DealForm bu bileşeni kullanır.
-export function CustomFieldsSection({ defs, values, onChange }) {
+export function CustomFieldsSection({ defs, values, onChange, hideTitle = false }) {
   const active = defs.filter((d) => d.active);
   if (active.length === 0) return null;
   return (
     <div style={{ marginBottom: 8 }}>
-      <p
-        style={{
-          fontSize: 13,
-          fontWeight: 500,
-          margin: "0 0 6px",
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-        }}
-      >
-        Özel alanlar
-        <InfoTip
-          align="left"
-          text="Bu alanlar sabit değil - Ayarlar → Sektör & Özel Alanlar'dan kendiniz ekleyip kaldırabilirsiniz. Sektör seçtiğinizde bazı alanlar otomatik hazır gelir."
-        />
-      </p>
+      {!hideTitle && (
+        <p
+          style={{
+            fontSize: 13,
+            fontWeight: 500,
+            margin: "0 0 6px",
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          Özel alanlar
+          <InfoTip
+            align="left"
+            text="Bu alanlar sabit değil - Ayarlar → Sektör & Özel Alanlar'dan kendiniz ekleyip kaldırabilirsiniz. Sektör seçtiğinizde bazı alanlar otomatik hazır gelir."
+          />
+        </p>
+      )}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {active.map((d) => (
           <div key={d.key} style={{ flex: "1 1 160px", minWidth: 140 }}>
