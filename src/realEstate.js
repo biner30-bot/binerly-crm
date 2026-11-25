@@ -547,6 +547,15 @@ export function propertyAsListingDeal(p, { forMatching = false } = {}) {
       oda_sayisi: p.roomCount || undefined,
       metrekare: p.netM2 || p.grossM2 || undefined,
       ilan_no: p.listingRefs?.sahibinden || undefined,
+      ...(forMatching
+        ? {
+            brut_m2: Number(p.grossM2) || Number(p.netM2) || undefined,
+            bina_yasi:
+              p.buildingAge === "" || p.buildingAge == null ? undefined : Number(p.buildingAge),
+            kat: p.floor || undefined,
+            detaylar: p.details || {},
+          }
+        : {}),
     },
   };
 }
@@ -563,6 +572,59 @@ export const CUSTOMER_ROLES = [
   { id: "yatirimci", label: "Yatırımcı", tag: "Yatırımcı", seeks: "Satış" },
 ];
 export const SEEKING_ROLE_IDS = ["alici", "kiraci", "yatirimci"];
+
+// Talep kartının ek alanları - özel alan tanımı değil, müşteri custom_fields
+// içinde talep_* anahtarlarıyla saklanır (mevcut emlak hesaplarında alan
+// tanımı oluşturmadan çalışsın diye; formda TalepDetails çizer).
+// test(details, floor): true = var, false = kesin yok, null = bilinmiyor.
+const LOW_OR_TOP_FLOOR = /bodrum|bahçe|giriş|zemin|kot|çatı|villa/i;
+export const TALEP_FEATURES = [
+  {
+    id: "asansor",
+    label: "Asansör",
+    test: (d) => (d.elevator === "Var" ? true : d.elevator === "Yok" ? false : null),
+  },
+  {
+    id: "otopark",
+    label: "Otopark",
+    test: (d) => (!d.parking ? null : d.parking !== "Yok"),
+  },
+  {
+    id: "site",
+    label: "Site içinde",
+    test: (d) => (d.in_site === "Evet" ? true : d.in_site === "Hayır" ? false : null),
+  },
+  {
+    id: "ara_kat",
+    label: "Ara kat",
+    test: (d, floor) => (!floor ? null : !LOW_OR_TOP_FLOOR.test(String(floor))),
+  },
+  {
+    id: "balkon",
+    label: "Balkon",
+    test: (d) => (d.balcony === "Var" ? true : d.balcony === "Yok" ? false : null),
+  },
+  {
+    id: "esyali",
+    label: "Eşyalı",
+    test: (d) => (d.furnished === "Evet" ? true : d.furnished === "Hayır" ? false : null),
+  },
+];
+export const TALEP_PAYMENT_OPTIONS = ["Nakit", "Kredi - onaylı", "Kredi - onay bekliyor"];
+export const TALEP_URGENCY_OPTIONS = [
+  "Hemen",
+  "1-3 ay",
+  "3-6 ay",
+  "6 ay ve üstü",
+  "Sadece bakıyor",
+];
+// Virgülle birden çok mahalle yazılabilir: "Bostanlı, Atakent".
+export const splitAreas = (s) =>
+  String(s || "")
+    .toLocaleLowerCase("tr")
+    .split(/[,;/]+|\s+ve\s+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
 export const SEEKING_FIELD_KEYS = [
   "aranan_islem",
   "aranan_bolge",
@@ -602,11 +664,18 @@ export function customerSeekingSummary(customer) {
           ? `en az ${shortMoney(min)}`
           : "";
   const real = (v) => (v && v !== "Farketmez" ? v : "");
+  const m2min = Number(cf.talep_m2_min) || 0;
+  const m2max = Number(cf.talep_m2_max) || 0;
+  const m2 =
+    m2min && m2max ? `${m2min}-${m2max} m²` : m2min ? `${m2min}+ m²` : m2max ? `≤${m2max} m²` : "";
   return [
+    cf.talep_aciliyet === "Hemen" ? "Acil" : "",
     cf.aranan_islem && cf.aranan_islem !== "Satış" ? cf.aranan_islem : "",
     cf.aranan_bolge,
     real(cf.aranan_oda_sayisi),
     real(cf.aranan_mulk_tipi),
+    m2,
+    Number(cf.talep_max_yas) ? `en fazla ${Number(cf.talep_max_yas)} yaş` : "",
     budget,
   ]
     .filter(Boolean)

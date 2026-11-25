@@ -5760,6 +5760,22 @@ export default function App() {
         .sort((a, b) => a.auth.daysLeft - b.auth.daysLeft)
     : [];
   const regionStaleAlerts = isRealEstate ? staleRegionAlerts(regionPrices, properties, companySettings?.realEstateSettings?.neighborhoodAliases) : [];
+  // Son 7 günde (sizin ya da ofisin) eklenen aktif portföye uyan müşteriler.
+  // Portföy eklendikten sonra temas edilmiş müşteri listeden düşer - arama
+  // kaydı / not uyarıyı kendiliğinden kapatır.
+  const newPropertyMatchAlerts = isRealEstate
+    ? [...properties, ...officeProperties]
+        .filter((p) => ["aktif", "opsiyonlu"].includes(p.status) && p.createdAt && Date.now() - new Date(p.createdAt).getTime() <= 7 * 86400000)
+        .map((p) => {
+          const since = new Date(p.createdAt).getTime();
+          const list = matchEmlakListing(propertyAsListingDeal(p, { forMatching: true }), customers)
+            .filter((m) => m.customer.id !== p.ownerCustomerId && (!m.customer.lastContact || new Date(m.customer.lastContact).getTime() < since))
+            .map((m) => m.customer);
+          const peer = p.userId && p.userId !== activeTeamId ? office?.members?.find((m) => m.userId === p.userId)?.name || "Ofis" : null;
+          return list.length ? { property: p, customers: list, peer } : null;
+        })
+        .filter(Boolean)
+    : [];
   const membershipAlerts = computeMembershipAlerts(deals, customers);
   const churnAlerts = supportsGroupClasses(companySettings?.sector) ? computeAttendanceChurnRisk(customers, deals, groupClassEnrollments, classAttendance) : [];
   // Bir üye kendi portalından iptal edip yer açtığında (personel tarafından
@@ -6184,6 +6200,7 @@ export default function App() {
           lowStockItems={lowStockItems}
           propertyAuthAlerts={propertyAuthAlerts}
           regionStaleAlerts={regionStaleAlerts}
+          newPropertyMatchAlerts={newPropertyMatchAlerts}
           membershipAlerts={membershipAlerts}
           churnAlerts={churnAlerts}
           waitlistFillableAlerts={waitlistFillableAlerts}

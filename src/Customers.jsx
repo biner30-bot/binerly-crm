@@ -43,6 +43,9 @@ import {
   SEEKING_FIELD_KEYS,
   customerRoles,
   customerSeekingSummary,
+  TALEP_FEATURES,
+  TALEP_PAYMENT_OPTIONS,
+  TALEP_URGENCY_OPTIONS,
 } from "./realEstate";
 import { CustomerShowings } from "./Showings";
 
@@ -578,6 +581,7 @@ export function CustomerForm({
             onChange={setCustomFields}
             hideTitle
           />
+          <TalepDetails values={customFields || {}} onChange={setCustomFields} />
         </div>
       )}
       <CustomFieldsSection defs={otherDefs} values={customFields} onChange={setCustomFields} />
@@ -604,6 +608,123 @@ export function CustomerForm({
         </button>
       </div>
     </form>
+  );
+}
+
+// Emlak talep kartının ek alanları (talep_* anahtarları, bkz. realEstate.js).
+function TalepDetails({ values, onChange }) {
+  const set = (k, v) => onChange({ ...values, [k]: v });
+  const features = Array.isArray(values.talep_ozellikler) ? values.talep_ozellikler : [];
+  const lbl = { fontSize: 13, color: "var(--text-secondary)", display: "block", marginBottom: 4 };
+  const num = (k, placeholder) => (
+    <input
+      type="number"
+      min="0"
+      value={values[k] ?? ""}
+      placeholder={placeholder}
+      onChange={(e) => set(k, e.target.value)}
+      style={{ width: "100%" }}
+    />
+  );
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "-2px 0 8px" }}>
+        Bölgeye virgülle birden fazla mahalle yazabilirsiniz (ör. Bostanlı, Atakent).
+      </p>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+        <div style={{ flex: "1 1 120px" }}>
+          <label style={lbl}>Min. m² (brüt)</label>
+          {num("talep_m2_min", "ör. 110")}
+        </div>
+        <div style={{ flex: "1 1 120px" }}>
+          <label style={lbl}>Max. m² (brüt)</label>
+          {num("talep_m2_max", "ör. 150")}
+        </div>
+        <div style={{ flex: "1 1 120px" }}>
+          <label style={lbl}>En fazla bina yaşı</label>
+          {num("talep_max_yas", "ör. 15")}
+        </div>
+      </div>
+      <label style={lbl}>Olmazsa olmazlar</label>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+        {TALEP_FEATURES.map((f) => {
+          const on = features.includes(f.id);
+          return (
+            <button
+              key={f.id}
+              type="button"
+              aria-pressed={on}
+              onClick={() =>
+                set(
+                  "talep_ozellikler",
+                  on ? features.filter((x) => x !== f.id) : [...features, f.id],
+                )
+              }
+              style={{
+                fontSize: 12.5,
+                padding: "4px 10px",
+                borderRadius: 999,
+                ...(on
+                  ? { background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }
+                  : {}),
+              }}
+            >
+              {on && <i className="ti ti-check" aria-hidden="true" />} {f.label}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
+        <div style={{ flex: "1 1 160px" }}>
+          <label style={lbl}>Ödeme</label>
+          <select
+            value={values.talep_odeme || ""}
+            onChange={(e) => set("talep_odeme", e.target.value)}
+            style={{ width: "100%" }}
+          >
+            <option value="">Seçiniz</option>
+            {TALEP_PAYMENT_OPTIONS.map((o) => (
+              <option key={o}>{o}</option>
+            ))}
+          </select>
+        </div>
+        <div style={{ flex: "1 1 160px" }}>
+          <label style={lbl}>Ne zaman?</label>
+          <select
+            value={values.talep_aciliyet || ""}
+            onChange={(e) => set("talep_aciliyet", e.target.value)}
+            style={{ width: "100%" }}
+          >
+            <option value="">Seçiniz</option>
+            {TALEP_URGENCY_OPTIONS.map((o) => (
+              <option key={o}>{o}</option>
+            ))}
+          </select>
+        </div>
+        <label
+          style={{
+            flex: "1 1 200px",
+            fontSize: 13,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            paddingBottom: 6,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={values.talep_zincir === true}
+            onChange={(e) => set("talep_zincir", e.target.checked)}
+          />
+          Mevcut evini satıp alacak
+          <InfoTip text="İşaretlerseniz müşteri kartında hatırlatılır: önce onun evini satmak (portföy almak) hem alımı hızlandırır hem ikinci bir işlem demektir." />
+        </label>
+      </div>
+      <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "6px 0 0" }}>
+        Olmazsa olmazı kesin olarak olmayan portföy eşleşmede elenir; portföyde o bilgi girilmemişse
+        elenmez. Kredi ile alacak müşteriye "krediye uygun değil" işaretli portföy önerilmez.
+      </p>
+    </div>
   );
 }
 
@@ -959,6 +1080,43 @@ export function CustomerDetail({
         properties={properties}
         onOpenPortfolio={onOpenPortfolio}
       />
+
+      {sector === "emlak" && customerSeekingSummary(customer) && (
+        <div style={{ marginBottom: 12, fontSize: 13 }}>
+          <b>Aradığı:</b> {customerSeekingSummary(customer)}
+          {Array.isArray(customer.customFields?.talep_ozellikler) &&
+            customer.customFields.talep_ozellikler.length > 0 && (
+              <span style={{ color: "var(--text-muted)" }}>
+                {" "}
+                · olmazsa olmaz:{" "}
+                {customer.customFields.talep_ozellikler
+                  .map((id) => TALEP_FEATURES.find((f) => f.id === id)?.label)
+                  .filter(Boolean)
+                  .join(", ")}
+              </span>
+            )}
+          {customer.customFields?.talep_odeme && (
+            <span style={{ color: "var(--text-muted)" }}>
+              {" "}
+              · {customer.customFields.talep_odeme}
+            </span>
+          )}
+          {customer.customFields?.talep_zincir === true && ownedProperties.length === 0 && (
+            <p
+              style={{
+                margin: "6px 0 0",
+                padding: "6px 10px",
+                background: "var(--bg-warning)",
+                borderRadius: 6,
+                fontSize: 12.5,
+              }}
+            >
+              Mevcut evini satıp alacak - evini portföye almak alımı hızlandırır ve ikinci bir işlem
+              demektir.
+            </p>
+          )}
+        </div>
+      )}
 
       {sector === "emlak" && (
         <MatchingProperties

@@ -14,6 +14,8 @@ import {
   ROOM_COUNT_OPTIONS,
   PROPERTY_TYPE_OPTIONS,
   SEEKING_TRANSACTION_OPTIONS,
+  TALEP_FEATURES,
+  splitAreas,
 } from "./realEstate";
 
 export const STAGES = [
@@ -888,7 +890,7 @@ export function dealWordKind(sector) {
 // "hiçbir talep kriteri girilmemiş" müşteriler tamamen atlanır (puanlanacak
 // veri yok), tek kriter dolu olanlarda ise o kriterin tam eşleşmesi %100
 // gösterebilir — kartta "uyan kriterler" listesi bunu şeffaf gösterir.
-const MATCH_WEIGHTS = { bolge: 40, butce: 30, oda: 15, mulkTipi: 15 };
+const MATCH_WEIGHTS = { bolge: 40, butce: 30, oda: 15, mulkTipi: 15, m2: 10, yas: 10 };
 const MATCH_THRESHOLD = 50;
 
 export function matchEmlakListing(deal, customers) {
@@ -905,6 +907,7 @@ export function matchEmlakListing(deal, customers) {
     const cf = c.customFields || {};
     const araIslem = cf.aranan_islem;
     const araBolge = (cf.aranan_bolge || "").trim().toLowerCase();
+    const araBolgeler = splitAreas(cf.aranan_bolge);
     const minButce = Number(cf.min_butce) || 0;
     const maxButce = Number(cf.max_butce) || 0;
     if (
@@ -917,6 +920,17 @@ export function matchEmlakListing(deal, customers) {
     )
       continue;
     if (araIslem && dealIslemTuru && araIslem !== dealIslemTuru) continue;
+    // Olmazsa olmazlar: portföyde kesin YOK ise elenir; bilinmiyorsa elenmez
+    // (eksik girilmiş portföy uygun alıcıyı kaçırmasın).
+    const mustHave = Array.isArray(cf.talep_ozellikler) ? cf.talep_ozellikler : [];
+    const dealDetails = dealFields.detaylar || {};
+    const missingMust = mustHave.some((id) => {
+      const f = TALEP_FEATURES.find((x) => x.id === id);
+      return f && f.test(dealDetails, dealFields.kat) === false;
+    });
+    if (missingMust) continue;
+    if (String(cf.talep_odeme || "").startsWith("Kredi") && dealDetails.credit_eligible === "Hayır")
+      continue;
 
     let earned = 0;
     let possible = 0;
@@ -924,7 +938,12 @@ export function matchEmlakListing(deal, customers) {
 
     if (dealBolge && araBolge) {
       possible += MATCH_WEIGHTS.bolge;
-      if (dealBolge === araBolge || dealBolge.includes(araBolge) || araBolge.includes(dealBolge)) {
+      const areaHit =
+        dealBolge === araBolge ||
+        dealBolge.includes(araBolge) ||
+        araBolge.includes(dealBolge) ||
+        araBolgeler.some((a) => a.length > 2 && dealBolge.toLocaleLowerCase("tr").includes(a));
+      if (areaHit) {
         earned += MATCH_WEIGHTS.bolge;
         reasons.push("Bölge");
       }
@@ -955,6 +974,26 @@ export function matchEmlakListing(deal, customers) {
         reasons.push("Mülk tipi");
       }
     }
+
+    const m2 = Number(dealFields.brut_m2) || 0;
+    const m2min = Number(cf.talep_m2_min) || 0;
+    const m2max = Number(cf.talep_m2_max) || 0;
+    if (m2 && (m2min || m2max)) {
+      possible += MATCH_WEIGHTS.m2;
+      if ((!m2min || m2 >= m2min * 0.95) && (!m2max || m2 <= m2max * 1.05)) {
+        earned += MATCH_WEIGHTS.m2;
+        reasons.push("m²");
+      }
+    }
+    const maxAge = Number(cf.talep_max_yas) || 0;
+    if (maxAge && dealFields.bina_yasi != null) {
+      possible += MATCH_WEIGHTS.yas;
+      if (dealFields.bina_yasi <= maxAge) {
+        earned += MATCH_WEIGHTS.yas;
+        reasons.push("Bina yaşı");
+      }
+    }
+    if (mustHave.length) reasons.push("Olmazsa olmazlar");
 
     if (possible === 0) continue;
     const score = Math.round((earned / possible) * 100);

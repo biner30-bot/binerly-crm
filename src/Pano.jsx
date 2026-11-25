@@ -120,6 +120,7 @@ export default function Pano({
   lowStockItems,
   propertyAuthAlerts = [],
   regionStaleAlerts = [],
+  newPropertyMatchAlerts = [],
   membershipAlerts,
   churnAlerts,
   waitlistFillableAlerts,
@@ -713,6 +714,7 @@ export default function Pano({
         lowStockItems.length === 0 &&
         propertyAuthAlerts.length === 0 &&
         regionStaleAlerts.length === 0 &&
+        newPropertyMatchAlerts.length === 0 &&
         membershipAlerts.length === 0 &&
         churnAlerts.length === 0 &&
         waitlistFillableAlerts.length === 0 &&
@@ -999,6 +1001,49 @@ export default function Pano({
                     : `yetki ${auth.daysLeft} gün sonra bitiyor`}
                 </span>
                 <Badge tone={auth.expired ? "danger" : "warning"}>Yetki</Badge>
+              </div>
+            ))}
+            {newPropertyMatchAlerts.map(({ property, customers: list, peer }) => (
+              <div
+                key={`new-prop-match-${property.id}`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 13,
+                  padding: "8px 10px",
+                  background: "var(--bg-accent, var(--surface-1))",
+                  borderLeft: "3px solid var(--fill-accent)",
+                  borderRadius: "var(--radius)",
+                }}
+              >
+                <span style={{ flex: 1 }}>
+                  Yeni portföy <b>{property.title}</b>
+                  {peer ? ` (ofisten: ${peer})` : ""} - talebine uyan {list.length} müşteri:{" "}
+                  {list.slice(0, 3).map((c, i) => (
+                    <span key={c.id}>
+                      {i > 0 && ", "}
+                      <button
+                        type="button"
+                        className="pano-alert-row"
+                        onClick={() => setViewingCustomer(c)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          padding: 0,
+                          color: "var(--accent)",
+                          textDecoration: "underline",
+                          cursor: "pointer",
+                          fontSize: 13,
+                        }}
+                      >
+                        {c.name}
+                      </button>
+                    </span>
+                  ))}
+                  {list.length > 3 ? ` +${list.length - 3}` : ""}
+                </span>
+                <Badge tone="accent">Uyan müşteri</Badge>
               </div>
             ))}
             {regionStaleAlerts.map(({ region, days, properties: props }) => (
