@@ -2301,8 +2301,11 @@ export function MarketAnalysisTab({
   // sonrası seçimin "kayıtlı analiz"e dönmesi açık formu sıfırlamasın.
   const [instance, setInstance] = useState(0);
   const [confirmDeleteV, setConfirmDeleteV] = useState(null);
-  const [listOpen, setListOpen] = useState(true);
+  // Açık bir analiz varken liste kapalı başlar - yoksa analiz sayısı arttıkça
+  // düzenleme ekranı aşağı itiliyordu.
+  const [listOpen, setListOpen] = useState(() => readSelection().kind !== "valuation");
   const [listQuery, setListQuery] = useState("");
+  const [showAll, setShowAll] = useState(false);
   const persistSelection = (sel) => {
     setSelectionState(sel);
     try {
@@ -2314,13 +2317,18 @@ export function MarketAnalysisTab({
   const choose = (sel) => {
     persistSelection(sel);
     setInstance((n) => n + 1);
+    if (sel.kind === "valuation") setListOpen(false);
   };
   const valuation =
     selection.kind === "valuation" ? valuations.find((v) => v.id === selection.id) || null : null;
   const lq = listQuery.trim().toLocaleLowerCase("tr");
+  const RECENT_LIMIT = 5;
+  const sortedValuations = [...valuations].sort(
+    (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
+  );
   const filteredValuations = !lq
-    ? valuations
-    : valuations.filter((v) => {
+    ? sortedValuations
+    : sortedValuations.filter((v) => {
         const sub = v.subject || {};
         const a = sub.address || {};
         return [v.title, sub.name, sub.neighborhood, sub.district, sub.city, a.street, a.siteName]
@@ -2390,74 +2398,87 @@ export function MarketAnalysisTab({
                 Aramaya uyan analiz yok.
               </p>
             )}
-            {filteredValuations.map((v) => {
-              const active = selection.kind === "valuation" && selection.id === v.id;
-              const linked = v.propertyId && properties.find((p) => p.id === v.propertyId);
-              return (
-                <div
-                  key={v.id}
-                  style={{
-                    display: "flex",
-                    gap: 8,
-                    alignItems: "center",
-                    flexWrap: "wrap",
-                    fontSize: 12.5,
-                    padding: "6px 8px",
-                    borderRadius: 6,
-                    background: active ? "var(--bg-accent, var(--surface-1))" : undefined,
-                    borderBottom: "0.5px solid var(--border)",
-                  }}
-                >
-                  <span style={{ flex: "1 1 260px" }}>
-                    <b>{v.title || "Adsız analiz"}</b>
-                    {v.status === "taslak" && (
-                      <span
-                        style={{
-                          marginLeft: 6,
-                          fontSize: 11,
-                          padding: "1px 6px",
-                          borderRadius: 4,
-                          background: "var(--bg-warning)",
-                          color: "var(--text-warning)",
-                        }}
-                      >
-                        Taslak
-                      </span>
-                    )}
-                    <span style={{ color: "var(--text-muted)" }}>
-                      {" "}
-                      · {fmtDate(v.updatedAt)}
-                      {v.result?.mid ? ` · piyasa değeri ${formatTL(v.result.mid)}` : ""}
-                      {linked ? ` · portföy: ${linked.title}` : ""}
-                    </span>
-                  </span>
-                  <button
-                    type="button"
-                    style={{ fontSize: 12 }}
-                    disabled={active}
-                    onClick={() => choose({ kind: "valuation", id: v.id })}
+            {(lq || showAll ? filteredValuations : filteredValuations.slice(0, RECENT_LIMIT)).map(
+              (v) => {
+                const active = selection.kind === "valuation" && selection.id === v.id;
+                const linked = v.propertyId && properties.find((p) => p.id === v.propertyId);
+                return (
+                  <div
+                    key={v.id}
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      fontSize: 12.5,
+                      padding: "6px 8px",
+                      borderRadius: 6,
+                      background: active ? "var(--bg-accent, var(--surface-1))" : undefined,
+                      borderBottom: "0.5px solid var(--border)",
+                    }}
                   >
-                    {active ? "Açık" : "Aç / düzenle"}
-                  </button>
-                  {!v.propertyId && onCreatePropertyFrom && (
+                    <span style={{ flex: "1 1 260px" }}>
+                      <b>{v.title || "Adsız analiz"}</b>
+                      {v.status === "taslak" && (
+                        <span
+                          style={{
+                            marginLeft: 6,
+                            fontSize: 11,
+                            padding: "1px 6px",
+                            borderRadius: 4,
+                            background: "var(--bg-warning)",
+                            color: "var(--text-warning)",
+                          }}
+                        >
+                          Taslak
+                        </span>
+                      )}
+                      <span style={{ color: "var(--text-muted)" }}>
+                        {" "}
+                        · {fmtDate(v.updatedAt)}
+                        {v.result?.mid ? ` · piyasa değeri ${formatTL(v.result.mid)}` : ""}
+                        {linked ? ` · portföy: ${linked.title}` : ""}
+                      </span>
+                    </span>
                     <button
                       type="button"
                       style={{ fontSize: 12 }}
-                      onClick={() => onCreatePropertyFrom(v)}
+                      disabled={active}
+                      onClick={() => choose({ kind: "valuation", id: v.id })}
                     >
-                      Portföye ekle
+                      {active ? "Açık" : "Aç / düzenle"}
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    style={{ fontSize: 12, color: "var(--text-danger)" }}
-                    onClick={() => setConfirmDeleteV(v)}
-                  >
-                    Sil
-                  </button>
-                </div>
-              );
-            })}
+                    {!v.propertyId && onCreatePropertyFrom && (
+                      <button
+                        type="button"
+                        style={{ fontSize: 12 }}
+                        onClick={() => onCreatePropertyFrom(v)}
+                      >
+                        Portföye ekle
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      style={{ fontSize: 12, color: "var(--text-danger)" }}
+                      onClick={() => setConfirmDeleteV(v)}
+                    >
+                      Sil
+                    </button>
+                  </div>
+                );
+              },
+            )}
+            {!lq && filteredValuations.length > RECENT_LIMIT && (
+              <button
+                type="button"
+                style={{ fontSize: 12, marginTop: 6 }}
+                onClick={() => setShowAll((v) => !v)}
+              >
+                {showAll
+                  ? "Sadece son 5 analizi göster"
+                  : `Tümünü göster (${filteredValuations.length})`}
+              </button>
+            )}
           </div>
         )}
       </div>
