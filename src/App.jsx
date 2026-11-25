@@ -430,6 +430,7 @@ function rowToBuyerListing(r) {
     createdBy: r.created_by,
     source: r.source,
     status: r.status,
+    shareStatus: r.share_status || "sorulmadi",
     title: r.title,
     transactionType: r.transaction_type || "",
     propertyType: r.property_type || "",
@@ -2576,6 +2577,8 @@ export default function App() {
     customer_id: b.customerId,
     source: b.source || "emlakci",
     status: b.status || "bulundu",
+    // Ofis arkadaşı portföyü ofise zaten paylaşmış; diğerlerinde önce sorulur.
+    share_status: b.shareStatus || (b.source === "ofis" ? "acik" : "sorulmadi"),
     title: String(b.title || "").trim() || "Adsız ev",
     transaction_type: b.transactionType || null,
     property_type: b.propertyType || null,
@@ -5907,7 +5910,7 @@ export default function App() {
           const cf = c.customFields || {};
           const hasDemand = !!(cf.aranan_bolge || cf.min_butce || cf.max_butce || (cf.aranan_oda_sayisi && cf.aranan_oda_sayisi !== "Farketmez"));
           if (!hasDemand || cf.talep_aciliyet === "Sadece bakıyor") return false;
-          if (buyerListings.some((l) => l.customerId === c.id && l.status !== "elendi")) return false;
+          if (buyerListings.some((l) => l.customerId === c.id && l.status !== "elendi" && l.shareStatus !== "kapali")) return false;
           return !hasOwnPropertyMatch(c, properties);
         })
         .sort((a, b) => (["Hemen", "1-3 ay"].includes(b.customFields?.talep_aciliyet) ? 1 : 0) - (["Hemen", "1-3 ay"].includes(a.customFields?.talep_aciliyet) ? 1 : 0))

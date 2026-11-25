@@ -50,8 +50,6 @@ export const BUYER_LISTING_SOURCES = [
 // Portalda alıcıya görünen durumlar: danışman "gönderdi" demeden ev görünmez.
 export const BUYER_LISTING_PORTAL_STATUSES = ["gonderildi", "gosterildi", "begendi"];
 
-const statusMeta = (id) =>
-  BUYER_LISTING_STATUSES.find((s) => s.id === id) || BUYER_LISTING_STATUSES[0];
 const sourceLabel = (id) => BUYER_LISTING_SOURCES.find((s) => s.id === id)?.label || "";
 const sahibindenUrl = (no) =>
   `https://www.sahibinden.com/arama?query_text=${encodeURIComponent(no)}`;
@@ -63,6 +61,26 @@ function matchScore(listing, customer) {
     { ...customer, phone: customer.phone || "-" },
   ]);
   return m ? m.score : null;
+}
+
+// Müşteriye sunmadan önce karşı tarafa paylaşımlı çalışmaya açık mı diye
+// sorulmalı (kullanıcı, 25 Kas). Açık değilse gönderme/belge/işlem kapalı,
+// portal da göstermez (RPC share_status='acik' ister).
+const shareOpen = (l) => (l.shareStatus || (l.source === "ofis" ? "acik" : "sorulmadi")) === "acik";
+
+// Kullanıcının kendi taslağı (25 Kas): "uygun müşterim var" DEĞİL, müşteriye
+// sunup değerlendireceğiz tonu. Değişen yerler: hitap, ilan adı, ilan no.
+// Hitap "Danışman" alanından aynen alınır ("Baran Bey") - Bey/Hanım isimden
+// tahmin edilmez.
+function askShareText(l) {
+  const hello = `Merhaba${l.counterpartAgent ? ` ${l.counterpartAgent.trim()}` : ""},`;
+  const where = ["sahibinden", "sahibi"].includes(l.source) ? "Sahibinden üzerindeki " : "";
+  const ref = l.listingNo ? ` (İlan No: ${l.listingNo})` : "";
+  const ask =
+    l.source === "sahibi"
+      ? "Emlak danışmanlarıyla çalışmaya açık mısınız?"
+      : "İlanınız meslektaş/portföy paylaşımına açık mıdır?";
+  return `${hello} ${where}'${l.title}' ilanınız için${ref} yazıyorum. ${ask} Müşterim için değerlendirmek isterim. İyi çalışmalar dilerim.`;
 }
 
 // Müşteriye giden metin: karşı ofis, telefon, ilan no/bağlantısı YOK.
@@ -140,7 +158,9 @@ function ManualForm({ customer, initial, onSave, onCancel }) {
       <div style={row}>
         {field("listingUrl", "İlan bağlantısı ya da ilan no", "2 1 240px")}
         {field("counterpartOffice", "Karşı ofis")}
-        {field("counterpartAgent", "Danışman")}
+        {field("counterpartAgent", "Danışman (mesajda hitap)", "1 1 140px", {
+          placeholder: "ör. Baran Bey",
+        })}
         {field("counterpartPhone", "Telefon", "1 1 130px", { type: "tel" })}
       </div>
       <div style={row}>{field("note", "Not (sadece siz görürsünüz)", "1 1 100%")}</div>
@@ -345,7 +365,7 @@ export function BuyerListings({
     <div style={{ marginBottom: 16 }}>
       <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>
         Dışarıda bulunan evler ({open.length})
-        <InfoTip text="Portföyünüzde uyan ev yoksa alıcıyı kaçırmayın: ofis arkadaşınızın, Sahibinden'deki ya da çevredeki emlakçıların evlerini buraya ekleyin. Paylaşımlı işlemde alıcı tarafının hizmet bedelini siz, satıcı tarafınınkini karşı emlakçı alır. Karşı ofis, telefon ve ilan numarası müşteriye hiçbir yerde gösterilmez - WhatsApp mesajında da yer almaz." />
+        <InfoTip text="Portföyünüzde uyan ev yoksa alıcıyı kaçırmayın: ofis arkadaşınızın, Sahibinden'deki ya da çevredeki emlakçıların evlerini buraya ekleyin. Paylaşımlı işlemde alıcı tarafının hizmet bedelini siz, satıcı tarafınınkini karşı emlakçı alır. Müşteriye sunmadan önce karşı tarafa paylaşıma açık mı diye sorun - 'Açık' işaretlenmeden ev müşteriye gönderilemez ve portalda görünmez. Karşı ofis, telefon ve ilan numarası müşteriye hiçbir yerde gösterilmez - WhatsApp mesajında da yer almaz." />
       </p>
       {!hasOwnMatches && hasDemand && open.length === 0 && (
         <p
@@ -363,7 +383,6 @@ export function BuyerListings({
       )}
 
       {visible.map((l) => {
-        const st = statusMeta(l.status);
         const link = l.listingUrl || (l.listingNo ? sahibindenUrl(l.listingNo) : "");
         if (editing === l.id)
           return (
@@ -376,14 +395,20 @@ export function BuyerListings({
             />
           );
         return (
-          <div key={l.id} style={{ ...box, opacity: l.status === "elendi" ? 0.6 : 1 }}>
+          <div
+            key={l.id}
+            style={{
+              ...box,
+              opacity: l.status === "elendi" || l.shareStatus === "kapali" ? 0.6 : 1,
+            }}
+          >
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 600 }}>{l.title}</span>
               <span style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                {shareOpen(l) && <Badge tone="success">Paylaşıma açık</Badge>}
                 {matchScore(l, customer) != null && (
                   <Badge tone="accent">%{matchScore(l, customer)} uyum</Badge>
                 )}
-                <Badge tone={st.tone}>{st.label}</Badge>
               </span>
             </div>
             <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "var(--text-secondary)" }}>
@@ -420,6 +445,60 @@ export function BuyerListings({
                 Not: {l.note}
               </p>
             )}
+            {!shareOpen(l) && l.status !== "elendi" && (
+              <div
+                style={{
+                  marginTop: 6,
+                  padding: "6px 8px",
+                  borderRadius: 6,
+                  fontSize: 12.5,
+                  background: l.shareStatus === "kapali" ? "var(--bg-danger)" : "var(--bg-warning)",
+                  display: "flex",
+                  gap: 6,
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                <span style={{ flex: "1 1 220px" }}>
+                  {l.shareStatus === "kapali"
+                    ? "Paylaşıma kapalı - bu ev müşteriye sunulamaz."
+                    : l.source === "sahibi"
+                      ? "Müşteriye sunmadan önce sorun: ilan sahibi emlakçıyla (alıcı getirmenizle) çalışıyor mu?"
+                      : `Müşteriye sunmadan önce sorun: ${l.counterpartOffice || l.counterpartAgent || "karşı emlakçı"} paylaşımlı çalışmaya açık mı?`}
+                </span>
+                {l.shareStatus !== "kapali" && toWhatsAppNumber(l.counterpartPhone) && (
+                  <a
+                    href={`https://wa.me/${toWhatsAppNumber(l.counterpartPhone)}?text=${encodeURIComponent(askShareText(l))}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: "flex", alignItems: "center", gap: 4, color: "#128c4a" }}
+                  >
+                    <WhatsAppIcon /> Sor
+                  </a>
+                )}
+                {l.shareStatus !== "kapali" && !l.counterpartPhone && (
+                  <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+                    (telefonu ilandan alıp "Düzenle"den ekleyin)
+                  </span>
+                )}
+                <button
+                  type="button"
+                  style={{ fontSize: 12 }}
+                  onClick={() => onSave({ ...l, shareStatus: "acik" })}
+                >
+                  ✓ Açık
+                </button>
+                {l.shareStatus !== "kapali" && (
+                  <button
+                    type="button"
+                    style={{ fontSize: 12 }}
+                    onClick={() => onSave({ ...l, shareStatus: "kapali" })}
+                  >
+                    Kapalı
+                  </button>
+                )}
+              </div>
+            )}
             <div
               style={{
                 display: "flex",
@@ -436,12 +515,16 @@ export function BuyerListings({
                 style={{ fontSize: 12 }}
               >
                 {BUYER_LISTING_STATUSES.map((s) => (
-                  <option key={s.id} value={s.id}>
+                  <option
+                    key={s.id}
+                    value={s.id}
+                    disabled={!shareOpen(l) && !["bulundu", "elendi"].includes(s.id)}
+                  >
                     {s.label}
                   </option>
                 ))}
               </select>
-              {wa && (
+              {shareOpen(l) && wa && (
                 <a
                   href={`https://wa.me/${wa}?text=${encodeURIComponent(
                     `Merhaba ${customer.name?.split(" ")[0] || ""}, aradığınız kriterlere uyan bir ev buldum:\n\n${buyerListingShareText(l)}\n\nGörmek isterseniz gösterim için gün ayarlayalım.`,
@@ -463,32 +546,34 @@ export function BuyerListings({
               )}
               {/* Dış evi gösterirken de alıcı tarafının hizmet bedelini korur:
                   "aracılığımız olmadan satın alırsa" - karşı emlakçı üzerinden de olsa. */}
-              <button
-                type="button"
-                style={{ fontSize: 12 }}
-                onClick={() => {
-                  const ok = printShowingDocument({
-                    text: buildShowingDocumentText({
-                      company: companySettings,
-                      realEstateSettings: companySettings?.realEstateSettings,
-                      property: { ...l, transactionType: l.transactionType || "satilik" },
-                      customer,
-                      showing: {
-                        shownAt: l.shownAt || new Date().toISOString(),
-                        method: "yerinde",
-                      },
-                      agentName,
-                    }),
-                    logoUrl: companySettings?.logoUrl,
-                  });
-                  if (ok && ["bulundu", "gonderildi"].includes(l.status))
-                    setStatus(l, "gosterildi");
-                }}
-                title="Gösterimden önce alıcıya imzalatın - ev başka emlakçının olsa da alıcı tarafının hizmet bedelini korur"
-              >
-                Yer gösterme belgesi
-              </button>
-              {onStartSharedDeal && l.status !== "elendi" && (
+              {shareOpen(l) && (
+                <button
+                  type="button"
+                  style={{ fontSize: 12 }}
+                  onClick={() => {
+                    const ok = printShowingDocument({
+                      text: buildShowingDocumentText({
+                        company: companySettings,
+                        realEstateSettings: companySettings?.realEstateSettings,
+                        property: { ...l, transactionType: l.transactionType || "satilik" },
+                        customer,
+                        showing: {
+                          shownAt: l.shownAt || new Date().toISOString(),
+                          method: "yerinde",
+                        },
+                        agentName,
+                      }),
+                      logoUrl: companySettings?.logoUrl,
+                    });
+                    if (ok && ["bulundu", "gonderildi"].includes(l.status))
+                      setStatus(l, "gosterildi");
+                  }}
+                  title="Gösterimden önce alıcıya imzalatın - ev başka emlakçının olsa da alıcı tarafının hizmet bedelini korur"
+                >
+                  Yer gösterme belgesi
+                </button>
+              )}
+              {onStartSharedDeal && shareOpen(l) && l.status !== "elendi" && (
                 <button
                   type="button"
                   style={{ fontSize: 12 }}

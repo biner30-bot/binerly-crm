@@ -77,6 +77,7 @@ AS $function$
         from buyer_listings b
         where b.customer_id = c.id and b.deleted_at is null
           and b.status in ('gonderildi', 'gosterildi', 'begendi')
+          and b.share_status = 'acik'
       )
     ) as x
     from customers c
