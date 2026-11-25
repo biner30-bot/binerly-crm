@@ -5089,6 +5089,20 @@ export default function CustomerPortal() {
                     overview={emlakData}
                     companyName={activeCustomerRow.companyName}
                     onSendMessage={sendChatMessage}
+                    onSaveDemand={async (fields) => {
+                      const id = activeCustomerRow.id;
+                      const { data, error } = await supabase.rpc("portal_set_my_demand", {
+                        p_customer_id: id,
+                        p_fields: fields,
+                      });
+                      if (error) {
+                        notify("Kaydedilemedi, lütfen tekrar deneyin.");
+                        return false;
+                      }
+                      setEmlakOverview((prev) => ({ ...prev, [id]: { ...prev[id], talep: data } }));
+                      notify("Aradığınız ev kaydedildi - danışmanınız da görecek.", "success");
+                      return true;
+                    }}
                     notify={notify}
                   />
                 )}

@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Badge, formatTL } from "./shared";
 import { matchEmlakListing } from "./Sectors";
 import {
+  ROOM_COUNT_OPTIONS,
+  TALEP_URGENCY_OPTIONS,
   authorizationStatus,
   propertyAsListingDeal,
   propertyStatusMeta,
@@ -51,7 +53,146 @@ const hasDemand = (t) =>
       (t.aranan_oda_sayisi && t.aranan_oda_sayisi !== "Farketmez"))
   );
 
-export function PortalHomes({ overview, companyName, onSendMessage, notify }) {
+// Müşterinin aradığı evi kendisinin güncellemesi (portal_set_my_demand - sadece
+// talep anahtarları yazılır). Kaydedince uygun evler listesi hemen değişir.
+function DemandForm({ talep, onSave, onClose }) {
+  const [f, setF] = useState(() => ({
+    aranan_islem: talep.aranan_islem || "",
+    aranan_bolge: talep.aranan_bolge || "",
+    min_butce: talep.min_butce ?? "",
+    max_butce: talep.max_butce ?? "",
+    aranan_oda_sayisi: talep.aranan_oda_sayisi || "",
+    talep_m2_min: talep.talep_m2_min ?? "",
+    talep_m2_max: talep.talep_m2_max ?? "",
+    talep_aciliyet: talep.talep_aciliyet || "",
+  }));
+  const [saving, setSaving] = useState(false);
+  const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+  const lbl = { fontSize: 12.5, color: "var(--text-secondary)", display: "block", marginBottom: 4 };
+  const cell = { flex: "1 1 150px" };
+  const numOrEmpty = (v) => (v === "" || v == null ? "" : Number(v));
+  return (
+    <div style={{ ...card, background: "var(--surface-2, var(--surface-1))" }}>
+      <p style={{ fontWeight: 700, margin: "0 0 10px" }}>Aradığım ev</p>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+        <div style={cell}>
+          <label style={lbl}>Satın almak mı, kiralamak mı?</label>
+          <select value={f.aranan_islem} onChange={set("aranan_islem")} style={{ width: "100%" }}>
+            <option value="">Seçiniz</option>
+            <option>Satış</option>
+            <option>Kiralama</option>
+          </select>
+        </div>
+        <div style={{ flex: "2 1 220px" }}>
+          <label style={lbl}>Bölge / mahalle (virgülle birden fazla)</label>
+          <input
+            value={f.aranan_bolge}
+            onChange={set("aranan_bolge")}
+            placeholder="ör. Bostanlı, Atakent"
+            style={{ width: "100%" }}
+          />
+        </div>
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+        <div style={cell}>
+          <label style={lbl}>En az bütçe (TL)</label>
+          <input
+            type="number"
+            min="0"
+            value={f.min_butce}
+            onChange={set("min_butce")}
+            style={{ width: "100%" }}
+          />
+        </div>
+        <div style={cell}>
+          <label style={lbl}>En fazla bütçe (TL)</label>
+          <input
+            type="number"
+            min="0"
+            value={f.max_butce}
+            onChange={set("max_butce")}
+            style={{ width: "100%" }}
+          />
+        </div>
+        <div style={cell}>
+          <label style={lbl}>Oda sayısı</label>
+          <select
+            value={f.aranan_oda_sayisi}
+            onChange={set("aranan_oda_sayisi")}
+            style={{ width: "100%" }}
+          >
+            <option value="">Seçiniz</option>
+            {[...ROOM_COUNT_OPTIONS, "Farketmez"].map((o) => (
+              <option key={o}>{o}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+        <div style={cell}>
+          <label style={lbl}>En az m²</label>
+          <input
+            type="number"
+            min="0"
+            value={f.talep_m2_min}
+            onChange={set("talep_m2_min")}
+            style={{ width: "100%" }}
+          />
+        </div>
+        <div style={cell}>
+          <label style={lbl}>En fazla m²</label>
+          <input
+            type="number"
+            min="0"
+            value={f.talep_m2_max}
+            onChange={set("talep_m2_max")}
+            style={{ width: "100%" }}
+          />
+        </div>
+        <div style={cell}>
+          <label style={lbl}>Ne zaman?</label>
+          <select
+            value={f.talep_aciliyet}
+            onChange={set("talep_aciliyet")}
+            style={{ width: "100%" }}
+          >
+            <option value="">Seçiniz</option>
+            {TALEP_URGENCY_OPTIONS.map((o) => (
+              <option key={o}>{o}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <button type="button" onClick={onClose}>
+          Vazgeç
+        </button>
+        <button
+          type="button"
+          disabled={saving}
+          onClick={async () => {
+            setSaving(true);
+            const ok = await onSave({
+              ...f,
+              min_butce: numOrEmpty(f.min_butce),
+              max_butce: numOrEmpty(f.max_butce),
+              talep_m2_min: numOrEmpty(f.talep_m2_min),
+              talep_m2_max: numOrEmpty(f.talep_m2_max),
+            });
+            setSaving(false);
+            if (ok) onClose();
+          }}
+          style={{ background: "var(--fill-accent)", color: "var(--on-accent)", border: "none" }}
+        >
+          {saving ? "Kaydediliyor…" : "Kaydet"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function PortalHomes({ overview, companyName, onSendMessage, onSaveDemand, notify }) {
+  const [editingDemand, setEditingDemand] = useState(false);
   const { loading, listings } = useVitrinListings(overview?.vitrin_token);
   const hiddenKey = `portal_hidden_homes_${overview?.customer_id}`;
   const [hidden, setHidden] = useState(() => {
@@ -111,6 +252,15 @@ export function PortalHomes({ overview, companyName, onSendMessage, notify }) {
           ? 'Aradığınız bölge, bütçe ve özelliklere uyan güncel ilanlar. Beğendiğiniz evde "İlgileniyorum"a basın, danışmanınız sizi arayıp gösterim için gün ayarlasın.'
           : "Danışmanınızın güncel ilanları. Aradığınız evi anlatırsanız (bölge, bütçe, oda) size uyanlar öne çıkar."}
       </p>
+      {onSaveDemand &&
+        (editingDemand ? (
+          <DemandForm talep={talep} onSave={onSaveDemand} onClose={() => setEditingDemand(false)} />
+        ) : (
+          <button type="button" style={{ marginBottom: 14 }} onClick={() => setEditingDemand(true)}>
+            <i className="ti ti-adjustments" aria-hidden="true" />{" "}
+            {demand ? "Aradığım evi güncelle" : "Aradığım evi anlat"}
+          </button>
+        ))}
       {loading ? (
         <p style={{ fontSize: 13, color: "var(--text-muted)" }}>İlanlar yükleniyor…</p>
       ) : visible.length === 0 ? (
