@@ -702,6 +702,23 @@ export function propertyShareText(p, link) {
     .join("\n");
 }
 
+// İşletme adı danışmanın adıyla başlıyorsa ("Danyel Biner Startkey Artı
+// Gayrimenkul") raporda ad iki kez yazıyordu (kartta ad + altında işletme adı):
+// danışman adı baştan atılır, sadece ofis adı kalır. Başka biçimde dokunulmaz.
+export function officeNameWithoutAgent(companyName, agentName) {
+  const office = String(companyName || "").trim();
+  const agent = String(agentName || "").trim();
+  if (!office || !agent) return office;
+  const lc = (s) => s.toLocaleLowerCase("tr");
+  if (!lc(office).startsWith(lc(agent))) return office;
+  const rest = office
+    .slice(agent.length)
+    .replace(/^[\s\-–|,:/]+/, "")
+    .trim();
+  // "Danyel Biner Emlak" -> tek başına "Emlak" anlamsız: en az iki kelime kalmalı.
+  return rest.split(/\s+/).length >= 2 ? rest : office;
+}
+
 // Vitrinde yayınlanan portföyün doğrudan açılan bağlantısı (?ilan=).
 export function propertyShowcaseUrl(p, companySettings) {
   const scope = companySettings?.showcaseSlug || companySettings?.leadCaptureToken;

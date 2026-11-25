@@ -6,6 +6,7 @@
 import { formatTL } from "./shared";
 import { isValidLocation, mapsUrl, streetViewUrl } from "./geo";
 import { ageStats, kfeSeriesForCity } from "./priceEstimate";
+import { officeNameWithoutAgent } from "./realEstate";
 
 const esc = (s) =>
   String(s ?? "")
@@ -120,7 +121,7 @@ export function buildValuationReportHtml({
     subject.address?.parcelNo || property?.parcelNo,
   ].filter(Boolean);
   const r = result.region;
-  const office = companySettings?.companyName || "";
+  const office = officeNameWithoutAgent(companySettings?.companyName, agent?.name);
   const today = new Date().toLocaleDateString("tr-TR");
   const location = [subject.neighborhood, subject.district, subject.city]
     .filter(Boolean)

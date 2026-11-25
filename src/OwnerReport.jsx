@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { InfoTip, toWhatsAppNumber, WhatsAppIcon } from "./shared";
-import { SHOWING_INTEREST } from "./realEstate";
+import { SHOWING_INTEREST, officeNameWithoutAgent } from "./realEstate";
 import { findRegion } from "./priceEstimate";
 
 // Mal sahibine dönemsel durum raporu. Yetkiyi elde tutmanın asıl yolu mal
@@ -84,7 +84,9 @@ export function buildOwnerReportText({
     );
   }
   lines.push("");
-  lines.push([agentName, companyName].filter(Boolean).join(" - "));
+  lines.push(
+    [agentName, officeNameWithoutAgent(companyName, agentName)].filter(Boolean).join(" - "),
+  );
   if (agentPhone) lines.push(agentPhone);
   return lines.join("\n");
 }

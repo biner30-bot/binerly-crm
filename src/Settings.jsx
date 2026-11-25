@@ -15,7 +15,7 @@ import { SECTOR_PRESETS, STAGES, stageLabel, dealWordKind, bookingModel } from "
 import { DEAL_WORD_FORMS } from "./staticData";
 import { REAL_ESTATE_SETTING_DEFAULTS, resolveRealEstateSettings, serviceFee } from "./realEstate";
 const COMPANY_NAME_EXAMPLES = {
-  emlak: "Ahmet Akın - Akın Gayrimenkul",
+  emlak: "Akın Gayrimenkul",
   dijital_ajans: "Akın Dijital Ajans",
   saglik_klinik: "Akın Sağlık Merkezi",
   uretim_satis: "Akın Tekstil",
@@ -232,8 +232,8 @@ export function CompanySettingsForm({
         />
         {isRealEstate && (
           <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>
-            Öneri: önce adınız soyadınız, sonra ofisiniz. Müşteri sizi kişi olarak tanır, ofis
-            logoda zaten görünür.
+            Ofisinizin adını yazın. Adınız, telefonunuz ve fotoğrafınız raporlarda "Danışmanınız"
+            kartında ayrıca görünür (Profil ayarlarından).
           </p>
         )}
       </div>
