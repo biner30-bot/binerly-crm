@@ -181,7 +181,7 @@ export function CompanySettingsForm({
     }
     const { data } = supabase.storage.from("logos").getPublicUrl(path);
     setLogoUrl(data.publicUrl);
-    if (cleaned) notify("Logonun beyaz arka planı kaldırıldı.", "success");
+    if (cleaned) notify("Logonun arka planı şeffaf yapıldı.", "success");
   };
 
   return (
@@ -379,8 +379,8 @@ export function CompanySettingsForm({
             checked={cleanLogoBg}
             onChange={(e) => setCleanLogoBg(e.target.checked)}
           />
-          Yüklerken beyaz arka planı kaldır
-          <InfoTip text="Logonuzun etrafındaki beyaz zemin şeffaf yapılır, böylece sayfanın rengine uyum sağlar. Logonun içindeki beyaz alanlar korunur. Sonuçtan memnun kalmazsanız bu kutuyu kaldırıp logoyu tekrar yükleyin." />
+          Yüklerken açık renkli arka planı kaldır
+          <InfoTip text="Logonun etrafındaki düz, açık renkli zemin (beyaz, krem, açık gri) şeffaf yapılır; böylece logo her sayfanın rengine uyar. Logonun içindeki aynı renkli alanlar korunur. Koyu zeminli veya fotoğraflı logolara dokunulmaz. Sonuçtan memnun kalmazsanız bu kutuyu kaldırıp logoyu tekrar yükleyin." />
         </label>
       </div>
       <div style={{ marginBottom: 16 }}>
